@@ -61,11 +61,10 @@ void main() {
       // The message itself is rendered a second time, sharp, above the blur.
       expect(find.textContaining('focus me'), findsNWidgets(2));
 
-      // ...with its information as a card.
-      expect(find.text('Message Details'), findsOneWidget);
+      // ...with its information as a card of meta chips plus actions.
+      expect(find.byType(MessageFocusCard), findsOneWidget);
       expect(find.text('claude-opus-5'), findsOneWidget);
       expect(find.text('default'), findsOneWidget);
-      expect(find.byType(MessageFocusCard), findsOneWidget);
       expect(find.text('Select text'), findsOneWidget);
       expect(find.text('Copy'), findsOneWidget);
     });
@@ -195,7 +194,8 @@ void main() {
       expect(_blurLayer(), findsOneWidget);
       expect(find.byType(MessageFocusCard), findsOneWidget);
       expect(find.text('sending'), findsOneWidget);
-      expect(find.text('Sent'), findsOneWidget);
+      // createdAt is November 2023, rendered as an absolute date chip.
+      expect(find.textContaining('2023'), findsOneWidget);
     });
   });
 }

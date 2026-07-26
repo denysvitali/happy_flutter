@@ -26,11 +26,19 @@ import 'message_detail_sheet.dart';
 // Both are laid out at the same width, so the entrance animation is a pure
 // vertical translation from where the finger is to the focused position.
 
-/// Peak blur sigma applied to the conversation behind the focused message.
-const double _kFocusBlurSigma = 22;
+/// Blur sigma applied to the conversation behind the focused message.
+const double _kFocusBlurSigma = 20;
 
 /// Scrim alpha at rest, over the blur.
-const double _kFocusScrimAlpha = 0.34;
+const double _kFocusScrimAlpha = 0.30;
+
+/// Built once: an ImageFilter rebuilt per frame makes the engine resample
+/// the backdrop mid-animation, which showed up as a black band.
+final ui.ImageFilter _blurFilter = ui.ImageFilter.blur(
+  sigmaX: _kFocusBlurSigma,
+  sigmaY: _kFocusBlurSigma,
+  tileMode: TileMode.clamp,
+);
 
 /// Gap between the focused message and its details card.
 const double _kFocusGap = AppSpacing.lg;
@@ -161,10 +169,18 @@ class _MessageFocusOverlayState extends State<MessageFocusOverlay> {
   double get _progress =>
       Curves.easeOutCubic.transform(widget.animation.value.clamp(0.0, 1.0));
 
+  /// Tint painted over the blur. A light theme frosts toward its own
+  /// surface, a dark theme deepens toward the scrim, so the conversation
+  /// stays faintly readable instead of going flat black.
+  Color _scrimBase(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.brightness == Brightness.dark
+        ? theme.colorScheme.scrim
+        : theme.colorScheme.surface;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
     return Semantics(
       container: true,
       label: 'Focused message',
@@ -175,21 +191,25 @@ class _MessageFocusOverlayState extends State<MessageFocusOverlay> {
           children: [
             // Frosted conversation behind: the route is non-opaque, so the
             // chat below is still painted and can be blurred in place.
+            //
+            // The filter itself is a single stable object inside an explicit
+            // ClipRect: rebuilding an ImageFilter per frame (ramping sigma
+            // from 0) made the engine sample outside the backdrop and left a
+            // hard-edged black band over part of the screen. Only the tint
+            // animates now, and TileMode.clamp keeps edge samples opaque.
             Positioned.fill(
-              child: AnimatedBuilder(
-                animation: widget.animation,
-                builder: (context, _) {
-                  final t = _progress;
-                  return BackdropFilter(
-                    filter: ui.ImageFilter.blur(
-                      sigmaX: _kFocusBlurSigma * t,
-                      sigmaY: _kFocusBlurSigma * t,
+              child: ClipRect(
+                child: BackdropFilter(
+                  filter: _blurFilter,
+                  child: AnimatedBuilder(
+                    animation: widget.animation,
+                    builder: (context, _) => ColoredBox(
+                      color: _scrimBase(context).withValues(
+                        alpha: _kFocusScrimAlpha * _progress,
+                      ),
                     ),
-                    child: ColoredBox(
-                      color: cs.scrim.withValues(alpha: _kFocusScrimAlpha * t),
-                    ),
-                  );
-                },
+                  ),
+                ),
               ),
             ),
             Positioned.fill(
@@ -281,7 +301,6 @@ class _MessageFocusOverlayState extends State<MessageFocusOverlay> {
             messageData: widget.messageData,
             onCopy: () => _dismiss(_FocusFollowUp.copy),
             onSelectText: () => _dismiss(_FocusFollowUp.selectText),
-            onClose: _dismiss,
           ),
         ),
       ),
@@ -290,13 +309,16 @@ class _MessageFocusOverlayState extends State<MessageFocusOverlay> {
 }
 
 /// Details + actions card shown under a focused message.
+///
+/// Deliberately low-chrome: the message above it is the subject, so the
+/// card is one line of meta chips over a row of actions — no title bar and
+/// no close button (tapping anywhere outside dismisses).
 @visibleForTesting
 class MessageFocusCard extends StatelessWidget {
   const MessageFocusCard({
     required this.text,
     required this.onCopy,
     required this.onSelectText,
-    required this.onClose,
     this.messageData,
     super.key,
   });
@@ -305,7 +327,6 @@ class MessageFocusCard extends StatelessWidget {
   final Map<String, dynamic>? messageData;
   final VoidCallback onCopy;
   final VoidCallback onSelectText;
-  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -325,30 +346,17 @@ class MessageFocusCard extends StatelessWidget {
     final sendStatus = data?['sendStatus'] as String?;
     final messageId = data?['id']?.toString();
 
-    final rows = <Widget>[
+    final chips = <Widget>[
       if (model != null)
-        MessageInfoRow(
-          icon: Icons.auto_awesome_outlined,
-          label: l10n.messageDetailModel,
-          value: model,
-        ),
+        _MetaChip(icon: Icons.auto_awesome_outlined, label: model),
       if (permissionMode != null)
-        MessageInfoRow(
-          icon: Icons.shield_outlined,
-          label: l10n.messageDetailPermission,
-          value: permissionMode,
-        ),
-      if (createdAt != null)
-        MessageInfoRow(
-          icon: Icons.access_time_outlined,
-          label: l10n.messageDetailSent,
-          value: formatMessageTimestamp(createdAt, DateTime.now()),
-        ),
+        _MetaChip(icon: Icons.shield_outlined, label: permissionMode),
       if (sendStatus != null)
-        MessageInfoRow(
-          icon: Icons.send_outlined,
-          label: l10n.messageDetailStatus,
-          value: sendStatus,
+        _MetaChip(icon: Icons.send_outlined, label: sendStatus),
+      if (createdAt != null)
+        _MetaChip(
+          icon: Icons.access_time_outlined,
+          label: formatMessageTimestamp(createdAt, DateTime.now()),
         ),
     ];
 
@@ -374,59 +382,33 @@ class MessageFocusCard extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.md,
                 AppSpacing.md,
                 AppSpacing.sm,
-                AppSpacing.xs,
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.messageDetailDetails,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+              child: chips.isEmpty
+                  ? Text(
+                      l10n.messageDetailNoDetails,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
                       ),
+                    )
+                  : Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: chips,
                     ),
-                  ),
-                  IconButton(
-                    onPressed: onClose,
-                    visualDensity: VisualDensity.compact,
-                    tooltip: l10n.commonClose,
-                    icon: Icon(
-                      Icons.close_rounded,
-                      size: 18,
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
             ),
-            if (rows.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                  vertical: AppSpacing.sm,
-                ),
-                child: Text(
-                  l10n.messageDetailNoDetails,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              )
-            else
-              ...rows,
             Divider(
-              height: AppSpacing.lg,
+              height: 1,
+              thickness: 1,
               color: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                0,
-                AppSpacing.md,
-                AppSpacing.md,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xs,
               ),
               child: Row(
                 children: [
@@ -461,7 +443,48 @@ class MessageFocusCard extends StatelessWidget {
   }
 }
 
-/// Square icon-over-label action button used in the focus card.
+/// Small pill showing one piece of message metadata.
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: cs.onSurface.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xxs + 1,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: cs.onSurfaceVariant),
+            const SizedBox(width: AppSpacing.xxs + 2),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Icon-over-label action button used in the focus card's action row.
 class _FocusAction extends StatelessWidget {
   const _FocusAction({
     required this.icon,
@@ -486,18 +509,18 @@ class _FocusAction extends StatelessWidget {
       label: label,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            minHeight: AppTouchTarget.comfortable,
+            minHeight: AppTouchTarget.min,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 20, color: color),
-                const SizedBox(height: AppSpacing.xxs),
+                Icon(icon, size: 19, color: color),
+                const SizedBox(height: 3),
                 Text(
                   label,
                   maxLines: 1,
