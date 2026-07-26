@@ -382,13 +382,7 @@ extension SyncSocketEvents on Sync {
 
     // Recreate per-session sync lazily for the visible session if needed.
     if (!messagesSync.containsKey(sessionId) && isVisible) {
-      messagesSync[sessionId] = InvalidateSync(
-        () => fetchMessages(sessionId),
-        minInterval: Sync._messagesSyncMinInterval,
-        name: 'fetchMessages',
-        onRunningChanged: _onSyncRunningChanged,
-        maxRetries: 0,
-      );
+      messagesSync[sessionId] = _createMessagesSync(sessionId);
     }
 
     // Deduplicate ALL socket events, not just visible ones.  The server

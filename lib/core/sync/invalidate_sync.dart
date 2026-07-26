@@ -58,6 +58,9 @@ class InvalidateSync {
   /// needing a reference to the Sync singleton.
   static bool isBackgrounded = false;
 
+  /// How many times a failed action is retried before giving up.
+  int get maxRetries => _maxRetries;
+
   /// Whether a sync action is currently executing.
   bool get isRunning => _running;
 

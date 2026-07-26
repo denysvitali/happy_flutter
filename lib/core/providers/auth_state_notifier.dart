@@ -26,6 +26,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
   String? _pendingDeepLink;
   String? _activeDeepLink;
   OnTokenRefreshFailed? _tokenRefreshFailedListener;
+  bool _reauthCheckInFlight = false;
 
   @override
   AuthState build() {
@@ -44,17 +45,55 @@ class AuthStateNotifier extends Notifier<AuthState> {
   }
 
   void _handleTokenRefreshFailed() {
+    if (_reauthCheckInFlight) return;
+    _reauthCheckInFlight = true;
     logger.warning(
       'AuthStateNotifier: token rejected by server - '
       're-verifying credentials',
     );
-    // Re-check authentication after the server rejected the token.
-    // This runs while the user is mid-session, so it must NOT flip the
-    // state to `authenticating`: AuthGate swaps the whole subtree to the
-    // "checking sign-in" view for that state, which unmounts the chat
-    // screen and throws away the composer's staged input. Stay on the
-    // current state until the check produces a verdict.
-    unawaited(checkAuth(showProgress: false));
+    unawaited(_verifyAfterRejection());
+  }
+
+  /// Re-verifies the stored token after the server rejected it.
+  ///
+  /// Must go through [AuthService.getAuthState] (which calls
+  /// `/v1/auth/verify` and signs out on rejection) and NOT through
+  /// [checkAuth]: checkAuth only reads the credentials off disk, so a
+  /// revoked token left the state `authenticated` forever while its
+  /// sync invalidations 401'd in a loop.
+  ///
+  /// This runs while the user is mid-session, so it must NOT flip the
+  /// state to `authenticating`: AuthGate swaps the whole subtree to the
+  /// "checking sign-in" view for that state, which unmounts the chat
+  /// screen and throws away the composer's staged input. The state only
+  /// changes once the verification has a verdict.
+  Future<void> _verifyAfterRejection() async {
+    try {
+      final verdict = await _authService.getAuthState();
+      if (verdict == AuthState.unauthenticated) {
+        // getAuthState() already cleared the credentials; tear down the
+        // synced state the same way an explicit signOut() would.
+        logger.warning(
+          'AuthStateNotifier: stored token is no longer valid - '
+          'signing out',
+        );
+        await syncShutdown();
+        AppLifecycleService.clearAll(ref);
+        Sentry.configureScope((scope) => scope.setUser(null));
+        state = AuthState.unauthenticated;
+      } else if (verdict == AuthState.authenticated) {
+        // Transport/server blip on the failing request, token still good.
+        state = AuthState.authenticated;
+      }
+      // AuthState.error: the verification itself could not reach a verdict
+      // (network failure). Keep the current state and let the next 401 or
+      // the next foreground check retry.
+    } catch (e, stack) {
+      logger.error('AuthStateNotifier: re-auth verification failed', e, stack);
+      unawaited(Sentry.captureException(e, stackTrace: stack));
+    } finally {
+      _reauthCheckInFlight = false;
+    }
   }
 
   void beginAuthCheck() {

@@ -82,6 +82,16 @@ void main() {
             'a stalled page must be retried by InvalidateSync — the HTTP '
             'layer cannot retry it (disableRetry: true)',
       );
+      // The assertion above is satisfied by the probe path on its own, so
+      // pin the retry budget itself: `maxRetries: 0` would silently remove
+      // the only recovery layer message pages have.
+      expect(
+        messagesSync.maxRetries,
+        greaterThanOrEqualTo(1),
+        reason:
+            'messagesSync must be built with a non-zero maxRetries — the '
+            'page requests opt out of the HTTP retry interceptor',
+      );
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );

@@ -464,13 +464,7 @@ extension SyncLifecycle on Sync {
         if (sessionsToRefresh.isNotEmpty) {
           for (final sessionId in sessionsToRefresh) {
             if (!messagesSync.containsKey(sessionId)) {
-              messagesSync[sessionId] = InvalidateSync(
-                () => fetchMessages(sessionId),
-                minInterval: Sync._messagesSyncMinInterval,
-                name: 'fetchMessages',
-                onRunningChanged: _onSyncRunningChanged,
-                maxRetries: 0,
-              );
+              messagesSync[sessionId] = _createMessagesSync(sessionId);
             }
           }
 
@@ -692,13 +686,7 @@ extension SyncLifecycle on Sync {
             _requestTailRefresh(sessionId);
           }
           if (!messagesSync.containsKey(sessionId)) {
-            messagesSync[sessionId] = InvalidateSync(
-              () => fetchMessages(sessionId),
-              minInterval: Sync._messagesSyncMinInterval,
-              name: 'fetchMessages',
-              onRunningChanged: _onSyncRunningChanged,
-              maxRetries: 0,
-            );
+            messagesSync[sessionId] = _createMessagesSync(sessionId);
           }
           _sessionsNeedingFetchProbe.add(sessionId);
           messagesSync[sessionId]?.invalidate();
