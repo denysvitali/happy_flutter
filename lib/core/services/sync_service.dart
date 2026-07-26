@@ -183,9 +183,31 @@ class Sync {
   static const int _backgroundMessageFetchPageLimit = 1;
   static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;
   static const int _maxBackgroundSessionMessages = 200;
+  /// Bounds only the TCP+TLS handshake, not the transfer. A healthy mobile
+  /// connection establishes in well under a second, so 8 s still fails fast
+  /// on a black-holed route.
   static const Duration _messageFetchConnectTimeout = Duration(seconds: 8);
-  static const Duration _messageFetchReceiveTimeout = Duration(seconds: 8);
-  static const Duration _messageSendTimeout = Duration(seconds: 8);
+
+  /// Budget for receiving a message page body.
+  ///
+  /// Was 8 s, copied from the connect timeout above. That number bounds a
+  /// handshake, not a body: production traces show the server producing a
+  /// page in 94.8 ms and the client aborting at 8.14 s — the whole 8 s was
+  /// transfer of a ~1.5 MB payload, which needs ~1.5 Mbit/s sustained to
+  /// fit. 30 s covers the same page at ~400 kbit/s.
+  ///
+  /// Raising this only trades an error for a stall if the page has no
+  /// recovery path; it does now ([_messagesSyncMaxRetries]). Worst case for
+  /// one page is 30 s + 1 s backoff + 30 s, and the chat screen never blocks
+  /// on it — it awaits the sync queue with its own short UI cap.
+  static const Duration _messageFetchReceiveTimeout = Duration(seconds: 30);
+
+  /// Budget for a message send round-trip. Also inherited from the 8 s
+  /// connect timeout. A send carries the user's whole prompt (attachments
+  /// included) and its response is small, so the risk profile is the
+  /// opposite of a page fetch: giving up early strands a message the server
+  /// may well have accepted. 20 s.
+  static const Duration _messageSendTimeout = Duration(seconds: 20);
 
   /// Default throttle between consecutive orphan-recovery fetchOlder
   /// attempts. Reduced from 60s to 15s so users see recovery within
@@ -203,13 +225,24 @@ class Sync {
   /// (parent Tasks 10k-50k seqs behind the loaded window) can
   /// recover. Once the budget is exhausted and orphans persist, the
   /// sidechain messages render inline.
-  static const int _orphanFetchOlderMaxPageSequences = 50 * 500;
+  static const int _orphanFetchOlderMaxPageSequences = 25000;
 
-  /// Number of pages (×500 seqs/page) per aggressive walk-back phase
-  /// before falling back to the standard throttle. Aggressive mode
-  /// tracks pages consumed, not attempts; after this many pages
-  /// without resolution, switch to throttled mode.
-  static const int _orphanPageSequencesPerAggressiveAttempt = 5;
+  /// Seq range the aggressive (lightly-throttled) walk-back phase may
+  /// cover before falling back to the standard throttle.
+  ///
+  /// Expressed in sequences rather than pages so it is independent of
+  /// [_orphanFetchOlderPageSize]: shrinking the page must not shrink how
+  /// far back the aggressive phase can reach.
+  static const int _orphanAggressiveWalkbackSequences = 2500;
+
+  /// Floor between two consecutive walk-back pages in aggressive mode.
+  ///
+  /// Aggressive mode previously ran with no throttle at all, so the first
+  /// pages fired back-to-back — in production that meant several ~1.5 MB
+  /// requests in a row, every one of them discarded by the visible-cap trim.
+  /// A 1 s floor keeps recovery fast without letting it monopolise the
+  /// connection.
+  static const int _orphanFetchOlderAggressiveFloorMs = 1000;
 
   /// Per-page fetch size for [/v3/sessions/:id/messages].
   ///
@@ -227,14 +260,52 @@ class Sync {
   /// CanvasKit memory spikes while decrypting and rendering large sessions.
   static const int _messageFetchPageSize = kIsWeb ? 100 : 200;
   static const int _olderMessagePageSize = 100;
-  static const int _orphanFetchOlderPageSize = 500;
+
+  /// Per-page fetch size for the automatic orphan-recovery walk-back.
+  ///
+  /// Was 500 — the only call site in the app that asked for that many rows.
+  /// On sessions with large encrypted payloads (~7.6 KB/row observed) that is
+  /// ~1.5 MB per request, which needs ~1.2 Mbit/s sustained to fit the
+  /// per-page timeout; production traces show these requests timing out
+  /// client-side at 8.1 s while the server had produced the body in 94.8 ms.
+  ///
+  /// The walk-back's reach is budgeted in *sequences*
+  /// ([_orphanFetchOlderMaxPageSequences] and
+  /// [_orphanAggressiveWalkbackSequences]), not pages, so a smaller page
+  /// costs more round-trips but covers exactly the same seq range.
+  static const int _orphanFetchOlderPageSize = 100;
+
+  /// [_orphanFetchOlderPageSize], exposed so walk-back contract tests size
+  /// their seq windows from the real constant instead of a stale literal.
+  @visibleForTesting
+  static const int orphanFetchOlderPageSizeForTesting =
+      _orphanFetchOlderPageSize;
+
+  /// [_maxVisibleSessionMessages], exposed so walk-back contract tests can
+  /// build a session that is exactly at the trim cap.
+  @visibleForTesting
+  static const int maxVisibleSessionMessagesForTesting =
+      _maxVisibleSessionMessages;
+
+  /// [_maxBackgroundSessionMessages], exposed so merge tests can drive the
+  /// trim without hard-coding the cap.
+  @visibleForTesting
+  static const int maxBackgroundSessionMessagesForTesting =
+      _maxBackgroundSessionMessages;
 
   /// Soft budget for a single [fetchMessages] cycle.  When the elapsed
   /// time exceeds this, we stop crawling forward pages and let the
   /// next invalidate-cycle resume from the advanced cursor.  Any
   /// already-merged messages stay in memory, so the user sees the
   /// freshest tail load even if a slow server tries to bury us.
-  static const Duration _messageFetchBudget = Duration(seconds: 15);
+  ///
+  /// Must leave room for more than one page, otherwise the crawl is
+  /// guaranteed to defer after every single page and a session with a real
+  /// backlog only advances one page per invalidate-cycle. At 15 s it was
+  /// already below [_messageFetchReceiveTimeout], so a single slow page
+  /// blew the whole budget; 40 s fits a handful of healthy pages while
+  /// still capping how long one session can pin the fetcher.
+  static const Duration _messageFetchBudget = Duration(seconds: 40);
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
   static const Duration _sessionListMachineRefreshDelay = Duration(
     milliseconds: 800,
@@ -320,6 +391,26 @@ what you have, you must use the options mode.
 
   /// Sessions currently being paginated backwards (older-message loads).
   final Set<String> _loadingOlderMessages = {};
+
+  /// Sessions whose history has been paginated all the way back to seq 0.
+  ///
+  /// [_sessionFirstLoadedSeq] has two writers that disagree about what it
+  /// means: `fetchOlderMessages` treats it as "oldest seq ever fetched" and
+  /// writes 0 when it reaches the beginning, while `_ensureFirstLoadedSeq`
+  /// treats it as "oldest seq currently in memory" and re-arms it from the
+  /// in-memory minimum whenever it is 0 or null.
+  ///
+  /// Without this marker the two writers form a loop driven purely by tail
+  /// traffic: walk back to 0 -> a new tail message arrives -> the newest-N
+  /// trim in `_upsertSessionMessages` drops the oldest rows -> the in-memory
+  /// minimum rises -> `_ensureFirstLoadedSeq` writes a fresh non-zero
+  /// boundary -> `hasOlderMessages` flips back to true -> the orphan sweep
+  /// re-downloads history the client already had and discarded. Unbounded.
+  ///
+  /// Deliberately in-memory only: a restart restores full scroll-back for a
+  /// user who wants to page through the beginning again. Cleared when the
+  /// session is deleted.
+  final Set<String> _sessionsHistoryFullyLoaded = {};
 
   /// Sessions that received socket messages while non-visible.
   /// Used to force a server fetch (instead of stale cache restore) when
@@ -421,6 +512,13 @@ what you have, you must use the options mode.
   // Pending settings
   final Map<String, List<Map<String, dynamic>>> _sessionMessages = {};
   final Map<String, Map<String, String?>> _sessionContentSignatures = {};
+
+  /// Read-only view of the decrypt pre-filter's per-session signature map.
+  @visibleForTesting
+  Map<String, String?> testContentSignatures(String sessionId) =>
+      Map.unmodifiable(
+        _sessionContentSignatures[sessionId] ?? const <String, String?>{},
+      );
   Map<String, List<Map<String, dynamic>>>? _sessionMessagesCache;
 
   /// Cached preview metadata per session — avoids rescanning
@@ -545,7 +643,22 @@ what you have, you must use the options mode.
   /// `awaitQueue().then(...)`).
   Timer? _resumeConversationProgressSafetyTimer;
   static const int _resumeConversationProgressTimeoutMs = 30 * 1000;
-  static const Duration _resumeSessionsAwaitTimeout = Duration(seconds: 6);
+  /// How long resume waits for the sessions/messages sync queues to settle
+  /// before continuing anyway.
+  ///
+  /// Was 6 s, another descendant of the 8 s page-fetch number: it awaits a
+  /// whole sync *queue* (sessions refresh plus a batch of per-session
+  /// message fetches), not one HTTP page, so it was almost always tripping
+  /// and logging a false "resume refresh did not settle". 15 s covers a
+  /// normal resume batch on mobile without letting a wedged queue hold the
+  /// resume path open indefinitely.
+  static const Duration _resumeSessionsAwaitTimeout = Duration(seconds: 15);
+
+  /// [_resumeSessionsAwaitTimeout], exposed so resume-progress tests advance
+  /// fake time by the real budget instead of a stale literal.
+  @visibleForTesting
+  static const Duration resumeSessionsAwaitTimeoutForTesting =
+      _resumeSessionsAwaitTimeout;
   Timer? _sessionsRefreshDebounceTimer;
   Timer? _artifactsSyncDebounceTimer;
   final Set<String> _pendingNewSessionIds = <String>{};
@@ -849,6 +962,20 @@ what you have, you must use the options mode.
   /// Returns the active per-cycle budget, honoring any test override.
   Duration get _activeMessageFetchBudget =>
       testMessageFetchBudgetOverride ?? _messageFetchBudget;
+
+  /// Whether [sessionId] has been paginated back to seq 0, which pins
+  /// [_sessionFirstLoadedSeq] against re-arming. See
+  /// [_sessionsHistoryFullyLoaded].
+  @visibleForTesting
+  bool testHistoryFullyLoaded(String sessionId) =>
+      _sessionsHistoryFullyLoaded.contains(sessionId);
+
+  /// Drops the "history fully loaded" pin for [sessionId] so tests sharing
+  /// the [Sync] singleton stay isolated.
+  @visibleForTesting
+  void testClearHistoryFullyLoaded(String sessionId) {
+    _sessionsHistoryFullyLoaded.remove(sessionId);
+  }
 
   /// Override _typedMachineRPC for testing createSession and
   /// auto-restore without a real socket connection.
@@ -1549,6 +1676,24 @@ what you have, you must use the options mode.
   /// Prevents rapid-fire HTTP refetches when many socket events arrive
   /// in quick succession (e.g. during streaming).
   static const Duration _messagesSyncMinInterval = Duration(milliseconds: 500);
+
+  /// Retry budget for the per-session `messagesSync` [InvalidateSync].
+  ///
+  /// Message pages are fetched with `disableRetry: true` so the Dio
+  /// [RetryInterceptor] never sees them — a stuck page must not be retried
+  /// inside its own receive-timeout budget. That left message fetches with
+  /// zero retries at BOTH layers: a single transport stall permanently
+  /// discarded a page and the chat silently kept stale data until an
+  /// unrelated event re-invalidated the session.
+  ///
+  /// One InvalidateSync retry (1s + jitter, see [InvalidateSync.baseDelayMs])
+  /// restores a real recovery layer without reintroducing a retry storm:
+  /// the failure path now also stamps `_lastRunEnd`, so
+  /// [_messagesSyncMinInterval] throttles anything that follows.
+  ///
+  /// Every `messagesSync` instance must use this constant — grep for
+  /// `name: 'fetchMessages'` when adding a new construction site.
+  static const int _messagesSyncMaxRetries = 1;
 
   /// Extra cooldown for visible no-embed probes when the cursor has not
   /// advanced since the previous probe.

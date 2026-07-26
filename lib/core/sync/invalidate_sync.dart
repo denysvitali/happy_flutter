@@ -41,10 +41,15 @@ class InvalidateSync {
   // Exponential backoff configuration
   static const int baseDelayMs = 1000;
   static const int maxDelayMs = 5000;
-  // Reduced from 5 to 2: the Dio retry interceptor already handles 4
-  // retries at the HTTP layer, so 2 additional InvalidateSync retries
-  // (total 6) is sufficient.  Excessive retries prolong delivery delays
-  // and drain battery on mobile networks.
+  // Reduced from 5 to 2: for routes that go through the Dio retry
+  // interceptor (4 retries at the HTTP layer), 2 additional InvalidateSync
+  // retries (total 6) is sufficient.  Excessive retries prolong delivery
+  // delays and drain battery on mobile networks.
+  //
+  // CAUTION: routes that opt out with `extra: {'disableRetry': true}` — the
+  // message-page fetches in `_sync_messaging.dart` do — get NO HTTP-layer
+  // retry at all, so this class is their only recovery layer.  Never pass
+  // `maxRetries: 0` for those; see `Sync._messagesSyncMaxRetries`.
   static const int defaultMaxRetries = 2;
 
   /// Whether the app is currently backgrounded. When true, all InvalidateSync
@@ -248,6 +253,13 @@ class InvalidateSync {
         final operation = _currentOperation;
         _currentOperation = null;
         _setRunning(false);
+        // Stamp the run end on the failure path too.  Without this,
+        // [_minInterval] only throttles *successful* cycles: a run that
+        // exhausts its retries left _lastRunEnd at its previous value (often
+        // null), so the very next invalidate() started a fresh action
+        // immediately.  A failing endpoint therefore got hammered at the
+        // caller's invalidation rate instead of the configured minimum.
+        _lastRunEnd = DateTime.now();
         // IMPORTANT: Check _invalidated AFTER completing the error path.
         // If a new invalidation arrived during the retry storm, we must
         // start a fresh cycle rather than dropping it silently.
@@ -271,11 +283,13 @@ class InvalidateSync {
           operation.completeError(error);
         }
         // Start a fresh cycle if a new invalidation arrived during retry.
-        // Reset retry count since this is a new attempt with a clean slate.
+        // Re-enter through invalidate() (rather than calling _run directly)
+        // so the [_minInterval] cooldown stamped above is honoured — a
+        // failing endpoint must not be re-hit back-to-back.
         if (needsReinvalidate) {
           _retryCount = 0;
           _invalidated = false;
-          unawaited(_run(_runGeneration));
+          invalidate();
         }
       }
       return;
@@ -303,8 +317,17 @@ class InvalidateSync {
     if (_disposed) return;
 
     // Don't schedule retries if backgrounded — they will be re-triggered on
-    // resume via invalidate() if still needed.
-    if (isBackgrounded) return;
+    // resume via invalidate() if still needed.  Complete the pending operation
+    // first: without this, every awaitQueue() caller blocks until the next
+    // foreground invalidate() creates and finishes a new cycle, which can be
+    // minutes away (or never, if the screen was popped).  This mirrors the
+    // backgrounded skip in [_run].
+    if (isBackgrounded) {
+      backgroundedSkipCount++;
+      powerDiagnostics.recordSyncBackgroundSkip(_name ?? 'unknown');
+      _completeOperation();
+      return;
+    }
 
     final delay = (baseDelayMs * pow(2, _retryCount - 1)).toInt();
     final jitter = _jitterRng.nextInt(251); // 0–250ms

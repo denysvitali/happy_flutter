@@ -416,7 +416,7 @@ void main() {
     // trying. When history is exhausted, the sweep stops running
     // and the orphans remain inline in the chat.
     group('parent_tool_use_id walk-back policy', () {
-      const orphanFetchOlderPageSize = 500;
+      const orphanFetchOlderPageSize = Sync.orphanFetchOlderPageSizeForTesting;
       late Sync syncWithEnc;
       late int fetchOlderCount;
       late List<int> fetchOlderLimits;
@@ -530,7 +530,9 @@ void main() {
         ]);
 
         // Sweep 2 — fetchOlder fires again; absorb remains
-        // forbidden.
+        // forbidden.  Aggressive mode enforces a floor between pages, so
+        // clear the throttle stamp to keep this an instant follow-up.
+        syncWithEnc.testClearOrphanFetchOlderAttemptedMs('s2');
         syncWithEnc.testRunDeferredRegroupSweep('s2');
         await _drainAsyncWork();
 
@@ -630,6 +632,9 @@ void main() {
 
         // Run enough sweeps to exhaust the aggressive budget.
         for (var i = 0; i < orphanAggressiveAttempts; i++) {
+          // Aggressive mode now enforces a floor between pages; clear the
+          // throttle stamp so the loop still exercises the full budget.
+          syncWithEnc.testClearOrphanFetchOlderAttemptedMs('s2');
           syncWithEnc.testRunDeferredRegroupSweep('s2');
           await _drainAsyncWork();
           // Re-seed the orphan because the sweep's then() schedules a
@@ -705,6 +710,9 @@ void main() {
 
           // Burn through the aggressive budget.
           for (var i = 0; i < orphanAggressiveAttempts; i++) {
+            // Aggressive mode now enforces a floor between pages; clear the
+            // throttle stamp so the loop still exercises the full budget.
+            syncWithEnc.testClearOrphanFetchOlderAttemptedMs('s2');
             syncWithEnc.testRunDeferredRegroupSweep('s2');
             await _drainAsyncWork();
             syncWithEnc.testSetSessionMessages('s2', [
@@ -781,6 +789,9 @@ void main() {
 
         // Burn through the aggressive budget on orph-1.
         for (var i = 0; i < orphanAggressiveAttempts; i++) {
+          // Aggressive mode now enforces a floor between pages; clear the
+          // throttle stamp so the loop still exercises the full budget.
+          syncWithEnc.testClearOrphanFetchOlderAttemptedMs('s2');
           syncWithEnc.testRunDeferredRegroupSweep('s2');
           await _drainAsyncWork();
           syncWithEnc.testSetSessionMessages('s2', [
@@ -834,6 +845,7 @@ void main() {
           },
         ]);
 
+        syncWithEnc.testClearOrphanFetchOlderAttemptedMs('s2');
         syncWithEnc.testRunDeferredRegroupSweep('s2');
         await _drainAsyncWork();
 
@@ -842,6 +854,78 @@ void main() {
           orphanAggressiveAttempts + 1,
           reason: 'a disjoint new parent group must grant a fresh budget '
               'even while the older orphan is still present',
+        );
+      });
+
+      test('aggressive mode still enforces a floor between pages', () async {
+        // Aggressive mode used to run with no throttle at all, so the first
+        // pages of a walk-back went out back-to-back — in production that
+        // meant several ~1.5 MB requests in a row.
+        syncWithEnc.testSetSessionMessages('s2', [
+          <String, dynamic>{
+            'id': 'orph-1',
+            'isSidechain': true,
+            'uuid': 'u1',
+            'parentUuid': 'task-A',
+            'parentToolUseId': 'toolu_A',
+            'role': 'agent',
+            'kind': 'text',
+            'seq': 102,
+          },
+        ]);
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 5000);
+
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+        expect(fetchOlderCount, 1);
+
+        // An immediate follow-up sweep is inside the floor window.
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+        expect(
+          fetchOlderCount,
+          1,
+          reason: 'aggressive walk-back pages must not fire back-to-back',
+        );
+      });
+
+      test('a session at the visible message cap skips the walk-back', () async {
+        // _upsertSessionMessages trims a visible session back to the newest
+        // Sync.maxVisibleSessionMessagesForTesting rows, so a fetched older
+        // page — and the parent Task inside it — is discarded before the
+        // grouper can see it. Every page is then guaranteed to make zero
+        // progress, so the walk-back must not run at all.
+        final atCap = <Map<String, dynamic>>[
+          for (var i = 0; i < Sync.maxVisibleSessionMessagesForTesting; i++)
+            <String, dynamic>{
+              'id': 'm-$i',
+              'role': 'agent',
+              'kind': 'text',
+              'seq': 1000 + i,
+              'createdAt': 1700000000000 + i,
+            },
+        ]..add(<String, dynamic>{
+          'id': 'orph-1',
+          'isSidechain': true,
+          'uuid': 'u1',
+          'parentUuid': 'task-A',
+          'parentToolUseId': 'toolu_A',
+          'role': 'agent',
+          'kind': 'text',
+          'seq': 102,
+        });
+        syncWithEnc.testSetSessionMessages('s2', atCap);
+        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 5000);
+
+        syncWithEnc.testRunDeferredRegroupSweep('s2');
+        await _drainAsyncWork();
+
+        expect(
+          fetchOlderCount,
+          0,
+          reason:
+              'a session at the visible cap trims away every fetched page, '
+              'so the walk-back can never make progress',
         );
       });
 

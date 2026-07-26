@@ -134,6 +134,61 @@ extension SyncMessagingMerge on Sync {
     _sessionContentSignatures[sessionId] = signatures;
   }
 
+  /// Incremental replacement for [_rebuildSessionContentSignatures] on the
+  /// upsert path.
+  ///
+  /// The full rebuild recomputes a fingerprint for every one of up to 1000
+  /// rows on the main isolate, once per fetched page, even though a page only
+  /// ever changes the rows it carries. This instead drops entries for rows
+  /// that left the window (trim, optimistic-placeholder eviction,
+  /// prompt-echo skip) with a pure map/set walk, then refreshes only the
+  /// [incoming] rows that actually survived the merge.
+  ///
+  /// Refreshing only surviving rows matters: a row dropped by
+  /// `_isPromptEcho` must not leave a signature behind, or the fetch
+  /// pre-filter would treat it as already-present and never merge it.
+  void _applySessionContentSignatureDelta(
+    String sessionId,
+    List<Map<String, dynamic>> incoming,
+  ) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) {
+      _sessionContentSignatures.remove(sessionId);
+      return;
+    }
+    final signatures = _sessionContentSignatures[sessionId];
+    if (signatures == null) {
+      _rebuildSessionContentSignatures(sessionId);
+      return;
+    }
+
+    final liveKeys = <String>{};
+    for (final message in messages) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty) continue;
+      liveKeys.add(id);
+      // Output content blocks also register their base wire ID — keep both
+      // alive so a re-fetch still matches (see
+      // [_updateSessionContentSignatures]).
+      final baseId = _stripOutputSuffix(id);
+      if (baseId != null && baseId != id) {
+        liveKeys.add(baseId);
+      }
+    }
+    signatures.removeWhere((key, _) => !liveKeys.contains(key));
+
+    for (final message in incoming) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty || !liveKeys.contains(id)) continue;
+      final signature = _messageContentSignature(message);
+      signatures[id] = signature;
+      final baseId = _stripOutputSuffix(id);
+      if (baseId != null && baseId != id) {
+        signatures[baseId] = signature;
+      }
+    }
+  }
+
   void _updateSessionContentSignatures(
     String sessionId,
     List<Map<String, dynamic>> messages,
@@ -199,10 +254,17 @@ extension SyncMessagingMerge on Sync {
   /// aggressive mode. While a parent Task likely exists just below the
   /// loaded window, we want to paginate quickly; after this many futile
   /// pages we fall back to the default throttle to avoid hammering the
-  /// server when the parent is genuinely missing. See
-  /// [Sync._orphanPageSequencesPerAggressiveAttempt].
+  /// server when the parent is genuinely missing. Derived from the
+  /// seq-based budget so the aggressive phase reaches the same distance
+  /// regardless of [Sync._orphanFetchOlderPageSize]. See
+  /// [Sync._orphanAggressiveWalkbackSequences].
   static const int _orphanFetchOlderAggressiveAttempts =
-      Sync._orphanPageSequencesPerAggressiveAttempt;
+      Sync._orphanAggressiveWalkbackSequences ~/ Sync._orphanFetchOlderPageSize;
+
+  /// Minimum spacing between two aggressive-mode walk-back pages. See
+  /// [Sync._orphanFetchOlderAggressiveFloorMs].
+  static const int _orphanFetchOlderAggressiveFloorMs =
+      Sync._orphanFetchOlderAggressiveFloorMs;
 
   /// Hard cap on total no-progress fetchOlder attempts. Once reached,
   /// orphan recovery gives up and the sidechain messages render inline
@@ -442,9 +504,32 @@ extension SyncMessagingMerge on Sync {
       return;
     }
 
-    final canRetryFetch =
-        useAggressiveThrottle ||
-        nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
+    // Aggressive mode still has to respect a floor: it used to fire with no
+    // throttle at all, so the first pages went out back-to-back.
+    final canRetryFetch = useAggressiveThrottle
+        ? nowMs - lastFetchAttempt >= _orphanFetchOlderAggressiveFloorMs
+        : nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
+
+    // The walk-back exists to pull a parent Task into the loaded window. When
+    // the session is already at the visible message cap, `_upsertSessionMessages`
+    // trims back to the newest N on every upsert and throws the entire fetched
+    // page away — including the parent we went looking for. Every page is then
+    // guaranteed to make zero progress, and the no-progress counter simply
+    // climbs to the hard cap while burning bandwidth and decrypt time.
+    final loadedCount = messagesNow.length;
+    final atVisibleCap = loadedCount >= Sync._maxVisibleSessionMessages;
+    if (atVisibleCap) {
+      _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanSuppressedUntilMs[sessionId] =
+          nowMs + _orphanFetchOlderExhaustedThrottleMs;
+      logger.info(
+        '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
+        'session=$sessionId — session is at the visible cap '
+        '($loadedCount messages), so any fetched older page would be '
+        'trimmed away; rendering inline',
+      );
+      return;
+    }
 
     if (canRetryFetch && hasMoreOlder && !isLoadingOlderMessages(sessionId)) {
       _orphanFetchOlderAttemptedMs[sessionId] = nowMs;
@@ -807,7 +892,9 @@ extension SyncMessagingMerge on Sync {
       if (trimmed.length == appended.length) {
         _updateSessionContentSignatures(sessionId, messages);
       } else {
-        _rebuildSessionContentSignatures(sessionId);
+        // Rows fell off the head — prune them instead of re-fingerprinting
+        // the whole window.
+        _applySessionContentSignatureDelta(sessionId, messages);
       }
       _ensureFirstLoadedSeq(sessionId);
       return;
@@ -958,7 +1045,7 @@ extension SyncMessagingMerge on Sync {
     _sessionMessages[sessionId] = sorted.length > maxMessages
         ? sorted.sublist(sorted.length - maxMessages)
         : sorted;
-    _rebuildSessionContentSignatures(sessionId);
+    _applySessionContentSignatureDelta(sessionId, messages);
     if (sessionId == _visibleSessionId &&
         messages.isNotEmpty &&
         logger.shouldLog(LogLevel.debug)) {

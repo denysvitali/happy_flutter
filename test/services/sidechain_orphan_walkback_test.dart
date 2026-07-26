@@ -14,13 +14,12 @@ import '../helpers/test_helpers.dart';
 /// Walk-back contract tests for orphan sidechain recovery.
 ///
 /// These tests pin the page-size, no-progress counter, and signature
-/// behavior of the orphan-recovery walk-back introduced by the
-/// "walk back farther for orphaned sidechains" fix. The fix replaced
-/// the legacy 100-message page with a 500-message page so a single
-/// walk-back can reach parents sitting thousands of seqs below the
-/// loaded window, and pinned a deterministic signature/no-progress
-/// ledger so the walk-back can't loop indefinitely while still
-/// resetting whenever real progress happens.
+/// behavior of the orphan-recovery walk-back. Its reach is budgeted in
+/// *sequences* (25000) rather than pages, so a walk-back can still find
+/// parents sitting thousands of seqs below the loaded window while every
+/// individual request stays small enough to finish inside the per-page
+/// timeout. The signature/no-progress ledger keeps the walk-back from
+/// looping indefinitely while still resetting on real progress.
 void main() {
   late Sync sync;
   late int fetchOlderCount;
@@ -58,15 +57,15 @@ void main() {
   // ──────────────────────────────────────────────────────────────────
   // Test 1: walk-back continues past the legacy 12-attempt cap when
   // history is deep. The new behavior must allow > 12 fetchOlder calls
-  // up to the 50-page / 50*500=25000-seq budget before giving up.
+  // up to the 25000-seq budget before giving up.
   // ──────────────────────────────────────────────────────────────────
   test(
     'walk-back continues past the legacy 12-attempt cap when history '
-    'is deep — fires >12 fetchOlder pages with 500-seq window',
+    'is deep — fires >12 fetchOlder pages with the orphan page size',
     () async {
       // Deep history: firstLoadedSeq 40k means 40k seqs of backlog.
-      // Each 500-page can advance the cursor by up to 500 seqs; the
-      // budget allows up to 50 such pages (50 * 500 = 25000 seqs of
+      // Each page can advance the cursor by up to pageSize seqs; the
+      // budget allows 25000 seqs of
       // walking) before the walk-back exhausts.
       sync.testSetSessionMessages('s1', [
         <String, dynamic>{
@@ -112,17 +111,17 @@ void main() {
         fetchOlderCount,
         greaterThan(12),
         reason: 'walk-back must continue past the legacy 12-attempt cap '
-            'with the larger 500-seq page size',
+            'with the seq-counted walk-back budget',
       );
 
-      // Every fetchOlder must use the orphan-recovery page size (500).
+      // Every fetchOlder must use the orphan-recovery page size (100).
       // This is the actual fix: the legacy code used 100, which couldn't
       // reach parents sitting > 1200 seqs below the loaded window
       // without burning the entire budget.
       expect(
-        fetchOlderLimits.every((l) => l == 500),
+        fetchOlderLimits.every((l) => l == 100),
         isTrue,
-        reason: 'walk-back must use the 500-seq orphan-recovery page '
+        reason: 'walk-back must use the orphan-recovery page '
             'size on every fetchOlder call',
       );
 
@@ -215,8 +214,10 @@ void main() {
 
       // Now bump firstLoadedSeq back DOWN to simulate the next page
       // actually moving the window — the orphan-count-vs-lowest-seq
-      // progress axis treats "window advanced" as progress.
-      currentFirstLoaded -= 500;
+      // progress axis treats "window advanced" as progress. The value is
+      // chosen so one orphan-recovery page reaches the beginning of
+      // history (startSeq clamps to 0).
+      currentFirstLoaded -= 750;
 
       // Run one more sweep with the advanced window. After the
       // fetchOlder, the lowestFirstLoadedSeq ledger should observe
