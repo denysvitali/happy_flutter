@@ -57,6 +57,48 @@ void main() {
     });
   });
 
+  group('markOptimisticMessageStalled', () {
+    test('escalates a still-sending row to pending', () {
+      final list = [
+        buildOptimisticUserMessage(localId: 'a', text: 'one'),
+        buildOptimisticUserMessage(localId: 'b', text: 'two'),
+      ];
+      final next = markOptimisticMessageStalled(list, 'b');
+      expect(next[0]['sendStatus'], 'sending');
+      expect(next[1]['sendStatus'], 'pending');
+      // Identity survives the escalation so retry still works.
+      expect(next[1]['localId'], 'b');
+      expect(next[1]['id'], 'b');
+    });
+
+    test('leaves terminal states alone', () {
+      for (final status in ['sent', 'failed', 'pending']) {
+        final list = [
+          <String, dynamic>{
+            'id': 'a',
+            'localId': 'a',
+            'role': 'user',
+            'sendStatus': status,
+          },
+        ];
+        final next = markOptimisticMessageStalled(list, 'a');
+        expect(
+          identical(next, list),
+          isTrue,
+          reason: '$status must not be escalated',
+        );
+      }
+    });
+
+    test('returns original list when no match', () {
+      final list = [buildOptimisticUserMessage(localId: 'a', text: 'one')];
+      expect(
+        identical(markOptimisticMessageStalled(list, 'missing'), list),
+        isTrue,
+      );
+    });
+  });
+
   group('command helpers', () {
     test('isClearCommand', () {
       expect(isClearCommand('/clear'), isTrue);

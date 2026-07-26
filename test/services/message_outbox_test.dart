@@ -178,6 +178,107 @@ void main() {
       expect(statuses.last, 'failed');
     }, timeout: const Timeout(Duration(seconds: 15)));
 
+    // ── Dead-letter ─────────────────────────────────────────────────────────
+
+    test('exhausted entry is dead-lettered, not destroyed', () async {
+      final statuses = <String>[];
+      outbox.configure(
+        deliver: (e) async => false, // always fail
+        onStatusChanged: (_, __, status) => statuses.add(status),
+      );
+
+      await outbox.add(_makeEntry(localId: 'doomed'));
+      await Future<void>.delayed(const Duration(milliseconds: 8000));
+
+      expect(statuses.last, 'failed');
+      expect(outbox.contains('doomed'), isFalse);
+
+      // The encrypted payload survives in the dead-letter bucket.
+      final dead = outbox.deadEntry('doomed');
+      expect(dead, isNotNull);
+      expect(dead!.encryptedContent, 'enc-abc');
+      expect(dead.dead, isTrue);
+
+      // …and it is persisted, so a cold start can still recover it.
+      final saved =
+          (jsonDecode(storage._outboxData!) as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+      expect(saved.single['localId'], 'doomed');
+      expect(saved.single['dead'], isTrue);
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
+    test('restoreAndFlush rehydrates dead entries as failed rows', () async {
+      final deadEntry = OutboxEntry(
+        localId: 'dead-1',
+        sessionId: 'session-a',
+        text: 'lost message',
+        encryptedContent: 'enc-dead',
+        rawRecord: const {'role': 'user'},
+        queuedAt: 1000,
+        retryCount: 3,
+        dead: true,
+      );
+      storage._outboxData = jsonEncode([deadEntry.toJson()]);
+
+      final statuses = <String>[];
+      final delivered = <String>[];
+      final outbox2 = MessageOutbox(storage: storage);
+      outbox2.configure(
+        deliver: (e) async {
+          delivered.add(e.localId);
+          return true;
+        },
+        onStatusChanged: (_, __, status) => statuses.add(status),
+      );
+
+      await outbox2.restoreAndFlush();
+
+      // Republished as 'failed' so the retry affordance renders again.
+      expect(statuses, ['failed']);
+      expect(outbox2.contains('dead-1'), isFalse);
+      expect(outbox2.deadEntry('dead-1')?.encryptedContent, 'enc-dead');
+      expect(outbox2.deadEntry('dead-1')?.rawRecord, {'role': 'user'});
+
+      // Dead entries are never auto-retried.
+      await Future<void>.delayed(const Duration(milliseconds: 3500));
+      expect(delivered, isEmpty);
+      outbox2.dispose();
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    test('reviveDead requeues with a fresh retry budget', () async {
+      final deadEntry = OutboxEntry(
+        localId: 'dead-2',
+        sessionId: 'session-a',
+        text: 'lost message',
+        encryptedContent: 'enc-dead-2',
+        rawRecord: const {},
+        queuedAt: 1000,
+        retryCount: 3,
+        dead: true,
+      );
+      storage._outboxData = jsonEncode([deadEntry.toJson()]);
+
+      final delivered = <OutboxEntry>[];
+      final outbox2 = MessageOutbox(storage: storage);
+      outbox2.configure(
+        deliver: (e) async {
+          delivered.add(e);
+          return true;
+        },
+      );
+      await outbox2.restoreAndFlush();
+
+      expect(await outbox2.reviveDead('dead-2'), isTrue);
+      expect(outbox2.deadEntry('dead-2'), isNull);
+      expect(outbox2.contains('dead-2'), isTrue);
+
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      expect(delivered.single.localId, 'dead-2');
+      expect(delivered.single.retryCount, 0);
+      expect(delivered.single.dead, isFalse);
+      outbox2.dispose();
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
     // ── Restore ─────────────────────────────────────────────────────────────
 
     test('restoreAndFlush loads persisted entries and schedules retry',
@@ -277,6 +378,43 @@ void main() {
       await outbox.add(entry);
 
       expect(statuses, contains('pending'));
+    });
+
+    // ── Suspend ─────────────────────────────────────────────────────────────
+
+    test('suspendAndFlush persists pending entries before cancelling timers',
+        () async {
+      outbox.configure(deliver: (e) async => false);
+
+      await outbox.add(_makeEntry(localId: 'flush-me'));
+      // The persist is debounced 100ms — nothing on disk yet.
+      expect(storage._outboxData, isNull);
+
+      await outbox.suspendAndFlush();
+
+      expect(storage._outboxData, isNotNull);
+      final saved =
+          (jsonDecode(storage._outboxData!) as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+      expect(saved.single['localId'], 'flush-me');
+      // Entry survives the suspend so resume() can retry it.
+      expect(outbox.contains('flush-me'), isTrue);
+    });
+
+    test('suspend() flushes the debounced persist without an await', () async {
+      outbox.configure(deliver: (e) async => false);
+
+      await outbox.add(_makeEntry(localId: 'flush-sync'));
+      expect(storage._outboxData, isNull);
+
+      outbox.suspend();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(storage._outboxData, isNotNull);
+      final saved =
+          (jsonDecode(storage._outboxData!) as List<dynamic>)
+              .cast<Map<String, dynamic>>();
+      expect(saved.single['localId'], 'flush-sync');
     });
 
     // ── Dispose ─────────────────────────────────────────────────────────────

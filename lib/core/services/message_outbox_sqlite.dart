@@ -1,3 +1,25 @@
+/// EXPERIMENTAL — NOT WIRED TO PRODUCTION.
+///
+/// Everything in this file is a design spike for a future append-only
+/// replacement of [MessageOutbox]. As of this writing:
+///
+/// * [kUseSqliteOutbox] defaults to `false` and nothing reads it,
+/// * the `sqlite3` package is **not** a dependency of this app, so there
+///   is no SQLite-backed [OutboxStore] — [InMemoryOutboxStore] is the
+///   only implementation and it does not survive a process restart,
+/// * [SqliteMessageOutbox] has zero production call sites; the live
+///   singleton is `messageOutbox` in `message_outbox.dart`,
+/// * it does **not** carry the dead-letter bucket that
+///   [MessageOutbox] uses to stop exhausted entries destroying the
+///   user's only copy of a message.
+///
+/// Do not "prefer it for new code". The MMKV [MessageOutbox] is the
+/// production outbox. Keep this file only as the reference fold/replay
+/// design (covered by `test/services/message_outbox_sqlite_test.dart`);
+/// any adoption has to add the `sqlite3` dependency, a real
+/// [OutboxStore], and dead-letter parity first.
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -11,9 +33,8 @@ import 'message_outbox.dart'
 
 /// Build flag controlling adoption of the SQLite-backed outbox.
 ///
-/// The default `false` keeps the existing MMKV path active in
-/// production.  Tests opt in via `--dart-define=kUseSqliteOutbox=true`
-/// or by constructing [SqliteMessageOutbox] directly.
+/// EXPERIMENTAL: nothing reads this flag today. See the library-level
+/// doc above before wiring it up.
 const bool kUseSqliteOutbox = bool.fromEnvironment(
   'kUseSqliteOutbox',
   defaultValue: false,
@@ -179,10 +200,14 @@ class InMemoryOutboxStore implements OutboxStore {
   }
 }
 
-/// Drop-in replacement for [MessageOutbox] backed by an [OutboxStore].
+/// EXPERIMENTAL — see the library-level doc. This class has no
+/// production call sites and no durable store; do not adopt it without
+/// first adding the `sqlite3` dependency and dead-letter parity with
+/// `MessageOutbox`.
 ///
-/// API mirrors the existing class so swapping is a one-line change in
-/// `sync_service.dart`:
+/// Prospective drop-in replacement for `MessageOutbox`, backed by an
+/// [OutboxStore]. The API mirrors the existing class so swapping would
+/// be a one-line change in `sync_service.dart`:
 ///
 /// ```dart
 /// final messageOutbox = kUseSqliteOutbox

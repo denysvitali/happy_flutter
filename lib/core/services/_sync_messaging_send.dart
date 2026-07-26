@@ -7,6 +7,35 @@ part of 'sync_service.dart';
 /// `is List` before reading.
 typedef _UserOutboundContent = Object;
 
+/// A send failure that no retry can fix (session deleted, or rejected
+/// by a precondition). Classified at the throw site where both the
+/// status code and the response body are available, so the outbox does
+/// not burn its retry budget on a message that can never land.
+class PermanentSendFailure extends StateError {
+  PermanentSendFailure(super.message);
+}
+
+/// Hard wall-clock budget covering ONE foreground send attempt end to
+/// end: agent-readiness wait plus every HTTP attempt.
+///
+/// Without it the stages compose serially and unbounded —
+/// 15 s waitForAgentReady + 4 Dio attempts with 1/2/4 s backoff — which
+/// is the 45.6 s "successful" send in trace
+/// 54e38e087cdd4f51912fffeed3d52383. On expiry the message is handed to
+/// the outbox and the row flips to 'pending' ("Retry queued") instead of
+/// spinning forever.
+const Duration _kSendDeadline = Duration(seconds: 12);
+
+/// Slice of [_kSendDeadline] reserved for the HTTP POST, so a slow
+/// readiness wait can never consume the whole budget.
+const Duration _kSendMinPostWindow = Duration(seconds: 6);
+
+/// Bound for the encryption/session recovery round trips in
+/// [SyncMessagingSend.sendMessage]. Up to three sequential
+/// `invalidateAndAwait()` calls run before the send even starts; they had
+/// no timeout at all.
+const Duration _kSendRecoveryTimeout = Duration(seconds: 5);
+
 extension SyncMessagingSend on Sync {
   /// Create a stable client-side message id that can be shared across
   /// optimistic UI, REST persistence, socket forwarding, and retries.
@@ -21,14 +50,41 @@ extension SyncMessagingSend on Sync {
   ///
   /// Prefer this in new code so the compiler can prevent accidental
   /// mixing with [ServerMessageId] or unrelated [String] values.
+  /// The fallback below must stay globally unique: the server dedupes
+  /// on `UNIQUE(session_id, local_id)`, and a null/empty/colliding
+  /// local_id never conflicts, so every retry would insert a NEW ROW —
+  /// the user sees their message duplicated. A silent degradation here
+  /// is therefore a correctness bug, not a cosmetic one.
   LocalId createLocalId() {
     try {
-      return LocalId(encryption.generateId());
-    } catch (_) {
-      return LocalId(
-        '${DateTime.now().microsecondsSinceEpoch}-'
-        '${Random().nextInt(1 << 32)}',
+      final generated = encryption.generateId();
+      if (generated.isNotEmpty) return LocalId(generated);
+      throw StateError('encryption.generateId() returned an empty id');
+    } catch (error, stack) {
+      // 128 bits of randomness (two 32-bit draws) plus a microsecond
+      // timestamp: still satisfies the uniqueness contract the server's
+      // dedupe key depends on. Loud, because losing the primary id
+      // source means every downstream identity guarantee is running on
+      // the backup.
+      final fallback =
+          '${DateTime.now().microsecondsSinceEpoch}-'
+          '${Random().nextInt(1 << 32).toRadixString(16)}'
+          '${Random().nextInt(1 << 32).toRadixString(16)}';
+      logger.error(
+        '[createLocalId] encryption.generateId() failed; falling back to '
+        'a timestamp+random localId=$fallback — server dedupe depends on '
+        'this id being unique',
+        error,
+        stack,
       );
+      unawaited(
+        Sentry.captureException(
+          error,
+          stackTrace: stack,
+          hint: Hint.withMap({'context': 'createLocalId fallback'}),
+        ),
+      );
+      return LocalId(fallback);
     }
   }
 
@@ -53,6 +109,66 @@ extension SyncMessagingSend on Sync {
     String? profileId,
     List<OutgoingImage>? images,
   }) async {
+    // OTel sibling of the Sentry transaction started below. The span is
+    // opened BEFORE encryption recovery and target resolution: those can
+    // do three sequential `invalidateAndAwait()` round trips and may
+    // spawn a session, and none of that used to be inside any span at
+    // all — it was invisible even in the root duration.
+    //
+    // The span is also pushed onto the active-span stack so the outbound
+    // HTTP POST (and anything else started from here on) becomes a child
+    // of chat.send_message, giving a single trace that joins
+    // mobile send → server spawn → sub-agent fan-out.
+    final otelService = OpenTelemetryService();
+    final prepareStopwatch = Stopwatch()..start();
+    final sendSpan = otelService.startTrace(
+      'chat.send_message',
+      kind: SpanKind.internal,
+      attributes: {
+        'session.id': sessionId,
+        'message.text_length': text.length,
+        'message.image_count': images?.length ?? 0,
+      },
+    );
+    try {
+      return await _sendMessageTraced(
+        sessionId,
+        text,
+        clientLocalId: clientLocalId,
+        displayText: displayText,
+        permissionMode: permissionMode,
+        modelMode: modelMode,
+        profileId: profileId,
+        images: images,
+        otelService: otelService,
+        sendSpan: sendSpan,
+        prepareStopwatch: prepareStopwatch,
+      );
+    } catch (error, stack) {
+      // Setup failed before _completeSend could take ownership of the
+      // span — end it here so the failure is exported instead of leaked.
+      sendSpan
+        ?..recordError(error, stack)
+        ..setAttribute('send.outcome', 'setup_failed')
+        ..setAttribute('send.prepare_ms', prepareStopwatch.elapsedMilliseconds)
+        ..end(ok: false);
+      rethrow;
+    }
+  }
+
+  Future<String> _sendMessageTraced(
+    String sessionId,
+    String text, {
+    required OpenTelemetryService otelService,
+    required OTelSpan? sendSpan,
+    required Stopwatch prepareStopwatch,
+    String? clientLocalId,
+    String? displayText,
+    String? permissionMode,
+    String? modelMode,
+    String? profileId,
+    List<OutgoingImage>? images,
+  }) async {
     var sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) {
       logger.info(
@@ -63,12 +179,12 @@ extension SyncMessagingSend on Sync {
       await fetchSingleSession(sessionId);
       sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
-        await sessionsSync.invalidateAndAwait();
+        await _boundedSessionsRefresh();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
         _forceFullFetchNext = true;
-        await sessionsSync.invalidateAndAwait();
+        await _boundedSessionsRefresh();
         sessionEncryption = encryption.getSessionEncryption(sessionId);
       }
       if (sessionEncryption == null) {
@@ -82,7 +198,7 @@ extension SyncMessagingSend on Sync {
       session = await fetchSingleSession(sessionId);
       if (session == null) {
         _forceFullFetchNext = true;
-        await sessionsSync.invalidateAndAwait();
+        await _boundedSessionsRefresh();
         session = _sessions[sessionId];
       }
     }
@@ -197,24 +313,18 @@ extension SyncMessagingSend on Sync {
           ..setData('permissionMode', wirePermissionMode)
           ..setData('model', model ?? 'default');
 
-    // OTel sibling of the Sentry transaction above. The OTel span is
-    // also pushed onto the active-span stack so the outbound HTTP POST
-    // (and any other spans started from this point onward) become
-    // children of chat.send_message, giving a single trace that joins
-    // mobile send → server spawn → sub-agent fan-out.
-    final otelService = OpenTelemetryService();
-    final sendSpan = otelService.startTrace(
-      'chat.send_message',
-      kind: SpanKind.internal,
-      attributes: {
-        'session.id': targetSessionId,
-        'message.local_id': localId,
-        'message.text_length': text.length,
-        'message.permission_mode': wirePermissionMode,
-        'message.model': model ?? 'default',
-        'message.sent_from': sentFrom,
-      },
-    );
+    // Everything up to here — encryption recovery, session resolution,
+    // and any auto-restore spawn — happened inside the already-open root
+    // span. Record how much of the send it consumed.
+    prepareStopwatch.stop();
+    sendSpan
+      ?..setAttribute('send.prepare_ms', prepareStopwatch.elapsedMilliseconds)
+      ..setAttribute('session.target_id', targetSessionId)
+      ..setAttribute('message.local_id', localId)
+      ..setAttribute('message.permission_mode', wirePermissionMode)
+      ..setAttribute('message.model', model ?? 'default')
+      ..setAttribute('message.sent_from', sentFrom);
+
     // Ensure catch-up polling is active for this session. Without this,
     // if sendMessage() is called before onSessionVisible() (e.g. from the
     // sessions list before the chat screen initialises), _startPostSendCatchUp
@@ -286,6 +396,25 @@ extension SyncMessagingSend on Sync {
     return targetSessionId;
   }
 
+  /// `sessionsSync.invalidateAndAwait()` with a bound.
+  ///
+  /// The pre-send recovery path can run three of these back to back with
+  /// no timeout at all, entirely ahead of the send's own budget. A stalled
+  /// sessions fetch must not hold a user message hostage — on expiry we
+  /// fall through and let the caller decide (session synthesis, or the
+  /// outbox).
+  Future<void> _boundedSessionsRefresh() async {
+    try {
+      await sessionsSync.invalidateAndAwait().timeout(_kSendRecoveryTimeout);
+    } on TimeoutException {
+      logger.warning(
+        '[sendMessage] sessions refresh exceeded '
+        '${_kSendRecoveryTimeout.inSeconds}s during send recovery; '
+        'continuing without it',
+      );
+    }
+  }
+
   /// Background half of [sendMessage]: waits for agent, POSTs to REST,
   /// emits socket event, and updates the optimistic message status.
   Future<void> _completeSend({
@@ -298,9 +427,18 @@ extension SyncMessagingSend on Sync {
     required OTelSpan? otelSpan,
   }) async {
     final apiClient = ApiClient();
+    final sendStopwatch = Stopwatch()..start();
+    final sendDeadline = DateTime.now().add(_kSendDeadline);
     var sent = false;
+    var ackedByServer = false;
     var catchUpStopAfterSeq = (_sessionLastSeq[targetSessionId] ?? 0) + 1;
     var handledPermanentFailure = false;
+    // Outcome vocabulary for the root span. A 45 s "success" is not a
+    // success, and a socket-fallback delivery is not a clean one — the
+    // parent span must say which of those happened instead of always
+    // reporting ok.
+    var outcome = 'unknown';
+    var ready = false;
     try {
       if (InvalidateSync.isBackgrounded) {
         logger.info(
@@ -314,6 +452,7 @@ extension SyncMessagingSend on Sync {
           encryptedRawRecord: encryptedRawRecord,
           rawRecord: rawRecord,
         );
+        outcome = 'backgrounded';
         await transaction.finish(status: const SpanStatus.cancelled());
         return;
       }
@@ -329,9 +468,19 @@ extension SyncMessagingSend on Sync {
           spawnedAt != null &&
           DateTime.now().millisecondsSinceEpoch - spawnedAt <
               Sync.recentlySpawnedFlagMs;
-      final waitBudget = recentlySpawned
+      final requestedWaitBudget = recentlySpawned
           ? Sync.recentlySpawnedWaitMs
           : Sync.sessionReadyTimeoutMs;
+      // Clamp the wait so it can never eat the whole send budget: the
+      // POST always keeps at least _kSendMinPostWindow.
+      final waitBudget = min(
+        requestedWaitBudget,
+        max(
+          0,
+          _remainingSendBudget(sendDeadline).inMilliseconds -
+              _kSendMinPostWindow.inMilliseconds,
+        ),
+      );
       final otelWaitSpan = otelSpan == null
           ? null
           : OpenTelemetryService().startChildSpan(
@@ -342,9 +491,9 @@ extension SyncMessagingSend on Sync {
                 'session.id': targetSessionId,
                 'agent.recently_spawned': recentlySpawned,
                 'agent.wait_budget_ms': waitBudget,
+                'agent.wait_budget_requested_ms': requestedWaitBudget,
               },
             );
-      late final bool ready;
       try {
         ready = await waitForAgentReady(targetSessionId, waitBudget);
         otelWaitSpan
@@ -428,22 +577,58 @@ extension SyncMessagingSend on Sync {
           encryptedRawRecord: encryptedRawRecord,
           rawRecord: rawRecord,
         );
+        outcome = 'backgrounded';
         unawaited(postSpan.finish(status: const SpanStatus.cancelled()));
         await transaction.finish(status: const SpanStatus.cancelled());
         return;
       }
-      final response = await apiClient.post(
-        '/v3/sessions/$targetSessionId/messages',
-        options: Options(
-          sendTimeout: Sync._messageSendTimeout,
-          receiveTimeout: Sync._messageSendTimeout,
-        ),
-        data: {
-          'messages': [
-            {'content': encryptedRawRecord, 'localId': localId},
-          ],
-        },
-      );
+      // One deadline over the whole attempt. ApiClient retries the POST
+      // up to 4 times with 1/2/4 s backoff; without this cap the retries
+      // stack on top of the readiness wait and the user watches a
+      // spinner for 45 s. On expiry the outbox owns the message.
+      final postBudget = _remainingSendBudget(sendDeadline);
+      final Response<dynamic> response;
+      try {
+        response = await apiClient
+            .post(
+              '/v3/sessions/$targetSessionId/messages',
+              options: Options(
+                sendTimeout: Sync._messageSendTimeout,
+                receiveTimeout: Sync._messageSendTimeout,
+              ),
+              data: {
+                'messages': [
+                  {'content': encryptedRawRecord, 'localId': localId},
+                ],
+              },
+            )
+            .timeout(postBudget);
+      } on TimeoutException catch (error, stack) {
+        logger.warning(
+          '[sendMessage] send deadline exceeded after '
+          '${sendStopwatch.elapsedMilliseconds}ms; handing to outbox '
+          'session=$targetSessionId localId=$localId',
+          error,
+          stack,
+        );
+        outcome = 'deadline_exceeded';
+        unawaited(postSpan.finish(status: const SpanStatus.deadlineExceeded()));
+        await transaction.finish(status: const SpanStatus.deadlineExceeded());
+        PowerDiagnosticsOtelReporter.instance.recordAppError(
+          'app.send.deadline_exceeded',
+        );
+        // The row flips to 'pending' ("Retry queued") via the outbox
+        // status callback, so the user sees a real state instead of an
+        // eternal spinner.
+        await _queueMessageRetry(
+          sessionId: targetSessionId,
+          localId: localId,
+          text: text,
+          encryptedRawRecord: encryptedRawRecord,
+          rawRecord: rawRecord,
+        );
+        return;
+      }
       postSpan.setData('statusCode', response.statusCode ?? 0);
       unawaited(
         postSpan.finish(
@@ -471,6 +656,7 @@ extension SyncMessagingSend on Sync {
 
         if (ackedServerMsg != null) {
           sent = true;
+          ackedByServer = true;
           final serverSeq = _applyStoredUserMessageAck(
             sessionId: targetSessionId,
             localId: localId,
@@ -490,16 +676,15 @@ extension SyncMessagingSend on Sync {
             'falling back to socket emit '
             'session=$targetSessionId localId=$localId',
           );
-          if (socketConnected) {
+          // A 200 with no localId ack is a DEGRADED delivery: the server
+          // never confirmed our identity for this message, so the span
+          // must not report a clean success.
+          if (socketConnected || _isSocketConnected()) {
+            // The second check re-reads the socket — it may have
+            // reconnected since the earlier snapshot was taken.
             _emitSocketMessage(targetSessionId, encryptedRawRecord, localId);
             sent = true;
-            _updateMessageSendStatus(targetSessionId, localId, 'sent');
-            _notifySessionMessagesChanged(targetSessionId);
-          } else if (_isSocketConnected()) {
-            // Re-check socket — may have reconnected since the earlier
-            // snapshot was taken.
-            _emitSocketMessage(targetSessionId, encryptedRawRecord, localId);
-            sent = true;
+            outcome = 'socket_fallback';
             _updateMessageSendStatus(targetSessionId, localId, 'sent');
             _notifySessionMessagesChanged(targetSessionId);
           } else {
@@ -531,15 +716,23 @@ extension SyncMessagingSend on Sync {
           'session=$targetSessionId '
           'body=${response.data}',
         );
-        final error = StateError(
-          'Failed to send message: ${response.statusCode}',
-        );
-        if (_isPermanentSendFailure(error)) {
+        final status = response.statusCode ?? 0;
+        // Classify here, where the body is still in hand: the server
+        // collapses NotFound into a bare 500, so the status code alone
+        // sends a deleted session down the retryable branch and burns
+        // 4 HTTP + 3 outbox attempts.
+        final permanent =
+            _isPermanentSendStatus(status) ||
+            _sendBodyIndicatesSessionGone(response.data);
+        final error = permanent
+            ? PermanentSendFailure('Failed to send message: $status')
+            : StateError('Failed to send message: $status');
+        if (permanent) {
           handledPermanentFailure = true;
+          outcome = 'permanent_failure';
           transaction.setData('error', error.toString());
           await transaction.finish(status: const SpanStatus.internalError());
           otelSpan?.recordError(error, StackTrace.current);
-          otelSpan?.end(ok: false);
           _updateMessageSendStatus(targetSessionId, localId, 'failed');
           _notifySessionMessagesChanged(targetSessionId);
         } else {
@@ -547,8 +740,10 @@ extension SyncMessagingSend on Sync {
         }
       }
       if (!handledPermanentFailure) {
+        if (outcome == 'unknown') {
+          outcome = ready ? 'ok' : 'agent_not_ready';
+        }
         await transaction.finish(status: const SpanStatus.ok());
-        otelSpan?.end(ok: true);
       }
     } catch (e, stack) {
       final permanent = !sent && _isPermanentSendFailure(e);
@@ -565,7 +760,7 @@ extension SyncMessagingSend on Sync {
       transaction.setData('error', e.toString());
       await transaction.finish(status: const SpanStatus.internalError());
       otelSpan?.recordError(e, stack);
-      otelSpan?.end(ok: false);
+      outcome = permanent ? 'permanent_failure' : 'error';
       if (permanent) {
         _updateMessageSendStatus(targetSessionId, localId, 'failed');
         _notifySessionMessagesChanged(targetSessionId);
@@ -582,11 +777,41 @@ extension SyncMessagingSend on Sync {
         );
         // The outbox onStatusChanged callback sets 'pending' status.
       }
+    } finally {
+      // Single exit point for the root span. Both backgrounded early
+      // returns used to skip every end() — and a BatchSpanProcessor only
+      // exports on end, so every backgrounded send produced zero
+      // telemetry. Sends on flaky mobile links are exactly the ones that
+      // background mid-flight, so the worst cases were the most
+      // under-reported.
+      sendStopwatch.stop();
+      final elapsedMs = sendStopwatch.elapsedMilliseconds;
+      // A slow success is not a success: flag it so the latency tail is
+      // visible in the outcome dimension, not only in span duration.
+      final degraded =
+          outcome != 'ok' || elapsedMs >= _kSendDeadline.inMilliseconds ~/ 2;
+      otelSpan
+        ?..setAttribute('send.outcome', outcome)
+        ..setAttribute('send.elapsed_ms', elapsedMs)
+        ..setAttribute('send.agent_ready', ready)
+        ..setAttribute('send.acked_by_server', ackedByServer)
+        ..setAttribute('send.degraded', degraded)
+        ..end(ok: ready && sent && ackedByServer);
+      // Wake any listener that is still waiting on the send attempt; real
+      // message mutations above use _notifySessionMessagesChanged and bump
+      // the revision.
+      _notifySessionMessagesChangedUiOnly(targetSessionId);
     }
-    // Wake any listener that is still waiting on the send attempt; real
-    // message mutations above use _notifySessionMessagesChanged and bump the
-    // revision.
-    _notifySessionMessagesChangedUiOnly(targetSessionId);
+  }
+
+  /// Time left before the whole-send deadline, floored at 1 s so an
+  /// already-blown budget still issues one bounded request rather than
+  /// failing instantly.
+  Duration _remainingSendBudget(DateTime deadline) {
+    final remaining = deadline.difference(DateTime.now());
+    return remaining < const Duration(seconds: 1)
+        ? const Duration(seconds: 1)
+        : remaining;
   }
 
   Future<void> _queueMessageRetry({
@@ -783,10 +1008,11 @@ extension SyncMessagingSend on Sync {
   /// (e.g. session doesn't exist).  These should be marked failed
   /// immediately rather than queued for retry.
   static bool _isPermanentSendFailure(Object error) {
+    if (error is PermanentSendFailure) return true;
     if (error is! StateError) return false;
     final message = error.message;
-    // 404 = session not found on server. Retrying won't help.
-    if (message.contains('Failed to send message: 404')) {
+    final status = _sendStatusCodeFrom(message);
+    if (status != null && _isPermanentSendStatus(status)) {
       return true;
     }
     // Auto-restore resolved the session as permanently gone or
@@ -797,6 +1023,48 @@ extension SyncMessagingSend on Sync {
       return true;
     }
     return false;
+  }
+
+  static final RegExp _sendStatusCodeRegExp = RegExp(
+    r'Failed to send message: (\d{3})',
+  );
+
+  static int? _sendStatusCodeFrom(String message) {
+    final match = _sendStatusCodeRegExp.firstMatch(message);
+    if (match == null) return null;
+    return int.tryParse(match.group(1)!);
+  }
+
+  /// Status codes that no amount of retrying can fix.
+  ///
+  /// 404 Not Found / 410 Gone: the session is not on the server.
+  /// 409 Conflict / 412 Failed Precondition: the session exists but is
+  /// in a state that rejects the write — the daemon's `FailedPrecondition`
+  /// maps here. Retrying just burns the outbox budget.
+  static bool _isPermanentSendStatus(int statusCode) {
+    return statusCode == 404 ||
+        statusCode == 409 ||
+        statusCode == 410 ||
+        statusCode == 412;
+  }
+
+  static final RegExp _sessionGoneBodyRegExp = RegExp(
+    r'not[\s_-]?found|no such session|session[\s_-]?gone|'
+    r'failed[\s_-]?precondition|unknown session',
+    caseSensitive: false,
+  );
+
+  /// Defensive body sniff for a "session is gone" error.
+  ///
+  /// The server currently collapses NotFound into a bare HTTP 500 (a
+  /// server-side fix is in flight). Until that ships, trusting the
+  /// status code alone sends a deleted session down the retryable
+  /// `:5xx` branch and burns 4 HTTP attempts plus 3 outbox attempts.
+  static bool _sendBodyIndicatesSessionGone(Object? body) {
+    if (body == null) return false;
+    final text = body.toString();
+    final sample = text.length > 512 ? text.substring(0, 512) : text;
+    return _sessionGoneBodyRegExp.hasMatch(sample);
   }
 
   static bool _isRetryableSendFailure(Object error) {
@@ -980,6 +1248,25 @@ extension SyncMessagingSend on Sync {
     }
   }
 
+  /// Last-resort retry path: rebuild the send from the outbox
+  /// dead-letter bucket when the in-memory chat row can no longer
+  /// supply the original `raw` record (cold start, evicted cache, or a
+  /// row that was never persisted with its payload).
+  ///
+  /// Returns `true` when a dead-lettered entry was requeued.
+  Future<bool> _retryFromDeadLetter(String sessionId, String localId) async {
+    if (messageOutbox.deadEntry(localId) == null) return false;
+    _updateMessageSendStatus(sessionId, localId, 'sending');
+    final revived = await messageOutbox.reviveDead(localId);
+    if (!revived) return false;
+    logger.info(
+      '[retryFailedMessage] requeued from dead-letter bucket: '
+      'sessionId=$sessionId localId=$localId',
+    );
+    _notifySessionMessagesChanged(sessionId);
+    return true;
+  }
+
   /// Retry a failed message send.
   ///
   /// Re-queues the message in the outbox with reset retry count.
@@ -988,6 +1275,7 @@ extension SyncMessagingSend on Sync {
   Future<void> retryFailedMessage(String sessionId, String localId) async {
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) {
+      if (await _retryFromDeadLetter(sessionId, localId)) return;
       logger.warning('[retryFailedMessage] session not found: $sessionId');
       return;
     }
@@ -1001,6 +1289,7 @@ extension SyncMessagingSend on Sync {
     }
 
     if (failedMessage == null) {
+      if (await _retryFromDeadLetter(sessionId, localId)) return;
       logger.warning(
         '[retryFailedMessage] message not found: '
         'sessionId=$sessionId localId=$localId',
@@ -1010,6 +1299,7 @@ extension SyncMessagingSend on Sync {
 
     final raw = failedMessage['raw'];
     if (raw == null || raw is! Map<String, dynamic>) {
+      if (await _retryFromDeadLetter(sessionId, localId)) return;
       logger.warning(
         '[retryFailedMessage] message missing raw data: localId=$localId',
       );
@@ -1115,18 +1405,49 @@ extension SyncMessagingSend on Sync {
       socketIoClient
           .waitForConnection(timeout: const Duration(seconds: 10))
           .then((connected) {
-            if (!connected || !isInitialized) return;
-            if (InvalidateSync.isBackgrounded) return;
-            if (!_isSocketConnected()) return;
+            // Every give-up path below means the agent will not be woken
+            // until its next poll cycle. The message is safe (REST already
+            // stored it) but the user perceives a stalled agent, so each
+            // reason is logged and counted rather than swallowed.
+            final reason = !connected
+                ? 'socket_never_connected'
+                : !isInitialized
+                ? 'sync_shutdown'
+                : InvalidateSync.isBackgrounded
+                ? 'backgrounded'
+                : !_isSocketConnected()
+                ? 'socket_dropped'
+                : null;
+            if (reason != null) {
+              logger.warning(
+                '[sendMessage] daemon notification retry gave up '
+                'session=$sessionId localId=$localId reason=$reason — '
+                'agent wakes on its next poll',
+              );
+              PowerDiagnosticsOtelReporter.instance.recordAppError(
+                'app.send.daemon_notify_gave_up',
+              );
+              return;
+            }
             logger.info(
               '[sendMessage] retrying daemon notification '
               'session=$sessionId localId=$localId',
             );
             _emitSocketMessage(sessionId, encryptedRawRecord, localId);
           })
-          .catchError((_) {
-            // Silently swallow — the message is already stored on the server
-            // via REST POST and the daemon will pick it up on its next poll.
+          .catchError((Object error, StackTrace stack) {
+            // The message is already stored on the server via REST POST,
+            // so this is not data loss — but a globally dead socket emit
+            // path would otherwise be invisible.
+            logger.warning(
+              '[sendMessage] daemon notification retry failed '
+              'session=$sessionId localId=$localId',
+              error,
+              stack,
+            );
+            PowerDiagnosticsOtelReporter.instance.recordAppError(
+              'app.send.daemon_notify_failed',
+            );
           }),
     );
   }
