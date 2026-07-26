@@ -60,7 +60,12 @@ void main() {
       // `createTestSync()` does not wire encryption, so the fallback path
       // is exercised here. Pin its shape so the canonical id-generator
       // contract cannot drift silently.
-      final fallbackPattern = RegExp(r'^\d+-\d+$');
+      //
+      // The random half is hex: the fallback draws 128 bits (two 32-bit
+      // values rendered base-16) rather than a single decimal int, so
+      // that a lost primary generator cannot weaken the uniqueness the
+      // server's UNIQUE(session_id, local_id) dedupe depends on.
+      final fallbackPattern = RegExp(r'^\d+-[0-9a-f]+$');
       final uuidPattern = RegExp(
         r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
         caseSensitive: false,

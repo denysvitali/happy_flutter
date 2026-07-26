@@ -15,7 +15,7 @@ class _StubAuthNotifier extends AuthStateNotifier {
   AuthState build() => _state;
 
   @override
-  Future<void> checkAuth() async {
+  Future<void> checkAuth({bool showProgress = true}) async {
     // No-op in tests to avoid touching native platform code.
   }
 }
