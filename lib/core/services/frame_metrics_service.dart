@@ -45,6 +45,13 @@ class FrameMetricsService {
   /// attributes. Spanning the real jank episode makes the duration usable.
   OTelSpan? _jankSpan;
   DateTime? _jankSpanStartedAt;
+
+  /// Latches on the first frozen frame of a window, independently of whether
+  /// a span was actually created. `startTrace` returns null while OTel is
+  /// still initialising (and on failure), so guarding on `_jankSpan != null`
+  /// alone would let every later frozen frame overwrite the window start and
+  /// shrink `app.ui.jank_window` to "last frozen frame → flush".
+  bool _jankWindowOpen = false;
   Duration? _lastJankWindow;
 
   @visibleForTesting
@@ -120,7 +127,8 @@ class FrameMetricsService {
   /// the episode rather than an instant. Cheap: at most one span per flush
   /// interval, and a no-op while OTel is still initialising.
   void _openJankSpan() {
-    if (_jankSpan != null) return;
+    if (_jankWindowOpen) return;
+    _jankWindowOpen = true;
     _jankSpanStartedAt = DateTime.now();
     _jankSpan = OpenTelemetryService().startTrace(
       'ui.jank',
@@ -154,6 +162,7 @@ class FrameMetricsService {
     final jankStartedAt = _jankSpanStartedAt;
     _jankSpan = null;
     _jankSpanStartedAt = null;
+    _jankWindowOpen = false;
     _lastJankWindow = null;
     final frameCount = _frameCount;
     final slowFrameCount = _slowFrameCount;

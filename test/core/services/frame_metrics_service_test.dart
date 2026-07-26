@@ -88,6 +88,34 @@ void main() {
       expect(service.debugLastJankWindow!.inMicroseconds, greaterThan(0));
     });
 
+    // Regression: `_openJankSpan` guarded on `_jankSpan != null`, but the span
+    // is null whenever OTel is not initialised (as in tests, and during app
+    // start-up). Every later frozen frame then reset the window start, so the
+    // histogram measured "last frozen frame → flush" instead of the episode.
+    test('keeps the first frozen frame as the window start', () async {
+      final service = FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 70),
+          raster: const Duration(milliseconds: 40),
+          total: const Duration(milliseconds: 110),
+        );
+
+      await Future<void>.delayed(const Duration(milliseconds: 60));
+
+      service.testRecordFrame(
+        build: const Duration(milliseconds: 70),
+        raster: const Duration(milliseconds: 40),
+        total: const Duration(milliseconds: 110),
+      );
+      service.debugFlush();
+
+      expect(service.debugLastJankWindow, isNotNull);
+      expect(
+        service.debugLastJankWindow!.inMilliseconds,
+        greaterThanOrEqualTo(50),
+      );
+    });
+
     test('reports no window when no frame was frozen', () {
       final service = FrameMetricsService.instance
         ..testRecordFrame(
