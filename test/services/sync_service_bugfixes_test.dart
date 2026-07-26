@@ -1207,6 +1207,49 @@ void main() {
     );
 
     test(
+      'a foreground connectivity blip does not kill a healthy socket '
+      '(the suspend timestamp is consumed by the resume that reads it)',
+      () {
+        fakeAsync((async) {
+          // The app really was backgrounded for two minutes.
+          final nowMs = DateTime.now().millisecondsSinceEpoch;
+          sync.testLastSuspendedAtMs = nowMs - 120 * 1000;
+          socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+          final reconnectsBefore = socketIoClient.testReconnectRequests;
+          sync.resume();
+          expect(
+            socketIoClient.testReconnectRequests,
+            reconnectsBefore + 1,
+            reason: 'the first resume legitimately sees a zombie socket',
+          );
+
+          // The replacement socket is live and the app never went away
+          // again. NetworkMonitorService calls Sync.resume() on ANY
+          // connectivity change — including foreground wifi<->cellular
+          // handoffs, tunnels, and VPN toggles.
+          socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+          sync.testResetLastResumeAtMs();
+          sync.testCancelReconnectWatchdog();
+          final reconnectsAfterZombie = socketIoClient.testReconnectRequests;
+
+          sync.resume();
+
+          expect(
+            socketIoClient.testReconnectRequests,
+            reconnectsAfterZombie,
+            reason:
+                'nothing suspended the app since the last resume, so the '
+                'socket cannot be a zombie — the stale timestamp used to '
+                'make every foreground network blip tear down a healthy '
+                'connection and fire the whole sync cascade',
+          );
+          expect(sync.testHasReconnectWatchdog, isFalse);
+        });
+      },
+    );
+
+    test(
       'reconnect watchdog re-arms while the socket stays disconnected '
       'and stops once connected',
       () {
@@ -1218,9 +1261,9 @@ void main() {
           expect(socketIoClient.testReconnectRequests, reconnectsBefore + 1);
           expect(sync.testHasReconnectWatchdog, isTrue);
 
-          // Watchdog fires after ~15s: forces a fresh reconnect and,
-          // because the socket is still down, re-arms itself.
-          async.elapse(const Duration(milliseconds: 15001));
+          // First watchdog period is 15s + up to 25% jitter; elapsing the
+          // upper bound guarantees the fire.
+          async.elapse(const Duration(milliseconds: 18751));
           expect(
             socketIoClient.testReconnectRequests,
             reconnectsBefore + 2,
@@ -1234,21 +1277,90 @@ void main() {
             reason: 'watchdog must re-arm while still disconnected',
           );
 
-          // Second cycle — still probing.
+          // Second period BACKS OFF to 30s (+ jitter). A flat 15s re-arm
+          // meant a sustained outage cost ~8 dials/minute forever, each
+          // one resetting the Socket.IO Manager's own backoff to zero.
           async.elapse(const Duration(milliseconds: 15001));
+          expect(
+            socketIoClient.testReconnectRequests,
+            reconnectsBefore + 2,
+            reason:
+                'the second watchdog period must be longer than the first '
+                '— a flat period is what produced the redial storm',
+          );
+
+          async.elapse(const Duration(milliseconds: 22500));
           expect(socketIoClient.testReconnectRequests, reconnectsBefore + 3);
           expect(sync.testHasReconnectWatchdog, isTrue);
 
           // Connection recovers: the next watchdog fire observes it and
           // the chain stops (no further reconnects, no re-arm).
           socketIoClient.testConnectionStatus = ConnectionStatus.connected;
-          async.elapse(const Duration(milliseconds: 15001));
+          async.elapse(const Duration(milliseconds: 75001));
           expect(socketIoClient.testReconnectRequests, reconnectsBefore + 3);
           expect(
             sync.testHasReconnectWatchdog,
             isFalse,
             reason: 'watchdog must stop re-arming once connected',
           );
+        });
+      },
+    );
+
+    test(
+      'reconnect watchdog backoff restarts on a deliberate resume',
+      () {
+        fakeAsync((async) {
+          socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+          sync.resume();
+
+          // Burn two watchdog periods so the backoff has grown to 60s.
+          async.elapse(const Duration(milliseconds: 18751));
+          async.elapse(const Duration(milliseconds: 37501));
+          expect(sync.testHasReconnectWatchdog, isTrue);
+
+          // A deliberate foreground resume restarts the curve — the user
+          // is looking at the app, so a fast first probe is worth it.
+          sync.testResetLastResumeAtMs();
+          final reconnectsBefore = socketIoClient.testReconnectRequests;
+          sync.resume();
+
+          async.elapse(const Duration(milliseconds: 18751));
+          expect(
+            socketIoClient.testReconnectRequests,
+            greaterThanOrEqualTo(reconnectsBefore + 2),
+            reason:
+                'resume() must reset the watchdog backoff to its 15s base '
+                'instead of inheriting a 60s+ period from the outage',
+          );
+        });
+      },
+    );
+
+    test(
+      'reconnect watchdog does not abandon a dial that is still '
+      'negotiating',
+      () {
+        fakeAsync((async) {
+          socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+          sync.resume();
+
+          // The forced dial is now negotiating. The server allows 20s for
+          // the handshake; tearing it down here makes the server book an
+          // involuntary disconnect.
+          socketIoClient.testConnectionStatus = ConnectionStatus.connecting;
+          final reconnectsBefore = socketIoClient.testReconnectRequests;
+
+          async.elapse(const Duration(milliseconds: 18751));
+
+          expect(
+            socketIoClient.testReconnectRequests,
+            reconnectsBefore,
+            reason:
+                'a dial in flight must be left alone; the watchdog only '
+                're-arms',
+          );
+          expect(sync.testHasReconnectWatchdog, isTrue);
         });
       },
     );
