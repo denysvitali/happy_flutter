@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -121,9 +122,24 @@ void main() {
       expect(find.textContaining('focus me'), findsOneWidget);
     });
 
-    testWidgets('Copy pops the focus view and confirms the copy', (
+    testWidgets('Copy pops the focus view and writes the clipboard', (
       tester,
     ) async {
+      final calls = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          calls.add(call);
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
       await tester.pumpWidget(
         _wrap(
           const BotMessage(
@@ -141,11 +157,20 @@ void main() {
 
       expect(_blurLayer(), findsNothing);
 
-      // The clipboard write and the confirmation happen after the overlay
-      // has popped, so they need a second settle.
+      // The clipboard write happens after the overlay has popped, so it
+      // needs another turn of the async queue.
       await tester.pump();
       await tester.pumpAndSettle();
-      expect(find.text('Copied to clipboard'), findsOneWidget);
+      expect(
+        calls.where((call) => call.method == 'Clipboard.setData'),
+        isNotEmpty,
+      );
+      expect(
+        calls
+            .firstWhere((call) => call.method == 'Clipboard.setData')
+            .arguments['text'],
+        'copy this message',
+      );
     });
 
     testWidgets('user messages focus too and surface their send status', (
