@@ -1693,9 +1693,26 @@ what you have, you must use the options mode.
   /// the failure path now also stamps `_lastRunEnd`, so
   /// [_messagesSyncMinInterval] throttles anything that follows.
   ///
-  /// Every `messagesSync` instance must use this constant — grep for
-  /// `name: 'fetchMessages'` when adding a new construction site.
+  /// Every `messagesSync` instance must use this constant — build them with
+  /// [_createMessagesSync] and never call `InvalidateSync(...)` for
+  /// `fetchMessages` directly.
   static const int _messagesSyncMaxRetries = 1;
+
+  /// The single construction point for a per-session `fetchMessages`
+  /// [InvalidateSync].
+  ///
+  /// Four call sites create these (session visible, socket reconnect
+  /// refresh, session restore, lazy recreate on a socket event) and they
+  /// previously drifted apart, leaving three of them with `maxRetries: 0`
+  /// — i.e. no recovery layer at all, since the page requests also opt out
+  /// of the HTTP retry interceptor. See [_messagesSyncMaxRetries].
+  InvalidateSync _createMessagesSync(String sessionId) => InvalidateSync(
+    () => fetchMessages(sessionId),
+    minInterval: _messagesSyncMinInterval,
+    name: 'fetchMessages',
+    onRunningChanged: _onSyncRunningChanged,
+    maxRetries: _messagesSyncMaxRetries,
+  );
 
   /// Extra cooldown for visible no-embed probes when the cursor has not
   /// advanced since the previous probe.

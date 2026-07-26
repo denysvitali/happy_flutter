@@ -928,13 +928,7 @@ extension SyncMessagingRpc on Sync {
     }
     if (!isInitialized) return;
     if (!messagesSync.containsKey(sessionId)) {
-      messagesSync[sessionId] = InvalidateSync(
-        () => fetchMessages(sessionId),
-        minInterval: Sync._messagesSyncMinInterval,
-        name: 'fetchMessages',
-        onRunningChanged: _onSyncRunningChanged,
-        maxRetries: Sync._messagesSyncMaxRetries,
-      );
+      messagesSync[sessionId] = _createMessagesSync(sessionId);
     }
 
     var shouldProbeAfterSessionsRefresh = false;
