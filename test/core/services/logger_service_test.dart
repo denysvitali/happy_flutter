@@ -391,4 +391,67 @@ void main() {
       expect(testLogger.getLogsByLevel(LogLevel.info), hasLength(1));
     });
   });
+
+  // The release-mode forwarding fix (above) shipped with no bound on the
+  // Sentry path: hot-loop warnings interpolate session ids, storage keys and
+  // counts, so each occurrence became BOTH a billed event and a distinct
+  // GlitchTip issue. `_forwardToSentry` now applies fingerprint dedup plus a
+  // global token bucket.
+  group('LoggerService Sentry emission policy', () {
+    final testLogger = logger;
+    late int fakeNowMs;
+
+    setUp(() {
+      fakeNowMs = 1000000;
+      testLogger
+        ..clear()
+        ..setMinLevel(LogLevel.debug)
+        ..setDeveloperMode(false)
+        ..debugSentryClock = (() => fakeNowMs)
+        ..debugResetSentryThrottle();
+    });
+
+    tearDown(() {
+      testLogger
+        ..debugSentryClock = null
+        ..debugResetSentryThrottle()
+        ..clear();
+    });
+
+    test('per-session warnings collapse to a single Sentry event', () {
+      for (var i = 0; i < 40; i++) {
+        testLogger.warning(
+          '[fetchMessages] session-${i}aa11bb22cc33 dropped $i item(s)',
+        );
+      }
+
+      expect(testLogger.debugSentryEmitCount, 1);
+    });
+
+    test('the same shape is re-sent after the cooldown', () {
+      testLogger.warning('MMKV: Failed to save drafts[abc12345]: disk full');
+      fakeNowMs += const Duration(minutes: 6).inMilliseconds;
+      testLogger.warning('MMKV: Failed to save drafts[def67890]: disk full');
+
+      expect(testLogger.debugSentryEmitCount, 2);
+    });
+
+    test('distinct shapes are capped by the token bucket', () {
+      for (var i = 0; i < 100; i++) {
+        testLogger.warning('unique warning shape ${_alphabet[i % 26]}$i x');
+      }
+
+      expect(testLogger.debugSentryEmitCount, lessThanOrEqualTo(20));
+    });
+
+    test('errors are never throttled', () {
+      for (var i = 0; i < 50; i++) {
+        testLogger.error('identical failure');
+      }
+
+      expect(testLogger.debugSentryEmitCount, 50);
+    });
+  });
 }
+
+const _alphabet = 'abcdefghijklmnopqrstuvwxyz';
