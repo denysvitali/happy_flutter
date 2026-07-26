@@ -210,7 +210,7 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final machines = ref.watch(machinesNotifierProvider).values.toList();
+    final machines = ref.watch(machinesNotifierProvider);
     final machine = _machine;
     final project = _project;
 
