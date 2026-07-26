@@ -435,6 +435,10 @@ class MessageOutbox {
   void _schedulePersist() {
     _persistTimer?.cancel();
     _persistTimer = Timer(const Duration(milliseconds: 100), () {
+      // Clear before persisting: a completed timer left in place makes
+      // the `hadPendingPersist` guard in suspendAndFlush() permanently
+      // true, so every suspend re-encodes and rewrites the whole blob.
+      _persistTimer = null;
       unawaited(_persist());
     });
   }
