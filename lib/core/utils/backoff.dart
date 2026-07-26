@@ -198,13 +198,24 @@ BackoffFunc<T> createBackoff<T>(
   };
 }
 
-/// A backoff function with default error logging
-final backoff = createBackoff<Object>(
+/// Attempt cap for the shared [backoff] helper.
+///
+/// [createBackoff] retries forever, which turns a permanently failing
+/// callback (revoked token, removed endpoint) into an unbounded battery
+/// drain. The shared helper is therefore built on
+/// [createRetryingBackoff]: it eventually rethrows so the caller can
+/// surface the failure.
+const int backoffMaxRetries = 10;
+
+/// A backoff function with default error logging that gives up after
+/// [backoffMaxRetries] retries instead of looping forever.
+final backoff = createRetryingBackoff<Object>(
   BackoffOptions(
     onError: (e, _) {
       logger.warning('Backoff retry: $e');
     },
   ),
+  backoffMaxRetries,
 );
 
 /// A simpler exponential backoff that retries a fixed number of times.

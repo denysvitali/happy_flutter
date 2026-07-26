@@ -418,6 +418,10 @@ class CryptoSecretBox {
   /// AES-256-GCM threshold in `session_encryption.dart`.
   static const int batchIsolateThreshold = nacl_iso.kNaClIsolateBatchThreshold;
 
+  /// Maximum number of isolate failures replayed through the
+  /// main-isolate [decrypt] for diagnostics per batch.
+  static const int maxFailureReplays = 3;
+
   /// Overrides batch isolate behaviour for tests.
   ///
   ///   - `null` (default): use isolate when batch >= threshold on native
@@ -468,8 +472,17 @@ class CryptoSecretBox {
         // failure diagnostics (Sentry scope, envelope detection). The
         // worker can only signal failure as `null` — it has no logger.
         final results = List<dynamic>.from(isolateResults);
+        var replayed = 0;
         for (var i = 0; i < results.length; i++) {
           if (results[i] != null) continue;
+          if (replayed >= maxFailureReplays) {
+            // A wrong-key page fails EVERY item; replaying all of them
+            // is hundreds of sequential inline decrypts on the UI
+            // thread. The first few already carry the diagnostics, and
+            // the rest stay null exactly as the worker reported them.
+            continue;
+          }
+          replayed++;
           results[i] = await decrypt(data[i], secretKey, scope: scope);
         }
         return results;
