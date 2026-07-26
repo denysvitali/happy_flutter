@@ -34,7 +34,10 @@ enum SandboxGrantMode {
 
 /// One directory a project's sessions may see beyond the project itself.
 class SandboxGrant {
-  const SandboxGrant({required this.path, this.mode = SandboxGrantMode.readWrite});
+  const SandboxGrant({
+    required this.path,
+    this.mode = SandboxGrantMode.readWrite,
+  });
 
   factory SandboxGrant.fromJson(Map<dynamic, dynamic> json) => SandboxGrant(
     path: json['path'] as String? ?? '',

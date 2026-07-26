@@ -5497,4 +5497,90 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mcpUrlInvalid => 'Enter a full URL including https://';
+
+  @override
+  String get sandboxTitle => 'Sandbox';
+
+  @override
+  String get sandboxMachineSection => 'Machine';
+
+  @override
+  String get sandboxProjectSection => 'Project';
+
+  @override
+  String get sandboxUnavailableTitle => 'Sandboxing unavailable';
+
+  @override
+  String get sandboxMachineDisabled =>
+      'Sandboxing is turned off for this machine. Sessions run with full access to the file system.';
+
+  @override
+  String get sandboxExplainer =>
+      'Sandboxed sessions see this project directory and the public internet. Everything else on the machine — your home directory, SSH keys, other projects — is not there.';
+
+  @override
+  String get sandboxEnabledForProject => 'Sandbox this project';
+
+  @override
+  String get sandboxFollowsMachine => 'Following the machine default';
+
+  @override
+  String get sandboxFoldersSection => 'Extra folders';
+
+  @override
+  String get sandboxNoFolders => 'No extra folders';
+
+  @override
+  String get sandboxNoFoldersSubtitle =>
+      'Sessions can only reach the project directory itself. Add a folder if this project needs one.';
+
+  @override
+  String get sandboxAddFolder => 'Add folder';
+
+  @override
+  String get sandboxFolderPath => 'Absolute path';
+
+  @override
+  String get sandboxFolderPathHint => '/home/you/go/pkg/mod';
+
+  @override
+  String get sandboxFolderPathRequired => 'Enter an absolute path';
+
+  @override
+  String get sandboxModeReadWrite => 'Read and write';
+
+  @override
+  String get sandboxModeReadOnly => 'Read only';
+
+  @override
+  String get sandboxRemoveFolder => 'Remove folder';
+
+  @override
+  String sandboxRemoveFolderConfirm(String path) {
+    return 'Sessions in this project will no longer reach $path.';
+  }
+
+  @override
+  String get sandboxSaveFailed => 'Could not save the sandbox policy';
+
+  @override
+  String get sandboxLoadFailed => 'Could not load the sandbox policy';
+
+  @override
+  String get sandboxNetworkPublic =>
+      'Network: public internet only — the local network, other machines and localhost are refused.';
+
+  @override
+  String get sandboxNetworkAllowlist =>
+      'Network: only the hosts allowed below.';
+
+  @override
+  String get sandboxNetworkNone => 'Network: no egress at all.';
+
+  @override
+  String get settingsSandbox => 'Sandbox';
+
+  @override
+  String get settingsSandboxSubtitle =>
+      'Choose what a project\'s sessions can reach on your machines';
 }

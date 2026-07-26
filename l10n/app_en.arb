@@ -2573,7 +2573,12 @@
   },
   "sandboxRemoveFolderConfirm": "Sessions in this project will no longer reach {path}.",
   "@sandboxRemoveFolderConfirm": {
-    "description": "Confirmation body when revoking a folder"
+    "description": "Confirmation body when revoking a folder",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
   },
   "sandboxSaveFailed": "Could not save the sandbox policy",
   "@sandboxSaveFailed": {
@@ -2594,5 +2599,13 @@
   "sandboxNetworkNone": "Network: no egress at all.",
   "@sandboxNetworkNone": {
     "description": "Describes the disabled egress mode"
+  },
+  "settingsSandbox": "Sandbox",
+  "@settingsSandbox": {
+    "description": "Settings row opening per-project sandbox management"
+  },
+  "settingsSandboxSubtitle": "Choose what a project's sessions can reach on your machines",
+  "@settingsSandboxSubtitle": {
+    "description": "Subtitle for the sandbox settings row"
   }
 }

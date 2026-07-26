@@ -9912,6 +9912,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a full URL including https://'**
   String get mcpUrlInvalid;
+
+  /// Title of the per-project sandbox screen
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox'**
+  String get sandboxTitle;
+
+  /// Section title for the machine picker on the sandbox screen
+  ///
+  /// In en, this message translates to:
+  /// **'Machine'**
+  String get sandboxMachineSection;
+
+  /// Section title for the project picker on the sandbox screen
+  ///
+  /// In en, this message translates to:
+  /// **'Project'**
+  String get sandboxProjectSection;
+
+  /// Shown when the machine cannot run sandboxed sessions
+  ///
+  /// In en, this message translates to:
+  /// **'Sandboxing unavailable'**
+  String get sandboxUnavailableTitle;
+
+  /// Shown when the machine config opted out of sandboxing
+  ///
+  /// In en, this message translates to:
+  /// **'Sandboxing is turned off for this machine. Sessions run with full access to the file system.'**
+  String get sandboxMachineDisabled;
+
+  /// Explains what the sandbox does
+  ///
+  /// In en, this message translates to:
+  /// **'Sandboxed sessions see this project directory and the public internet. Everything else on the machine — your home directory, SSH keys, other projects — is not there.'**
+  String get sandboxExplainer;
+
+  /// Label of the per-project sandbox switch
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox this project'**
+  String get sandboxEnabledForProject;
+
+  /// Subtitle when a project has no explicit sandbox choice
+  ///
+  /// In en, this message translates to:
+  /// **'Following the machine default'**
+  String get sandboxFollowsMachine;
+
+  /// Section title for the granted folders list
+  ///
+  /// In en, this message translates to:
+  /// **'Extra folders'**
+  String get sandboxFoldersSection;
+
+  /// Empty state title for granted folders
+  ///
+  /// In en, this message translates to:
+  /// **'No extra folders'**
+  String get sandboxNoFolders;
+
+  /// Empty state subtitle for granted folders
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions can only reach the project directory itself. Add a folder if this project needs one.'**
+  String get sandboxNoFoldersSubtitle;
+
+  /// Button that grants another folder to the project
+  ///
+  /// In en, this message translates to:
+  /// **'Add folder'**
+  String get sandboxAddFolder;
+
+  /// Label of the folder path field
+  ///
+  /// In en, this message translates to:
+  /// **'Absolute path'**
+  String get sandboxFolderPath;
+
+  /// Hint for the folder path field
+  ///
+  /// In en, this message translates to:
+  /// **'/home/you/go/pkg/mod'**
+  String get sandboxFolderPathHint;
+
+  /// Validation error for an empty or relative folder path
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an absolute path'**
+  String get sandboxFolderPathRequired;
+
+  /// Grant mode label
+  ///
+  /// In en, this message translates to:
+  /// **'Read and write'**
+  String get sandboxModeReadWrite;
+
+  /// Grant mode label
+  ///
+  /// In en, this message translates to:
+  /// **'Read only'**
+  String get sandboxModeReadOnly;
+
+  /// Tooltip for removing a granted folder
+  ///
+  /// In en, this message translates to:
+  /// **'Remove folder'**
+  String get sandboxRemoveFolder;
+
+  /// Confirmation body when revoking a folder
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions in this project will no longer reach {path}.'**
+  String sandboxRemoveFolderConfirm(String path);
+
+  /// Fallback error when a sandbox write fails
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the sandbox policy'**
+  String get sandboxSaveFailed;
+
+  /// Fallback error when the sandbox read fails
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the sandbox policy'**
+  String get sandboxLoadFailed;
+
+  /// Describes the public egress mode
+  ///
+  /// In en, this message translates to:
+  /// **'Network: public internet only — the local network, other machines and localhost are refused.'**
+  String get sandboxNetworkPublic;
+
+  /// Describes the allowlist egress mode
+  ///
+  /// In en, this message translates to:
+  /// **'Network: only the hosts allowed below.'**
+  String get sandboxNetworkAllowlist;
+
+  /// Describes the disabled egress mode
+  ///
+  /// In en, this message translates to:
+  /// **'Network: no egress at all.'**
+  String get sandboxNetworkNone;
+
+  /// Settings row opening per-project sandbox management
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox'**
+  String get settingsSandbox;
+
+  /// Subtitle for the sandbox settings row
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what a project\'s sessions can reach on your machines'**
+  String get settingsSandboxSubtitle;
 }
 
 class _AppLocalizationsDelegate

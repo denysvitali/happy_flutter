@@ -192,6 +192,12 @@ _DataSectionSpec _machinesSectionSpec(
         subtitle: l10n.settingsMcpServersSubtitle,
         route: 'mcp-servers',
       ),
+      _NavRouteSpec(
+        icon: Icons.shield_outlined,
+        title: l10n.settingsSandbox,
+        subtitle: l10n.settingsSandboxSubtitle,
+        route: 'sandbox',
+      ),
     ],
   );
 }

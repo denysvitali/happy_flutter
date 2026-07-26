@@ -113,6 +113,26 @@ List<RouteBase> get settingsRoutes => [
           _slidePage(const AuthGate(child: UsageScreen()), state),
     ),
     GoRoute(
+      // The screen takes an optional project directory through `extra`, so a
+      // session can jump straight to its own policy; a deep link with none
+      // lands on the machine's project list instead.
+      path: '/settings/sandbox',
+      name: 'sandbox',
+      pageBuilder: (context, state) {
+        final directory = state.extra;
+        return _slidePage(
+          AuthGate(
+            child: SandboxScreen(
+              initialDirectory: directory is String && directory.isNotEmpty
+                  ? directory
+                  : null,
+            ),
+          ),
+          state,
+        );
+      },
+    ),
+    GoRoute(
       path: '/settings/mcp-servers',
       name: 'mcp-servers',
       pageBuilder: (context, state) =>

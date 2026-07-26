@@ -28,6 +28,7 @@ import '../../features/dev/session_debug_screen.dart';
 import '../../features/machine/machine_detail_screen.dart';
 import '../../features/mcp/mcp_server_edit_screen.dart';
 import '../../features/mcp/mcp_servers_screen.dart';
+import '../../features/sandbox/sandbox_screen.dart';
 import '../../features/sessions/sessions_screen.dart';
 import '../../features/settings/account_screen.dart';
 import '../../features/settings/claude_limits_screen.dart';
