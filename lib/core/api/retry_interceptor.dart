@@ -50,9 +50,13 @@ bool isTransientConnectionError(DioException error) {
 /// - Requests carrying `extra['disableRetry'] == true`
 ///
 /// The whole retry sequence is additionally bounded by
-/// [maxTotalElapsedMs]: without it, 4 attempts plus 1s+2s+4s of backoff
-/// (plus per-attempt timeouts) could keep a single logical send in flight
-/// for the better part of a minute.
+/// [maxTotalElapsedMs], measured from the start of the FIRST attempt
+/// ([retryStartKey], stamped in [onRequest]): without it, 4 attempts plus
+/// 1s+2s+4s of backoff (plus per-attempt timeouts) could keep a single
+/// logical send in flight for the better part of a minute. The budget is an
+/// admission check — an attempt that is already in flight is bounded by its
+/// own Dio timeouts, not by the budget — so the sequence can overrun it by
+/// at most one attempt's timeout.
 class RetryInterceptor extends Interceptor {
   RetryInterceptor({
     required Dio Function() dioGetter,
@@ -88,12 +92,29 @@ class RetryInterceptor extends Interceptor {
   static const lastErrorTypeKey = '_retryLastErrorType';
 
   /// [RequestOptions.extra] key holding the epoch-ms timestamp at which the
-  /// retry sequence for this request started.
-  static const _retryStartKey = '_retryStartedAtMs';
+  /// FIRST attempt of this request started.
+  ///
+  /// Stamped in [onRequest] rather than lazily at the first retry decision:
+  /// stamping it late excluded the initial attempt's own duration from
+  /// [maxTotalElapsedMs], so a black-holed route could burn a full
+  /// receive-timeout, then be admitted for another one, with the budget
+  /// never able to deny anything.
+  static const retryStartKey = '_retryStartedAtMs';
 
   /// Requests under this prefix are part of the (re-)authentication flow
   /// itself and must not trigger another re-auth notification.
   static const _authPathPrefix = '/v1/auth/';
+
+  @override
+  void onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) {
+    // A retried attempt re-enters onRequest with the same RequestOptions,
+    // so only the first attempt stamps the budget clock.
+    options.extra[retryStartKey] ??= DateTime.now().millisecondsSinceEpoch;
+    handler.next(options);
+  }
 
   @override
   void onResponse(
@@ -131,9 +152,13 @@ class RetryInterceptor extends Interceptor {
       // outer attempt does not record the same response a second time.
       return handler.resolve(await _dioGetter().fetch<dynamic>(options));
     } on DioException catch (e) {
-      return handler.reject(e);
+      // `true` = keep running the following error interceptors, so the
+      // tracing / request-tracker interceptors still close the attempt.
+      // Plain reject() completes the request without them and leaks the
+      // span opened for this attempt.
+      return handler.reject(e, true);
     } catch (e, s) {
-      return handler.reject(_unexpectedRetryError(options, e, s));
+      return handler.reject(_unexpectedRetryError(options, e, s), true);
     }
   }
 
@@ -238,8 +263,10 @@ class RetryInterceptor extends Interceptor {
     }
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final startedAtMs = options.extra[_retryStartKey] as int? ?? nowMs;
-    options.extra[_retryStartKey] = startedAtMs;
+    // Normally stamped by onRequest on the first attempt; the fallback only
+    // covers interceptor-less unit setups.
+    final startedAtMs = options.extra[retryStartKey] as int? ?? nowMs;
+    options.extra[retryStartKey] = startedAtMs;
     final elapsedMs = nowMs - startedAtMs;
 
     // Exponential backoff with jitter, clamped to the per-wait maximum.

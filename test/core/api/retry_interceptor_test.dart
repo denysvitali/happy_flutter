@@ -245,6 +245,130 @@ void main() {
       expect(response.statusCode, 200);
     });
   });
+
+  group('RetryInterceptor time budget', () {
+    test('counts the first attempt against maxTotalElapsedMs', () async {
+      // The attempt itself burns more than the whole budget. The budget
+      // used to start at the first retry *decision*, so the initial
+      // attempt's duration was free and the retry was always admitted.
+      final adapter = _SlowAdapter(
+        delay: const Duration(milliseconds: 300),
+        statusCode: 503,
+      );
+      late final Dio dio;
+      dio = Dio(
+        BaseOptions(
+          baseUrl: 'https://test.example.com',
+          validateStatus: (_) => true,
+        ),
+      );
+      dio.interceptors.add(
+        RetryInterceptor(
+          dioGetter: () => dio,
+          baseDelayMs: 1,
+          maxDelayMs: 2,
+          maxTotalElapsedMs: 100,
+        ),
+      );
+      dio.httpClientAdapter = adapter;
+
+      final response = await dio.get<dynamic>('/v1/machines');
+
+      expect(
+        adapter.calls,
+        1,
+        reason:
+            'the first attempt already blew the budget, so no retry may '
+            'be admitted',
+      );
+      expect(response.statusCode, 503);
+    });
+  });
+
+  group('RetryInterceptor retry failures', () {
+    test('a failed retry still runs the following error interceptors',
+        () async {
+      // The retried fetch fails before any interceptor chain runs (e.g. the
+      // captured Dio was closed by ApiClient.initialize mid-backoff). The
+      // error must still reach the tracing / tracker interceptors, or the
+      // span opened for the attempt is never ended.
+      final failingDio = Dio(
+        BaseOptions(baseUrl: 'https://test.example.com'),
+      );
+      failingDio.httpClientAdapter = _ThrowingAdapter(() {
+        throw DioException(
+          requestOptions: RequestOptions(path: '/v1/machines'),
+          type: DioExceptionType.connectionError,
+          message: 'closed',
+        );
+      });
+
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: 'https://test.example.com',
+          validateStatus: (_) => true,
+        ),
+      );
+      dio.interceptors.add(
+        RetryInterceptor(
+          dioGetter: () => failingDio,
+          baseDelayMs: 1,
+          maxDelayMs: 2,
+        ),
+      );
+      var observedErrors = 0;
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onError: (error, handler) {
+            observedErrors++;
+            handler.next(error);
+          },
+        ),
+      );
+      dio.httpClientAdapter = _ScriptedAdapter([503]);
+
+      await expectLater(
+        dio.get<dynamic>('/v1/machines'),
+        throwsA(isA<DioException>()),
+      );
+      expect(
+        observedErrors,
+        1,
+        reason:
+            'handler.reject must keep the error chain running so spans and '
+            'tracker entries are closed',
+      );
+    });
+  });
+}
+
+/// Adapter that takes [delay] to answer with [statusCode].
+class _SlowAdapter implements HttpClientAdapter {
+  _SlowAdapter({required this.delay, required this.statusCode});
+
+  final Duration delay;
+  final int statusCode;
+  int calls = 0;
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    calls++;
+    await Future<void>.delayed(delay);
+    return ResponseBody.fromString(
+      jsonEncode({'attempt': calls}),
+      statusCode,
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 class _ThrowingAdapter implements HttpClientAdapter {
