@@ -387,7 +387,7 @@ extension SyncSocketEvents on Sync {
         minInterval: Sync._messagesSyncMinInterval,
         name: 'fetchMessages',
         onRunningChanged: _onSyncRunningChanged,
-        maxRetries: 0,
+        maxRetries: Sync._messagesSyncMaxRetries,
       );
     }
 

@@ -330,6 +330,12 @@ extension SyncTestHelpers on Sync {
     _sessionsWithPendingSocketMessages.addAll(sessionIds);
   }
 
+  /// Test helper: run the deferred-resume message batch (normally driven by
+  /// a repeating 2 s timer) so tests can exercise the InvalidateSync
+  /// instances it creates.
+  @visibleForTesting
+  void testScheduleResumeMessageBatch() => _scheduleResumeMessageBatch();
+
   @visibleForTesting
   void testAddFetchProbe(String sessionId) {
     _sessionsNeedingFetchProbe.add(sessionId);

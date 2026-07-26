@@ -469,7 +469,7 @@ extension SyncLifecycle on Sync {
                 minInterval: Sync._messagesSyncMinInterval,
                 name: 'fetchMessages',
                 onRunningChanged: _onSyncRunningChanged,
-                maxRetries: 0,
+                maxRetries: Sync._messagesSyncMaxRetries,
               );
             }
           }
@@ -697,7 +697,7 @@ extension SyncLifecycle on Sync {
               minInterval: Sync._messagesSyncMinInterval,
               name: 'fetchMessages',
               onRunningChanged: _onSyncRunningChanged,
-              maxRetries: 0,
+              maxRetries: Sync._messagesSyncMaxRetries,
             );
           }
           _sessionsNeedingFetchProbe.add(sessionId);
