@@ -65,6 +65,23 @@ List<Map<String, dynamic>> markOptimisticMessageFailed(
   ];
 }
 
+/// Whether the row for [localId] is still in the optimistic `'sending'`
+/// state.
+///
+/// The stall watchdog polls this to know when it can stop watching: any
+/// other status ('sent', 'failed', 'pending') is terminal as far as the
+/// watchdog is concerned, as is a missing row.
+bool isOptimisticMessageSending(
+  List<Map<String, dynamic>> messages,
+  String localId,
+) {
+  return messages.any(
+    (m) =>
+        (m['localId'] == localId || m['id'] == localId) &&
+        m['sendStatus'] == 'sending',
+  );
+}
+
 /// Returns a new list with the still-`'sending'` message matching
 /// [localId] escalated to `'pending'` ("Retry queued").
 ///
