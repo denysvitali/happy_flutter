@@ -46,13 +46,10 @@ class LSEntry {
   }
 }
 
-/// Folder accent color for directory entries.
-const Color _dirColor = Color(0xFFFFC107);
-
 /// Returns a color for a file entry based on type/extension.
 Color _entryColor(LSEntry entry, ColorScheme cs) {
-  if (entry.isDirectory) return _dirColor;
-  if (entry.isSymlink) return const Color(0xFF26C6DA);
+  if (entry.isDirectory) return cs.primary;
+  if (entry.isSymlink) return cs.tertiary;
   final ext = entry.extension;
   if (ext.isEmpty) return cs.onSurfaceVariant;
   final mapped = FileTypeColors.colorForExtension(ext);
@@ -132,7 +129,7 @@ class _LSViewState extends State<LSView> {
                     icon: Icons.folder_rounded,
                     count: dirs.length,
                     label: 'dir${dirs.length != 1 ? 's' : ''}',
-                    color: _dirColor,
+                    color: cs.primary,
                     colorScheme: cs,
                   ),
                   const SizedBox(width: AppSpacing.xsm),
@@ -310,10 +307,10 @@ class _PathHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.folder_open_rounded,
             size: AppIconSize.sm,
-            color: _dirColor,
+            color: cs.primary,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
