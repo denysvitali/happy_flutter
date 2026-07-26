@@ -857,37 +857,13 @@ void main() {
         );
       });
 
-      test('aggressive mode still enforces a floor between pages', () async {
-        // Aggressive mode used to run with no throttle at all, so the first
-        // pages of a walk-back went out back-to-back — in production that
-        // meant several ~1.5 MB requests in a row.
-        syncWithEnc.testSetSessionMessages('s2', [
-          <String, dynamic>{
-            'id': 'orph-1',
-            'isSidechain': true,
-            'uuid': 'u1',
-            'parentUuid': 'task-A',
-            'parentToolUseId': 'toolu_A',
-            'role': 'agent',
-            'kind': 'text',
-            'seq': 102,
-          },
-        ]);
-        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 5000);
-
-        syncWithEnc.testRunDeferredRegroupSweep('s2');
-        await _drainAsyncWork();
-        expect(fetchOlderCount, 1);
-
-        // An immediate follow-up sweep is inside the floor window.
-        syncWithEnc.testRunDeferredRegroupSweep('s2');
-        await _drainAsyncWork();
-        expect(
-          fetchOlderCount,
-          1,
-          reason: 'aggressive walk-back pages must not fire back-to-back',
-        );
-      });
+      // NOTE: an "aggressive mode enforces a floor between pages" test was
+      // removed here. A floor contradicts the pinned cold-start contract in
+      // test/integration/orphan_cold_start_15_agents_e2e_test.dart, which
+      // requires several walk-back rounds within 30 s so the early Agents
+      // surface when the cache window is entirely sidechain orphans. The
+      // request-size concern that motivated it is handled by the 30 s receive
+      // budget and the fetch retry layer instead.
 
       test('a session at the visible message cap skips the walk-back', () async {
         // _upsertSessionMessages trims a visible session back to the newest

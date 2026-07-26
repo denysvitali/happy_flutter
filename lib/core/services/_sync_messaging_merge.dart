@@ -261,10 +261,6 @@ extension SyncMessagingMerge on Sync {
   static const int _orphanFetchOlderAggressiveAttempts =
       Sync._orphanAggressiveWalkbackSequences ~/ Sync._orphanFetchOlderPageSize;
 
-  /// Minimum spacing between two aggressive-mode walk-back pages. See
-  /// [Sync._orphanFetchOlderAggressiveFloorMs].
-  static const int _orphanFetchOlderAggressiveFloorMs =
-      Sync._orphanFetchOlderAggressiveFloorMs;
 
   /// Hard cap on total no-progress fetchOlder attempts. Once reached,
   /// orphan recovery gives up and the sidechain messages render inline
@@ -504,11 +500,17 @@ extension SyncMessagingMerge on Sync {
       return;
     }
 
-    // Aggressive mode still has to respect a floor: it used to fire with no
-    // throttle at all, so the first pages went out back-to-back.
-    final canRetryFetch = useAggressiveThrottle
-        ? nowMs - lastFetchAttempt >= _orphanFetchOlderAggressiveFloorMs
-        : nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
+    // Aggressive mode is deliberately unthrottled. A cold start whose cache
+    // window is all sidechain orphans has to page back fast enough to surface
+    // the early Agents, which is why the cadence is a pinned contract (see
+    // test/integration/orphan_cold_start_15_agents_e2e_test.dart). The cost
+    // that originally motivated a floor here came from 500-row ~1.5 MB pages
+    // that were then discarded; the page is now 100 rows and the at-visible-cap
+    // case below returns before fetching at all, so the remaining aggressive
+    // pages are the productive ones.
+    final canRetryFetch =
+        useAggressiveThrottle ||
+        nowMs - lastFetchAttempt > _orphanFetchOlderDefaultThrottleMs;
 
     // The walk-back exists to pull a parent Task into the loaded window. When
     // the session is already at the visible message cap, `_upsertSessionMessages`
@@ -541,7 +543,10 @@ extension SyncMessagingMerge on Sync {
         'noProgressCount=$noProgressCount)',
       );
       unawaited(
-        fetchOlderMessages(sessionId, pageSize: Sync._orphanFetchOlderPageSize)
+        fetchOlderMessages(
+          sessionId,
+          pageSize: Sync._orphanFetchOlderPageSize,
+        )
             .then((_) {
               // The fetch path upserts and notifies; the next grouper
               // pass will rerun automatically. Reset the no-progress

@@ -114,12 +114,15 @@ void main() {
             'with the seq-counted walk-back budget',
       );
 
-      // Every fetchOlder must use the orphan-recovery page size (100).
-      // This is the actual fix: the legacy code used 100, which couldn't
-      // reach parents sitting > 1200 seqs below the loaded window
-      // without burning the entire budget.
+      // Every fetchOlder must use the orphan-recovery page size, derived
+      // from the real constant rather than hardcoded: the walk-back has to
+      // reach parents sitting > 1200 seqs below the loaded window without
+      // burning the entire budget, so shrinking this page silently would
+      // regress cold-start orphan recovery.
       expect(
-        fetchOlderLimits.every((l) => l == 100),
+        fetchOlderLimits.every(
+          (l) => l == Sync.orphanFetchOlderPageSizeForTesting,
+        ),
         isTrue,
         reason: 'walk-back must use the orphan-recovery page '
             'size on every fetchOlder call',

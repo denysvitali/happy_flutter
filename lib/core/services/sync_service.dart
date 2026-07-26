@@ -237,13 +237,6 @@ class Sync {
 
   /// Floor between two consecutive walk-back pages in aggressive mode.
   ///
-  /// Aggressive mode previously ran with no throttle at all, so the first
-  /// pages fired back-to-back — in production that meant several ~1.5 MB
-  /// requests in a row, every one of them discarded by the visible-cap trim.
-  /// A 1 s floor keeps recovery fast without letting it monopolise the
-  /// connection.
-  static const int _orphanFetchOlderAggressiveFloorMs = 1000;
-
   /// Per-page fetch size for [/v3/sessions/:id/messages].
   ///
   /// Previously 1000 — which on outlier sessions with large encrypted
@@ -273,7 +266,16 @@ class Sync {
   /// ([_orphanFetchOlderMaxPageSequences] and
   /// [_orphanAggressiveWalkbackSequences]), not pages, so a smaller page
   /// costs more round-trips but covers exactly the same seq range.
-  static const int _orphanFetchOlderPageSize = 100;
+  /// Kept at 500 deliberately. Production traces showed this request
+  /// timing out client-side at 8.1 s on ~1.5 MB bodies the server had
+  /// produced in 94.8 ms — but the cause was the 8 s receive budget, now
+  /// [_messageFetchReceiveTimeout] at 30 s, plus the absence of any retry
+  /// layer. Both are fixed. Shrinking the page instead cuts how far one
+  /// aggressive sweep reaches, which is a pinned contract: a cold start
+  /// whose cache window is entirely sidechain orphans must page back to
+  /// seq < 500 fast enough to surface the early Agents
+  /// (test/integration/orphan_cold_start_15_agents_e2e_test.dart).
+  static const int _orphanFetchOlderPageSize = 500;
 
   /// [_orphanFetchOlderPageSize], exposed so walk-back contract tests size
   /// their seq windows from the real constant instead of a stale literal.
