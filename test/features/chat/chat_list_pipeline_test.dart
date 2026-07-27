@@ -175,6 +175,118 @@ void main() {
     });
   });
 
+  group('buildChatListItems sub-agent progress ticks', () {
+    // A workflow fan-out emits one task_progress event per tool call per
+    // agent. Rendered one-per-row they buried the transcript under dozens
+    // of near-identical centered chips while the banner reported only two
+    // agents running.
+    Map<String, dynamic> tick(String agentId, String tool) => {
+      'id': 'te-$agentId-$tool',
+      'kind': 'agent-event',
+      'role': 'agent',
+      'taskEvent': true,
+      'agentId': agentId,
+      'subAgentLastTool': tool,
+      'event': {'type': 'message', 'message': tool},
+    };
+
+    List<Map<String, dynamic>?> build(List<Map<String, dynamic>> msgs) =>
+        buildChatListItems(
+          visibleMessages: msgs,
+          hideToolCalls: false,
+          shouldRenderAgentEvent: (_) => true,
+          shouldHideToolCall: (_, {required hideToolCalls}) => false,
+        );
+
+    test('collapses a run to the latest tick per agent', () {
+      final items = build([
+        tick('a1', 'Read'),
+        tick('a2', 'Grep'),
+        tick('a1', 'Bash'),
+        tick('a2', 'Edit'),
+        tick('a1', 'Write'),
+      ]);
+
+      expect(items.length, 2);
+      // First-seen order is kept so rows do not jump around as ticks land.
+      expect(items[0]?['agentId'], 'a1');
+      expect(items[0]?['subAgentLastTool'], 'Write');
+      expect(items[1]?['agentId'], 'a2');
+      expect(items[1]?['subAgentLastTool'], 'Edit');
+    });
+
+    test('does not merge ticks across an intervening message', () {
+      final items = build([
+        tick('a1', 'Read'),
+        {'id': 'm1', 'role': 'agent', 'kind': 'text', 'text': 'hi'},
+        tick('a1', 'Bash'),
+      ]);
+
+      expect(items.length, 3);
+      expect(items[0]?['subAgentLastTool'], 'Read');
+      expect(items[1]?['id'], 'm1');
+      expect(items[2]?['subAgentLastTool'], 'Bash');
+    });
+
+    test('keeps terminal task summaries, which are text rows', () {
+      final items = build([
+        tick('a1', 'Read'),
+        tick('a1', 'Bash'),
+        {
+          'id': 'tn1',
+          'role': 'agent',
+          'kind': 'text',
+          'taskEvent': true,
+          'agentId': 'a1',
+          'content': 'Task completed',
+        },
+      ]);
+
+      expect(items.length, 2);
+      expect(items[0]?['subAgentLastTool'], 'Bash');
+      expect(items[1]?['id'], 'tn1');
+    });
+
+    test('falls back to the tool name when agentId is absent', () {
+      final items = build([
+        {
+          'id': 'te1',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'subAgentLastTool': 'Read',
+          'event': {'type': 'message', 'message': 'first'},
+        },
+        {
+          'id': 'te2',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'subAgentLastTool': 'Read',
+          'event': {'type': 'message', 'message': 'second'},
+        },
+      ]);
+
+      expect(items.length, 1);
+      expect(items.single?['id'], 'te2');
+    });
+
+    test('emits hidden tool summaries before the ticks that follow', () {
+      final items = buildChatListItems(
+        visibleMessages: [
+          {'id': 't1', 'kind': 'tool-call', 'name': 'Read'},
+          tick('a1', 'Bash'),
+        ],
+        hideToolCalls: true,
+        shouldRenderAgentEvent: (_) => true,
+        shouldHideToolCall: (msg, {required hideToolCalls}) =>
+            hideToolCalls && msg['kind'] == 'tool-call',
+      );
+
+      expect(items.length, 2);
+      expect(items[0]?['kind'], 'hidden-tool-summary');
+      expect(items[1]?['subAgentLastTool'], 'Bash');
+    });
+  });
+
   group('buildChatListItems model-change markers', () {
     List<Map<String, dynamic>?> build(
       List<Map<String, dynamic>> messages, {

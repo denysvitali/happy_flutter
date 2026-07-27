@@ -68,20 +68,15 @@ class AgentEventWidget extends StatelessWidget {
         ? theme.colorScheme.error
         : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
     final subAgentTool = _subAgentToolName;
-    // The leading chip already prints [subAgentTool]; the wire label for
-    // task_progress ticks is composed as "<tool> · <description>", which
-    // would repeat the tool name. Strip that prefix so the chip and the
-    // label don't say the same thing twice.
-    var displayLabel = label;
-    if (subAgentTool != null) {
-      const sep = ' · ';
-      if (displayLabel.startsWith('$subAgentTool$sep')) {
-        final n = subAgentTool.length + sep.length;
-        displayLabel = displayLabel.substring(n);
-      } else if (displayLabel == subAgentTool) {
-        displayLabel = '';
-      }
-    }
+    // The leading chip already prints [subAgentTool]; task_progress wire
+    // labels repeat it — either as the "<tool> · <description>" prefix
+    // this handler composes, or inside the description itself (workflow
+    // agents describe themselves as "<Description>: <agent-label>").
+    // Strip every occurrence so the chip and the label don't say the same
+    // thing twice.
+    final displayLabel = subAgentTool == null
+        ? label
+        : stripToolName(label, subAgentTool);
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
@@ -128,6 +123,24 @@ class AgentEventWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Removes every occurrence of [tool] from [label] and tidies up the
+  /// separator punctuation it leaves behind.
+  ///
+  /// `"hunt:a · Hunt: hunt:a"` with tool `"hunt:a"` becomes `"Hunt"`.
+  /// Returns an empty string when nothing but the tool name remains.
+  @visibleForTesting
+  static String stripToolName(String label, String tool) {
+    if (tool.isEmpty || !label.contains(tool)) return label;
+    final flattened = label
+        .replaceAll(tool, ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return flattened
+        .replaceAll(RegExp(r'^[:·\-–—,]+'), '')
+        .replaceAll(RegExp(r'[:·\-–—,]+$'), '')
+        .trim();
   }
 
   static String? _eventLabel(dynamic event) {

@@ -824,11 +824,15 @@ void _processMetaOutput({
         description ?? summary ?? 'Task $subtype',
       );
       final baseLabel = compacted.isEmpty ? 'Task $subtype' : compacted;
+      // Only prefix when the description does not already name the tool
+      // ANYWHERE. Workflow agents label themselves "<Description>:
+      // <agent-label>", which put the tool name at the end — a
+      // `startsWith` check missed it and the chip printed the name twice.
       final label =
           (subtype == 'task_progress' &&
               lastToolName != null &&
               lastToolName.isNotEmpty &&
-              !baseLabel.startsWith(lastToolName))
+              !baseLabel.contains(lastToolName))
           ? '$lastToolName · $baseLabel'
           : baseLabel;
       addEvent(

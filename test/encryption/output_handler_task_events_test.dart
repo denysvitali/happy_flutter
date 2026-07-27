@@ -155,6 +155,29 @@ void main() {
       expect(event['message'], 'Bash · wait for scan completion');
     });
 
+    test('task_progress does not prefix when the tool name appears at the '
+        'end of the description', () {
+      // Workflow fan-outs describe an agent as "<Description>:
+      // <agent-label>", where the label IS the reported tool name. A
+      // startsWith-only guard prefixed anyway and the chat rendered
+      // "hunt:bundle-tasks-a Hunt: hunt:bundle-tasks-a".
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          metaSystem({
+            'subtype': 'task_progress',
+            'description': 'Hunt: hunt:bundle-tasks-a',
+            'last_tool_name': 'hunt:bundle-tasks-a',
+            'task_id': 'agent-42',
+          }, uuid: 't-progress-2b'),
+        ],
+        wireMessages: [wire(id: 'm1', seq: 1)],
+        sessionId: 's1',
+      );
+
+      final event = result.messages.first['event'] as Map<String, dynamic>;
+      expect(event['message'], 'Hunt: hunt:bundle-tasks-a');
+    });
+
     test('task_progress accepts camelCase lastToolName alias', () {
       final result = processDecryptedMessages(
         decryptedJsonList: [

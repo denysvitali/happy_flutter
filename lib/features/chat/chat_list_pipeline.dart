@@ -28,6 +28,12 @@ typedef MessageErrorHandler =
 ///   "1 tool complete" rows. The summary exposes two keys:
 ///   `tools` (tool-calls only, drives the counts label) and
 ///   `items` (everything collapsed, in original order).
+/// - Collapses a consecutive run of sub-agent `task_progress` ticks to
+///   one row per sub-agent (latest tick wins, first-seen order kept).
+///   A workflow fan-out emits a tick per tool call per agent, which
+///   otherwise buried the transcript under dozens of near-identical
+///   centered chips. Terminal `task_notification` rows are `kind: text`
+///   and are never folded.
 /// - Inserts a `null` sentinel after a user `/clear` message (divider)
 /// - Inserts a `model-change` marker row when the model reported by the
 ///   agent changes mid-session (a fallback, a `/model` switch, or the CLI
@@ -45,7 +51,20 @@ List<Map<String, dynamic>?> buildChatListItems({
 }) {
   final items = <Map<String, dynamic>?>[];
   var hiddenGroup = <Map<String, dynamic>>[];
+  var taskGroup = <Map<String, dynamic>>[];
   String? lastModel;
+
+  void flushTaskGroup() {
+    if (taskGroup.isEmpty) return;
+    // Insertion order is first-seen-per-agent so rows keep a stable
+    // position while their label updates; the value is the latest tick.
+    final latest = <String, Map<String, dynamic>>{};
+    for (final msg in taskGroup) {
+      latest[_taskTickKey(msg)] = msg;
+    }
+    items.addAll(latest.values);
+    taskGroup = <Map<String, dynamic>>[];
+  }
 
   void flushHiddenGroup() {
     if (hiddenGroup.isEmpty) return;
@@ -75,6 +94,14 @@ List<Map<String, dynamic>?> buildChatListItems({
           !shouldRenderAgentEvent(msg['event'])) {
         continue;
       }
+      if (_isTaskProgressTick(msg)) {
+        // Ticks are visible rows, so anything already buffered as hidden
+        // must land before them to stay chronological.
+        flushHiddenGroup();
+        taskGroup.add(msg);
+        continue;
+      }
+      flushTaskGroup();
       // A model switch is worth showing even when it happens inside a
       // run of hidden tool calls, so the check runs before the
       // hide-filters and flushes the group to keep the divider in
@@ -120,8 +147,33 @@ List<Map<String, dynamic>?> buildChatListItems({
       }
     }
   }
+  flushTaskGroup();
   flushHiddenGroup();
   return items;
+}
+
+/// Whether [msg] is an in-flight sub-agent progress chip. Completed
+/// tasks arrive as `kind: text` summaries and are deliberately excluded.
+bool _isTaskProgressTick(Map<String, dynamic> msg) =>
+    msg['kind'] == 'agent-event' && msg['taskEvent'] == true;
+
+/// Collapse key for a progress tick: the sub-agent it belongs to.
+///
+/// `agentId` (wire `task_id`) is unique per spawn and is the right
+/// grain; the fallbacks only matter for older CLI builds that omitted
+/// it, and degrade to "collapse identical chips" rather than merging
+/// two different agents.
+String _taskTickKey(Map<String, dynamic> msg) {
+  final agentId = msg['agentId'];
+  if (agentId is String && agentId.isNotEmpty) return 'agent:$agentId';
+  final tool = msg['subAgentLastTool'];
+  if (tool is String && tool.isNotEmpty) return 'tool:$tool';
+  final event = msg['event'];
+  if (event is Map) {
+    final label = event['message'];
+    if (label is String && label.isNotEmpty) return 'label:$label';
+  }
+  return 'id:${msg['id'] ?? identityHashCode(msg)}';
 }
 
 /// The inference model a message was produced by, or null when the
