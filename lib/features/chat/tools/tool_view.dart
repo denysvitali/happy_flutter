@@ -24,6 +24,7 @@ import 'views/ask_user_question_view.dart';
 import 'views/mcp_result_view.dart';
 import 'views/task_tool_view.dart';
 import 'views/todo_view.dart';
+import 'views/web_search_view.dart';
 
 // Re-export public helpers so existing imports continue to work.
 export 'tool_view_helpers.dart'
@@ -801,6 +802,31 @@ class _ToolViewState extends ConsumerState<ToolView>
                 !(knownTool?.hideDefaultError ?? false) &&
                 !(errorResult?.isToolUseError ?? false))
               ToolError(message: ToolError.messageFromResult(toolResult)),
+          ],
+        ),
+      );
+    }
+
+    // Search MCP servers return their hits as a JSON string inside text
+    // content blocks, which the generic MCP path renders as a JSON blob.
+    // Detect that shape and render the same source list as Claude's
+    // built-in WebSearch.
+    if (mcpTextResult != null &&
+        WebSearchView.canRenderMcpResult(toolResult)) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            WebSearchView(tool: widget.tool),
+            if (toolCallDebug)
+              ..._debugPayloadSections(
+                toolName: toolName,
+                toolInput: toolInput,
+                toolResult: toolResult,
+                state: state,
+              ),
           ],
         ),
       );

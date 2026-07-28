@@ -4,15 +4,153 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
 import '../tool_section_view.dart';
+import '../tool_view_helpers.dart'
+    show mcpToolTextResult, tryDecodeJsonCollection;
 
-/// Displays the query and sources returned by Claude's WebSearch tool.
+/// One query's worth of search results.
+///
+/// A plain `search` call produces a single group; a batched call
+/// (`{responses: [...]}`) produces one per query.
+class SearchResultGroup {
+  const SearchResultGroup({required this.query, required this.results});
+
+  final String query;
+  final List<Map<String, dynamic>> results;
+}
+
+/// Displays the query and sources returned by web-search tools.
+///
+/// Covers both Claude's built-in `WebSearch` (structured map result) and
+/// search MCP servers, whose results arrive as a JSON string inside MCP
+/// text content blocks — those used to render as a raw JSON blob.
 class WebSearchView extends StatelessWidget {
   const WebSearchView({required this.tool, super.key});
 
   final Map<String, dynamic> tool;
 
+  /// Whether [result] is an MCP payload this view can render as a source
+  /// list rather than raw JSON.
+  static bool canRenderMcpResult(dynamic result) =>
+      mcpSearchGroups(result).isNotEmpty;
+
+  /// Extracts the search-result groups from an MCP text-block payload.
+  ///
+  /// Returns an empty list for anything that isn't shaped like a search
+  /// response, so unrelated MCP tools keep their JSON rendering.
+  static List<SearchResultGroup> mcpSearchGroups(dynamic result) {
+    final text = mcpToolTextResult(result);
+    if (text == null) return const [];
+    final payload = WireParsers.asMap(tryDecodeJsonCollection(text));
+    if (payload == null) return const [];
+
+    // Batched search: `{responses: [{query, results}, ...]}`.
+    final responses = WireParsers.asList(payload['responses']);
+    if (responses != null) {
+      final groups = <SearchResultGroup>[];
+      for (final response in responses) {
+        final map = WireParsers.asMap(response);
+        if (map == null) continue;
+        final results = _resultList(map);
+        if (results.isEmpty) continue;
+        groups.add(
+          SearchResultGroup(
+            query: map['query'] as String? ?? '',
+            results: results,
+          ),
+        );
+      }
+      return groups;
+    }
+
+    final results = _resultList(payload);
+    if (results.isEmpty) return const [];
+    return [
+      SearchResultGroup(
+        query: payload['query'] as String? ?? '',
+        results: results,
+      ),
+    ];
+  }
+
+  /// Result entries of [map] that actually look like search hits — a URL
+  /// is the minimum bar, so `{results: [1, 2, 3]}` from some unrelated
+  /// tool is not mistaken for a search response.
+  static List<Map<String, dynamic>> _resultList(Map<String, dynamic> map) {
+    final raw =
+        WireParsers.asList(map['results']) ??
+        WireParsers.asList(map['sources']);
+    if (raw == null) return const [];
+    return raw
+        .map(WireParsers.asMap)
+        .whereType<Map<String, dynamic>>()
+        .where((r) => (r['url'] ?? r['link'] ?? r['href']) != null)
+        .toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final mcpGroups = mcpSearchGroups(tool['result']);
+    if (mcpGroups.isNotEmpty) {
+      return _buildMcpGroups(context, mcpGroups);
+    }
+    return _buildClaudeWebSearch(context);
+  }
+
+  Widget _buildMcpGroups(
+    BuildContext context,
+    List<SearchResultGroup> groups,
+  ) {
+    final theme = Theme.of(context);
+    final inputQuery = WireParsers.asMap(tool['input'])?['query'] as String?;
+
+    return ToolSectionView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final group in groups) ...[
+            Row(
+              children: [
+                Icon(
+                  Icons.search,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    group.query.isNotEmpty
+                        ? group.query
+                        : (inputQuery ?? 'Web search'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '${group.results.length}',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+            for (final result in group.results)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                child: _SourceTile(source: result),
+              ),
+            if (group != groups.last) const SizedBox(height: AppSpacing.md),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClaudeWebSearch(BuildContext context) {
     final l10n = context.l10n;
     final input = WireParsers.asMap(tool['input']);
     final result = WireParsers.asMap(tool['result']);
@@ -183,38 +321,76 @@ class _SourceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final title =
         source['title'] ?? source['name'] ?? source['url'] ?? 'Result';
     final url = source['url'] ?? source['link'] ?? source['href'];
     final snippet =
         source['snippet'] ?? source['description'] ?? source['summary'];
+    // Providers that returned this hit, plus its publication date when the
+    // backend knows one — the raw JSON carried both and they read as noise
+    // in a URL line, so they get their own muted meta row.
+    final meta = <String>[
+      if (url != null) _host(url.toString()),
+      if (source['published'] is String &&
+          (source['published'] as String).isNotEmpty)
+        source['published'] as String,
+      if (source['source'] is String && (source['source'] as String).isNotEmpty)
+        (source['source'] as String).replaceAll(',', ' · '),
+    ];
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title.toString(), maxLines: 2, overflow: TextOverflow.ellipsis),
-          if (url != null)
-            Text(
-              url.toString(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          Text(
+            title.toString(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (meta.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: Text(
+                meta.join('  ·  '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
           if (snippet != null)
-            Text(
-              snippet.toString(),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xxs),
+              child: Text(
+                snippet.toString(),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
         ],
       ),
     );
+  }
+
+  /// Host of [url] without the `www.` prefix; falls back to the raw string
+  /// when it isn't parseable.
+  static String _host(String url) {
+    final host = Uri.tryParse(url)?.host ?? '';
+    if (host.isEmpty) return url;
+    return host.startsWith('www.') ? host.substring(4) : host;
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -292,7 +294,9 @@ void main() {
     );
 
     expect(find.text('Flutter docs'), findsOneWidget);
-    expect(find.text('https://docs.flutter.dev'), findsOneWidget);
+    // The tile shows the host, not the full URL — the raw link read as
+    // noise next to the title.
+    expect(find.text('docs.flutter.dev'), findsOneWidget);
     expect(
       find.text('Build apps from a single codebase.'),
       findsOneWidget,
@@ -305,5 +309,157 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  // ── Search MCP servers (JSON payload in MCP text content blocks) ──────
+
+  /// The wire shape of an MCP tool result: the server's JSON response
+  /// arrives as a string inside text content blocks.
+  Map<String, dynamic> mcpResult(Object payload) => {
+    'content': [
+      {'type': 'text', 'text': jsonEncode(payload)},
+    ],
+  };
+
+  final searchPayload = {
+    'provider': 'all',
+    'query': 'best React UI component library 2026',
+    'results': [
+      {
+        'title': 'Best React Component Libraries (2026): 12 Options Ranked',
+        'url': 'https://designrevision.com/blog/best-react-component-libraries',
+        'description': 'A ranked comparison of the 12 best libraries.',
+        'source': 'duckduckgo,marginalia,yahoo',
+      },
+      {
+        'title': 'Best React UI Component Libraries in 2026: Complete Guide',
+        'url': 'https://blocks.serp.co/blog/best-react-ui-libraries-2026',
+        'description': 'A comprehensive comparison.',
+        'source': 'duckduckgo,yahoo',
+        'published': '2026-06-09',
+      },
+    ],
+  };
+
+  testWidgets('search MCP results render as source tiles, not raw JSON', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrapBody(
+        WebSearchView(
+          tool: {
+            'name': 'mcp__web-search__search',
+            'state': 'completed',
+            'toolUseId': 'mcp-1',
+            'input': {'query': 'best React UI component library 2026'},
+            'result': mcpResult(searchPayload),
+          },
+        ),
+      ),
+    );
+
+    expect(
+      find.text('Best React Component Libraries (2026): 12 Options Ranked'),
+      findsOneWidget,
+    );
+    // Host + providers + date land in the muted meta row.
+    expect(
+      find.textContaining('designrevision.com', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('2026-06-09', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('A ranked comparison of the 12 best libraries.'),
+        findsOneWidget);
+  });
+
+  testWidgets('batched search renders one group per query', (tester) async {
+    await tester.pumpWidget(
+      _wrapBody(
+        WebSearchView(
+          tool: {
+            'name': 'mcp__web-search__search_batch',
+            'state': 'completed',
+            'toolUseId': 'mcp-batch',
+            'result': mcpResult({
+              'responses': [
+                {
+                  'query': 'riverpod 3 migration',
+                  'results': [
+                    {'title': 'Riverpod 3 guide', 'url': 'https://riverpod.dev'},
+                  ],
+                },
+                {
+                  'query': 'flutter 3.41 release notes',
+                  'results': [
+                    {'title': 'Flutter 3.41', 'url': 'https://docs.flutter.dev'},
+                  ],
+                },
+              ],
+            }),
+          },
+        ),
+      ),
+    );
+
+    expect(find.text('riverpod 3 migration'), findsOneWidget);
+    expect(find.text('flutter 3.41 release notes'), findsOneWidget);
+    expect(find.text('Riverpod 3 guide'), findsOneWidget);
+    expect(find.text('Flutter 3.41'), findsOneWidget);
+  });
+
+  test('canRenderMcpResult only claims search-shaped payloads', () {
+    expect(WebSearchView.canRenderMcpResult(mcpResult(searchPayload)), isTrue);
+    // A results list without URLs belongs to some other MCP tool.
+    expect(
+      WebSearchView.canRenderMcpResult(
+        mcpResult({
+          'results': [1, 2, 3],
+        }),
+      ),
+      isFalse,
+    );
+    expect(
+      WebSearchView.canRenderMcpResult(mcpResult({'status': 'ok'})),
+      isFalse,
+    );
+    expect(WebSearchView.canRenderMcpResult('plain text output'), isFalse);
+    expect(WebSearchView.canRenderMcpResult(null), isFalse);
+  });
+
+  testWidgets('ToolView routes a search MCP card to the source list', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        ToolView(
+          tool: {
+            'name': 'mcp__web-search__search',
+            'state': 'completed',
+            'toolUseId': 'mcp-toolview',
+            'input': {'query': 'best React UI component library 2026'},
+            'result': mcpResult(searchPayload),
+          },
+        ),
+        debug: false,
+      ),
+    );
+
+    // Header summarizes the payload; body is behind a tap.
+    expect(
+      find.textContaining('15 results', findRichText: true),
+      findsNothing,
+    );
+    await tester.tap(find.byType(InkWell).first);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Best React Component Libraries (2026): 12 Options Ranked'),
+      findsOneWidget,
+    );
+    // The raw JSON viewer no longer takes over the body.
+    expect(find.textContaining('"provider"', findRichText: true), findsNothing);
   });
 }
