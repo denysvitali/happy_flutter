@@ -455,7 +455,12 @@ class KnownTools {
       noStatus: true,
       minimal: false,
       extractDescription: (tool, _) {
-        final todos = tool['input']?['todos'] as List?;
+        final input = WireParsers.asMap(tool['input']);
+        // Claude sends `todos`; Codex's forwarded `todo_list` item sends
+        // `items` under the same canonical TodoWrite name.
+        final todos =
+            WireParsers.asList(input?['todos']) ??
+            WireParsers.asList(input?['items']);
         if (todos != null) {
           return '${todos.length} items';
         }

@@ -23,6 +23,7 @@ import 'tool_view_widgets.dart';
 import 'views/ask_user_question_view.dart';
 import 'views/mcp_result_view.dart';
 import 'views/task_tool_view.dart';
+import 'views/todo_view.dart';
 
 // Re-export public helpers so existing imports continue to work.
 export 'tool_view_helpers.dart'
@@ -213,21 +214,39 @@ class _ToolViewState extends ConsumerState<ToolView>
         name == 'TaskGet';
   }
 
-  /// Forward task-tool data to the global todo notifier.
+  /// Agent plan/todo tools. Claude emits `TodoWrite`, Codex's `todo_list`
+  /// item is forwarded by happy-cli-go under the same canonical name, and
+  /// Grok's `todo_write` aliases to it.
+  bool get _isTodoTool {
+    final name = KnownTools.canonicalName(
+      widget.tool['name'] as String? ?? '',
+    );
+    return name == 'TodoWrite' || name == 'todo_list';
+  }
+
+  /// Forward task-tool / todo-tool data to the global todo notifier.
   ///
   /// Done at the [ToolView] level (always mounted) rather than inside the
   /// task-specific body (only mounted while expanded) so a tool that
   /// completes while collapsed still updates the session banner / Zen list.
+  /// Codex depends on this for every plan update — its whole task list
+  /// arrives as `TodoWrite`, never as the `Task*` family.
   ///
   /// Deferred to post-frame: this runs from initState/didUpdateWidget
   /// (i.e. during build), and the notifier push rebuilds widgets outside
   /// this subtree (session banner), which is illegal mid-build.
   void _maybePushTaskTool() {
-    if (!_isTaskTool) return;
+    final isTask = _isTaskTool;
+    final isTodo = !isTask && _isTodoTool;
+    if (!isTask && !isTodo) return;
     final tool = widget.tool;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      TaskToolView.pushToolToGlobalState(context, tool, widget.sessionId);
+      if (isTask) {
+        TaskToolView.pushToolToGlobalState(context, tool, widget.sessionId);
+      } else {
+        TodoView.pushToolToGlobalState(context, tool, widget.sessionId);
+      }
     });
   }
 

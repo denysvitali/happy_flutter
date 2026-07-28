@@ -12,7 +12,7 @@ import '../tool_section_view.dart';
 ///
 /// Kept separate from the domain [TodoItem] in `core/models/todo.dart`
 /// because the tool input only carries a subset of fields. Conversion
-/// to the domain model happens in [_pushToGlobalState].
+/// to the domain model happens in [TodoView.pushToolToGlobalState].
 class TodoViewItem {
   TodoViewItem({
     required this.content,
@@ -34,9 +34,14 @@ class TodoViewItem {
 
 /// View for displaying TodoWrite tool todo lists.
 ///
-/// Each time the tool data changes the view also pushes the parsed
-/// items into [todoStateNotifierProvider] so they remain visible to
-/// the user outside of the chat (e.g. on the Zen home screen).
+/// The parsed items are also pushed into [todoStateNotifierProvider] so
+/// they remain visible to the user outside of the chat (session tasks
+/// banner, Zen home). The push is driven by [ToolView] via
+/// [pushToolToGlobalState] rather than this widget's own lifecycle —
+/// the body only mounts while the tool card is expanded, so a collapsed
+/// TodoWrite would otherwise never reach the global state. Codex hits
+/// this path for every plan update (`todo_list` → `TodoWrite`), which is
+/// why its task list used to stay empty in the app.
 class TodoView extends ConsumerStatefulWidget {
   const TodoView({
     required this.tool,
@@ -53,72 +58,52 @@ class TodoView extends ConsumerStatefulWidget {
   /// Zen home can still display them.
   final String? sessionId;
 
-  @override
-  ConsumerState<TodoView> createState() => _TodoViewState();
-}
+  /// Wall-clock of the newest todo snapshot pushed per session bucket.
+  ///
+  /// The chat ListView is reversed, so a cold load mounts the newest
+  /// tool card first and older ones after it. Without this guard the
+  /// oldest TodoWrite in the window would win and the banner would show
+  /// a stale plan.
+  static final Map<String, int> _lastPushedAt = <String, int>{};
 
-class _TodoViewState extends ConsumerState<TodoView> {
-  List<TodoViewItem> _todos = const [];
+  /// Test-only reset of the out-of-order push guard.
+  @visibleForTesting
+  static void resetPushGuard() => _lastPushedAt.clear();
 
-  /// Stable identifier for this tool call. Used to derive deterministic
-  /// item ids when the wire format doesn't carry one — guarantees a
-  /// second render of the same TodoWrite produces the same item ids.
-  String get _toolId {
-    final id = widget.tool['toolUseId'] as String? ??
-        widget.tool['id'] as String?;
-    if (id != null && id.isNotEmpty) return id;
-    return widget.tool['name']?.toString() ?? 'todo';
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _todos = _resolveTodos();
-    _pushToGlobalState(_todos);
-  }
-
-  @override
-  void didUpdateWidget(TodoView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final next = _resolveTodos();
-    var changed = next.length != _todos.length;
-    if (!changed) {
-      for (var i = 0; i < next.length; i++) {
-        if (_todos[i].status != next[i].status ||
-            _todos[i].content != next[i].content ||
-            _todos[i].description != next[i].description) {
-          changed = true;
-          break;
-        }
-      }
-    }
-    if (!changed) return;
-    setState(() => _todos = next);
-    _pushToGlobalState(next);
-  }
-
-  void _pushToGlobalState(List<TodoViewItem> items) {
-    if (items.isEmpty) {
-      // Empty TodoWrite is still a meaningful state — clear the
-      // session's list so the Zen home doesn't show stale tasks.
-      final container = ProviderScope.containerOf(context, listen: false);
-      container.read(todoStateNotifierProvider.notifier).setItemsForSession(
-            widget.sessionId,
-            const [],
-          );
+  /// Pushes the todo items carried by [tool] into the global
+  /// [todoStateNotifierProvider], scoped to [sessionId].
+  ///
+  /// Called from [ToolView.initState] / [ToolView.didUpdateWidget] (the
+  /// always-mounted parent) so a collapsed or auto-collapsed TodoWrite
+  /// still updates the session tasks banner and the Zen list.
+  static void pushToolToGlobalState(
+    BuildContext context,
+    Map<String, dynamic> tool,
+    String? sessionId,
+  ) {
+    final bucket = sessionId ?? _globalBucketKey;
+    final eventAt =
+        WireParsers.parseInt(tool['completedAt']) ??
+        WireParsers.parseInt(tool['createdAt']) ??
+        DateTime.now().millisecondsSinceEpoch;
+    final lastPushedAt = _lastPushedAt[bucket];
+    if (lastPushedAt != null && eventAt < lastPushedAt) {
+      // A newer snapshot already won — this is an out-of-order replay.
       return;
     }
-    final container = ProviderScope.containerOf(context, listen: false);
+    _lastPushedAt[bucket] = eventAt;
+
+    final items = resolveTodos(tool);
     final now = DateTime.now().millisecondsSinceEpoch;
+    final toolId = _toolIdFor(tool);
     final domain = <TodoItem>[];
     for (var i = 0; i < items.length; i++) {
       final it = items[i];
-      // Canonical id: prefer the wire id, then content-hash, then a
-      // tool-stable synthetic key. Falls back to position so the same
-      // tool call always yields the same id.
+      // Canonical id: prefer the wire id, then a tool-stable content
+      // hash, so the same tool call always yields the same ids.
       final id = (it.id?.isNotEmpty ?? false)
           ? it.id!
-          : '$_toolId#${it.content.hashCode}';
+          : '$toolId#${it.content.hashCode}';
       domain.add(
         TodoItem(
           id: id,
@@ -129,18 +114,34 @@ class _TodoViewState extends ConsumerState<TodoView> {
           description: it.description,
           createdAt: now,
           updatedAt: now,
-          sessionId: widget.sessionId,
+          sessionId: sessionId,
         ),
       );
     }
-    container
+    // An empty TodoWrite is still a meaningful state — it clears the
+    // session's list so stale tasks don't linger in the banner.
+    ProviderScope.containerOf(context, listen: false)
         .read(todoStateNotifierProvider.notifier)
-        .setItemsForSession(widget.sessionId, domain);
+        .setItemsForSession(sessionId, domain);
   }
 
-  List<TodoViewItem> _resolveTodos() {
-    final input = WireParsers.asMap(widget.tool['input']) ?? {};
-    final rawResult = widget.tool['result'];
+  /// Stable identifier for a tool call. Used to derive deterministic
+  /// item ids when the wire format doesn't carry one.
+  static String _toolIdFor(Map<String, dynamic> tool) {
+    final id = tool['toolUseId'] as String? ?? tool['id'] as String?;
+    if (id != null && id.isNotEmpty) return id;
+    return tool['name']?.toString() ?? 'todo';
+  }
+
+  /// Parses the todo items carried by [tool], covering every shape the
+  /// supported agents emit:
+  ///
+  /// - Claude `TodoWrite`: `input.todos[{content,status}]`
+  /// - Codex `todo_list`:  `input.items[{text,completed}]`
+  /// - result-only variants (`newTodos`, `items`, `todos`, `output.*`)
+  static List<TodoViewItem> resolveTodos(Map<String, dynamic> tool) {
+    final input = WireParsers.asMap(tool['input']) ?? {};
+    final rawResult = tool['result'];
     final result = rawResult is Map<String, dynamic> ? rawResult : null;
 
     var todos = _parseTodos(input['todos']);
@@ -150,17 +151,7 @@ class _TodoViewState extends ConsumerState<TodoView> {
     if (todos.isEmpty && result != null) {
       final newTodos = result['newTodos'] as List?;
       if (newTodos != null) {
-        todos = newTodos
-            .map(
-              (t) => TodoViewItem(
-                content: t['content'] as String? ?? '',
-                status: t['status'] as String? ?? 'pending',
-                priority: t['priority'] as String?,
-                id: t['id'] as String?,
-                description: t['description'] as String?,
-              ),
-            )
-            .toList();
+        todos = _parseTodos(newTodos);
       }
     }
     if (todos.isEmpty && result != null) {
@@ -181,26 +172,65 @@ class _TodoViewState extends ConsumerState<TodoView> {
     return todos;
   }
 
-  List<TodoViewItem> _parseTodos(dynamic todos) {
+  static List<TodoViewItem> _parseTodos(dynamic todos) {
     if (todos == null) return const [];
     if (todos is! List) return const [];
     return todos
         .map((t) {
-          if (t is! Map<String, dynamic>) return null;
-          final text = t['content'] as String? ?? t['text'] as String? ?? '';
-          final completed = t['completed'] == true;
+          final item = WireParsers.asMap(t);
+          if (item == null) return null;
+          final text = item['content'] as String? ??
+              item['text'] as String? ??
+              '';
+          final completed = item['completed'] == true;
           final status =
-              t['status'] as String? ?? (completed ? 'completed' : 'pending');
+              item['status'] as String? ??
+              (completed ? 'completed' : 'pending');
           return TodoViewItem(
             content: text,
             status: status,
-            priority: t['priority'] as String?,
-            id: t['id'] as String?,
-            description: t['description'] as String?,
+            priority: item['priority'] as String?,
+            id: item['id'] as String?,
+            description: item['description'] as String?,
           );
         })
         .whereType<TodoViewItem>()
         .toList();
+  }
+
+  @override
+  ConsumerState<TodoView> createState() => _TodoViewState();
+}
+
+/// Bucket key used when no chat session is in scope.
+const String _globalBucketKey = '__global__';
+
+class _TodoViewState extends ConsumerState<TodoView> {
+  List<TodoViewItem> _todos = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _todos = TodoView.resolveTodos(widget.tool);
+  }
+
+  @override
+  void didUpdateWidget(TodoView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = TodoView.resolveTodos(widget.tool);
+    var changed = next.length != _todos.length;
+    if (!changed) {
+      for (var i = 0; i < next.length; i++) {
+        if (_todos[i].status != next[i].status ||
+            _todos[i].content != next[i].content ||
+            _todos[i].description != next[i].description) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (!changed) return;
+    setState(() => _todos = next);
   }
 
   @override
