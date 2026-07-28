@@ -17,6 +17,23 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
   auto-selection.
 - Added injectable message and workflow repository boundaries.
 
+### Telemetry audit, 2026-07-28 (b5858b2f)
+
+An audit against Prometheus / Jaeger / Loki found the signals were being
+collected but several could not answer the question they exist to answer.
+Fixed: cold-start first-frame stuck at 0s; `ErrorBoundary` log bodies carrying
+no exception message (82 indistinguishable `_TypeError` events in 16 min);
+stack-trace attributes truncated inside the VM crash header by a blanket
+256-char cap; `websocket.disconnect` spans with no reason (13 connects vs 12
+disconnects, unattributable); `ui.jank` spans landing in an `unknown` route
+bucket; unbounded DEBUG export (18.4k records/24h from one device); and a
+missing `deployment.environment` resource attribute.
+
+Still open: the `_TypeError` burst of 2026-07-28 06:25–06:41 UTC (launch
+`0bff0d24`, build `7a3ef930d273adeb3fa36f07e0880aa7`) has no diagnosable
+stack. The next occurrence on a build after b5858b2f will carry both the
+exception message and a full stack.
+
 ## P0: Core Messaging & Session Reliability
 
 The app lives or dies on one invariant:
@@ -65,9 +82,9 @@ The current test count is not enough if this contract can break without failing 
 
 | Metric | Value | Target | Notes |
 |--------|-------|--------|-------|
-| App cold start (`root /`) | avg 4.6s, p95 9.3s | < 3s avg | Includes deferred init (1.9s avg). Profile on real device to find bottlenecks. |
-| fetchMessages p95 | up to 54s (outlier sessions) | < 5s | Sessions with very large message histories. Consider pagination limits or incremental fetch. |
-| Deferred init | avg 1.9s | < 1s | `app.deferredInit` transaction — audit what's being loaded eagerly. |
+| App cold start (`root /`) | avg 4.6s, p95 9.3s (Sentry); OTel unmeasured until 2026-07-28 | < 3s avg | `app.cold_start.first_frame` shipped a constant 0s because the top-level `_coldStartStopwatch` was lazily constructed *by* the post-frame callback that read it; `essential_ready` (2.4s) therefore measured from first frame, not process start. Anchored in `main()` (b5858b2f). Re-baseline from Prometheus after a few launches on the next build before profiling. |
+| fetchMessages p95 | avg 33–50ms (Prometheus, 2026-07-28) | < 5s | Was "up to 54s"; `app_fetch_messages_seconds` now shows 0.033s visible / 0.050s background. Target met — the 54s figure predates the pagination work. |
+| Deferred init | avg 2.5s | < 1s | `app.deferred_init` histogram (the Sentry `app.deferredInit` transaction agrees). Still the largest startup cost — audit what's loaded eagerly. |
 
 ### Engineering Rule
 
