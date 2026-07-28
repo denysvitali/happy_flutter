@@ -138,4 +138,51 @@ void main() {
       expect(span.debugStatus, SpanStatusCode.Error);
     });
   });
+
+  // Log records used to ship `error.type` only, and every string attribute was
+  // capped at 256 chars — which cut `error.stack_trace` off inside the Dart VM
+  // crash header, before any symbolicatable frame. Production showed 82
+  // indistinguishable `_TypeError` events as a result.
+  group('OpenTelemetryService attribute truncation', () {
+    test('ordinary string attributes stay capped at 256 chars', () {
+      final safe = OpenTelemetryService.debugSafeAttributes({
+        'current_route': 'r' * 400,
+      });
+
+      expect((safe['current_route']! as String).length, 256);
+      expect(safe['current_route'], endsWith('...'));
+    });
+
+    test('stack traces and error messages get the long cap', () {
+      final stack = 's' * 5000;
+      final safe = OpenTelemetryService.debugSafeAttributes({
+        'error.stack_trace': stack,
+        'error.message': 'm' * 5000,
+      });
+
+      expect(safe['error.stack_trace'], stack);
+      expect((safe['error.message']! as String).length, 5000);
+    });
+
+    test('a stack trace beyond the long cap is truncated, not dropped', () {
+      final safe = OpenTelemetryService.debugSafeAttributes({
+        'error.stack_trace': 's' * 9000,
+      });
+
+      expect((safe['error.stack_trace']! as String).length, 8192);
+      expect(safe['error.stack_trace'], endsWith('...'));
+    });
+
+    test('nulls are dropped and scalars pass through untouched', () {
+      final safe = OpenTelemetryService.debugSafeAttributes({
+        'absent': null,
+        'websocket.since_dial_ms': 1234,
+        'send.degraded': false,
+      });
+
+      expect(safe.containsKey('absent'), isFalse);
+      expect(safe['websocket.since_dial_ms'], 1234);
+      expect(safe['send.degraded'], false);
+    });
+  });
 }

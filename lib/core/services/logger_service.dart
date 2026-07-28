@@ -427,6 +427,90 @@ class LoggerService {
     _sentryEmitCount = 0;
   }
 
+  /// Rate-limit DEBUG records on the OTel export path.
+  ///
+  /// A single handset with developer mode on shipped 18.4k DEBUG records in 24h
+  /// against 4.3k INFO and 82 ERROR — the `[pipeline]` and `[messages]` traces
+  /// fire per socket frame, so log volume scales with agent chatter, not with
+  /// user count. Those traces are genuinely useful (the `loki-trace` workflow
+  /// depends on them), so this bounds them rather than dropping the level:
+  /// [_otelDebugBucketCapacity] tokens refilled at
+  /// [_otelDebugRefillPerMinute]/min. INFO/WARNING/ERROR are never throttled —
+  /// they are the signal a burst of debug noise would otherwise price out.
+  ///
+  /// Drops are not silent: one INFO summary per [_otelDebugDropReportWindow]
+  /// reports how many records were shed, so a truncated pipeline trace can
+  /// never be mistaken for a pipeline that went quiet.
+  bool _admitDebugToOtel(LogEntry entry) {
+    if (entry.level != LogLevel.debug) return true;
+
+    final nowMs = _nowMs();
+    if (_takeOtelDebugToken(nowMs)) return true;
+
+    _otelDebugDropped++;
+    // Report the first drop of an episode immediately (a reader looking at a
+    // truncated pipeline trace needs to know *at that point* that it is
+    // truncated), then batch at most one summary per window.
+    if (_otelDebugDropReportedAtMs == 0 ||
+        nowMs - _otelDebugDropReportedAtMs >=
+            _otelDebugDropReportWindow.inMilliseconds) {
+      final dropped = _otelDebugDropped;
+      _otelDebugDropped = 0;
+      _otelDebugDropReportedAtMs = nowMs;
+      // Re-entrant by construction: this logs at info, which skips this guard.
+      info('[logger] dropped $dropped debug record(s) from OTel export');
+    }
+    return false;
+  }
+
+  /// Refill and consume one OTel-debug token. False when the bucket is empty.
+  bool _takeOtelDebugToken(int nowMs) {
+    final elapsedMs = nowMs - _otelDebugRefilledAtMs;
+    if (elapsedMs < 0) {
+      // Backwards clock jump — same rationale as [_takeSentryToken]: rebase
+      // and refill rather than wedging the bucket shut for the jump's size.
+      _otelDebugRefilledAtMs = nowMs;
+      _otelDebugTokens = _otelDebugBucketCapacity.toDouble();
+    } else if (elapsedMs > 0) {
+      final refill = elapsedMs * _otelDebugRefillPerMinute / 60000;
+      if (refill >= 1) {
+        _otelDebugTokens = (_otelDebugTokens + refill)
+            .clamp(0, _otelDebugBucketCapacity)
+            .toDouble();
+        _otelDebugRefilledAtMs = nowMs;
+      }
+    }
+    if (_otelDebugTokens < 1) return false;
+    _otelDebugTokens -= 1;
+    return true;
+  }
+
+  /// Headroom for a burst (app resume replays a backlog of socket frames).
+  static const int _otelDebugBucketCapacity = 600;
+
+  /// Steady-state ceiling: 300/min ≈ 432k/day worst case per device, versus an
+  /// unbounded stream today. Typical observed load (~13/min) is unaffected.
+  static const int _otelDebugRefillPerMinute = 300;
+  static const Duration _otelDebugDropReportWindow = Duration(minutes: 1);
+
+  double _otelDebugTokens = _otelDebugBucketCapacity.toDouble();
+  int _otelDebugRefilledAtMs = 0;
+  int _otelDebugDropped = 0;
+  int _otelDebugDropReportedAtMs = 0;
+
+  /// Debug records shed since the last drop report — tests only.
+  @visibleForTesting
+  int get debugOtelDroppedDebugRecords => _otelDebugDropped;
+
+  /// Reset the OTel debug throttle — tests only.
+  @visibleForTesting
+  void debugResetOtelDebugThrottle() {
+    _otelDebugTokens = _otelDebugBucketCapacity.toDouble();
+    _otelDebugRefilledAtMs = _nowMs();
+    _otelDebugDropped = 0;
+    _otelDebugDropReportedAtMs = 0;
+  }
+
   /// Forward a log entry to the installed OTel sink.
   ///
   /// This is a best-effort, fire-and-forget path: OTel transport failures are
@@ -434,6 +518,7 @@ class LoggerService {
   void _forwardToOtel(LogEntry entry) {
     final sink = _otelLogSink;
     if (sink == null || _forwardingToOtel) return;
+    if (!_admitDebugToOtel(entry)) return;
 
     _forwardingToOtel = true;
     try {

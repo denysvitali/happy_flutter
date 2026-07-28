@@ -114,6 +114,39 @@ abstract final class DialReason {
   static const String unspecified = 'unspecified';
 }
 
+/// Bounded set of Socket.IO disconnect reasons.
+///
+/// Socket.IO emits a free-form string; it becomes a span attribute and a
+/// metric-adjacent facet, so anything unrecognised collapses to [other]
+/// rather than opening an unbounded label space.
+abstract final class DisconnectReason {
+  static const String ioServerDisconnect = 'io_server_disconnect';
+  static const String ioClientDisconnect = 'io_client_disconnect';
+  static const String pingTimeout = 'ping_timeout';
+  static const String transportClose = 'transport_close';
+  static const String transportError = 'transport_error';
+  static const String parseError = 'parse_error';
+  static const String other = 'other';
+  static const String unknown = 'unknown';
+
+  static const Map<String, String> _known = {
+    'io server disconnect': ioServerDisconnect,
+    'io client disconnect': ioClientDisconnect,
+    'ping timeout': pingTimeout,
+    'transport close': transportClose,
+    'transport error': transportError,
+    'parse error': parseError,
+  };
+
+  /// Normalize a raw Socket.IO disconnect payload to a bounded facet.
+  static String normalize(Object? payload) {
+    if (payload == null) return unknown;
+    final raw = payload.toString().trim().toLowerCase();
+    if (raw.isEmpty || raw == 'null') return unknown;
+    return _known[raw] ?? other;
+  }
+}
+
 /// Socket.io compatible WebSocket client
 /// Matches React Native's apiSocket.ts behavior
 class SocketIoClient {
@@ -346,9 +379,22 @@ class SocketIoClient {
       _hasConnectedOnce = true;
     });
 
-    _socket!.onDisconnect((_) async {
+    _socket!.onDisconnect((payload) async {
       if (!_isCurrentGeneration(generation)) return;
-      logger.info('Socket.IO disconnected');
+      // Socket.IO hands back the reason string ('ping timeout',
+      // 'transport close', 'io server disconnect', ...). Without it a 1:1
+      // connect/disconnect ratio in Prometheus is unattributable: a server
+      // eviction and a backgrounded radio look identical.
+      final reason = DisconnectReason.normalize(payload);
+      // Measured from dial start (see [_lastConnectStartedAtMs]), which is the
+      // figure that separates "died during handshake" from "lived for hours".
+      final sinceDialMs = _lastConnectStartedAtMs == null
+          ? null
+          : _elapsedSince(_lastConnectStartedAtMs);
+      logger.info(
+        'Socket.IO disconnected reason=$reason '
+        'sinceDialMs=${sinceDialMs ?? -1}',
+      );
       powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
       _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
       _updateStatus(ConnectionStatus.disconnected);
@@ -359,10 +405,12 @@ class SocketIoClient {
             'websocket.disconnect',
             'connection',
             bindToScope: false,
-          )..setData(
+          )
+          ..setData(
             'currentRoute',
             PerformanceContextService().currentRoute ?? 'unknown',
-          );
+          )
+          ..setData('reason', reason);
       await transaction.finish();
       OpenTelemetryService()
           .startTrace(
@@ -370,6 +418,8 @@ class SocketIoClient {
             attributes: {
               'current_route':
                   PerformanceContextService().currentRoute ?? 'unknown',
+              'websocket.disconnect_reason': reason,
+              'websocket.since_dial_ms': ?sinceDialMs,
             },
           )
           ?.end();

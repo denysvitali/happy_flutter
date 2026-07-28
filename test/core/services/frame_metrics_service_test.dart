@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/frame_metrics_service.dart';
+import 'package:happy_flutter/core/services/performance_context_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -127,6 +128,50 @@ void main() {
       service.debugFlush();
 
       expect(service.debugLastJankWindow, isNull);
+    });
+  });
+
+  // Production `ui.jank` spans carried `current_route="unknown"` next to
+  // `route.at_flush="chat"`: the worst jank happens during route transitions
+  // and at start-up, before any route reaches the observer, so the open-time
+  // stamp was empty and the episode was unattributable.
+  group('FrameMetricsService jank route attribution', () {
+    setUp(PerformanceContextService().resetForTesting);
+    tearDown(PerformanceContextService().resetForTesting);
+
+    void recordFrozenFrame() {
+      FrameMetricsService.instance.testRecordFrame(
+        build: const Duration(milliseconds: 70),
+        raster: const Duration(milliseconds: 40),
+        total: const Duration(milliseconds: 110),
+      );
+    }
+
+    test('uses the route known when the jank started', () {
+      PerformanceContextService().setCurrentRoute('chat');
+      recordFrozenFrame();
+
+      // The user navigates away before the 30s flush.
+      PerformanceContextService().setCurrentRoute('sessions');
+      FrameMetricsService.instance.debugFlush();
+
+      expect(FrameMetricsService.instance.debugLastJankRoute, 'chat');
+    });
+
+    test('backfills the flush route when none was known at open', () {
+      recordFrozenFrame();
+
+      PerformanceContextService().setCurrentRoute('chat');
+      FrameMetricsService.instance.debugFlush();
+
+      expect(FrameMetricsService.instance.debugLastJankRoute, 'chat');
+    });
+
+    test('falls back to unknown when no route is ever known', () {
+      recordFrozenFrame();
+      FrameMetricsService.instance.debugFlush();
+
+      expect(FrameMetricsService.instance.debugLastJankRoute, 'unknown');
     });
   });
 }

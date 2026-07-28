@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
     show Counter, Histogram;
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     hide Logger, LogLevel;
@@ -156,6 +157,16 @@ class OpenTelemetryService {
         enableMetrics: metricsEnabled,
         enableLogs: logsEnabled,
         enableAutoLogEvents: autoLogEventsEnabled,
+        // happy-server tags its spans with `deployment.environment`; the app
+        // did not, so Jaeger/Prometheus could not separate a debug build on a
+        // developer's handset from real production traffic. Same convention as
+        // the Sentry init (`sentry_init_native.dart`).
+        resourceAttributes: OTel.attributesFromMap(
+          _safeAttributes({
+            'deployment.environment': kReleaseMode ? 'production' : 'debug',
+            'service.build': packageInfo.buildNumber,
+          }),
+        ),
       );
       _applyResourceToMeterProvider();
       _replacePackageLifecycleObserver();
@@ -291,11 +302,16 @@ class OpenTelemetryService {
   static void _forwardLogToOtel(LogEntry entry) {
     try {
       final otelLogger = FlutterOTel.logger('happy_flutter');
+      final route = PerformanceContextService().currentRoute;
       final attributes = OTel.attributesFromMap(
         _safeAttributes({
           'logger.level': entry.level.name,
+          if (route != null && route.isNotEmpty) 'current_route': route,
           if (entry.error != null)
             'error.type': entry.error.runtimeType.toString(),
+          // The type alone is useless for triage ("_TypeError" x82). Ship the
+          // message too — bounded by the long-value cap below.
+          if (entry.error != null) 'error.message': entry.error.toString(),
           if (entry.stackTrace != null)
             'error.stack_trace': entry.stackTrace.toString(),
         }),
@@ -494,14 +510,37 @@ class OpenTelemetryService {
     return name;
   }
 
+  /// Attribute keys whose whole point is to be long.
+  ///
+  /// The blanket 256-char cap chopped `error.stack_trace` off inside the
+  /// Dart VM crash header (`isolate_dso_base: ...`), so every exported stack
+  /// was both truncated *and* unsymbolicatable — the frame PCs live further
+  /// down. These keys get [_longAttributeMaxLength] instead.
+  static const Set<String> _longAttributeKeys = {
+    'error.stack_trace',
+    'error.message',
+  };
+
+  static const int _attributeMaxLength = 256;
+  static const int _longAttributeMaxLength = 8192;
+
+  /// Exposes the attribute sanitizer so the truncation policy is testable
+  /// without standing up an exporter.
+  @visibleForTesting
+  static Map<String, Object> debugSafeAttributes(Map<String, Object?> values) =>
+      _safeAttributes(values);
+
   static Map<String, Object> _safeAttributes(Map<String, Object?> values) {
     final safe = <String, Object>{};
     for (final entry in values.entries) {
       final value = entry.value;
       if (value == null) continue;
       if (value is String) {
-        safe[entry.key] = value.length > 256
-            ? '${value.substring(0, 253)}...'
+        final limit = _longAttributeKeys.contains(entry.key)
+            ? _longAttributeMaxLength
+            : _attributeMaxLength;
+        safe[entry.key] = value.length > limit
+            ? '${value.substring(0, limit - 3)}...'
             : value;
       } else if (value is bool || value is int || value is double) {
         safe[entry.key] = value;

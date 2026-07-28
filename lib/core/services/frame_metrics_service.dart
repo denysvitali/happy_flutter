@@ -46,6 +46,13 @@ class FrameMetricsService {
   OTelSpan? _jankSpan;
   DateTime? _jankSpanStartedAt;
 
+  /// Route known when the current jank span was opened, or null when none was
+  /// (start-up, mid-transition). Drives the flush-time backfill in [_flush].
+  String? _jankSpanRoute;
+
+  /// Route the last emitted `ui.jank` span was attributed to.
+  String? _lastJankRoute;
+
   /// Latches on the first frozen frame of a window, independently of whether
   /// a span was actually created. `startTrace` returns null while OTel is
   /// still initialising (and on failure), so guarding on `_jankSpan != null`
@@ -60,6 +67,10 @@ class FrameMetricsService {
   /// Duration covered by the most recently emitted `ui.jank` span.
   @visibleForTesting
   Duration? get debugLastJankWindow => _lastJankWindow;
+
+  /// Route the most recently emitted `ui.jank` span was attributed to.
+  @visibleForTesting
+  String? get debugLastJankRoute => _lastJankRoute;
 
   @visibleForTesting
   void debugFlush() => _flush();
@@ -130,13 +141,17 @@ class FrameMetricsService {
     if (_jankWindowOpen) return;
     _jankWindowOpen = true;
     _jankSpanStartedAt = DateTime.now();
+    // Stamped at the moment the jank happened, not at flush time — the user
+    // may well have navigated away by then. It can legitimately be null: the
+    // worst jank happens *during* route transitions and at startup, before any
+    // route is on the observer, which is why production spans carried
+    // `current_route="unknown"` alongside `route.at_flush="chat"`. Remember
+    // whether it was a real route so [_flush] can backfill it.
+    final route = PerformanceContextService().currentRoute;
+    _jankSpanRoute = route == null || route.isEmpty ? null : route;
     _jankSpan = OpenTelemetryService().startTrace(
       'ui.jank',
-      attributes: {
-        // Stamped at the moment the jank happened, not at flush time — the
-        // user may well have navigated away by then.
-        'current_route': PerformanceContextService().currentRoute ?? 'unknown',
-      },
+      attributes: {'current_route': _jankSpanRoute ?? 'unknown'},
     );
   }
 
@@ -160,8 +175,10 @@ class FrameMetricsService {
     _recentJank.clear();
     final jankSpan = _jankSpan;
     final jankStartedAt = _jankSpanStartedAt;
+    final routeAtOpen = _jankSpanRoute;
     _jankSpan = null;
     _jankSpanStartedAt = null;
+    _jankSpanRoute = null;
     _jankWindowOpen = false;
     _lastJankWindow = null;
     final frameCount = _frameCount;
@@ -240,6 +257,14 @@ class FrameMetricsService {
     // The span was opened by the first frozen frame of this window (see
     // [_openJankSpan]), so it carries a real duration. Correlating counts go
     // on at close, when they are known.
+    // Backfill the route when none was known at open time, so a transition- or
+    // startup-time jank episode is still attributable to a screen instead of
+    // landing in an `unknown` bucket that no dashboard can act on.
+    final attributedRoute = routeAtOpen ?? route;
+    _lastJankRoute = attributedRoute;
+    if (routeAtOpen == null && route != 'unknown') {
+      jankSpan?.setAttribute('current_route', route);
+    }
     jankSpan
       ?..setAttribute('frame.count', snapshot.length)
       ..setAttribute('frame.avg_ms', avgMs.round())

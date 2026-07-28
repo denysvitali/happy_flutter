@@ -49,6 +49,20 @@ final Stopwatch _coldStartStopwatch = Stopwatch()..start();
 Duration? _firstFrameDuration;
 Duration? _essentialStartupDuration;
 
+/// Anchor the cold-start clock at the earliest point we control.
+///
+/// Top-level `final`s in Dart are **lazily** initialized on first access, not
+/// at program load. The first (and only) reader of [_coldStartStopwatch] used
+/// to be the post-frame callback in [_runApp], so the stopwatch was created
+/// *at* first frame and `app.cold_start.first_frame` shipped a constant 0s —
+/// Prometheus confirmed `app_cold_start_first_frame_seconds_sum == 0` while
+/// `essential_ready` silently measured "first frame → storage ready" instead
+/// of "process start → storage ready". Calling this as the first statement of
+/// `main()` forces construction there and rebases elapsed to that instant.
+void _anchorColdStartClock() {
+  _coldStartStopwatch.reset();
+}
+
 /// Converts a DER-encoded certificate to PEM format.
 Uint8List _derToPem(Uint8List der) {
   final b64 = base64.encode(der);
@@ -71,6 +85,9 @@ Future<void> _loadAndroidUserCertificates() async {
 }
 
 Future<void> main() async {
+  // MUST stay the first statement: see [_anchorColdStartClock].
+  _anchorColdStartClock();
+
   // Bootstrap the Flutter binding first so everything else can proceed
   // in parallel — Sentry, storage, network, deep link, and Firebase.
   WidgetsFlutterBinding.ensureInitialized();

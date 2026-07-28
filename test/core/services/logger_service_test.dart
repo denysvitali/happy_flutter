@@ -481,6 +481,118 @@ void main() {
       expect(testLogger.debugSentryEmitCount, 50);
     });
   });
+
+  // OTel export path: `[pipeline]` / `[messages]` debug traces fire per socket
+  // frame, so a single handset shipped 18.4k debug records in 24h against 82
+  // errors. Debug is bounded; everything above it must stay unthrottled.
+  group('LoggerService OTel debug throttle', () {
+    final testLogger = logger;
+    late List<LogEntry> forwarded;
+    late int fakeNowMs;
+
+    List<LogEntry> exported() => forwarded
+        .where((entry) => !entry.message.startsWith('[Sentry]'))
+        .toList();
+
+    setUp(() {
+      forwarded = <LogEntry>[];
+      fakeNowMs = 1000000;
+      testLogger
+        ..clear()
+        ..setMinLevel(LogLevel.debug)
+        ..setDeveloperMode(true)
+        ..installOtelSink(forwarded.add)
+        ..debugSentryClock = (() => fakeNowMs)
+        ..debugResetOtelDebugThrottle()
+        ..debugResetSentryThrottle();
+    });
+
+    tearDown(() {
+      testLogger
+        ..removeOtelSink()
+        ..debugSentryClock = null
+        ..debugResetOtelDebugThrottle()
+        ..setDeveloperMode(false)
+        ..clear();
+    });
+
+    test('debug export is capped once the bucket drains', () {
+      for (var i = 0; i < 900; i++) {
+        testLogger.debug('[pipeline] frame $i stage=notified outcome=ok');
+      }
+
+      final debugExports = exported()
+          .where((entry) => entry.level == LogLevel.debug)
+          .length;
+      expect(debugExports, lessThan(900));
+      expect(debugExports, greaterThanOrEqualTo(600));
+    });
+
+    test('drops are reported, never silent', () {
+      for (var i = 0; i < 900; i++) {
+        testLogger.debug('[pipeline] frame $i');
+      }
+
+      expect(
+        exported().map((entry) => entry.message),
+        contains(startsWith('[logger] dropped ')),
+      );
+    });
+
+    test('info, warning and error are never throttled by the debug bucket', () {
+      for (var i = 0; i < 900; i++) {
+        testLogger.debug('[pipeline] drain $i');
+      }
+      forwarded.clear();
+
+      for (var i = 0; i < 50; i++) {
+        testLogger
+          ..info('info $i')
+          ..warning('warning $i')
+          ..error('error $i');
+      }
+
+      final byLevel = exported()
+          .where((entry) => !entry.message.startsWith('[logger] dropped'))
+          .toList();
+      expect(byLevel.where((e) => e.level == LogLevel.info).length, 50);
+      expect(byLevel.where((e) => e.level == LogLevel.warning).length, 50);
+      expect(byLevel.where((e) => e.level == LogLevel.error).length, 50);
+    });
+
+    test('the bucket refills over time', () {
+      for (var i = 0; i < 900; i++) {
+        testLogger.debug('[pipeline] drain $i');
+      }
+      forwarded.clear();
+
+      // One minute of refill at 300/min.
+      fakeNowMs += const Duration(minutes: 1).inMilliseconds;
+      for (var i = 0; i < 100; i++) {
+        testLogger.debug('[pipeline] post-refill $i');
+      }
+
+      final debugExports = exported()
+          .where((entry) => entry.level == LogLevel.debug)
+          .length;
+      expect(debugExports, 100);
+    });
+
+    test('a backwards clock jump does not wedge the debug bucket', () {
+      for (var i = 0; i < 900; i++) {
+        testLogger.debug('[pipeline] drain $i');
+      }
+      forwarded.clear();
+
+      fakeNowMs -= const Duration(minutes: 30).inMilliseconds;
+      testLogger.debug('[pipeline] post jump');
+
+      expect(
+        exported().where((entry) => entry.level == LogLevel.debug).length,
+        1,
+      );
+    });
+  });
 }
 
 const _alphabet = 'abcdefghijklmnopqrstuvwxyz';
