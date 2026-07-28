@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/utils/backoff.dart';
 
@@ -138,15 +140,27 @@ void main() {
 
   group('exponentialBackoffDelay', () {
     test('should calculate delay with exponential growth', () {
+      // The delay is `Random().nextDouble() * ceiling`, so the only
+      // guarantees are the per-attempt ceilings — a small enough draw
+      // legitimately rounds to 0. Asserting `greaterThan(0)` made this
+      // test flake in CI (~1 run in 600).
       final delay1 = exponentialBackoffDelay(0, 250, 1000, 10);
       final delay2 = exponentialBackoffDelay(5, 250, 1000, 10);
       final delay3 = exponentialBackoffDelay(10, 250, 1000, 10);
 
-      // Higher failure count should generally lead to higher delays
-      // (though there's randomness)
-      expect(delay2, greaterThan(0));
-      expect(delay3, greaterThan(0));
-      expect(delay3, lessThanOrEqualTo(1000));
+      // Ceiling grows with the failure count: 250 → 625 → 1000.
+      expect(delay1, inInclusiveRange(0, 250));
+      expect(delay2, inInclusiveRange(0, 625));
+      expect(delay3, inInclusiveRange(0, 1000));
+
+      // Across many draws the growth is observable rather than incidental.
+      var maxAtZero = 0;
+      var maxAtMax = 0;
+      for (var i = 0; i < 200; i++) {
+        maxAtZero = max(maxAtZero, exponentialBackoffDelay(0, 250, 1000, 10));
+        maxAtMax = max(maxAtMax, exponentialBackoffDelay(10, 250, 1000, 10));
+      }
+      expect(maxAtMax, greaterThan(maxAtZero));
     });
 
     test('should respect max delay', () {
