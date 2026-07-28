@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/widgets/error_boundary.dart';
 
 void main() {
@@ -48,81 +47,61 @@ void main() {
   // Production shipped 82 widget crashes in 16 minutes whose only log body was
   // the constant 'ErrorBoundary caught error'. The OTel sink reduces the error
   // argument to `error.type`, so Loki showed 82 identical `_TypeError` lines
-  // with nothing to triage on. The body must name the failure.
-  testWidgets('logged body names the exception and library', (tester) async {
-    final originalOnError = FlutterError.onError;
-    FlutterError.onError = (_) {};
-    final forwarded = <LogEntry>[];
-    logger.installOtelSink(forwarded.add);
-    addTearDown(() {
-      FlutterError.onError = originalOnError;
-      logger
-        ..removeOtelSink()
-        ..clear();
+  // with nothing to triage on. The body must name the failure — and must stay
+  // bounded, because exception descriptions can embed a whole widget tree.
+  group('ErrorBoundary.debugDescribeError', () {
+    test('names the exception', () {
+      final described = ErrorBoundary.debugDescribeError(
+        StateError('permissionMode was null'),
+      );
+
+      expect(described, contains('permissionMode was null'));
     });
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: ErrorBoundary(
-            errorBuilder: (_, _) => const Text('fallback'),
-            child: const SizedBox.shrink(),
-          ),
-        ),
-      ),
-    );
-
-    FlutterError.onError?.call(
-      FlutterErrorDetails(
-        exception: StateError('permissionMode was null'),
+    test('appends the library when Flutter reports one', () {
+      final described = ErrorBoundary.debugDescribeError(
+        StateError('boom'),
         library: 'widgets library',
-      ),
-    );
-    await tester.pump();
+      );
 
-    final body = forwarded
-        .map((entry) => entry.message)
-        .firstWhere((message) => message.startsWith('ErrorBoundary caught'));
-    expect(body, contains('permissionMode was null'));
-    expect(body, contains('[widgets library]'));
-
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
-
-  testWidgets('a huge exception description is bounded', (tester) async {
-    final originalOnError = FlutterError.onError;
-    FlutterError.onError = (_) {};
-    final forwarded = <LogEntry>[];
-    logger.installOtelSink(forwarded.add);
-    addTearDown(() {
-      FlutterError.onError = originalOnError;
-      logger
-        ..removeOtelSink()
-        ..clear();
+      expect(described, endsWith('[widgets library]'));
     });
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: ErrorBoundary(
-            errorBuilder: (_, _) => const Text('fallback'),
-            child: const SizedBox.shrink(),
-          ),
-        ),
-      ),
-    );
+    test('omits the library suffix when absent or empty', () {
+      expect(
+        ErrorBoundary.debugDescribeError(StateError('boom')),
+        isNot(contains('[')),
+      );
+      expect(
+        ErrorBoundary.debugDescribeError(StateError('boom'), library: ''),
+        isNot(contains('[')),
+      );
+    });
 
-    FlutterError.onError?.call(
-      FlutterErrorDetails(exception: StateError('x' * 4000)),
-    );
-    await tester.pump();
+    test('collapses newlines so one crash stays one log line', () {
+      final described = ErrorBoundary.debugDescribeError(
+        const FormatException('line one\nline two'),
+      );
 
-    final body = forwarded
-        .map((entry) => entry.message)
-        .firstWhere((message) => message.startsWith('ErrorBoundary caught'));
-    expect(body.length, lessThan(300));
-    expect(body, endsWith('...'));
+      expect(described, isNot(contains('\n')));
+      expect(described, contains('line one line two'));
+    });
 
-    await tester.pumpWidget(const SizedBox.shrink());
+    test('bounds a huge description', () {
+      final described = ErrorBoundary.debugDescribeError(
+        StateError('x' * 4000),
+      );
+
+      expect(described.length, 200);
+      expect(described, endsWith('...'));
+    });
+
+    test('leaves a description at the limit untouched', () {
+      // 'Bad state: ' (11) + 189 chars == exactly 200.
+      final described = ErrorBoundary.debugDescribeError(StateError('y' * 189));
+
+      expect(described.length, 200);
+      expect(described, isNot(endsWith('...')));
+    });
   });
 }

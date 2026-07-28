@@ -23,6 +23,22 @@ import '../utils/tool_error_parser.dart';
 ///   },
 /// )
 /// ```
+/// One-line, log-safe description of a caught error.
+///
+/// The log body used to be the bare constant `'ErrorBoundary caught error'`,
+/// with the exception reachable only through the `error` argument — which the
+/// OTel sink reduces to `error.type`. In Loki that rendered every widget crash
+/// as an indistinguishable `_TypeError`, so an 82-event burst carried no clue
+/// about *what* was null or *where*. Keep it bounded: exception `toString()`s
+/// can embed whole widget trees.
+String _describeError(Object error, {String? library}) {
+  var text = error.toString().replaceAll('\n', ' ').trim();
+  if (text.length > 200) {
+    text = '${text.substring(0, 197)}...';
+  }
+  return library == null || library.isEmpty ? text : '$text [$library]';
+}
+
 class ErrorBoundary extends ConsumerStatefulWidget {
   const ErrorBoundary({
     required this.child,
@@ -43,6 +59,12 @@ class ErrorBoundary extends ConsumerStatefulWidget {
 
   /// Optional custom error display
   final Widget Function(Object error, StackTrace stack)? errorBuilder;
+
+  /// Exposes [_describeError] for tests: the log body is the only triage
+  /// handle a release-build crash leaves behind.
+  @visibleForTesting
+  static String debugDescribeError(Object error, {String? library}) =>
+      _describeError(error, library: library);
 
   @override
   ConsumerState<ErrorBoundary> createState() => _ErrorBoundaryState();
@@ -66,22 +88,6 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
         .split('\n')
         .firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
     return '$type|$firstFrame';
-  }
-
-  /// One-line, log-safe description of a caught error.
-  ///
-  /// The log body used to be the bare constant `'ErrorBoundary caught error'`,
-  /// with the exception reachable only through the `error` argument — which the
-  /// OTel sink reduces to `error.type`. In Loki that rendered every widget
-  /// crash as an indistinguishable `_TypeError`, so an 82-event burst carried
-  /// no clue about *what* was null or *where*. Keep it bounded: exception
-  /// `toString()`s can embed whole widget trees.
-  static String _describe(Object error, {String? library}) {
-    var text = error.toString().replaceAll('\n', ' ').trim();
-    if (text.length > 200) {
-      text = '${text.substring(0, 197)}...';
-    }
-    return library == null || library.isEmpty ? text : '$text [$library]';
   }
 
   /// True when this error fingerprint has not been reported in the
@@ -127,7 +133,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
       if (_shouldReport(details.exception, details.stack)) {
         logger.error(
           'ErrorWidget built for error: '
-          '${_describe(details.exception, library: details.library)}',
+          '${_describeError(details.exception, library: details.library)}',
           details.exception,
           details.stack,
         );
@@ -159,9 +165,12 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 
     if (!shouldReport) return;
 
+    final described = _describeError(
+      errorDetails.exception,
+      library: errorDetails.library,
+    );
     logger.error(
-      'ErrorBoundary caught error: '
-      '${_describe(errorDetails.exception, library: errorDetails.library)}',
+      'ErrorBoundary caught error: $described',
       errorDetails.exception,
       errorDetails.stack,
     );
