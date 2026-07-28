@@ -158,12 +158,19 @@ class _ToolViewState extends ConsumerState<ToolView>
     final initPermission = WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(initPermission);
 
-    // Only a pending permission request auto-expands — the user needs the
-    // Allow/Deny footer in view. Anything else (running, completed, error,
-    // pending) starts collapsed and waits for an explicit tap. A running
-    // tool still shows its spinner + tinted row even while collapsed so the
-    // user can see it's in flight.
-    if (hasPermissionRequest) {
+    // Two cases auto-expand:
+    //   1. A pending permission request — the user needs the Allow/Deny
+    //      footer in view.
+    //   2. A plan/todo tool while the "Expand todos" setting is on. The
+    //      agent's plan is the one tool call users read rather than skim,
+    //      and this is what that setting has always promised.
+    // Anything else (running, completed, error, pending) starts collapsed
+    // and waits for an explicit tap. A running tool still shows its
+    // spinner + tinted row while collapsed so the user sees it's in flight.
+    final expandTodos = ref.read(
+      settingsNotifierProvider.select((s) => s.expandTodos),
+    );
+    if (hasPermissionRequest || (expandTodos && _isTodoTool)) {
       _expanded = true;
       _chevronController.forward();
     }
@@ -765,11 +772,13 @@ class _ToolViewState extends ConsumerState<ToolView>
     final toolCallDebug = ref.watch(
       settingsNotifierProvider.select((s) => s.toolCallDebugEnabled),
     );
-    // In debug mode we want the raw INPUT/OUTPUT fallback to surface, so we
-    // bypass the per-tool specific view. In normal mode we keep the specific
-    // view (or the MCP text-only path, or nothing) — JSON is reachable via
-    // long-press → [MessageDetailScreen], not inline.
-    final specificView = toolCallDebug ? null : _getToolViewComponent(toolName);
+    // In debug mode the raw INPUT/OUTPUT sections surface *below* the
+    // per-tool view rather than replacing it — a debugging aid should add
+    // the wire payload, not take away the rendering being debugged (with
+    // it replaced, a Codex todo list read as a JSON blob). In normal mode
+    // only the specific view (or the MCP text-only path, or nothing)
+    // renders — JSON stays one long-press away in [MessageDetailScreen].
+    final specificView = _getToolViewComponent(toolName);
 
     if (specificView != null) {
       return Padding(
@@ -779,6 +788,13 @@ class _ToolViewState extends ConsumerState<ToolView>
           mainAxisSize: MainAxisSize.min,
           children: [
             specificView(widget.tool, widget.metadata, widget.sessionId),
+            if (toolCallDebug)
+              ..._debugPayloadSections(
+                toolName: toolName,
+                toolInput: toolInput,
+                toolResult: toolResult,
+                state: state,
+              ),
             if (state == ToolState.error &&
                 toolResult != null &&
                 isPermissionNotDeniedOrCanceled(permission) &&
@@ -802,36 +818,18 @@ class _ToolViewState extends ConsumerState<ToolView>
     // Debug mode: full INPUT/OUTPUT JSON fallback for any tool (including
     // unknown ones) so devs can inspect wire payloads inline.
     if (toolCallDebug) {
-      final toolId =
-          widget.tool['toolUseId'] as String? ??
-          widget.tool['id'] as String? ??
-          toolName;
-      final outputCopyText = _copyableTextFor(toolResult);
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (toolInput != null)
-              ToolSectionView(
-                title: 'INPUT',
-                trailing: ToolViewCopyButton(text: _copyableTextFor(toolInput)),
-                child: SmartOutputContainer(content: toolInput),
-              ),
-            if (state == ToolState.completed && toolResult != null)
-              CollapsibleOutput(
-                toolId: toolId,
-                scrollable: true,
-                child: ToolSectionView(
-                  title: 'OUTPUT',
-                  trailing: ToolViewCopyButton(text: outputCopyText),
-                  child: SmartOutputContainer(
-                    content: toolResult,
-                    maxHeight: double.infinity,
-                  ),
-                ),
-              ),
+            ..._debugPayloadSections(
+              toolName: toolName,
+              toolInput: toolInput,
+              toolResult: toolResult,
+              state: state,
+            ),
             if (state == ToolState.error &&
                 toolResult != null &&
                 isPermissionNotDeniedOrCanceled(permission) &&
@@ -857,6 +855,42 @@ class _ToolViewState extends ConsumerState<ToolView>
     // Non-debug, no specific view, no MCP text: nothing to show inline. The
     // user can long-press to open the full details.
     return const _OpenDetailsHint();
+  }
+
+  /// Raw INPUT / OUTPUT wire payload sections shown when tool-call debug
+  /// is on. Rendered under the per-tool view when one exists, or on their
+  /// own for tools without a body.
+  List<Widget> _debugPayloadSections({
+    required String toolName,
+    required Map<String, dynamic>? toolInput,
+    required dynamic toolResult,
+    required ToolState state,
+  }) {
+    final toolId =
+        widget.tool['toolUseId'] as String? ??
+        widget.tool['id'] as String? ??
+        toolName;
+    return [
+      if (toolInput != null)
+        ToolSectionView(
+          title: 'INPUT',
+          trailing: ToolViewCopyButton(text: _copyableTextFor(toolInput)),
+          child: SmartOutputContainer(content: toolInput),
+        ),
+      if (state == ToolState.completed && toolResult != null)
+        CollapsibleOutput(
+          toolId: toolId,
+          scrollable: true,
+          child: ToolSectionView(
+            title: 'OUTPUT',
+            trailing: ToolViewCopyButton(text: _copyableTextFor(toolResult)),
+            child: SmartOutputContainer(
+              content: toolResult,
+              maxHeight: double.infinity,
+            ),
+          ),
+        ),
+    ];
   }
 
   /// Returns a view builder for the named tool, or null for default fallback.

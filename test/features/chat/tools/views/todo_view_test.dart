@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/tools/known_tools.dart';
@@ -33,6 +34,42 @@ const List<Map<String, dynamic>> _codexItems = [
   {'completed': false, 'text': 'Run PID 1/initcall candidate'},
   {'completed': false, 'text': 'Restore stock and document the result'},
 ];
+
+/// Storage-free settings so `expandTodos` / `toolCallDebugEnabled` can be
+/// varied without MMKV.
+class _StubSettingsNotifier extends SettingsNotifier {
+  _StubSettingsNotifier({
+    this.expandTodos = true,
+    this.toolCallDebug = false,
+  });
+
+  final bool expandTodos;
+  final bool toolCallDebug;
+
+  @override
+  Settings build() => Settings()
+    ..expandTodos = expandTodos
+    ..toolCallDebugEnabled = toolCallDebug;
+
+  @override
+  Future<void> updateSetting<T>(String key, T value) async {}
+}
+
+ProviderContainer _settingsContainer({
+  bool expandTodos = true,
+  bool toolCallDebug = false,
+}) {
+  return ProviderContainer(
+    overrides: [
+      settingsNotifierProvider.overrideWith(
+        () => _StubSettingsNotifier(
+          expandTodos: expandTodos,
+          toolCallDebug: toolCallDebug,
+        ),
+      ),
+    ],
+  );
+}
 
 Widget _wrap(ProviderContainer container, Widget child) {
   return UncontrolledProviderScope(
@@ -293,14 +330,16 @@ void main() {
     });
   });
 
-  group('ToolView — pushes todo tools while collapsed', () {
-    testWidgets('a collapsed Codex TodoWrite still fills the banner state',
-        (tester) async {
-      // Regression: the push used to live in TodoView.initState, and the
-      // body only mounts while the card is expanded — so Codex sessions
-      // (whose whole plan arrives as TodoWrite) never populated the
-      // session tasks banner or the Zen list.
-      final container = ProviderContainer();
+  group('ToolView — Codex todo cards', () {
+    Future<ProviderContainer> pumpCard(
+      WidgetTester tester, {
+      bool expandTodos = true,
+      bool toolCallDebug = false,
+    }) async {
+      final container = _settingsContainer(
+        expandTodos: expandTodos,
+        toolCallDebug: toolCallDebug,
+      );
       addTearDown(container.dispose);
       await tester.pumpWidget(
         _wrap(
@@ -314,6 +353,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      return container;
+    }
+
+    testWidgets('a collapsed card still fills the banner state',
+        (tester) async {
+      // Regression: the push used to live in TodoView.initState, and the
+      // body only mounts while the card is expanded — so Codex sessions
+      // (whose whole plan arrives as TodoWrite) never populated the
+      // session tasks banner or the Zen list.
+      final container = await pumpCard(tester, expandTodos: false);
 
       // Collapsed: no todo rows rendered...
       expect(find.text('0/4 done'), findsNothing);
@@ -323,21 +372,8 @@ void main() {
       expect(items.last.content, 'Restore stock and document the result');
     });
 
-    testWidgets('expanding the card renders the rows', (tester) async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        _wrap(
-          container,
-          ToolView(
-            tool: _codexTodoTool(
-              items: List<Map<String, dynamic>>.from(_codexItems),
-            ),
-            sessionId: 's1',
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets('tapping a collapsed card renders the rows', (tester) async {
+      await pumpCard(tester, expandTodos: false);
 
       // The header title lives in a Text.rich, so tap the header InkWell.
       expect(
@@ -348,6 +384,28 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('0/4 done'), findsOneWidget);
+    });
+
+    testWidgets('expandTodos auto-expands the plan', (tester) async {
+      // Regression: the "Expand todos" setting was read by nothing, so a
+      // plan always started collapsed regardless of the toggle.
+      await pumpCard(tester);
+
+      expect(find.text('0/4 done'), findsOneWidget);
+      expect(
+        find.text('Verify recovery state and restore boot_b'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('tool-call debug adds the raw INPUT below the rendered list',
+        (tester) async {
+      // Regression: debug mode replaced the per-tool view, so a Codex plan
+      // rendered as a raw JSON blob with no todo rows at all.
+      await pumpCard(tester, toolCallDebug: true);
+
+      expect(find.text('0/4 done'), findsOneWidget);
+      expect(find.text('INPUT'), findsOneWidget);
     });
   });
 }
