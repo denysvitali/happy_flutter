@@ -238,6 +238,68 @@ void main() {
     });
   });
 
+  group('resolveAvailableMachineId', () {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    test('replaces a stale registration with the freshest online same host', () {
+      final stale = _machine(
+        id: 'stale',
+        displayName: 'Kubernetes daemon',
+        active: false,
+        activeAtMs: now - 300000,
+      );
+      final olderOnline = _machine(
+        id: 'online-older',
+        displayName: 'Kubernetes daemon',
+        active: true,
+        activeAtMs: now - 2000,
+      );
+      final freshestOnline = _machine(
+        id: 'online-fresh',
+        displayName: 'Kubernetes daemon',
+        active: true,
+        activeAtMs: now - 1000,
+      );
+
+      expect(
+        resolveAvailableMachineId(
+          stale.id,
+          {
+            stale.id: stale,
+            olderOnline.id: olderOnline,
+            freshestOnline.id: freshestOnline,
+          },
+          nowMs: now,
+        ),
+        freshestOnline.id,
+      );
+    });
+
+    test('does not replace a stale registration with another host', () {
+      final stale = _machine(
+        id: 'stale',
+        displayName: 'Kubernetes daemon',
+        active: false,
+        activeAtMs: now - 300000,
+      );
+      final unrelated = _machine(
+        id: 'unrelated',
+        displayName: 'Developer laptop',
+        active: true,
+        activeAtMs: now,
+      );
+
+      expect(
+        resolveAvailableMachineId(
+          stale.id,
+          {stale.id: stale, unrelated.id: unrelated},
+          nowMs: now,
+        ),
+        stale.id,
+      );
+    });
+  });
+
   group('NewSessionDialog offline guard', () {
     setUp(() {
       // The dialog checks `sync.isInitialized` to decide whether to block on

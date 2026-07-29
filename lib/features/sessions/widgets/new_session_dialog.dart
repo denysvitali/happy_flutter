@@ -115,9 +115,23 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         : 'claude';
     _selectedMachine = widget.initialMachineId;
     _selectedPath = widget.initialPath;
-    Future<void>.microtask(
-      () => ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
+    Future<void>.microtask(_refreshMachinesAndResolveSelection);
+  }
+
+  Future<void> _refreshMachinesAndResolveSelection() async {
+    await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
+    if (!mounted) return;
+
+    final resolved = resolveAvailableMachineId(
+      _selectedMachine,
+      ref.read(machinesNotifierProvider),
     );
+    if (resolved == _selectedMachine) return;
+
+    setState(() {
+      _selectedMachine = resolved;
+      _createError = null;
+    });
   }
 
   @override
@@ -560,6 +574,46 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       });
     }
   }
+}
+
+/// Resolves a stale machine selection to the freshest online registration for
+/// the same host.
+///
+/// Daemon credential resets and interrupted database updates can leave more
+/// than one machine record for a host. Never fall back to an unrelated host:
+/// if no matching online registration exists, preserve the stale selection so
+/// the dialog's offline guard keeps Create disabled.
+String? resolveAvailableMachineId(
+  String? selectedMachineId,
+  Map<String, Machine> machines, {
+  int? nowMs,
+}) {
+  if (selectedMachineId == null) return null;
+
+  final selected = machines[selectedMachineId];
+  if (selected == null) return selectedMachineId;
+
+  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+  if (selected.isOnlineAt(now)) return selectedMachineId;
+
+  final host = selected.metadata?.host?.trim();
+  if (host == null || host.isEmpty) return selectedMachineId;
+
+  final replacements = machines.values
+      .where(
+        (machine) =>
+            machine.id != selectedMachineId &&
+            machine.metadata?.host?.trim() == host &&
+            machine.isOnlineAt(now),
+      )
+      .toList()
+    ..sort((a, b) {
+      final activeComparison = b.activeAt.compareTo(a.activeAt);
+      if (activeComparison != 0) return activeComparison;
+      return a.id.compareTo(b.id);
+    });
+
+  return replacements.firstOrNull?.id ?? selectedMachineId;
 }
 
 List<String> _spawnBackendsForMachine(Machine? machine) {
