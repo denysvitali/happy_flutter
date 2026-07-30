@@ -384,6 +384,33 @@ void main() {
       );
     });
 
+    testWidgets(
+      'Create button is disabled when active flag has a stale heartbeat',
+      (tester) async {
+        final stale = DateTime.now()
+            .subtract(const Duration(minutes: 10))
+            .millisecondsSinceEpoch;
+        final staleMachine = _machine(
+          id: 'm-stale',
+          displayName: 'Stale Laptop',
+          active: true,
+          activeAtMs: stale,
+        );
+        await pumpDialog(
+          tester,
+          buildHarness(
+            machines: {'m-stale': staleMachine},
+            initialMachineId: 'm-stale',
+          ),
+        );
+
+        final createButton = tester.widget<ElevatedButton>(
+          find.widgetWithText(ElevatedButton, 'Create'),
+        );
+        expect(createButton.onPressed, isNull);
+      },
+    );
+
     testWidgets('Create button is enabled when machine is online', (
       tester,
     ) async {

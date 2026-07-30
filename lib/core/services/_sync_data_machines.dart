@@ -275,7 +275,13 @@ extension SyncDataMachines on Sync {
 
     try {
       final apiClient = ApiClient();
-      final response = await apiClient.get('/v1/machines');
+      // Machine presence is a liveness signal, not durable API data. Serving
+      // this request from the client HTTP cache can leave the new-session
+      // dialog showing a disconnected daemon as online.
+      final response = await apiClient.get(
+        '/v1/machines',
+        options: Options(extra: const {'bypassCache': true}),
+      );
 
       if (apiClient.isSuccess(response)) {
         // Machines response may be a list directly or wrapped in an

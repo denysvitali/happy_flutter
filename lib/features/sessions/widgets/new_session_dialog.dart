@@ -159,7 +159,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         : _defaultSpawnBackendForMachine(selectedMachineObj);
     final repositoryRequired = selectedSpawnBackend == 'kubernetes';
     final selectedMachineOffline =
-        selectedMachineObj != null && !selectedMachineObj.isOnline;
+        selectedMachineObj != null &&
+        !selectedMachineObj.isOnlineAt(machineSortNow);
     final createBlocker = newSessionCreateBlocker(
       machine: selectedMachineObj,
       machineOnline: selectedMachineObj != null && !selectedMachineOffline,
@@ -203,7 +204,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   child: Text(l10n.sessionSelectMachine),
                 ),
                 ...machines.map((machine) {
-                  final online = machine.isOnline;
+                  final online = machine.isOnlineAt(machineSortNow);
                   // Disable offline items so the user cannot select a
                   // machine that will fail at session creation time.
                   return DropdownMenuItem(
@@ -262,7 +263,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 // disabled DropdownMenuItem is somehow tapped.
                 if (value != null) {
                   final m = allMachines[value];
-                  if (m != null && !m.isOnline) {
+                  if (m != null && !m.isOnlineAt(machineSortNow)) {
                     return;
                   }
                 }
@@ -444,21 +445,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
 
   Future<void> _createSession(BuildContext context) async {
     final l10n = context.l10n;
-    final machineId = _selectedMachine;
+    final selectedMachineId = _selectedMachine;
     final path = _selectedPath?.trim();
-    if (machineId == null || path == null || path.isEmpty) {
+    if (selectedMachineId == null || path == null || path.isEmpty) {
       return;
     }
-    final machine = ref.read(machinesNotifierProvider)[machineId];
-    final spawnBackend = _spawnBackendRequestValueForMachine(
-      machine,
-      _spawnBackendTouched
-          ? _selectedSpawnBackend
-          : _defaultSpawnBackendForMachine(machine),
-    );
-    final repoUrl = spawnBackend == 'kubernetes'
-        ? _selectedRepoUrl?.trim()
-        : null;
     final navigator = Navigator.of(context, rootNavigator: true);
 
     setState(() {
@@ -467,6 +458,39 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     });
 
     try {
+      // The dialog may have been open while the daemon disconnected. Refresh
+      // authoritative presence immediately before doing any settings,
+      // worktree, or spawn work, then migrate stale registrations for the
+      // same host when a newer online daemon registration exists.
+      await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
+      if (!mounted) return;
+      final machines = ref.read(machinesNotifierProvider);
+      final resolvedMachineId = resolveAvailableMachineId(
+        selectedMachineId,
+        machines,
+      );
+      if (resolvedMachineId == null) {
+        throw StateError('Machine is offline');
+      }
+      final machineId = resolvedMachineId;
+      final machine = machines[machineId];
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (machine == null || !machine.isOnlineAt(now)) {
+        throw StateError('Machine is offline');
+      }
+      if (machineId != _selectedMachine) {
+        setState(() => _selectedMachine = machineId);
+      }
+      final spawnBackend = _spawnBackendRequestValueForMachine(
+        machine,
+        _spawnBackendTouched
+            ? _selectedSpawnBackend
+            : _defaultSpawnBackendForMachine(machine),
+      );
+      final repoUrl = spawnBackend == 'kubernetes'
+          ? _selectedRepoUrl?.trim()
+          : null;
+
       final settings = ref.read(settingsNotifierProvider);
       final profileId = resolveSelectedProfileIdForAgent(
         settings,
