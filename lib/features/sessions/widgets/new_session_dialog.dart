@@ -1077,11 +1077,7 @@ class _CreateButton extends StatelessWidget {
     final button = ElevatedButton(
       onPressed: onPressed,
       child: isCreating
-          ? const SizedBox(
-              width: AppSpacing.lg,
-              height: AppSpacing.lg,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? const Icon(Icons.hourglass_top_rounded, size: AppSpacing.lg)
           : Text(label),
     );
     final tip = tooltip;

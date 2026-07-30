@@ -546,6 +546,13 @@ void main() {
         await tester.pump();
         await probeStarted.future;
 
+        expect(find.byIcon(Icons.hourglass_top_rounded), findsOneWidget);
+        expect(
+          find.byType(CircularProgressIndicator),
+          findsNothing,
+          reason: 'an indeterminate ticker can rebuild after dialog disposal',
+        );
+
         await tester.pumpWidget(const SizedBox.shrink());
         finishProbe.complete();
         await tester.pump();
