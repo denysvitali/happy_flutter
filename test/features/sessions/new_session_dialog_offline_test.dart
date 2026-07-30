@@ -300,6 +300,75 @@ void main() {
     });
   });
 
+  group('resolveReachableMachineId', () {
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    test(
+      'falls back to another reachable registration for the same host',
+      () async {
+        final selected = _machine(
+          id: 'selected',
+          displayName: 'Shared host',
+          active: true,
+          activeAtMs: now,
+        );
+        final reachable = _machine(
+          id: 'reachable',
+          displayName: 'Shared host',
+          active: true,
+          activeAtMs: now - 1000,
+        );
+        final probed = <String>[];
+
+        await expectLater(
+          resolveReachableMachineId(
+            selected.id,
+            {selected.id: selected, reachable.id: reachable},
+            nowMs: now,
+            probe: (machineId) async {
+              probed.add(machineId);
+              if (machineId == selected.id) {
+                throw StateError('Machine is unreachable');
+              }
+            },
+          ),
+          completion(reachable.id),
+        );
+        expect(probed, [selected.id, reachable.id]);
+      },
+    );
+
+    test('does not probe registrations from another host', () async {
+      final selected = _machine(
+        id: 'selected',
+        displayName: 'Selected host',
+        active: true,
+        activeAtMs: now,
+      );
+      final unrelated = _machine(
+        id: 'unrelated',
+        displayName: 'Other host',
+        active: true,
+        activeAtMs: now,
+      );
+      final probed = <String>[];
+
+      await expectLater(
+        resolveReachableMachineId(
+          selected.id,
+          {selected.id: selected, unrelated.id: unrelated},
+          nowMs: now,
+          probe: (machineId) async {
+            probed.add(machineId);
+            throw StateError('Machine is unreachable');
+          },
+        ),
+        throwsStateError,
+      );
+      expect(probed, [selected.id]);
+    });
+  });
+
   group('NewSessionDialog offline guard', () {
     setUp(() {
       // The dialog checks `sync.isInitialized` to decide whether to block on

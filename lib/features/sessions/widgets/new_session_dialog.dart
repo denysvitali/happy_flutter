@@ -465,14 +465,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
       if (!mounted) return;
       final machines = ref.read(machinesNotifierProvider);
-      final resolvedMachineId = resolveAvailableMachineId(
+      final availableMachineId = resolveAvailableMachineId(
         selectedMachineId,
         machines,
       );
-      if (resolvedMachineId == null) {
+      if (availableMachineId == null) {
         throw StateError('Machine is offline');
       }
-      final machineId = resolvedMachineId;
+      final machineId = await resolveReachableMachineId(
+        availableMachineId,
+        machines,
+        probe: sync.ensureMachineReachable,
+      );
       final machine = machines[machineId];
       final now = DateTime.now().millisecondsSinceEpoch;
       if (machine == null || !machine.isOnlineAt(now)) {
@@ -638,6 +642,64 @@ String? resolveAvailableMachineId(
     });
 
   return replacements.firstOrNull?.id ?? selectedMachineId;
+}
+
+/// Probes the selected registration and then other online registrations for
+/// the same host, newest first.
+///
+/// A daemon restart or clustered launcher can keep emitting host activity
+/// under one machine ID while its RPC handlers are registered under another.
+/// Presence alone therefore cannot identify the registration that can spawn.
+Future<String> resolveReachableMachineId(
+  String selectedMachineId,
+  Map<String, Machine> machines, {
+  required Future<void> Function(String machineId) probe,
+  int? nowMs,
+}) async {
+  final selected = machines[selectedMachineId];
+  if (selected == null) {
+    throw StateError('Machine is offline');
+  }
+
+  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+  final host = selected.metadata?.host?.trim();
+  final candidates = <Machine>[
+    selected,
+    if (host != null && host.isNotEmpty)
+      ...machines.values.where(
+        (machine) =>
+            machine.id != selectedMachineId &&
+            machine.metadata?.host?.trim() == host &&
+            machine.isOnlineAt(now),
+      ),
+  ];
+  if (candidates.length > 1) {
+    candidates.setRange(
+      1,
+      candidates.length,
+      candidates.sublist(1)..sort((a, b) {
+        final activeComparison = b.activeAt.compareTo(a.activeAt);
+        if (activeComparison != 0) return activeComparison;
+        return a.id.compareTo(b.id);
+      }),
+    );
+  }
+
+  Object? lastError;
+  StackTrace? lastStack;
+  for (final candidate in candidates) {
+    try {
+      await probe(candidate.id);
+      return candidate.id;
+    } catch (error, stack) {
+      lastError = error;
+      lastStack = stack;
+    }
+  }
+  Error.throwWithStackTrace(
+    lastError ?? StateError('Machine is unreachable'),
+    lastStack ?? StackTrace.current,
+  );
 }
 
 List<String> _spawnBackendsForMachine(Machine? machine) {
