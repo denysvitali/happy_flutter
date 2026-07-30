@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-07-24
+**Last Updated**: 2026-07-30
 
 ### July 2026 performance and design pass
 
@@ -33,6 +33,17 @@ Still open: the `_TypeError` burst of 2026-07-28 06:25–06:41 UTC (launch
 `0bff0d24`, build `7a3ef930d273adeb3fa36f07e0880aa7`) has no diagnosable
 stack. The next occurrence on a build after b5858b2f will carry both the
 exception message and a full stack.
+
+Follow-up audit on 2026-07-30 found Flutter log records inheriting stale
+package-global OTel contexts after short navigation and cache spans had ended.
+Log export now correlates only with the app's zone-scoped active span and
+otherwise emits from `Context.root`, preventing unrelated warnings and errors
+from being attached to expired traces. The same audit found agent HTTP polling
+still inheriting the daemon's propagated spawn span, producing live Jaeger
+traces with 3,500+ spans; happy-cli-go now removes that span from the
+process-lifetime context while preserving baggage. The collector also
+canonicalizes OTLP `severity_text` from its numeric severity so Loki level
+queries no longer split between Go's lowercase and Flutter's uppercase values.
 
 ## P0: Core Messaging & Session Reliability
 
@@ -69,6 +80,7 @@ The current test count is not enough if this contract can break without failing 
 | Resume sessions sync timeout | Error | 6 | Fix on main (0621440), shipped automatically on the next `main` commit | `TimeoutException` on resume is now caught and logged at info; underlying sync still completes via `onDataChanged`. |
 | Resume conversation progress timeout | Warning | 6 | Fix on main (0621440), shipped automatically on the next `main` commit | Safety-timer fallback demoted from Sentry warning to local info log. |
 | Ref used in disposed widget (sessions dismissible) | Error | 1 | Fix on main (6a4776b), shipped automatically on the next `main` commit | `ref.read` and `context.l10n` hoisted before `showDialog` await in `session_dismissible.dart` so swipe-and-unmount can't trigger StateError. |
+| Ref used in disposed widget (new-session reachability probe) | Error | 1 | Fix on main, shipped automatically on the next `main` commit | A 3.1 s daemon reachability probe could finish after `NewSessionDialog` was dismissed, then resume into `ref.read`/`setState`. Mounted guards now cover the probe and settings-update async boundaries; widget coverage dismisses the dialog while the probe is pending. |
 | Back button error rate | Error | 3/8 (37.5%) | Fixed on main (ec102e5, 2bca2c8, bd011fd), shipped automatically on the next `main` commit | `StandardComponentType.backButton` `ui.action.click` transaction (GlitchTip transaction-group id 29). Two root causes addressed: (1) `PopScope` races where `canPop` was evaluated at build time but the callback ran later — fixed in `sessions_screen.dart`, `chat_screen.dart`, `edit_artifact_screen.dart`, and `voice_language_settings_screen.dart` by reading current state at callback time and adding `_pendingNav` / `_isPopping` guards; (2) bare `context.pop()` on deep-linked screens with an empty stack — fixed with `safePop()` helper in `lib/core/utils/safe_pop.dart` that checks `context.mounted` + `context.canPop()` and falls back to a named route, with widget tests in `test/core/utils/safe_pop_test.dart`. Transaction group last received an error 2026-04-03, before both fixes landed; no new occurrences as of audit 2026-05-22. |
 | ANR (foreground `nativePollOnce` + background `__sfvwrite`) | Fatal | 2 | Open — awaiting next event with body | First ANRs ever captured 2026-06-09 (HAPPY_FLUTTER-3D6/3D7), but event bodies were lost server-side: GlitchTip's worker scheduler died silently ~2026-05-28, daily Postgres partitions ran out 2026-06-04, and every event until 2026-06-09 18:30 UTC was DLQ'd with `no partition of relation issue_events_issueevent found for row` (issues got metadata only). Server recovered when the payload-cap deploy restarted the worker; k2-gitops 5ca1e85 adds a daily `maintain_partitions` CronJob safety net; pipeline verified end-to-end with a test event. Next ANR will arrive with a full thread dump — diagnose the main-thread blocker then. |
 | CryptoSecretBox.decrypt failed | Warning | 27 | Telemetry on main, shipped automatically on the next `main` commit | Audit 2026-06-09: leading hypothesis is DEK decryption failing in `fetchSessions` → client silently falls back to legacy NaCl master secret → AES-256-GCM messages then fail MAC check (`stage=sodium`, `envelope=aesV0`). Added once-per-session Sentry capture (`dek_fallback_session` tag) when DEK decryption falls back, so fallback sessions can be correlated with `decrypt_scope=session:<id>:messages` failures. Next: confirm correlation in GlitchTip, then fix key refresh (cached `_sessionDataKeys` is never refreshed after rotation). |

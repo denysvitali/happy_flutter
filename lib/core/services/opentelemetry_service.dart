@@ -317,17 +317,28 @@ class OpenTelemetryService {
         }),
       );
       final body = entry.message;
+      final activeSpan = OpenTelemetryService().currentSpan;
+      final logContext = activeSpan == null
+          ? Context.root
+          : Context.root.withSpanContext(activeSpan.spanContext);
+      final (severityNumber, severityText) = switch (entry.level) {
+        LogLevel.debug => (Severity.DEBUG, 'DEBUG'),
+        LogLevel.info => (Severity.INFO, 'INFO'),
+        LogLevel.warning => (Severity.WARN, 'WARN'),
+        LogLevel.error => (Severity.ERROR, 'ERROR'),
+      };
 
-      switch (entry.level) {
-        case LogLevel.debug:
-          otelLogger.debug(body, attributes: attributes);
-        case LogLevel.info:
-          otelLogger.info(body, attributes: attributes);
-        case LogLevel.warning:
-          otelLogger.warn(body, attributes: attributes);
-        case LogLevel.error:
-          otelLogger.error(body, attributes: attributes);
-      }
+      // The package convenience methods implicitly use Context.current.
+      // That context can outlive a short navigation/cache span and attach
+      // unrelated later logs to it. Correlate only with our zone-scoped
+      // active span; otherwise explicitly emit from the root context.
+      otelLogger.emit(
+        context: logContext,
+        severityNumber: severityNumber,
+        severityText: severityText,
+        body: body,
+        attributes: attributes,
+      );
     } catch (_) {
       // OTel may not be initialized yet; logs must never fail because of it.
     }

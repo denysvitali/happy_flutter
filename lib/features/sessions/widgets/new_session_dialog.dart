@@ -477,6 +477,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         machines,
         probe: sync.ensureMachineReachable,
       );
+      if (!mounted) return;
       final machine = machines[machineId];
       final now = DateTime.now().millisecondsSinceEpoch;
       if (machine == null || !machine.isOnlineAt(now)) {
@@ -514,6 +515,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           profileId,
         ),
       });
+      if (!mounted) return;
       final updatedSettings = ref.read(settingsNotifierProvider);
       String? modelMode;
       AIBackendProfile? selectedProfile;

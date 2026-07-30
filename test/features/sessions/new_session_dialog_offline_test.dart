@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +10,7 @@ import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/features/sessions/widgets/new_session_dialog.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -507,6 +510,56 @@ void main() {
         reason: 'online machine + path must allow Create',
       );
     });
+
+    testWidgets(
+      'dismissal during reachability probe does not use disposed ref',
+      (tester) async {
+        final testSync = createTestSync();
+        final probeStarted = Completer<void>();
+        final finishProbe = Completer<void>();
+        testSync.testEnsureMachineReachableOverride = (_) async {
+          probeStarted.complete();
+          await finishProbe.future;
+        };
+        addTearDown(() {
+          testSync.testEnsureMachineReachableOverride = null;
+          LoggerService().clear();
+        });
+        LoggerService().clear();
+
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final onlineMachine = _machine(
+          id: 'm-online',
+          displayName: 'My Laptop',
+          active: true,
+          activeAtMs: now,
+        );
+        await pumpDialog(
+          tester,
+          buildHarness(
+            machines: {'m-online': onlineMachine},
+            initialMachineId: 'm-online',
+          ),
+        );
+
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.pump();
+        await probeStarted.future;
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        finishProbe.complete();
+        await tester.pump();
+
+        expect(
+          LoggerService().getLogs().where(
+            (entry) =>
+                entry.message.contains('createSession failed') &&
+                entry.error.toString().contains('disposed'),
+          ),
+          isEmpty,
+        );
+      },
+    );
 
     testWidgets('shows spawn backend selector when machine advertises it', (
       tester,
