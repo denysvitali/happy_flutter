@@ -129,6 +129,17 @@ abstract final class DisconnectReason {
   static const String other = 'other';
   static const String unknown = 'unknown';
 
+  /// App-initiated teardowns. Socket.IO never reports these itself: the
+  /// library's own `disconnect` event is raised after
+  /// [SocketIoClient.disconnect] has already bumped the connection
+  /// generation, so the guarded handler returns before emitting anything.
+  /// They are emitted from the call site instead — see
+  /// [SocketIoClient.disconnect].
+  static const String clientReconnect = 'client_reconnect';
+  static const String lifecycleSuspend = 'lifecycle_suspend';
+  static const String appShutdown = 'app_shutdown';
+  static const String userDisconnect = 'user_disconnect';
+
   static const Map<String, String> _known = {
     'io server disconnect': ioServerDisconnect,
     'io client disconnect': ioClientDisconnect,
@@ -379,50 +390,13 @@ class SocketIoClient {
       _hasConnectedOnce = true;
     });
 
-    _socket!.onDisconnect((payload) async {
+    _socket!.onDisconnect((payload) {
       if (!_isCurrentGeneration(generation)) return;
       // Socket.IO hands back the reason string ('ping timeout',
       // 'transport close', 'io server disconnect', ...). Without it a 1:1
       // connect/disconnect ratio in Prometheus is unattributable: a server
       // eviction and a backgrounded radio look identical.
-      final reason = DisconnectReason.normalize(payload);
-      // Measured from dial start (see [_lastConnectStartedAtMs]), which is the
-      // figure that separates "died during handshake" from "lived for hours".
-      final sinceDialMs = _lastConnectStartedAtMs == null
-          ? null
-          : _elapsedSince(_lastConnectStartedAtMs);
-      logger.info(
-        'Socket.IO disconnected reason=$reason '
-        'sinceDialMs=${sinceDialMs ?? -1}',
-      );
-      powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
-      _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
-      _updateStatus(ConnectionStatus.disconnected);
-
-      // Track disconnection as a transaction
-      final transaction =
-          Sentry.startTransaction(
-            'websocket.disconnect',
-            'connection',
-            bindToScope: false,
-          )
-          ..setData(
-            'currentRoute',
-            PerformanceContextService().currentRoute ?? 'unknown',
-          )
-          ..setData('reason', reason);
-      await transaction.finish();
-      OpenTelemetryService()
-          .startTrace(
-            'websocket.disconnect',
-            attributes: {
-              'current_route':
-                  PerformanceContextService().currentRoute ?? 'unknown',
-              'websocket.disconnect_reason': reason,
-              'websocket.since_dial_ms': ?sinceDialMs,
-            },
-          )
-          ?.end();
+      _recordDisconnect(DisconnectReason.normalize(payload));
     });
 
     _socket!.onConnectError((error) async {
@@ -636,13 +610,63 @@ class SocketIoClient {
     });
   }
 
+  /// Emit every signal a disconnect owes its observers, exactly once.
+  ///
+  /// Shared by the library's own `disconnect` event and by
+  /// [disconnect] — see the generation-guard note there. Deliberately
+  /// synchronous: [disconnect] is a sync teardown, and neither the Sentry
+  /// transaction nor the OTel span has a result worth awaiting.
+  void _recordDisconnect(String reason) {
+    // Measured from dial start (see [_lastConnectStartedAtMs]), which is the
+    // figure that separates "died during handshake" from "lived for hours".
+    final sinceDialMs = _lastConnectStartedAtMs == null
+        ? null
+        : _elapsedSince(_lastConnectStartedAtMs);
+    logger.info(
+      'Socket.IO disconnected reason=$reason '
+      'sinceDialMs=${sinceDialMs ?? -1}',
+    );
+    powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
+    _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
+    _updateStatus(ConnectionStatus.disconnected);
+
+    final route = PerformanceContextService().currentRoute ?? 'unknown';
+    // Track disconnection as a transaction
+    final transaction =
+        Sentry.startTransaction(
+          'websocket.disconnect',
+          'connection',
+          bindToScope: false,
+        )
+        ..setData('currentRoute', route)
+        ..setData('reason', reason);
+    unawaited(transaction.finish());
+    OpenTelemetryService()
+        .startTrace(
+          'websocket.disconnect',
+          attributes: {
+            'current_route': route,
+            'websocket.disconnect_reason': reason,
+            'websocket.since_dial_ms': ?sinceDialMs,
+          },
+        )
+        ?.end();
+  }
+
   /// Disconnect from Socket.IO.
   ///
   /// By default this is a full teardown and resets connection history so the
   /// next connect is treated as a first connection. Lifecycle suspends can
   /// preserve the history so the next foreground connect still runs
   /// reconnection recovery.
-  void disconnect({bool preserveConnectionHistory = false}) {
+  ///
+  /// [reason] is emitted as `websocket.disconnect_reason`; pass one of the
+  /// app-initiated [DisconnectReason] facets so a suspend, a logout and a
+  /// reconnect are distinguishable in Jaeger.
+  void disconnect({
+    bool preserveConnectionHistory = false,
+    String reason = DisconnectReason.ioClientDisconnect,
+  }) {
     _finishConnectionSpans(
       _connectionGeneration,
       ok: false,
@@ -659,21 +683,17 @@ class SocketIoClient {
       _hasConnectedOnce = false;
     }
     // Bumping the connection generation above means the underlying
-    // socket.io library's own 'disconnect' event (which would otherwise
-    // call powerDiagnostics.recordSocketStatus) is dropped by the
-    // generation guard in _setupEventHandlers — record it here instead so
-    // every app-initiated disconnect (suspend, logout, reconnect) is
-    // still counted. Without this, _socketDisconnects stays at 0 forever
-    // while _socketConnects keeps incrementing on every real onConnect,
-    // hiding how often the socket actually churns.
+    // socket.io library's own 'disconnect' event is dropped by the
+    // generation guard in _setupEventHandlers, so NOTHING downstream of that
+    // handler ran for an app-initiated disconnect: no power-diagnostics
+    // count, no `_lastDisconnectAtMs` (which made `disconnect_gap_ms` on the
+    // next dial measure from the last *involuntary* disconnect — the source
+    // of the 27-minute gaps in the traces), and no `websocket.disconnect`
+    // span or Sentry transaction at all. Jaeger showed 79 `websocket.dial`
+    // spans against zero disconnects in the same window. Emit the whole set
+    // here instead.
     if (_status != ConnectionStatus.disconnected) {
-      powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
-      // Same generation-guard hole: without this, `_lastDisconnectAtMs`
-      // was only ever set by the library's own disconnect event, so
-      // `disconnect_gap_ms` on the next dial measured from the last
-      // *involuntary* disconnect — possibly many suspend/resume cycles
-      // ago, which is where the 27-minute gaps in the traces came from.
-      _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
+      _recordDisconnect(reason);
     }
     _updateStatus(ConnectionStatus.disconnected);
   }
@@ -712,7 +732,10 @@ class SocketIoClient {
       return;
     }
     final hadConnectedOnce = _hasConnectedOnce;
-    disconnect(preserveConnectionHistory: true);
+    disconnect(
+      preserveConnectionHistory: true,
+      reason: DisconnectReason.clientReconnect,
+    );
     connect(
       serverUrl: url,
       token: token,

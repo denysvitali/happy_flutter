@@ -187,7 +187,10 @@ extension SyncLifecycle on Sync {
         if (!isInitialized || !InvalidateSync.isBackgrounded) {
           return;
         }
-        socketIoClient.disconnect(preserveConnectionHistory: true);
+        socketIoClient.disconnect(
+          preserveConnectionHistory: true,
+          reason: DisconnectReason.lifecycleSuspend,
+        );
       },
     );
   }
@@ -926,7 +929,7 @@ extension SyncLifecycle on Sync {
     _unsubscribeSocketReconnectExhausted = null;
     _unsubscribeSocketStatus?.call();
     _unsubscribeSocketStatus = null;
-    socketIoClient.disconnect();
+    socketIoClient.disconnect(reason: DisconnectReason.appShutdown);
 
     _dataChangeDebounceTimer?.cancel();
     _dataChangeDebounceTimer = null;

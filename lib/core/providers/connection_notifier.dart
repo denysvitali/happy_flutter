@@ -23,7 +23,9 @@ class ConnectionNotifier extends Notifier<socket_io.ConnectionStatus> {
   }
 
   void disconnect() {
-    socket_io.socketIoClient.disconnect();
+    socket_io.socketIoClient.disconnect(
+      reason: socket_io.DisconnectReason.userDisconnect,
+    );
   }
 }
 
