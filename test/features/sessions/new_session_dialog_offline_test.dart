@@ -61,9 +61,18 @@ class _StubSettingsNotifier extends SettingsNotifier {
 
   @override
   Future<void> updateSetting<T>(String key, T value) async {}
+
+  @override
+  Future<void> applySettings(Map<String, dynamic> values) async {}
 }
 
 class _StubSessionsNotifier extends SessionsNotifier {
+  _StubSessionsNotifier({this.onCreateSession});
+
+  /// When set, replaces the real `createSession` so a test can hold the
+  /// dialog inside the async gap between the spawn request and its reply.
+  final Future<String> Function()? onCreateSession;
+
   @override
   Map<String, Session> build() => <String, Session>{};
 
@@ -72,6 +81,35 @@ class _StubSessionsNotifier extends SessionsNotifier {
 
   @override
   Future<void> refreshFromSync({bool includeMachines = false}) async {}
+
+  @override
+  Future<String> createSession({
+    required String machineId,
+    required String path,
+    required String agent,
+    String? profileId,
+    String? modelMode,
+    String? spawnBackend,
+    String? repoUrl,
+    String? repoRef,
+    String? repoCommit,
+  }) {
+    final hook = onCreateSession;
+    if (hook == null) {
+      return super.createSession(
+        machineId: machineId,
+        path: path,
+        agent: agent,
+        profileId: profileId,
+        modelMode: modelMode,
+        spawnBackend: spawnBackend,
+        repoUrl: repoUrl,
+        repoRef: repoRef,
+        repoCommit: repoCommit,
+      );
+    }
+    return hook();
+  }
 }
 
 class _StubConnectionNotifier extends ConnectionNotifier {
@@ -396,6 +434,7 @@ void main() {
     Widget buildHarness({
       required Map<String, Machine> machines,
       String? initialMachineId,
+      Future<String> Function()? onCreateSession,
     }) {
       return ProviderScope(
         overrides: [
@@ -403,7 +442,9 @@ void main() {
             () => _StubMachinesNotifier(machines),
           ),
           settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
-          sessionsNotifierProvider.overrideWith(_StubSessionsNotifier.new),
+          sessionsNotifierProvider.overrideWith(
+            () => _StubSessionsNotifier(onCreateSession: onCreateSession),
+          ),
           connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
         ],
         child: MaterialApp(
@@ -564,6 +605,63 @@ void main() {
                 entry.error.toString().contains('disposed'),
           ),
           isEmpty,
+        );
+      },
+    );
+
+    testWidgets(
+      'dismissal during the spawn request does not use a disposed ref',
+      (tester) async {
+        final testSync = createTestSync();
+        testSync.testEnsureMachineReachableOverride = (_) async {};
+        final spawnStarted = Completer<void>();
+        final finishSpawn = Completer<String>();
+        addTearDown(() {
+          testSync.testEnsureMachineReachableOverride = null;
+          LoggerService().clear();
+        });
+        LoggerService().clear();
+
+        final now = DateTime.now().millisecondsSinceEpoch;
+        await pumpDialog(
+          tester,
+          buildHarness(
+            machines: {
+              'm-online': _machine(
+                id: 'm-online',
+                displayName: 'My Laptop',
+                active: true,
+                activeAtMs: now,
+              ),
+            },
+            initialMachineId: 'm-online',
+            onCreateSession: () {
+              if (!spawnStarted.isCompleted) spawnStarted.complete();
+              return finishSpawn.future;
+            },
+          ),
+        );
+
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.pump();
+        await spawnStarted.future;
+
+        // Dismiss while the daemon spawn is still in flight, then let the
+        // request complete: every post-await `ref` touch in _createSession
+        // must be skipped rather than throwing.
+        await tester.pumpWidget(const SizedBox.shrink());
+        finishSpawn.complete('s-new');
+        await tester.pump();
+
+        expect(
+          LoggerService().getLogs().where(
+            (entry) =>
+                entry.message.contains('createSession failed') &&
+                (entry.message.contains('unmounted') ||
+                    entry.message.contains('disposed')),
+          ),
+          isEmpty,
+          reason: 'ref must not be read after the dialog is gone',
         );
       },
     );
