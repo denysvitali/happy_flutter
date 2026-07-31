@@ -104,6 +104,7 @@ const _messageSignatureKeys = <String>[
   'state',
   'status',
   'sendStatus',
+  'sendSlow',
   'isThinking',
   'content',
   'text',

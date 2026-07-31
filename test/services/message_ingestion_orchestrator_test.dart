@@ -5,9 +5,10 @@
 // stop emitting on a real failure, those greps go blind again.
 //
 // Covered scenarios:
-//   - missing session encryption -> `stage=normalized outcome=no-encryption`
-//     at `logger.warning`, plus `stage=notified outcome=error` from
-//     `ingestFromSocket`.
+//   - missing session encryption on an *unknown* session ->
+//     `stage=normalized outcome=no-encryption` at `logger.info` plus
+//     `stage=notified outcome=skipped`; on a *known* session the
+//     normalized breadcrumb stays at `logger.warning`.
 //   - `decryptAndProcessMessages` throws -> outer catch emits
 //     `stage=processed outcome=error` with `{errorMessage}` payload.
 
@@ -15,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
@@ -132,12 +134,19 @@ void main() {
 
     tearDown(LoggerService().clear);
 
+    // A socket payload can legitimately arrive for a session this client
+    // has never fetched: the DEK rides on the session catalogue, so the
+    // encryption context simply is not there yet. Recovery is already
+    // wired (catalogue refresh + per-session message invalidation), so
+    // reporting it as `notified=error` made five benign races per 48h
+    // look like data loss.
     test(
-      'missing session encryption logs `no-encryption` at warning and emits '
-      '`notified=error` from ingestFromSocket',
+      'unknown session without encryption is an info-level skip, not an '
+      'error',
       () async {
         const sessionId = 'sess-no-encryption';
         instance.encryption = _FakeEncryption(null);
+        instance.testSessions.remove(sessionId);
         instance.testClearSessionMessageState(sessionId);
 
         await instance.ingestFromSocket(
@@ -154,8 +163,6 @@ void main() {
           ),
         );
 
-        // The inner `no-encryption` breadcrumb must be emitted from
-        // `_processMessageBatch`.
         final noEnc = _findBreadcrumb(
           stage: 'normalized',
           outcome: 'no-encryption',
@@ -167,28 +174,29 @@ void main() {
         );
         expect(
           noEnc!.level,
-          LogLevel.warning,
-          reason: 'no-encryption breadcrumb must be at warning so Loki '
-              'captures it in production (debug logs are not forwarded)',
+          LogLevel.info,
+          reason: 'a session the client has never fetched has no DEK yet — '
+              'that is expected, not a warning',
         );
+        expect(noEnc.message, contains('sessionKnown: false'));
 
-        // `ingestFromSocket` must surface the inner errorMessage as a
-        // `notified=error` breadcrumb so Loki greps for
-        // `outcome=(error|dropped)` no longer miss this failure.
-        final notifiedError = _findBreadcrumb(
+        final skipped = _findBreadcrumb(
           stage: 'notified',
-          outcome: 'error',
+          outcome: 'skipped',
         );
         expect(
-          notifiedError,
+          skipped,
           isNotNull,
-          reason: 'expected `[pipeline] stage=notified outcome=error` when '
-              'inner work set errorMessage',
+          reason: 'expected `[pipeline] stage=notified outcome=skipped`',
         );
+        expect(skipped!.level, LogLevel.info);
+        expect(skipped.message, contains('reason: encryptionMissing'));
+
+        // Must stay out of the `outcome=(error|dropped)` Loki grep.
         expect(
-          notifiedError!.message,
-          contains('errorMessage'),
-          reason: 'notified=error payload must include the errorMessage key',
+          _findBreadcrumb(stage: 'notified', outcome: 'error'),
+          isNull,
+          reason: 'a recoverable skip must not read as a pipeline error',
         );
 
         // The plaintext `notified=ok` line must NOT be emitted on
@@ -198,6 +206,55 @@ void main() {
           isNull,
           reason: 'notified=ok must not appear when errorMessage is set',
         );
+      },
+    );
+
+    test(
+      'known session without encryption still logs `no-encryption` at '
+      'warning',
+      () async {
+        const sessionId = 'sess-known-no-encryption';
+        instance.encryption = _FakeEncryption(null);
+        instance.testClearSessionMessageState(sessionId);
+        instance.testSessions[sessionId] = Session(
+          id: sessionId,
+          seq: 1,
+          createdAt: 1700000000000,
+          updatedAt: 1700000000000,
+          active: true,
+          activeAt: 1700000000000,
+          metadataVersion: 1,
+          agentStateVersion: 1,
+          thinking: false,
+        );
+        addTearDown(() => instance.testSessions.remove(sessionId));
+
+        await instance.ingestFromSocket(
+          MessageIngressEvent(
+            source: MessagePipelineSource.socket,
+            sessionId: sessionId,
+            rawPayload: <String, dynamic>{
+              'id': 'msg-known-no-enc',
+              'seq': 1,
+              'createdAt': 1700000000000,
+            },
+            isVisibleSession: true,
+            notifySessionsDomain: true,
+          ),
+        );
+
+        final noEnc = _findBreadcrumb(
+          stage: 'normalized',
+          outcome: 'no-encryption',
+        );
+        expect(noEnc, isNotNull);
+        expect(
+          noEnc!.level,
+          LogLevel.warning,
+          reason: 'a known session with no decryptor is real key-material '
+              'trouble and must stay visible in production Loki',
+        );
+        expect(noEnc.message, contains('sessionKnown: true'));
       },
     );
 

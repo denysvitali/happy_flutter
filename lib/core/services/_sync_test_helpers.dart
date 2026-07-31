@@ -4,6 +4,15 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   Map<String, Session> get testSessions => _sessions;
 
+  /// Post-send catch-up poll schedule, exposed so the cadence stays pinned
+  /// by a test instead of drifting silently.
+  @visibleForTesting
+  Duration get testPostSendCatchUpBudget => Sync._postSendCatchUpBudget;
+
+  @visibleForTesting
+  Duration testPostSendCatchUpInterval(int probesSoFar) =>
+      Sync._postSendCatchUpInterval(probesSoFar);
+
   @visibleForTesting
   bool testIsPermanentSendFailure(Object error) =>
       SyncMessagingSend._isPermanentSendFailure(error);
@@ -589,6 +598,17 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   Future<bool> testDeliverOutboxEntry(OutboxEntry entry) =>
       _deliverOutboxEntry(entry);
+
+  /// Test helper: mark [localId] as having blown the client send deadline,
+  /// the state `_sendMessage` records before handing the message to the
+  /// outbox. Avoids burning the real 12 s deadline in a test.
+  @visibleForTesting
+  void testRegisterSendDeadline(String localId) =>
+      _registerSendDeadline(localId);
+
+  @visibleForTesting
+  bool testHasPendingSendDeadline(String localId) =>
+      _sendDeadlineLocalIds.contains(localId);
 
   /// Test helper: start the resume conversation progress with [total]
   /// pending sessions. Mirrors what `resume()` calls internally.

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/frame_metrics_service.dart';
+import 'package:happy_flutter/core/services/opentelemetry_service.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
 
 void main() {
@@ -114,6 +115,54 @@ void main() {
       expect(
         service.debugLastJankWindow!.inMilliseconds,
         greaterThanOrEqualTo(50),
+      );
+    });
+
+    // `app_ui_jank_window_seconds` showed p50 14.6s / p95 28.5s, which reads
+    // as "14 second freezes" but is only "frozen frame landed mid-window".
+    // The real freeze duration now has its own histogram.
+    test('records each frozen frame duration, not the window length',
+        () async {
+      final recorded = <String, List<Duration>>{};
+      OpenTelemetryService.debugDurationSink = (name, duration, _) {
+        recorded.putIfAbsent(name, () => <Duration>[]).add(duration);
+      };
+      addTearDown(() => OpenTelemetryService.debugDurationSink = null);
+
+      final service = FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 70),
+          raster: const Duration(milliseconds: 40),
+          total: const Duration(milliseconds: 110),
+        )
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 150),
+          raster: const Duration(milliseconds: 90),
+          total: const Duration(milliseconds: 240),
+        );
+
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      service.debugFlush();
+
+      expect(
+        recorded['app.ui.frozen_frame'],
+        [const Duration(milliseconds: 110), const Duration(milliseconds: 240)],
+      );
+      // The legacy window metric stays for dashboard continuity, and stays a
+      // different quantity: wall time since the first frozen frame.
+      expect(recorded['app.ui.jank_window'], hasLength(1));
+      expect(
+        recorded['app.ui.jank_window']!.single.inMilliseconds,
+        greaterThanOrEqualTo(25),
+      );
+      expect(
+        recorded['app.ui.jank_window']!.single,
+        isNot(const Duration(milliseconds: 240)),
+        reason: 'window length must stay distinct from freeze duration',
+      );
+      expect(
+        service.debugLastMaxFrozenFrame,
+        const Duration(milliseconds: 240),
       );
     });
 

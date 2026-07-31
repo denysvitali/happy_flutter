@@ -36,6 +36,7 @@ class UserBubble extends StatefulWidget {
     this.imageBlocks,
     this.onOptionPress,
     this.sendStatus,
+    this.sendSlow = false,
     this.onRetry,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
@@ -52,6 +53,11 @@ class UserBubble extends StatefulWidget {
   /// `null` = confirmed (server-origin), `'sending'`, `'sent'`,
   /// `'failed'`.
   final String? sendStatus;
+
+  /// True when this message blew the client-side send deadline but the
+  /// outbox retry confirmed the server already had it. Reported as
+  /// "Delivered · slow" rather than left looking degraded.
+  final bool sendSlow;
   final VoidCallback? onRetry;
   final bool isFirstInGroup;
   final bool isLastInGroup;
@@ -176,6 +182,7 @@ class _UserBubbleState extends State<UserBubble> {
             if (widget.sendStatus != null)
               SendStatusIndicator(
                 status: widget.sendStatus!,
+                slow: widget.sendSlow,
                 onRetry: interactive ? widget.onRetry : null,
               ),
           ],

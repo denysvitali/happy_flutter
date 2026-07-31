@@ -648,7 +648,10 @@ extension SyncMessagingSend on Sync {
         );
         // The row flips to 'pending' ("Retry queued") via the outbox
         // status callback, so the user sees a real state instead of an
-        // eternal spinner.
+        // eternal spinner. If the retry then finds the message already
+        // persisted, the row is upgraded to "Delivered · slow" rather than
+        // leaving the user with a degraded-looking send that landed.
+        _registerSendDeadline(localId);
         await _queueMessageRetry(
           sessionId: targetSessionId,
           localId: localId,
@@ -1196,6 +1199,7 @@ extension SyncMessagingSend on Sync {
         if (messagesSync.containsKey(entry.sessionId)) {
           _startPostSendCatchUp(entry.sessionId, sentUserSeq: serverSeq ?? 0);
         }
+        _reportSlowSendConfirmed(entry);
         logger.info(
           '[MessageOutbox] delivered localId=${entry.localId} '
           'session=${entry.sessionId}',
@@ -1214,6 +1218,7 @@ extension SyncMessagingSend on Sync {
       if (messagesSync.containsKey(entry.sessionId)) {
         _startPostSendCatchUp(entry.sessionId, sentUserSeq: 0);
       }
+      _reportSlowSendConfirmed(entry);
       return true;
     } catch (e, stack) {
       // Exceptions during local processing (after HTTP 200 was received)
@@ -1280,6 +1285,68 @@ extension SyncMessagingSend on Sync {
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
       _invalidateMessageCaches(sessionId);
     }
+  }
+
+  /// Upgrades a deadline-timed-out send to "delivered, slowly" once the
+  /// retry proves the server already had it.
+  ///
+  /// Same `localId`, same logical message, same `'sent'` status — only the
+  /// display hint and the telemetry outcome change, so the send that the
+  /// client gave up on stops being reported as degraded after it landed.
+  void _reportSlowSendConfirmed(OutboxEntry entry) {
+    if (!_consumeSendDeadline(entry.localId)) return;
+    _markSendSlow(entry.sessionId, entry.localId);
+    _notifySessionMessagesChanged(entry.sessionId);
+    logger.info(
+      '[MessageOutbox] slow send confirmed — server already had the '
+      'message session=${entry.sessionId} localId=${entry.localId}',
+    );
+    OpenTelemetryService().recordCount(
+      'app.send.sent_slow',
+      description:
+          'Sends that blew the client deadline but were already '
+          'persisted server-side when the retry confirmed them',
+    );
+  }
+
+  /// Remembers that [localId] was handed to the outbox because the client
+  /// gave up on its own deadline, not because the server rejected it.
+  ///
+  /// Three receive-timeout traces showed the message had already been
+  /// persisted before the client stopped waiting: the retry POST came back
+  /// 200 in 93-379ms and the server's `ON CONFLICT (session_id, local_id)`
+  /// dedupe returned the existing row. That is a slow send, not a failed
+  /// one, and the UI should say so once the retry confirms it.
+  void _registerSendDeadline(String localId) {
+    if (localId.isEmpty) return;
+    if (_sendDeadlineLocalIds.add(localId)) {
+      _sendDeadlineLocalIdOrder.addLast(localId);
+    }
+    while (_sendDeadlineLocalIdOrder.length > Sync._maxSendDeadlineLocalIds) {
+      _sendDeadlineLocalIds.remove(_sendDeadlineLocalIdOrder.removeFirst());
+    }
+  }
+
+  bool _consumeSendDeadline(String localId) {
+    if (!_sendDeadlineLocalIds.remove(localId)) return false;
+    _sendDeadlineLocalIdOrder.remove(localId);
+    return true;
+  }
+
+  /// Marks the row for [localId] as "delivered, but slowly".
+  ///
+  /// Purely additive: `sendStatus` stays `'sent'` and `localId` is
+  /// untouched, so nothing in the identity contract, the FSM, or the merge
+  /// path sees a new state. The flag only lets the bubble say "Delivered ·
+  /// slow" instead of leaving the user on the preceding "Retry queued".
+  void _markSendSlow(String sessionId, String localId) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => _matchesLocalId(m, localId));
+    if (idx == -1) return;
+    if (msgs[idx]['sendSlow'] == true) return;
+    msgs[idx] = {...msgs[idx], 'sendSlow': true};
+    _invalidateMessageCaches(sessionId);
   }
 
   /// Whether the outbox currently owns a retry for [localId].
@@ -1538,17 +1605,28 @@ extension SyncMessagingSend on Sync {
 
   void _startPostSendCatchUp(String sessionId, {required int sentUserSeq}) {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
-    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    final deadline = DateTime.now().add(Sync._postSendCatchUpBudget);
+    var probeIndex = 0;
 
     bool shouldStop(String reason) {
-      if (!isInitialized ||
-          !messagesSync.containsKey(sessionId) ||
-          DateTime.now().isAfter(deadline)) {
+      // Split the old catch-all `timeout_or_inactive`: 34% of polls ended
+      // under that label with no way to tell "the agent was still thinking
+      // when the budget ran out" from "sync was torn down" or "nobody is
+      // watching this session's messages any more".
+      final stopReason = !isInitialized
+          ? 'sync_inactive'
+          : !messagesSync.containsKey(sessionId)
+          ? 'session_unwatched'
+          : DateTime.now().isAfter(deadline)
+          ? 'budget_exhausted'
+          : null;
+      if (stopReason != null) {
         _postSendCatchUpTimers.remove(sessionId)?.cancel();
         _sessionsNeedingFetchProbe.remove(sessionId);
         logger.info(
           '[sendMessage] catch-up polling ended '
-          'session=$sessionId reason=$reason',
+          'session=$sessionId reason=$stopReason probes=$probeIndex '
+          'trigger=$reason',
         );
         return true;
       }
@@ -1559,7 +1637,7 @@ extension SyncMessagingSend on Sync {
         final currentSeq = _sessionLastSeq[sessionId] ?? 0;
         logger.info(
           '[sendMessage] catch-up polling ended '
-          'session=$sessionId reason=response_seen '
+          'session=$sessionId reason=response_seen probes=$probeIndex '
           'sentSeq=$sentUserSeq current=$currentSeq',
         );
         return true;
@@ -1569,7 +1647,7 @@ extension SyncMessagingSend on Sync {
     }
 
     bool runProbe() {
-      if (shouldStop('timeout_or_inactive')) {
+      if (shouldStop('probe')) {
         return false;
       }
 
@@ -1577,17 +1655,27 @@ extension SyncMessagingSend on Sync {
       // sessions delta feed can lag behind message storage, so
       // currentSeq >= serverLastSeq does NOT prove the agent has not
       // responded yet.
+      probeIndex++;
       _sessionsNeedingFetchProbe.add(sessionId);
       messagesSync[sessionId]?.invalidate();
       return true;
     }
 
-    void startPeriodicPolling() {
-      _postSendCatchUpTimers[sessionId] = Timer.periodic(
-        const Duration(seconds: 10),
-        (_) => runProbe(),
+    /// Re-arms one probe at a time so the interval can widen: the first
+    /// minute after a send is when an agent reply is most likely, and
+    /// keeping a flat 10 s cadence across the longer budget would triple
+    /// the fetch load on sessions that are simply slow to answer.
+    void scheduleNextProbe() {
+      _postSendCatchUpTimers[sessionId] = Timer(
+        Sync._postSendCatchUpInterval(probeIndex),
+        () {
+          if (!runProbe()) return;
+          scheduleNextProbe();
+        },
       );
     }
+
+    void startPeriodicPolling() => scheduleNextProbe();
 
     final shouldDelayInitialProbe =
         sessionId == _visibleSessionId && _isSocketConnected();

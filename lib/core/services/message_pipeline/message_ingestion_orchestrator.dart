@@ -1,5 +1,11 @@
 part of '../sync_service.dart';
 
+/// `ProcessedMessageBundle.errorMessage` marker for "this session had no
+/// encryption context yet". Recoverable and self-healing, so it is reported
+/// as a skip rather than a pipeline error — see [SyncMessagePipeline
+/// .ingestFromSocket].
+const String _encryptionMissingReason = 'encryptionMissing';
+
 extension SyncMessagePipeline on Sync {
   String _newTraceId(String sessionId, String suffix) {
     final randomSuffix =
@@ -267,15 +273,25 @@ extension SyncMessagePipeline on Sync {
     // exceptions propagated up via `errorMessage`).
     final errorMessage = processed.errorMessage;
     if (errorMessage != null) {
+      // A socket payload for a session whose encryption context has not been
+      // resolved yet is not a failure: `_processMessageBatch` has already
+      // kicked off catalogue recovery and invalidated the per-session
+      // message sync, so the message lands on the next fetch. Reporting it
+      // as `outcome=error` made five benign races per 48h look like data
+      // loss. Report it as a skip and count it instead; genuinely unknown
+      // failures keep the error outcome the `outcome=(error|dropped)` Loki
+      // grep depends on.
+      final skipped = errorMessage == _encryptionMissingReason;
       _logPipelineStage(
         normalized.traceId,
         normalized.sessionId,
         MessagePipelineStage.notified,
-        'error',
+        skipped ? 'skipped' : 'error',
         <String, dynamic>{
           'source': 'socket',
-          'errorMessage': errorMessage,
+          if (skipped) 'reason': errorMessage else 'errorMessage': errorMessage,
         },
+        level: skipped ? LogLevel.info : LogLevel.debug,
       );
     } else {
       _logPipelineStage(
@@ -336,15 +352,31 @@ extension SyncMessagePipeline on Sync {
       final sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
         _releaseInlineDedupKey(sessionId, dedupKey);
+        // A session this client has never fetched legitimately has no
+        // encryption context yet — the socket simply beat the catalogue
+        // fetch that carries the DEK. Recovery below pulls it and the
+        // message arrives on the next fetch, so that case is an info-level
+        // skip. A session we *do* know about but cannot decrypt for is a
+        // real key-material problem and stays at warning, where production
+        // Loki forwards it (debug logs are not forwarded outside dev mode).
+        final sessionKnown = _sessions.containsKey(sessionId);
         _logPipelineStage(
           traceId,
           sessionId,
           MessagePipelineStage.normalized,
           'no-encryption',
-          const <String, dynamic>{},
-          // Promote to warning so missing-encryption failures show up in
-          // production Loki (debug logs are not forwarded outside dev mode).
-          level: LogLevel.warning,
+          <String, dynamic>{'sessionKnown': sessionKnown},
+          level: sessionKnown ? LogLevel.warning : LogLevel.info,
+        );
+        OpenTelemetryService().recordCount(
+          'app.messages.encryption_missing',
+          attributes: <String, Object?>{
+            'source': _sourceName(normalized.source),
+            'session_known': sessionKnown ? 'true' : 'false',
+          },
+          description:
+              'Message batches skipped because the session had no '
+              'encryption context yet',
         );
         // Refresh the session catalogue as well as messages. The catalogue
         // response carries the encrypted DEK, so retrying only messages can
@@ -366,7 +398,7 @@ extension SyncMessagePipeline on Sync {
           hasSidechain: false,
           traceId: traceId,
           source: normalized.source,
-          errorMessage: 'encryptionMissing',
+          errorMessage: _encryptionMissingReason,
         );
       }
 

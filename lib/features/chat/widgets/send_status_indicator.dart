@@ -10,9 +10,20 @@ import '../../../core/theme/app_tokens.dart';
 /// widget also calls [SemanticsService.announce] so assistive technology
 /// receives an explicit live-region notification.
 class SendStatusIndicator extends StatefulWidget {
-  const SendStatusIndicator({required this.status, super.key, this.onRetry});
+  const SendStatusIndicator({
+    required this.status,
+    super.key,
+    this.slow = false,
+    this.onRetry,
+  });
 
   final String status;
+
+  /// True when a `'sent'` message got there only after the client's send
+  /// deadline expired and the outbox retry found it already persisted.
+  /// A slow success is still a success — say so instead of leaving the
+  /// user on the preceding "Retry queued".
+  final bool slow;
   final VoidCallback? onRetry;
 
   @override
@@ -40,7 +51,9 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
       case 'pending':
         return 'Message retry queued';
       case 'sent':
-        return 'Message delivered';
+        return widget.slow
+            ? 'Message delivered after a slow send'
+            : 'Message delivered';
       case 'failed':
         return 'Message not delivered';
       default:
@@ -92,13 +105,15 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
         );
       case 'sent':
         return Semantics(
-          label: 'Message delivered',
+          label: widget.slow
+              ? 'Message delivered after a slow send'
+              : 'Message delivered',
           liveRegion: true,
           child: _StatusLabel(
-            label: 'Delivered',
+            label: widget.slow ? 'Delivered - slow' : 'Delivered',
             color: cs.primary.withValues(alpha: 0.85),
             indicator: Icon(
-              Icons.check_rounded,
+              widget.slow ? Icons.schedule_rounded : Icons.check_rounded,
               size: 10,
               color: cs.primary.withValues(alpha: 0.85),
             ),

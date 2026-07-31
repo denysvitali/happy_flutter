@@ -449,6 +449,18 @@ extension _ChatScreenActions on _ChatScreenState {
     await _doInitialLoad();
   }
 
+  /// Lifts the inline cap on ungrouped sidechain orphans for this session,
+  /// backing the "show N more sub-agent messages" row.
+  ///
+  /// One-way on purpose: the cap exists so a transcript with 100+ orphans
+  /// is readable on open, not to keep hiding messages the user asked for.
+  void _expandSidechainOrphans() {
+    if (!mounted || _sidechainOrphansExpanded) return;
+    setState(() => _sidechainOrphansExpanded = true);
+    _invalidateNeighborCache();
+    _bumpMessagePaneRevision();
+  }
+
   void _onPermissionModeChanged(PermissionMode mode) {
     setState(() {
       _userOverrodeModelOrProfile = true;

@@ -105,6 +105,19 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _selectedSpawnBackend;
   bool _spawnBackendTouched = false;
 
+  /// Whether Riverpod's [ref] (and `setState`) may still be touched.
+  ///
+  /// `State.mounted` only flips to `false` once `dispose()` has run, but a
+  /// `ConsumerState`'s `ref` starts throwing as soon as its *element* is
+  /// deactivated — the window a dismissed dialog spends between
+  /// `Navigator.pop` and the end of the frame. Production landed exactly in
+  /// that window: `[NewSessionDialog] createSession failed: Bad state: Using
+  /// "ref" when a widget is about to or has been unmounted is unsafe`.
+  /// `context.mounted` reads the element lifecycle, so it closes the gap that
+  /// a bare `mounted` check leaves open. Every post-await `ref`/`setState`
+  /// touch in this state goes through here.
+  bool get _canUseRef => mounted && context.mounted;
+
   @override
   void initState() {
     super.initState();
@@ -119,8 +132,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   }
 
   Future<void> _refreshMachinesAndResolveSelection() async {
-    await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
-    if (!mounted) return;
+    if (!_canUseRef) return;
+    final machinesNotifier = ref.read(machinesNotifierProvider.notifier);
+    await machinesNotifier.refreshFromSync();
+    if (!_canUseRef) return;
 
     final resolved = resolveAvailableMachineId(
       _selectedMachine,
@@ -451,6 +466,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       return;
     }
     final navigator = Navigator.of(context, rootNavigator: true);
+    if (!_canUseRef) return;
+    // Resolve every notifier up-front, while `ref` is provably usable. Each
+    // one is a stable object, so holding it across the awaits below removes
+    // three `ref` touches from the async tail entirely.
+    final machinesNotifier = ref.read(machinesNotifierProvider.notifier);
+    final settingsNotifier = ref.read(settingsNotifierProvider.notifier);
+    final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
 
     setState(() {
       _isCreating = true;
@@ -462,8 +484,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       // authoritative presence immediately before doing any settings,
       // worktree, or spawn work, then migrate stale registrations for the
       // same host when a newer online daemon registration exists.
-      await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
-      if (!mounted) return;
+      await machinesNotifier.refreshFromSync();
+      if (!_canUseRef) return;
       final machines = ref.read(machinesNotifierProvider);
       final availableMachineId = resolveAvailableMachineId(
         selectedMachineId,
@@ -477,7 +499,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         machines,
         probe: sync.ensureMachineReachable,
       );
-      if (!mounted) return;
+      if (!_canUseRef) return;
       final machine = machines[machineId];
       final now = DateTime.now().millisecondsSinceEpoch;
       if (machine == null || !machine.isOnlineAt(now)) {
@@ -507,7 +529,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       // Re-read settings after applySettings so we use the current
       // lastUsedModelMode (the user's last explicit selection), not a stale
       // snapshot from initState.
-      await ref.read(settingsNotifierProvider.notifier).applySettings({
+      await settingsNotifier.applySettings({
         'lastUsedAgent': _selectedAgent,
         'lastUsedProfile': profileId,
         'lastUsedProfilesByAgent': settings.lastUsedProfilesWithAgent(
@@ -515,7 +537,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           profileId,
         ),
       });
-      if (!mounted) return;
+      if (!_canUseRef) return;
       final updatedSettings = ref.read(settingsNotifierProvider);
       String? modelMode;
       AIBackendProfile? selectedProfile;
@@ -546,7 +568,6 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         }
       }
       final String sessionPath;
-      final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
       if (_sessionType == 'worktree') {
         sessionPath = await sessionsNotifier.createWorktree(
           machineId: machineId,
@@ -579,9 +600,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       // createSession() already called refreshSessions() internally
       // and added the session to sync._sessions (optimistic fallback).
       // Just read the in-memory state — no redundant server fetch.
-      if (!mounted) return;
-      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-      if (!mounted) return;
+      sessionsNotifier.loadFromSync();
+      // A dialog whose element is already deactivated has been dismissed by
+      // something else; popping again would unwind an unrelated route.
+      if (!_canUseRef) return;
       navigator.pop(sessionId);
     } on IncompatibleProviderAndModelError catch (e, st) {
       logger.warning(
@@ -589,14 +611,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         e,
         st,
       );
-      if (!mounted) return;
+      if (!_canUseRef) return;
       setState(() {
         _isCreating = false;
         _createError = e.message;
       });
     } catch (e, st) {
       logger.warning('[NewSessionDialog] createSession failed: $e', e, st);
-      if (!mounted) return;
+      if (!_canUseRef) return;
       final userMessage = newSessionCreateErrorMessage(l10n: l10n, error: e);
       setState(() {
         _isCreating = false;

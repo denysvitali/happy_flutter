@@ -155,6 +155,7 @@ class _MessageWidgetState extends State<MessageWidget>
       msg['role'],
       msg['name'],
       msg['sendStatus'],
+      msg['sendSlow'],
       msg['isThinking'],
       msg['updatedAt'] ?? msg['createdAt'],
       rowSignature,
@@ -296,6 +297,7 @@ class _MessageWidgetState extends State<MessageWidget>
     }
 
     final sendStatus = widget.messageData['sendStatus'] as String?;
+    final sendSlow = widget.messageData['sendSlow'] == true;
 
     return _cacheBody(
       signature,
@@ -306,6 +308,7 @@ class _MessageWidgetState extends State<MessageWidget>
               imageBlocks: extractUserImageBlocks(widget.messageData['raw']),
               onOptionPress: widget.onOptionPress,
               sendStatus: sendStatus,
+              sendSlow: sendSlow,
               onRetry: widget.onRetry,
               isFirstInGroup: widget.isFirstInGroup,
               isLastInGroup: widget.isLastInGroup,

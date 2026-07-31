@@ -420,6 +420,14 @@ class OpenTelemetryService {
     Map<String, Object?> attributes = const {},
     String? description,
   }) {
+    final sink = debugDurationSink;
+    if (sink != null) {
+      try {
+        sink(name, duration, attributes);
+      } catch (_) {
+        // A broken test sink must never break the host flow.
+      }
+    }
     if (!_initialized || !metricsEnabled) return;
     if (duration.isNegative) return;
     try {
@@ -450,6 +458,20 @@ class OpenTelemetryService {
       );
     }
   }
+
+  /// Test-only observer for [recordDuration].  Invoked *before* the
+  /// initialization guard, mirroring [debugCountSink], so tests can assert
+  /// that a histogram call site fires with the right name/value without
+  /// standing up the OTel export pipeline.
+  ///
+  /// Production code must never set this.
+  @visibleForTesting
+  static void Function(
+    String name,
+    Duration duration,
+    Map<String, Object?> attributes,
+  )?
+  debugDurationSink;
 
   /// Test-only observer for [recordCount].  Invoked *before* the
   /// initialization guard so tests can assert that a counter call site
