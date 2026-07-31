@@ -300,6 +300,26 @@ class Sync {
   /// still capping how long one session can pin the fetcher.
   static const Duration _messageFetchBudget = Duration(seconds: 40);
   static const Duration _visiblePostSendProbeDelay = Duration(seconds: 2);
+
+  /// How long post-send catch-up polling keeps probing for the agent's
+  /// reply before giving up.
+  ///
+  /// Was 30 s, which 34% of polls (37/108 in 24h) hit before any reply
+  /// arrived — an agent that takes longer than half a minute to answer is
+  /// completely ordinary. The budget now covers the realistic thinking
+  /// window; [_postSendCatchUpInterval] widens the cadence so the longer
+  /// budget does not multiply the fetch load.
+  static const Duration _postSendCatchUpBudget = Duration(seconds: 90);
+
+  /// Delay before the catch-up probe numbered [probesSoFar] (1-based after
+  /// the first probe has run): tight while a reply is most likely, then
+  /// widening. Total probes across [_postSendCatchUpBudget]: ~6.
+  static Duration _postSendCatchUpInterval(int probesSoFar) {
+    if (probesSoFar <= 2) return const Duration(seconds: 10);
+    if (probesSoFar == 3) return const Duration(seconds: 15);
+    return const Duration(seconds: 20);
+  }
+
   static const Duration _sessionListMachineRefreshDelay = Duration(
     milliseconds: 800,
   );

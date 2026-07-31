@@ -4,6 +4,15 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   Map<String, Session> get testSessions => _sessions;
 
+  /// Post-send catch-up poll schedule, exposed so the cadence stays pinned
+  /// by a test instead of drifting silently.
+  @visibleForTesting
+  Duration get testPostSendCatchUpBudget => Sync._postSendCatchUpBudget;
+
+  @visibleForTesting
+  Duration testPostSendCatchUpInterval(int probesSoFar) =>
+      Sync._postSendCatchUpInterval(probesSoFar);
+
   @visibleForTesting
   bool testIsPermanentSendFailure(Object error) =>
       SyncMessagingSend._isPermanentSendFailure(error);

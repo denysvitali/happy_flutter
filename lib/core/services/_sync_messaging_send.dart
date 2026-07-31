@@ -1538,17 +1538,28 @@ extension SyncMessagingSend on Sync {
 
   void _startPostSendCatchUp(String sessionId, {required int sentUserSeq}) {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
-    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    final deadline = DateTime.now().add(Sync._postSendCatchUpBudget);
+    var probeIndex = 0;
 
     bool shouldStop(String reason) {
-      if (!isInitialized ||
-          !messagesSync.containsKey(sessionId) ||
-          DateTime.now().isAfter(deadline)) {
+      // Split the old catch-all `timeout_or_inactive`: 34% of polls ended
+      // under that label with no way to tell "the agent was still thinking
+      // when the budget ran out" from "sync was torn down" or "nobody is
+      // watching this session's messages any more".
+      final stopReason = !isInitialized
+          ? 'sync_inactive'
+          : !messagesSync.containsKey(sessionId)
+          ? 'session_unwatched'
+          : DateTime.now().isAfter(deadline)
+          ? 'budget_exhausted'
+          : null;
+      if (stopReason != null) {
         _postSendCatchUpTimers.remove(sessionId)?.cancel();
         _sessionsNeedingFetchProbe.remove(sessionId);
         logger.info(
           '[sendMessage] catch-up polling ended '
-          'session=$sessionId reason=$reason',
+          'session=$sessionId reason=$stopReason probes=$probeIndex '
+          'trigger=$reason',
         );
         return true;
       }
@@ -1559,7 +1570,7 @@ extension SyncMessagingSend on Sync {
         final currentSeq = _sessionLastSeq[sessionId] ?? 0;
         logger.info(
           '[sendMessage] catch-up polling ended '
-          'session=$sessionId reason=response_seen '
+          'session=$sessionId reason=response_seen probes=$probeIndex '
           'sentSeq=$sentUserSeq current=$currentSeq',
         );
         return true;
@@ -1569,7 +1580,7 @@ extension SyncMessagingSend on Sync {
     }
 
     bool runProbe() {
-      if (shouldStop('timeout_or_inactive')) {
+      if (shouldStop('probe')) {
         return false;
       }
 
@@ -1577,17 +1588,27 @@ extension SyncMessagingSend on Sync {
       // sessions delta feed can lag behind message storage, so
       // currentSeq >= serverLastSeq does NOT prove the agent has not
       // responded yet.
+      probeIndex++;
       _sessionsNeedingFetchProbe.add(sessionId);
       messagesSync[sessionId]?.invalidate();
       return true;
     }
 
-    void startPeriodicPolling() {
-      _postSendCatchUpTimers[sessionId] = Timer.periodic(
-        const Duration(seconds: 10),
-        (_) => runProbe(),
+    /// Re-arms one probe at a time so the interval can widen: the first
+    /// minute after a send is when an agent reply is most likely, and
+    /// keeping a flat 10 s cadence across the longer budget would triple
+    /// the fetch load on sessions that are simply slow to answer.
+    void scheduleNextProbe() {
+      _postSendCatchUpTimers[sessionId] = Timer(
+        Sync._postSendCatchUpInterval(probeIndex),
+        () {
+          if (!runProbe()) return;
+          scheduleNextProbe();
+        },
       );
     }
+
+    void startPeriodicPolling() => scheduleNextProbe();
 
     final shouldDelayInitialProbe =
         sessionId == _visibleSessionId && _isSocketConnected();
