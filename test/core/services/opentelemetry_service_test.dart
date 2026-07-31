@@ -75,6 +75,63 @@ void main() {
     });
   });
 
+  // Every launch used to export metrics under one identical labelset, so
+  // Prometheus overwrote the previous launch instead of accumulating:
+  // `app_cold_start_first_frame_seconds_count` stayed at exactly 1 for a week
+  // and increase()/histogram_quantile() over 24h were uncomputable.
+  group('OpenTelemetryService resource attributes', () {
+    test('carries a per-launch service.instance.id', () {
+      final attributes = OpenTelemetryService.buildResourceAttributes(
+        buildNumber: '237701',
+        releaseMode: true,
+      );
+
+      expect(
+        attributes['service.instance.id'],
+        OpenTelemetryService.launchInstanceId,
+      );
+      expect(OpenTelemetryService.launchInstanceId, isNotEmpty);
+      // UUID v4: 8-4-4-4-12 hex groups.
+      expect(
+        OpenTelemetryService.launchInstanceId,
+        matches(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-'
+            r'[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          ),
+        ),
+      );
+    });
+
+    test('instance id is stable for the process lifetime', () {
+      expect(
+        OpenTelemetryService.buildResourceAttributes(
+          buildNumber: '1',
+          releaseMode: false,
+        )['service.instance.id'],
+        OpenTelemetryService.buildResourceAttributes(
+          buildNumber: '2',
+          releaseMode: true,
+        )['service.instance.id'],
+      );
+    });
+
+    test('keeps deployment.environment and service.build', () {
+      final release = OpenTelemetryService.buildResourceAttributes(
+        buildNumber: '237701',
+        releaseMode: true,
+      );
+      final debug = OpenTelemetryService.buildResourceAttributes(
+        buildNumber: '237701',
+        releaseMode: false,
+      );
+
+      expect(release['deployment.environment'], 'production');
+      expect(debug['deployment.environment'], 'debug');
+      expect(release['service.build'], '237701');
+    });
+  });
+
   // `end()` used to always pass an explicit span status, so the very common
   // `recordError(...)` -> `end()` sequence overwrote Error back to Ok. The
   // exception event survived but the status did not, so failing spans were

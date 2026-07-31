@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     hide Logger, LogLevel;
+import 'package:uuid/uuid.dart';
 
 import '../utils/package_info_cache.dart';
 import 'logger_service.dart';
@@ -20,6 +21,27 @@ class OpenTelemetryService {
 
   static const String serviceName = 'happy-flutter';
   static const String endpoint = 'https://otel.k2.k8s.best';
+
+  /// Unique id for this app launch, exported as the `service.instance.id`
+  /// resource attribute.
+  ///
+  /// Without it every launch of every device collapsed into a single metric
+  /// stream (`job="happy-flutter"` plus the scope labels and nothing else).
+  /// Instrument state is per-process, so each launch restarted its cumulative
+  /// counters from zero and Prometheus — seeing the same labelset — simply
+  /// overwrote the previous launch. `app_cold_start_first_frame_seconds_count`
+  /// sat at exactly 1 for a whole week while `_sum` moved up and down,
+  /// `resets()` and `increase()` both returned 0, and
+  /// `histogram_quantile(..., rate(bucket[24h]))` reported a quantile derived
+  /// from one live observation.
+  ///
+  /// The OTLP → Prometheus mapping turns `service.instance.id` into the
+  /// `instance` label, so a per-launch value makes each launch its own series:
+  /// short-lived-process metrics then aggregate the standard way
+  /// (`sum by (le) (last_over_time(..._bucket[24h]))`) instead of clobbering
+  /// each other. This is the resource attribute the OTel spec asks for on
+  /// exactly this shape of workload.
+  static final String launchInstanceId = const Uuid().v4();
   static const bool tracingEnabledByDefault = true;
   static const bool metricsEnabled = true;
   static const bool logsEnabled = true;
@@ -157,28 +179,48 @@ class OpenTelemetryService {
         enableMetrics: metricsEnabled,
         enableLogs: logsEnabled,
         enableAutoLogEvents: autoLogEventsEnabled,
-        // happy-server tags its spans with `deployment.environment`; the app
-        // did not, so Jaeger/Prometheus could not separate a debug build on a
-        // developer's handset from real production traffic. Same convention as
-        // the Sentry init (`sentry_init_native.dart`).
         resourceAttributes: OTel.attributesFromMap(
-          _safeAttributes({
-            'deployment.environment': kReleaseMode ? 'production' : 'debug',
-            'service.build': packageInfo.buildNumber,
-          }),
+          buildResourceAttributes(
+            buildNumber: packageInfo.buildNumber,
+            releaseMode: kReleaseMode,
+          ),
         ),
       );
       _applyResourceToMeterProvider();
       _replacePackageLifecycleObserver();
       _installLoggerSink();
       _initialized = true;
-      logger.info('[OpenTelemetry] initialized endpoint=$endpoint');
+      // The instance id is logged next to the package's own app launch id so
+      // a Prometheus series (`instance=...`) can be joined to the Loki stream
+      // (`app_launch_id=...`) for the same launch.
+      logger.info(
+        '[OpenTelemetry] initialized endpoint=$endpoint '
+        'instance=$launchInstanceId '
+        'appLaunchId=${FlutterOTel.appLaunchId ?? 'unknown'}',
+      );
     } catch (e, stack) {
       logger.warning('[OpenTelemetry] initialization failed: $e', e, stack);
     } finally {
       _initializeFuture = null;
     }
   }
+
+  /// Resource attributes attached to every exported signal.
+  ///
+  /// `happy-server` tags its spans with `deployment.environment`; the app did
+  /// not, so Jaeger/Prometheus could not separate a debug build on a
+  /// developer's handset from real production traffic (same convention as
+  /// `sentry_init_native.dart`). `service.instance.id` makes each launch its
+  /// own metric stream — see [launchInstanceId].
+  @visibleForTesting
+  static Map<String, Object> buildResourceAttributes({
+    required String buildNumber,
+    required bool releaseMode,
+  }) => _safeAttributes({
+    'deployment.environment': releaseMode ? 'production' : 'debug',
+    'service.build': buildNumber,
+    'service.instance.id': launchInstanceId,
+  });
 
   Future<void> waitUntilReady({
     Duration timeout = const Duration(milliseconds: 750),
