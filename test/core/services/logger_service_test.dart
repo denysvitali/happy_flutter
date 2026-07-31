@@ -483,8 +483,9 @@ void main() {
   });
 
   // OTel export path: `[pipeline]` / `[messages]` debug traces fire per socket
-  // frame, so a single handset shipped 18.4k debug records in 24h against 82
-  // errors. Debug is bounded; everything above it must stay unthrottled.
+  // frame, so two production launches shipped 21.4k and 19.3k debug records in
+  // 24h (82% of all records) straight through the original 300/min ceiling.
+  // Debug is bounded and then sampled; everything above it stays unthrottled.
   group('LoggerService OTel debug throttle', () {
     final testLogger = logger;
     late List<LogEntry> forwarded;
@@ -524,8 +525,36 @@ void main() {
       final debugExports = exported()
           .where((entry) => entry.level == LogLevel.debug)
           .length;
-      expect(debugExports, lessThan(900));
-      expect(debugExports, greaterThanOrEqualTo(600));
+      // 120 tokens of burst, then 1-in-25 of the remaining 780.
+      expect(debugExports, 120 + 780 ~/ 25);
+    });
+
+    test('the overflow stream is sampled, not cut off', () {
+      for (var i = 0; i < 900; i++) {
+        testLogger.debug('[pipeline] frame $i');
+      }
+
+      // Records that made it out *after* the bucket drained: proof a long
+      // burst still leaves a thread to pull on rather than a hole.
+      final sampled = exported()
+          .where((entry) => entry.level == LogLevel.debug)
+          .skip(120)
+          .toList();
+      expect(sampled, isNotEmpty);
+      expect(sampled.first.message, '[pipeline] frame 144');
+    });
+
+    test('the local ring buffer keeps full fidelity while export is capped', () {
+      for (var i = 0; i < 900; i++) {
+        testLogger.debug('[pipeline] frame $i');
+      }
+
+      // DevLogsScreen reads the ring buffer; only the OTel export is bounded.
+      expect(testLogger.getLogsByLevel(LogLevel.debug).length, 900);
+      expect(
+        exported().where((entry) => entry.level == LogLevel.debug).length,
+        lessThan(200),
+      );
     });
 
     test('drops are reported, never silent', () {
@@ -566,7 +595,8 @@ void main() {
       }
       forwarded.clear();
 
-      // One minute of refill at 300/min.
+      // One minute of refill at 60/min: 60 pass on tokens, the remaining 40
+      // are overflow and contribute one sampled record (the 25th).
       fakeNowMs += const Duration(minutes: 1).inMilliseconds;
       for (var i = 0; i < 100; i++) {
         testLogger.debug('[pipeline] post-refill $i');
@@ -575,7 +605,7 @@ void main() {
       final debugExports = exported()
           .where((entry) => entry.level == LogLevel.debug)
           .length;
-      expect(debugExports, 100);
+      expect(debugExports, 61);
     });
 
     test('a backwards clock jump does not wedge the debug bucket', () {

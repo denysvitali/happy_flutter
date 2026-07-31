@@ -453,6 +453,8 @@ Service label is `service_name="happy-flutter"` (note the dash, not underscore).
 
 **Pipeline stage vocab:** `raw → normalized → processed → grouped → merged → notified`. Search by `stage=<name>` to follow a single socket payload through the ingestion pipeline.
 
+**Volume policy (DEBUG):** successful `stage=notified outcome=ok` lines are logged once per 60s window; the rest of the window is folded into one `outcome=summary suppressed=<n> sessions=<n>` line. Every non-`ok` outcome is still logged verbatim, so `outcome=(error|dropped)` greps are unaffected. On top of that, `LoggerService` caps DEBUG **OTel export** at 60/min (120 burst) and samples 1-in-25 beyond it, reporting shed counts as `[logger] dropped … from OTel export`. The local 5000-entry ring buffer behind DevLogsScreen keeps full fidelity.
+
 **Caveat:** `mcp__loki__loki_query` has a token cap (~10k tokens per call); on large queries the result is saved to `~/.claude/projects/.../tool-results/mcp-loki-loki_query-*.txt` and must be read in chunks. Use `head`/`tail`/`limit` to bound the response, and `filter` to reduce noise.
 
 **`mcp__loki` not loaded?** Retry once, say out loud it's broken, then query Loki direct: `http://loki.monitoring.svc.cluster.local:3100` — same LogQL selectors via `/loki/api/v1/query_range`. Don't silently stall or work around it for turns.

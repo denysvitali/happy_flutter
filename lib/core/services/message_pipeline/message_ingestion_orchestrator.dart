@@ -31,6 +31,16 @@ extension SyncMessagePipeline on Sync {
         stage != MessagePipelineStage.notified) {
       return;
     }
+    // The terminal `notified ok` line survived that filter and therefore fired
+    // once per socket payload — ~9k records per device per day, the single
+    // largest DEBUG contributor in Loki. Keep one fully detailed line per
+    // window as a trace anchor and fold the rest into a counted summary.
+    if (level == LogLevel.debug &&
+        stage == MessagePipelineStage.notified &&
+        outcome == 'ok' &&
+        _summarizeNotified(sessionId)) {
+      return;
+    }
     final message = '[pipeline] $traceId session=$sessionId '
         'stage=${stage.name} outcome=$outcome payload=$data';
     switch (level) {
@@ -43,6 +53,57 @@ extension SyncMessagePipeline on Sync {
       case LogLevel.debug:
         logger.debug(message);
     }
+  }
+
+  /// One detailed `notified ok` line per [_notifiedSummaryWindowMs]; the rest
+  /// are counted and reported as a single summary line when the window rolls.
+  ///
+  /// Returns `true` when the caller should suppress its own log line.
+  bool _summarizeNotified(String sessionId) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = nowMs - _notifiedWindowStartedAtMs;
+    // A backwards wall-clock jump (NTP correction) would otherwise wedge the
+    // window shut; treat it as "start a new window".
+    if (_notifiedWindowStartedAtMs == 0 ||
+        elapsed < 0 ||
+        elapsed >= _notifiedSummaryWindowMs) {
+      _flushNotifiedSummary(elapsed);
+      _notifiedWindowStartedAtMs = nowMs;
+      return false;
+    }
+    _notifiedSuppressed++;
+    _notifiedSessions.add(sessionId);
+    return true;
+  }
+
+  void _flushNotifiedSummary(int elapsedMs) {
+    if (_notifiedSuppressed == 0) return;
+    logger.debug(
+      '[pipeline] stage=notified outcome=summary '
+      'suppressed=$_notifiedSuppressed sessions=${_notifiedSessions.length} '
+      'windowMs=$elapsedMs',
+    );
+    _notifiedSuppressed = 0;
+    _notifiedSessions.clear();
+  }
+
+  /// Window state for [_summarizeNotified]. Static because `Sync` is a
+  /// singleton and this is process-wide log-volume policy, not session state.
+  static const int _notifiedSummaryWindowMs = 60000;
+  static int _notifiedWindowStartedAtMs = 0;
+  static int _notifiedSuppressed = 0;
+  static final Set<String> _notifiedSessions = <String>{};
+
+  /// Records folded into the current summary window — tests only.
+  @visibleForTesting
+  static int get debugNotifiedSuppressed => _notifiedSuppressed;
+
+  /// Reset the `notified` summary window — tests only.
+  @visibleForTesting
+  static void debugResetNotifiedSummary() {
+    _notifiedWindowStartedAtMs = 0;
+    _notifiedSuppressed = 0;
+    _notifiedSessions.clear();
   }
 
   void _releaseInlineDedupKey(String sessionId, String? dedupKey) {
