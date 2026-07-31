@@ -126,6 +126,7 @@ void main() {
       instance = Sync();
       _stubAllSyncs(instance);
       instance.testIsInitialized = true;
+      SyncMessagePipeline.debugResetNotifiedSummary();
       LoggerService().clear();
     });
 
@@ -295,6 +296,52 @@ void main() {
         );
       },
     );
+
+    // `notified=ok` fired once per socket payload — ~9k DEBUG records per
+    // device per day in Loki, the largest single contributor to a 45k/24h
+    // export. One detailed anchor per window survives; the rest are counted.
+    test(
+      'repeated notified=ok collapses to one line plus a counted summary',
+      () async {
+        const sessionId = 'sess-summary';
+        instance
+          ..encryption = _FakeEncryption(const _OkSessionEncryption())
+          ..testClearSessionMessageState(sessionId);
+
+        for (var i = 0; i < 5; i++) {
+          await instance.ingestFromSocket(
+            MessageIngressEvent(
+              source: MessagePipelineSource.socket,
+              sessionId: sessionId,
+              rawPayload: <String, dynamic>{
+                'id': 'msg-summary-$i',
+                'seq': i + 1,
+                'createdAt': 1700000000000 + i,
+              },
+              isVisibleSession: true,
+              notifySessionsDomain: true,
+            ),
+          );
+        }
+
+        final okLines = _pipelineBreadcrumbs()
+            .where(
+              (entry) => entry.message.contains('stage=notified outcome=ok'),
+            )
+            .length;
+
+        expect(
+          okLines,
+          1,
+          reason: 'only the first notified=ok of the window is logged in full',
+        );
+        expect(
+          SyncMessagePipeline.debugNotifiedSuppressed,
+          4,
+          reason: 'the remaining payloads must be counted, not lost',
+        );
+      },
+    );
   });
 
   group('HTTP batch sidechain eligibility (applyMutations=false)', () {
@@ -305,6 +352,7 @@ void main() {
       _stubAllSyncs(instance);
       instance.testIsInitialized = true;
       instance.encryption = _FakeEncryption(const _OkSessionEncryption());
+      SyncMessagePipeline.debugResetNotifiedSummary();
     });
 
     test(

@@ -429,14 +429,20 @@ class LoggerService {
 
   /// Rate-limit DEBUG records on the OTel export path.
   ///
-  /// A single handset with developer mode on shipped 18.4k DEBUG records in 24h
-  /// against 4.3k INFO and 82 ERROR — the `[pipeline]` and `[messages]` traces
-  /// fire per socket frame, so log volume scales with agent chatter, not with
-  /// user count. Those traces are genuinely useful (the `loki-trace` workflow
-  /// depends on them), so this bounds them rather than dropping the level:
-  /// [_otelDebugBucketCapacity] tokens refilled at
-  /// [_otelDebugRefillPerMinute]/min. INFO/WARNING/ERROR are never throttled —
-  /// they are the signal a burst of debug noise would otherwise price out.
+  /// The `[pipeline]` and `[messages]` traces fire per socket frame, so log
+  /// volume scales with agent chatter, not with user count. The first version
+  /// of this bucket allowed 300/min, which is ~432k records/day — far above
+  /// anything a single handset should ship, so it never engaged: two launches
+  /// still exported 21.4k and 19.3k DEBUG records in 24h (45k total, 82% of
+  /// all records, peaking at 6.7k/h ≈ 112/min). The ceiling is now 60/min with
+  /// [_otelDebugBucketCapacity] tokens of burst headroom for a resume replay.
+  ///
+  /// Beyond the bucket the stream is sampled rather than cut: one record in
+  /// [_otelDebugSampleEvery] is still exported so a long burst leaves a thin
+  /// but continuous trace instead of a hole. INFO/WARNING/ERROR are never
+  /// throttled — they are the signal a burst of debug noise would otherwise
+  /// price out — and the local 5000-entry ring buffer is untouched, so
+  /// DevLogsScreen keeps full fidelity.
   ///
   /// Drops are not silent: one INFO summary per [_otelDebugDropReportWindow]
   /// reports how many records were shed, so a truncated pipeline trace can
@@ -445,22 +451,33 @@ class LoggerService {
     if (entry.level != LogLevel.debug) return true;
 
     final nowMs = _nowMs();
-    if (_takeOtelDebugToken(nowMs)) return true;
+    if (_takeOtelDebugToken(nowMs)) {
+      // Sampling counts records since the bucket last emptied, so a trickle of
+      // refilled tokens cannot accumulate into an extra sampled record.
+      _otelDebugOverflow = 0;
+      return true;
+    }
 
-    _otelDebugDropped++;
+    _otelDebugOverflow++;
+    final sampled = _otelDebugOverflow % _otelDebugSampleEvery == 0;
+    if (!sampled) _otelDebugDropped++;
     // Report the first drop of an episode immediately (a reader looking at a
     // truncated pipeline trace needs to know *at that point* that it is
     // truncated), then batch at most one summary per window.
-    if (_otelDebugDropReportedAtMs == 0 ||
-        nowMs - _otelDebugDropReportedAtMs >=
-            _otelDebugDropReportWindow.inMilliseconds) {
+    if (_otelDebugDropped > 0 &&
+        (_otelDebugDropReportedAtMs == 0 ||
+            nowMs - _otelDebugDropReportedAtMs >=
+                _otelDebugDropReportWindow.inMilliseconds)) {
       final dropped = _otelDebugDropped;
       _otelDebugDropped = 0;
       _otelDebugDropReportedAtMs = nowMs;
       // Re-entrant by construction: this logs at info, which skips this guard.
-      info('[logger] dropped $dropped debug record(s) from OTel export');
+      info(
+        '[logger] dropped $dropped debug record(s) from OTel export '
+        '(over budget; keeping 1 in $_otelDebugSampleEvery)',
+      );
     }
-    return false;
+    return sampled;
   }
 
   /// Refill and consume one OTel-debug token. False when the bucket is empty.
@@ -486,16 +503,22 @@ class LoggerService {
   }
 
   /// Headroom for a burst (app resume replays a backlog of socket frames).
-  static const int _otelDebugBucketCapacity = 600;
+  static const int _otelDebugBucketCapacity = 120;
 
-  /// Steady-state ceiling: 300/min ≈ 432k/day worst case per device, versus an
-  /// unbounded stream today. Typical observed load (~13/min) is unaffected.
-  static const int _otelDebugRefillPerMinute = 300;
+  /// Steady-state ceiling: 60/min ≈ 86k/day worst case per device, against the
+  /// 45k/day two production launches actually shipped through the previous
+  /// 300/min ceiling. Typical observed load (~13/min) is unaffected.
+  static const int _otelDebugRefillPerMinute = 60;
+
+  /// Sampling rate applied once the bucket is empty: keep 1 record in N so a
+  /// sustained burst still leaves a thread to pull on in Loki.
+  static const int _otelDebugSampleEvery = 25;
   static const Duration _otelDebugDropReportWindow = Duration(minutes: 1);
 
   double _otelDebugTokens = _otelDebugBucketCapacity.toDouble();
   int _otelDebugRefilledAtMs = 0;
   int _otelDebugDropped = 0;
+  int _otelDebugOverflow = 0;
   int _otelDebugDropReportedAtMs = 0;
 
   /// Debug records shed since the last drop report — tests only.
@@ -508,6 +531,7 @@ class LoggerService {
     _otelDebugTokens = _otelDebugBucketCapacity.toDouble();
     _otelDebugRefilledAtMs = _nowMs();
     _otelDebugDropped = 0;
+    _otelDebugOverflow = 0;
     _otelDebugDropReportedAtMs = 0;
   }
 

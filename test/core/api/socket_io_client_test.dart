@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/power_diagnostics_service.dart';
 
 void main() {
@@ -76,6 +77,64 @@ void main() {
       socketIoClient.disconnect();
 
       expect(powerDiagnostics.snapshot().socketDisconnects, equals(0));
+    });
+
+    // Jaeger showed 79 `websocket.dial` spans against ZERO
+    // `websocket.disconnect` spans: disconnect() bumps the connection
+    // generation before the library's own disconnect event fires, so the
+    // guarded handler returned before emitting the span, the Sentry
+    // transaction or the log line. The emission now happens at the call site,
+    // and the caller-supplied reason is what makes a suspend, a logout and a
+    // reconnect distinguishable.
+    test('disconnect(reason:) emits the record with the caller reason', () {
+      LoggerService().clear();
+      socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+      socketIoClient.disconnect(
+        preserveConnectionHistory: true,
+        reason: DisconnectReason.lifecycleSuspend,
+      );
+
+      expect(
+        LoggerService().getLogs().map((entry) => entry.message),
+        contains(
+          startsWith(
+            'Socket.IO disconnected '
+            'reason=${DisconnectReason.lifecycleSuspend}',
+          ),
+        ),
+      );
+    });
+
+    test('disconnect() defaults to the io-client-disconnect facet', () {
+      LoggerService().clear();
+      socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+      socketIoClient.disconnect();
+
+      expect(
+        LoggerService().getLogs().map((entry) => entry.message),
+        contains(
+          startsWith(
+            'Socket.IO disconnected '
+            'reason=${DisconnectReason.ioClientDisconnect}',
+          ),
+        ),
+      );
+    });
+
+    test('an already-disconnected teardown emits nothing', () {
+      LoggerService().clear();
+      socketIoClient.testConnectionStatus = ConnectionStatus.disconnected;
+
+      socketIoClient.disconnect(reason: DisconnectReason.appShutdown);
+
+      expect(
+        LoggerService()
+            .getLogs()
+            .where((e) => e.message.startsWith('Socket.IO disconnected')),
+        isEmpty,
+      );
     });
   });
 
