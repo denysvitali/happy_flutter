@@ -10,8 +10,46 @@ import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 import 'opentelemetry_service.dart';
 
+/// Top-level isolate worker: encodes a prepared cache window to JSON.
+///
+/// Must stay top-level and take only sendable POD arguments — a closure
+/// capturing `this` here reintroduces the "Isolate unsendable Future"
+/// production bug (ROADMAP, 7b69d1b).
 String _encodeMessageCacheJson(List<Map<String, dynamic>> messages) {
   return jsonEncode(messages);
+}
+
+/// A cache window prepared on the main isolate and queued for
+/// background encoding + persistence.
+///
+/// Queuing (rather than firing one `compute()` per save) means at most
+/// one encode isolate is alive at a time and a session that changes
+/// again while its previous snapshot is still encoding supersedes it
+/// instead of racing a second isolate.
+class _PendingCacheSave {
+  _PendingCacheSave({
+    required this.messages,
+    required this.originalCount,
+    required this.hash,
+    required this.seq,
+    required this.prepareMs,
+  });
+
+  final List<Map<String, dynamic>> messages;
+  final int originalCount;
+  final int hash;
+
+  /// Monotonic write order. A write whose [seq] is older than the last
+  /// committed write for the session is dropped instead of clobbering
+  /// fresher data (e.g. the synchronous suspend flush).
+  final int seq;
+  final int prepareMs;
+  final Completer<void> completer = Completer<void>();
+  final Stopwatch queueWatch = Stopwatch()..start();
+
+  void complete() {
+    if (!completer.isCompleted) completer.complete();
+  }
 }
 
 /// Local-first message cache service.
@@ -76,7 +114,19 @@ class MessageCacheService {
   /// Per-session content hash of the last persisted tail. Used to skip
   /// redundant MMKV writes when the message list hasn't changed.
   final Map<String, int> _lastSavedHash = {};
-  final Map<String, int> _asyncSaveGeneration = {};
+
+  /// Latest queued snapshot per session, awaiting background encode.
+  final Map<String, _PendingCacheSave> _pendingSaves = {};
+
+  /// Whether the queue drain loop is currently running. Guarantees a
+  /// single in-flight encode isolate across all sessions.
+  bool _draining = false;
+
+  /// Monotonic counter handing out [_PendingCacheSave.seq] values.
+  int _saveSeq = 0;
+
+  /// Highest write sequence actually committed per session.
+  final Map<String, int> _committedSeq = {};
 
   /// Get cached messages for a session synchronously.
   ///
@@ -133,6 +183,13 @@ class MessageCacheService {
 
     if (messages.isNotEmpty && kIsWeb) {
       _touchWebLru(sessionId);
+    }
+
+    // Seed the dirty-tracking hash from what storage already holds so a
+    // cold start that restores N sessions does not immediately rewrite
+    // all N cache windows with byte-identical content.
+    if (messages.isNotEmpty && !_lastSavedHash.containsKey(sessionId)) {
+      _lastSavedHash[sessionId] = _computeCacheWindowHash(messages);
     }
 
     // Emit the read span for EVERY read, hit or miss. Emitting it only on
@@ -218,22 +275,52 @@ class MessageCacheService {
   /// On web, the LRU session list is updated and any sessions beyond
   /// [_maxWebSessions] are evicted to prevent QuotaExceededError.
   void saveMessages(String sessionId, List<Map<String, dynamic>> messages) {
-    _saveMessages(sessionId, messages, asyncWrite: false);
+    // A synchronous save is the durability path (suspend/background
+    // flush): it supersedes any queued snapshot for the session, which
+    // may never get its encode isolate before the process is killed.
+    _pendingSaves.remove(sessionId)?.complete();
+
+    final prepared = _prepareSave(sessionId, messages);
+    if (prepared == null) return;
+
+    final writeWatch = Stopwatch()..start();
+    try {
+      _storage.saveSessionMessages(sessionId, prepared.messages);
+      _commitWrite(sessionId, prepared);
+      _recordWrite(
+        sessionId,
+        prepared,
+        queueMs: 0,
+        encodeMs: 0,
+        writeMs: writeWatch.elapsedMilliseconds,
+      );
+    } catch (e) {
+      _recordWriteFailure(sessionId, e, writeWatch.elapsedMilliseconds);
+    }
   }
 
   Future<void> saveMessagesAsync(
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
-    return _saveMessages(sessionId, messages, asyncWrite: true);
+    final prepared = _prepareSave(sessionId, messages);
+    if (prepared == null) return Future<void>.value();
+
+    // Latest snapshot wins: the superseded one is resolved immediately
+    // because the newer write subsumes its content.
+    _pendingSaves.remove(sessionId)?.complete();
+    _pendingSaves[sessionId] = prepared;
+    _kickDrain();
+    return prepared.completer.future;
   }
 
-  Future<void> _saveMessages(
+  /// Build the persisted cache window on the main isolate, or return
+  /// `null` when the write can be skipped because nothing changed.
+  _PendingCacheSave? _prepareSave(
     String sessionId,
-    List<Map<String, dynamic>> messages, {
-    required bool asyncWrite,
-  }) async {
-    final stopwatch = Stopwatch()..start();
+    List<Map<String, dynamic>> messages,
+  ) {
+    final prepareWatch = Stopwatch()..start();
     final trimmed = _trimToCacheWindow(messages);
     // Strip inline base64 image bytes before persisting: a chat with a
     // few screenshots would otherwise put multi-MB strings into MMKV
@@ -242,17 +329,19 @@ class MessageCacheService {
     // retry path refuses to resend them (the pixels are gone).
     final toSave = trimmed.map(stripInlineImageData).toList();
 
-    // Skip write when the cache-window hash is unchanged — avoids repeated
-    // MMKV serialization of the same message list (e.g. 1200-message
-    // saves taking ~131ms each).
+    // Skip write when the cache-window hash is unchanged — avoids
+    // repeated MMKV serialization of the same message list. The queued
+    // snapshot's hash wins over the last committed one so a rapid
+    // change/revert while an encode is queued still reconciles.
     final hash = _computeCacheWindowHash(toSave);
-    final prevHash = _lastSavedHash[sessionId];
+    final prevHash =
+        _pendingSaves[sessionId]?.hash ?? _lastSavedHash[sessionId];
     if (prevHash == hash && prevHash != null) {
       logger.debug(
         '[MessageCache] Skipping save for session $sessionId '
         '(hash unchanged: $hash)',
       );
-      return;
+      return null;
     }
 
     // On web, evict stale sessions before writing so we never exceed
@@ -261,76 +350,156 @@ class MessageCacheService {
       _touchWebLru(sessionId);
     }
 
+    return _PendingCacheSave(
+      messages: toSave,
+      originalCount: messages.length,
+      hash: hash,
+      seq: ++_saveSeq,
+      prepareMs: prepareWatch.elapsedMilliseconds,
+    );
+  }
+
+  void _kickDrain() {
+    if (_draining) return;
+    _draining = true;
+    unawaited(_drainPendingSaves());
+  }
+
+  /// Serialize every queued snapshot through a single encode isolate.
+  ///
+  /// Running one at a time keeps two chatty sessions from spawning two
+  /// concurrent `compute()` isolates that each deep-copy their whole
+  /// cache window off the UI isolate at the same time.
+  Future<void> _drainPendingSaves() async {
     try {
-      if (asyncWrite) {
-        final generation = (_asyncSaveGeneration[sessionId] ?? 0) + 1;
-        _asyncSaveGeneration[sessionId] = generation;
-        final encoded = await compute(_encodeMessageCacheJson, toSave);
-        if (_asyncSaveGeneration[sessionId] != generation) return;
-        _storage.saveSessionMessagesEncoded(sessionId, encoded);
-      } else {
-        _storage.saveSessionMessages(sessionId, toSave);
+      while (_pendingSaves.isNotEmpty) {
+        final sessionId = _pendingSaves.keys.first;
+        final save = _pendingSaves.remove(sessionId)!;
+        await _runQueuedSave(sessionId, save);
       }
-      _lastSavedHash[sessionId] = hash;
-      final elapsedMs = stopwatch.elapsedMilliseconds;
-      if (elapsedMs >= _slowCacheWriteMs) {
-        logger.debug(
-          '[MessageCache] Slow save for session $sessionId: '
-          '${toSave.length}/${messages.length} messages in ${elapsedMs}ms',
-        );
-        unawaited(
-          Sentry.addBreadcrumb(
-            Breadcrumb(
-              message: 'MessageCache: slow save',
-              category: 'cache.messages',
-              level: SentryLevel.info,
-              data: {
-                'sessionId': sessionId,
-                'savedCount': toSave.length,
-                'originalCount': messages.length,
-                'truncated': messages.length > _maxCachedMessages,
-                'elapsedMs': elapsedMs,
-              },
-            ),
-          ),
-        );
-        OpenTelemetryService()
-            .startTrace(
-              'cache.messages.write',
-              attributes: {
-                'session.id': sessionId,
-                'message.saved_count': toSave.length,
-                'message.original_count': messages.length,
-                'cache.truncated': messages.length > _maxCachedMessages,
-                'cache.elapsed_ms': elapsedMs,
-              },
-            )
-            ?.end();
-      }
-    } catch (e) {
-      final elapsedMs = stopwatch.elapsedMilliseconds;
-      logger.warning('[MessageCache] Failed to save cache for $sessionId: $e');
-      unawaited(
-        Sentry.addBreadcrumb(
-          Breadcrumb(
-            message: 'MessageCache: save failed',
-            category: 'cache.messages',
-            level: SentryLevel.warning,
-            data: {
-              'sessionId': sessionId,
-              'error': e.toString(),
-              'elapsedMs': elapsedMs,
-            },
-          ),
-        ),
-      );
-      final span = OpenTelemetryService().startTrace(
-        'cache.messages.write',
-        attributes: {'session.id': sessionId, 'cache.elapsed_ms': elapsedMs},
-      );
-      span?.recordError(e);
-      span?.end(ok: false);
+    } finally {
+      _draining = false;
     }
+  }
+
+  Future<void> _runQueuedSave(
+    String sessionId,
+    _PendingCacheSave save,
+  ) async {
+    final queueMs = save.queueWatch.elapsedMilliseconds;
+    final encodeWatch = Stopwatch()..start();
+    try {
+      final encoded = await compute(_encodeMessageCacheJson, save.messages);
+      final encodeMs = encodeWatch.elapsedMilliseconds;
+      // A newer snapshot arrived, or a synchronous flush / clear already
+      // wrote fresher state while we were encoding — drop the stale
+      // write instead of clobbering it.
+      if (_pendingSaves.containsKey(sessionId) ||
+          (_committedSeq[sessionId] ?? 0) > save.seq) {
+        return;
+      }
+      final writeWatch = Stopwatch()..start();
+      _storage.saveSessionMessagesEncoded(sessionId, encoded);
+      _commitWrite(sessionId, save);
+      _recordWrite(
+        sessionId,
+        save,
+        queueMs: queueMs,
+        encodeMs: encodeMs,
+        writeMs: writeWatch.elapsedMilliseconds,
+      );
+    } catch (e) {
+      _recordWriteFailure(sessionId, e, encodeWatch.elapsedMilliseconds);
+    } finally {
+      save.complete();
+    }
+  }
+
+  void _commitWrite(String sessionId, _PendingCacheSave save) {
+    _lastSavedHash[sessionId] = save.hash;
+    _committedSeq[sessionId] = save.seq;
+  }
+
+  void _recordWrite(
+    String sessionId,
+    _PendingCacheSave save, {
+    required int queueMs,
+    required int encodeMs,
+    required int writeMs,
+  }) {
+    final elapsedMs = save.prepareMs + queueMs + encodeMs + writeMs;
+    if (elapsedMs < _slowCacheWriteMs) return;
+    logger.debug(
+      '[MessageCache] Slow save for session $sessionId: '
+      '${save.messages.length}/${save.originalCount} messages in '
+      '${elapsedMs}ms (prepare ${save.prepareMs}ms, queue ${queueMs}ms, '
+      'encode ${encodeMs}ms, write ${writeMs}ms)',
+    );
+    final truncated = save.originalCount > _maxCachedMessages;
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'MessageCache: slow save',
+          category: 'cache.messages',
+          level: SentryLevel.info,
+          data: {
+            'sessionId': sessionId,
+            'savedCount': save.messages.length,
+            'originalCount': save.originalCount,
+            'truncated': truncated,
+            'elapsedMs': elapsedMs,
+            'prepareMs': save.prepareMs,
+            'queueMs': queueMs,
+            'encodeMs': encodeMs,
+            'writeMs': writeMs,
+          },
+        ),
+      ),
+    );
+    OpenTelemetryService()
+        .startTrace(
+          'cache.messages.write',
+          attributes: {
+            'session.id': sessionId,
+            'message.saved_count': save.messages.length,
+            'message.original_count': save.originalCount,
+            'cache.truncated': truncated,
+            'cache.elapsed_ms': elapsedMs,
+            // Split so the dashboard can tell UI-isolate cost
+            // (prepare + write) from background encode + queue wait.
+            'cache.prepare_ms': save.prepareMs,
+            'cache.queue_ms': queueMs,
+            'cache.encode_ms': encodeMs,
+            'cache.write_ms': writeMs,
+          },
+        )
+        ?.end();
+  }
+
+  void _recordWriteFailure(String sessionId, Object error, int elapsedMs) {
+    logger.warning(
+      '[MessageCache] Failed to save cache for $sessionId: $error',
+    );
+    unawaited(
+      Sentry.addBreadcrumb(
+        Breadcrumb(
+          message: 'MessageCache: save failed',
+          category: 'cache.messages',
+          level: SentryLevel.warning,
+          data: {
+            'sessionId': sessionId,
+            'error': error.toString(),
+            'elapsedMs': elapsedMs,
+          },
+        ),
+      ),
+    );
+    final span = OpenTelemetryService().startTrace(
+      'cache.messages.write',
+      attributes: {'session.id': sessionId, 'cache.elapsed_ms': elapsedMs},
+    );
+    span?.recordError(error);
+    span?.end(ok: false);
   }
 
   static List<Map<String, dynamic>> _trimToCacheWindow(
@@ -347,7 +516,7 @@ class MessageCacheService {
   }) {
     try {
       _storage.saveSessionMessages(sessionId, messages);
-      _lastSavedHash[sessionId] = _computeCacheWindowHash(messages);
+      _markPersisted(sessionId, messages);
       logger.debug(
         '[MessageCache] Trimmed legacy cache for session $sessionId '
         'from $originalCount to ${messages.length} messages',
@@ -368,7 +537,7 @@ class MessageCacheService {
   ) {
     try {
       _storage.saveSessionMessages(sessionId, cleaned);
-      _lastSavedHash[sessionId] = _computeCacheWindowHash(cleaned);
+      _markPersisted(sessionId, cleaned);
       logger.debug(
         '[MessageCache] Scrubbed stale orphan synthetics for session '
         '$sessionId (now ${cleaned.length} messages)',
@@ -378,6 +547,14 @@ class MessageCacheService {
         '[MessageCache] Failed to scrub legacy synthetics for $sessionId: $e',
       );
     }
+  }
+
+  /// Record that [messages] is exactly what storage now holds for
+  /// [sessionId], so the next save with identical content is skipped and
+  /// any encode still in flight from before this point is discarded.
+  void _markPersisted(String sessionId, List<Map<String, dynamic>> messages) {
+    _lastSavedHash[sessionId] = _computeCacheWindowHash(messages);
+    _committedSeq[sessionId] = ++_saveSeq;
   }
 
   /// Compute a lightweight hash of the persisted cache window.
@@ -429,6 +606,11 @@ class MessageCacheService {
   ///
   /// Call when a session is deleted or cleared.
   void clearMessages(String sessionId) {
+    // Drop any queued snapshot and fence in-flight encodes: a delete
+    // must not be undone by a background write that was already
+    // encoding when the session was cleared.
+    _pendingSaves.remove(sessionId)?.complete();
+    _committedSeq[sessionId] = ++_saveSeq;
     try {
       _storage.clearSessionMessages(sessionId);
       _lastSavedHash.remove(sessionId);

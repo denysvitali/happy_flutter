@@ -17,6 +17,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_cache_service.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 import '../helpers/test_helpers.dart';
 
@@ -203,13 +204,13 @@ void main() {
         ]);
 
         // Continuously reschedule the save every 100ms — well below
-        // the 1000ms debounce.  Without the max-delay ceiling, the
-        // 1s timer would reset on every call and the save would
+        // the 2000ms debounce.  Without the max-delay ceiling, the
+        // 2s timer would reset on every call and the save would
         // never fire while we keep tapping it.
         instance.testScheduleSaveMessages(sessionId);
         expect(instance.testHasPendingSaveTimer(sessionId), isTrue);
 
-        for (var i = 0; i < 30; i++) {
+        for (var i = 0; i < 65; i++) {
           await Future<void>.delayed(const Duration(milliseconds: 100));
           // Append a message each tick to simulate streaming tokens.
           instance.testSetSessionMessages(sessionId, [
@@ -219,8 +220,8 @@ void main() {
           instance.testScheduleSaveMessages(sessionId);
         }
 
-        // After ~3s of constant rescheduling the cache MUST have been
-        // flushed at least once because of the 2.5s ceiling.
+        // After ~6.5s of constant rescheduling the cache MUST have been
+        // flushed at least once because of the 5s ceiling.
         expect(
           storage.saveCount,
           greaterThanOrEqualTo(1),
@@ -230,7 +231,7 @@ void main() {
               'would never persist during long agent runs',
         );
       },
-      timeout: const Timeout(Duration(seconds: 15)),
+      timeout: const Timeout(Duration(seconds: 25)),
     );
 
     test(
@@ -255,6 +256,44 @@ void main() {
           greaterThanOrEqualTo(1),
           reason: 'flush must persist before clearing the timer',
         );
+      },
+    );
+
+    test(
+      'suspend() flushes pending message saves instead of dropping them',
+      () async {
+        // Regression: suspend() cancelled and CLEARED
+        // _saveMsgsDebounceTimers before calling
+        // _flushPendingMessageSaves(), which iterates exactly that map.
+        // The flush therefore early-returned on an empty map and every
+        // un-persisted message tail was silently lost on background.
+        const sessionId = 'sess-suspend-flush';
+        final storage = _CountingMMKVStorage();
+        MessageCacheService().debugSetStorage = storage;
+        addTearDown(MessageCacheService().debugResetStorage);
+        addTearDown(() => MessageCacheService().clearMessages(sessionId));
+        addTearDown(() => InvalidateSync.isBackgrounded = false);
+
+        instance.testSetSessionMessages(sessionId, [
+          {'id': 'm-1', 'seq': 1, 'role': 'user', 'content': 'suspend me'},
+        ]);
+        instance.testScheduleSaveMessages(sessionId);
+        expect(instance.testHasPendingSaveTimer(sessionId), isTrue);
+
+        instance.suspend();
+
+        expect(
+          storage.saveCount,
+          greaterThanOrEqualTo(1),
+          reason:
+              'suspend() must persist the pending cache window before the '
+              'OS can kill the backgrounded process',
+        );
+        expect(
+          storage.getSessionMessages(sessionId).single['content'],
+          'suspend me',
+        );
+        expect(instance.testHasPendingSaveTimer(sessionId), isFalse);
       },
     );
 

@@ -487,11 +487,12 @@ extension SyncSocket on Sync {
   /// Debounced MMKV persist for a single session's message list.
   ///
   /// Batches rapid upserts (e.g. streaming tokens) into one disk write
-  /// per session every 1000 ms, keeping only the last ~200 messages in
-  /// the persisted copy. The in-memory list retains all messages.
+  /// per session every [_saveMsgsDebounceMs], keeping only the last ~200
+  /// messages in the persisted copy. The in-memory list retains all
+  /// messages.
   ///
   /// Perf P0: a hard ceiling of [_saveMsgsMaxDelayMs] guarantees the
-  /// disk write fires even under sustained streaming where the 1s
+  /// disk write fires even under sustained streaming where the
   /// debounce would otherwise keep resetting every token (~20-50ms),
   /// preventing the cache from ever flushing until streaming stops.
   void _scheduleSaveMessages(String sessionId) {
@@ -530,13 +531,26 @@ extension SyncSocket on Sync {
     );
   }
 
-  static const int _saveMsgsDebounceMs = 1000;
-  static const int _saveMsgsMaxDelayMs = 2500;
+  /// Debounce window for the per-session cache write.
+  ///
+  /// Raised from 1000 ms after production showed 232 MMKV writes of
+  /// 150-395 ms in 24 h, clustered on the two chattiest sessions. The
+  /// cache is a cold-start accelerator, not the source of truth (the
+  /// server tail is refetched on open), so trading a wider window for
+  /// roughly half the writes is the right side of the durability
+  /// tradeoff — provided the suspend flush actually runs.
+  static const int _saveMsgsDebounceMs = 2000;
+
+  /// Hard ceiling on how long sustained streaming can defer a write.
+  static const int _saveMsgsMaxDelayMs = 5000;
 
   /// Immediately flush all pending debounced message saves so the MMKV
   /// cache is not stale when the app is backgrounded or killed.
   void _flushPendingMessageSaves() {
-    if (_saveMsgsDebounceTimers.isEmpty) return;
+    if (_saveMsgsDebounceTimers.isEmpty) {
+      _saveMsgsFirstScheduledAtMs.clear();
+      return;
+    }
     for (final entry in _saveMsgsDebounceTimers.entries) {
       entry.value.cancel();
       final msgs = _sessionMessages[entry.key];

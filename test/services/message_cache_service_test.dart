@@ -166,6 +166,123 @@ void main() {
     });
   });
 
+  group('MessageCacheService — async write queue', () {
+    List<Map<String, dynamic>> window(String marker) => [
+      <String, dynamic>{'id': 'm-1', 'seq': 1, 'content': marker},
+    ];
+
+    test('rapid async saves for one session collapse to a single write', () {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      addTearDown(() => MessageCacheService().clearMessages('queue-1'));
+
+      // Three snapshots queued in the same event-loop turn: only the
+      // last one is worth persisting, and only one encode isolate may
+      // ever be spawned for them.
+      final first = MessageCacheService().saveMessagesAsync(
+        'queue-1',
+        window('v1'),
+      );
+      final second = MessageCacheService().saveMessagesAsync(
+        'queue-1',
+        window('v2'),
+      );
+      final third = MessageCacheService().saveMessagesAsync(
+        'queue-1',
+        window('v3'),
+      );
+
+      return Future.wait<void>([first, second, third]).then((_) {
+        expect(
+          storage.writeCount,
+          1,
+          reason: 'superseded snapshots must not each reach MMKV',
+        );
+        expect(storage.rawStored('queue-1').single['content'], 'v3');
+      });
+    });
+
+    test('an unchanged window after a committed save writes nothing',
+        () async {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      addTearDown(() => MessageCacheService().clearMessages('queue-2'));
+
+      await MessageCacheService().saveMessagesAsync('queue-2', window('same'));
+      expect(storage.writeCount, 1);
+
+      await MessageCacheService().saveMessagesAsync('queue-2', window('same'));
+
+      expect(
+        storage.writeCount,
+        1,
+        reason: 'dirty tracking must skip a byte-identical cache window',
+      );
+    });
+
+    test('a cache read seeds dirty tracking so cold start does not rewrite',
+        () async {
+      final storage = _InMemoryMMKVStorage()
+        ..rawSeed('queue-5', [
+          <String, dynamic>{'id': 'm-1', 'seq': 1, 'content': 'restored'},
+        ]);
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      addTearDown(() => MessageCacheService().clearMessages('queue-5'));
+
+      final restored = MessageCacheService().getMessages('queue-5');
+      final writesAfterRead = storage.writeCount;
+
+      await MessageCacheService().saveMessagesAsync('queue-5', restored);
+
+      expect(
+        storage.writeCount,
+        writesAfterRead,
+        reason:
+            'restoring N sessions on cold start must not immediately '
+            'rewrite N identical cache windows',
+      );
+    });
+
+    test('clearMessages fences an in-flight async save', () async {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+
+      final pending = MessageCacheService().saveMessagesAsync(
+        'queue-3',
+        window('doomed'),
+      );
+      // Session deleted before the background encode finished — the
+      // stale write must not resurrect the cache.
+      MessageCacheService().clearMessages('queue-3');
+      await pending;
+
+      expect(storage.rawStored('queue-3'), isEmpty);
+    });
+
+    test('synchronous flush wins over an older in-flight async save',
+        () async {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      addTearDown(() => MessageCacheService().clearMessages('queue-4'));
+
+      final pending = MessageCacheService().saveMessagesAsync(
+        'queue-4',
+        window('async'),
+      );
+      // Suspend flush: writes synchronously so the process can die
+      // right after. The older async write must not clobber it.
+      MessageCacheService().saveMessages('queue-4', window('flushed'));
+      await pending;
+
+      expect(storage.rawStored('queue-4').single['content'], 'flushed');
+    });
+  });
+
   group('MessageCacheService.stripOrphanSynthetics', () {
     test('replaces synthetic Task with re-flagged isSidechain children', () {
       final input = <Map<String, dynamic>>[
