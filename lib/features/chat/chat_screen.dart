@@ -64,6 +64,7 @@ import 'widgets/scroll_to_bottom_pill.dart';
 import 'widgets/session_goal_banner.dart';
 import 'widgets/session_issue_banner.dart';
 import 'widgets/session_tasks_banner.dart';
+import 'widgets/sidechain_orphan_more.dart';
 import 'widgets/sub_agent_status_banner.dart';
 import 'widgets/thinking_stop_bar.dart';
 import 'widgets/tts_playback_bar.dart';
@@ -232,7 +233,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<Map<String, dynamic>>? _cachedListItemsSource;
   int _cachedListItemsVisibleCount = -1;
   bool? _cachedListItemsHideToolCalls;
+  bool? _cachedListItemsOrphansExpanded;
   Map<String, int>? _cachedKeyToListIndex;
+
+  /// Whether the user tapped "show N more sub-agent messages", lifting the
+  /// inline cap on ungrouped sidechain orphans for this session.
+  bool _sidechainOrphansExpanded = false;
 
   bool _initialLoadComplete = false;
   final Set<String> _seenMessageIds = {};
@@ -772,6 +778,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _cachedListItemsSource = null;
     _cachedListItemsVisibleCount = -1;
     _cachedListItemsHideToolCalls = null;
+    _cachedListItemsOrphansExpanded = null;
     _cachedKeyToListIndex = null;
   }
 

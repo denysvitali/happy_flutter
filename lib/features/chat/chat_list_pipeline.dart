@@ -4,6 +4,20 @@
 /// unit-tested without a widget tree.
 library;
 
+import '../../core/services/sidechain_grouper.dart'
+    show isVisibleSidechainOrphan;
+
+/// Default number of sidechain orphans rendered inline before the rest
+/// collapse behind a "show N more" row.
+///
+/// Orphans are sub-agent messages whose parent Task never made it into the
+/// loaded window. Recovery gives up after a bounded walk-back and the
+/// grouper falls back to rendering them inline — which two production
+/// sessions turned into 91 and 119 ungrouped tiles in a single transcript,
+/// burying the actual conversation. Twenty is enough to see what the
+/// sub-agent was doing without the transcript becoming the sub-agent's.
+const int kSidechainOrphanInlineCap = 20;
+
 /// Predicate: should this agent-event be shown in the main chat.
 typedef AgentEventRenderPredicate = bool Function(dynamic event);
 
@@ -34,6 +48,11 @@ typedef MessageErrorHandler =
 ///   otherwise buried the transcript under dozens of near-identical
 ///   centered chips. Terminal `task_notification` rows are `kind: text`
 ///   and are never folded.
+/// - Caps a run of ungrouped sidechain orphans at
+///   [sidechainOrphanInlineCap]: the newest `cap` stay inline and the
+///   older ones collapse behind a single `sidechain-orphan-more` row
+///   carrying `hiddenCount`. Pass `null` to render every orphan (what the
+///   "show N more" affordance switches to).
 /// - Inserts a `null` sentinel after a user `/clear` message (divider)
 /// - Inserts a `model-change` marker row when the model reported by the
 ///   agent changes mid-session (a fallback, a `/model` switch, or the CLI
@@ -48,14 +67,45 @@ List<Map<String, dynamic>?> buildChatListItems({
   required AgentEventRenderPredicate shouldRenderAgentEvent,
   required HideToolCallPredicate shouldHideToolCall,
   MessageErrorHandler? onMessageError,
+  int? sidechainOrphanInlineCap = kSidechainOrphanInlineCap,
 }) {
   final items = <Map<String, dynamic>?>[];
   var hiddenGroup = <Map<String, dynamic>>[];
   var taskGroup = <Map<String, dynamic>>[];
+  var orphanGroup = <Map<String, dynamic>>[];
   String? lastModel;
+
+  // Buffered orphans always precede anything appended after them, so every
+  // site that appends to [items] flushes this first to stay chronological.
+  void flushOrphanGroup() {
+    if (orphanGroup.isEmpty) return;
+    final cap = sidechainOrphanInlineCap;
+    if (cap == null || orphanGroup.length <= cap) {
+      items.addAll(orphanGroup);
+    } else {
+      final hiddenCount = orphanGroup.length - cap;
+      final anchor = orphanGroup.first;
+      final anchorId =
+          anchor['id'] as String? ??
+          anchor['toolUseId'] as String? ??
+          'at-${items.length}';
+      items
+        ..add({
+          'kind': 'sidechain-orphan-more',
+          'id': 'sidechain-orphan-more-$anchorId',
+          'role': 'system',
+          'hiddenCount': hiddenCount,
+        })
+        // Keep the newest `cap` inline: the tail is the part of the
+        // sub-agent run that leads into whatever comes next.
+        ..addAll(orphanGroup.sublist(hiddenCount));
+    }
+    orphanGroup = <Map<String, dynamic>>[];
+  }
 
   void flushTaskGroup() {
     if (taskGroup.isEmpty) return;
+    flushOrphanGroup();
     // Insertion order is first-seen-per-agent so rows keep a stable
     // position while their label updates; the value is the latest tick.
     final latest = <String, Map<String, dynamic>>{};
@@ -68,6 +118,7 @@ List<Map<String, dynamic>?> buildChatListItems({
 
   void flushHiddenGroup() {
     if (hiddenGroup.isEmpty) return;
+    flushOrphanGroup();
     final first =
         hiddenGroup.first['id'] as String? ??
         hiddenGroup.first['toolUseId'] as String? ??
@@ -110,6 +161,7 @@ List<Map<String, dynamic>?> buildChatListItems({
       if (model != null) {
         if (lastModel != null && lastModel != model) {
           flushHiddenGroup();
+          flushOrphanGroup();
           items.add({
             'kind': 'model-change',
             'id': 'model-change-${msg['id'] ?? items.length}',
@@ -132,6 +184,13 @@ List<Map<String, dynamic>?> buildChatListItems({
         continue;
       }
       flushHiddenGroup();
+      // Ungrouped sub-agent messages buffer until a non-orphan row forces
+      // the decision "render inline or collapse the older ones".
+      if (isVisibleSidechainOrphan(msg)) {
+        orphanGroup.add(msg);
+        continue;
+      }
+      flushOrphanGroup();
       items.add(msg);
       final role = msg['role'] as String?;
       final content = msg['content'] ?? msg['text'];
@@ -149,6 +208,7 @@ List<Map<String, dynamic>?> buildChatListItems({
   }
   flushTaskGroup();
   flushHiddenGroup();
+  flushOrphanGroup();
   return items;
 }
 

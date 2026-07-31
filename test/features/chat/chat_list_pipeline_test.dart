@@ -425,4 +425,100 @@ void main() {
       expect(items[4]?['id'], 'a2');
     });
   });
+
+  // Two production sessions accumulated 91 and 119 sidechain orphans whose
+  // parent Task never arrived; the grouper gives up and renders them
+  // inline, burying the conversation under ungrouped sub-agent tiles.
+  group('buildChatListItems sidechain orphan cap', () {
+    Map<String, dynamic> orphan(int i) => <String, dynamic>{
+      'id': 'orphan-$i',
+      'role': 'agent',
+      'kind': 'text',
+      'isSidechain': true,
+      'text': 'sub-agent step $i',
+    };
+
+    List<Map<String, dynamic>?> build(
+      List<Map<String, dynamic>> messages, {
+      int? cap = kSidechainOrphanInlineCap,
+    }) {
+      return buildChatListItems(
+        visibleMessages: messages,
+        hideToolCalls: false,
+        sidechainOrphanInlineCap: cap,
+        shouldRenderAgentEvent: (_) => true,
+        shouldHideToolCall: (_, {required hideToolCalls}) => false,
+      );
+    }
+
+    test('renders orphans inline while under the cap', () {
+      final items = build([
+        for (var i = 0; i < kSidechainOrphanInlineCap; i++) orphan(i),
+      ]);
+      expect(items.length, kSidechainOrphanInlineCap);
+      expect(
+        items.where((m) => m?['kind'] == 'sidechain-orphan-more'),
+        isEmpty,
+      );
+    });
+
+    test('collapses the oldest orphans past the cap behind one row', () {
+      final items = build([for (var i = 0; i < 100; i++) orphan(i)]);
+
+      expect(items.length, kSidechainOrphanInlineCap + 1);
+      expect(items.first?['kind'], 'sidechain-orphan-more');
+      expect(
+        items.first?['hiddenCount'],
+        100 - kSidechainOrphanInlineCap,
+      );
+      // The newest orphans stay inline, in order, and are the tail.
+      expect(items[1]?['id'], 'orphan-${100 - kSidechainOrphanInlineCap}');
+      expect(items.last?['id'], 'orphan-99');
+    });
+
+    test('a null cap renders every orphan (the expanded state)', () {
+      final items = build(
+        [for (var i = 0; i < 100; i++) orphan(i)],
+        cap: null,
+      );
+      expect(items.length, 100);
+      expect(
+        items.where((m) => m?['kind'] == 'sidechain-orphan-more'),
+        isEmpty,
+      );
+    });
+
+    test('keeps the collapse row chronologically in place', () {
+      final items = build([
+        {'id': 'u1', 'role': 'user', 'kind': 'text', 'text': 'go'},
+        for (var i = 0; i < 30; i++) orphan(i),
+        {'id': 'a1', 'role': 'agent', 'kind': 'text', 'text': 'done'},
+      ]);
+
+      expect(items.first?['id'], 'u1');
+      expect(items[1]?['kind'], 'sidechain-orphan-more');
+      expect(items[1]?['hiddenCount'], 30 - kSidechainOrphanInlineCap);
+      expect(items.last?['id'], 'a1');
+      expect(items.length, kSidechainOrphanInlineCap + 3);
+    });
+
+    test('hidden chain-bridge links never count as orphans', () {
+      // `sidechain-link` entries exist only so the grouper can walk
+      // parentUuid; they render nothing and must not inflate the count.
+      final items = build([
+        for (var i = 0; i < 25; i++)
+          <String, dynamic>{
+            'id': 'link-$i',
+            'role': 'agent',
+            'kind': 'sidechain-link',
+            'isSidechain': true,
+          },
+      ]);
+      expect(
+        items.where((m) => m?['kind'] == 'sidechain-orphan-more'),
+        isEmpty,
+      );
+      expect(items.length, 25);
+    });
+  });
 }

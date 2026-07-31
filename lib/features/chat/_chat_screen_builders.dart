@@ -40,12 +40,19 @@ extension _ChatScreenBuilders on _ChatScreenState {
         _visibleCount != _cachedListItemsVisibleCount ||
         _cachedListItems == null ||
         _cachedKeyToListIndex == null ||
+        _cachedListItemsOrphansExpanded != _sidechainOrphansExpanded ||
         _cachedListItemsHideToolCalls != hideToolCalls) {
       // Pure pipeline: hide-tools / orphan / agent-event / /clear dividers.
-      // Sidechain orphans render inline (see _sync_messaging_merge notes).
+      // Sidechain orphans render inline (see _sync_messaging_merge notes)
+      // but only the newest few — the rest sit behind a "show N more" row
+      // so a session that accumulated 100+ of them still shows its
+      // conversation.
       final items = buildChatListItems(
         visibleMessages: visibleMessages,
         hideToolCalls: hideToolCalls,
+        sidechainOrphanInlineCap: _sidechainOrphansExpanded
+            ? null
+            : kSidechainOrphanInlineCap,
         shouldRenderAgentEvent: AgentEventWidget.shouldRenderInChat,
         shouldHideToolCall: _shouldHideToolCall,
         onMessageError: (msg, e, st) {
@@ -74,6 +81,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
       _cachedListItemsSource = visibleMessages;
       _cachedListItemsVisibleCount = _visibleCount;
       _cachedListItemsHideToolCalls = hideToolCalls;
+      _cachedListItemsOrphansExpanded = _sidechainOrphansExpanded;
       _cachedListItems = items;
       _cachedKeyToListIndex = keyToListIndex;
     }
@@ -231,6 +239,16 @@ extension _ChatScreenBuilders on _ChatScreenState {
     }
 
     final message = item;
+
+    if (message['kind'] == 'sidechain-orphan-more') {
+      final rowId =
+          message['id'] as String? ?? 'sidechain-orphan-more-$reversedIndex';
+      return SidechainOrphanMore(
+        key: ValueKey(rowId),
+        hiddenCount: message['hiddenCount'] as int? ?? 0,
+        onExpand: _expandSidechainOrphans,
+      );
+    }
 
     if (message['kind'] == 'model-change') {
       final markerId =
