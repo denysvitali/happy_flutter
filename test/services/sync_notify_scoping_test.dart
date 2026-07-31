@@ -274,6 +274,13 @@ void main() {
         addTearDown(() => MessageCacheService().clearMessages(sessionId));
         addTearDown(() => InvalidateSync.isBackgrounded = false);
 
+        // suspend() returns immediately unless the engine is initialized, and
+        // createTestSync() leaves the flag false. Without this the whole
+        // lifecycle path is skipped and the test passes or fails for reasons
+        // that have nothing to do with the flush it is pinning.
+        instance.isInitialized = true;
+        addTearDown(() => instance.isInitialized = false);
+
         instance.testSetSessionMessages(sessionId, [
           {'id': 'm-1', 'seq': 1, 'role': 'user', 'content': 'suspend me'},
         ]);

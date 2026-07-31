@@ -652,6 +652,11 @@ void main() {
         await tester.pumpWidget(const SizedBox.shrink());
         finishSpawn.complete('s-new');
         await tester.pump();
+        // _createSession persists the model mode on its way out, and MMKV
+        // debounces that write behind a 500ms timer. Draining it keeps the
+        // binding's "timer still pending after dispose" invariant happy —
+        // the timer belongs to storage, not to the disposed dialog.
+        await tester.pump(const Duration(milliseconds: 600));
 
         expect(
           LoggerService().getLogs().where(
