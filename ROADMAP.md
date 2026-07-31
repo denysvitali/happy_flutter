@@ -2,7 +2,61 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-07-30
+**Last Updated**: 2026-07-31
+
+### Observability sweep, 2026-07-31
+
+A 20-agent audit across Loki, Prometheus and Jaeger covering both this app
+and `happy-cli-go`, followed by fixes in both repos. Headline: the app is
+healthier than it feels — "slow" was mostly server-side, and "crashes today"
+was a stale build.
+
+**Crashes.** All 582 ERROR events in 24h came from one launch on the previous
+build 237001 (the known session-create progress-animation disposal burst).
+Build 237701 logged zero ERRORs across 30.7k lines and two launches. No new
+crash shape. Treat the 237001 burst as drained — the fleet rolled over around
+2026-07-31 00:00 UTC.
+
+**Why it felt slow, in order.** (1) Postgres `sessions`-row lock contention on
+the send path — chat sends stalling 28s, one `ws.message.store` insert lost.
+Fixed in happy-cli-go: the seq block is now reserved in its own bounded,
+retrying statement instead of holding the row lock across every insert and the
+COMMIT, the lifecycle flip rides along in that statement, and the activity
+touch goes through the batching cache — one write to the row per send instead
+of three. (2) WS ingestion queue wait p95 84s. (3) MessageCache MMKV writes of
+150–395ms, 232 in 24h — now dirty-tracked, coalesced and encoded off the UI
+isolate. (4) Session-create p90 3.6s and a daemon heartbeat fanning out to 66
+message fetches. (5) Send tail: 34% of catch-up polls ending
+`timeout_or_inactive`.
+
+**What held.** The `localId` contract survived every timeout — zero duplicate
+messages, outbox 3/3 delivered with identity intact, all P0 invariant counters
+at zero. Pipeline: 8,071 `notified=ok`, zero drops, zero decrypt failures.
+Frame p95 ≤9.6ms; `fetchMessages` visible p95 437ms.
+
+**Shipped in this app.** Per-launch metric stream identity so cold-start and
+deferred-init quantiles are computable across launches (unblocks the
+cold-start re-baseline below); bounded DEBUG OTel export with the
+per-socket-payload pipeline logs collapsed to a counted summary;
+`websocket.disconnect` spans emitted for app-initiated disconnects; inline
+sidechain-orphan cap; `encryptionMissing` treated as a skip rather than a
+pipeline error; remaining `NewSessionDialog` disposed-ref guards; real
+frozen-frame duration alongside the jank window; widened post-send catch-up
+budget with an attributed stop reason; a deadline-timed-out send that the
+retry proves landed now reports "sent (slow)" instead of degraded.
+
+**Open / not fixed, with reasons.** Two scout findings were measured and
+disproved rather than fixed: `GET /v2/sessions/active` is not slow (p50 10ms;
+the 3.56s was the enclosing daemon-heartbeat trace) and the session-scoped
+websocket growth is not a server leak (all 46 connections heartbeat normally —
+it is agent-child session lifetime). Spawn-RPC cancellation needs a new
+server→daemon cancel event across both repos. Replica-agnostic spawn presence
+needs a Redis-backed registration view; a drop counter landed instead so the
+rate is alertable. Cache payload trimming was left alone because truncating
+persisted tool output needs its own refetch cursor and contract tests.
+Infrastructure-side and outside these repos: happy-server clock skew (~-0.9s)
+distorting cross-service traces, the Firebase config gap on production builds,
+and applying the updated daemon manifests to the cluster.
 
 ### July 2026 performance and design pass
 
@@ -95,7 +149,7 @@ The current test count is not enough if this contract can break without failing 
 
 | Metric | Value | Target | Notes |
 |--------|-------|--------|-------|
-| App cold start (`root /`) | avg 4.6s, p95 9.3s (Sentry); OTel unmeasured until 2026-07-28 | < 3s avg | `app.cold_start.first_frame` shipped a constant 0s because the top-level `_coldStartStopwatch` was lazily constructed *by* the post-frame callback that read it; `essential_ready` (2.4s) therefore measured from first frame, not process start. Anchored in `main()` (b5858b2f). Re-baseline from Prometheus after a few launches on the next build before profiling. |
+| App cold start (`root /`) | avg 4.6s, p95 9.3s (Sentry); OTel quantiles uncomputable until 2026-07-31 | < 3s avg | `app.cold_start.first_frame` shipped a constant 0s because the top-level `_coldStartStopwatch` was lazily constructed *by* the post-frame callback that read it; `essential_ready` (2.4s) therefore measured from first frame, not process start. Anchored in `main()` (b5858b2f). The 2026-07-31 audit then found each launch overwriting the previous metric stream, so 24h quantiles still could not be computed; per-launch stream identity fixed that. Re-baseline from Prometheus once a few launches have reported on a build after 2026-07-31. |
 | fetchMessages p95 | avg 33–50ms (Prometheus, 2026-07-28) | < 5s | Was "up to 54s"; `app_fetch_messages_seconds` now shows 0.033s visible / 0.050s background. Target met — the 54s figure predates the pagination work. |
 | Deferred init | avg 2.5s | < 1s | `app.deferred_init` histogram (the Sentry `app.deferredInit` transaction agrees). Still the largest startup cost — audit what's loaded eagerly. |
 
