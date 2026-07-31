@@ -156,12 +156,11 @@ extension SyncLifecycle on Sync {
     }
     _presenceTimers.clear();
 
-    // Cancel all message save debounce timers
-    for (final timer in _saveMsgsDebounceTimers.values) {
-      timer.cancel();
-    }
-    _saveMsgsDebounceTimers.clear();
-    _saveMsgsFirstScheduledAtMs.clear();
+    // NOTE: message-save debounce timers are deliberately NOT cancelled
+    // here. _flushPendingMessageSaves() below iterates exactly that map
+    // to write the pending tails; clearing it first turned the flush
+    // into a silent no-op and dropped every un-persisted message tail on
+    // background. The flush cancels and clears the timers itself.
 
     // Suspend message outbox to stop retry timers
     messageOutbox.suspend();

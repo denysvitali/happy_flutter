@@ -97,7 +97,7 @@ A user kills the app. Reopens it. They want to see the last 200 messages of thei
 class MessageCacheService {
   static const int messagesPerSession = 200;
 
-  Future<void> scheduleSave(String sessionId);   // debounced 500ms
+  Future<void> scheduleSave(String sessionId);   // debounced 2s
   Future<void> flushPendingWrites();            // synchronous flush
   Future<void> _restoreAllCachedMessages();     // called on Sync.create / restore
   List<Message>? getMessagesForSession(String sessionId);
@@ -109,15 +109,15 @@ The cache is **read by `Sync.getMessagesForSession(sessionId)`** when the in-mem
 
 ### Debounced writes
 
-Every `scheduleSave(sessionId)` call resets a 500ms timer. When the timer fires, the service serializes the in-memory messages for that session and writes them to MMKV.
+Every `scheduleSave(sessionId)` call resets a 2s timer (with a 5s hard ceiling so sustained streaming still flushes). When the timer fires, the service serializes the in-memory messages for that session and writes them to MMKV.
 
 ```
 scheduleSave(sessionA)  ─┐
-scheduleSave(sessionA)  ─┼─ 500ms ──► write sessionA to MMKV
+scheduleSave(sessionA)  ─┼─ 2s ────► write sessionA to MMKV
 scheduleSave(sessionA)  ─┘
 ```
 
-If the app is killed during the 500ms window, the write is lost. The cost is acceptable because the outbox handles the *send* side and the next cold-start will refetch from the server anyway.
+If the app is killed during the debounce window without a lifecycle callback, the write is lost; `Sync.suspend()` flushes pending saves synchronously so a normal background does not lose them. The cost is acceptable because the outbox handles the *send* side and the next cold-start will refetch from the server anyway.
 
 ### `flushPendingWrites()` on suspend
 
@@ -172,7 +172,7 @@ The user **always** sees their optimistic messages (via cache) and **always** ge
 
 - The outbox and the cache are **separate**. If you call `MessageOutbox.enqueue` but forget `MessageCacheService.scheduleSave`, the message is in the outbox but not in the cache — and a force-kill before the next fetch loses the optimistic display.
 - The outbox does **not** retry indefinitely. After 3 attempts, the message is marked Failed (exhausted). The user must tap "retry" to re-enqueue. This is intentional — silent infinite retries can mask real bugs.
-- The cache write is debounced 500ms. A force-kill within 500ms of a save loses that save. The outbox is the source of truth for the *send*; the cache is the source of truth for the *display*.
+- The cache write is debounced 2s (5s ceiling) and flushed synchronously on suspend. A force-kill inside the window without a lifecycle callback loses that save. The outbox is the source of truth for the *send*; the cache is the source of truth for the *display*.
 - The cache is **not encrypted at rest in the same way the messages are encrypted in transit**. MMKV values are stored as bytes; the messages inside are stored in their post-decrypt shape. This is a deliberate trade-off — the cache is for display, not for at-rest security.
 - The outbox is **per-user, not per-device**. If the user has two devices, each has its own outbox. A message sent from device A and queued in A's outbox will not be retried by device B.
 - `MessageOutboxSqlite` is newer. If you're writing new code, prefer it. The MMKV version is still the default at the time of this writing.

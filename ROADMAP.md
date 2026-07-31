@@ -130,7 +130,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Persist messages to MMKV | Done | `MessageCacheService` caches last 200 messages per session in MMKV. Loaded on app start via `_restoreAllCachedMessages()`. Debounced writes (500ms) via `_scheduleSaveMessages()`. |
+| Persist messages to MMKV | Done | `MessageCacheService` caches last 200 messages per session in MMKV. Loaded on app start via `_restoreAllCachedMessages()`. Debounced writes (2s, 5s ceiling) via `_scheduleSaveMessages()`, flushed synchronously on suspend. |
 | Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s, max 3 retries). Restored on startup via `restoreAndFlush()`. |
 
 ### 4. Optimistic Mutations

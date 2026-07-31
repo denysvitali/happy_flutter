@@ -281,7 +281,7 @@ For non-URL data (e.g., `message-detail`), pass `Map<String, dynamic>` via `stat
 | `ApiClient` | Dio + NativeAdapter (Cronet/cupertino_http). Timeouts: connect 8s, receive 15s, send 30s |
 | `SocketIoClient` | Socket.IO on `/v1/updates`, websocket only, 1–10s reconnect delays |
 | `LoggerService` | 5000-entry circular buffer, ANSI color debug output, Sentry forwarding |
-| `MessageCacheService` | Last 200 messages per session in MMKV, 500ms debounced writes |
+| `MessageCacheService` | Last 200 messages per session in MMKV, 2s debounced writes (5s ceiling), single queued encode isolate, flushed on suspend |
 | `MessageOutbox` | Failed sends in MMKV, exponential backoff 1s→30s, max 3 retries |
 | `FrameMetricsService` | Aggregated build/raster/total frame metrics and frozen-frame reporting |
 | `StuckAgentSentinel` | Actionable alert for off-screen thinking sessions with no progress |
