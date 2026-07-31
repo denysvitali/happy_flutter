@@ -61,6 +61,9 @@ class FrameMetricsService {
   bool _jankWindowOpen = false;
   Duration? _lastJankWindow;
 
+  /// Longest frozen frame observed in the most recent flushed window.
+  Duration? _lastMaxFrozenFrame;
+
   @visibleForTesting
   bool get debugIsAttached => _attached;
 
@@ -71,6 +74,12 @@ class FrameMetricsService {
   /// Route the most recently emitted `ui.jank` span was attributed to.
   @visibleForTesting
   String? get debugLastJankRoute => _lastJankRoute;
+
+  /// Longest frozen frame in the most recently flushed window — the real
+  /// "how long did the UI freeze" number, as opposed to
+  /// [debugLastJankWindow], which is only the flush-window span.
+  @visibleForTesting
+  Duration? get debugLastMaxFrozenFrame => _lastMaxFrozenFrame;
 
   @visibleForTesting
   void debugFlush() => _flush();
@@ -181,6 +190,7 @@ class FrameMetricsService {
     _jankSpanRoute = null;
     _jankWindowOpen = false;
     _lastJankWindow = null;
+    _lastMaxFrozenFrame = null;
     final frameCount = _frameCount;
     final slowFrameCount = _slowFrameCount;
     final frozenFrameCount = _frozenFrameCount;
@@ -230,6 +240,7 @@ class FrameMetricsService {
         ? null
         : DateTime.now().difference(jankStartedAt);
     _lastJankWindow = window;
+    _lastMaxFrozenFrame = Duration(milliseconds: maxMs);
 
     if (_enableSentryTransactions) {
       final transaction =
@@ -245,12 +256,30 @@ class FrameMetricsService {
       unawaited(transaction.finish());
     }
 
+    // The real freeze signal: one observation per frozen frame, valued at
+    // that frame's own `totalSpan`. `app.ui.jank_window` below measures the
+    // flush window instead ("first frozen frame → next 30 s flush"), so its
+    // ~15 s median says nothing about how long the UI actually froze. The
+    // window metric is kept for dashboard continuity, with a description
+    // that no longer invites the wrong reading.
+    for (final frozenMs in snapshot) {
+      otel.recordDuration(
+        'app.ui.frozen_frame',
+        Duration(milliseconds: frozenMs),
+        attributes: attributes,
+        description: 'Duration of a single frozen (>=100ms) frame',
+      );
+    }
+
     if (window != null) {
       otel.recordDuration(
         'app.ui.jank_window',
         window,
         attributes: attributes,
-        description: 'Length of a janky-frame episode',
+        description:
+            'Wall time from the first frozen frame of a window to the '
+            'metrics flush that closed it — NOT the freeze duration; see '
+            'app.ui.frozen_frame',
       );
     }
 
@@ -269,6 +298,15 @@ class FrameMetricsService {
       ?..setAttribute('frame.count', snapshot.length)
       ..setAttribute('frame.avg_ms', avgMs.round())
       ..setAttribute('frame.max_ms', maxMs)
+      // The span's own duration is the flush window, which floods slow-trace
+      // searches with ~15-30 s spans that are not freezes. Carry the real
+      // numbers as attributes so a trace search can filter on them.
+      ..setAttribute('frame.frozen_max_ms', maxMs)
+      ..setAttribute(
+        'frame.frozen_total_ms',
+        snapshot.fold<int>(0, (sum, ms) => sum + ms),
+      )
+      ..setAttribute('jank.window_ms', window?.inMilliseconds ?? 0)
       ..setAttribute('frame.frozen_count', frozenFrameCount)
       ..setAttribute('frame.slow_count', slowFrameCount)
       ..setAttribute('frame.window_count', frameCount)
