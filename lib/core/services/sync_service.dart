@@ -449,6 +449,15 @@ what you have, you must use the options mode.
   final Queue<String> _recentInlineMessageKeyOrder = Queue<String>();
   static const int _maxRecentInlineKeys = 10000;
 
+  /// `localId`s the client stopped waiting on (its own send deadline), not
+  /// ones the server rejected. When the outbox retry then confirms the
+  /// message was already persisted, the send is reported as slow rather
+  /// than degraded. Bounded FIFO: a send that never comes back is simply
+  /// forgotten.
+  final Set<String> _sendDeadlineLocalIds = {};
+  final Queue<String> _sendDeadlineLocalIdOrder = Queue<String>();
+  static const int _maxSendDeadlineLocalIds = 64;
+
   /// Tracks inline message keys that are currently being processed.
   /// Used to allow retry on processing failure: if a message fails
   /// decryption/processing, its key is left in this set so the next

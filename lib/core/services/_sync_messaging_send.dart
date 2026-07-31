@@ -648,7 +648,10 @@ extension SyncMessagingSend on Sync {
         );
         // The row flips to 'pending' ("Retry queued") via the outbox
         // status callback, so the user sees a real state instead of an
-        // eternal spinner.
+        // eternal spinner. If the retry then finds the message already
+        // persisted, the row is upgraded to "Delivered · slow" rather than
+        // leaving the user with a degraded-looking send that landed.
+        _registerSendDeadline(localId);
         await _queueMessageRetry(
           sessionId: targetSessionId,
           localId: localId,
@@ -1196,6 +1199,7 @@ extension SyncMessagingSend on Sync {
         if (messagesSync.containsKey(entry.sessionId)) {
           _startPostSendCatchUp(entry.sessionId, sentUserSeq: serverSeq ?? 0);
         }
+        _reportSlowSendConfirmed(entry);
         logger.info(
           '[MessageOutbox] delivered localId=${entry.localId} '
           'session=${entry.sessionId}',
@@ -1214,6 +1218,7 @@ extension SyncMessagingSend on Sync {
       if (messagesSync.containsKey(entry.sessionId)) {
         _startPostSendCatchUp(entry.sessionId, sentUserSeq: 0);
       }
+      _reportSlowSendConfirmed(entry);
       return true;
     } catch (e, stack) {
       // Exceptions during local processing (after HTTP 200 was received)
@@ -1280,6 +1285,68 @@ extension SyncMessagingSend on Sync {
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
       _invalidateMessageCaches(sessionId);
     }
+  }
+
+  /// Upgrades a deadline-timed-out send to "delivered, slowly" once the
+  /// retry proves the server already had it.
+  ///
+  /// Same `localId`, same logical message, same `'sent'` status — only the
+  /// display hint and the telemetry outcome change, so the send that the
+  /// client gave up on stops being reported as degraded after it landed.
+  void _reportSlowSendConfirmed(OutboxEntry entry) {
+    if (!_consumeSendDeadline(entry.localId)) return;
+    _markSendSlow(entry.sessionId, entry.localId);
+    _notifySessionMessagesChanged(entry.sessionId);
+    logger.info(
+      '[MessageOutbox] slow send confirmed — server already had the '
+      'message session=${entry.sessionId} localId=${entry.localId}',
+    );
+    OpenTelemetryService().recordCount(
+      'app.send.sent_slow',
+      description:
+          'Sends that blew the client deadline but were already '
+          'persisted server-side when the retry confirmed them',
+    );
+  }
+
+  /// Remembers that [localId] was handed to the outbox because the client
+  /// gave up on its own deadline, not because the server rejected it.
+  ///
+  /// Three receive-timeout traces showed the message had already been
+  /// persisted before the client stopped waiting: the retry POST came back
+  /// 200 in 93-379ms and the server's `ON CONFLICT (session_id, local_id)`
+  /// dedupe returned the existing row. That is a slow send, not a failed
+  /// one, and the UI should say so once the retry confirms it.
+  void _registerSendDeadline(String localId) {
+    if (localId.isEmpty) return;
+    if (_sendDeadlineLocalIds.add(localId)) {
+      _sendDeadlineLocalIdOrder.addLast(localId);
+    }
+    while (_sendDeadlineLocalIdOrder.length > Sync._maxSendDeadlineLocalIds) {
+      _sendDeadlineLocalIds.remove(_sendDeadlineLocalIdOrder.removeFirst());
+    }
+  }
+
+  bool _consumeSendDeadline(String localId) {
+    if (!_sendDeadlineLocalIds.remove(localId)) return false;
+    _sendDeadlineLocalIdOrder.remove(localId);
+    return true;
+  }
+
+  /// Marks the row for [localId] as "delivered, but slowly".
+  ///
+  /// Purely additive: `sendStatus` stays `'sent'` and `localId` is
+  /// untouched, so nothing in the identity contract, the FSM, or the merge
+  /// path sees a new state. The flag only lets the bubble say "Delivered ·
+  /// slow" instead of leaving the user on the preceding "Retry queued".
+  void _markSendSlow(String sessionId, String localId) {
+    final msgs = _sessionMessages[sessionId];
+    if (msgs == null) return;
+    final idx = msgs.indexWhere((m) => _matchesLocalId(m, localId));
+    if (idx == -1) return;
+    if (msgs[idx]['sendSlow'] == true) return;
+    msgs[idx] = {...msgs[idx], 'sendSlow': true};
+    _invalidateMessageCaches(sessionId);
   }
 
   /// Whether the outbox currently owns a retry for [localId].

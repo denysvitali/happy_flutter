@@ -599,6 +599,17 @@ extension SyncTestHelpers on Sync {
   Future<bool> testDeliverOutboxEntry(OutboxEntry entry) =>
       _deliverOutboxEntry(entry);
 
+  /// Test helper: mark [localId] as having blown the client send deadline,
+  /// the state `_sendMessage` records before handing the message to the
+  /// outbox. Avoids burning the real 12 s deadline in a test.
+  @visibleForTesting
+  void testRegisterSendDeadline(String localId) =>
+      _registerSendDeadline(localId);
+
+  @visibleForTesting
+  bool testHasPendingSendDeadline(String localId) =>
+      _sendDeadlineLocalIds.contains(localId);
+
   /// Test helper: start the resume conversation progress with [total]
   /// pending sessions. Mirrors what `resume()` calls internally.
   @visibleForTesting

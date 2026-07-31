@@ -958,6 +958,20 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
           ),
         );
         break;
+      case 'sent':
+        // Only worth a chip when the send was slow: a send that blew the
+        // client deadline but turned out to be persisted already used to
+        // leave "Retry queued" as the last thing the user saw.
+        if (inputs.latestUserMessage?['sendSlow'] == true) {
+          chips.add(
+            ChatAppBarStatusChip(
+              text: 'Sent (slow)',
+              color: colorScheme.onSurfaceVariant,
+              icon: Icons.schedule_rounded,
+            ),
+          );
+        }
+        break;
     }
   }
 
