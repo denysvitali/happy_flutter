@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:intl/intl.dart';
+
 /// Utility functions for encoding/decoding
 
 /// Base64 encode
@@ -60,11 +62,19 @@ int timestampNow() => DateTime.now().millisecondsSinceEpoch;
 /// - Same day     -> "3h ago"
 /// - Yesterday    -> "Yesterday"
 /// - Under 7 days -> "3d ago"
-/// - Otherwise    -> "M/d/yyyy"
-String formatTimestamp(int timestamp, {bool relative = false}) {
+/// - Otherwise    -> a locale-aware short date (see [formatShortDate])
+///
+/// [locale] is an optional BCP-47 tag ('en_US', 'en_GB', 'de'). When omitted
+/// the active `Intl` locale is used, so widgets that do not have (or do not
+/// want to thread) a `BuildContext` still get the user's ordering.
+String formatTimestamp(
+  int timestamp, {
+  bool relative = false,
+  String? locale,
+}) {
   final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
-  if (!relative) return _shortDate(date);
-  return formatRelativeTime(date, useYesterdayLabel: true);
+  if (!relative) return formatShortDate(date, locale: locale);
+  return formatRelativeTime(date, useYesterdayLabel: true, locale: locale);
 }
 
 /// Format a point in time relative to [now] (defaults to the current time).
@@ -73,7 +83,11 @@ String formatTimestamp(int timestamp, {bool relative = false}) {
 /// - Under 1 hour -> "2m ago"  (compact: "2m")
 /// - Under 1 day  -> "3h ago"  (compact: "3h")
 /// - Under 7 days -> "3d ago"  (compact: "3d")
-/// - Otherwise    -> [absoluteFallback], or "M/d/yyyy"
+/// - Otherwise    -> [absoluteFallback], or a locale-aware short date
+///
+/// [locale] is an optional BCP-47 tag used for the absolute fallback; when
+/// omitted the active `Intl` locale applies. It is ignored when a custom
+/// [absoluteFallback] is supplied.
 ///
 /// [useYesterdayLabel] swaps the day bucket for "Yesterday" when [when] falls
 /// on the previous calendar day, matching the session list's wording.
@@ -87,6 +101,7 @@ String formatRelativeTime(
   bool compact = false,
   bool useYesterdayLabel = false,
   String Function(DateTime)? absoluteFallback,
+  String? locale,
 }) {
   final reference = now ?? DateTime.now();
   final diff = reference.difference(when);
@@ -104,10 +119,25 @@ String formatRelativeTime(
   }
 
   if (diff.inDays < 7) return '${diff.inDays}d$suffix';
-  return (absoluteFallback ?? _shortDate)(when);
+  if (absoluteFallback != null) return absoluteFallback(when);
+  return formatShortDate(when, locale: locale);
 }
 
-String _shortDate(DateTime date) => '${date.month}/${date.day}/${date.year}';
+/// Locale-aware numeric short date ("7/31/2026" in en_US, "31/07/2026" in
+/// en_GB, "31.7.2026" in de).
+///
+/// [locale] is an optional BCP-47 tag; when omitted the active `Intl` locale
+/// (set by the app from the platform/user locale) is used. Unknown or
+/// not-yet-initialized locale data falls back to the default locale instead of
+/// throwing, so a display string is always produced.
+String formatShortDate(DateTime date, {String? locale}) {
+  final tag = locale ?? Intl.getCurrentLocale();
+  try {
+    return DateFormat.yMd(tag).format(date);
+  } on Exception {
+    return DateFormat.yMd().format(date);
+  }
+}
 
 /// Format duration
 String formatDuration(Duration duration) {
