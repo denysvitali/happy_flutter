@@ -810,6 +810,51 @@
     }
   },
   "offlineBannerReconnectNow": "Reconnect now",
+  "a11yConnectionStatusBanner": "Connection status",
+  "@a11yConnectionStatusBanner": {
+    "description": "Screen-reader label for the offline/reconnecting banner"
+  },
+  "a11yTabWithBadge": "{label}, {count, plural, =1{1 new item} other{{count} new items}}",
+  "@a11yTabWithBadge": {
+    "description": "Screen-reader label for a bottom-nav tab carrying a badge",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "a11yEmptyState": "{title}. {subtitle}",
+  "@a11yEmptyState": {
+    "description": "Screen-reader label combining an empty-state title and subtitle",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "subtitle": {
+        "type": "String"
+      }
+    }
+  },
+  "a11yErrorState": "Error. {message}",
+  "@a11yErrorState": {
+    "description": "Screen-reader label announcing an error placeholder",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "a11ySettingsRowOn": "On",
+  "@a11ySettingsRowOn": {
+    "description": "Screen-reader state for an enabled settings toggle"
+  },
+  "a11ySettingsRowOff": "Off",
+  "@a11ySettingsRowOff": {
+    "description": "Screen-reader state for a disabled settings toggle"
+  },
   "commonVersion": "Version",
   "commonDone": "Done",
   "commonEdit": "Edit",

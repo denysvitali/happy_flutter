@@ -3907,6 +3907,42 @@ abstract class AppLocalizations {
   /// **'Reconnect now'**
   String get offlineBannerReconnectNow;
 
+  /// Screen-reader label for the offline/reconnecting banner
+  ///
+  /// In en, this message translates to:
+  /// **'Connection status'**
+  String get a11yConnectionStatusBanner;
+
+  /// Screen-reader label for a bottom-nav tab carrying a badge
+  ///
+  /// In en, this message translates to:
+  /// **'{label}, {count, plural, =1{1 new item} other{{count} new items}}'**
+  String a11yTabWithBadge(String label, int count);
+
+  /// Screen-reader label combining an empty-state title and subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'{title}. {subtitle}'**
+  String a11yEmptyState(String title, String subtitle);
+
+  /// Screen-reader label announcing an error placeholder
+  ///
+  /// In en, this message translates to:
+  /// **'Error. {message}'**
+  String a11yErrorState(String message);
+
+  /// Screen-reader state for an enabled settings toggle
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get a11ySettingsRowOn;
+
+  /// Screen-reader state for a disabled settings toggle
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get a11ySettingsRowOff;
+
   /// No description provided for @commonVersion.
   ///
   /// In en, this message translates to:

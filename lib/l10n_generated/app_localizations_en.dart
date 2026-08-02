@@ -2156,6 +2156,36 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offlineBannerReconnectNow => 'Reconnect now';
 
   @override
+  String get a11yConnectionStatusBanner => 'Connection status';
+
+  @override
+  String a11yTabWithBadge(String label, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count new items',
+      one: '1 new item',
+    );
+    return '$label, $_temp0';
+  }
+
+  @override
+  String a11yEmptyState(String title, String subtitle) {
+    return '$title. $subtitle';
+  }
+
+  @override
+  String a11yErrorState(String message) {
+    return 'Error. $message';
+  }
+
+  @override
+  String get a11ySettingsRowOn => 'On';
+
+  @override
+  String get a11ySettingsRowOff => 'Off';
+
+  @override
   String get commonVersion => 'Version';
 
   @override
