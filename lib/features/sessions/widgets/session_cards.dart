@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_badge.dart';
-import '../../../core/components/app_status_dot.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/theme/app_colors.dart';
@@ -90,6 +90,105 @@ Widget? buildStatusText(SessionStatus status, TextTheme textTheme) {
   );
 }
 
+/// What a session is currently doing, derived purely from in-memory
+/// state (`Session.agentState` + `Session.thinking`) — no extra fetches.
+class SessionActivity {
+  const SessionActivity({required this.label, required this.icon});
+
+  final String label;
+  final IconData icon;
+}
+
+/// Newest entry of [requests] by `createdAt`, or null when empty.
+T? _newest<T>(Map<String, T>? requests, int? Function(T) createdAt) {
+  if (requests == null || requests.isEmpty) return null;
+  T? best;
+  var bestAt = -1;
+  for (final value in requests.values) {
+    final at = createdAt(value) ?? 0;
+    if (best == null || at >= bestAt) {
+      best = value;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
+/// Resolves the one-line activity summary for [session].
+///
+/// Returns null when nothing is known — callers then fall back to the
+/// last-message preview (and finally the project path). Never returns a
+/// placeholder: an unknown activity renders no line at all.
+SessionActivity? getSessionActivity(BuildContext context, Session session) {
+  final l10n = context.l10n;
+  final agentState = session.agentState;
+
+  final pending = _newest(agentState?.requests, (r) => r.createdAt);
+  if (pending != null && pending.tool.isNotEmpty) {
+    return SessionActivity(
+      label: l10n.sessionActivityToolApproval(pending.tool),
+      icon: Icons.lock_outline,
+    );
+  }
+
+  if (!session.thinking) return null;
+
+  final running = _newest(agentState?.completedRequests, (r) => r.createdAt);
+  if (running != null && running.tool.isNotEmpty) {
+    return SessionActivity(
+      label: l10n.sessionActivityRunningTool(running.tool),
+      icon: Icons.terminal_outlined,
+    );
+  }
+  return SessionActivity(
+    label: l10n.sessionActivityWorking,
+    icon: Icons.auto_awesome_outlined,
+  );
+}
+
+/// One-line activity summary: what the session is doing right now, or
+/// the last message snippet when it is idle.
+///
+/// Returns null when neither is known so the caller can fall back to the
+/// project path instead of rendering an empty placeholder.
+Widget? buildActivityLine({
+  required BuildContext context,
+  required Session session,
+  required String? preview,
+  required String? previewRole,
+  required TextStyle? style,
+  int maxLines = 1,
+}) {
+  final activity = getSessionActivity(context, session);
+  if (activity == null) {
+    if (preview == null || preview.isEmpty) return null;
+    return buildPreviewText(
+      context: context,
+      preview: preview,
+      role: previewRole,
+      style: style,
+      maxLines: maxLines,
+    );
+  }
+
+  final cs = Theme.of(context).colorScheme;
+  return Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(activity.icon, size: AppIconSize.sm, color: cs.onSurfaceVariant),
+      const SizedBox(width: AppSpacing.xxs),
+      Flexible(
+        child: Text(
+          activity.label,
+          style: style?.copyWith(color: cs.onSurfaceVariant),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+      ),
+    ],
+  );
+}
+
 /// Builds a Telegram-style message preview with a "You: " prefix
 /// for user messages in a subtle accent color.
 Widget buildPreviewText({
@@ -144,6 +243,7 @@ Widget buildNameRow({
   Color? dotColor,
   double dotSize = 7,
   bool pulseDot = false,
+  Widget? badge,
 }) {
   return Row(
     children: [
@@ -155,11 +255,16 @@ Widget buildNameRow({
           maxLines: 1,
         ),
       ),
+      if (badge != null) ...[
+        const SizedBox(width: AppSpacing.xs),
+        badge,
+      ],
       const SizedBox(width: AppSpacing.xsm),
-      AppStatusDot(
-        color: dotColor ?? Color(sessionStatus.statusDotColor),
-        pulse: sessionStatus.isPulsing || pulseDot,
+      SessionStatusIndicator(
+        status: sessionStatus,
+        color: dotColor,
         size: dotSize,
+        pulse: pulseDot,
       ),
     ],
   );
@@ -199,14 +304,18 @@ Widget buildTimestampBadges({
       ],
       if (archiveCountdownLabel != null) ...[
         SizedBox(height: badgeGap),
-        _ArchiveCountdownBadge(label: archiveCountdownLabel),
+        ArchiveCountdownBadge(label: archiveCountdownLabel),
       ],
     ],
   );
 }
 
-class _ArchiveCountdownBadge extends StatelessWidget {
-  const _ArchiveCountdownBadge({required this.label});
+/// Pending-archive badge.
+///
+/// Belongs next to the session name: rendered in the trailing column it
+/// sat directly under the timestamp and read as date metadata.
+class ArchiveCountdownBadge extends StatelessWidget {
+  const ArchiveCountdownBadge({required this.label, super.key});
 
   final String label;
 

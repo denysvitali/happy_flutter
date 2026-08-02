@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 /// Neon-style avatar with bright color beams and a glowing core.
 class AvatarNeon extends BaseAvatar {
@@ -11,7 +12,7 @@ class AvatarNeon extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final hash = id.codeUnits.fold(0, (acc, c) => acc * 33 + c);
+    final hash = avatarHash(id);
     return Container(
       width: size,
       height: size,

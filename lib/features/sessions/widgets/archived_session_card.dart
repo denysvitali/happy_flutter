@@ -115,6 +115,17 @@ class _SessionCardState extends State<SessionCard> {
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget = buildStatusText(_d.status, theme.textTheme);
+    final activityLine = buildActivityLine(
+      context: context,
+      session: session,
+      preview: widget.lastMessagePreview,
+      previewRole: widget.lastMessageRole,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: AppFontSize.sm,
+        height: 1.3,
+      ),
+      maxLines: 2,
+    );
 
     return PressableCard(
       onTap: widget.onTap,
@@ -176,10 +187,14 @@ class _SessionCardState extends State<SessionCard> {
                               dotColor: _d.status.isConnected
                                   ? null
                               : cs.outlineVariant,
+                              badge: widget.archiveCountdownLabel == null
+                                  ? null
+                                  : ArchiveCountdownBadge(
+                                      label: widget.archiveCountdownLabel!,
+                                    ),
                         ),
                         const SizedBox(height: AppSpacing.xxs),
-                        if (widget.lastMessagePreview == null ||
-                            widget.lastMessagePreview!.isEmpty)
+                        if (activityLine == null)
                           Text(
                             _d.subtitle,
                             style: theme.textTheme.bodySmall?.copyWith(
@@ -195,18 +210,9 @@ class _SessionCardState extends State<SessionCard> {
                               const SizedBox(height: AppSpacing.xxs),
                               statusWidget,
                             ],
-                            if (widget.lastMessagePreview != null) ...[
+                            if (activityLine != null) ...[
                               const SizedBox(height: AppSpacing.sm),
-                              buildPreviewText(
-                                context: context,
-                                preview: widget.lastMessagePreview!,
-                                role: widget.lastMessageRole,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: AppFontSize.sm,
-                                  height: 1.3,
-                                ),
-                                maxLines: 2,
-                              ),
+                              activityLine,
                             ],
                           ],
                         ),
@@ -232,16 +238,6 @@ class _SessionCardState extends State<SessionCard> {
                             TodoProgressBadge(
                               completed: todoProgress.completed,
                               total: todoProgress.total,
-                            ),
-                          ],
-                          if (widget.archiveCountdownLabel != null) ...[
-                            const SizedBox(height: AppSpacing.xsm),
-                            Text(
-                              widget.archiveCountdownLabel!,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontSize: AppFontSize.xxs,
-                              ),
                             ),
                           ],
                         ],

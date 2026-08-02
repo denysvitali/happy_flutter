@@ -2615,5 +2615,44 @@
   "settingsSandboxSubtitle": "Choose what a project's sessions can reach on your machines",
   "@settingsSandboxSubtitle": {
     "description": "Subtitle for the sandbox settings row"
+  },
+  "sessionActivityRunningTool": "Running {tool}",
+  "@sessionActivityRunningTool": {
+    "description": "Session card activity line while a tool is executing",
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionActivityToolApproval": "{tool} needs approval",
+  "@sessionActivityToolApproval": {
+    "description": "Session card activity line for a pending tool permission",
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionActivityWorking": "Working…",
+  "@sessionActivityWorking": {
+    "description": "Session card activity line while the agent is thinking"
+  },
+  "sessionsArchivePending": "Archive pending",
+  "@sessionsArchivePending": {
+    "description": "Badge on a session card whose auto-archive is due"
+  },
+  "sessionsArchivesSoon": "Archives in <1m",
+  "@sessionsArchivesSoon": {
+    "description": "Badge for an auto-archive less than a minute away"
+  },
+  "sessionsArchivesInMinutes": "Archives in {minutes}m",
+  "@sessionsArchivesInMinutes": {
+    "description": "Badge counting down the minutes to auto-archive",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   }
 }

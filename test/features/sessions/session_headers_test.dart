@@ -215,14 +215,15 @@ void main() {
   // ─── ArchiveSectionHeader ────────────────────────────────
 
   group('ArchiveSectionHeader', () {
-    testWidgets('renders history title with count', (tester) async {
+    // Finding 5: the count lives on the group rows below this header,
+    // so the header itself must not repeat it.
+    testWidgets('renders the history title without a count', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: _localizationsDelegates,
           supportedLocales: _supportedLocales,
           home: const Scaffold(
             body: ArchiveSectionHeader(
-              count: 10,
               grouping: ArchivedGrouping.date,
               onGroupingChanged: _noopGrouping,
             ),
@@ -230,7 +231,8 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('History'), findsWidgets);
+      expect(find.text('History'), findsOneWidget);
+      expect(find.textContaining('(10)'), findsNothing);
     });
 
     testWidgets('renders grouping toggle icons', (tester) async {
@@ -240,7 +242,6 @@ void main() {
           supportedLocales: _supportedLocales,
           home: const Scaffold(
             body: ArchiveSectionHeader(
-              count: 5,
               grouping: ArchivedGrouping.date,
               onGroupingChanged: _noopGrouping,
             ),
@@ -261,7 +262,6 @@ void main() {
           supportedLocales: _supportedLocales,
           home: Scaffold(
             body: ArchiveSectionHeader(
-              count: 5,
               grouping: ArchivedGrouping.date,
               onGroupingChanged: (g) => changed = g,
             ),

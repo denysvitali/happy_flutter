@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 // ─── Palette definitions ─────────────────────────────────────────────────────
 
@@ -49,7 +50,7 @@ class AvatarWave extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final hash = id.codeUnits.fold(0, (acc, c) => acc + c);
+    final hash = avatarHash(id);
 
     return Container(
       width: size,

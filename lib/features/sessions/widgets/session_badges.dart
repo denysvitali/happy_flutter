@@ -1,8 +1,90 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_badge.dart';
+import '../../../core/components/app_status_dot.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/session_status.dart';
+
+/// Session status indicator shown next to the session name.
+///
+/// Colour alone cannot carry this state: it is invisible to screen
+/// readers and unreliable for colourblind users. Each state therefore
+/// gets a distinct *shape* — filled dot (online), filled dot inside a
+/// ring (approval needed), hollow ring (offline) — and a localized
+/// [Semantics] label so TalkBack / VoiceOver announce it.
+class SessionStatusIndicator extends StatelessWidget {
+  const SessionStatusIndicator({
+    required this.status,
+    super.key,
+    this.color,
+    this.size = 7,
+    this.pulse = false,
+  });
+
+  final SessionStatus status;
+
+  /// Overrides the state colour (archived cards mute it).
+  final Color? color;
+  final double size;
+
+  /// Forces the pulse animation on (e.g. unread messages).
+  final bool pulse;
+
+  String _label(BuildContext context) {
+    final l10n = context.l10n;
+    return switch (status.state) {
+      SessionState.disconnected => l10n.statusOffline,
+      SessionState.permissionRequired => l10n.statusPermissionRequired,
+      SessionState.thinking => l10n.sessionInfoThinking,
+      SessionState.waiting => l10n.statusOnline,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveColor = color ?? Color(status.statusDotColor);
+    final label = _label(context);
+
+    if (status.state == SessionState.disconnected) {
+      return Semantics(
+        label: label,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: effectiveColor,
+              width: AppBorder.thin,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final dot = AppStatusDot(
+      color: effectiveColor,
+      pulse: status.isPulsing || pulse,
+      size: size,
+      semanticLabel: label,
+    );
+
+    if (status.state != SessionState.permissionRequired) return dot;
+
+    // Approval needed: filled dot inside a ring, so it stays
+    // distinguishable from plain "online" without relying on hue.
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xxs),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: effectiveColor, width: AppBorder.hairline),
+      ),
+      child: dot,
+    );
+  }
+}
 
 /// Circular checkbox shown at the leading edge in selection
 /// mode, replacing the status color bar.

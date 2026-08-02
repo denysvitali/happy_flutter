@@ -57,9 +57,16 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final session = widget.session;
-    final hasPreview =
-        widget.lastMessagePreview != null &&
-        widget.lastMessagePreview!.isNotEmpty;
+    final activityLine = buildActivityLine(
+      context: context,
+      session: session,
+      preview: widget.lastMessagePreview,
+      previewRole: widget.lastMessageRole,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: AppFontSize.xs,
+        height: 1.2,
+      ),
+    );
     final statusWidget = buildStatusText(_d.status, theme.textTheme);
     final todoProgress = getTodoProgress(session.todos);
     final sessionFlavor = session.metadata?.flavor;
@@ -128,7 +135,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                               pulseDot: hasUnread,
                             ),
                             const SizedBox(height: AppSpacing.xxs),
-                            if (!hasPreview)
+                            if (activityLine == null)
                               Text(
                                 _d.subtitle,
                                 style: theme.textTheme.bodySmall?.copyWith(
@@ -139,19 +146,10 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                                 ),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
-                              ),
-                            if (hasPreview) ...[
+                              )
+                            else ...[
                               const SizedBox(height: AppSpacing.xxs),
-                              buildPreviewText(
-                                context: context,
-                                preview: widget.lastMessagePreview!,
-                                role: widget.lastMessageRole,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontSize: AppFontSize.xs,
-                                  height: 1.2,
-                                ),
-                                maxLines: 1,
-                              ),
+                              activityLine,
                             ],
                             if (statusWidget != null) ...[
                               const SizedBox(height: AppSpacing.xxs),
