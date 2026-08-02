@@ -44,6 +44,12 @@ Widget _harness(PaneLayoutStorage storage) {
 double _masterWidth(WidgetTester tester) =>
     tester.getSize(find.byKey(_masterKey)).width;
 
+/// Lets [CachedStorage]'s 500ms persist debounce fire. Without this the
+/// widget-test binding reports the pending timer as a leak and fails the
+/// test even though the assertions passed.
+Future<void> _drainPersistDebounce(WidgetTester tester) =>
+    tester.pump(const Duration(milliseconds: 600));
+
 void main() {
   late _FakeMMKVStorage mmkv;
   late PaneLayoutStorage storage;
@@ -88,6 +94,7 @@ void main() {
 
     storage.persistNow();
     expect(mmkv.values['pane-layout-widths'], contains('sessions'));
+    await _drainPersistDebounce(tester);
   });
 
   testWidgets('drag cannot collapse either pane', (tester) async {
@@ -101,6 +108,7 @@ void main() {
     await tester.drag(find.byType(ResizablePaneDivider), const Offset(900, 0));
     await tester.pumpAndSettle();
     expect(_masterWidth(tester), lessThanOrEqualTo(1024 * 0.55 + 1));
+    await _drainPersistDebounce(tester);
   });
 
   testWidgets('a persisted width is restored on the next build', (
@@ -111,6 +119,7 @@ void main() {
     await tester.pumpWidget(_harness(storage));
 
     expect(_masterWidth(tester), closeTo(480, 1));
+    await _drainPersistDebounce(tester);
   });
 
   testWidgets('a too-wide persisted width is clamped on a small viewport', (
@@ -122,5 +131,6 @@ void main() {
 
     expect(_masterWidth(tester), lessThanOrEqualTo(700 * 0.55 + 1));
     expect(_masterWidth(tester), greaterThan(0));
+    await _drainPersistDebounce(tester);
   });
 }

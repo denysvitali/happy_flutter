@@ -102,11 +102,14 @@ void main() {
     testWidgets('disables breathing animation when animations disabled', (
       tester,
     ) async {
+      // The MediaQuery must sit INSIDE MaterialApp: MaterialApp inserts its
+      // own MediaQuery from the test window, which would discard an outer
+      // `disableAnimations` flag before AppEmptyState ever reads it.
       await tester.pumpWidget(
-        MediaQuery(
-          data: const MediaQueryData(disableAnimations: true),
-          child: buildApp(
-            child: const AppEmptyState(icon: Icons.inbox, title: 'Static'),
+        buildApp(
+          child: const MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: AppEmptyState(icon: Icons.inbox, title: 'Static'),
           ),
         ),
       );

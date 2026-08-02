@@ -134,8 +134,18 @@ String formatShortDate(DateTime date, {String? locale}) {
   final tag = locale ?? Intl.getCurrentLocale();
   try {
     return DateFormat.yMd(tag).format(date);
-  } on Exception {
-    return DateFormat.yMd().format(date);
+  } catch (_) {
+    // intl signals a bad tag with ArgumentError and missing data with
+    // LocaleDataException — an Error and an Exception, so catch both.
+    // The default locale can be uninitialized too (widget tests, and any
+    // launch where `initializeDateFormatting` has not run yet): intl then
+    // throws LocaleDataException from the fallback as well. A date string
+    // is never worth an exception, so degrade to a plain numeric form.
+    try {
+      return DateFormat.yMd().format(date);
+    } catch (_) {
+      return '${date.month}/${date.day}/${date.year}';
+    }
   }
 }
 

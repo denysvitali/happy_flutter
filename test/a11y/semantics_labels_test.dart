@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;

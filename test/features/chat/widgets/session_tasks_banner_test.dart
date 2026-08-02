@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/widgets/session_tasks_banner.dart';
@@ -34,6 +35,10 @@ void main() {
       return UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
+          // _ToggleButton reads context.l10n; without the delegates the
+          // lookup null-checks and every expanded-list test dies.
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: Column(children: [child])),
         ),
       );

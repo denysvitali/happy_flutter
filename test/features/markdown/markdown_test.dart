@@ -624,8 +624,12 @@ void main() {
       final lines = List.generate(50, (i) => 'line $i;');
       final markdown = '```dart\n${lines.join('\n')}\n```';
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: markdown));
+      // Inline code blocks clamp at CodeBlockWidget.maxVisibleLines (12) and
+      // offer a "show all" footer; the tail lives in the full-screen viewer,
+      // not in the transcript.
       expect(find.textContaining('line 0;'), findsOneWidget);
-      expect(find.textContaining('line 49;'), findsOneWidget);
+      expect(find.textContaining('line 49;'), findsNothing);
+      expect(find.byIcon(Icons.unfold_more_rounded), findsOneWidget);
     });
 
     testWidgets('renders consecutive code blocks', (tester) async {
