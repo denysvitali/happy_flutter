@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 /// Constellation-style avatar with connected star patterns.
 ///
@@ -57,14 +58,7 @@ class _ConstellationPainter extends CustomPainter {
   final double size;
 
   // Derive a stable integer seed from the id string.
-  int _seed() {
-    var h = 2166136261;
-    for (final c in id.codeUnits) {
-      h ^= c;
-      h = (h * 16777619) & 0xFFFFFFFF;
-    }
-    return h;
-  }
+  int _seed() => avatarHash(id);
 
   // A very small LCG so we can get multiple distinct values from one seed.
   List<double> _pseudoRandom(int seed, int count) {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'avatar_palette.dart';
+
 /// Base avatar widget
 abstract class BaseAvatar extends StatelessWidget {
 
@@ -10,19 +12,24 @@ abstract class BaseAvatar extends StatelessWidget {
   final String id;
   final double size;
 
-  /// Generate a consistent color from the ID
-  Color generateColor(String id) {
-    final hash = id.codeUnits.fold(0, (acc, char) => acc + char);
-    final hue = (hash % 360).toDouble();
-    return HSVColor.fromAHSV(1.0, hue, 0.6, 0.9).toColor();
+  /// Generate a consistent identity color from the ID.
+  ///
+  /// Pass the ambient [brightness] so the same session keeps a
+  /// recognisable — but theme-appropriate — color in light and dark.
+  Color generateColor(String id, [Brightness brightness = Brightness.light]) {
+    return avatarBackgroundColor(id, brightness);
   }
 
   /// Generate a secondary color
-  Color generateSecondaryColor(String id) {
-    final hash = id.codeUnits.fold(0, (acc, char) => acc + char);
-    final hue = ((hash + 120) % 360).toDouble();
-    return HSVColor.fromAHSV(1.0, hue, 0.7, 0.85).toColor();
+  Color generateSecondaryColor(
+    String id, [
+    Brightness brightness = Brightness.light,
+  ]) {
+    return avatarAccentColor(id, brightness);
   }
+
+  /// Readable ink for initials drawn on [background].
+  Color generateOnColor(Color background) => avatarForegroundColor(background);
 
   /// Generate initials from ID
   String generateInitials(String id) {

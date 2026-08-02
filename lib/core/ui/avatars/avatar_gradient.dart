@@ -10,8 +10,9 @@ class AvatarGradient extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = generateColor(id);
-    final secondaryColor = generateSecondaryColor(id);
+    final brightness = Theme.of(context).brightness;
+    final primaryColor = generateColor(id, brightness);
+    final secondaryColor = generateSecondaryColor(id, brightness);
 
     return Container(
       width: size,
@@ -30,7 +31,7 @@ class AvatarGradient extends BaseAvatar {
           style: TextStyle(
             fontSize: size * 0.4,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: generateOnColor(primaryColor),
           ),
         ),
       ),

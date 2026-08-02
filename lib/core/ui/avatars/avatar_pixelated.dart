@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 /// Pixelated-style avatar with blocky appearance
 class AvatarPixelated extends BaseAvatar {
@@ -12,12 +13,12 @@ class AvatarPixelated extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final color = generateColor(id);
+    final color = generateColor(id, Theme.of(context).brightness);
 
     // Create a 5x5 pixel grid
     final gridSize = 5;
     final pixelSize = size / gridSize;
-    final hash = id.codeUnits.fold(0, (acc, char) => acc + char);
+    final hash = avatarHash(id);
 
     return Container(
       width: size,

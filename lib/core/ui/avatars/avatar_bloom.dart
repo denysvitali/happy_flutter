@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 /// Bloom-style avatar with layered colorful petals.
 class AvatarBloom extends BaseAvatar {
@@ -11,7 +12,7 @@ class AvatarBloom extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final hash = id.codeUnits.fold(7, (acc, c) => acc * 37 + c);
+    final hash = avatarHashVariant(id, 7);
     return Container(
       width: size,
       height: size,

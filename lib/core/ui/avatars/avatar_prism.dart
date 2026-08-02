@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 /// Prism-style avatar with crisp colorful facets.
 class AvatarPrism extends BaseAvatar {
@@ -11,7 +12,7 @@ class AvatarPrism extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final hash = id.codeUnits.fold(11, (acc, c) => acc * 29 + c);
+    final hash = avatarHashVariant(id, 11);
     return Container(
       width: size,
       height: size,

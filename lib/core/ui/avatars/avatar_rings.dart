@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 /// Ring-style avatar with concentric colored rings,
 /// like a cross-section of a tree trunk or a topographic map.
@@ -16,8 +17,10 @@ class AvatarRings extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final hash = id.codeUnits.fold(0, (acc, c) => acc * 31 + c);
-    final bgHue = (hash % 360).toDouble();
+    final hash = avatarHash(id);
+    // Base plate takes the session's palette hue so the ring art reads as
+    // the same identity colour used by the solid avatar styles.
+    final bgHue = avatarHue(id);
     final bgColor = HSLColor.fromAHSL(
       1.0,
       bgHue,

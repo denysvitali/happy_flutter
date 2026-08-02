@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'avatar.dart';
+import 'avatar_palette.dart';
 
 /// Brutalist-style avatar with bold borders and high contrast
 class AvatarBrutalist extends BaseAvatar {
@@ -10,13 +11,17 @@ class AvatarBrutalist extends BaseAvatar {
 
   @override
   Widget build(BuildContext context) {
-    final color = generateColor(id);
+    final theme = Theme.of(context);
+    final color = generateColor(id, theme.brightness);
+    // The initials sit on the card surface, not on the identity fill, so
+    // they need the on-surface ink variant to stay readable in both themes.
+    final ink = avatarInkOnSurface(id, theme.brightness);
     final initials = generateInitials(id);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         border: Border.all(
           color: color,
           width: 3,
@@ -41,7 +46,7 @@ class AvatarBrutalist extends BaseAvatar {
               style: TextStyle(
                 fontSize: size * 0.35,
                 fontWeight: FontWeight.bold,
-                color: color,
+                color: ink,
                 letterSpacing: 0,
               ),
             ),
