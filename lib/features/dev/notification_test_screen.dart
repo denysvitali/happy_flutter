@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/settings_section.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
@@ -238,6 +239,7 @@ class _NotificationTestScreenState
                         if (_fcmToken != null)
                           IconButton(
                             icon: const Icon(Icons.copy, size: 18),
+                            tooltip: context.l10n.devCopyPushToken,
                             onPressed: () => _copyToken(_fcmToken),
                           ),
                       ],

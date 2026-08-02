@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/clipboard_utils.dart';
@@ -32,17 +33,25 @@ class _ToolViewCopyButtonState extends State<ToolViewCopyButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _handleCopy,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        child: Icon(
-          _copied ? Icons.check : Icons.copy,
-          key: ValueKey(_copied),
-          size: widget.iconSize,
-          color: _copied
-              ? AppColors.success
-              : Theme.of(context).colorScheme.onSurfaceVariant,
+    final label = _copied ? context.l10n.commonCopied : context.l10n.commonCopy;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: GestureDetector(
+          onTap: _handleCopy,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              _copied ? Icons.check : Icons.copy,
+              key: ValueKey(_copied),
+              size: widget.iconSize,
+              color: _copied
+                  ? AppColors.success
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       ),
     );

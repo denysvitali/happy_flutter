@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/components/app_card.dart';
 import '../../../core/components/app_empty_state.dart';
 import '../../../core/components/settings_section.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/components/tablet/master_detail_scaffold.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -318,6 +319,7 @@ class _SftpDirectoryManagerScreenState
         leading: _isSubdirectory
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
+                tooltip: context.l10n.sftpParentFolder,
                 onPressed: () {
                   final parent = p.dirname(_currentPath);
                   if (parent != _dir.path &&

@@ -100,6 +100,7 @@ class _LinkedDevicesScreenState
         title: Text(l10n.accountLinkedDevices),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: l10n.commonBack,
           onPressed: () => safePop<void>(context),
         ),
       ),
@@ -177,6 +178,7 @@ class DeviceTile extends StatelessWidget {
             ? null
             : IconButton(
                 icon: Icon(Icons.delete_outline, color: cs.error),
+                tooltip: l10n.accountUnlinkDevice,
                 onPressed: onUnlink,
               ),
       ),

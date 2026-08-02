@@ -241,6 +241,7 @@ class _StatusBannerState extends State<StatusBanner>
                   Icons.close_rounded,
                   size: AppSpacing.lg,
                 ),
+                tooltip: context.l10n.commonDismiss,
                 color: widget.color.withValues(
                   alpha: AppOpacity.half,
                 ),

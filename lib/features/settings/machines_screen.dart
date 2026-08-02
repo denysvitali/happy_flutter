@@ -176,6 +176,9 @@ class _MachinesList extends StatelessWidget {
                           Icons.delete_outline,
                           color: Theme.of(context).colorScheme.error,
                         ),
+                        tooltip: AppLocalizations.of(
+                          context,
+                        ).machineRemoveMachine,
                         onPressed: () => onDelete(machine),
                       ),
                   ],

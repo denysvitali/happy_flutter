@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_empty_state.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
@@ -384,6 +385,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 18),
+                            tooltip: context.l10n.commonClearSearch,
                             onPressed: () {
                               _searchController.clear();
                               setState(() {

@@ -5588,4 +5588,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSandboxSubtitle =>
       'Choose what a project\'s sessions can reach on your machines';
+
+  @override
+  String get commonDismiss => 'Dismiss';
+
+  @override
+  String get commonDismissError => 'Dismiss error';
+
+  @override
+  String get commonClearSearch => 'Clear search';
+
+  @override
+  String get devCopyPushToken => 'Copy push token';
+
+  @override
+  String get profilesDuplicateProfile => 'Duplicate Profile';
+
+  @override
+  String get profilesShowApiKey => 'Show API key';
+
+  @override
+  String get profilesHideApiKey => 'Hide API key';
+
+  @override
+  String get serverUrlClear => 'Clear server URL';
+
+  @override
+  String get sftpParentFolder => 'Parent folder';
+
+  @override
+  String get chatCopyThinking => 'Copy thinking';
+
+  @override
+  String get tasksMarkComplete => 'Mark complete';
+
+  @override
+  String get tasksMarkIncomplete => 'Mark incomplete';
 }
