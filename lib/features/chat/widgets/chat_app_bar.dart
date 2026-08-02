@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
@@ -16,7 +18,7 @@ import 'session_header_chip.dart';
 
 /// App bar for the chat screen showing session title,
 /// status, model info, and action buttons.
-class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
+class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
   const ChatAppBar({
     required this.session,
     required this.sessionTitle,
@@ -43,8 +45,23 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
+  /// Session used for rendering: the one the chat screen has loaded, or —
+  /// while that load is still in flight — the one already known to the
+  /// sessions store.
+  ///
+  /// Without this fallback the wide (master-detail) layout showed the
+  /// generic "Chat" title for the whole load, even though the list pane
+  /// next to it was already displaying the session's name.
+  Session? _effectiveSession(WidgetRef ref) {
+    final loaded = session;
+    if (loaded != null) return loaded;
+    return ref.watch(
+      sessionsNotifierProvider.select((sessions) => sessions[sessionId]),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return AppBar(
       automaticallyImplyLeading: onBackTap == null,
       leading: onBackTap == null
@@ -55,7 +72,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               onPressed: onBackTap,
             ),
       titleSpacing: AppSpacing.sm,
-      title: _buildTitle(context),
+      title: _buildTitle(context, ref),
       scrolledUnderElevation: 0.5,
       actions: [
         // Loop count badge — appears only when the session has loops.
@@ -81,16 +98,25 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
   }
 
-  Widget _buildTitle(BuildContext context) {
+  Widget _buildTitle(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
-    if (session == null) {
+    final currentSession = _effectiveSession(ref);
+    if (currentSession == null) {
       return Text(
         context.l10n.chatChat,
         style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       );
     }
 
-    final currentSession = session!;
+    // When the chat screen hasn't loaded the session yet, the caller's
+    // `sessionTitle` / `statusChips` are still placeholders, so derive both
+    // from the store-resolved session instead.
+    final resolvedTitle = session != null
+        ? sessionTitle
+        : getSessionName(currentSession);
+    final resolvedChips = session != null
+        ? statusChips
+        : _fallbackChips(context, currentSession);
     final flavor = currentSession.metadata?.flavor;
     final avatarId = getSessionAvatarId(currentSession);
 
@@ -110,14 +136,37 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: _TitleReveal(
-              sessionTitle: sessionTitle,
-              statusChips: statusChips,
+              sessionTitle: resolvedTitle,
+              statusChips: resolvedChips,
               textTheme: textTheme,
             ),
           ),
         ],
       ),
     );
+  }
+
+  /// Status line used while the chat screen is still loading: the session's
+  /// path plus its online/offline presence, mirroring the list pane.
+  List<ChatAppBarStatusChip> _fallbackChips(
+    BuildContext context,
+    Session resolved,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    final online = resolved.isPresenceOnline;
+    return [
+      ChatAppBarStatusChip(
+        text: getSessionSubtitle(resolved),
+        color: cs.onSurfaceVariant,
+        icon: Icons.folder_outlined,
+      ),
+      ChatAppBarStatusChip(
+        text:
+            online ? context.l10n.statusOnline : context.l10n.statusOffline,
+        color: online ? cs.primary : cs.onSurfaceVariant,
+        showDot: true,
+      ),
+    ];
   }
 }
 
