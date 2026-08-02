@@ -5588,4 +5588,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSandboxSubtitle =>
       'Choose what a project\'s sessions can reach on your machines';
+
+  @override
+  String get codeBlockTitle => 'Code';
+
+  @override
+  String get codeBlockOpenFullScreen => 'Open full screen';
+
+  @override
+  String get codeBlockEnableWrap => 'Wrap long lines';
+
+  @override
+  String get codeBlockDisableWrap => 'Scroll long lines';
+
+  @override
+  String codeBlockShowAllLines(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show $count more lines',
+      one: 'Show 1 more line',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String codeBlockHiddenLines(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count more lines',
+      one: '1 more line',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String codeBlockTruncated(int displayed, int total) {
+    return 'Showing $displayed of $total characters';
+  }
 }

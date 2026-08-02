@@ -10074,6 +10074,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose what a project\'s sessions can reach on your machines'**
   String get settingsSandboxSubtitle;
+
+  /// Fallback title of the full-screen code reader
+  ///
+  /// In en, this message translates to:
+  /// **'Code'**
+  String get codeBlockTitle;
+
+  /// Tooltip for the code block full-screen button
+  ///
+  /// In en, this message translates to:
+  /// **'Open full screen'**
+  String get codeBlockOpenFullScreen;
+
+  /// Tooltip for enabling soft wrapping in code blocks
+  ///
+  /// In en, this message translates to:
+  /// **'Wrap long lines'**
+  String get codeBlockEnableWrap;
+
+  /// Tooltip for switching code blocks back to horizontal scrolling
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll long lines'**
+  String get codeBlockDisableWrap;
+
+  /// Tappable footer opening the full-screen reader for clipped code
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Show 1 more line} other{Show {count} more lines}}'**
+  String codeBlockShowAllLines(int count);
+
+  /// Non-interactive notice that code lines were clipped
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 more line} other{{count} more lines}}'**
+  String codeBlockHiddenLines(int count);
+
+  /// Notice that a very large code block was truncated
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {displayed} of {total} characters'**
+  String codeBlockTruncated(int displayed, int total);
 }
 
 class _AppLocalizationsDelegate
