@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_badge.dart';
-import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
@@ -256,10 +255,11 @@ Widget buildNameRow({
         ),
       ),
       const SizedBox(width: AppSpacing.xsm),
-      AppStatusDot(
-        color: dotColor ?? Color(sessionStatus.statusDotColor),
-        pulse: sessionStatus.isPulsing || pulseDot,
+      SessionStatusIndicator(
+        status: sessionStatus,
+        color: dotColor,
         size: dotSize,
+        pulse: pulseDot,
       ),
     ],
   );
