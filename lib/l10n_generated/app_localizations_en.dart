@@ -5601,4 +5601,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionActivityWorking => 'Working…';
+
+  @override
+  String get sessionsArchivePending => 'Archive pending';
+
+  @override
+  String get sessionsArchivesSoon => 'Archives in <1m';
+
+  @override
+  String sessionsArchivesInMinutes(int minutes) {
+    return 'Archives in ${minutes}m';
+  }
 }

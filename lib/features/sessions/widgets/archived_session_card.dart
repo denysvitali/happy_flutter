@@ -187,6 +187,11 @@ class _SessionCardState extends State<SessionCard> {
                               dotColor: _d.status.isConnected
                                   ? null
                               : cs.outlineVariant,
+                              badge: widget.archiveCountdownLabel == null
+                                  ? null
+                                  : ArchiveCountdownBadge(
+                                      label: widget.archiveCountdownLabel!,
+                                    ),
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         if (activityLine == null)
@@ -233,16 +238,6 @@ class _SessionCardState extends State<SessionCard> {
                             TodoProgressBadge(
                               completed: todoProgress.completed,
                               total: todoProgress.total,
-                            ),
-                          ],
-                          if (widget.archiveCountdownLabel != null) ...[
-                            const SizedBox(height: AppSpacing.xsm),
-                            Text(
-                              widget.archiveCountdownLabel!,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontSize: AppFontSize.xxs,
-                              ),
                             ),
                           ],
                         ],

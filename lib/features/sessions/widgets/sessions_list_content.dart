@@ -1144,7 +1144,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
       case ListItemType.archiveHeader:
         return ArchiveSectionHeader(
-          count: item.sessionCount!,
           grouping: item.archivedGrouping!,
           onGroupingChanged: (g) => setState(() => _archivedGrouping = g),
         );
@@ -1249,10 +1248,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final now = DateTime.now().millisecondsSinceEpoch;
     final archiveAt = session.updatedAt + duration.inMilliseconds;
     final remaining = Duration(milliseconds: archiveAt - now);
-    if (remaining <= Duration.zero) return 'Archive pending';
-    if (remaining.inMinutes < 1) return 'Archives in <1m';
+    final l10n = context.l10n;
+    if (remaining <= Duration.zero) return l10n.sessionsArchivePending;
+    if (remaining.inMinutes < 1) return l10n.sessionsArchivesSoon;
     if (remaining.inHours < 1) {
-      return 'Archives in ${remaining.inMinutes}m';
+      return l10n.sessionsArchivesInMinutes(remaining.inMinutes);
     }
     // Long countdowns are background policy, not actionable card content.
     return null;

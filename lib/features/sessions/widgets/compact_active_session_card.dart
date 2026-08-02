@@ -158,6 +158,13 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                                     color: cs.onSurface,
                                   ),
                                   pulseDot: needsAttention,
+                                  badge:
+                                      widget.archiveCountdownLabel == null
+                                      ? null
+                                      : ArchiveCountdownBadge(
+                                          label:
+                                              widget.archiveCountdownLabel!,
+                                        ),
                                 ),
                                 if (statusWidget != null) ...[
                                   const SizedBox(height: AppSpacing.xxs),
@@ -180,7 +187,6 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                             cs: cs,
                             unreadCount: widget.unreadCount,
                             todoProgress: todoProgress,
-                            archiveCountdownLabel: widget.archiveCountdownLabel,
                           ),
                           if (session.pinned) ...[
                             const SizedBox(width: AppSpacing.sm),

@@ -243,6 +243,7 @@ Widget buildNameRow({
   Color? dotColor,
   double dotSize = 7,
   bool pulseDot = false,
+  Widget? badge,
 }) {
   return Row(
     children: [
@@ -254,6 +255,10 @@ Widget buildNameRow({
           maxLines: 1,
         ),
       ),
+      if (badge != null) ...[
+        const SizedBox(width: AppSpacing.xs),
+        badge,
+      ],
       const SizedBox(width: AppSpacing.xsm),
       SessionStatusIndicator(
         status: sessionStatus,
@@ -299,14 +304,18 @@ Widget buildTimestampBadges({
       ],
       if (archiveCountdownLabel != null) ...[
         SizedBox(height: badgeGap),
-        _ArchiveCountdownBadge(label: archiveCountdownLabel),
+        ArchiveCountdownBadge(label: archiveCountdownLabel),
       ],
     ],
   );
 }
 
-class _ArchiveCountdownBadge extends StatelessWidget {
-  const _ArchiveCountdownBadge({required this.label});
+/// Pending-archive badge.
+///
+/// Belongs next to the session name: rendered in the trailing column it
+/// sat directly under the timestamp and read as date metadata.
+class ArchiveCountdownBadge extends StatelessWidget {
+  const ArchiveCountdownBadge({required this.label, super.key});
 
   final String label;
 

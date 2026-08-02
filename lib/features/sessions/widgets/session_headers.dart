@@ -455,15 +455,17 @@ class FolderSectionHeader extends StatelessWidget {
 }
 
 /// Archive section header with grouping toggle (date / folder).
+///
+/// Deliberately carries no count: the group rows immediately below it
+/// ("Older", "Yesterday", …) each show their own count pill, so a total
+/// here only repeated a number the user is about to read again.
 class ArchiveSectionHeader extends StatelessWidget {
   const ArchiveSectionHeader({
-    required this.count,
     required this.grouping,
     required this.onGroupingChanged,
     super.key,
   });
 
-  final int count;
   final ArchivedGrouping grouping;
   final ValueChanged<ArchivedGrouping> onGroupingChanged;
 
@@ -483,7 +485,7 @@ class ArchiveSectionHeader extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              '${l10n.sessionHistory} ($count)',
+              l10n.sessionHistory,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
