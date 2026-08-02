@@ -221,6 +221,7 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
           IconButton(
             onPressed: _isLoading ? null : () => unawaited(_load()),
             icon: const Icon(Icons.refresh),
+            tooltip: l10n.commonRefresh,
           ),
         ],
       ),

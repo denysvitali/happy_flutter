@@ -10170,6 +10170,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Showing {displayed} of {total} characters'**
   String codeBlockTruncated(int displayed, int total);
+
+  /// Tooltip for a button that dismisses a banner or notice
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get commonDismiss;
+
+  /// Tooltip for a button that dismisses an inline error message
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss error'**
+  String get commonDismissError;
+
+  /// Tooltip for the button that clears the search field
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get commonClearSearch;
+
+  /// Tooltip for copying the FCM push token in dev tools
+  ///
+  /// In en, this message translates to:
+  /// **'Copy push token'**
+  String get devCopyPushToken;
+
+  /// Tooltip for the button that duplicates a profile
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate Profile'**
+  String get profilesDuplicateProfile;
+
+  /// Tooltip for revealing the obscured API key field
+  ///
+  /// In en, this message translates to:
+  /// **'Show API key'**
+  String get profilesShowApiKey;
+
+  /// Tooltip for obscuring the API key field
+  ///
+  /// In en, this message translates to:
+  /// **'Hide API key'**
+  String get profilesHideApiKey;
+
+  /// Tooltip for the button that clears the server URL field
+  ///
+  /// In en, this message translates to:
+  /// **'Clear server URL'**
+  String get serverUrlClear;
+
+  /// Tooltip for navigating up to the parent SFTP folder
+  ///
+  /// In en, this message translates to:
+  /// **'Parent folder'**
+  String get sftpParentFolder;
+
+  /// Tooltip for copying the agent's thinking block text
+  ///
+  /// In en, this message translates to:
+  /// **'Copy thinking'**
+  String get chatCopyThinking;
+
+  /// Tooltip for the checkbox that marks a task complete
+  ///
+  /// In en, this message translates to:
+  /// **'Mark complete'**
+  String get tasksMarkComplete;
+
+  /// Tooltip for the checkbox that marks a task incomplete
+  ///
+  /// In en, this message translates to:
+  /// **'Mark incomplete'**
+  String get tasksMarkIncomplete;
 }
 
 class _AppLocalizationsDelegate

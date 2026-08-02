@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
@@ -198,21 +199,28 @@ class _ThinkingBlockState extends State<ThinkingBlock>
                           ),
                         ),
                         const Spacer(),
-                        GestureDetector(
-                          onTap: () async {
-                            await HapticFeedback.lightImpact();
-                            await Clipboard.setData(
-                              ClipboardData(text: _cleanedContent),
-                            );
-                          },
-                          behavior: HitTestBehavior.opaque,
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.xs),
-                            child: Icon(
-                              Icons.copy_outlined,
-                              size: 14,
-                              color: cs.onSurfaceVariant.withValues(
-                                alpha: 0.35,
+                        Tooltip(
+                          message: context.l10n.chatCopyThinking,
+                          child: Semantics(
+                            button: true,
+                            label: context.l10n.chatCopyThinking,
+                            child: GestureDetector(
+                              onTap: () async {
+                                await HapticFeedback.lightImpact();
+                                await Clipboard.setData(
+                                  ClipboardData(text: _cleanedContent),
+                                );
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: Padding(
+                                padding: const EdgeInsets.all(AppSpacing.xs),
+                                child: Icon(
+                                  Icons.copy_outlined,
+                                  size: 14,
+                                  color: cs.onSurfaceVariant.withValues(
+                                    alpha: 0.35,
+                                  ),
+                                ),
                               ),
                             ),
                           ),

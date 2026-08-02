@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/components/task_detail_dialog.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
@@ -437,20 +438,31 @@ class _ToggleButton extends StatelessWidget {
         ? AppColors.success
         : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5);
 
+    final label = isCompleted
+        ? context.l10n.tasksMarkIncomplete
+        : context.l10n.tasksMarkComplete;
+
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          child: Icon(
-            isCompleted
-                ? Icons.check_box_rounded
-                : Icons.check_box_outline_blank_rounded,
-            size: 20,
-            color: color,
+      child: Tooltip(
+        message: label,
+        child: Semantics(
+          button: true,
+          label: label,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: Icon(
+                isCompleted
+                    ? Icons.check_box_rounded
+                    : Icons.check_box_outline_blank_rounded,
+                size: 20,
+                color: color,
+              ),
+            ),
           ),
         ),
       ),

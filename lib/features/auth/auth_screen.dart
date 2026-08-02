@@ -450,6 +450,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           icon: const Icon(
             Icons.arrow_back_rounded,
           ),
+          tooltip: context.l10n.commonBack,
           onPressed: _goBack,
         ),
       );

@@ -42,6 +42,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
         title: Text(context.l10n.accountRestoreAccount),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: context.l10n.commonBack,
           onPressed: () => safePop<void>(context),
         ),
       ),

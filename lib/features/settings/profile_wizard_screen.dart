@@ -456,6 +456,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         title: Text(l10n.profilesWizardTitle),
         leading: IconButton(
           icon: const Icon(Icons.close),
+          tooltip: l10n.commonClose,
           onPressed: () =>
               safePop<void>(context, fallbackRouteName: 'profiles'),
         ),
@@ -611,6 +612,9 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
               icon: Icon(
                 _obscureApiKey ? Icons.visibility_off : Icons.visibility,
               ),
+              tooltip: _obscureApiKey
+                  ? l10n.profilesShowApiKey
+                  : l10n.profilesHideApiKey,
               onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
             ),
           ),

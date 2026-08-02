@@ -2709,5 +2709,53 @@
         "type": "int"
       }
     }
+  },
+  "commonDismiss": "Dismiss",
+  "@commonDismiss": {
+    "description": "Tooltip for a button that dismisses a banner or notice"
+  },
+  "commonDismissError": "Dismiss error",
+  "@commonDismissError": {
+    "description": "Tooltip for a button that dismisses an inline error message"
+  },
+  "commonClearSearch": "Clear search",
+  "@commonClearSearch": {
+    "description": "Tooltip for the button that clears the search field"
+  },
+  "devCopyPushToken": "Copy push token",
+  "@devCopyPushToken": {
+    "description": "Tooltip for copying the FCM push token in dev tools"
+  },
+  "profilesDuplicateProfile": "Duplicate Profile",
+  "@profilesDuplicateProfile": {
+    "description": "Tooltip for the button that duplicates a profile"
+  },
+  "profilesShowApiKey": "Show API key",
+  "@profilesShowApiKey": {
+    "description": "Tooltip for revealing the obscured API key field"
+  },
+  "profilesHideApiKey": "Hide API key",
+  "@profilesHideApiKey": {
+    "description": "Tooltip for obscuring the API key field"
+  },
+  "serverUrlClear": "Clear server URL",
+  "@serverUrlClear": {
+    "description": "Tooltip for the button that clears the server URL field"
+  },
+  "sftpParentFolder": "Parent folder",
+  "@sftpParentFolder": {
+    "description": "Tooltip for navigating up to the parent SFTP folder"
+  },
+  "chatCopyThinking": "Copy thinking",
+  "@chatCopyThinking": {
+    "description": "Tooltip for copying the agent's thinking block text"
+  },
+  "tasksMarkComplete": "Mark complete",
+  "@tasksMarkComplete": {
+    "description": "Tooltip for the checkbox that marks a task complete"
+  },
+  "tasksMarkIncomplete": "Mark incomplete",
+  "@tasksMarkIncomplete": {
+    "description": "Tooltip for the checkbox that marks a task incomplete"
   }
 }

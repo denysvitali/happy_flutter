@@ -396,6 +396,7 @@ class _VoiceLanguageSelectionScreenState
           if (_searchQuery.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear),
+              tooltip: AppLocalizations.of(context).commonClearSearch,
               onPressed: () {
                 setState(() {
                   _searchQuery = '';

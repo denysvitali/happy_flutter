@@ -218,6 +218,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                   icon: Icons.settings_outlined,
                   onTap: () => context.push('/settings'),
                   tintColor: headerTintColor,
+                  tooltip: AppLocalizations.of(context).commonSettings,
                 ),
 
                 // New session icon
@@ -228,6 +229,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                       widget.onNewSession ??
                       () => _showNewSessionDialog(context),
                   tintColor: headerTintColor,
+                  tooltip: AppLocalizations.of(context).sessionsNew,
                   size: 28,
                 ),
               ],
@@ -279,14 +281,22 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
     required IconData icon,
     required VoidCallback onTap,
     required Color tintColor,
+    required String tooltip,
     double size = AppSpacing.xxl,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Icon(icon, size: size, color: tintColor),
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Icon(icon, size: size, color: tintColor),
+          ),
+        ),
       ),
     );
   }

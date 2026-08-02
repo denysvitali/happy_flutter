@@ -186,6 +186,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
         title: Text(l10n.accountLinkDevice),
         leading: IconButton(
           icon: const Icon(Icons.close),
+          tooltip: l10n.commonClose,
           onPressed: () => safePop<void>(context),
         ),
       ),
@@ -249,6 +250,7 @@ class _LinkDeviceScreenState extends ConsumerState<LinkDeviceScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, size: AppIconSize.lg),
+                        tooltip: l10n.commonDismissError,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(
                           minWidth: AppTouchTarget.min,

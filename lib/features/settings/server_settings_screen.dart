@@ -232,6 +232,7 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
                 suffixIcon: _urlController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
+                        tooltip: AppLocalizations.of(context).serverUrlClear,
                         onPressed: () {
                           _urlController.clear();
                           setState(() => _errorText = null);

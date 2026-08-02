@@ -57,6 +57,7 @@ class _WebFetchViewState extends State<WebFetchView> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
+                    tooltip: AppLocalizations.of(ctx).commonClose,
                     onPressed: () => Navigator.of(ctx).pop(),
                   ),
                 ],

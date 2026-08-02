@@ -25,6 +25,7 @@ class AccountScreen extends ConsumerWidget {
         title: Text(context.l10n.accountAccountSettings),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: context.l10n.commonBack,
           onPressed: () => safePop<void>(context),
         ),
       ),

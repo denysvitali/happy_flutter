@@ -346,12 +346,19 @@ class _KeyReassuranceCard extends StatelessWidget {
                   ),
                 ),
               ),
-              GestureDetector(
-                onTap: onDismiss,
-                child: Icon(
-                  Icons.close,
-                  size: AppSpacing.lg,
-                  color: scheme.onSurfaceVariant,
+              Tooltip(
+                message: l10n.commonDismiss,
+                child: Semantics(
+                  button: true,
+                  label: l10n.commonDismiss,
+                  child: GestureDetector(
+                    onTap: onDismiss,
+                    child: Icon(
+                      Icons.close,
+                      size: AppSpacing.lg,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
             ],
