@@ -5588,4 +5588,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSandboxSubtitle =>
       'Choose what a project\'s sessions can reach on your machines';
+
+  @override
+  String sessionActivityRunningTool(String tool) {
+    return 'Running $tool';
+  }
+
+  @override
+  String sessionActivityToolApproval(String tool) {
+    return '$tool needs approval';
+  }
+
+  @override
+  String get sessionActivityWorking => 'Working…';
 }

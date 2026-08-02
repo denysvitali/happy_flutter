@@ -67,9 +67,17 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final statusWidget = buildStatusText(_d.status, theme.textTheme);
-    final hasPreview =
-        widget.lastMessagePreview != null &&
-        widget.lastMessagePreview!.isNotEmpty;
+    final activityLine = buildActivityLine(
+      context: context,
+      session: session,
+      preview: widget.lastMessagePreview,
+      previewRole: widget.lastMessageRole,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: AppFontSize.xs,
+        height: 1.2,
+      ),
+    );
+    final hasActivity = activityLine != null;
 
     final needsAttention = widget.unreadCount > 0;
     final cardColor = widget.isSelected
@@ -100,7 +108,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
           borderRadius: BorderRadius.circular(AppRadius.md),
           clipBehavior: Clip.hardEdge,
           child: SizedBox(
-              height: hasPreview ? 72 : 56,
+              height: hasActivity ? 72 : 56,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -155,18 +163,9 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                                   const SizedBox(height: AppSpacing.xxs),
                                   statusWidget,
                                 ],
-                                if (hasPreview) ...[
+                                if (hasActivity) ...[
                                   const SizedBox(height: AppSpacing.sm),
-                                  buildPreviewText(
-                                    context: context,
-                                    preview: widget.lastMessagePreview!,
-                                    role: widget.lastMessageRole,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontSize: AppFontSize.xs,
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 1,
-                                  ),
+                                  activityLine,
                                 ],
                               ],
                             ),

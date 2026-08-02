@@ -2615,5 +2615,27 @@
   "settingsSandboxSubtitle": "Choose what a project's sessions can reach on your machines",
   "@settingsSandboxSubtitle": {
     "description": "Subtitle for the sandbox settings row"
+  },
+  "sessionActivityRunningTool": "Running {tool}",
+  "@sessionActivityRunningTool": {
+    "description": "Session card activity line while a tool is executing",
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionActivityToolApproval": "{tool} needs approval",
+  "@sessionActivityToolApproval": {
+    "description": "Session card activity line for a pending tool permission",
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionActivityWorking": "Working…",
+  "@sessionActivityWorking": {
+    "description": "Session card activity line while the agent is thinking"
   }
 }

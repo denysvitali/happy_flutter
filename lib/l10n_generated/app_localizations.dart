@@ -10074,6 +10074,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose what a project\'s sessions can reach on your machines'**
   String get settingsSandboxSubtitle;
+
+  /// Session card activity line while a tool is executing
+  ///
+  /// In en, this message translates to:
+  /// **'Running {tool}'**
+  String sessionActivityRunningTool(String tool);
+
+  /// Session card activity line for a pending tool permission
+  ///
+  /// In en, this message translates to:
+  /// **'{tool} needs approval'**
+  String sessionActivityToolApproval(String tool);
+
+  /// Session card activity line while the agent is thinking
+  ///
+  /// In en, this message translates to:
+  /// **'Working…'**
+  String get sessionActivityWorking;
 }
 
 class _AppLocalizationsDelegate
