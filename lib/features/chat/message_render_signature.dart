@@ -117,6 +117,7 @@ const _messageSignatureKeys = <String>[
   'event',
   'taskEvent',
   'taskStatus',
+  'taskPhase',
   'taskType',
   'workflowName',
   'transcriptDir',

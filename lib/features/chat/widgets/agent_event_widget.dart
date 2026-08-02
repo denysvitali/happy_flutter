@@ -54,6 +54,14 @@ class AgentEventWidget extends StatelessWidget {
     return null;
   }
 
+  /// Whether this chip is a sub-agent task lifecycle row (start/progress).
+  /// Completion arrives as a `kind: text` card, never here.
+  bool get _isTaskEvent => message?['taskEvent'] == true;
+
+  /// `true` for the row marking where a task was spawned, so the timeline
+  /// shows a start marker instead of only a completion card.
+  bool get _isTaskStart => message?['taskPhase'] == 'task_started';
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -86,6 +94,29 @@ class AgentEventWidget extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_isTaskEvent) ...[
+              Icon(
+                _isTaskStart
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.autorenew_rounded,
+                size: 13,
+                color: color,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                _isTaskStart ? 'Task started' : 'Task running',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                '·',
+                style: theme.textTheme.labelSmall?.copyWith(color: color),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+            ],
             if (subAgentTool != null) ...[
               IconTheme(
                 data: IconThemeData(size: 12, color: color),

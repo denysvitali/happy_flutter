@@ -200,6 +200,10 @@ void _processAcpContent({
       final taskExtras = <String, dynamic>{
         'taskStatus': ?status,
         'taskType': ?taskType,
+        // Which lifecycle event produced this row. The chip uses it to say
+        // "Task started" instead of rendering an anonymous grey line that
+        // reads like any other system notice.
+        'taskPhase': ?subtype,
         'workflowName': ?workflowName,
         if (workflowProgress != null && workflowProgress.isNotEmpty)
           'workflowProgress': workflowProgress,
