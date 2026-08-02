@@ -3,8 +3,8 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:happy_flutter/core/utils/datetime_extensions.dart';
 
 void main() {
-  setUpAll(() {
-    initializeDateFormatting('en');
+  setUpAll(() async {
+    await initializeDateFormatting();
   });
 
   group('toIsoTimeString', () {
@@ -91,6 +91,17 @@ void main() {
       expect(result, contains('2020'));
       expect(result, contains('Jun'));
       expect(result, contains('10:30'));
+    });
+
+    test('older dates honour the requested locale', () {
+      final dt = DateTime(2020, 6, 15, 10, 30);
+      final en = dt.toRelativeTimeString(locale: 'en');
+      final de = dt.toRelativeTimeString(locale: 'de');
+      // The date portion used to be hardcoded to the default locale.
+      expect(de, isNot(en));
+      expect(de, contains('2020'));
+      expect(de, contains('15'));
+      expect(de, contains('10:30'));
     });
 
     test('handles midnight', () {
