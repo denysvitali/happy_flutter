@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+
+/// Edge length of the leading icon container in a settings row.
+const double kSettingsIconContainerSize = 36;
+
+/// Minimum row height when a subtitle is present. Rows grow beyond this
+/// at large text scales — the constraint is a floor, never a cap.
+const double kSettingsRowMinHeightWithSubtitle = 56;
 
 /// 36x36 rounded icon container used as the leading widget in settings rows.
 ///
@@ -24,15 +32,26 @@ class SettingsIconContainer extends StatelessWidget {
         : AppOpacity.faint; // 0.08
 
     return Container(
-      width: 36,
-      height: 36,
+      width: kSettingsIconContainerSize,
+      height: kSettingsIconContainerSize,
       decoration: BoxDecoration(
         color: effectiveColor.withValues(alpha: bgAlpha),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Icon(icon, size: 18, color: effectiveColor),
+      child: Icon(icon, size: AppIconSize.lg, color: effectiveColor),
     );
   }
+}
+
+/// Above this text scale factor the ellipsis caps on settings-row labels are
+/// lifted so the text wraps and the row grows instead of truncating.
+const double _kUnclampedTextScale = 1.3;
+
+/// Line cap for row labels: 2 at normal scale (keeps rows tidy), unlimited
+/// once the user has enlarged system text.
+int? _labelMaxLines(BuildContext context) {
+  final scale = MediaQuery.textScalerOf(context).scale(AppFontSize.md);
+  return scale > AppFontSize.md * _kUnclampedTextScale ? null : 2;
 }
 
 /// A simple settings row: icon container + title/subtitle + optional trailing.
@@ -58,6 +77,7 @@ class SettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final maxLines = _labelMaxLines(context);
 
     final row = InkWell(
       onTap: onTap == null
@@ -69,7 +89,9 @@ class SettingsRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          minHeight: subtitle != null ? 56 : AppTouchTarget.comfortable,
+          minHeight: subtitle != null
+              ? kSettingsRowMinHeightWithSubtitle
+              : AppTouchTarget.comfortable,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
@@ -90,8 +112,10 @@ class SettingsRow extends StatelessWidget {
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: maxLines,
+                      overflow: maxLines == null
+                          ? TextOverflow.clip
+                          : TextOverflow.ellipsis,
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: AppSpacing.xxs),
@@ -100,8 +124,10 @@ class SettingsRow extends StatelessWidget {
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: maxLines,
+                        overflow: maxLines == null
+                            ? TextOverflow.clip
+                            : TextOverflow.ellipsis,
                       ),
                     ],
                   ],
@@ -109,6 +135,8 @@ class SettingsRow extends StatelessWidget {
               ),
               if (trailing != null) ...[
                 const SizedBox(width: AppSpacing.sm),
+                // Deliberately not Flexible: a second flex child would
+                // halve the label column's width at every text scale.
                 trailing!,
               ],
             ],
@@ -117,9 +145,17 @@ class SettingsRow extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return row;
-
-    return Semantics(button: true, enabled: true, container: true, child: row);
+    // Without MergeSemantics the title, subtitle and trailing glyph are
+    // announced as three disconnected fragments.
+    return MergeSemantics(
+      child: Semantics(
+        button: onTap != null,
+        enabled: onTap != null ? true : null,
+        container: true,
+        onTap: onTap,
+        child: row,
+      ),
+    );
   }
 }
 
@@ -146,6 +182,8 @@ class SettingsToggleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final maxLines = _labelMaxLines(context);
+    final l10n = context.l10n;
 
     return MergeSemantics(
       child: Semantics(
@@ -153,6 +191,7 @@ class SettingsToggleRow extends StatelessWidget {
         toggled: value,
         enabled: true,
         container: true,
+        value: value ? l10n.a11ySettingsRowOn : l10n.a11ySettingsRowOff,
         onTap: () => onChanged(!value),
         child: InkWell(
           onTap: () {
@@ -162,7 +201,9 @@ class SettingsToggleRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: subtitle != null ? 56 : AppTouchTarget.comfortable,
+              minHeight: subtitle != null
+                  ? kSettingsRowMinHeightWithSubtitle
+                  : AppTouchTarget.comfortable,
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
@@ -182,8 +223,10 @@ class SettingsToggleRow extends StatelessWidget {
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          maxLines: maxLines,
+                          overflow: maxLines == null
+                              ? TextOverflow.clip
+                              : TextOverflow.ellipsis,
                         ),
                         if (subtitle != null) ...[
                           const SizedBox(height: AppSpacing.xxs),
@@ -192,8 +235,10 @@ class SettingsToggleRow extends StatelessWidget {
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                            maxLines: maxLines,
+                            overflow: maxLines == null
+                                ? TextOverflow.clip
+                                : TextOverflow.ellipsis,
                           ),
                         ],
                       ],
@@ -278,7 +323,8 @@ class SettingsSection extends StatelessWidget {
   final List<Widget> children;
 
   // Leading padding (16) + icon container width (36) + gap (12).
-  static const double _dividerIndent = AppSpacing.lg + 36 + AppSpacing.md;
+  static const double _dividerIndent =
+      AppSpacing.lg + kSettingsIconContainerSize + AppSpacing.md;
 
   @override
   Widget build(BuildContext context) {
@@ -297,12 +343,20 @@ class SettingsSection extends StatelessWidget {
               left: AppSpacing.xs,
               bottom: AppSpacing.xs,
             ),
-            child: Text(
-              uppercase ? title!.toUpperCase() : title!,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: danger ? cs.error : cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
+            // Announced as a heading so screen-reader users can jump
+            // between settings sections instead of reading every row.
+            child: Semantics(
+              header: true,
+              label: title,
+              child: ExcludeSemantics(
+                child: Text(
+                  uppercase ? title!.toUpperCase() : title!,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: danger ? cs.error : cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0,
+                  ),
+                ),
               ),
             ),
           ),

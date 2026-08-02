@@ -25,6 +25,7 @@ export 'package:happy_flutter/core/components/app_tappable.dart';
 export 'package:happy_flutter/core/components/avatar.dart';
 export 'package:happy_flutter/core/components/exit_code_badge.dart';
 export 'package:happy_flutter/core/components/pressable_card.dart';
+export 'package:happy_flutter/core/components/scroll_when_bounded.dart';
 export 'package:happy_flutter/core/components/settings_section.dart';
 export 'package:happy_flutter/core/components/shimmer_view.dart';
 export 'package:happy_flutter/core/components/sidebar/app_sidebar.dart';

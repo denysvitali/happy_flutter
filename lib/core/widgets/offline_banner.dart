@@ -141,23 +141,42 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
         vertical: AppSpacing.xs,
       ),
       color: bg,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      // Wrap rather than Row: at large system text the label and the
+      // "Reconnect now" button no longer fit on one line, so the button
+      // moves to a second run instead of overflowing the banner.
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.sm,
         children: [
-          Icon(Icons.sync_rounded, size: 16, color: fg),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                color: fg,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
+          Semantics(
+            container: true,
+            liveRegion: true,
+            label: '${l10n.a11yConnectionStatusBanner}. $label',
+            excludeSemantics: true,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.sync_rounded,
+                  size: AppIconSize.md,
+                  color: fg,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: AppFontSize.sm,
+                      color: fg,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
           TextButton(
             onPressed: _forceReconnect,
             style: TextButton.styleFrom(
@@ -173,7 +192,11 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text(l10n.offlineBannerReconnectNow),
+            child: Text(
+              l10n.offlineBannerReconnectNow,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -226,34 +249,41 @@ class _BannerContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context);
     final bg = isError ? cs.errorContainer : cs.tertiaryContainer;
     final fg =
         isError ? cs.onErrorContainer : cs.onTertiaryContainer;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      color: bg,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 16, color: fg),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                color: fg,
-                fontWeight: FontWeight.w500,
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: '${l10n.a11yConnectionStatusBanner}. $label',
+      excludeSemantics: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        color: bg,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: AppIconSize.md, color: fg),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppFontSize.sm,
+                  color: fg,
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

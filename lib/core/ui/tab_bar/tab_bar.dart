@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter/services.dart';
@@ -116,41 +118,61 @@ class _TabItem extends StatelessWidget {
         .withValues(alpha: AppOpacity.half);
     final itemColor = isActive ? activeColor : inactiveColor;
 
+    // Fold the badge count into a single spoken label — otherwise the
+    // badge digit is announced as an unrelated fragment after the tab.
+    final hasBadge = showBadge && badgeCount > 0;
+    final semanticsLabel = hasBadge
+        ? context.l10n.a11yTabWithBadge(label, badgeCount)
+        : label;
+
     return Expanded(
-      child: Semantics(
-        selected: isActive,
-        button: true,
-        label: label,
-        child: Tooltip(
-          message: label,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onTap();
-            },
-            child: SizedBox(
-              height: double.infinity,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _TabIconWithBadge(
-                    icon: isActive ? tab.activeIcon : tab.icon,
-                    color: itemColor,
-                    badgeCount: badgeCount,
-                    showBadge: showBadge,
-                  ),
-                  const SizedBox(height: AppSpacing.xsm),
-                  Text(
-                    label,
-                    style: theme.textTheme.labelSmall?.copyWith(
+      child: MergeSemantics(
+        child: Semantics(
+          selected: isActive,
+          button: true,
+          container: true,
+          label: semanticsLabel,
+          excludeSemantics: true,
+          onTap: onTap,
+          child: Tooltip(
+            message: label,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onTap();
+              },
+              child: SizedBox(
+                height: double.infinity,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _TabIconWithBadge(
+                      icon: isActive ? tab.activeIcon : tab.icon,
                       color: itemColor,
-                      fontWeight: isActive
-                          ? FontWeight.w700
-                          : FontWeight.normal,
+                      badgeCount: badgeCount,
+                      showBadge: showBadge,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.xsm),
+                    // Flexible + single line keeps the label inside the
+                    // (text-scale aware) bar height instead of overflowing.
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: itemColor,
+                          fontWeight: isActive
+                              ? FontWeight.w700
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -313,6 +335,24 @@ class TabBar extends StatefulWidget {
   /// Default height — comfortable for 24 dp icons + label + breathing room.
   static const double defaultHeight = AppTouchTarget.comfortable + 24;
 
+  /// Height the bar needs at the current system text scale.
+  ///
+  /// The nominal [height] is a floor, not a cap: at 200 % system font the
+  /// label alone is taller than the stock 72 dp bar, so the bar grows with
+  /// the user's setting instead of clipping the label.
+  static double resolveHeight(BuildContext context, double nominal) {
+    final labelFontSize =
+        Theme.of(context).textTheme.labelSmall?.fontSize ?? AppFontSize.xs;
+    final scaledLabel = MediaQuery.textScalerOf(context).scale(labelFontSize);
+    // Icon block + gap + one line of label + vertical breathing room.
+    final needed = AppIconSize.tab +
+        AppSpacing.xs +
+        AppSpacing.xsm +
+        scaledLabel * AppLineHeight.normal +
+        AppSpacing.md;
+    return math.max(nominal, needed);
+  }
+
   @override
   State<TabBar> createState() => _TabBarState();
 }
@@ -355,7 +395,7 @@ class _TabBarState extends State<TabBar> {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: widget.height,
+          height: TabBar.resolveHeight(context, widget.height),
           child: Stack(
             children: [
               // Animated pill indicator layer (behind the items)
@@ -393,6 +433,9 @@ class _TabBarState extends State<TabBar> {
 }
 
 // ─── CompactTabBar ───────────────────────────────────────────────────────────
+
+/// Diameter of the numeric badge dot on [CompactTabBar].
+const double _kCompactBadgeSize = 16;
 
 /// Icon-only compact tab bar, designed for tablet rail/sidebar use.
 ///
@@ -444,56 +487,65 @@ class CompactTabBar extends StatelessWidget {
         final isActive = activeTab == tab.key;
         final count = badgeCounts[tab.key] ?? 0;
         final showBadge = tab.key == AppTab.loops && count > 0;
-        return SizedBox(
-          width: AppTouchTarget.min,
-          height: AppTouchTarget.min,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                padding: EdgeInsets.zero,
-                icon: Icon(
-                  isActive ? tab.activeIcon : tab.icon,
-                  size: iconSize,
-                  color: isActive ? active : inactive,
+        final label = _labelForTab(tab.key, l10n);
+        return Semantics(
+          selected: isActive,
+          button: true,
+          container: true,
+          label: showBadge ? l10n.a11yTabWithBadge(label, count) : label,
+          excludeSemantics: true,
+          onTap: () => onTabPress(tab.key),
+          child: SizedBox(
+            width: AppTouchTarget.min,
+            height: AppTouchTarget.min,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  icon: Icon(
+                    isActive ? tab.activeIcon : tab.icon,
+                    size: iconSize,
+                    color: isActive ? active : inactive,
+                  ),
+                  onPressed: () => onTabPress(tab.key),
+                  tooltip: label,
                 ),
-                onPressed: () => onTabPress(tab.key),
-                tooltip: _labelForTab(tab.key, l10n),
-              ),
-              if (showBadge)
-                Positioned(
-                  right: AppSpacing.xxs,
-                  top: AppSpacing.xxs,
-                  child: Container(
-                    constraints: BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxs,
-                    ),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius:
-                          BorderRadius.circular(AppRadius.pill),
-                      border: Border.all(
-                        color: colorScheme.surface,
-                        width: AppBorder.thin + 0.5,
+                if (showBadge)
+                  Positioned(
+                    right: AppSpacing.xxs,
+                    top: AppSpacing.xxs,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: _kCompactBadgeSize,
+                        minHeight: _kCompactBadgeSize,
                       ),
-                    ),
-                    child: Text(
-                      _badgeLabel(count),
-                      style: TextStyle(
-                        color: colorScheme.onError,
-                        fontSize: AppFontSize.xxs,
-                        height: 1.0,
-                        fontWeight: FontWeight.w700,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxs,
+                      ),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius:
+                            BorderRadius.circular(AppRadius.pill),
+                        border: Border.all(
+                          color: colorScheme.surface,
+                          width: AppBorder.thin + 0.5,
+                        ),
+                      ),
+                      child: Text(
+                        _badgeLabel(count),
+                        style: TextStyle(
+                          color: colorScheme.onError,
+                          fontSize: AppFontSize.xxs,
+                          height: AppLineHeight.tight,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       }).toList(),

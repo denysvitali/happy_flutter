@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/scroll_when_bounded.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+
+/// Maximum readable width for a centred placeholder block.
+const double _kMaxWidth = 360;
 
 /// Displays an icon, title, and optional subtitle for empty list states.
 ///
@@ -80,44 +85,61 @@ class _AppEmptyStateState extends State<AppEmptyState>
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 360),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxl,
-            vertical: AppSpacing.xxl,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildIconContainer(cs),
-              const SizedBox(height: AppSpacing.lg),
-              // Title.
-              Text(
-                widget.title,
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-              // Subtitle.
-              if (widget.subtitle != null) ...[
-                const SizedBox(height: AppSpacing.sm),
+    final subtitle = widget.subtitle;
+    final semanticsLabel = subtitle == null || subtitle.isEmpty
+        ? widget.title
+        : context.l10n.a11yEmptyState(widget.title, subtitle);
+
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxl,
+        vertical: AppSpacing.xxl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Icon + title + subtitle announce as one node instead of three
+          // disconnected fragments. The action keeps its own semantics so
+          // it stays individually focusable.
+          Semantics(
+            container: true,
+            label: semanticsLabel,
+            excludeSemantics: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildIconContainer(cs),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
-                  widget.subtitle!,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  widget.title,
+                  style: theme.textTheme.titleMedium,
                   textAlign: TextAlign.center,
                 ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    subtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ],
-              // Action widget.
-              if (widget.action != null) ...[
-                const SizedBox(height: AppSpacing.xxl),
-                widget.action!,
-              ],
-            ],
+            ),
           ),
-        ),
+          if (widget.action != null) ...[
+            const SizedBox(height: AppSpacing.xxl),
+            widget.action!,
+          ],
+        ],
+      ),
+    );
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _kMaxWidth),
+        child: scrollWhenBounded(content),
       ),
     );
   }
