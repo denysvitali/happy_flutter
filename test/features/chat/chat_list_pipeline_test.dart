@@ -521,4 +521,88 @@ void main() {
       expect(items.length, 25);
     });
   });
+  group('local_bash command de-duplication', () {
+    List<Map<String, dynamic>?> build(List<Map<String, dynamic>> msgs) =>
+        buildChatListItems(
+          visibleMessages: msgs,
+          hideToolCalls: false,
+          shouldRenderAgentEvent: (_) => true,
+          shouldHideToolCall: (_, {required hideToolCalls}) => false,
+        );
+
+    Map<String, dynamic> bash(String command) => <String, dynamic>{
+      'id': 'tool-$command'.hashCode.toString(),
+      'kind': 'tool-call',
+      'name': 'Bash',
+      'input': <String, dynamic>{'command': command},
+    };
+
+    test('drops a progress chip repeating the Terminal row above', () {
+      final items = build([
+        bash('mise run server:lint 2>&1 |\n  tail -15'),
+        <String, dynamic>{
+          'id': 'chip',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': 'mise run server:lint 2>&1 | tail -15',
+          },
+        },
+      ]);
+      expect(items.length, 1);
+      expect(items.single?['kind'], 'tool-call');
+    });
+
+    test('drops a chip whose truncated label prefixes the command', () {
+      final items = build([
+        bash("python3 - <<'EOF' import re p='a.go' s=open(p).read()"),
+        <String, dynamic>{
+          'id': 'chip',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': "python3 - <<'EOF' import re p='a.go'…",
+          },
+        },
+      ]);
+      expect(items.length, 1);
+    });
+
+    test('keeps a chip that says something new', () {
+      final items = build([
+        bash('mise run server:lint'),
+        <String, dynamic>{
+          'id': 'chip',
+          'kind': 'agent-event',
+          'taskEvent': true,
+          'event': <String, dynamic>{
+            'type': 'message',
+            'message': 'Running tests',
+          },
+        },
+      ]);
+      expect(items.length, 2);
+    });
+
+    test('flags a completion card body as redundant, keeps the card', () {
+      final items = build([
+        bash('mise run server:lint 2>&1 | tail -15'),
+        <String, dynamic>{
+          'id': 'done',
+          'kind': 'text',
+          'role': 'agent',
+          'taskEvent': true,
+          'taskStatus': 'completed',
+          'taskType': 'local_bash',
+          'content': 'mise run server:lint 2>&1 | tail -15',
+        },
+      ]);
+      expect(items.length, 2);
+      expect(items[1]?['redundantSummary'], isTrue);
+      // Source message is not mutated.
+      expect(items[1]?['id'], 'done');
+    });
+  });
 }

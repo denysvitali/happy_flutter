@@ -74,6 +74,17 @@ List<Map<String, dynamic>?> buildChatListItems({
   var taskGroup = <Map<String, dynamic>>[];
   var orphanGroup = <Map<String, dynamic>>[];
   String? lastModel;
+  // Recently rendered Terminal commands, newest last. Used to drop task
+  // chips / card bodies that merely repeat a command already on screen.
+  final recentCommands = <String>[];
+  void rememberCommand(String command) {
+    recentCommands
+      ..remove(command)
+      ..add(command);
+    if (recentCommands.length > _kRecentCommandWindow) {
+      recentCommands.removeAt(0);
+    }
+  }
 
   // Buffered orphans always precede anything appended after them, so every
   // site that appends to [items] flushes this first to stay chronological.
@@ -138,12 +149,24 @@ List<Map<String, dynamic>?> buildChatListItems({
     hiddenGroup = <Map<String, dynamic>>[];
   }
 
-  for (final msg in visibleMessages) {
+  for (var msg in visibleMessages) {
     try {
       if (msg['_orphanRecovery'] == true) continue;
+      final command = bashCommandOf(msg);
+      if (command != null) rememberCommand(command);
       if (msg['kind'] == 'agent-event' &&
           !shouldRenderAgentEvent(msg['event'])) {
         continue;
+      }
+      if (msg['taskEvent'] == true) {
+        final label = _taskEventLabel(msg);
+        if (label != null && duplicatesRecentCommand(label, recentCommands)) {
+          // A progress chip that only repeats the Terminal row above it
+          // is pure noise — drop it. A completion card still renders,
+          // but without the duplicated command body.
+          if (_isTaskProgressTick(msg)) continue;
+          msg = <String, dynamic>{...msg, 'redundantSummary': true};
+        }
       }
       if (_isTaskProgressTick(msg)) {
         // Ticks are visible rows, so anything already buffered as hidden
@@ -210,6 +233,70 @@ List<Map<String, dynamic>?> buildChatListItems({
   flushHiddenGroup();
   flushOrphanGroup();
   return items;
+}
+
+/// Number of recent shell commands remembered for chip de-duplication.
+const int _kRecentCommandWindow = 24;
+
+/// Collapses whitespace runs so a heredoc-formatted command compares
+/// equal to the single-line label a task event carries for it.
+String _normalizeCommand(String raw) =>
+    raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+/// The shell command a Bash-family tool call is running, normalized,
+/// or null when [msg] is not such a call.
+String? bashCommandOf(Map<String, dynamic> msg) {
+  if (msg['kind'] != 'tool-call') return null;
+  final name = msg['name'];
+  if (name is! String) return null;
+  final lower = name.toLowerCase();
+  if (lower != 'bash' && lower != 'terminal' && lower != 'bashoutput') {
+    return null;
+  }
+  final input = msg['input'];
+  if (input is! Map) return null;
+  final command = input['command'];
+  if (command is! String) return null;
+  final normalized = _normalizeCommand(command);
+  return normalized.isEmpty ? null : normalized;
+}
+
+/// The user-visible label a task event carries, normalized.
+String? _taskEventLabel(Map<String, dynamic> msg) {
+  final event = msg['event'];
+  if (event is Map) {
+    final label = event['message'];
+    if (label is String && label.trim().isNotEmpty) {
+      return _normalizeCommand(label);
+    }
+  }
+  final content = msg['content'] ?? msg['text'];
+  if (content is String && content.trim().isNotEmpty) {
+    return _normalizeCommand(content);
+  }
+  return null;
+}
+
+/// Whether [label] is just a restatement of a command the transcript
+/// already showed as a Terminal tool row.
+///
+/// `local_bash` task events put the whole shell command in their
+/// description, so a single `mise run …` produced three copies on screen:
+/// the tool row, a centered chip, and the completion card body. Labels are
+/// clamped by [compactTaskLabel] before display, so a truncated label
+/// matches by prefix.
+bool duplicatesRecentCommand(String label, Iterable<String> commands) {
+  if (label.isEmpty) return false;
+  final truncated = label.endsWith('…');
+  final probe = truncated
+      ? label.substring(0, label.length - 1).trimRight()
+      : label;
+  if (probe.isEmpty) return false;
+  for (final command in commands) {
+    if (command == probe) return true;
+    if (truncated && command.startsWith(probe)) return true;
+  }
+  return false;
 }
 
 /// Whether [msg] is an in-flight sub-agent progress chip. Completed

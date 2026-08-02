@@ -40,6 +40,9 @@ class TaskEventSummaryCard extends StatelessWidget {
     return raw is String && raw.isNotEmpty ? raw : null;
   }
 
+  /// Shell-backed tasks put a command in their summary; render it mono.
+  bool get _isShellTask => _taskType == 'local_bash';
+
   String _statusGlyph() {
     if (_isFailed) return '⚠️';
     if (_isCompleted) return '✅';
@@ -129,16 +132,20 @@ class TaskEventSummaryCard extends StatelessWidget {
                 ),
             ],
           ),
-          if (summary.isNotEmpty && summary != _statusLabel()) ...[
+          if (summary.isNotEmpty &&
+              summary != _statusLabel() &&
+              data['redundantSummary'] != true) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
               summary,
               // `local_bash` notifications repeat the entire shell command
               // as their summary; clamp so one task can't own the screen.
-              maxLines: 6,
+              maxLines: 4,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurface.withValues(alpha: 0.85),
+                fontFamily: _isShellTask ? 'monospace' : null,
+                height: 1.35,
               ),
             ),
           ],
