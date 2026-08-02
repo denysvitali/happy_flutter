@@ -1275,8 +1275,14 @@
   "@chatModelChanged": {
     "description": "Inline chat divider shown when the agent starts replying with a different model",
     "placeholders": {
-      "from": { "type": "String", "example": "Opus 4.5" },
-      "to": { "type": "String", "example": "Sonnet 5" }
+      "from": {
+        "type": "String",
+        "example": "Opus 4.5"
+      },
+      "to": {
+        "type": "String",
+        "example": "Sonnet 5"
+      }
     }
   },
   "chatMoreOptions": "More options",
@@ -2654,6 +2660,52 @@
     "description": "Badge counting down the minutes to auto-archive",
     "placeholders": {
       "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "codeBlockTitle": "Code",
+  "@codeBlockTitle": {
+    "description": "Fallback title of the full-screen code reader"
+  },
+  "codeBlockOpenFullScreen": "Open full screen",
+  "@codeBlockOpenFullScreen": {
+    "description": "Tooltip for the code block full-screen button"
+  },
+  "codeBlockEnableWrap": "Wrap long lines",
+  "@codeBlockEnableWrap": {
+    "description": "Tooltip for enabling soft wrapping in code blocks"
+  },
+  "codeBlockDisableWrap": "Scroll long lines",
+  "@codeBlockDisableWrap": {
+    "description": "Tooltip for switching code blocks back to horizontal scrolling"
+  },
+  "codeBlockShowAllLines": "{count, plural, =1{Show 1 more line} other{Show {count} more lines}}",
+  "@codeBlockShowAllLines": {
+    "description": "Tappable footer opening the full-screen reader for clipped code",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "codeBlockHiddenLines": "{count, plural, =1{1 more line} other{{count} more lines}}",
+  "@codeBlockHiddenLines": {
+    "description": "Non-interactive notice that code lines were clipped",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "codeBlockTruncated": "Showing {displayed} of {total} characters",
+  "@codeBlockTruncated": {
+    "description": "Notice that a very large code block was truncated",
+    "placeholders": {
+      "displayed": {
+        "type": "int"
+      },
+      "total": {
         "type": "int"
       }
     }
