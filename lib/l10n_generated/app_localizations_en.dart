@@ -2325,6 +2325,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsAgent => 'Agent';
 
   @override
+  String get sessionsNoSessionSelected => 'No session selected';
+
+  @override
+  String get sessionsNoSessionSelectedHint =>
+      'Choose a session from the list to open its chat, or start a new one.';
+
+  @override
+  String get sessionsResizeSidebar => 'Resize the session list';
+
+  @override
   String get sessionsSelectAll => 'Select All';
 
   @override

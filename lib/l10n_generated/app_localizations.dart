@@ -4237,6 +4237,24 @@ abstract class AppLocalizations {
   /// **'Agent'**
   String get sessionsAgent;
 
+  /// No description provided for @sessionsNoSessionSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No session selected'**
+  String get sessionsNoSessionSelected;
+
+  /// No description provided for @sessionsNoSessionSelectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a session from the list to open its chat, or start a new one.'**
+  String get sessionsNoSessionSelectedHint;
+
+  /// No description provided for @sessionsResizeSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize the session list'**
+  String get sessionsResizeSidebar;
+
   /// No description provided for @sessionsSelectAll.
   ///
   /// In en, this message translates to:

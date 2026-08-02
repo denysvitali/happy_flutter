@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
-import '../../core/components/app_empty_state.dart';
-import '../../core/components/tablet/resizable_pane_divider.dart';
+import '../../core/components/tablet/no_session_selected_view.dart';
+import '../../core/components/tablet/resizable_split_view.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
@@ -27,6 +27,10 @@ import 'widgets/new_session_dialog.dart';
 import 'widgets/session_headers.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
+
+/// Persistence key for the sessions master-pane width in the tablet
+/// split layout.
+const String sessionsPaneId = 'sessions';
 
 enum _NavigationAction {
   switchToSessions,
@@ -80,10 +84,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     }
   }
 
-  /// Current master-pane width on tablet/desktop layouts.
-  /// Defaults to [AppBreakpoint.sidebarMax] and is updated by the
-  /// [ResizablePaneDivider] drag callback.
-  double _masterPaneWidth = AppBreakpoint.sidebarMax;
 
   @override
   void initState() {
@@ -549,59 +549,44 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     // folder / search modes affect only the master pane and the chat detail
     // keeps `ChatAppBar` visible at all times.
     if (isTablet && _activeTab == AppTab.sessions) {
-      return Row(
-        children: [
-          SizedBox(
-            width: _masterPaneWidth,
-            child: Scaffold(
-              appBar: _buildSessionsAppBar(context, context.l10n),
-              body: SyncProgressOverlay(
-                child: SessionsListContent(
-                  selectionNotifier: _selectionNotifier,
-                  folderNotifier: _folderNotifier,
-                  searchQuery: _searchController.text,
-                  onClearSearch: _clearSearch,
-                  scrollController: _scrollController,
-                  onSessionTap: (sessionId) {
-                    setState(() {
-                      _selectedSessionId = sessionId;
-                      _tabletSelectionDismissed = false;
-                    });
-                  },
-                ),
-              ),
+      return ResizableSplitView(
+        paneId: sessionsPaneId,
+        dividerSemanticsLabel: context.l10n.sessionsResizeSidebar,
+        master: Scaffold(
+          appBar: _buildSessionsAppBar(context, context.l10n),
+          body: SyncProgressOverlay(
+            child: SessionsListContent(
+              selectionNotifier: _selectionNotifier,
+              folderNotifier: _folderNotifier,
+              searchQuery: _searchController.text,
+              onClearSearch: _clearSearch,
+              scrollController: _scrollController,
+              onSessionTap: (sessionId) {
+                setState(() {
+                  _selectedSessionId = sessionId;
+                  _tabletSelectionDismissed = false;
+                });
+              },
             ),
           ),
-          ResizablePaneDivider(
-            onResize: (delta) {
-              setState(() {
-                _masterPaneWidth = (_masterPaneWidth + delta).clamp(
-                  ResizablePaneDivider.minWidth(context),
-                  ResizablePaneDivider.maxWidth(context),
-                );
-              });
-            },
-          ),
-          Expanded(
-            child: _selectedSessionId != null
-                ? ChatScreen(
-                    // The key forces a fresh _ChatScreenState whenever
-                    // the user picks a different session in the master
-                    // pane, so initState re-runs the cache load,
-                    // settings load, and sync subscriptions for the new
-                    // session id. Without it, didUpdateWidget would
-                    // reset state but never re-subscribe, leaving the
-                    // chat stuck on a shimmer.
-                    key: ValueKey<String>(_selectedSessionId!),
-                    sessionId: _selectedSessionId!,
-                    onBack: () => setState(() {
-                      _selectedSessionId = null;
-                      _tabletSelectionDismissed = true;
-                    }),
-                  )
-                : _buildNoSessionSelected(),
-          ),
-        ],
+        ),
+        detail: _selectedSessionId != null
+            ? ChatScreen(
+                // The key forces a fresh _ChatScreenState whenever
+                // the user picks a different session in the master
+                // pane, so initState re-runs the cache load,
+                // settings load, and sync subscriptions for the new
+                // session id. Without it, didUpdateWidget would
+                // reset state but never re-subscribe, leaving the
+                // chat stuck on a shimmer.
+                key: ValueKey<String>(_selectedSessionId!),
+                sessionId: _selectedSessionId!,
+                onBack: () => setState(() {
+                  _selectedSessionId = null;
+                  _tabletSelectionDismissed = true;
+                }),
+              )
+            : _buildNoSessionSelected(),
       );
     }
 
@@ -663,10 +648,8 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }
 
   Widget _buildNoSessionSelected() {
-    return AppEmptyState(
-      icon: Icons.chat_bubble_outline,
-      title: context.l10n.chatChat,
-      subtitle: context.l10n.sessionNoSessionsYet,
+    return NoSessionSelectedView(
+      onCreateSession: () => _showNewSessionDialog(context),
     );
   }
 
