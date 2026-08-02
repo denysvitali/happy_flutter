@@ -152,7 +152,7 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
           Semantics(
             container: true,
             liveRegion: true,
-            label: '${l10n.a11yConnectionStatusBanner}. $label',
+            label: l10n.a11yConnectionStatusBanner(label),
             excludeSemantics: true,
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -257,7 +257,7 @@ class _BannerContent extends StatelessWidget {
     return Semantics(
       container: true,
       liveRegion: true,
-      label: '${l10n.a11yConnectionStatusBanner}. $label',
+      label: l10n.a11yConnectionStatusBanner(label),
       excludeSemantics: true,
       child: Container(
         width: double.infinity,

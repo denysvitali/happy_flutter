@@ -810,9 +810,26 @@
     }
   },
   "offlineBannerReconnectNow": "Reconnect now",
-  "a11yConnectionStatusBanner": "Connection status",
+  "a11yConnectionStatusBanner": "Connection status. {status}",
   "@a11yConnectionStatusBanner": {
-    "description": "Screen-reader label for the offline/reconnecting banner"
+    "description": "Screen-reader label for the offline/reconnecting banner, combining the banner role and its current status text",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "a11ySettingsRow": "{title}. {subtitle}",
+  "@a11ySettingsRow": {
+    "description": "Screen-reader label combining a settings row title and subtitle",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "subtitle": {
+        "type": "String"
+      }
+    }
   },
   "a11yTabWithBadge": "{label}, {count, plural, =1{1 new item} other{{count} new items}}",
   "@a11yTabWithBadge": {

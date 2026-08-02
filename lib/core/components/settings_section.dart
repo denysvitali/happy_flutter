@@ -78,14 +78,22 @@ class SettingsRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final maxLines = _labelMaxLines(context);
+    final sub = subtitle;
+    final semanticsLabel = sub == null || sub.isEmpty
+        ? title
+        : context.l10n.a11ySettingsRow(title, sub);
+
+    void handleTap() {
+      HapticFeedback.selectionClick();
+      onTap!();
+    }
 
     final row = InkWell(
-      onTap: onTap == null
-          ? null
-          : () {
-              HapticFeedback.selectionClick();
-              onTap!();
-            },
+      onTap: onTap == null ? null : handleTap,
+      // The row's label and tap action live on the Semantics node below;
+      // letting InkWell publish a second unlabelled tappable node would
+      // duplicate the row for screen-reader users.
+      excludeFromSemantics: true,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -102,35 +110,40 @@ class SettingsRow extends StatelessWidget {
             children: [
               SettingsIconContainer(icon: icon, color: iconColor),
               const SizedBox(width: AppSpacing.md),
+              // The title and subtitle are folded into the row node's
+              // label, so their own nodes are dropped. Only the label
+              // copy is excluded — `trailing` keeps its semantics.
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      title,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: maxLines,
-                      overflow: maxLines == null
-                          ? TextOverflow.clip
-                          : TextOverflow.ellipsis,
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: AppSpacing.xxs),
+                child: ExcludeSemantics(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
                       Text(
-                        subtitle!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
+                        title,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
                         maxLines: maxLines,
                         overflow: maxLines == null
                             ? TextOverflow.clip
                             : TextOverflow.ellipsis,
                       ),
+                      if (sub != null) ...[
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          sub,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                          maxLines: maxLines,
+                          overflow: maxLines == null
+                              ? TextOverflow.clip
+                              : TextOverflow.ellipsis,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
               if (trailing != null) ...[
@@ -145,16 +158,19 @@ class SettingsRow extends StatelessWidget {
       ),
     );
 
-    // Without MergeSemantics the title, subtitle and trailing glyph are
-    // announced as three disconnected fragments.
-    return MergeSemantics(
-      child: Semantics(
-        button: onTap != null,
-        enabled: onTap != null ? true : null,
-        container: true,
-        onTap: onTap,
-        child: row,
-      ),
+    // One node for the label-bearing part of the row (leading icon, title
+    // and subtitle), instead of the fragments the plain container produced.
+    // Deliberately NOT MergeSemantics: real call sites put IconButtons in
+    // `trailing` (duplicate/edit/delete, download, preview) and merging
+    // would swallow them into this node — unreachable for a screen reader,
+    // with their tap actions overwritten by the row's own.
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null ? true : null,
+      container: true,
+      label: semanticsLabel,
+      onTap: onTap == null ? null : handleTap,
+      child: row,
     );
   }
 }

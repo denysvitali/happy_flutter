@@ -204,6 +204,62 @@ void main() {
       handle.dispose();
     });
 
+    testWidgets('a trailing IconButton keeps its own node and action', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      var rowTaps = 0;
+      var deleteTaps = 0;
+
+      await tester.pumpWidget(
+        _app(
+          child: SettingsRow(
+            icon: Icons.person_outline,
+            title: 'Reviewer',
+            subtitle: 'Built-in profile',
+            onTap: () => rowTaps++,
+            trailing: IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete profile',
+              onPressed: () => deleteTaps++,
+            ),
+          ),
+        ),
+      );
+
+      // Regression: merging the whole row absorbed interactive trailing
+      // widgets into the row node, making them unreachable and letting the
+      // absorbed configuration overwrite their tap action.
+      expect(
+        tester.getSemantics(find.byTooltip('Delete profile')),
+        containsSemantics(
+          isButton: true,
+          label: 'Delete profile',
+          hasTapAction: true,
+        ),
+      );
+
+      final rowNode = tester.getSemantics(find.byType(SettingsRow));
+      expect(rowNode.label, 'Reviewer. Built-in profile');
+      expect(rowNode, containsSemantics(isButton: true, hasTapAction: true));
+
+      // Each node fires its own callback, not the other's.
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        rowNode.id,
+        SemanticsAction.tap,
+      );
+      await tester.pump();
+      expect(rowTaps, 1);
+      expect(deleteTaps, 0);
+
+      await tester.tap(find.byTooltip('Delete profile'));
+      await tester.pump();
+      expect(deleteTaps, 1);
+      expect(rowTaps, 1);
+
+      handle.dispose();
+    });
+
     testWidgets('a toggle row exposes on/off state', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(

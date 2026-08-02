@@ -3907,11 +3907,17 @@ abstract class AppLocalizations {
   /// **'Reconnect now'**
   String get offlineBannerReconnectNow;
 
-  /// Screen-reader label for the offline/reconnecting banner
+  /// Screen-reader label for the offline/reconnecting banner, combining the banner role and its current status text
   ///
   /// In en, this message translates to:
-  /// **'Connection status'**
-  String get a11yConnectionStatusBanner;
+  /// **'Connection status. {status}'**
+  String a11yConnectionStatusBanner(String status);
+
+  /// Screen-reader label combining a settings row title and subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'{title}. {subtitle}'**
+  String a11ySettingsRow(String title, String subtitle);
 
   /// Screen-reader label for a bottom-nav tab carrying a badge
   ///

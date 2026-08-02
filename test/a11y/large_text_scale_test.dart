@@ -36,6 +36,10 @@ const double _kLargeScale = 2.0;
 /// Small phone viewport — the tightest realistic layout budget.
 const Size _kPhone = Size(360, 640);
 
+/// One bounded frame step, longer than every one-shot transition in these
+/// widgets (the slowest is 500 ms).
+const Duration _kSettleStep = Duration(milliseconds: 600);
+
 Widget _app({required Widget child}) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -51,12 +55,20 @@ Widget _app({required Widget child}) {
   );
 }
 
+/// Pumps [app] on a small phone viewport.
+///
+/// Deliberately bounded `pump()`s rather than `pumpAndSettle()`:
+/// [AppEmptyState] runs a forever-repeating "breathe" animation on its icon,
+/// so `pumpAndSettle` would burn its whole timeout budget and fail. Two
+/// bounded frames are enough to lay out and finish the one-shot entrance
+/// animations these tests care about.
 Future<void> _pumpPhone(WidgetTester tester, Widget app) async {
   tester.view.physicalSize = _kPhone * 3.0;
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(app);
-  await tester.pumpAndSettle();
+  await tester.pump(_kSettleStep);
+  await tester.pump(_kSettleStep);
 }
 
 void main() {
@@ -96,6 +108,34 @@ void main() {
       // clamping the scaler or clipping the label.
       final barHeight = tester.getSize(find.byType(TabBar)).height;
       expect(barHeight, greaterThan(TabBar.defaultHeight));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the badge pill grows with the digit', (tester) async {
+      await _pumpPhone(
+        tester,
+        _app(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: TabBar(
+              activeTab: AppTab.sessions,
+              onTabPress: (_) {},
+              badgeCounts: const <AppTab, int>{AppTab.loops: 12},
+            ),
+          ),
+        ),
+      );
+
+      // The pill used to be a fixed 16 dp box, so a 20 dp digit clipped.
+      final digit = find.text('9+');
+      expect(digit, findsOneWidget);
+      final pill = tester.getSize(
+        find.ancestor(of: digit, matching: find.byType(Container)).first,
+      );
+      final digitSize = tester.getSize(digit);
+      expect(pill.height, greaterThanOrEqualTo(digitSize.height));
+      expect(pill.width, greaterThanOrEqualTo(digitSize.width));
+      expect(pill.height, greaterThan(16));
       expect(tester.takeException(), isNull);
     });
 

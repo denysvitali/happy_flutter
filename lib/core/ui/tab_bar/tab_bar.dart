@@ -234,23 +234,37 @@ class _TabIconWithBadge extends StatelessWidget {
   }
 }
 
-/// Small pill-shaped badge — fixed 16 dp tall, ~16-22 dp wide depending on
-/// label length. [colorScheme.onError] text on [AppColors.error].
+/// Nominal diameter of the numeric badge dot. A floor, not a cap: the badge
+/// grows with the system text scale via [tabBadgeExtent].
+const double _kTabBadgeSize = 16;
+
+/// Diameter the badge needs at the current system text scale.
+///
+/// The digit is rendered at [AppFontSize.xxs]; at 200 % system font that is
+/// ~20 dp of glyph, which used to clip inside the fixed 16 dp pill.
+double tabBadgeExtent(BuildContext context) {
+  final scaled = MediaQuery.textScalerOf(context).scale(AppFontSize.xxs);
+  return math.max(
+    _kTabBadgeSize,
+    scaled * AppLineHeight.tight + AppSpacing.xs,
+  );
+}
+
+/// Small pill-shaped badge. Square at a single digit, wider for `9+`, and
+/// scaled with the system font. [colorScheme.onError] text on
+/// [AppColors.error].
 class _TabBadge extends StatelessWidget {
   const _TabBadge({required this.label});
 
   final String label;
 
-  static const double _size = 16;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isWide = label.length > 1;
-    final double width = isWide ? 22 : _size;
+    final extent = tabBadgeExtent(context);
     return Container(
-      width: width,
-      height: _size,
+      constraints: BoxConstraints(minWidth: extent, minHeight: extent),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.error,
@@ -266,7 +280,7 @@ class _TabBadge extends StatelessWidget {
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onError,
           fontSize: AppFontSize.xxs,
-          height: 1.0,
+          height: AppLineHeight.tight,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -344,8 +358,14 @@ class TabBar extends StatefulWidget {
     final labelFontSize =
         Theme.of(context).textTheme.labelSmall?.fontSize ?? AppFontSize.xs;
     final scaledLabel = MediaQuery.textScalerOf(context).scale(labelFontSize);
+    // The badge overhangs the icon box by AppSpacing.xxs on the top edge and
+    // grows with the text scale, so it — not the icon — can set the height.
+    final iconBlock = math.max(
+      AppIconSize.tab + AppSpacing.xs,
+      tabBadgeExtent(context) + AppSpacing.xxs,
+    );
     // Icon block + gap + one line of label + vertical breathing room.
-    final needed = AppIconSize.tab +
+    final needed = iconBlock +
         AppSpacing.xs +
         AppSpacing.xsm +
         scaledLabel * AppLineHeight.normal +
@@ -434,9 +454,6 @@ class _TabBarState extends State<TabBar> {
 
 // ─── CompactTabBar ───────────────────────────────────────────────────────────
 
-/// Diameter of the numeric badge dot on [CompactTabBar].
-const double _kCompactBadgeSize = 16;
-
 /// Icon-only compact tab bar, designed for tablet rail/sidebar use.
 ///
 /// Each icon has a 44 px minimum tap target. Active icons use the primary
@@ -516,9 +533,9 @@ class CompactTabBar extends StatelessWidget {
                     right: AppSpacing.xxs,
                     top: AppSpacing.xxs,
                     child: Container(
-                      constraints: const BoxConstraints(
-                        minWidth: _kCompactBadgeSize,
-                        minHeight: _kCompactBadgeSize,
+                      constraints: BoxConstraints(
+                        minWidth: tabBadgeExtent(context),
+                        minHeight: tabBadgeExtent(context),
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.xxs,

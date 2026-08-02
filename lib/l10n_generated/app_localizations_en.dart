@@ -2156,7 +2156,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offlineBannerReconnectNow => 'Reconnect now';
 
   @override
-  String get a11yConnectionStatusBanner => 'Connection status';
+  String a11yConnectionStatusBanner(String status) {
+    return 'Connection status. $status';
+  }
+
+  @override
+  String a11ySettingsRow(String title, String subtitle) {
+    return '$title. $subtitle';
+  }
 
   @override
   String a11yTabWithBadge(String label, int count) {
