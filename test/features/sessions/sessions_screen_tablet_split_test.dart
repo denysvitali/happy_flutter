@@ -11,6 +11,7 @@ import 'package:flutter/material.dart' hide TabBar;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/core/components/components.dart'
@@ -84,28 +85,37 @@ class _StubSessionGitStatusNotifier extends SessionGitStatusNotifier {
   Map<String, GitStatus> build() => const {};
 }
 
-Widget _app() => ProviderScope(
-  overrides: [
-    authStateNotifierProvider.overrideWith(_StubAuthNotifier.new),
-    settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
-    sessionsNotifierProvider.overrideWith(_StubSessionsNotifier.new),
-    machinesNotifierProvider.overrideWith(_StubMachinesNotifier.new),
-    connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
-    networkNotifierProvider.overrideWith(_StubNetworkNotifier.new),
-    profileNotifierProvider.overrideWith(_StubProfileNotifier.new),
-    currentSessionNotifierProvider.overrideWith(
-      _StubCurrentSessionNotifier.new,
+Widget _app() {
+  // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
+  // so the harness must sit under a router like production does.
+  final router = GoRouter(
+    routes: [
+      GoRoute(path: '/', builder: (_, _) => const SessionsScreen()),
+    ],
+  );
+  return ProviderScope(
+    overrides: [
+      authStateNotifierProvider.overrideWith(_StubAuthNotifier.new),
+      settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
+      sessionsNotifierProvider.overrideWith(_StubSessionsNotifier.new),
+      machinesNotifierProvider.overrideWith(_StubMachinesNotifier.new),
+      connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
+      networkNotifierProvider.overrideWith(_StubNetworkNotifier.new),
+      profileNotifierProvider.overrideWith(_StubProfileNotifier.new),
+      currentSessionNotifierProvider.overrideWith(
+        _StubCurrentSessionNotifier.new,
+      ),
+      sessionGitStatusNotifierProvider.overrideWith(
+        _StubSessionGitStatusNotifier.new,
+      ),
+    ],
+    child: MaterialApp.router(
+      routerConfig: router,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
     ),
-    sessionGitStatusNotifierProvider.overrideWith(
-      _StubSessionGitStatusNotifier.new,
-    ),
-  ],
-  child: MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: const SessionsScreen(),
-  ),
-);
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
