@@ -151,8 +151,14 @@ void main() {
     final node = tester.getSemantics(find.byType(ResizablePaneDivider));
     expect(node.label, 'Resize');
     expect(node.value, '${before.round()} pixels wide');
-    expect(node.hasAction(SemanticsAction.increase), isTrue);
-    expect(node.hasAction(SemanticsAction.decrease), isTrue);
+    expect(
+      node.getSemanticsData().hasAction(SemanticsAction.increase),
+      isTrue,
+    );
+    expect(
+      node.getSemanticsData().hasAction(SemanticsAction.decrease),
+      isTrue,
+    );
 
     tester.binding.pipelineOwner.semanticsOwner!.performAction(
       node.id,
@@ -189,8 +195,14 @@ void main() {
     await tester.pumpWidget(_harness(storage));
 
     final node = tester.getSemantics(find.byType(ResizablePaneDivider));
-    expect(node.hasAction(SemanticsAction.increase), isFalse);
-    expect(node.hasAction(SemanticsAction.decrease), isFalse);
+    expect(
+      node.getSemanticsData().hasAction(SemanticsAction.increase),
+      isFalse,
+    );
+    expect(
+      node.getSemanticsData().hasAction(SemanticsAction.decrease),
+      isFalse,
+    );
 
     handle.dispose();
   });
