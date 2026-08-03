@@ -228,7 +228,7 @@ void main() {
       expect(items[2]?['subAgentLastTool'], 'Bash');
     });
 
-    test('keeps terminal task summaries, which are text rows', () {
+    test('terminal summary supersedes the task in-flight chips', () {
       final items = build([
         tick('a1', 'Read'),
         tick('a1', 'Bash'),
@@ -237,14 +237,38 @@ void main() {
           'role': 'agent',
           'kind': 'text',
           'taskEvent': true,
+          'taskStatus': 'completed',
           'agentId': 'a1',
           'content': 'Task completed',
         },
       ]);
 
+      // A finished task renders exactly one row: the summary.
+      expect(items.length, 1);
+      expect(items[0]?['id'], 'tn1');
+    });
+
+    test('merges ticks across interleaved task lifecycle rows', () {
+      final items = build([
+        tick('to', 'TaskOutput'),
+        tick('a1', 'Read'),
+        {
+          'id': 'tn1',
+          'role': 'agent',
+          'kind': 'text',
+          'taskEvent': true,
+          'taskStatus': 'completed',
+          'agentId': 'a1',
+          'content': 'Task completed',
+        },
+        tick('to', 'TaskOutput'),
+      ]);
+
+      // a1's chips drop (summary landed); the still-running TaskOutput
+      // collapses to its latest tick.
       expect(items.length, 2);
-      expect(items[0]?['subAgentLastTool'], 'Bash');
-      expect(items[1]?['id'], 'tn1');
+      expect(items[0]?['id'], 'tn1');
+      expect(items[1]?['agentId'], 'to');
     });
 
     test('falls back to the tool name when agentId is absent', () {

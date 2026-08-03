@@ -42,12 +42,17 @@ typedef MessageErrorHandler =
 ///   "1 tool complete" rows. The summary exposes two keys:
 ///   `tools` (tool-calls only, drives the counts label) and
 ///   `items` (everything collapsed, in original order).
-/// - Collapses a consecutive run of sub-agent `task_progress` ticks to
-///   one row per sub-agent (latest tick wins, first-seen order kept).
-///   A workflow fan-out emits a tick per tool call per agent, which
-///   otherwise buried the transcript under dozens of near-identical
-///   centered chips. Terminal `task_notification` rows are `kind: text`
-///   and are never folded.
+/// - Collapses a run of sub-agent `task_progress` ticks to one row per
+///   sub-agent (latest tick wins, first-seen order kept). A workflow
+///   fan-out emits a tick per tool call per agent, which otherwise
+///   buried the transcript under dozens of near-identical centered
+///   chips. The run spans interleaved task lifecycle rows (other
+///   agents' start chips and terminal summaries) so alternating
+///   `TaskOutput running (30s)… (60s)…` ticks still collapse to one;
+///   plain conversation rows still break the run. Terminal
+///   `task_notification` rows are `kind: text`, render inline, and
+///   supersede the task's buffered in-flight chips — a finished task
+///   renders exactly one row.
 /// - Caps a run of ungrouped sidechain orphans at
 ///   [sidechainOrphanInlineCap]: the newest `cap` stay inline and the
 ///   older ones collapse behind a single `sidechain-orphan-more` row
@@ -72,6 +77,9 @@ List<Map<String, dynamic>?> buildChatListItems({
   final items = <Map<String, dynamic>?>[];
   var hiddenGroup = <Map<String, dynamic>>[];
   var taskGroup = <Map<String, dynamic>>[];
+  // Task keys whose terminal summary rendered inside the current tick
+  // run; their buffered in-flight chips drop on flush.
+  final completedInTaskRun = <String>{};
   var orphanGroup = <Map<String, dynamic>>[];
   String? lastModel;
   // Recently rendered Terminal commands, newest last. Used to drop task
@@ -115,7 +123,10 @@ List<Map<String, dynamic>?> buildChatListItems({
   }
 
   void flushTaskGroup() {
-    if (taskGroup.isEmpty) return;
+    if (taskGroup.isEmpty) {
+      completedInTaskRun.clear();
+      return;
+    }
     flushOrphanGroup();
     // Insertion order is first-seen-per-agent so rows keep a stable
     // position while their label updates; the value is the latest tick.
@@ -123,8 +134,11 @@ List<Map<String, dynamic>?> buildChatListItems({
     for (final msg in taskGroup) {
       latest[_taskTickKey(msg)] = msg;
     }
-    items.addAll(latest.values);
+    items.addAll(latest.values.where(
+      (msg) => !completedInTaskRun.contains(_taskTickKey(msg)),
+    ));
     taskGroup = <Map<String, dynamic>>[];
+    completedInTaskRun.clear();
   }
 
   void flushHiddenGroup() {
@@ -175,7 +189,20 @@ List<Map<String, dynamic>?> buildChatListItems({
         taskGroup.add(msg);
         continue;
       }
-      flushTaskGroup();
+      // A terminal task summary renders inline at its own position and
+      // marks the run's buffered chips for that task as superseded, so
+      // ticks keep merging across it instead of flushing.
+      final isTerminalTaskSummary = msg['kind'] == 'text' &&
+          msg['taskEvent'] == true &&
+          (msg['taskStatus'] == 'completed' || msg['taskStatus'] == 'failed');
+      if (isTerminalTaskSummary) {
+        final key = _taskTickKey(msg);
+        // `id:` keys carry no real task identity — never supersede on
+        // them, or unrelated chips would drop.
+        if (!key.startsWith('id:')) completedInTaskRun.add(key);
+      } else {
+        flushTaskGroup();
+      }
       // A model switch is worth showing even when it happens inside a
       // run of hidden tool calls, so the check runs before the
       // hide-filters and flushes the group to keep the divider in
