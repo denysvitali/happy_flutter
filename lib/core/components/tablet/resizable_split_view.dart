@@ -95,6 +95,9 @@ class _ResizableSplitViewState extends State<ResizableSplitView> {
   Widget build(BuildContext context) {
     final masterWidth = _resolveWidth(context);
     final label = widget.dividerSemanticsLabel;
+    final step = ResizablePaneDivider.semanticsStep;
+    final min = ResizablePaneDivider.minWidth(context);
+    final max = ResizablePaneDivider.maxWidth(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -104,6 +107,16 @@ class _ResizableSplitViewState extends State<ResizableSplitView> {
           semanticsValue: label == null
               ? null
               : context.l10n.paneWidthPixels(masterWidth.round()),
+          semanticsIncreasedValue: label == null
+              ? null
+              : context.l10n.paneWidthPixels(
+                  (masterWidth + step).clamp(min, max).round(),
+                ),
+          semanticsDecreasedValue: label == null
+              ? null
+              : context.l10n.paneWidthPixels(
+                  (masterWidth - step).clamp(min, max).round(),
+                ),
           onResize: (delta) => _onResize(delta, context),
           onResizeEnd: _persist,
         ),

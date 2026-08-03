@@ -51,6 +51,8 @@ class ResizablePaneDivider extends StatefulWidget {
     this.onResizeEnd,
     this.semanticsLabel,
     this.semanticsValue,
+    this.semanticsIncreasedValue,
+    this.semanticsDecreasedValue,
   });
 
   /// Distance the pane moves per assistive-technology increase/decrease
@@ -69,6 +71,15 @@ class ResizablePaneDivider extends StatefulWidget {
 
   /// Current width announced by assistive technology, e.g. `'420 pixels'`.
   final String? semanticsValue;
+
+  /// Width announced after an assistive-technology increase. Flutter asserts
+  /// that a node exposing the `increase` action carries both `value` and
+  /// `increasedValue` (or neither), so this must accompany [semanticsValue].
+  final String? semanticsIncreasedValue;
+
+  /// Width announced after an assistive-technology decrease. Symmetric
+  /// requirement to [semanticsIncreasedValue] for the `decrease` action.
+  final String? semanticsDecreasedValue;
 
   /// Returns the minimum master-pane width for the current screen size.
   static double minWidth(BuildContext context) {
@@ -132,6 +143,8 @@ class _ResizablePaneDividerState extends State<ResizablePaneDivider> {
         // assistive tech must be able to move it, not just read it.
         slider: label != null,
         value: label == null ? null : widget.semanticsValue,
+        increasedValue: label == null ? null : widget.semanticsIncreasedValue,
+        decreasedValue: label == null ? null : widget.semanticsDecreasedValue,
         onIncrease: label == null
             ? null
             : () => _nudge(ResizablePaneDivider.semanticsStep),
