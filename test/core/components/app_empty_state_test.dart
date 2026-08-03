@@ -114,16 +114,11 @@ void main() {
         ),
       );
 
-      // Assert on the breathing transform rather than on AnimatedBuilder:
-      // the scroll view's stretch overscroll indicator is an AnimatedBuilder
-      // too, and it is present either way.
-      expect(
-        find.ancestor(
-          of: find.byIcon(Icons.inbox),
-          matching: find.byType(Transform),
-        ),
-        findsNothing,
-      );
+      // Assert no ticker is running: widget-tree shape is a poor proxy here
+      // (the scroll view contributes both an AnimatedBuilder and a Transform
+      // of its own), but a stopped breathing controller means no transient
+      // frame callback is scheduled.
+      expect(tester.binding.transientCallbackCount, 0);
     });
 
     testWidgets('icon is inside gradient container', (tester) async {

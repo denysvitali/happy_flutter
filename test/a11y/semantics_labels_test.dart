@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide TabBar;
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -188,15 +189,17 @@ void main() {
         ),
       );
 
-      // Query the merged node, not the SettingsRow element: the merge lands
-      // on the MergeSemantics node, so the row's own node carries no label.
-      final node = tester.getSemantics(
-        find.bySemanticsLabel(RegExp('Account and recovery')),
+      // Read the merged node off the semantics tree: element-scoped nodes
+      // (SettingsRow, or the widget a label finder resolves to) carry an
+      // empty label because MergeSemantics owns the merged result.
+      final merged = _semanticsDataWhere(
+        tester,
+        (data) => data.label.contains('Account and recovery'),
       );
-      expect(node, containsSemantics(isButton: true));
-      expect(node.label, contains('Account and recovery'));
+      expect(merged, isNotNull, reason: 'no node announces the row title');
       // Merged: the subtitle is part of the same node, not a fragment.
-      expect(node.label, contains('Backup key, linked devices, restore'));
+      expect(merged!.label, contains('Backup key, linked devices, restore'));
+      expect(merged.hasAction(SemanticsAction.tap), isTrue);
 
       handle.dispose();
     });
@@ -307,4 +310,30 @@ void main() {
       handle.dispose();
     });
   });
+}
+
+/// First [SemanticsData] in the rendered semantics tree matching [test].
+///
+/// Needed because merged rows expose their label on the MergeSemantics node,
+/// which no element-scoped finder resolves to.
+SemanticsData? _semanticsDataWhere(
+  WidgetTester tester,
+  bool Function(SemanticsData data) test,
+) {
+  SemanticsData? found;
+  void visit(SemanticsNode node) {
+    if (found != null) return;
+    final data = node.getSemanticsData();
+    if (test(data)) {
+      found = data;
+      return;
+    }
+    node.visitChildren((child) {
+      visit(child);
+      return found == null;
+    });
+  }
+
+  visit(tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!);
+  return found;
 }
