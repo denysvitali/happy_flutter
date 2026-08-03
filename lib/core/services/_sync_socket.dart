@@ -195,7 +195,17 @@ extension SyncSocket on Sync {
         _notifySessionMessagesChanged(sessionId);
       },
     );
-    unawaited(messageOutbox.restoreAndFlush());
+    unawaited(
+      messageOutbox.restoreAndFlush().then((_) {
+        // Cold-start race: the socket can reach `connected` before the
+        // MMKV restore above has loaded the dead-letter bucket, in which
+        // case the connect-time reviveTransientDead ran against an empty
+        // bucket. Check again once the entries are actually in memory.
+        if (socketIoClient.connectionStatus == ConnectionStatus.connected) {
+          unawaited(messageOutbox.reviveTransientDead(reason: 'cold start'));
+        }
+      }),
+    );
   }
 
   /// Creates an [InvalidateSync] wired to the standard

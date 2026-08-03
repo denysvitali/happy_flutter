@@ -95,7 +95,9 @@ void main() {
     sync.testSessions[_sessionId] = _makeSession();
     messageOutbox.dispose();
     messageOutbox.testStorage = MMKVStorage.testConstructor();
-    messageOutbox.configure(deliver: (_) async => false);
+    messageOutbox.configure(
+      deliver: (_) async => OutboxDeliveryFailure.permanent,
+    );
   });
 
   tearDown(() async {

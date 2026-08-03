@@ -172,6 +172,17 @@ class PowerDiagnosticsOtelReporter {
     attributes: {'reason': reason},
   );
 
+  /// A message exhausted its retry budget and was dead-lettered — any
+  /// value above zero is a P0 signal (potential permanent message loss).
+  /// [reason] follows the same bucketing rule as [recordOutboxFailure].
+  void recordOutboxDeadLetter({String reason = 'unknown'}) => _bump(
+    'happy_flutter.outbox.dead_lettered',
+    description: 'Messages dead-lettered after exhausting the outbox '
+        'retry budget (potential permanent loss)',
+    unit: '{messages}',
+    attributes: {'reason': reason},
+  );
+
   /// Bumps an app-level error counter.
   ///
   /// [name] is a short, dotted identifier such as `app.auto_restore.failed`;

@@ -61,8 +61,8 @@ void main() {
 
       final outbox = SqliteMessageOutbox(
         store: store,
-        deliverOverride: (_) async => true,
-      )..configure(deliver: (_) async => true);
+        deliverOverride: (_) async => null,
+      )..configure(deliver: (_) async => null);
       await outbox.restoreAndFlush();
       // The folder should have rebuilt both entries.
       final ids = outbox.entries.map((e) => e.localId).toSet();
@@ -80,8 +80,8 @@ void main() {
 
       final outbox = SqliteMessageOutbox(
         store: store,
-        deliverOverride: (_) async => true,
-      )..configure(deliver: (_) async => true);
+        deliverOverride: (_) async => null,
+      )..configure(deliver: (_) async => null);
       await outbox.restoreAndFlush();
       final ids = outbox.entries.map((e) => e.localId).toSet();
       expect(ids, {'c'});
@@ -96,8 +96,8 @@ void main() {
 
       final outbox = SqliteMessageOutbox(
         store: store,
-        deliverOverride: (_) async => true,
-      )..configure(deliver: (_) async => true);
+        deliverOverride: (_) async => null,
+      )..configure(deliver: (_) async => null);
       await outbox.restoreAndFlush();
       final entry = outbox.entries.firstWhere((e) => e.localId == 'a');
       expect(entry.retryCount, 2);

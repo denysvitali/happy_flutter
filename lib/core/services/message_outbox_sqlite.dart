@@ -29,7 +29,12 @@ import 'package:flutter/foundation.dart';
 import '../wire/wire_parsers.dart';
 import 'logger_service.dart';
 import 'message_outbox.dart'
-    show OutboxEntry, OutboxDeliverFn, OutboxStatusChangedFn;
+    show
+        OutboxDeliverFn,
+        OutboxDeliveryFailure,
+        OutboxEntry,
+        OutboxFailureClass,
+        OutboxStatusChangedFn;
 
 /// Build flag controlling adoption of the SQLite-backed outbox.
 ///
@@ -224,6 +229,10 @@ class SqliteMessageOutbox {
   }) : _deliverOverride = deliverOverride;
 
   static const int _maxRetries = 3;
+
+  /// Mirrors `MessageOutbox._maxTransientRetries` — keep the two in
+  /// sync so this spike does not drift from the production budget.
+  static const int _maxTransientRetries = 480;
   static const int _baseDelayMs = 1000;
   static const int _maxDelayMs = 30000;
 
@@ -354,23 +363,33 @@ class SqliteMessageOutbox {
       logger.warning('[SqliteMessageOutbox] no deliver callback');
       return;
     }
-    bool success;
+    OutboxDeliveryFailure? failure;
     try {
-      success = await deliver(entry);
+      failure = await deliver(entry);
     } catch (e, stack) {
       logger.error('[SqliteMessageOutbox] deliver threw', e, stack);
-      success = false;
+      failure = const OutboxDeliveryFailure(
+        OutboxFailureClass.transient,
+        'unknown',
+      );
     }
-    if (success) {
+    if (failure == null) {
       _entries.remove(localId);
       await store.appendSent(localId);
       _onStatusChanged?.call(entry.sessionId, localId, 'sent');
       return;
     }
-    final updated = entry.copyWith(retryCount: entry.retryCount + 1);
+    final updated = entry.copyWith(
+      retryCount: entry.retryCount + 1,
+      failureClass: failure.failureClass,
+      failureReason: failure.reason,
+    );
     _entries[localId] = updated;
     await store.appendRetry(localId, updated.retryCount);
-    if (updated.retryCount >= _maxRetries) {
+    final budget = failure.failureClass == OutboxFailureClass.permanent
+        ? _maxRetries
+        : _maxTransientRetries;
+    if (updated.retryCount >= budget) {
       _entries.remove(localId);
       await store.appendFailed(localId);
       _onStatusChanged?.call(entry.sessionId, localId, 'failed');

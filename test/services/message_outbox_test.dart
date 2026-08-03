@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
+import 'package:happy_flutter/core/services/power_diagnostics_service.dart';
 
 // ---------------------------------------------------------------------------
 // Fake MMKVStorage for testing
@@ -92,7 +93,7 @@ void main() {
       outbox.configure(
         deliver: (e) async {
           delivered.add(e.localId);
-          return true;
+          return null;
         },
       );
 
@@ -113,7 +114,7 @@ void main() {
     });
 
     test('remove clears an entry and persists', () async {
-      outbox.configure(deliver: (e) async => true);
+      outbox.configure(deliver: (e) async => null);
       final entry = _makeEntry();
       await outbox.add(entry);
 
@@ -134,7 +135,7 @@ void main() {
     test('successful delivery removes entry and fires sent status', () async {
       final statuses = <String>[];
       outbox.configure(
-        deliver: (e) async => true,
+        deliver: (e) async => null,
         onStatusChanged: (_, __, status) => statuses.add(status),
       );
 
@@ -159,7 +160,7 @@ void main() {
       outbox.configure(
         deliver: (e) async {
           attempts++;
-          return false; // always fail
+          return OutboxDeliveryFailure.permanent; // always fail
         },
         onStatusChanged: (_, __, status) => statuses.add(status),
       );
@@ -186,8 +187,12 @@ void main() {
 
     test('exhausted entry is dead-lettered, not destroyed', () async {
       final statuses = <String>[];
+      final before = powerDiagnostics.snapshot();
       outbox.configure(
-        deliver: (e) async => false, // always fail
+        deliver: (e) async => const OutboxDeliveryFailure(
+          OutboxFailureClass.permanent,
+          'session_gone',
+        ),
         onStatusChanged: (_, __, status) => statuses.add(status),
       );
 
@@ -197,11 +202,14 @@ void main() {
       expect(statuses.last, 'failed');
       expect(outbox.contains('doomed'), isFalse);
 
-      // The encrypted payload survives in the dead-letter bucket.
+      // The encrypted payload survives in the dead-letter bucket, with
+      // the failure class that chose the small permanent budget.
       final dead = outbox.deadEntry('doomed');
       expect(dead, isNotNull);
       expect(dead!.encryptedContent, 'enc-abc');
       expect(dead.dead, isTrue);
+      expect(dead.failureClass, OutboxFailureClass.permanent);
+      expect(dead.failureReason, 'session_gone');
 
       // …and it is persisted, so a cold start can still recover it.
       final saved =
@@ -209,6 +217,14 @@ void main() {
               .cast<Map<String, dynamic>>();
       expect(saved.single['localId'], 'doomed');
       expect(saved.single['dead'], isTrue);
+      expect(saved.single['failureClass'], 'permanent');
+
+      // Telemetry contract (audit 2026-08-03): EVERY failed attempt is
+      // counted — the terminal one used to be skipped — and the
+      // dead-letter itself gets its own counter.
+      final after = powerDiagnostics.snapshot();
+      expect(after.outboxFailures - before.outboxFailures, 3);
+      expect(after.outboxDeadLetters - before.outboxDeadLetters, 1);
     }, timeout: const Timeout(Duration(seconds: 20)));
 
     test('restoreAndFlush rehydrates dead entries as failed rows', () async {
@@ -230,7 +246,7 @@ void main() {
       outbox2.configure(
         deliver: (e) async {
           delivered.add(e.localId);
-          return true;
+          return null;
         },
         onStatusChanged: (_, __, status) => statuses.add(status),
       );
@@ -267,7 +283,7 @@ void main() {
       outbox2.configure(
         deliver: (e) async {
           delivered.add(e);
-          return true;
+          return null;
         },
       );
       await outbox2.restoreAndFlush();
@@ -283,6 +299,153 @@ void main() {
       outbox2.dispose();
     }, timeout: const Timeout(Duration(seconds: 15)));
 
+    // ── Failure-class aware retry (audit 2026-08-03) ───────────────────────
+    //
+    // Four user messages were permanently lost during server brownouts
+    // because the flat 3-retry / ~40 s budget was shorter than the outage.
+    // Transient failures (timeout / network / 5xx / 429) now retry for
+    // hours; permanent rejections (4xx / session gone) keep the small
+    // budget; reconnect and foreground re-arm transient dead letters.
+
+    test('transient failures keep retrying past the old 3-attempt budget',
+        () async {
+      var attempts = 0;
+      outbox.configure(
+        deliver: (e) async {
+          attempts++;
+          return const OutboxDeliveryFailure(
+            OutboxFailureClass.transient,
+            'server_error',
+          );
+        },
+      );
+
+      await outbox.add(_makeEntry(localId: 'brownout'));
+      // Attempt 1 fires after backoff(0) ≈ 1 s. Each resume() re-arms the
+      // pending entry at the 1 s floor, walking through attempts without
+      // waiting out the doubling backoff.
+      for (var i = 0; i < 4; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 1400));
+        outbox.resume();
+      }
+
+      // Four failed attempts — one past the old flat budget that used to
+      // dead-letter here — and the entry is still live, still retrying.
+      expect(attempts, greaterThanOrEqualTo(4));
+      expect(outbox.contains('brownout'), isTrue);
+      expect(outbox.deadEntry('brownout'), isNull);
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
+    test('throwing deliver is treated as transient, not dead-lettered',
+        () async {
+      var attempts = 0;
+      outbox.configure(
+        deliver: (e) async {
+          attempts++;
+          throw StateError('deliver blew up');
+        },
+      );
+
+      await outbox.add(_makeEntry(localId: 'throwy'));
+      for (var i = 0; i < 4; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 1400));
+        outbox.resume();
+      }
+
+      expect(attempts, greaterThanOrEqualTo(4));
+      expect(outbox.contains('throwy'), isTrue);
+      expect(outbox.deadEntry('throwy'), isNull);
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
+    test('failure class and reason persist with the entry', () {
+      final entry = _makeEntry(retryCount: 2).copyWith(
+        failureClass: OutboxFailureClass.transient,
+        failureReason: 'server_error',
+      );
+      final restored = OutboxEntry.fromJson(entry.toJson());
+      expect(restored.failureClass, OutboxFailureClass.transient);
+      expect(restored.failureReason, 'server_error');
+
+      // Entries written by older builds carry no class — they must
+      // round-trip as unclassified, which gets the loss-averse
+      // transient budget.
+      final legacy = OutboxEntry.fromJson(_makeEntry().toJson());
+      expect(legacy.failureClass, isNull);
+      expect(legacy.failureReason, isNull);
+    });
+
+    test('reviveTransientDead re-arms transient + legacy, skips permanent',
+        () async {
+      final delivered = <OutboxEntry>[];
+      outbox.configure(
+        deliver: (e) async {
+          delivered.add(e);
+          return null;
+        },
+      );
+      outbox.testInsertDead(
+        _makeEntry(localId: 'dead-transient').copyWith(
+          retryCount: 480,
+          failureClass: OutboxFailureClass.transient,
+          failureReason: 'server_error',
+        ),
+      );
+      outbox.testInsertDead(
+        _makeEntry(localId: 'dead-permanent').copyWith(
+          retryCount: 3,
+          failureClass: OutboxFailureClass.permanent,
+          failureReason: 'session_gone',
+        ),
+      );
+      // Legacy entry from an older build: no failure class at all.
+      outbox.testInsertDead(
+        _makeEntry(localId: 'dead-legacy').copyWith(retryCount: 3),
+      );
+
+      final revived = await outbox.reviveTransientDead();
+
+      expect(revived, 2);
+      expect(outbox.contains('dead-transient'), isTrue);
+      expect(outbox.contains('dead-legacy'), isTrue);
+      // Permanent rejections wait for the user's retry tap.
+      expect(outbox.contains('dead-permanent'), isFalse);
+      expect(outbox.deadEntry('dead-permanent'), isNotNull);
+
+      // The revived entries deliver with the SAME localId and a fresh
+      // budget — one tap's worth of message, never a duplicate.
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      expect(
+        delivered.map((e) => e.localId).toSet(),
+        {'dead-transient', 'dead-legacy'},
+      );
+      for (final e in delivered) {
+        expect(e.retryCount, 0);
+        expect(e.dead, isFalse);
+      }
+    }, timeout: const Timeout(Duration(seconds: 15)));
+
+    test('resume() re-arms transient dead entries (foreground recovery)',
+        () async {
+      outbox.configure(deliver: (e) async => null);
+      await outbox.restoreAndFlush(); // marks the outbox initialized
+
+      outbox.testInsertDead(
+        _makeEntry(localId: 'brownout-dead').copyWith(
+          failureClass: OutboxFailureClass.transient,
+        ),
+      );
+      outbox.testInsertDead(
+        _makeEntry(localId: 'gone-dead').copyWith(
+          failureClass: OutboxFailureClass.permanent,
+        ),
+      );
+
+      outbox.resume();
+
+      expect(outbox.contains('brownout-dead'), isTrue);
+      expect(outbox.deadEntry('gone-dead'), isNotNull);
+    });
+
     // ── Restore ─────────────────────────────────────────────────────────────
 
     test('restoreAndFlush loads persisted entries and schedules retry',
@@ -296,7 +459,7 @@ void main() {
       outbox2.configure(
         deliver: (e) async {
           delivered.add(e.localId);
-          return true;
+          return null;
         },
       );
 
@@ -312,7 +475,7 @@ void main() {
     }, timeout: const Timeout(Duration(seconds: 10)));
 
     test('restoreAndFlush is idempotent', () async {
-      outbox.configure(deliver: (e) async => true);
+      outbox.configure(deliver: (e) async => null);
       await outbox.restoreAndFlush();
       await outbox.restoreAndFlush(); // second call should be a no-op
       // No exception thrown.
@@ -355,7 +518,7 @@ void main() {
       outbox2.configure(
         deliver: (e) async {
           delivered.add(e.localId);
-          return true;
+          return null;
         },
       );
 
@@ -374,7 +537,7 @@ void main() {
     test('add fires pending status immediately', () async {
       final statuses = <String>[];
       outbox.configure(
-        deliver: (e) async => false,
+        deliver: (e) async => OutboxDeliveryFailure.permanent,
         onStatusChanged: (_, __, status) => statuses.add(status),
       );
 
@@ -388,7 +551,7 @@ void main() {
 
     test('suspendAndFlush persists pending entries before cancelling timers',
         () async {
-      outbox.configure(deliver: (e) async => false);
+      outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
 
       await outbox.add(_makeEntry(localId: 'flush-me'));
       // The persist is debounced 100ms — nothing on disk yet.
@@ -407,7 +570,7 @@ void main() {
 
     test('suspendAndFlush skips the write when no persist is pending',
         () async {
-      outbox.configure(deliver: (e) async => false);
+      outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
 
       await outbox.add(_makeEntry(localId: 'already-persisted'));
       // Let the debounced persist fire on its own.
@@ -427,7 +590,7 @@ void main() {
     });
 
     test('suspend() flushes the debounced persist without an await', () async {
-      outbox.configure(deliver: (e) async => false);
+      outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
 
       await outbox.add(_makeEntry(localId: 'flush-sync'));
       expect(storage._outboxData, isNull);
@@ -449,7 +612,7 @@ void main() {
       outbox.configure(
         deliver: (e) async {
           attempts++;
-          return false;
+          return OutboxDeliveryFailure.permanent;
         },
       );
 

@@ -595,9 +595,18 @@ extension SyncTestHelpers on Sync {
   }
 
   /// Test helper: invoke [_deliverOutboxEntry] through the real retry path.
+  /// `true` = delivered, `false` = any failure class.
   @visibleForTesting
-  Future<bool> testDeliverOutboxEntry(OutboxEntry entry) =>
-      _deliverOutboxEntry(entry);
+  Future<bool> testDeliverOutboxEntry(OutboxEntry entry) async =>
+      (await _deliverOutboxEntry(entry)) == null;
+
+  /// Test helper: invoke [_deliverOutboxEntry] and return the full
+  /// failure classification (`null` = delivered) for contract tests that
+  /// pin the transient/permanent retry budgets.
+  @visibleForTesting
+  Future<OutboxDeliveryFailure?> testDeliverOutboxEntryClassified(
+    OutboxEntry entry,
+  ) => _deliverOutboxEntry(entry);
 
   /// Test helper: mark [localId] as having blown the client send deadline,
   /// the state `_sendMessage` records before handing the message to the

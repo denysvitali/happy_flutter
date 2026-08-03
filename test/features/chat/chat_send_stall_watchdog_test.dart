@@ -147,7 +147,9 @@ void main() {
     sync.testSetSessionMessages(_sessionId, const []);
     messageOutbox.dispose();
     messageOutbox.testStorage = _FakeMMKVStorage();
-    messageOutbox.configure(deliver: (_) async => false);
+    messageOutbox.configure(
+      deliver: (_) async => OutboxDeliveryFailure.permanent,
+    );
   });
 
   tearDown(() async {

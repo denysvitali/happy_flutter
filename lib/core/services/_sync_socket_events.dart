@@ -199,6 +199,15 @@ extension SyncSocketEvents on Sync {
     );
     _unsubscribeSocketStatus = socketIoClient.onStatusChange((status) {
       _connectionStatus = status;
+      if (status == ConnectionStatus.connected) {
+        // Brownout recovery (audit 2026-08-03): the retry budget is
+        // shorter than the observed server stalls, so sends queued when
+        // the socket dropped dead-lettered while the outage was still
+        // going. A fresh connect is the signal that the transient
+        // failure may now deliver — re-arm those entries. Permanent
+        // rejections stay dead for the user to retry by hand.
+        unawaited(messageOutbox.reviveTransientDead());
+      }
     });
   }
 

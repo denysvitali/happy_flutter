@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../api/socket_io_client.dart';
 import 'http_request_logger.dart';
@@ -107,6 +108,7 @@ class PowerDiagnosticsSnapshot {
     required this.outboxSchedules,
     required this.outboxAttempts,
     required this.outboxFailures,
+    required this.outboxDeadLetters,
     required this.lifecycleStateCounts,
     required this.recentEvents,
     required this.activitySeries,
@@ -143,6 +145,7 @@ class PowerDiagnosticsSnapshot {
   final int outboxSchedules;
   final int outboxAttempts;
   final int outboxFailures;
+  final int outboxDeadLetters;
   final Map<String, int> lifecycleStateCounts;
   final List<PowerDiagnosticEvent> recentEvents;
   final List<PowerDiagnosticSample> activitySeries;
@@ -201,6 +204,12 @@ class PowerDiagnosticsService extends ChangeNotifier {
   int _outboxSchedules = 0;
   int _outboxAttempts = 0;
   int _outboxFailures = 0;
+  int _outboxDeadLetters = 0;
+
+  /// localIds already reported to Sentry this process run, so a
+  /// revive-then-die-again flap on one message cannot mint duplicate
+  /// issues. The OTel counter keeps the true rate.
+  final Set<String> _deadLetterCapturedLocalIds = {};
   final Map<String, int> _socketEventCounts = {};
   final Map<String, int> _socketUpdateTypeCounts = {};
   final Map<String, int> _socketSendCounts = {};
@@ -247,6 +256,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       outboxSchedules: _outboxSchedules,
       outboxAttempts: _outboxAttempts,
       outboxFailures: _outboxFailures,
+      outboxDeadLetters: _outboxDeadLetters,
       lifecycleStateCounts: Map.unmodifiable(_lifecycleStateCounts),
       recentEvents: List.unmodifiable(_events),
       activitySeries: List.unmodifiable(
@@ -279,6 +289,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _outboxSchedules = 0;
     _outboxAttempts = 0;
     _outboxFailures = 0;
+    _outboxDeadLetters = 0;
     _socketEventCounts.clear();
     _socketUpdateTypeCounts.clear();
     _socketSendCounts.clear();
@@ -493,6 +504,42 @@ class PowerDiagnosticsService extends ChangeNotifier {
     );
   }
 
+  /// A message exhausted its retry budget and was dead-lettered. This is
+  /// potential data loss — the encrypted payload survives on disk, but the
+  /// send will never complete on its own again — so unlike the other outbox
+  /// counters it also reports to Sentry (once per localId per run).
+  ///
+  /// [reason] is the bucketed failure reason, [failureClass] the
+  /// `OutboxFailureClass` name (`transient` / `permanent`).
+  void recordOutboxDeadLetter(
+    String localId, {
+    String? reason,
+    String? failureClass,
+  }) {
+    _outboxDeadLetters++;
+    PowerDiagnosticsOtelReporter.instance.recordOutboxDeadLetter(
+      reason: reason == null ? 'unknown' : _boundedLabel(reason),
+    );
+    _addEvent(
+      PowerDiagnosticEventType.outbox,
+      'dead-letter localId=$localId '
+      'reason=${reason ?? 'unknown'} '
+      'class=${failureClass ?? 'unknown'}',
+    );
+    if (!_deadLetterCapturedLocalIds.add(localId)) return;
+    unawaited(
+      Sentry.captureMessage(
+        'Message outbox dead-lettered: send permanently undelivered',
+        level: SentryLevel.error,
+        hint: Hint.withMap({
+          'localId': localId,
+          'reason': reason ?? 'unknown',
+          'failureClass': failureClass ?? 'unknown',
+        }),
+      ),
+    );
+  }
+
   String exportText() {
     final s = snapshot();
     final buffer = StringBuffer()
@@ -552,6 +599,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       ..writeln('  schedules: ${s.outboxSchedules}')
       ..writeln('  attempts: ${s.outboxAttempts}')
       ..writeln('  failures: ${s.outboxFailures}')
+      ..writeln('  deadLetters: ${s.outboxDeadLetters}')
       ..writeln()
       ..writeln('Recent Events');
     for (final event in s.recentEvents) {

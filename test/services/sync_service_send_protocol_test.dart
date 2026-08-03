@@ -193,7 +193,7 @@ void main() {
       messageOutbox.dispose();
       messageOutbox.testStorage = _FakeMMKVStorage();
       messageOutbox.configure(
-        deliver: (_) async => false,
+        deliver: (_) async => OutboxDeliveryFailure.permanent,
         onStatusChanged: (sid, lid, status) {
           final msgs = instance.testSessionMessages(sid);
           if (msgs == null) return;
@@ -713,6 +713,87 @@ void main() {
       );
       expect(matching, hasLength(1));
       expect(matching.single['sendStatus'], 'pending');
+    });
+
+    // ── Delivery failure classification (audit 2026-08-03) ──────────────
+    //
+    // The class returned by the deliver callback selects the outbox retry
+    // budget: transient (timeout / network / 5xx / 429) retries for
+    // hours, permanent (4xx / session gone) dead-letters after three
+    // attempts. Misclassifying a brownout as permanent is exactly what
+    // lost four messages.
+
+    Future<OutboxDeliveryFailure?> deliverClassified(String localId) {
+      instance.testSocketConnectedOverride = true;
+      return instance.testDeliverOutboxEntryClassified(
+        OutboxEntry(
+          localId: localId,
+          sessionId: 'sess-1',
+          text: 'outbox',
+          encryptedContent: 'encrypted-content',
+          rawRecord: const {'role': 'user'},
+          queuedAt: 1700000000000,
+        ),
+      );
+    }
+
+    test('outbox delivery classifies 503 as transient', () async {
+      responseStatus = 503;
+      responseData = <String, dynamic>{'error': 'server overload'};
+      final failure = await deliverClassified('cls-503');
+      expect(failure, isNotNull);
+      expect(failure!.failureClass, OutboxFailureClass.transient);
+      expect(failure.reason, 'server_error');
+    });
+
+    test('outbox delivery classifies 429 as transient', () async {
+      responseStatus = 429;
+      responseData = <String, dynamic>{'error': 'slow down'};
+      final failure = await deliverClassified('cls-429');
+      expect(failure, isNotNull);
+      expect(failure!.failureClass, OutboxFailureClass.transient);
+      expect(failure.reason, 'rate_limited');
+    });
+
+    test('outbox delivery classifies 404 as permanent session_gone',
+        () async {
+      responseStatus = 404;
+      responseData = <String, dynamic>{};
+      final failure = await deliverClassified('cls-404');
+      expect(failure, isNotNull);
+      expect(failure!.failureClass, OutboxFailureClass.permanent);
+      expect(failure.reason, 'session_gone');
+    });
+
+    test('outbox delivery classifies other 4xx as permanent rejection',
+        () async {
+      responseStatus = 400;
+      responseData = <String, dynamic>{'error': 'bad payload'};
+      final failure = await deliverClassified('cls-400');
+      expect(failure, isNotNull);
+      expect(failure!.failureClass, OutboxFailureClass.permanent);
+      expect(failure.reason, 'client_rejected');
+    });
+
+    test('session-gone body wins over a 500 status', () async {
+      // The server collapses NotFound into a bare 500, so the body must
+      // be checked before the status code: a deleted session must
+      // dead-letter quickly instead of retrying for hours.
+      responseStatus = 500;
+      responseData = <String, dynamic>{'error': 'Session not found'};
+      final failure = await deliverClassified('cls-500-gone');
+      expect(failure, isNotNull);
+      expect(failure!.failureClass, OutboxFailureClass.permanent);
+      expect(failure.reason, 'session_gone');
+    });
+
+    test('outbox delivery classifies a connection error as transient',
+        () async {
+      requestException = 'ERR_NAME_NOT_RESOLVED';
+      final failure = await deliverClassified('cls-network');
+      expect(failure, isNotNull);
+      expect(failure!.failureClass, OutboxFailureClass.transient);
+      expect(failure.reason, 'network');
     });
 
     test('backgrounded send queues retry without touching REST', () async {

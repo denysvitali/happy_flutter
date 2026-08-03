@@ -76,7 +76,9 @@ void main() {
       // in CI where the native plugin is unavailable.
       messageOutbox.testStorage = _FakeMMKVStorage();
       messageOutbox.configure(
-        deliver: (_) async => false, // always fail → exhaust retries fast
+        // Permanent class → the small 3-attempt budget, so retries
+        // exhaust fast in tests (transient would retry for hours).
+        deliver: (_) async => OutboxDeliveryFailure.permanent,
         onStatusChanged: (sid, lid, status) {
           _applyOutboxStatus(sync, sid, lid, status);
         },
@@ -230,7 +232,7 @@ void main() {
 
       messageOutbox.dispose();
       messageOutbox.configure(
-        deliver: (_) async => true,
+        deliver: (_) async => null,
         onStatusChanged: (sid, lid, status) {
           _applyOutboxStatus(sync, sid, lid, status);
         },
@@ -341,7 +343,9 @@ void main() {
           outboxDeliverCount++;
           // Fail the first outbox delivery to keep the message
           // in 'pending' state after the initial HTTP POST fails.
-          return outboxDeliverCount > 1;
+          return outboxDeliverCount > 1
+              ? null
+              : OutboxDeliveryFailure.transient;
         },
         onStatusChanged: (sid, lid, status) {
           _applyOutboxStatus(sync, sid, lid, status);
@@ -431,7 +435,7 @@ void main() {
       _applyOutboxStatus(sync, 'sess-3', originalLocalId, 'failed');
 
       messageOutbox.configure(
-        deliver: sync.testDeliverOutboxEntry,
+        deliver: sync.testDeliverOutboxEntryClassified,
         onStatusChanged: (sid, lid, status) {
           _applyOutboxStatus(sync, sid, lid, status);
         },

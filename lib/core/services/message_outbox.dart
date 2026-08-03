@@ -9,6 +9,41 @@ import 'logger_service.dart';
 import 'mmkv_storage.dart';
 import 'power_diagnostics_service.dart';
 
+/// Whether a delivery failure may succeed on a later attempt.
+enum OutboxFailureClass {
+  /// Timeout, unreachable network, 5xx, 429 — the server may accept the
+  /// message later (e.g. once a brownout clears), so the outbox keeps
+  /// retrying for hours with a capped backoff instead of giving up after
+  /// a handful of attempts.
+  transient,
+
+  /// The server rejected the message definitively (4xx, session gone).
+  /// Retrying past a small budget only burns requests; the entry
+  /// dead-letters quickly and recovery is user-driven via the failed
+  /// row's retry affordance.
+  permanent,
+}
+
+/// Non-`null` return of [OutboxDeliverFn]: why delivery failed.
+///
+/// `null` means the message was delivered.
+class OutboxDeliveryFailure {
+  const OutboxDeliveryFailure(this.failureClass, [this.reason]);
+
+  final OutboxFailureClass failureClass;
+
+  /// Bucketed telemetry reason — one of `timeout`, `network`,
+  /// `server_error`, `rate_limited`, `session_gone`, `client_rejected`,
+  /// `unknown`. Never a raw exception string or a per-message id (both
+  /// would explode metric cardinality).
+  final String? reason;
+
+  static const transient =
+      OutboxDeliveryFailure(OutboxFailureClass.transient);
+  static const permanent =
+      OutboxDeliveryFailure(OutboxFailureClass.permanent);
+}
+
 /// A single queued message awaiting delivery.
 class OutboxEntry {
   const OutboxEntry({
@@ -20,9 +55,18 @@ class OutboxEntry {
     required this.queuedAt,
     this.retryCount = 0,
     this.dead = false,
+    this.failureClass,
+    this.failureReason,
   });
 
   factory OutboxEntry.fromJson(Map<String, dynamic> json) {
+    OutboxFailureClass? failureClass;
+    switch (json['failureClass']) {
+      case 'transient':
+        failureClass = OutboxFailureClass.transient;
+      case 'permanent':
+        failureClass = OutboxFailureClass.permanent;
+    }
     return OutboxEntry(
       localId: json['localId'] as String,
       sessionId: json['sessionId'] as String,
@@ -32,6 +76,8 @@ class OutboxEntry {
       queuedAt: json['queuedAt'] as int,
       retryCount: json['retryCount'] as int? ?? 0,
       dead: json['dead'] == true,
+      failureClass: failureClass,
+      failureReason: json['failureReason'] as String?,
     );
   }
 
@@ -58,12 +104,28 @@ class OutboxEntry {
 
   /// Whether this entry exhausted its retries and moved to the
   /// dead-letter bucket. Dead entries are still persisted (the encrypted
-  /// payload is the only recoverable copy of the user's message) but are
-  /// never auto-retried; the user drives recovery from the `'failed'`
-  /// row's retry affordance.
+  /// payload is the only recoverable copy of the user's message).
+  /// Transient-class dead entries are re-armed automatically on
+  /// reconnect/foreground; permanent-class ones wait for the user to
+  /// drive recovery from the `'failed'` row's retry affordance.
   final bool dead;
 
-  OutboxEntry copyWith({int? retryCount, bool? dead}) {
+  /// Class of the most recent delivery failure, once known. Drives the
+  /// retry budget: transient failures retry for hours, permanent ones
+  /// dead-letter quickly. `null` entries (queued before their first
+  /// attempt, or persisted by older builds) get the transient budget —
+  /// losing a message is worse than one extra retry cycle.
+  final OutboxFailureClass? failureClass;
+
+  /// Bucketed reason of the most recent delivery failure, for telemetry.
+  final String? failureReason;
+
+  OutboxEntry copyWith({
+    int? retryCount,
+    bool? dead,
+    OutboxFailureClass? failureClass,
+    String? failureReason,
+  }) {
     return OutboxEntry(
       localId: localId,
       sessionId: sessionId,
@@ -73,6 +135,8 @@ class OutboxEntry {
       queuedAt: queuedAt,
       retryCount: retryCount ?? this.retryCount,
       dead: dead ?? this.dead,
+      failureClass: failureClass ?? this.failureClass,
+      failureReason: failureReason ?? this.failureReason,
     );
   }
 
@@ -86,14 +150,22 @@ class OutboxEntry {
       'queuedAt': queuedAt,
       'retryCount': retryCount,
       if (dead) 'dead': true,
+      if (failureClass != null) 'failureClass': failureClass!.name,
+      if (failureReason != null) 'failureReason': failureReason,
     };
   }
 }
 
 /// Callback invoked when the outbox attempts to deliver a queued message.
 ///
-/// Returns `true` on success, `false` if delivery should be retried later.
-typedef OutboxDeliverFn = Future<bool> Function(OutboxEntry entry);
+/// Returns `null` on success, or an [OutboxDeliveryFailure] describing why
+/// delivery failed. The failure class selects the retry budget: transient
+/// failures (timeouts, network, 5xx) keep retrying for hours with capped
+/// backoff; permanent failures (4xx, session gone) dead-letter after a
+/// small budget.
+typedef OutboxDeliverFn = Future<OutboxDeliveryFailure?> Function(
+  OutboxEntry entry,
+);
 
 /// Callback invoked after delivery status changes so the UI can update.
 typedef OutboxStatusChangedFn = void Function(
@@ -111,7 +183,15 @@ typedef OutboxStatusChangedFn = void Function(
 ///   attempt 1 → 1 s
 ///   attempt 2 → 2 s
 ///   attempt 3 → 4 s
-///   (max 30 s cap, max 3 retries before marking as permanently failed)
+///   …doubling to a 30 s cap.
+///
+/// Budgets are failure-class aware (audit 2026-08-03 — four messages were
+/// permanently lost because the old flat 3-retry / ~40 s budget was shorter
+/// than the observed 30–75 min server brownouts):
+///   * transient (timeout / network / 5xx / 429): [_maxTransientRetries]
+///     attempts — roughly four hours at the 30 s cap;
+///   * permanent (4xx / session gone): [_maxRetries] attempts, then the
+///     entry dead-letters and waits for the user.
 class MessageOutbox {
   MessageOutbox({
     MMKVStorage? storage,
@@ -120,6 +200,11 @@ class MessageOutbox {
         _deliverOverride = deliverOverride;
 
   static const int _maxRetries = 3;
+
+  /// ~4 h of retries once the 30 s backoff cap is reached. Deliberately
+  /// longer than any observed server brownout so a wedged write path does
+  /// not convert into permanent message loss.
+  static const int _maxTransientRetries = 480;
   static const int _baseDelayMs = 1000;
   static const int _maxDelayMs = 30000;
 
@@ -269,12 +354,43 @@ class MessageOutbox {
 
   /// Move a dead-lettered entry back into the live queue with a fresh
   /// retry budget. No-op when [localId] is not dead-lettered.
+  ///
+  /// User-driven (the failed row's retry affordance) — revives ANY class,
+  /// including permanent ones: a user tap is an explicit "try again".
   Future<bool> reviveDead(String localId) async {
     final entry = _dead.remove(localId);
     if (entry == null) return false;
     logger.info('[MessageOutbox] reviving dead entry localId=$localId');
     await add(entry.copyWith(retryCount: 0, dead: false));
     return true;
+  }
+
+  /// Re-arm every dead-lettered entry whose failure was NOT a permanent
+  /// server rejection, giving each a fresh retry budget.
+  ///
+  /// Called on socket reconnect and foreground resume (audit 2026-08-03:
+  /// a brownout longer than the retry budget used to convert queued sends
+  /// into permanent loss; the network coming back is exactly the signal
+  /// that a transient failure may now deliver). Entries that never carried
+  /// a class (queued by older builds) are revived too — loss-averse.
+  /// Permanent-class entries stay dead for the user to retry by hand.
+  ///
+  /// Returns how many entries were re-armed.
+  Future<int> reviveTransientDead({String reason = 'reconnect'}) async {
+    final candidates = _dead.values
+        .where((e) => e.failureClass != OutboxFailureClass.permanent)
+        .toList();
+    if (candidates.isEmpty) return 0;
+    logger.info(
+      '[MessageOutbox] re-arming ${candidates.length} '
+      'dead-lettered entr${candidates.length == 1 ? 'y' : 'ies'} '
+      '($reason)',
+    );
+    for (final entry in candidates) {
+      _dead.remove(entry.localId);
+      await add(entry.copyWith(retryCount: 0, dead: false));
+    }
+    return candidates.length;
   }
 
   /// Suspend retry timers when app goes to background.
@@ -309,12 +425,17 @@ class MessageOutbox {
   }
 
   /// Resume retry timers when app returns to foreground.
+  ///
+  /// Also re-arms transient-class dead letters: the app coming back to the
+  /// foreground usually means the network is usable again, which is the
+  /// signal a brownout-dead-lettered send was waiting for.
   void resume() {
     if (!_initialized) return;
     // Re-schedule retries for all pending entries
     for (final entry in _entries.values) {
       _scheduleRetry(entry, initialDelay: const Duration(seconds: 1));
     }
+    unawaited(reviveTransientDead(reason: 'app resumed'));
   }
 
   /// Cancel all pending retry timers and clear in-memory state.
@@ -382,19 +503,25 @@ class MessageOutbox {
     );
     powerDiagnostics.recordOutboxAttempt(localId);
 
-    bool success;
+    OutboxDeliveryFailure? failure;
     try {
-      success = await deliver(entry);
+      failure = await deliver(entry);
     } catch (e, stack) {
       logger.error(
         '[MessageOutbox] delivery threw for localId=$localId',
         e,
         stack,
       );
-      success = false;
+      // An unexpected throw carries no class — treat it as transient.
+      // Losing a message to an early dead-letter is worse than spending
+      // a few extra retries on a genuinely broken deliver callback.
+      failure = const OutboxDeliveryFailure(
+        OutboxFailureClass.transient,
+        'unknown',
+      );
     }
 
-    if (success) {
+    if (failure == null) {
       logger.info(
         '[MessageOutbox] delivered localId=$localId',
       );
@@ -404,23 +531,45 @@ class MessageOutbox {
       return;
     }
 
-    // Delivery failed — increment retry count.
-    final updated = entry.copyWith(retryCount: entry.retryCount + 1);
+    // Delivery failed — increment retry count and remember the class.
+    final updated = entry.copyWith(
+      retryCount: entry.retryCount + 1,
+      failureClass: failure.failureClass,
+      failureReason: failure.reason,
+    );
     _entries[localId] = updated;
     _schedulePersist();
 
-    if (updated.retryCount >= _maxRetries) {
+    // Count EVERY failed attempt, including the terminal one. The audit
+    // found the final attempt uncounted because the dead branch used to
+    // return before recordOutboxFailure — the failure rate silently
+    // under-reported by one per lost message.
+    powerDiagnostics.recordOutboxFailure(localId, reason: failure.reason);
+
+    final budget = failure.failureClass == OutboxFailureClass.permanent
+        ? _maxRetries
+        : _maxTransientRetries;
+
+    if (updated.retryCount >= budget) {
       logger.warning(
-        '[MessageOutbox] max retries reached for '
-        'localId=$localId — dead-lettering',
+        '[MessageOutbox] retry budget exhausted for '
+        'localId=$localId '
+        'class=${failure.failureClass.name} '
+        'reason=${failure.reason ?? 'unknown'} — dead-lettering',
       );
       // Do NOT drop the entry: its encrypted payload is the only
       // recoverable copy of the user's message. Move it to the
       // dead-letter bucket so a cold start can still republish the
-      // 'failed' row and a retry can rebuild the send.
+      // 'failed' row and a retry can rebuild the send. Transient-class
+      // entries are re-armed automatically on reconnect/foreground.
       _entries.remove(localId);
       _deadLetter(updated.copyWith(dead: true));
       _schedulePersist();
+      powerDiagnostics.recordOutboxDeadLetter(
+        localId,
+        reason: failure.reason,
+        failureClass: failure.failureClass.name,
+      );
       _onStatusChanged?.call(entry.sessionId, localId, 'failed');
       return;
     }
@@ -428,9 +577,8 @@ class MessageOutbox {
     logger.info(
       '[MessageOutbox] delivery failed for '
       'localId=$localId, will retry '
-      '(attempt ${updated.retryCount + 1} of $_maxRetries)',
+      '(attempt ${updated.retryCount + 1} of $budget)',
     );
-    powerDiagnostics.recordOutboxFailure(localId);
     _onStatusChanged?.call(entry.sessionId, localId, 'pending');
     _scheduleRetry(updated);
   }

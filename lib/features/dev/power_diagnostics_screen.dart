@@ -178,6 +178,10 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
               _Metric('Outbox schedules', snapshot.outboxSchedules.toString()),
               _Metric('Outbox attempts', snapshot.outboxAttempts.toString()),
               _Metric('Outbox failures', snapshot.outboxFailures.toString()),
+              _Metric(
+                'Outbox dead-lettered',
+                snapshot.outboxDeadLetters.toString(),
+              ),
             ],
           ),
           if (snapshot.syncInvalidationCounts.isNotEmpty) ...[

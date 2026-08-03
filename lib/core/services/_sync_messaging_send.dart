@@ -1111,11 +1111,59 @@ extension SyncMessagingSend on Sync {
         message.contains('server did not acknowledge message');
   }
 
+  /// Classifies a non-2xx HTTP [status] from the message endpoint as an
+  /// outbox delivery failure.
+  ///
+  /// The endpoint is idempotent (ON CONFLICT DO NOTHING), so anything
+  /// short of a definitive rejection is worth retrying: 5xx, 408 and 429
+  /// are transient, other 4xx are permanent. The body is checked FIRST
+  /// because the server collapses NotFound into a bare 500 — the status
+  /// code alone would send a deleted session down the hours-long
+  /// transient path.
+  static OutboxDeliveryFailure _classifySendHttpStatus(
+    int status,
+    Object? body,
+  ) {
+    if (_sendBodyIndicatesSessionGone(body)) {
+      return const OutboxDeliveryFailure(
+        OutboxFailureClass.permanent,
+        'session_gone',
+      );
+    }
+    if (status >= 500) {
+      return const OutboxDeliveryFailure(
+        OutboxFailureClass.transient,
+        'server_error',
+      );
+    }
+    if (status == 408 || status == 429) {
+      return const OutboxDeliveryFailure(
+        OutboxFailureClass.transient,
+        'rate_limited',
+      );
+    }
+    final gone = _isPermanentSendStatus(status) ||
+        _sendBodyIndicatesSessionGone(body);
+    return OutboxDeliveryFailure(
+      OutboxFailureClass.permanent,
+      gone ? 'session_gone' : 'client_rejected',
+    );
+  }
+
   /// Outbox delivery callback: re-attempt a single queued message.
   ///
-  /// Returns `true` on success, `false` to schedule a retry.
-  Future<bool> _deliverOutboxEntry(OutboxEntry entry) async {
-    if (!isInitialized) return false;
+  /// Returns `null` on success, or an [OutboxDeliveryFailure] whose class
+  /// selects the outbox retry budget (transient retries for hours,
+  /// permanent dead-letters quickly).
+  Future<OutboxDeliveryFailure?> _deliverOutboxEntry(
+    OutboxEntry entry,
+  ) async {
+    if (!isInitialized) {
+      return const OutboxDeliveryFailure(
+        OutboxFailureClass.transient,
+        'sync_not_ready',
+      );
+    }
 
     final apiClient = ApiClient();
     final Response<dynamic> response;
@@ -1144,7 +1192,13 @@ extension SyncMessagingSend on Sync {
           e,
           stack,
         );
-        return false;
+        final isTimeout = e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.sendTimeout ||
+            e.type == DioExceptionType.receiveTimeout;
+        return OutboxDeliveryFailure(
+          OutboxFailureClass.transient,
+          isTimeout ? 'timeout' : 'network',
+        );
       }
 
       if (!apiClient.isSuccess(serverResponse)) {
@@ -1153,7 +1207,10 @@ extension SyncMessagingSend on Sync {
           'status=${serverResponse.statusCode} '
           'localId=${entry.localId}',
         );
-        return false;
+        return _classifySendHttpStatus(
+          serverResponse.statusCode ?? 0,
+          serverResponse.data,
+        );
       }
 
       // A 2xx response was received but the request still threw (defensive:
@@ -1167,7 +1224,7 @@ extension SyncMessagingSend on Sync {
         stack,
       );
       _notifySessionMessagesChanged(entry.sessionId);
-      return true;
+      return null;
     }
 
     if (!apiClient.isSuccess(response)) {
@@ -1176,7 +1233,10 @@ extension SyncMessagingSend on Sync {
         'status=${response.statusCode} '
         'localId=${entry.localId}',
       );
-      return false;
+      return _classifySendHttpStatus(
+        response.statusCode ?? 0,
+        response.data,
+      );
     }
 
     try {
@@ -1204,7 +1264,7 @@ extension SyncMessagingSend on Sync {
           '[MessageOutbox] delivered localId=${entry.localId} '
           'session=${entry.sessionId}',
         );
-        return true;
+        return null;
       }
 
       // Server accepted but no localId ack. Trust the HTTP 200 since the
@@ -1219,7 +1279,7 @@ extension SyncMessagingSend on Sync {
         _startPostSendCatchUp(entry.sessionId, sentUserSeq: 0);
       }
       _reportSlowSendConfirmed(entry);
-      return true;
+      return null;
     } catch (e, stack) {
       // Exceptions during local processing (after HTTP 200 was received)
       // do NOT count as delivery failures — the server has already stored
@@ -1235,7 +1295,7 @@ extension SyncMessagingSend on Sync {
         stack,
       );
       _notifySessionMessagesChanged(entry.sessionId);
-      return true;
+      return null;
     }
   }
 
