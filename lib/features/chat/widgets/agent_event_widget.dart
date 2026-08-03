@@ -54,7 +54,10 @@ class AgentEventWidget extends StatelessWidget {
   static bool shouldRenderInChat(dynamic event) {
     if (event is! Map<String, dynamic>) return false;
     final type = event['type'];
-    if (type is! String) return false;
+    // Malformed/legacy payloads without a type keep the generic
+    // fallback row — hiding them would drop real agent output that
+    // merely predates the type field (chat_screen_test pins this).
+    if (type is! String) return true;
     if (_hiddenEventTypes.contains(type)) return false;
     if (type == 'message') {
       final message = event['message'];
