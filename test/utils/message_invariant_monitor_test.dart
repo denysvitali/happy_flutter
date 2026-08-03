@@ -267,7 +267,7 @@ void main() {
       expect(durations, hasLength(1));
       final (elapsed, outcome) = durations.single;
       expect(outcome, 'ok');
-      expect(elapsed, isNot(isNegative));
+      expect(elapsed, greaterThanOrEqualTo(Duration.zero));
     });
 
     test('tap→ack latency carries the violated invariant as outcome',
