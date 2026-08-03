@@ -79,10 +79,13 @@ drops, spawn error rate, cold-start/fetchMessages burn rate, staleness.
 false-positive (rowCount=1, no duplicate) but indistinguishable from a real
 breach, and double-counted per ack; 3 of 4 planned counters absent, no
 denominator. The 07-31 "all P0 invariant counters at zero" held only because
-this event fell outside its 24h window. Next: seed `_sentLocalIds` from
-persisted rows at startup, dedupe the recordAck sites, ship the remaining
-counters + denominator, alert on >0; add `app_message_send_seconds`
-(tap→ack, outcome labels).
+this event fell outside its 24h window. **Fixed in 6a9c9a7c:** `_sentLocalIds`
+seeded from persisted rows (cache restore + every upserted batch) so
+restart-time acks stop reading as unknown; recordAck deduped per localId
+(REST-ack path and send-status path tapped the same ack); all four invariant
+counters primed to zero at startup so the series always exist; sends/acks
+denominator counters shipped; `app.message_send` tap→ack histogram added with
+outcome labels. Remaining: the `> 0` alert rules (monitoring item below).
 
 **Startup metrics unusable for the re-baseline (medium, new).** Per-launch
 stream identity defeats rate()/increase() (NaN/0 — each launch's cumulative
@@ -213,7 +216,7 @@ The current test count is not enough if this contract can break without failing 
 | Out-of-order delivery tests | Done | Coverage for REST success before a later socket echo, REST success before a later fetch overlap (`message_deduplication_e2e_test.dart`), socket echo before REST (`socket_echo_before_rest_e2e_test.dart`), and socket echo before a tail/history fetch plus duplicate socket re-broadcast sequencing — including broadcast-then-fetch overlap (`socket_echo_before_fetch_e2e_test.dart`). |
 | Core messaging state-machine tests | Done | FSM contract suite at `test/fsm/message_state_machine_contract_test.dart` pins `draft -> sending -> sent/pending/failed -> merged` for both the typed `MessageStateTransitions` spec (Draft→Sending, Sending→Sent/Pending/Failed, Pending→Sent/Failed, Failed→Sending, Sent→Merged) and the `MessageStateMachine.apply` event-log projection. Every legal transition asserts `localId` identity; illegal/no-op transitions (double-optimistic, optimistic-after-merge, retry-on-merged/sending/null, fail-on-merged, missing-localId, ack/merge without serverId) are pinned as strict no-ops or `ArgumentError`s. End-to-end lifecycle walk and two-identical-`continue`-sends-with-distinct-localIds are covered. |
 | User-visible core E2E scenarios | Not Started | Add E2E coverage for rapid follow-ups, background/resume mid-send, disconnected socket with successful REST persistence, and follow-up sends while the agent is still thinking. |
-| Invariant telemetry | In Progress | Audit 2026-08-03 found 1 of 4 counters shipped (`unknown_acked_local_id`) but restart-blind and double-counting per ack, with the other three absent and no denominator. Seed `_sentLocalIds` from persisted rows at startup, dedupe the recordAck sites, ship the remaining counters + a heartbeat denominator, alert on any >0; add `app_message_send_seconds` (tap→ack). |
+| Invariant telemetry | In Progress | Audit 2026-08-03 found 1 of 4 counters shipped (`unknown_acked_local_id`) but restart-blind and double-counting per ack, with the other three absent and no denominator. Client-side fixes shipped in 6a9c9a7c (restart-safe seeding, per-localId ack dedupe, all four counters primed to zero, sends/acks denominators, `app.message_send` tap→ack histogram); the `> 0` Prometheus alert rules remain under the monitoring HA item. |
 
 ### Production Bugs (from GlitchTip, May 2026)
 
