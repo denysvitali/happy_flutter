@@ -17,11 +17,7 @@ import '../../../core/utils/task_label.dart';
 /// the user can paste it into their editor to audit the sub-agent's
 /// actual tool calls.
 class TaskEventSummaryCard extends StatelessWidget {
-  const TaskEventSummaryCard({
-    required this.data,
-    this.sessionId,
-    super.key,
-  });
+  const TaskEventSummaryCard({required this.data, this.sessionId, super.key});
 
   final Map<String, dynamic> data;
   final String? sessionId;
@@ -68,71 +64,67 @@ class TaskEventSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final summary = data['content'] as String? ??
-        data['text'] as String? ??
-        _statusLabel();
+    final summary =
+        data['content'] as String? ?? data['text'] as String? ?? _statusLabel();
     final transcriptDir = _transcriptDir;
     final runId = _workflowRunId;
 
     final muted = cs.onSurfaceVariant.withValues(alpha: 0.85);
-    final accentColor = _isFailed
+    // The icon alone carries the status color — a column of finished
+    // tasks reads as a wall of green when the label is tinted too.
+    final iconColor = _isFailed
         ? cs.error
         : _isCompleted
-            ? AppColors.success
-            : muted;
-    final showSummary = summary.isNotEmpty &&
+        ? AppColors.success
+        : muted;
+    final labelColor = _isFailed ? cs.error : muted;
+    final showSummary =
+        summary.isNotEmpty &&
         summary != _statusLabel() &&
         data['redundantSummary'] != true;
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm + 2,
             vertical: AppSpacing.sm,
           ),
-          // One centered line, same shape as the task_started marker
-          // (icon · label · title) so lifecycle events share a rhythm.
-          // No type badge: the start row never had one, and the badge
-          // is what made long summaries wrap lopsided.
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(_statusIcon(), size: 13, color: accentColor),
+          // Left-aligned sibling of the task_started marker (icon ·
+          // label · title), in the same column as the tool rows so the
+          // transcript keeps one left edge.
+          child: Row(
+            children: [
+              Icon(_statusIcon(), size: 13, color: iconColor),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                _statusLabel(),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: labelColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (showSummary) ...[
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  _statusLabel(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: accentColor,
-                    fontWeight: FontWeight.w600,
+                  '·',
+                  style: theme.textTheme.labelSmall?.copyWith(color: muted),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: Text(
+                    // `local_bash` notifications repeat the entire shell
+                    // command as their summary; clamp so one task can't
+                    // own the screen.
+                    compactTaskLabel(summary),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(color: muted),
+                    textAlign: TextAlign.start,
                   ),
                 ),
-                if (showSummary) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    '·',
-                    style:
-                        theme.textTheme.labelSmall?.copyWith(color: muted),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(
-                    child: Text(
-                      // `local_bash` notifications repeat the entire shell
-                      // command as their summary; clamp so one task can't
-                      // own the screen.
-                      compactTaskLabel(summary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: muted,
-                      ),
-                      textAlign: TextAlign.start,
-                    ),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
         ),
         if (transcriptDir != null)

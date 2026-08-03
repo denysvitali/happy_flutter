@@ -177,13 +177,18 @@ class _MessageWidgetState extends State<MessageWidget>
 
     final kind = widget.messageData['kind'] as String? ?? 'unknown';
 
-    // Agent events render as centered system-style text - no animation.
+    // Agent events render as system-style text - no animation. Outer
+    // padding matches the tool-call rows so lifecycle markers share
+    // their left edge.
     if (kind == 'agent-event') {
       return _cacheBody(
         signature,
-        AgentEventWidget(
-          event: widget.messageData['event'],
-          message: widget.messageData,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: AgentEventWidget(
+            event: widget.messageData['event'],
+            message: widget.messageData,
+          ),
         ),
       );
     }
@@ -272,7 +277,7 @@ class _MessageWidgetState extends State<MessageWidget>
         signature,
         Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
+            horizontal: AppSpacing.sm,
             vertical: AppSpacing.xs,
           ),
           child: TaskEventSummaryCard(

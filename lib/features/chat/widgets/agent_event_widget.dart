@@ -85,77 +85,78 @@ class AgentEventWidget extends StatelessWidget {
     final displayLabel = subAgentTool == null
         ? label
         : stripToolName(label, subAgentTool);
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_isTaskEvent) ...[
-              Icon(
-                _isTaskStart
-                    ? Icons.play_circle_outline_rounded
-                    : Icons.autorenew_rounded,
-                size: 13,
-                color: color,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                _isTaskStart ? 'Task started' : 'Task running',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                '·',
-                style: theme.textTheme.labelSmall?.copyWith(color: color),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-            ],
-            if (subAgentTool != null) ...[
-              IconTheme(
-                data: IconThemeData(size: 12, color: color),
-                child: KnownTools.iconFor(subAgentTool, 12, color),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                subAgentTool,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-            ] else if (isUnrendered) ...[
-              Icon(Icons.warning_amber_rounded, size: 16, color: color),
-              const SizedBox(width: AppSpacing.xs),
-            ],
-            Flexible(
-              child: Text(
-                // Defensive clamp: cached/legacy events can carry a whole
-                // multi-line shell command as their label, which would
-                // otherwise dump a wall of centered text into the timeline.
-                compactTaskLabel(displayLabel),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: color,
-                  fontWeight: isUnrendered ? FontWeight.w600 : null,
-                ),
-                // Left-align wrapped lines against the leading icon/prefix;
-                // per-line centering parked two centered lines beside a
-                // vertically-centered prefix and read as a layout bug.
-                textAlign: TextAlign.start,
-              ),
-            ),
-          ],
+    // Task lifecycle rows left-align into the same column as the tool
+    // rows (sm outer + sm+2 inner); centered min-width blocks made the
+    // labels zigzag horizontally down the transcript. Plain system
+    // notices keep the centered divider treatment.
+    final rowChildren = <Widget>[
+      if (_isTaskEvent) ...[
+        Icon(
+          _isTaskStart
+              ? Icons.play_circle_outline_rounded
+              : Icons.autorenew_rounded,
+          size: 13,
+          color: color,
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          _isTaskStart ? 'Task started' : 'Task running',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text('·', style: theme.textTheme.labelSmall?.copyWith(color: color)),
+        const SizedBox(width: AppSpacing.xs),
+      ],
+      if (subAgentTool != null) ...[
+        IconTheme(
+          data: IconThemeData(size: 12, color: color),
+          child: KnownTools.iconFor(subAgentTool, 12, color),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          subAgentTool,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+      ] else if (isUnrendered) ...[
+        Icon(Icons.warning_amber_rounded, size: 16, color: color),
+        const SizedBox(width: AppSpacing.xs),
+      ],
+      Flexible(
+        child: Text(
+          // Defensive clamp: cached/legacy events can carry a whole
+          // multi-line shell command as their label, which would
+          // otherwise dump a wall of centered text into the timeline.
+          compactTaskLabel(displayLabel),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: color,
+            fontWeight: isUnrendered ? FontWeight.w600 : null,
+          ),
+          // Left-align wrapped lines against the leading icon/prefix;
+          // per-line centering parked two centered lines beside a
+          // vertically-centered prefix and read as a layout bug.
+          textAlign: TextAlign.start,
         ),
       ),
+    ];
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: _isTaskEvent ? AppSpacing.sm + 2 : AppSpacing.lg,
+        vertical: AppSpacing.sm,
+      ),
+      child: _isTaskEvent
+          ? Row(children: rowChildren)
+          : Center(
+              child: Row(mainAxisSize: MainAxisSize.min, children: rowChildren),
+            ),
     );
   }
 
