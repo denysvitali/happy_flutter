@@ -62,6 +62,15 @@ Tooltip _tooltipFor(WidgetTester tester, IconData icon) {
   );
 }
 
+/// The sidebar is a tablet/desktop surface; at the default 800px test
+/// viewport it clamps to 250px and the header's fixed children overflow.
+/// Use a desktop-sized logical viewport so the header lays out as it
+/// does in production.
+void _useDesktopViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(2560, 1600);
+  tester.view.devicePixelRatio = 2.0;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -69,6 +78,7 @@ void main() {
     testWidgets('settings and new-session icons carry tooltips', (
       tester,
     ) async {
+      _useDesktopViewport(tester);
       await tester.pumpWidget(_wrap());
       await tester.pumpAndSettle();
 
@@ -77,6 +87,7 @@ void main() {
     });
 
     testWidgets('nav icons expose a button semantics label', (tester) async {
+      _useDesktopViewport(tester);
       await tester.pumpWidget(_wrap());
       await tester.pumpAndSettle();
 
@@ -93,6 +104,7 @@ void main() {
       tester,
     ) async {
       var tapped = 0;
+      _useDesktopViewport(tester);
       await tester.pumpWidget(_wrap(onNewSession: () => tapped++));
       await tester.pumpAndSettle();
 
