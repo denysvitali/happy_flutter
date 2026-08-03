@@ -97,64 +97,66 @@ class TaskEventSummaryCard extends StatelessWidget {
             horizontal: AppSpacing.lg,
             vertical: AppSpacing.sm,
           ),
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(_statusIcon(), size: 13, color: accentColor),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  _statusLabel(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: accentColor,
-                    fontWeight: FontWeight.w600,
+          child: Column(
+            children: [
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_statusIcon(), size: 13, color: accentColor),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      _statusLabel(),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: accentColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (taskType != null) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
+                        ),
+                        child: Text(
+                          taskType,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (showSummary) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                // Stacked under the status row: inline-after-prefix made
+                // long summaries wrap lopsided beside the badge.
+                Center(
+                  child: Text(
+                    // `local_bash` notifications repeat the entire shell
+                    // command as their summary; clamp so one task can't
+                    // own the screen.
+                    compactTaskLabel(summary),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: muted,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                if (taskType != null) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: cs.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(AppRadius.xs),
-                    ),
-                    child: Text(
-                      taskType,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                ],
-                if (showSummary) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    '·',
-                    style:
-                        theme.textTheme.labelSmall?.copyWith(color: muted),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(
-                    child: Text(
-                      // `local_bash` notifications repeat the entire shell
-                      // command as their summary; clamp so one task can't
-                      // own the screen.
-                      compactTaskLabel(summary),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: muted,
-                      ),
-                      textAlign: TextAlign.start,
-                    ),
-                  ),
-                ],
               ],
-            ),
+            ],
           ),
         ),
         if (transcriptDir != null)
