@@ -7915,6 +7915,66 @@ abstract class AppLocalizations {
   /// **'{n}d ago'**
   String artifactsDaysAgo(int n);
 
+  /// Relative time under one minute
+  ///
+  /// In en, this message translates to:
+  /// **'Just now'**
+  String get relativeJustNow;
+
+  /// Relative time on the previous calendar day
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get relativeYesterday;
+
+  /// No description provided for @relativeMinutesAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}m ago'**
+  String relativeMinutesAgo(int n);
+
+  /// No description provided for @relativeMinutesCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}m'**
+  String relativeMinutesCompact(int n);
+
+  /// No description provided for @relativeHoursAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}h ago'**
+  String relativeHoursAgo(int n);
+
+  /// No description provided for @relativeHoursCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}h'**
+  String relativeHoursCompact(int n);
+
+  /// No description provided for @relativeDaysAgo.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}d ago'**
+  String relativeDaysAgo(int n);
+
+  /// No description provided for @relativeDaysCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'{n}d'**
+  String relativeDaysCompact(int n);
+
+  /// No description provided for @dateTimeToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today at {time}'**
+  String dateTimeToday(String time);
+
+  /// No description provided for @dateTimeYesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday at {time}'**
+  String dateTimeYesterday(String time);
+
   /// No description provided for @userFallbackName.
   ///
   /// In en, this message translates to:

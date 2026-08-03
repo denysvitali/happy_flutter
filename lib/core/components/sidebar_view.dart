@@ -425,7 +425,10 @@ class _SidebarSessionListItem extends ConsumerWidget {
               ),
               // Timestamp
               Text(
-                _formatTimestamp(lastMessageTimestamp ?? session.updatedAt),
+                _formatTimestamp(
+                  lastMessageTimestamp ?? session.updatedAt,
+                  context,
+                ),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: cs.onSurfaceVariant,
                 ),
@@ -437,11 +440,20 @@ class _SidebarSessionListItem extends ConsumerWidget {
     );
   }
 
-  String _formatTimestamp(int timestamp) => formatRelativeTime(
-    DateTime.fromMillisecondsSinceEpoch(timestamp),
-    compact: true,
-    absoluteFallback: (d) => '${d.month}/${d.day}',
-  );
+  /// Compact "2m" / "3h" / "5d" label, falling back to a day+month date in
+  /// the *device* locale order ("31.7." in de, "7/31" in en_US) rather than a
+  /// hardcoded US one.
+  /// The date order deliberately comes from `Intl.defaultLocale` (seeded from
+  /// the *platform* locale in `main()`), not `Localizations.localeOf` — the
+  /// app only supports an English UI, so the resolved UI locale is always
+  /// `en` and would pin every device to US order.
+  String _formatTimestamp(int timestamp, BuildContext context) =>
+      formatRelativeTime(
+        DateTime.fromMillisecondsSinceEpoch(timestamp),
+        compact: true,
+        l10n: context.l10n,
+        absoluteFallback: formatShortDayMonth,
+      );
 }
 
 class _ConnectionInfo {

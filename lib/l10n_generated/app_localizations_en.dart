@@ -4261,6 +4261,52 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get relativeJustNow => 'Just now';
+
+  @override
+  String get relativeYesterday => 'Yesterday';
+
+  @override
+  String relativeMinutesAgo(int n) {
+    return '${n}m ago';
+  }
+
+  @override
+  String relativeMinutesCompact(int n) {
+    return '${n}m';
+  }
+
+  @override
+  String relativeHoursAgo(int n) {
+    return '${n}h ago';
+  }
+
+  @override
+  String relativeHoursCompact(int n) {
+    return '${n}h';
+  }
+
+  @override
+  String relativeDaysAgo(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String relativeDaysCompact(int n) {
+    return '${n}d';
+  }
+
+  @override
+  String dateTimeToday(String time) {
+    return 'Today at $time';
+  }
+
+  @override
+  String dateTimeYesterday(String time) {
+    return 'Yesterday at $time';
+  }
+
+  @override
   String get userFallbackName => 'this user';
 
   @override

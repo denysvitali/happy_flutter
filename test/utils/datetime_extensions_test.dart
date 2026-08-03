@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:intl/date_symbol_data_local.dart';
 import 'package:happy_flutter/core/utils/datetime_extensions.dart';
+import 'package:happy_flutter/l10n_generated/app_localizations_en.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   setUpAll(() async {
@@ -109,6 +111,39 @@ void main() {
       final today = DateTime(now.year, now.month, now.day, 0, 0);
       final result = today.toRelativeTimeString();
       expect(result, 'Today at 00:00');
+    });
+
+    test('older dates follow the requested locale', () {
+      final dt = DateTime(2020, 6, 15, 10, 30);
+      expect(dt.toRelativeTimeString(locale: 'de'), contains('Juni'));
+      expect(dt.toRelativeTimeString(locale: 'en_US'), contains('Jun'));
+    });
+
+    test('older dates follow Intl.defaultLocale when none is passed', () {
+      final dt = DateTime(2020, 6, 15, 10, 30);
+      Intl.defaultLocale = 'de_DE';
+      addTearDown(() => Intl.defaultLocale = null);
+      expect(dt.toRelativeTimeString(), contains('Juni'));
+    });
+
+    test('unknown locale degrades instead of throwing', () {
+      // intl reports this as ArgumentError (an Error, not an Exception).
+      final dt = DateTime(2020, 6, 15, 10, 30);
+      expect(
+        () => dt.toRelativeTimeString(locale: 'zz_ZZ_NOPE'),
+        returnsNormally,
+      );
+      expect(dt.toRelativeTimeString(locale: 'zz_ZZ_NOPE'), contains('Jun'));
+    });
+
+    test('labels are localized when l10n is provided', () {
+      final l10n = AppLocalizationsEn();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day, 14, 30);
+      expect(
+        today.toRelativeTimeString(l10n: l10n),
+        l10n.dateTimeToday('14:30'),
+      );
     });
   });
 }

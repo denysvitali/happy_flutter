@@ -8,6 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/date_symbol_data_local.dart';
+// `show` is required: intl also exports a `TextDirection` that collides with
+// dart:ui's.
+import 'package:intl/intl.dart' show DateFormat, Intl;
 import 'package:sentry_flutter/sentry_flutter.dart' show Sentry, SpanStatus;
 
 import 'core/api/api_client.dart';
@@ -63,6 +67,41 @@ void _anchorColdStartClock() {
   _coldStartStopwatch.reset();
 }
 
+/// Seed intl's date/number formatting from the **platform** locale.
+///
+/// Two separate things are being set up here:
+///
+/// 1. [initializeDateFormatting] loads the locale symbol data. Without it,
+///    `DateFormat.yMd('de')` throws `LocaleDataException`; intl only ships
+///    `en_US` by default.
+/// 2. [Intl.defaultLocale] is what every context-free formatting helper
+///    (`formatShortDate`, `formatRelativeTime`, `toRelativeTimeString`)
+///    resolves against. Without it intl falls back to `en_US`, so dates
+///    render in US order on every device.
+///
+/// The *platform* locale is used on purpose rather than the resolved UI
+/// locale: `AppLocalizations.supportedLocales` is English-only, so
+/// `Localizations.localeOf` always resolves to `en`. Date and number order
+/// must follow the device even when the UI language is English.
+///
+/// A platform locale intl has no data for is left unset rather than assigned:
+/// `Intl.defaultLocale` is global, and pointing it at an unknown tag would
+/// make every bare `DateFormat` in the app throw `ArgumentError`.
+Future<void> _initFormattingLocale() async {
+  await initializeDateFormatting();
+  final platformLocale = WidgetsBinding.instance.platformDispatcher.locale;
+  final country = platformLocale.countryCode;
+  final tag = country != null && country.isNotEmpty
+      ? '${platformLocale.languageCode}_$country'
+      : platformLocale.languageCode;
+  final resolved = Intl.verifiedLocale(
+    tag,
+    DateFormat.localeExists,
+    onFailure: (_) => null,
+  );
+  if (resolved != null) Intl.defaultLocale = resolved;
+}
+
 /// Converts a DER-encoded certificate to PEM format.
 Uint8List _derToPem(Uint8List der) {
   final b64 = base64.encode(der);
@@ -91,6 +130,8 @@ Future<void> main() async {
   // Bootstrap the Flutter binding first so everything else can proceed
   // in parallel — Sentry, storage, network, deep link, and Firebase.
   WidgetsFlutterBinding.ensureInitialized();
+
+  await _initFormattingLocale();
 
   // Sentry MUST finish init before the app renders so its
   // FlutterError.onError handler is installed before the

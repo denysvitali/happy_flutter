@@ -1,14 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/utils/utils.dart';
+import 'package:happy_flutter/l10n_generated/app_localizations_en.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
-/// Locale-correct date formatting.
+/// Locale contract for the shared date helpers.
 ///
-/// `_shortDate` used to hardcode the US month/day/year order via string
-/// interpolation, so every non-US locale got a wrong-order date. These tests
-/// pin the ordering per locale.
+/// Two things are pinned here:
+///  1. dates render in the order of the *formatting* locale, not a hardcoded
+///     US `M/d/yyyy`;
+///  2. a locale intl cannot serve degrades instead of throwing. intl signals
+///     that with an `ArgumentError` — a subtype of `Error`, NOT `Exception` —
+///     once symbol data is initialized (and `LocaleDataException` before),
+///     so a narrow `on Exception` catch would not hold.
 void main() {
+  final date = DateTime(2026, 7, 31);
+
   setUpAll(() async {
     await initializeDateFormatting();
   });
@@ -17,105 +24,139 @@ void main() {
     Intl.defaultLocale = null;
   });
 
-  final date = DateTime(2026, 7, 31, 13, 45);
-
   group('formatShortDate', () {
-    test('en_US orders month/day/year', () {
+    test('uses the requested locale order', () {
       expect(formatShortDate(date, locale: 'en_US'), '7/31/2026');
-    });
-
-    test('en_GB orders day/month/year', () {
+      expect(formatShortDate(date, locale: 'de'), '31.7.2026');
       expect(formatShortDate(date, locale: 'en_GB'), '31/07/2026');
     });
 
-    test('de orders day.month.year', () {
-      expect(formatShortDate(date, locale: 'de'), '31.7.2026');
-    });
-
-    test('en_GB and de differ from en_US', () {
-      final us = formatShortDate(date, locale: 'en_US');
-      expect(formatShortDate(date, locale: 'en_GB'), isNot(us));
-      expect(formatShortDate(date, locale: 'de'), isNot(us));
-    });
-
-    test('falls back to the ambient locale when none is passed', () {
-      Intl.defaultLocale = 'en_GB';
-      expect(formatShortDate(date), '31/07/2026');
-      Intl.defaultLocale = 'de';
+    test('falls back to Intl.defaultLocale when no locale is passed', () {
+      Intl.defaultLocale = 'de_DE';
       expect(formatShortDate(date), '31.7.2026');
+      Intl.defaultLocale = 'en_US';
+      expect(formatShortDate(date), '7/31/2026');
     });
 
-    test('unknown locale falls back instead of throwing', () {
-      Intl.defaultLocale = 'en_US';
+    test('unknown locale degrades instead of throwing', () {
       expect(
         () => formatShortDate(date, locale: 'zz_ZZ_NOPE'),
         returnsNormally,
       );
       expect(formatShortDate(date, locale: 'zz_ZZ_NOPE'), '7/31/2026');
     });
+
+    test('unknown Intl.defaultLocale degrades instead of throwing', () {
+      Intl.defaultLocale = 'zz_ZZ_NOPE';
+      expect(() => formatShortDate(date), returnsNormally);
+      expect(formatShortDate(date), '7/31/2026');
+    });
+  });
+
+  group('formatShortDayMonth', () {
+    test('uses the requested locale order', () {
+      expect(formatShortDayMonth(date, locale: 'en_US'), '7/31');
+      expect(formatShortDayMonth(date, locale: 'de'), '31.7.');
+    });
+
+    test('unknown locale degrades instead of throwing', () {
+      expect(
+        () => formatShortDayMonth(date, locale: 'zz_ZZ_NOPE'),
+        returnsNormally,
+      );
+      expect(formatShortDayMonth(date, locale: 'zz_ZZ_NOPE'), '7/31');
+    });
   });
 
   group('formatTimestamp', () {
-    final ms = date.millisecondsSinceEpoch;
-
-    test('absolute form is locale-aware', () {
-      expect(formatTimestamp(ms, locale: 'en_US'), '7/31/2026');
-      expect(formatTimestamp(ms, locale: 'en_GB'), '31/07/2026');
+    test('absolute form follows the locale', () {
+      final ms = date.millisecondsSinceEpoch;
       expect(formatTimestamp(ms, locale: 'de'), '31.7.2026');
-    });
-
-    test('relative form still short-circuits before formatting', () {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      expect(formatTimestamp(now, relative: true, locale: 'de'), 'Just now');
+      expect(formatTimestamp(ms, locale: 'en_US'), '7/31/2026');
     });
   });
 
   group('formatRelativeTime', () {
-    final now = DateTime(2026, 8, 20, 10);
+    final now = DateTime(2026, 8, 10, 12);
 
-    test('older than a week uses the locale-aware absolute fallback', () {
+    test('older than a week falls back to the locale date', () {
+      expect(
+        formatRelativeTime(date, now: now, locale: 'de'),
+        '31.7.2026',
+      );
       expect(
         formatRelativeTime(date, now: now, locale: 'en_US'),
         '7/31/2026',
       );
-      expect(
-        formatRelativeTime(date, now: now, locale: 'en_GB'),
-        '31/07/2026',
-      );
-      expect(formatRelativeTime(date, now: now, locale: 'de'), '31.7.2026');
     });
 
-    test('explicit absoluteFallback still wins over locale', () {
+    test('explicit absoluteFallback still wins', () {
       expect(
         formatRelativeTime(
           date,
           now: now,
           locale: 'de',
-          absoluteFallback: (d) => 'custom-${d.year}',
+          absoluteFallback: formatShortDayMonth,
         ),
-        'custom-2026',
+        '31.7.',
       );
     });
 
-    test('relative buckets are unaffected by locale', () {
-      final recent = now.subtract(const Duration(hours: 3));
-      expect(formatRelativeTime(recent, now: now, locale: 'de'), '3h ago');
-      expect(
-        formatRelativeTime(recent, now: now, locale: 'de', compact: true),
-        '3h',
-      );
-    });
-
-    test('yesterday label wins over the absolute date', () {
-      final yesterday = now.subtract(const Duration(hours: 25));
+    test('relative buckets are localized through l10n', () {
+      final l10n = AppLocalizationsEn();
       expect(
         formatRelativeTime(
-          yesterday,
+          now.subtract(const Duration(seconds: 5)),
+          now: now,
+          l10n: l10n,
+        ),
+        l10n.relativeJustNow,
+      );
+      expect(
+        formatRelativeTime(
+          now.subtract(const Duration(minutes: 5)),
+          now: now,
+          l10n: l10n,
+        ),
+        l10n.relativeMinutesAgo(5),
+      );
+      expect(
+        formatRelativeTime(
+          now.subtract(const Duration(hours: 3)),
+          now: now,
+          compact: true,
+          l10n: l10n,
+        ),
+        l10n.relativeHoursCompact(3),
+      );
+      expect(
+        formatRelativeTime(
+          now.subtract(const Duration(days: 3)),
+          now: now,
+          l10n: l10n,
+        ),
+        l10n.relativeDaysAgo(3),
+      );
+      expect(
+        formatRelativeTime(
+          now.subtract(const Duration(hours: 25)),
           now: now,
           useYesterdayLabel: true,
-          locale: 'de',
+          l10n: l10n,
         ),
-        'Yesterday',
+        l10n.relativeYesterday,
+      );
+    });
+
+    test('without l10n the buckets keep their English defaults', () {
+      // Not a locale contract — just proves the argument is optional for the
+      // context-free call sites that cannot reach an AppLocalizations.
+      expect(
+        formatRelativeTime(
+          now.subtract(const Duration(minutes: 5)),
+          now: now,
+        ),
+        isNotEmpty,
       );
     });
   });

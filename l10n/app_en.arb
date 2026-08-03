@@ -1723,6 +1723,78 @@
       }
     }
   },
+  "relativeJustNow": "Just now",
+  "@relativeJustNow": {
+    "description": "Relative time under one minute"
+  },
+  "relativeYesterday": "Yesterday",
+  "@relativeYesterday": {
+    "description": "Relative time on the previous calendar day"
+  },
+  "relativeMinutesAgo": "{n}m ago",
+  "@relativeMinutesAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeMinutesCompact": "{n}m",
+  "@relativeMinutesCompact": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHoursAgo": "{n}h ago",
+  "@relativeHoursAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeHoursCompact": "{n}h",
+  "@relativeHoursCompact": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeDaysAgo": "{n}d ago",
+  "@relativeDaysAgo": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "relativeDaysCompact": "{n}d",
+  "@relativeDaysCompact": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "dateTimeToday": "Today at {time}",
+  "@dateTimeToday": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "dateTimeYesterday": "Yesterday at {time}",
+  "@dateTimeYesterday": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "userFallbackName": "this user",
   "commandCategoryRecentSessions": "Recent Sessions",
   "featuresSectionExperiments": "Experiments",
