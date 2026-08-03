@@ -242,9 +242,23 @@ class UnreadFocusListRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final derived = SessionDerived.from(session);
-    final statusWidget = buildStatusText(derived.status, theme.textTheme);
-    final hasPreview =
-        lastMessagePreview != null && lastMessagePreview!.isNotEmpty;
+    final activity = getSessionActivity(context, session);
+    // The activity line already says "<tool> needs approval"; don't
+    // repeat it as "Permission required" one row below.
+    final statusWidget = activityRestatesStatus(activity)
+        ? null
+        : buildStatusText(derived.status, theme.textTheme);
+    final activityLine = buildActivityLineFor(
+      context: context,
+      activity: activity,
+      preview: lastMessagePreview,
+      previewRole: lastMessageRole,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: AppFontSize.xs,
+        height: 1.2,
+        color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium),
+      ),
+    );
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
 
@@ -302,35 +316,35 @@ class UnreadFocusListRow extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        derived.name,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: cs.onSurface.withValues(
-                            alpha: AppOpacity.high,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              derived.name,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: cs.onSurface.withValues(
+                                  alpha: AppOpacity.high,
+                                ),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                          if (archiveCountdownLabel != null) ...[
+                            const SizedBox(width: AppSpacing.xs),
+                            ArchiveCountdownBadge(
+                              label: archiveCountdownLabel!,
+                            ),
+                          ],
+                        ],
                       ),
                       if (statusWidget != null) ...[
                         const SizedBox(height: AppSpacing.xxs),
                         statusWidget,
-                      ] else if (hasPreview) ...[
+                      ] else if (activityLine != null) ...[
                         const SizedBox(height: AppSpacing.xxs),
-                        buildPreviewText(
-                          context: context,
-                          preview: lastMessagePreview!,
-                          role: lastMessageRole,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontSize: AppFontSize.xs,
-                            height: 1.2,
-                            color: cs.onSurfaceVariant.withValues(
-                              alpha: AppOpacity.medium,
-                            ),
-                          ),
-                          maxLines: 1,
-                        ),
+                        activityLine,
                       ],
                     ],
                   ),
@@ -343,7 +357,6 @@ class UnreadFocusListRow extends StatelessWidget {
                   theme: theme,
                   cs: cs,
                   todoProgress: todoProgress,
-                  archiveCountdownLabel: archiveCountdownLabel,
                 ),
                 if (session.pinned) ...[
                   const SizedBox(width: AppSpacing.sm),

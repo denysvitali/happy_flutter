@@ -66,10 +66,15 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
     final sessionFlavor = session.metadata?.flavor;
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
-    final statusWidget = buildStatusText(_d.status, theme.textTheme);
-    final activityLine = buildActivityLine(
+    final activity = getSessionActivity(context, session);
+    // The activity line already says "<tool> needs approval"; don't
+    // repeat it as "Permission required" one row below.
+    final statusWidget = activityRestatesStatus(activity)
+        ? null
+        : buildStatusText(_d.status, theme.textTheme);
+    final activityLine = buildActivityLineFor(
       context: context,
-      session: session,
+      activity: activity,
       preview: widget.lastMessagePreview,
       previewRole: widget.lastMessageRole,
       style: theme.textTheme.bodySmall?.copyWith(

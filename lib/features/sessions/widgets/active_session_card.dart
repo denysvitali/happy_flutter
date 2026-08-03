@@ -57,9 +57,10 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final session = widget.session;
-    final activityLine = buildActivityLine(
+    final activity = getSessionActivity(context, session);
+    final activityLine = buildActivityLineFor(
       context: context,
-      session: session,
+      activity: activity,
       preview: widget.lastMessagePreview,
       previewRole: widget.lastMessageRole,
       style: theme.textTheme.bodySmall?.copyWith(
@@ -67,7 +68,11 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
         height: 1.2,
       ),
     );
-    final statusWidget = buildStatusText(_d.status, theme.textTheme);
+    // The activity line already says "<tool> needs approval"; don't
+    // repeat it as "Permission required" one row below.
+    final statusWidget = activityRestatesStatus(activity)
+        ? null
+        : buildStatusText(_d.status, theme.textTheme);
     final todoProgress = getTodoProgress(session.todos);
     final sessionFlavor = session.metadata?.flavor;
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;

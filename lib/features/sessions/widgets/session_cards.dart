@@ -90,13 +90,40 @@ Widget? buildStatusText(SessionStatus status, TextTheme textTheme) {
   );
 }
 
+/// Whether [activity] already says what [buildStatusText] would say.
+///
+/// "Bash needs approval" and "Permission required" are the same state;
+/// a card renders the more specific one only.
+bool activityRestatesStatus(SessionActivity? activity) =>
+    activity?.kind == SessionActivityKind.permission;
+
+/// Which kind of activity a [SessionActivity] describes.
+enum SessionActivityKind {
+  /// A permission request is waiting for the user.
+  ///
+  /// This restates `SessionStatus.permissionRequired`, so a card that
+  /// renders both must drop the status line to avoid saying it twice.
+  permission,
+
+  /// A tool the agent was just approved to run.
+  runningTool,
+
+  /// The agent is thinking, with no more specific signal available.
+  working,
+}
+
 /// What a session is currently doing, derived purely from in-memory
 /// state (`Session.agentState` + `Session.thinking`) — no extra fetches.
 class SessionActivity {
-  const SessionActivity({required this.label, required this.icon});
+  const SessionActivity({
+    required this.label,
+    required this.icon,
+    required this.kind,
+  });
 
   final String label;
   final IconData icon;
+  final SessionActivityKind kind;
 }
 
 /// Newest entry of [requests] by `createdAt`, or null when empty.
@@ -114,35 +141,81 @@ T? _newest<T>(Map<String, T>? requests, int? Function(T) createdAt) {
   return best;
 }
 
+/// How recently a permission must have been approved for the tool it
+/// covers to still be a plausible description of what is running now.
+const int kRunningToolFreshnessMs = 90 * 1000;
+
+/// Newest approved permission that is recent enough to describe the tool
+/// the agent is running right now.
+///
+/// `completedRequests` are *finished* permission requests — approved,
+/// denied or canceled — and they are never pruned, so without both a
+/// status and a recency filter a card would happily report a tool the
+/// user denied, or one approved an hour ago, as "Running".
+CompletedRequestInfo? _recentlyApprovedTool(
+  Map<String, CompletedRequestInfo>? completed,
+  int nowMs,
+) {
+  if (completed == null || completed.isEmpty) return null;
+  CompletedRequestInfo? best;
+  var bestAt = -1;
+  for (final value in completed.values) {
+    if (value.status != 'approved') continue;
+    if (value.tool.isEmpty) continue;
+    final at = value.completedAt ?? value.createdAt ?? 0;
+    if (nowMs - at > kRunningToolFreshnessMs) continue;
+    if (at > bestAt) {
+      best = value;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
 /// Resolves the one-line activity summary for [session].
 ///
 /// Returns null when nothing is known — callers then fall back to the
 /// last-message preview (and finally the project path). Never returns a
 /// placeholder: an unknown activity renders no line at all.
-SessionActivity? getSessionActivity(BuildContext context, Session session) {
-  final l10n = context.l10n;
+///
+/// Offline sessions never report activity: leftover `agentState`
+/// requests are not cleared when presence drops, so an offline card
+/// would otherwise claim a tool needs approval next to its own
+/// "Last seen …" status. This matches `getSessionStatus`, which gates
+/// thinking and permissionRequired on presence too.
+SessionActivity? getSessionActivity(
+  BuildContext context,
+  Session session, {
+  DateTime? now,
+}) {
+  if (session.presence != 'online') return null;
+
   final agentState = session.agentState;
 
   final pending = _newest(agentState?.requests, (r) => r.createdAt);
   if (pending != null && pending.tool.isNotEmpty) {
     return SessionActivity(
-      label: l10n.sessionActivityToolApproval(pending.tool),
+      label: context.l10n.sessionActivityToolApproval(pending.tool),
       icon: Icons.lock_outline,
+      kind: SessionActivityKind.permission,
     );
   }
 
   if (!session.thinking) return null;
 
-  final running = _newest(agentState?.completedRequests, (r) => r.createdAt);
-  if (running != null && running.tool.isNotEmpty) {
+  final nowMs = (now ?? DateTime.now()).millisecondsSinceEpoch;
+  final running = _recentlyApprovedTool(agentState?.completedRequests, nowMs);
+  if (running != null) {
     return SessionActivity(
-      label: l10n.sessionActivityRunningTool(running.tool),
+      label: context.l10n.sessionActivityRunningTool(running.tool),
       icon: Icons.terminal_outlined,
+      kind: SessionActivityKind.runningTool,
     );
   }
   return SessionActivity(
-    label: l10n.sessionActivityWorking,
+    label: context.l10n.sessionActivityWorking,
     icon: Icons.auto_awesome_outlined,
+    kind: SessionActivityKind.working,
   );
 }
 
@@ -159,7 +232,28 @@ Widget? buildActivityLine({
   required TextStyle? style,
   int maxLines = 1,
 }) {
-  final activity = getSessionActivity(context, session);
+  return buildActivityLineFor(
+    context: context,
+    activity: getSessionActivity(context, session),
+    preview: preview,
+    previewRole: previewRole,
+    style: style,
+    maxLines: maxLines,
+  );
+}
+
+/// Same as [buildActivityLine] for an already-resolved [activity].
+///
+/// Cards that need to know the activity kind (to suppress a status line
+/// that would restate it) resolve it once and pass it in here.
+Widget? buildActivityLineFor({
+  required BuildContext context,
+  required SessionActivity? activity,
+  required String? preview,
+  required String? previewRole,
+  required TextStyle? style,
+  int maxLines = 1,
+}) {
   if (activity == null) {
     if (preview == null || preview.isEmpty) return null;
     return buildPreviewText(
@@ -277,7 +371,6 @@ Widget buildTimestampBadges({
   required ColorScheme cs,
   int unreadCount = 0,
   ({int completed, int total})? todoProgress,
-  String? archiveCountdownLabel,
   double badgeGap = AppSpacing.xxs,
 }) {
   return Column(
@@ -301,10 +394,6 @@ Widget buildTimestampBadges({
           completed: todoProgress.completed,
           total: todoProgress.total,
         ),
-      ],
-      if (archiveCountdownLabel != null) ...[
-        SizedBox(height: badgeGap),
-        ArchiveCountdownBadge(label: archiveCountdownLabel),
       ],
     ],
   );

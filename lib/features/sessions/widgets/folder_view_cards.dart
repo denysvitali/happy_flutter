@@ -77,9 +77,22 @@ class FolderSessionRow extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final derived = SessionDerived.from(session);
-    final statusWidget = buildStatusText(derived.status, theme.textTheme);
-    final hasPreview =
-        lastMessagePreview != null && lastMessagePreview!.isNotEmpty;
+    final activity = muted ? null : getSessionActivity(context, session);
+    // The activity line already says "<tool> needs approval"; don't
+    // repeat it as "Permission required" one row below.
+    final statusWidget = activityRestatesStatus(activity)
+        ? null
+        : buildStatusText(derived.status, theme.textTheme);
+    final activityLine = buildActivityLineFor(
+      context: context,
+      activity: activity,
+      preview: lastMessagePreview,
+      previewRole: lastMessageRole,
+      style: theme.textTheme.bodySmall?.copyWith(
+        fontSize: AppFontSize.xs,
+        height: 1.25,
+      ),
+    );
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
     final rowColor = isSelected
@@ -101,7 +114,9 @@ class FolderSessionRow extends StatelessWidget {
           },
           onLongPress: onLongPress,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: hasPreview ? 76 : 64),
+            constraints: BoxConstraints(
+              minHeight: activityLine != null ? 76 : 64,
+            ),
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
@@ -146,30 +161,33 @@ class FolderSessionRow extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          displayName ?? derived.name,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: titleColor,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                displayName ?? derived.name,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: titleColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (archiveCountdownLabel != null) ...[
+                              const SizedBox(width: AppSpacing.xs),
+                              ArchiveCountdownBadge(
+                                label: archiveCountdownLabel!,
+                              ),
+                            ],
+                          ],
                         ),
                         if (statusWidget != null && !muted) ...[
                           const SizedBox(height: AppSpacing.xxs),
                           statusWidget,
-                        ] else if (hasPreview) ...[
+                        ] else if (activityLine != null) ...[
                           const SizedBox(height: AppSpacing.xxs),
-                          buildPreviewText(
-                            context: context,
-                            preview: lastMessagePreview!,
-                            role: lastMessageRole,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              fontSize: AppFontSize.xs,
-                              height: 1.25,
-                            ),
-                            maxLines: 1,
-                          ),
+                          activityLine,
                         ] else ...[
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
@@ -196,7 +214,6 @@ class FolderSessionRow extends StatelessWidget {
                     cs: cs,
                     unreadCount: unreadCount,
                     todoProgress: todoProgress,
-                    archiveCountdownLabel: archiveCountdownLabel,
                   ),
                   if (session.pinned) ...[
                     const SizedBox(width: AppSpacing.sm),
