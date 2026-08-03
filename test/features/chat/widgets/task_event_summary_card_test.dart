@@ -32,7 +32,6 @@ void main() {
 
       expect(find.text('Task completed'), findsOneWidget);
       expect(find.text('All branches reconciled.'), findsOneWidget);
-      expect(find.text('local_workflow'), findsOneWidget);
     });
 
     testWidgets('renders failed task without summary', (tester) async {
@@ -50,7 +49,6 @@ void main() {
       );
 
       expect(find.text('Task failed'), findsOneWidget);
-      expect(find.text('local_bash'), findsOneWidget);
     });
 
     testWidgets('falls back to status label when no content', (tester) async {
@@ -67,7 +65,6 @@ void main() {
       );
 
       expect(find.text('Task updated'), findsOneWidget);
-      expect(find.text('general-purpose'), findsOneWidget);
     });
 
     testWidgets('shows transcript path and copies it on tap', (tester) async {
