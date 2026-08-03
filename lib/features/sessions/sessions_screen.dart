@@ -84,7 +84,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     }
   }
 
-
   @override
   void initState() {
     super.initState();

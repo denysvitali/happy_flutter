@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../i18n/app_localizations.dart';
 import '../../services/pane_layout_storage.dart';
 import 'resizable_pane_divider.dart';
 
@@ -81,7 +82,10 @@ class _ResizableSplitViewState extends State<ResizableSplitView> {
     final width = _draggedWidth;
     if (width == null) return;
     try {
-      _storage.setWidth(widget.paneId, width);
+      // Write through instead of leaning on the debounce: this runs once
+      // per gesture (drag end / a11y nudge), and a drag immediately
+      // followed by backgrounding must not lose the user's choice.
+      _storage.setWidthNow(widget.paneId, width);
     } catch (_) {
       // Persisting a UI preference must never break the layout.
     }
@@ -90,12 +94,16 @@ class _ResizableSplitViewState extends State<ResizableSplitView> {
   @override
   Widget build(BuildContext context) {
     final masterWidth = _resolveWidth(context);
+    final label = widget.dividerSemanticsLabel;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(width: masterWidth, child: widget.master),
         ResizablePaneDivider(
-          semanticsLabel: widget.dividerSemanticsLabel,
+          semanticsLabel: label,
+          semanticsValue: label == null
+              ? null
+              : context.l10n.paneWidthPixels(masterWidth.round()),
           onResize: (delta) => _onResize(delta, context),
           onResizeEnd: _persist,
         ),

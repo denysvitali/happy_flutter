@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/components/tablet/resizable_pane_divider.dart';
-import 'package:happy_flutter/core/components/tablet/resizable_split_view.dart';
+import 'package:happy_flutter/core/components/components.dart'
+    show ResizablePaneDivider, ResizableSplitView;
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/pane_layout_storage.dart';
 
@@ -24,12 +25,15 @@ class _FakeMMKVStorage extends MMKVStorage {
 
 const _masterKey = Key('master-pane');
 
-Widget _harness(PaneLayoutStorage storage) {
+Widget _harness(PaneLayoutStorage storage, {String? dividerLabel}) {
   return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: ResizableSplitView(
         paneId: 'sessions',
         storage: storage,
+        dividerSemanticsLabel: dividerLabel,
         master: const ColoredBox(
           key: _masterKey,
           color: Colors.blue,
@@ -92,7 +96,8 @@ void main() {
     expect(after, greaterThan(before));
     expect(storage.widthFor('sessions'), closeTo(after, 1));
 
-    storage.persistNow();
+    // Written through on drag end — no debounce window in which a
+    // backgrounded app would lose the user's choice.
     expect(mmkv.values['pane-layout-widths'], contains('sessions'));
     await _drainPersistDebounce(tester);
   });
@@ -114,7 +119,7 @@ void main() {
   testWidgets('a persisted width is restored on the next build', (
     tester,
   ) async {
-    storage.setWidth('sessions', 480);
+    storage.setWidthNow('sessions', 480);
     setViewport(tester, const Size(1024, 768));
     await tester.pumpWidget(_harness(storage));
 
@@ -125,12 +130,67 @@ void main() {
   testWidgets('a too-wide persisted width is clamped on a small viewport', (
     tester,
   ) async {
-    storage.setWidth('sessions', 900);
+    storage.setWidthNow('sessions', 900);
     setViewport(tester, const Size(700, 900));
     await tester.pumpWidget(_harness(storage));
 
     expect(_masterWidth(tester), lessThanOrEqualTo(700 * 0.55 + 1));
     expect(_masterWidth(tester), greaterThan(0));
     await _drainPersistDebounce(tester);
+  });
+
+  testWidgets('the divider slider is operable and announces its width', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(1024, 768));
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(_harness(storage, dividerLabel: 'Resize'));
+
+    final before = _masterWidth(tester);
+    final node = tester.getSemantics(find.byType(ResizablePaneDivider));
+    expect(node.label, 'Resize');
+    expect(node.value, '${before.round()} pixels wide');
+    expect(node.hasAction(SemanticsAction.increase), isTrue);
+    expect(node.hasAction(SemanticsAction.decrease), isTrue);
+
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.increase,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      _masterWidth(tester),
+      closeTo(before + ResizablePaneDivider.semanticsStep, 0.5),
+    );
+
+    // An assistive-tech nudge persists exactly like a drag does.
+    expect(
+      storage.widthFor('sessions'),
+      closeTo(before + ResizablePaneDivider.semanticsStep, 0.5),
+    );
+    expect(mmkv.values['pane-layout-widths'], contains('sessions'));
+
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.decrease,
+    );
+    await tester.pumpAndSettle();
+    expect(_masterWidth(tester), closeTo(before, 0.5));
+
+    handle.dispose();
+  });
+
+  testWidgets('without a semantics label the divider is not a slider', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(1024, 768));
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(_harness(storage));
+
+    final node = tester.getSemantics(find.byType(ResizablePaneDivider));
+    expect(node.hasAction(SemanticsAction.increase), isFalse);
+    expect(node.hasAction(SemanticsAction.decrease), isFalse);
+
+    handle.dispose();
   });
 }

@@ -4297,6 +4297,12 @@ abstract class AppLocalizations {
   /// **'Resize the session list'**
   String get sessionsResizeSidebar;
 
+  /// No description provided for @paneWidthPixels.
+  ///
+  /// In en, this message translates to:
+  /// **'{width} pixels wide'**
+  String paneWidthPixels(int width);
+
   /// No description provided for @sessionsSelectAll.
   ///
   /// In en, this message translates to:

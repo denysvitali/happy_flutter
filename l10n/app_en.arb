@@ -944,6 +944,14 @@
   "sessionsNoSessionSelected": "No session selected",
   "sessionsNoSessionSelectedHint": "Choose a session from the list to open its chat, or start a new one.",
   "sessionsResizeSidebar": "Resize the session list",
+  "paneWidthPixels": "{width} pixels wide",
+  "@paneWidthPixels": {
+    "placeholders": {
+      "width": {
+        "type": "int"
+      }
+    }
+  },
   "sessionsSelectAll": "Select All",
   "sessionsDeselectAll": "Deselect All",
   "sessionsPin": "Pin",

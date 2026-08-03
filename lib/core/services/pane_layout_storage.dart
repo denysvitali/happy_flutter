@@ -44,6 +44,26 @@ class PaneLayoutStorage extends CachedStorage<Map<String, double>> {
   double? widthFor(String paneId) => cache[paneId];
 
   /// Records a new width for [paneId] and schedules a debounced write.
+  ///
+  /// Prefer [setWidthNow] on the drag-end path: the debounce would otherwise
+  /// be the only thing standing between the user's choice and an app that
+  /// gets backgrounded (and possibly killed) within 500 ms.
   void setWidth(String paneId, double width) =>
       mutate((value) => value[paneId] = width);
+
+  /// Records a new width for [paneId] and persists it immediately.
+  ///
+  /// Callers invoke this once per completed gesture, so there is nothing for
+  /// the debounce to coalesce and a suspend right after a drag cannot lose
+  /// the width.
+  void setWidthNow(String paneId, double width) {
+    cache[paneId] = width;
+    persistNow();
+  }
+
+  /// Writes any cache mutation that is still sitting in the debounce window.
+  ///
+  /// Safe to call from an app-suspend path (mirrors how
+  /// `MessageCacheService` is flushed in `Sync.suspend()`).
+  void flush() => persistNow();
 }

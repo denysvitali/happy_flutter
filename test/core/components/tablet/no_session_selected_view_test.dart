@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/components/tablet/no_session_selected_view.dart';
+import 'package:happy_flutter/core/components/components.dart'
+    show NoSessionSelectedView;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 
 Widget _harness({VoidCallback? onCreate}) => MaterialApp(

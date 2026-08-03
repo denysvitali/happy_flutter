@@ -50,7 +50,12 @@ class ResizablePaneDivider extends StatefulWidget {
     required this.onResize,
     this.onResizeEnd,
     this.semanticsLabel,
+    this.semanticsValue,
   });
+
+  /// Distance the pane moves per assistive-technology increase/decrease
+  /// action, in logical pixels.
+  static const double semanticsStep = 24.0;
 
   /// Called with the horizontal delta (in logical pixels) each drag update.
   final ValueChanged<double> onResize;
@@ -58,8 +63,12 @@ class ResizablePaneDivider extends StatefulWidget {
   /// Called once when a drag gesture finishes, for persisting the width.
   final VoidCallback? onResizeEnd;
 
-  /// Accessibility label announced for the drag handle.
+  /// Accessibility label announced for the drag handle. When non-null the
+  /// handle is exposed as an operable slider (see [semanticsValue]).
   final String? semanticsLabel;
+
+  /// Current width announced by assistive technology, e.g. `'420 pixels'`.
+  final String? semanticsValue;
 
   /// Returns the minimum master-pane width for the current screen size.
   static double minWidth(BuildContext context) {
@@ -98,9 +107,17 @@ class ResizablePaneDivider extends StatefulWidget {
 class _ResizablePaneDividerState extends State<ResizablePaneDivider> {
   bool _hovering = false;
 
+  /// Applies one assistive-technology nudge and immediately ends the
+  /// "gesture" so the new width is persisted like a drag would be.
+  void _nudge(double delta) {
+    widget.onResize(delta);
+    widget.onResizeEnd?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final label = widget.semanticsLabel;
     final dividerColor = _hovering
         ? theme.colorScheme.primary.withValues(alpha: 0.6)
         : theme.dividerColor;
@@ -110,8 +127,17 @@ class _ResizablePaneDividerState extends State<ResizablePaneDivider> {
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: Semantics(
-        label: widget.semanticsLabel,
-        slider: widget.semanticsLabel != null,
+        label: label,
+        // Only claim to be a slider when the node is also operable:
+        // assistive tech must be able to move it, not just read it.
+        slider: label != null,
+        value: label == null ? null : widget.semanticsValue,
+        onIncrease: label == null
+            ? null
+            : () => _nudge(ResizablePaneDivider.semanticsStep),
+        onDecrease: label == null
+            ? null
+            : () => _nudge(-ResizablePaneDivider.semanticsStep),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onPanUpdate: (details) => widget.onResize(details.delta.dx),

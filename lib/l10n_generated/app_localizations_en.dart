@@ -2372,6 +2372,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsResizeSidebar => 'Resize the session list';
 
   @override
+  String paneWidthPixels(int width) {
+    return '$width pixels wide';
+  }
+
+  @override
   String get sessionsSelectAll => 'Select All';
 
   @override
