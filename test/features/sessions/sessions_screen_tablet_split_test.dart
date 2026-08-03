@@ -181,8 +181,11 @@ void main() {
     expect(find.byType(NewSessionDialog), findsOneWidget);
 
     // Dismiss so the dialog's async work does not outlive the test.
+    // Bounded pumps only: the AppEmptyState behind the dialog runs a
+    // repeating breathe animation, so pumpAndSettle never settles.
     Navigator.of(tester.element(find.byType(NewSessionDialog))).pop();
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('phone width keeps the single-pane layout', (tester) async {
