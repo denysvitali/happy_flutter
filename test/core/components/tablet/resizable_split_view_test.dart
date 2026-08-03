@@ -148,7 +148,15 @@ void main() {
     await tester.pumpWidget(_harness(storage, dividerLabel: 'Resize'));
 
     final before = _masterWidth(tester);
-    final node = tester.getSemantics(find.byType(ResizablePaneDivider));
+    // Resolve from the Semantics widget itself: getSemantics walks UP from
+    // the finder's render object, and the divider's first render object is
+    // the MouseRegion above the Semantics node.
+    final node = tester.getSemantics(
+      find.descendant(
+        of: find.byType(ResizablePaneDivider),
+        matching: find.byType(Semantics),
+      ),
+    );
     expect(node.label, 'Resize');
     expect(node.value, '${before.round()} pixels wide');
     expect(
@@ -184,6 +192,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_masterWidth(tester), closeTo(before, 0.5));
 
+    await _drainPersistDebounce(tester);
     handle.dispose();
   });
 
@@ -194,7 +203,12 @@ void main() {
     final handle = tester.ensureSemantics();
     await tester.pumpWidget(_harness(storage));
 
-    final node = tester.getSemantics(find.byType(ResizablePaneDivider));
+    final node = tester.getSemantics(
+      find.descendant(
+        of: find.byType(ResizablePaneDivider),
+        matching: find.byType(Semantics),
+      ),
+    );
     expect(
       node.getSemanticsData().hasAction(SemanticsAction.increase),
       isFalse,
