@@ -434,7 +434,7 @@ class _AgentConversationScreenState
       // event the CLI encodes as a text row. Rendering it through the plain
       // text path dresses it as sub-agent prose — an unlabelled bubble that
       // just repeats the step description. The chat timeline already routes
-      // it to TaskEventSummaryCard (status glyph + transcript path); this
+      // it to TaskEventSummaryCard (status icon + transcript path); this
       // feed must too, or the same step reads three times in a row.
       if (msg['taskEvent'] == true) {
         return Padding(

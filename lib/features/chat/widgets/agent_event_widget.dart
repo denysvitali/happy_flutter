@@ -147,7 +147,10 @@ class AgentEventWidget extends StatelessWidget {
                   color: color,
                   fontWeight: isUnrendered ? FontWeight.w600 : null,
                 ),
-                textAlign: TextAlign.center,
+                // Left-align wrapped lines against the leading icon/prefix;
+                // per-line centering parked two centered lines beside a
+                // vertically-centered prefix and read as a layout bug.
+                textAlign: TextAlign.start,
               ),
             ),
           ],

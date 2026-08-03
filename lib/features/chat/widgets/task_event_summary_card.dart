@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/task_label.dart';
 
-/// Compact summary card for a sub-agent task completion event.
+/// Slim system-style row for a sub-agent task completion event, matching
+/// the agent-event start/progress markers so a task's lifecycle reads as
+/// one visual family in the timeline.
 ///
 /// Emitted by the CLI when a `Task` / `Agent` / `Workflow` (or local
 /// async task like `local_workflow` / `local_bash`) finishes.  The wire
@@ -40,13 +44,10 @@ class TaskEventSummaryCard extends StatelessWidget {
     return raw is String && raw.isNotEmpty ? raw : null;
   }
 
-  /// Shell-backed tasks put a command in their summary; render it mono.
-  bool get _isShellTask => _taskType == 'local_bash';
-
-  String _statusGlyph() {
-    if (_isFailed) return '⚠️';
-    if (_isCompleted) return '✅';
-    return '⏳';
+  IconData _statusIcon() {
+    if (_isFailed) return Icons.error_rounded;
+    if (_isCompleted) return Icons.check_circle_rounded;
+    return Icons.autorenew_rounded;
   }
 
   String _statusLabel() {
@@ -79,87 +80,95 @@ class TaskEventSummaryCard extends StatelessWidget {
     final taskType = _taskType;
     final runId = _workflowRunId;
 
+    final muted = cs.onSurfaceVariant.withValues(alpha: 0.85);
     final accentColor = _isFailed
         ? cs.error
         : _isCompleted
-            ? cs.primary.withValues(alpha: 0.85)
-            : cs.onSurfaceVariant;
+            ? AppColors.success
+            : muted;
+    final showSummary = summary.isNotEmpty &&
+        summary != _statusLabel() &&
+        data['redundantSummary'] != true;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(
-          color: accentColor.withValues(alpha: 0.35),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(_statusGlyph(), style: const TextStyle(fontSize: 14)),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_statusIcon(), size: 13, color: accentColor),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
                   _statusLabel(),
-                  style: theme.textTheme.labelMedium?.copyWith(
+                  style: theme.textTheme.labelSmall?.copyWith(
                     color: accentColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-              if (taskType != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(AppRadius.xs),
-                  ),
-                  child: Text(
-                    taskType,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                if (taskType != null) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                    ),
+                    child: Text(
+                      taskType,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
-          if (summary.isNotEmpty &&
-              summary != _statusLabel() &&
-              data['redundantSummary'] != true) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              summary,
-              // `local_bash` notifications repeat the entire shell command
-              // as their summary; clamp so one task can't own the screen.
-              maxLines: 4,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurface.withValues(alpha: 0.85),
-                fontFamily: _isShellTask ? 'monospace' : null,
-                height: 1.35,
-              ),
+                ],
+                if (showSummary) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '·',
+                    style:
+                        theme.textTheme.labelSmall?.copyWith(color: muted),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Flexible(
+                    child: Text(
+                      // `local_bash` notifications repeat the entire shell
+                      // command as their summary; clamp so one task can't
+                      // own the screen.
+                      compactTaskLabel(summary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: muted,
+                      ),
+                      textAlign: TextAlign.start,
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ],
-          if (transcriptDir != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            InkWell(
-              onTap: () => _copyPath(context),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xs,
-                ),
+          ),
+        ),
+        if (transcriptDir != null)
+          InkWell(
+            onTap: () => _copyPath(context),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              child: Center(
                 child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.folder_open_rounded,
@@ -167,7 +176,7 @@ class TaskEventSummaryCard extends StatelessWidget {
                       color: cs.onSurfaceVariant,
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    Expanded(
+                    Flexible(
                       child: Text(
                         transcriptDir,
                         style: theme.textTheme.labelSmall?.copyWith(
@@ -188,19 +197,21 @@ class TaskEventSummaryCard extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-          if (runId != null && transcriptDir == null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'run: $runId',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        if (runId != null && transcriptDir == null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Center(
+              child: Text(
+                'run: $runId',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
-          ],
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
