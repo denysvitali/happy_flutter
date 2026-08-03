@@ -33,10 +33,18 @@ went `dead=true` and were never delivered. The outbox budget (~40s: 3 retries
 1s→30s) is shorter than the observed brownouts (30–75 min), so any stall over
 a minute converts to permanent loss; the terminal attempt is uncounted (dead
 branch returns before `recordOutboxFailure`), no dead-letter counter exists,
-and the death WARN never reached Loki. Next: failure-class-aware retry
-(timeout/5xx keep retrying for hours, capped backoff); re-arm dead entries on
-reconnect/foreground; `outbox_dead_lettered` counter + reason + Sentry;
-"message not sent" UI state.
+and the death WARN never reached Loki. **Fixed in d8dba9ac:** deliver now
+returns a failure class — transient (timeout/network/5xx/429) retries ~4h at
+a 30s-capped backoff, permanent (4xx/session-gone, body checked first because
+the server folds NotFound into a bare 500) keeps the 3-attempt budget;
+socket reconnect, foreground resume, and cold start re-arm transient dead
+letters (permanent stays user-retry-only); `happy_flutter.outbox.dead_lettered`
+OTel counter with reason + once-per-message Sentry capture; the terminal
+attempt now counts toward `outbox.failures`; the existing "Failed — tap to
+retry" row covered the UI state. Contract tests pin the transient budget past
+3 attempts, revive selectivity + `localId` identity, counter diffs, and the
+HTTP class matrix. Remaining: alert on `dead_lettered > 0` (see monitoring
+item below).
 
 **ErrorBoundary _TypeError burst (high, known-open, fresh evidence).** 87
 ERRORs in 44 min from one resume on build 237901 (launch 43b8321a, 2026-08-02
@@ -272,7 +280,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | Task | Status | Description |
 |------|--------|-------------|
 | Persist messages to MMKV | Done | `MessageCacheService` caches last 200 messages per session in MMKV. Loaded on app start via `_restoreAllCachedMessages()`. Debounced writes (2s, 5s ceiling) via `_scheduleSaveMessages()`, flushed synchronously on suspend. |
-| Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s, max 3 retries). Restored on startup via `restoreAndFlush()`. Audit 2026-08-03: the ~40s budget dead-letters sends during server brownouts longer than a minute (4 messages permanently lost, zero signal) — failure-class-aware retry and a dead-letter counter are tracked in the audit section. |
+| Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s). Restored on startup via `restoreAndFlush()`. Audit 2026-08-03 found the flat ~40s budget dead-lettered sends during brownouts longer than a minute (4 messages permanently lost, zero signal); shipped in d8dba9ac: failure-class-aware budgets (transient retries ~4h, permanent dead-letters after 3), reconnect/foreground/cold-start re-arm of transient dead letters, and a `dead_lettered` counter + Sentry capture (see the audit section). |
 
 ### 4. Optimistic Mutations
 
