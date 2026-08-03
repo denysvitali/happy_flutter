@@ -41,12 +41,28 @@ class AgentEventWidget extends StatelessWidget {
   /// renderable via a generic fallback label.
   static String? labelFor(dynamic event) => _eventLabel(event);
 
+  /// Matches the legacy "tool running (Ns)..." progress label. Older
+  /// builds emitted those polls as type-'message' events, and cached
+  /// messages keep that shape until evicted — hide them by content so
+  /// existing installs stop rendering the backlog too.
+  static final RegExp _legacyToolProgressLabel = RegExp(
+    r' running( \(\d+s\))?\.\.\.$',
+  );
+
   /// Returns `false` for telemetry-only event types that intentionally do
   /// do not render in the main chat timeline.
   static bool shouldRenderInChat(dynamic event) {
     if (event is! Map<String, dynamic>) return false;
     final type = event['type'];
-    return type is! String || !_hiddenEventTypes.contains(type);
+    if (type is! String) return false;
+    if (_hiddenEventTypes.contains(type)) return false;
+    if (type == 'message') {
+      final message = event['message'];
+      if (message is String && _legacyToolProgressLabel.hasMatch(message)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// The sub-agent's currently running tool, when one is being tracked via

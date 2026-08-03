@@ -145,6 +145,40 @@ void main() {
         ),
         isFalse,
       );
+      // Legacy shape: pre-'tool-progress' builds emitted the same polls
+      // as type-'message' events; cached rows keep that shape until
+      // evicted, so they are hidden by label content.
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{
+            'type': 'message',
+            'message': 'Bash running (30s)...',
+          },
+        ),
+        isFalse,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'message', 'message': 'Grep running...'},
+        ),
+        isFalse,
+      );
+      // Other type-'message' notices must still render.
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{
+            'type': 'message',
+            'message': 'Retrying API request (1/3)...',
+          },
+        ),
+        isTrue,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'message', 'message': 'Context compacted'},
+        ),
+        isTrue,
+      );
       expect(
         AgentEventWidget.shouldRenderInChat(
           <String, dynamic>{'type': 'thinking'},
