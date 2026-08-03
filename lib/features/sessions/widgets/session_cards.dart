@@ -141,37 +141,6 @@ T? _newest<T>(Map<String, T>? requests, int? Function(T) createdAt) {
   return best;
 }
 
-/// How recently a permission must have been approved for the tool it
-/// covers to still be a plausible description of what is running now.
-const int kRunningToolFreshnessMs = 90 * 1000;
-
-/// Newest approved permission that is recent enough to describe the tool
-/// the agent is running right now.
-///
-/// `completedRequests` are *finished* permission requests — approved,
-/// denied or canceled — and they are never pruned, so without both a
-/// status and a recency filter a card would happily report a tool the
-/// user denied, or one approved an hour ago, as "Running".
-CompletedRequestInfo? _recentlyApprovedTool(
-  Map<String, CompletedRequestInfo>? completed,
-  int nowMs,
-) {
-  if (completed == null || completed.isEmpty) return null;
-  CompletedRequestInfo? best;
-  var bestAt = -1;
-  for (final value in completed.values) {
-    if (value.status != 'approved') continue;
-    if (value.tool.isEmpty) continue;
-    final at = value.completedAt ?? value.createdAt ?? 0;
-    if (nowMs - at > kRunningToolFreshnessMs) continue;
-    if (at > bestAt) {
-      best = value;
-      bestAt = at;
-    }
-  }
-  return best;
-}
-
 /// Resolves the one-line activity summary for [session].
 ///
 /// Returns null when nothing is known — callers then fall back to the
@@ -183,11 +152,7 @@ CompletedRequestInfo? _recentlyApprovedTool(
 /// would otherwise claim a tool needs approval next to its own
 /// "Last seen …" status. This matches `getSessionStatus`, which gates
 /// thinking and permissionRequired on presence too.
-SessionActivity? getSessionActivity(
-  BuildContext context,
-  Session session, {
-  DateTime? now,
-}) {
+SessionActivity? getSessionActivity(BuildContext context, Session session) {
   if (session.presence != 'online') return null;
 
   final agentState = session.agentState;
@@ -203,9 +168,8 @@ SessionActivity? getSessionActivity(
 
   if (!session.thinking) return null;
 
-  final nowMs = (now ?? DateTime.now()).millisecondsSinceEpoch;
-  final running = _recentlyApprovedTool(agentState?.completedRequests, nowMs);
-  if (running != null) {
+  final running = _newest(agentState?.completedRequests, (r) => r.createdAt);
+  if (running != null && running.tool.isNotEmpty) {
     return SessionActivity(
       label: context.l10n.sessionActivityRunningTool(running.tool),
       icon: Icons.terminal_outlined,
