@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/mmkv_storage.dart';
@@ -7,6 +9,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
 import '../../core/theme/language_colors.dart';
 import '../../core/utils/clipboard_utils.dart';
+import 'code_block_line_spans.dart';
 import 'syntax_highlighter.dart';
 
 part 'code_block_chrome.dart';
@@ -22,9 +25,42 @@ class CodeBlockWrapPreference {
   /// MMKV key backing the preference.
   static const String storageKey = 'code-block-soft-wrap';
 
-  static final ValueNotifier<bool> _notifier = ValueNotifier<bool>(
-    MMKVStorage().getBool(storageKey) ?? false,
-  );
+  static final ValueNotifier<bool> _notifier = ValueNotifier<bool>(false);
+
+  /// Whether a persisted value has been observed. Until it has, every mount
+  /// re-reads MMKV: the first code block can easily build before
+  /// `Storage().initialize()` has run, and a static field initialiser would
+  /// have latched the resulting `null` as `false` for the process lifetime.
+  static bool _loadedFromStorage = false;
+
+  /// Reads the persisted preference if it has not been read yet.
+  ///
+  /// Cheap and idempotent — a map lookup that stops re-trying as soon as
+  /// storage answers with a real value.
+  static void ensureLoaded() {
+    if (_loadedFromStorage) return;
+    final stored = MMKVStorage().getBool(storageKey);
+    if (stored == null) return;
+    _loadedFromStorage = true;
+    if (_notifier.value == stored) return;
+    _applyWhenSafe(stored);
+  }
+
+  /// Publishes [value] outside the build phase.
+  ///
+  /// [ensureLoaded] runs from `initState`, which is inside a build; notifying
+  /// listeners there would mark already-built code blocks dirty mid-frame.
+  static void _applyWhenSafe(bool value) {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      _notifier.value = value;
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _notifier.value = value;
+    });
+  }
 
   /// Listenable used by [CodeBlockWidget] to rebuild on preference changes.
   static ValueListenable<bool> get notifier => _notifier;
@@ -34,6 +70,8 @@ class CodeBlockWrapPreference {
 
   /// Sets the preference and persists it.
   static void setWrapLines(bool value) {
+    // An explicit choice supersedes anything still unread in storage.
+    _loadedFromStorage = true;
     if (_notifier.value == value) return;
     _notifier.value = value;
     MMKVStorage().setBool(storageKey, value);
@@ -42,9 +80,14 @@ class CodeBlockWrapPreference {
   /// Flips the preference.
   static void toggle() => setWrapLines(!_notifier.value);
 
-  /// Restores the default (no wrapping) — tests only.
+  /// Restores the default (no wrapping) and drops the persisted value —
+  /// tests only.
   @visibleForTesting
-  static void resetForTest() => _notifier.value = false;
+  static void resetForTest() {
+    _loadedFromStorage = false;
+    _notifier.value = false;
+    MMKVStorage().removeKey(storageKey);
+  }
 }
 
 /// Widget for displaying a code block with syntax highlighting, copy button,
@@ -107,6 +150,9 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   /// Used to size the line-number gutter in wrapped mode.
   static const double _monospaceAdvanceRatio = 0.62;
 
+  /// Thickness of the vertical rule separating gutter from code.
+  static const double _gutterRuleWidth = 1;
+
   bool _copied = false;
 
   /// Cached line data — computed once and updated only when [widget.code]
@@ -114,6 +160,10 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   late List<String> _displayLines;
   late String _displayCode;
   late bool _isTruncated;
+
+  /// Memoised wrapped-mode spans and the brightness they were built for.
+  List<List<TextSpan>>? _cachedLineSpans;
+  bool? _cachedSpansDark;
 
   // Explicit, non-primary controller so the full-screen reader scrolls
   // independently of the ambient PrimaryScrollController.
@@ -143,6 +193,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     super.initState();
     _vController = ScrollController();
     _hController = ScrollController();
+    CodeBlockWrapPreference.ensureLoaded();
     _updateDisplayCode();
   }
 
@@ -156,7 +207,8 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   @override
   void didUpdateWidget(CodeBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.code != widget.code) {
+    if (oldWidget.code != widget.code ||
+        oldWidget.language != widget.language) {
       _updateDisplayCode();
     }
   }
@@ -165,6 +217,26 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     _displayCode = _truncateForDisplay(widget.code);
     _isTruncated = _displayCode.length != widget.code.length;
     _displayLines = _displayCode.split('\n');
+    _cachedLineSpans = null;
+  }
+
+  /// Per-logical-line spans for wrapped mode, tokenised once for the whole
+  /// block and memoised until the code, language, or palette changes.
+  List<TextSpan> _lineSpans(bool isDark, int index) {
+    if (_cachedLineSpans == null || _cachedSpansDark != isDark) {
+      _cachedLineSpans = buildCodeLineSpans(
+        code: _displayCode,
+        language: widget.language,
+        isDarkMode: isDark,
+      );
+      _cachedSpansDark = isDark;
+    }
+    final lines = _cachedLineSpans!;
+    final spans = index < lines.length ? lines[index] : const <TextSpan>[];
+    // Blank lines render a single space so the row keeps a full line height
+    // and its number stays aligned with the code column.
+    if (spans.isEmpty) return const <TextSpan>[TextSpan(text: ' ')];
+    return spans;
   }
 
   String _truncateForDisplay(String code) {
@@ -183,6 +255,19 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     }
     return end == code.length ? code : code.substring(0, end);
   }
+
+  /// Maximum inline height, matching the horizontal-scroll mode's cap of
+  /// [CodeBlockWidget.maxVisibleLines] rendered rows plus vertical padding.
+  double get _maxInlineHeight =>
+      widget.maxVisibleLines * _lineHeight + AppSpacing.md * 2;
+
+  /// Text style shared by every code row; also used to measure wrapping.
+  TextStyle get _codeTextStyle => TextStyle(
+    fontFamily: 'monospace',
+    fontSize: widget.fontSize,
+    height: _lineHeight / widget.fontSize,
+    decoration: TextDecoration.none,
+  );
 
   /// Width of the line-number gutter in wrapped mode.
   double get _gutterWidth {
@@ -209,6 +294,9 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     final codeViewer = isDark ? CodeViewerTheme.dark : CodeViewerTheme.light;
 
     final body = _buildBody(isDark, codeViewer, wrapLines);
+    // Wrapped inline mode only knows how many lines it could fit once it has
+    // a width, so it renders its own footer from inside a LayoutBuilder.
+    final ownsFooter = wrapLines && !widget.fullScreen;
 
     return Container(
       decoration: BoxDecoration(
@@ -232,7 +320,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             onExpand: widget.allowExpand ? _showExpanded : null,
           ),
           if (widget.fullScreen) Expanded(child: body) else body,
-          if (_hasHiddenLines)
+          if (!ownsFooter && _hasHiddenLines)
             _MoreLinesFooter(
               hiddenLines: _displayLines.length - _visibleLineCount,
               codeViewer: codeViewer,
@@ -320,35 +408,146 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     );
   }
 
-  /// Wrapped mode, inline: a bounded column of per-logical-line rows.
+  /// Wrapped mode, inline: a height-bounded column of per-logical-line rows.
+  ///
+  /// A single very long logical line (minified JSON, a long log line) wraps
+  /// into many visual rows, so clipping by logical line alone would let an
+  /// inline block grow taller than the screen inside the chat list. The rows
+  /// that fit [CodeBlockWidget.maxVisibleLines] *visual* rows are measured
+  /// here, the rest are delegated to the full-screen reader through the same
+  /// footer horizontal-scroll mode uses, and a clip bounds the height even if
+  /// the measurement and the final layout disagree.
   Widget _buildWrappedColumn(bool isDark, CodeViewerTheme codeViewer) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < _visibleLineCount; i++)
-            _wrappedLine(i, isDark, codeViewer),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final count = _wrappedInlineLineCount(context, constraints.maxWidth);
+        final hidden = _displayLines.length - count;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRect(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: _maxInlineHeight),
+                child: OverflowBox(
+                  alignment: Alignment.topLeft,
+                  maxHeight: double.infinity,
+                  fit: OverflowBoxFit.deferToChild,
+                  child: _withGutterRule(
+                    codeViewer,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (var i = 0; i < count; i++)
+                            _wrappedLine(i, isDark, codeViewer),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (hidden > 0)
+              _MoreLinesFooter(
+                hiddenLines: hidden,
+                codeViewer: codeViewer,
+                onExpand: widget.allowExpand ? _showExpanded : null,
+              ),
+          ],
+        );
+      },
     );
   }
 
   /// Wrapped mode, full screen: lazily built rows so a 2000-line file does
   /// not materialise every line at once.
   Widget _buildWrappedList(bool isDark, CodeViewerTheme codeViewer) {
-    return Scrollbar(
-      controller: _vController,
-      child: ListView.builder(
+    return _withGutterRule(
+      codeViewer,
+      Scrollbar(
         controller: _vController,
-        primary: false,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        itemCount: _visibleLineCount,
-        itemBuilder: (context, index) =>
-            _wrappedLine(index, isDark, codeViewer),
+        child: ListView.builder(
+          controller: _vController,
+          primary: false,
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          itemCount: _visibleLineCount,
+          itemBuilder: (context, index) =>
+              _wrappedLine(index, isDark, codeViewer),
+        ),
       ),
     );
+  }
+
+  /// Draws the gutter rule as one continuous line behind [child].
+  ///
+  /// Per-row borders leave a gap wherever a logical line wraps, because the
+  /// gutter box is only as tall as its number. Painting the rule once across
+  /// the whole code area keeps it continuous, exactly like horizontal-scroll
+  /// mode's single gutter.
+  Widget _withGutterRule(CodeViewerTheme codeViewer, Widget child) {
+    if (!widget.showLineNumbers) return child;
+    return Stack(
+      children: [
+        child,
+        Positioned(
+          left: _gutterWidth - _gutterRuleWidth,
+          top: 0,
+          bottom: 0,
+          width: _gutterRuleWidth,
+          child: IgnorePointer(
+            child: ColoredBox(
+              key: const ValueKey<String>('code-gutter-rule'),
+              color: codeViewer.divider,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Number of logical lines an inline wrapped block can show before it hits
+  /// its visual-row budget.
+  ///
+  /// Measures real wrapping with a [TextPainter] rather than estimating from
+  /// character counts, so the footer's hidden-line count is exact for any
+  /// font. The first logical line is always rendered, even when it alone
+  /// overflows the budget.
+  int _wrappedInlineLineCount(BuildContext context, double maxWidth) {
+    if (!maxWidth.isFinite) return _visibleLineCount;
+    final gutter = widget.showLineNumbers
+        ? _gutterWidth + AppSpacing.md
+        : AppSpacing.lg;
+    final codeWidth = maxWidth - gutter - AppSpacing.lg;
+    if (codeWidth <= 0) return 1;
+
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling,
+    );
+    final budget = widget.maxVisibleLines;
+    var rows = 0;
+    var count = 0;
+    for (final line in _displayLines) {
+      painter
+        ..text = TextSpan(
+          text: line.isEmpty ? ' ' : line,
+          style: _codeTextStyle,
+        )
+        ..layout(maxWidth: codeWidth);
+      final metrics = painter.computeLineMetrics().length;
+      final lineRows = metrics < 1 ? 1 : metrics;
+      if (count > 0 && rows + lineRows > budget) break;
+      rows += lineRows;
+      count++;
+      if (rows >= budget) break;
+    }
+    painter.dispose();
+    return count;
   }
 
   /// One logical line in wrapped mode.
@@ -359,7 +558,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   Widget _wrappedLine(int index, bool isDark, CodeViewerTheme codeViewer) {
     // Blank lines render a single space so the row keeps a full line height
     // and the number stays aligned with the code column.
-    final line = _visibleLines[index].isEmpty ? ' ' : _visibleLines[index];
+    final spans = _lineSpans(isDark, index);
     return Row(
       key: ValueKey<String>('code-line-${index + 1}'),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,15 +566,10 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
         if (widget.showLineNumbers)
           SizedBox(
             width: _gutterWidth,
-            child: Container(
+            child: Padding(
               padding: const EdgeInsets.only(
                 left: AppSpacing.md,
                 right: AppSpacing.sm + AppSpacing.xs,
-              ),
-              decoration: BoxDecoration(
-                border: Border(
-                  right: BorderSide(color: codeViewer.divider),
-                ),
               ),
               child: Text(
                 '${index + 1}',
@@ -396,15 +590,11 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
               left: widget.showLineNumbers ? AppSpacing.md : AppSpacing.lg,
               right: AppSpacing.lg,
             ),
-            // Highlighting is per logical line in wrapped mode; multi-line
-            // constructs (block comments) lose cross-line context, which is
-            // an accepted trade for correct number alignment.
-            child: SyntaxHighlighter(
-              code: line,
-              language: widget.language,
-              isDarkMode: isDark,
-              fontSize: widget.fontSize,
-              lineHeight: _lineHeight,
+            // Spans come from one tokenisation of the whole block, so
+            // multi-line constructs (block comments, multi-line strings,
+            // heredocs) keep their styling across the lines they span.
+            child: Text.rich(
+              TextSpan(children: spans, style: _codeTextStyle),
             ),
           ),
         ),
