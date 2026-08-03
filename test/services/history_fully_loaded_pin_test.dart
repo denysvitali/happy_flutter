@@ -37,6 +37,7 @@ void main() {
   tearDown(() {
     sync.testFetchOlderMessagesOverride = null;
     sync.testClearHistoryFullyLoaded(sessionId);
+    sync.testClearHistoryTrimmed(sessionId);
     sync.testClearSessionMessageState(sessionId);
     sync.testSetVisibleSessionId(null);
   });
@@ -82,30 +83,27 @@ void main() {
     },
   );
 
-  test(
-    'a session whose window is at the trim cap is not pinned',
-    () async {
-      // A large session: every page fetched by "load older" is sorted and
-      // trimmed back to the newest-N cap, so the rows never actually land in
-      // memory. Pinning here permanently kills "load older" for the session
-      // even though nothing older is loaded.
-      final cap = Sync.maxVisibleSessionMessagesForTesting;
-      sync.testSetSessionMessages(sessionId, [
-        for (var i = 0; i < cap; i++) _msg('m-${4000 + i}', 4000 + i),
-      ]);
-      sync.testSetSessionFirstLoadedSeq(sessionId, 50);
+  test('a session whose window is at the trim cap is not pinned', () async {
+    // A large session: every page fetched by "load older" is sorted and
+    // trimmed back to the newest-N cap, so the rows never actually land in
+    // memory. Pinning here permanently kills "load older" for the session
+    // even though nothing older is loaded.
+    final cap = Sync.maxVisibleSessionMessagesForTesting;
+    sync.testSetSessionMessages(sessionId, [
+      for (var i = 0; i < cap; i++) _msg('m-${4000 + i}', 4000 + i),
+    ]);
+    sync.testSetSessionFirstLoadedSeq(sessionId, 50);
 
-      await sync.fetchOlderMessages(sessionId, pageSize: 100);
+    await sync.fetchOlderMessages(sessionId, pageSize: 100);
 
-      expect(
-        sync.testHistoryFullyLoaded(sessionId),
-        isFalse,
-        reason:
-            'a full window means the fetched page was trimmed away — the '
-            'session has NOT loaded all its history',
-      );
-    },
-  );
+    expect(
+      sync.testHistoryFullyLoaded(sessionId),
+      isFalse,
+      reason:
+          'a full window means the fetched page was trimmed away — the '
+          'session has NOT loaded all its history',
+    );
+  });
 
   test(
     'a BACKGROUND session at the background trim cap is not pinned',
@@ -134,6 +132,106 @@ void main() {
       );
     },
   );
+
+  test('a walk-back trimmed along the way is NOT pinned at seq 0 — boundary '
+      'stays at the resident minimum and the orphan sweep gives up', () async {
+    // Production shape, 2026-08-03 (session c01b840f…): a 13k-seq session
+    // whose orphan walk-back paged through the whole history while the
+    // newest-N trim discarded pages as fast as they arrived. Reaching
+    // startSeq 0 with a below-cap window at that instant wrote
+    // firstLoadedSeq = 0 and pinned "history fully loaded": the chat then
+    // rendered "Beginning of conversation" over the newest ~200 rows and
+    // scroll-back died (the firstLoaded <= 1 guard in fetchOlderMessages).
+    final cap = Sync.maxVisibleSessionMessagesForTesting;
+    sync.testSetSessionMessages(sessionId, [
+      for (var i = 0; i < cap; i++) _msg('m-${4000 + i}', 4000 + i),
+    ]);
+    // Push one tail row through the real upsert so the trim actually
+    // discards a row — the "history was trimmed" ledger entry.
+    sync.testUpsertSessionMessages(sessionId, [_msg('m-5000', 5000)]);
+    expect(sync.testHistoryTrimmed(sessionId), isTrue);
+
+    // Simulate a later background trim cutting the window to the newest
+    // 200 rows, so the final page arrives with the window BELOW the
+    // visible cap — the case the at-cap guard alone cannot catch.
+    sync.testSetSessionMessages(sessionId, [
+      for (var i = 0; i < 200; i++) _msg('m-${4801 + i}', 4801 + i),
+    ]);
+    sync.testSetSessionFirstLoadedSeq(sessionId, 50);
+
+    await sync.fetchOlderMessages(sessionId, pageSize: 100);
+
+    expect(
+      sync.testHistoryFullyLoaded(sessionId),
+      isFalse,
+      reason: 'a trimmed walk-back must never claim history-complete',
+    );
+    expect(
+      sync.testSessionFirstLoadedSeq(sessionId),
+      4801,
+      reason:
+          'the boundary must be the oldest resident seq — writing 0 '
+          '(or startSeq + 1 = 1) over a trimmed window is the lie that '
+          'hollowed out the transcript',
+    );
+    expect(
+      sync.hasOlderMessages(sessionId),
+      isTrue,
+      reason:
+          'older messages still exist on the server — scroll-back '
+          'must stay alive',
+    );
+    expect(
+      sync.testOrphanFetchOlderNoProgressCount(sessionId),
+      sync.testOrphanFetchOlderMaxAttempts,
+      reason:
+          'an unwinnable walk-back (orphan parents can never become '
+          'resident) must exhaust the sweep budget so orphans render '
+          'inline instead of re-walking history on every regroup',
+    );
+  });
+
+  test('an untrimmed walk-back to seq 0 still pins, even when earlier seqs '
+      'never produced resident rows', () async {
+    // Control for the ledger: parser-dropped rows (usage/ready events
+    // occupy seqs but never land in the window) must not read as
+    // "trimmed". Below cap, no real trim — reaching seq 0 pins.
+    sync.testSetSessionMessages(sessionId, [
+      _msg('m-100', 100),
+      _msg('m-101', 101),
+    ]);
+    sync.testSetSessionFirstLoadedSeq(sessionId, 50);
+
+    await sync.fetchOlderMessages(sessionId, pageSize: 100);
+
+    expect(sync.testHistoryTrimmed(sessionId), isFalse);
+    expect(sync.testHistoryFullyLoaded(sessionId), isTrue);
+    expect(sync.hasOlderMessages(sessionId), isFalse);
+  });
+
+  test('a mid-walk empty page still advances the coverage boundary', () async {
+    // The orphan walk-back's progress is measured by the boundary moving
+    // down; an empty page means "this range was checked", not "nothing
+    // older exists". Only the startSeq == 0 write switches to the
+    // residency semantics — mid-walk pages must keep coverage semantics
+    // or a stretch of parser-dropped rows becomes a refetch wall.
+    final cap = Sync.maxVisibleSessionMessagesForTesting;
+    sync.testSetSessionMessages(sessionId, [
+      for (var i = 0; i < cap; i++) _msg('m-${4000 + i}', 4000 + i),
+    ]);
+    sync.testSetSessionFirstLoadedSeq(sessionId, 4000);
+
+    await sync.fetchOlderMessages(sessionId, pageSize: 100);
+
+    expect(
+      sync.testSessionFirstLoadedSeq(sessionId),
+      3900,
+      reason:
+          'startSeq = 4000 - 1 - 100 = 3899, so the coverage '
+          'boundary advances to 3900 even though the page was empty',
+    );
+    expect(sync.testHistoryFullyLoaded(sessionId), isFalse);
+  });
 
   test('an unpinned session still re-arms its boundary after a trim', () async {
     // Control case: a session that never reached seq 0 keeps the existing

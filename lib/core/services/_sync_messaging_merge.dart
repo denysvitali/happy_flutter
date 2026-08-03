@@ -261,7 +261,6 @@ extension SyncMessagingMerge on Sync {
   static const int _orphanFetchOlderAggressiveAttempts =
       Sync._orphanAggressiveWalkbackSequences ~/ Sync._orphanFetchOlderPageSize;
 
-
   /// Hard cap on total no-progress fetchOlder attempts. Once reached,
   /// orphan recovery gives up and the sidechain messages render inline
   /// until new activity (new messages arriving) resets the counter.
@@ -547,10 +546,7 @@ extension SyncMessagingMerge on Sync {
         'noProgressCount=$noProgressCount)',
       );
       unawaited(
-        fetchOlderMessages(
-          sessionId,
-          pageSize: Sync._orphanFetchOlderPageSize,
-        )
+        fetchOlderMessages(sessionId, pageSize: Sync._orphanFetchOlderPageSize)
             .then((_) {
               // The fetch path upserts and notifies; the next grouper
               // pass will rerun automatically. Reset the no-progress
@@ -712,8 +708,8 @@ extension SyncMessagingMerge on Sync {
           .where((r) => !result.matchedIds.contains(r['toolUseId']))
           .toList();
       if (unmatched.isNotEmpty) {
-        final queue = pending ??
-            _pendingToolResults.putIfAbsent(sessionId, () => []);
+        final queue =
+            pending ?? _pendingToolResults.putIfAbsent(sessionId, () => []);
         queue.addAll(unmatched);
       }
     }
@@ -894,6 +890,12 @@ extension SyncMessagingMerge on Sync {
       final trimmed = appended.length > maxMessages
           ? appended.sublist(appended.length - maxMessages)
           : appended;
+      if (trimmed.length != appended.length) {
+        // Rows fell off the head — full-history residency can no longer be
+        // claimed for this session. See the pin guard in
+        // fetchOlderMessages.
+        _sessionsHistoryTrimmed.add(sessionId);
+      }
       _sessionMessages[sessionId] = trimmed;
       if (sessionId == _visibleSessionId && logger.shouldLog(LogLevel.debug)) {
         final afterCount = _sessionMessages[sessionId]?.length ?? 0;
@@ -1059,9 +1061,14 @@ extension SyncMessagingMerge on Sync {
       });
     }
 
-    _sessionMessages[sessionId] = sorted.length > maxMessages
-        ? sorted.sublist(sorted.length - maxMessages)
-        : sorted;
+    if (sorted.length > maxMessages) {
+      // Rows fell off the head — full-history residency can no longer be
+      // claimed for this session. See the pin guard in fetchOlderMessages.
+      _sessionsHistoryTrimmed.add(sessionId);
+      _sessionMessages[sessionId] = sorted.sublist(sorted.length - maxMessages);
+    } else {
+      _sessionMessages[sessionId] = sorted;
+    }
     _applySessionContentSignatureDelta(sessionId, messages);
     if (sessionId == _visibleSessionId &&
         messages.isNotEmpty &&

@@ -1645,21 +1645,61 @@ extension SyncMessaging on Sync {
       _groupSidechainMessages(sessionId);
       _applyPermissionRequests(sessionId);
 
-      // Move the lower boundary back to cover the page we just fetched.
-      if (startSeq == 0 && !_sessionWindowAtTrimCap(sessionId)) {
-        // Pin only on the genuine end-of-history signal: the request reached
-        // seq 0 AND the window is below the newest-N cap, so the rows we just
-        // fetched actually survived the trim and the whole history really is
-        // in memory. The pin stops [_ensureFirstLoadedSeq] from re-arming the
-        // boundary from the in-memory minimum after the trim drops the oldest
-        // rows — that turned every tail message into another history
-        // re-download. Pinning on `startSeq == 0` alone also pinned sessions
-        // larger than [Sync._maxVisibleSessionMessages], whose fetched pages
-        // are trimmed away again immediately, permanently killing "load
-        // older" for them.
-        _sessionsHistoryFullyLoaded.add(sessionId);
+      // Move the lower boundary back. "Covered by a request" and "resident
+      // in memory" are different things once the newest-N trim can discard
+      // rows, and this write must never conflate them:
+      //
+      // - Mid-walk pages (startSeq > 0) keep the coverage semantics the
+      //   orphan walk-back relies on: the boundary advances by the
+      //   requested page even when nothing in it survived, so the walk
+      //   keeps marching instead of re-fetching one wall of dropped rows
+      //   forever (pinned by sidechain_orphan_walkback_test.dart).
+      // - At startSeq == 0 the walk claims "history fully loaded". That is
+      //   only honest when no fetched row was ever trimmed away AND the
+      //   window is below the cap right now (at-cap means the page just
+      //   fetched was discarded on arrival). Writing 0 anyway flips
+      //   hasOlderMessages false over a tail-only window: the chat renders
+      //   "Beginning of conversation" over the newest ~cap rows, and the
+      //   firstLoaded <= 1 guard above blocks older fetches permanently.
+      //   Observed in production 2026-08-03: a 13k-seq session reduced to
+      //   its newest ~200 rows after a 2.5h orphan walk-back whose pages
+      //   were trimmed as fast as they arrived.
+      if (startSeq == 0) {
+        final minSeqAfterUpsert = _minLoadedSeq(sessionId);
+        final canPinHistoryComplete =
+            minSeqAfterUpsert != null &&
+            !_sessionsHistoryTrimmed.contains(sessionId) &&
+            !_sessionWindowAtTrimCap(sessionId);
+        if (canPinHistoryComplete) {
+          // Genuine end-of-history: the request reached seq 0 and every
+          // fetched row survived in memory. The pin stops
+          // [_ensureFirstLoadedSeq] from re-arming the boundary from the
+          // in-memory minimum after later tail trims — that turned every
+          // tail message into another history re-download.
+          _sessionsHistoryFullyLoaded.add(sessionId);
+          _sessionFirstLoadedSeq[sessionId] = 0;
+        } else {
+          // The walk covered seq 0 but the trim discarded rows along the
+          // way, so the oldest resident seq is the honest boundary: older
+          // messages exist on the server and can be paged in again. Any
+          // orphan parent outside the window can never become resident, so
+          // the walk-back is unwinnable — max out the sweep's no-progress
+          // budget, which makes it give up and render the orphans inline
+          // instead of re-walking the whole history on every regroup.
+          if (minSeqAfterUpsert != null) {
+            _sessionFirstLoadedSeq[sessionId] = minSeqAfterUpsert;
+          }
+          _orphanFetchOlderNoProgressCount[sessionId] =
+              SyncMessagingMerge._orphanFetchOlderMaxAttempts;
+          logger.info(
+            '[fetchOlderMessages] $sessionId walked to seq 0 with a '
+            'trimmed window (minSeq=$minSeqAfterUpsert) — not pinning '
+            'history-complete; orphan walk-back budget exhausted',
+          );
+        }
+      } else {
+        _sessionFirstLoadedSeq[sessionId] = startSeq + 1;
       }
-      _sessionFirstLoadedSeq[sessionId] = startSeq == 0 ? 0 : startSeq + 1;
       MMKVStorage().saveSessionFirstLoadedSeq(
         Map.unmodifiable(_sessionFirstLoadedSeq),
       );
@@ -1707,6 +1747,23 @@ extension SyncMessaging on Sync {
   bool _sessionWindowAtTrimCap(String sessionId) =>
       (_sessionMessages[sessionId]?.length ?? 0) >= _sessionTrimCap(sessionId);
 
+  /// Smallest `seq` currently resident for [sessionId], or null when the
+  /// window is empty. The list is createdAt-ordered, so the minimum is
+  /// almost always the head; the scan stays because out-of-order createdAt
+  /// values can bury a lower seq deeper in.
+  int? _minLoadedSeq(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return null;
+    int? minSeq;
+    for (final m in messages) {
+      final seq = m['seq'] as int?;
+      if (seq != null && (minSeq == null || seq < minSeq)) {
+        minSeq = seq;
+      }
+    }
+    return minSeq;
+  }
+
   /// Ensure [_sessionFirstLoadedSeq] reflects the actual boundary of
   /// in-memory messages for [sessionId].
   ///
@@ -1729,16 +1786,7 @@ extension SyncMessaging on Sync {
     // in-memory data suggests otherwise.
     if (current != null && current != 0) return;
 
-    final messages = _sessionMessages[sessionId];
-    if (messages == null || messages.isEmpty) return;
-
-    int? minSeq;
-    for (final m in messages) {
-      final seq = m['seq'] as int?;
-      if (seq != null && (minSeq == null || seq < minSeq)) {
-        minSeq = seq;
-      }
-    }
+    final minSeq = _minLoadedSeq(sessionId);
     if (minSeq != null && minSeq > 1) {
       _sessionFirstLoadedSeq[sessionId] = minSeq;
       MMKVStorage().saveSessionFirstLoadedSeq(
@@ -1753,6 +1801,7 @@ extension SyncMessaging on Sync {
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     _loadingOlderMessages.remove(sessionId);
     _sessionsHistoryFullyLoaded.remove(sessionId);
+    _sessionsHistoryTrimmed.remove(sessionId);
     _sessionMessages.remove(sessionId);
     _invalidatePreviewCache(sessionId);
     _sessionContentSignatures.remove(sessionId);

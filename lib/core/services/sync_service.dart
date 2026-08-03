@@ -186,6 +186,7 @@ class Sync {
   static const int _backgroundMessageFetchPageLimit = 1;
   static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;
   static const int _maxBackgroundSessionMessages = 200;
+
   /// Bounds only the TCP+TLS handshake, not the transfer. A healthy mobile
   /// connection establishes in well under a second, so 8 s still fails fast
   /// on a black-holed route.
@@ -424,6 +425,24 @@ what you have, you must use the options mode.
   /// user who wants to page through the beginning again. Cleared when the
   /// session is deleted.
   final Set<String> _sessionsHistoryFullyLoaded = {};
+
+  /// Sessions whose in-memory message window has ever dropped rows to the
+  /// newest-N trim in `_upsertSessionMessages`.
+  ///
+  /// Once any fetched row has been discarded, "the whole history is
+  /// resident" can no longer be claimed honestly, so a walk-back that later
+  /// reaches seq 0 must not pin [_sessionsHistoryFullyLoaded] or write
+  /// `_sessionFirstLoadedSeq[sessionId] = 0` — that flips [hasOlderMessages]
+  /// false over a tail-only window and the chat renders "Beginning of
+  /// conversation" with the rest of the transcript hidden behind a dead
+  /// scroll-back. Observed in production 2026-08-03: a 13k-seq session
+  /// showed only its newest ~200 rows after a 2.5h orphan walk-back whose
+  /// pages were trimmed as fast as they arrived.
+  ///
+  /// In-memory only, mirroring [_sessionsHistoryFullyLoaded]: a restart
+  /// re-derives it from the first trim that actually happens. Cleared when
+  /// the session is deleted.
+  final Set<String> _sessionsHistoryTrimmed = {};
 
   /// Sessions that received socket messages while non-visible.
   /// Used to force a server fetch (instead of stale cache restore) when
@@ -671,6 +690,7 @@ what you have, you must use the options mode.
   /// `awaitQueue().then(...)`).
   Timer? _resumeConversationProgressSafetyTimer;
   static const int _resumeConversationProgressTimeoutMs = 30 * 1000;
+
   /// How long resume waits for the sessions/messages sync queues to settle
   /// before continuing anyway.
   ///
@@ -1003,6 +1023,19 @@ what you have, you must use the options mode.
   @visibleForTesting
   void testClearHistoryFullyLoaded(String sessionId) {
     _sessionsHistoryFullyLoaded.remove(sessionId);
+  }
+
+  /// Whether the newest-N trim has ever discarded rows for [sessionId].
+  /// See [_sessionsHistoryTrimmed].
+  @visibleForTesting
+  bool testHistoryTrimmed(String sessionId) =>
+      _sessionsHistoryTrimmed.contains(sessionId);
+
+  /// Drops the "history was trimmed" ledger entry for [sessionId] so tests
+  /// sharing the [Sync] singleton stay isolated.
+  @visibleForTesting
+  void testClearHistoryTrimmed(String sessionId) {
+    _sessionsHistoryTrimmed.remove(sessionId);
   }
 
   /// Override _typedMachineRPC for testing createSession and

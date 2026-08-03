@@ -742,6 +742,7 @@ extension SyncTestHelpers on Sync {
     _sessionMessagesCache = null;
     _orphanFetchOlderAttemptedMs.clear();
     _orphanFetchOlderNoProgressCount.clear();
+    _sessionsHistoryTrimmed.clear();
     _orphanWalkbackOrphanIds.clear();
     _orphanWalkbackParentKeys.clear();
     _orphanSuppressedUntilMs.clear();
