@@ -192,4 +192,33 @@ class PowerDiagnosticsOtelReporter {
     description: 'App-level error event: $name',
     unit: '{events}',
   );
+
+  /// Messaging-invariant violation counters. [tag] is one of the four
+  /// `MessageInvariant` tags. Primed with `delta: 0` at monitor
+  /// construction so ALL four series exist from app start (audit
+  /// 2026-08-03: lazy creation left three of the four nonexistent, making
+  /// "no breaches" indistinguishable from "metric missing" and blocking
+  /// `> 0` alerting).
+  void recordMessagingInvariant(String tag, {int delta = 1}) => _bump(
+    'happy_flutter.app.messaging.invariant.$tag',
+    description: 'Messaging invariant violation: $tag',
+    unit: '{violations}',
+    delta: delta,
+  );
+
+  /// Denominator for the invariant violation rate: user message sends
+  /// (optimistic mints) observed this process.
+  void recordMessageSend() => _bump(
+    'happy_flutter.app.messaging.sends',
+    description: 'User message sends (optimistic mints)',
+    unit: '{sends}',
+  );
+
+  /// Denominator for the invariant violation rate: server acks observed
+  /// this process (deduped per localId by the monitor).
+  void recordMessageAck() => _bump(
+    'happy_flutter.app.messaging.acks',
+    description: 'Server acks for user messages',
+    unit: '{acks}',
+  );
 }

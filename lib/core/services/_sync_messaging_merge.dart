@@ -869,6 +869,16 @@ extension SyncMessagingMerge on Sync {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
+    // Audit 2026-08-03: localIds minted in an earlier process lifetime
+    // arrive via fetch/socket rows. Seeding them into the invariant
+    // monitor keeps restart-time acks from reading as false
+    // `unknown_acked_local_id` violations.
+    for (final message in messages) {
+      final localId = message['localId'];
+      if (localId is String && localId.isNotEmpty) {
+        messageInvariantMonitor.seedSentLocalId(localId);
+      }
+    }
     // NOTE: do NOT reset _orphanFetchOlderNoProgressCount here. The
     // orphan walk-back's own fetchOlderMessages upserts every page it
     // fetches, so a blanket reset on upsert pinned the counter below

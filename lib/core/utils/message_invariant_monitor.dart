@@ -21,6 +21,7 @@ import 'dart:async';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/logger_service.dart';
+import '../services/opentelemetry_service.dart';
 import '../services/power_diagnostics_otel_reporter.dart';
 
 /// The four messaging invariants this monitor watches.
@@ -89,14 +90,27 @@ class MessageInvariantMonitor {
   MessageInvariantMonitor({
     CaptureException? captureException,
     RecordInvariantCounter? recordCounter,
+    RecordSendDuration? recordSendDuration,
   }) : _captureException = captureException ?? _defaultCapture,
-       _recordCounter = recordCounter ?? _defaultRecordCounter;
+       _recordCounter = recordCounter ?? _defaultRecordCounter,
+       _recordSendDuration = recordSendDuration ?? _defaultRecordSendDuration {
+    // Prime all four violation counters to zero (audit 2026-08-03: lazy
+    // counter creation meant the three invariants that never fired had
+    // no Prometheus series at all, so "no breaches" was indistinguishable
+    // from "metric missing" and `> 0` alerting was impossible).
+    for (final invariant in MessageInvariant.values) {
+      _recordCounter(invariant, prime: true);
+    }
+  }
 
   /// Injectable Sentry capture for tests (avoids a live Sentry hub).
   final CaptureException _captureException;
 
   /// Injectable OTel counter hook for tests.
   final RecordInvariantCounter _recordCounter;
+
+  /// Injectable tap→ack duration sink for tests.
+  final RecordSendDuration _recordSendDuration;
 
   static Future<void> _defaultCapture(
     Object error, {
@@ -122,16 +136,44 @@ class MessageInvariantMonitor {
     );
   }
 
-  static void _defaultRecordCounter(MessageInvariant invariant) {
-    PowerDiagnosticsOtelReporter.instance.recordAppError(
-      'app.messaging.invariant.${invariant.tag}',
+  static void _defaultRecordCounter(
+    MessageInvariant invariant, {
+    bool prime = false,
+  }) {
+    PowerDiagnosticsOtelReporter.instance.recordMessagingInvariant(
+      invariant.tag,
+      delta: prime ? 0 : 1,
     );
   }
 
-  /// LocalIds the client has minted via the optimistic insert. Used to tell
-  /// an "unknown acked" id (never sent) from an "unmatched optimistic" one
-  /// (sent, but the placeholder row went missing before the ack).
+  static void _defaultRecordSendDuration(
+    Duration elapsed, {
+    required String outcome,
+  }) {
+    OpenTelemetryService().recordDuration(
+      'app.message_send',
+      elapsed,
+      attributes: {'outcome': outcome},
+      description: 'User-perceived message send latency (tap to ack)',
+    );
+  }
+
+  /// LocalIds the client has minted via the optimistic insert — in THIS
+  /// process or an earlier one (seeded from persisted rows on restore /
+  /// fetch, see [seedSentLocalId]). Used to tell an "unknown acked" id
+  /// (never sent) from an "unmatched optimistic" one (sent, but the
+  /// placeholder row went missing before the ack).
   final Set<String> _sentLocalIds = <String>{};
+
+  /// Mint timestamps (epoch ms) for ids sent in THIS process, keyed by
+  /// localId. Powers the `app.message_send` tap→ack histogram. Seeded ids
+  /// from older lifetimes carry no timestamp and skip the sample.
+  final Map<String, int> _sentAtMs = <String, int>{};
+
+  /// LocalIds whose ack has already been observed this process. The
+  /// REST-ack path and the send-status path both tap the same server ack;
+  /// without this set every ack double-counted (audit 2026-08-03).
+  final Set<String> _ackedLocalIds = <String>{};
 
   /// Per-invariant violation counts since process start.
   final Map<MessageInvariant, int> _counts = <MessageInvariant, int>{
@@ -157,6 +199,8 @@ class MessageInvariantMonitor {
   /// Clears all state — used by tests.
   void reset() {
     _sentLocalIds.clear();
+    _sentAtMs.clear();
+    _ackedLocalIds.clear();
     _capturedKeys.clear();
     for (final key in _counts.keys.toList()) {
       _counts[key] = 0;
@@ -169,6 +213,19 @@ class MessageInvariantMonitor {
   void recordOptimisticSent(String localId) {
     if (localId.isEmpty) return;
     _sentLocalIds.add(localId);
+    _sentAtMs[localId] = DateTime.now().millisecondsSinceEpoch;
+    PowerDiagnosticsOtelReporter.instance.recordMessageSend();
+  }
+
+  /// Seed a [localId] minted in an EARLIER process lifetime, recovered
+  /// from a persisted row (MMKV cache restore, history fetch, socket
+  /// delivery). Without this every app restart re-delivering an acked
+  /// row read as an `unknown_acked_local_id` violation — the audit's
+  /// false positive. Seeded ids carry no mint timestamp, so they never
+  /// contribute a latency sample.
+  void seedSentLocalId(String localId) {
+    if (localId.isEmpty) return;
+    _sentLocalIds.add(localId);
   }
 
   /// Record a server ack for [localId]. [optimisticRowCount] is the number
@@ -178,40 +235,59 @@ class MessageInvariantMonitor {
   /// - duplicate `localId` when [optimisticRowCount] > 1
   /// - unknown acked `localId` when the id was never minted locally
   /// - unmatched optimistic when a minted id has zero matching rows
+  ///
+  /// Observed at most once per [localId] per process: both the REST-ack
+  /// path and the send-status path tap the same server ack.
   void recordAck({
     required String localId,
     required int optimisticRowCount,
     String? sessionId,
   }) {
     if (localId.isEmpty) return;
+    if (!_ackedLocalIds.add(localId)) return;
+    PowerDiagnosticsOtelReporter.instance.recordMessageAck();
+
     final wasSent = _sentLocalIds.contains(localId);
+    final String outcome;
 
     if (optimisticRowCount > 1) {
+      outcome = MessageInvariant.duplicateLocalId.tag;
       _violation(
         MessageInvariant.duplicateLocalId,
         localId: localId,
         sessionId: sessionId,
         detail: 'rowCount=$optimisticRowCount',
       );
-      return;
-    }
-
-    if (!wasSent) {
+    } else if (!wasSent) {
+      outcome = MessageInvariant.unknownAckedLocalId.tag;
       _violation(
         MessageInvariant.unknownAckedLocalId,
         localId: localId,
         sessionId: sessionId,
         detail: 'rowCount=$optimisticRowCount',
       );
-      return;
-    }
-
-    if (optimisticRowCount == 0) {
+    } else if (optimisticRowCount == 0) {
+      outcome = MessageInvariant.unmatchedOptimistic.tag;
       _violation(
         MessageInvariant.unmatchedOptimistic,
         localId: localId,
         sessionId: sessionId,
       );
+    } else {
+      outcome = 'ok';
+    }
+
+    // Tap→ack latency (`app.message_send`, audit 2026-08-03). Only ids
+    // minted in this process have a mint timestamp.
+    final sentAtMs = _sentAtMs.remove(localId);
+    if (sentAtMs != null) {
+      final elapsedMs = DateTime.now().millisecondsSinceEpoch - sentAtMs;
+      if (elapsedMs >= 0) {
+        _recordSendDuration(
+          Duration(milliseconds: elapsedMs),
+          outcome: outcome,
+        );
+      }
     }
   }
 
@@ -253,7 +329,7 @@ class MessageInvariantMonitor {
     String? detail,
   }) {
     _counts[invariant] = (_counts[invariant] ?? 0) + 1;
-    _recordCounter(invariant);
+    _recordCounter(invariant, prime: false);
 
     final message =
         '[invariant] VIOLATION ${invariant.tag} localId=$localId'
@@ -294,5 +370,13 @@ typedef CaptureException =
       String? detail,
     });
 
-/// Signature for the injectable OTel counter hook.
-typedef RecordInvariantCounter = void Function(MessageInvariant invariant);
+/// Signature for the injectable OTel counter hook. [prime] is true when
+/// the monitor is creating the series at zero during construction — test
+/// fakes should usually ignore primed (delta-0) bumps.
+typedef RecordInvariantCounter =
+    void Function(MessageInvariant invariant, {bool prime});
+
+/// Signature for the injectable tap→ack duration sink. [outcome] is `ok`
+/// on the happy path or the violated invariant's tag.
+typedef RecordSendDuration =
+    void Function(Duration elapsed, {required String outcome});

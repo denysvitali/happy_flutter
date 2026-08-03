@@ -999,6 +999,15 @@ extension SyncSocket on Sync {
           batchRestored++;
           totalRestored++;
           _sessionMessages[sessionId] = cached;
+          // Audit 2026-08-03: rows restored from the MMKV cache carry
+          // localIds minted by an earlier process. Seed them so a later
+          // ack does not read as an `unknown_acked_local_id` violation.
+          for (final message in cached) {
+            final localId = message['localId'];
+            if (localId is String && localId.isNotEmpty) {
+              messageInvariantMonitor.seedSentLocalId(localId);
+            }
+          }
           _rebuildSessionContentSignatures(sessionId);
           _sessionMessagesViewCache.remove(sessionId);
           final maxSeq = _maxCachedMessageSeq(cached);

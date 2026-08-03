@@ -6,10 +6,14 @@ void main() {
     late MessageInvariantMonitor monitor;
     late List<MessageInvariantViolation> captured;
     late List<MessageInvariant> counted;
+    late List<MessageInvariant> primed;
+    late List<(Duration, String)> durations;
 
     setUp(() {
       captured = <MessageInvariantViolation>[];
       counted = <MessageInvariant>[];
+      primed = <MessageInvariant>[];
+      durations = <(Duration, String)>[];
       monitor = MessageInvariantMonitor(
         captureException:
             (
@@ -21,11 +25,25 @@ void main() {
             }) async {
               captured.add(error as MessageInvariantViolation);
             },
-        recordCounter: counted.add,
+        recordCounter: (invariant, {bool prime = false}) {
+          (prime ? primed : counted).add(invariant);
+        },
+        recordSendDuration: (elapsed, {required outcome}) {
+          durations.add((elapsed, outcome));
+        },
       );
     });
 
     int countFor(MessageInvariant i) => monitor.counters[i.tag] ?? -1;
+
+    test('constructor primes all four counters so the series exist at zero',
+        () {
+      // Audit 2026-08-03: lazy counter creation meant a never-fired
+      // invariant had no Prometheus series, so "zero breaches" and
+      // "metric missing" were indistinguishable for alerting.
+      expect(primed, MessageInvariant.values);
+      expect(counted, isEmpty);
+    });
 
     test('happy path records ZERO violations', () async {
       // One tap -> one localId -> one optimistic row -> one ack.
@@ -177,6 +195,127 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(monitor.totalViolations, 0);
       expect(captured, isEmpty);
+    });
+
+    // ── Audit 2026-08-03 fixes ────────────────────────────────────────────
+
+    test('a double-tapped ack is observed once (REST path + status path)',
+        () async {
+      // The same server ack reaches recordAck from BOTH the REST-ack
+      // apply path and the send-status path. Before the dedupe this
+      // double-counted every ack — and any violation with it.
+      monitor.recordOptimisticSent('local-d');
+      monitor.recordAck(
+        localId: 'local-d',
+        optimisticRowCount: 2, // a real duplicate row
+        sessionId: 's1',
+      );
+      monitor.recordAck(
+        localId: 'local-d',
+        optimisticRowCount: 2,
+        sessionId: 's1',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(countFor(MessageInvariant.duplicateLocalId), 1);
+      expect(counted, hasLength(1));
+      expect(captured, hasLength(1));
+      expect(durations, hasLength(1));
+    });
+
+    test('seeded localId from a persisted row is not unknown-acked',
+        () async {
+      // Restart case: the id was minted by an earlier process and came
+      // back via cache restore / history fetch. Its ack must NOT read
+      // as unknown_acked_local_id (the audit's false positive).
+      monitor.seedSentLocalId('restored-1');
+      monitor.recordAck(
+        localId: 'restored-1',
+        optimisticRowCount: 1,
+        sessionId: 's1',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(monitor.totalViolations, 0);
+      expect(captured, isEmpty);
+      // Seeded ids carry no mint timestamp → no latency sample.
+      expect(durations, isEmpty);
+    });
+
+    test('seeded localId with a missing row is unmatched, not unknown',
+        () async {
+      monitor.seedSentLocalId('restored-2');
+      monitor.recordAck(
+        localId: 'restored-2',
+        optimisticRowCount: 0,
+        sessionId: 's1',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
+      expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
+    });
+
+    test('tap→ack latency is recorded with the outcome label', () async {
+      monitor.recordOptimisticSent('local-t');
+      monitor.recordAck(
+        localId: 'local-t',
+        optimisticRowCount: 1,
+        sessionId: 's1',
+      );
+
+      expect(durations, hasLength(1));
+      final (elapsed, outcome) = durations.single;
+      expect(outcome, 'ok');
+      expect(elapsed, isNot(isNegative));
+    });
+
+    test('tap→ack latency carries the violated invariant as outcome',
+        () async {
+      monitor.recordOptimisticSent('local-v');
+      monitor.recordAck(
+        localId: 'local-v',
+        optimisticRowCount: 0, // placeholder lost before the ack
+        sessionId: 's1',
+      );
+
+      expect(durations, hasLength(1));
+      expect(durations.single.$2, 'unmatched_optimistic');
+    });
+
+    test('unknown ack records no latency sample (never minted here)',
+        () async {
+      monitor.recordAck(
+        localId: 'ghost-latency',
+        optimisticRowCount: 1,
+        sessionId: 's1',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(countFor(MessageInvariant.unknownAckedLocalId), 1);
+      expect(durations, isEmpty);
+    });
+
+    test('reset clears ack dedupe so a fresh process view can re-observe',
+        () async {
+      monitor.recordOptimisticSent('local-r');
+      monitor.recordAck(
+        localId: 'local-r',
+        optimisticRowCount: 1,
+        sessionId: 's1',
+      );
+      monitor.reset();
+      monitor.recordOptimisticSent('local-r');
+      monitor.recordAck(
+        localId: 'local-r',
+        optimisticRowCount: 1,
+        sessionId: 's1',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(monitor.totalViolations, 0);
+      // One sample before reset, one after.
+      expect(durations, hasLength(2));
     });
   });
 }
