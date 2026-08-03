@@ -114,10 +114,13 @@ void main() {
         ),
       );
 
+      // Assert on the breathing transform rather than on AnimatedBuilder:
+      // the scroll view's stretch overscroll indicator is an AnimatedBuilder
+      // too, and it is present either way.
       expect(
-        find.descendant(
-          of: find.byType(AppEmptyState),
-          matching: find.byType(AnimatedBuilder),
+        find.ancestor(
+          of: find.byIcon(Icons.inbox),
+          matching: find.byType(Transform),
         ),
         findsNothing,
       );

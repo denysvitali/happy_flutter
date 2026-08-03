@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/machine.dart';
 import '../models/session.dart';
+import 'utils.dart';
 
 // Re-export the canonical formatTimestamp from utils.dart so that existing
 // consumers of session_utils.dart continue to work without modification.
@@ -462,10 +463,15 @@ String formatLastSeen(
   } else if (diffDays < 7) {
     return '$diffDays days ago';
   } else {
-    // Format as date using intl
+    // Format as date using intl. Locale data may be uninitialized (intl
+    // throws LocaleDataException) or the tag unknown (ArgumentError); a
+    // last-seen string is never worth taking the caller down for.
     final date = DateTime.fromMillisecondsSinceEpoch(activeAt);
-    final formatter = DateFormat.yMMMd(locale);
-    return formatter.format(date);
+    try {
+      return DateFormat.yMMMd(locale).format(date);
+    } catch (_) {
+      return formatShortDate(date);
+    }
   }
 }
 

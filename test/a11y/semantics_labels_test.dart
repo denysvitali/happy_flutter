@@ -188,7 +188,11 @@ void main() {
         ),
       );
 
-      final node = tester.getSemantics(find.byType(SettingsRow));
+      // Query the merged node, not the SettingsRow element: the merge lands
+      // on the MergeSemantics node, so the row's own node carries no label.
+      final node = tester.getSemantics(
+        find.bySemanticsLabel(RegExp('Account and recovery')),
+      );
       expect(node, containsSemantics(isButton: true));
       expect(node.label, contains('Account and recovery'));
       // Merged: the subtitle is part of the same node, not a fragment.
