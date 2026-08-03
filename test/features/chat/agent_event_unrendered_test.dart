@@ -141,6 +141,12 @@ void main() {
       );
       expect(
         AgentEventWidget.shouldRenderInChat(
+          <String, dynamic>{'type': 'tool-progress'},
+        ),
+        isFalse,
+      );
+      expect(
+        AgentEventWidget.shouldRenderInChat(
           <String, dynamic>{'type': 'thinking'},
         ),
         isFalse,

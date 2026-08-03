@@ -186,6 +186,9 @@ void main() {
       });
       expect(r.messages, hasLength(1));
       expect(r.messages.first['event']['message'], 'Grep running (12s)...');
+      // Hidden from the chat timeline — the tool row's elapsed chip
+      // already shows this live.
+      expect(r.messages.first['event']['type'], 'tool-progress');
     });
 
     test('rate_limit_event rejected renders limit-reached event', () {

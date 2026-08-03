@@ -871,7 +871,10 @@ void _processMetaOutput({
     final elapsedStr = elapsed is num ? '${elapsed.toStringAsFixed(0)}s' : '';
     final label =
         '$toolName running${elapsedStr.isNotEmpty ? ' ($elapsedStr)' : ''}...';
-    addEvent('tp', 'message', label);
+    // Own event type: the tool row already shows a live elapsed-time
+    // chip, so a centered "Bash running (30s)..." tick per poll is
+    // duplicate noise — AgentEventWidget hides this type.
+    addEvent('tp', 'tool-progress', label);
     return;
   }
 

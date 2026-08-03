@@ -23,6 +23,10 @@ class AgentEventWidget extends StatelessWidget {
     'thinking_done',
     'thinking_start',
     'tool-execution-update',
+    // "<Tool> running (Ns)..." polls; the tool row's elapsed chip
+    // already shows this live, and per-poll centered rows buried the
+    // transcript (four identical lines for one long Bash).
+    'tool-progress',
     'usage_report',
     // Raw ACP stream envelopes from older CLI builds. Content is already
     // materialised as durable message/thinking/tool-call rows; replaying the
