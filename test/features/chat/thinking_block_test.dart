@@ -283,5 +283,26 @@ void main() {
       );
       expect(sizeTransition.sizeFactor.value, 0.0);
     });
+
+    testWidgets('copy affordance is named for assistive tech', (tester) async {
+      await tester.pumpWidget(_thinkingMessage(content: 'Reasoning'));
+      await tester.pumpAndSettle();
+
+      final copyIcon = find.byIcon(Icons.copy_outlined);
+      expect(copyIcon, findsOneWidget);
+
+      final tooltip = tester.widget<Tooltip>(
+        find.ancestor(of: copyIcon, matching: find.byType(Tooltip)),
+      );
+      expect(tooltip.message, 'Copy thinking');
+
+      expect(
+        find.ancestor(
+          of: copyIcon,
+          matching: find.bySemanticsLabel('Copy thinking'),
+        ),
+        findsWidgets,
+      );
+    });
   });
 }

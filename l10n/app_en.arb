@@ -2892,6 +2892,10 @@
   "@chatCopyThinking": {
     "description": "Tooltip for copying the agent's thinking block text"
   },
+  "chatScrollToLatest": "Scroll to latest message",
+  "@chatScrollToLatest": {
+    "description": "Tooltip and semantics label for the scroll-to-bottom pill"
+  },
   "tasksMarkComplete": "Mark complete",
   "@tasksMarkComplete": {
     "description": "Tooltip for the checkbox that marks a task complete"

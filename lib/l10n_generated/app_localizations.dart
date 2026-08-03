@@ -10339,6 +10339,12 @@ abstract class AppLocalizations {
   /// **'Copy thinking'**
   String get chatCopyThinking;
 
+  /// Tooltip and semantics label for the scroll-to-bottom pill
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll to latest message'**
+  String get chatScrollToLatest;
+
   /// Tooltip for the checkbox that marks a task complete
   ///
   /// In en, this message translates to:

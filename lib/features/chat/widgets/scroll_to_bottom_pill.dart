@@ -3,6 +3,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// A pill-shaped button that scrolls to the bottom of the
@@ -104,6 +105,7 @@ class _ScrollToBottomPillState
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final scrollLabel = context.l10n.chatScrollToLatest;
     final showBadge = widget.unreadCount != null &&
         widget.unreadCount! > 0;
 
@@ -125,10 +127,10 @@ class _ScrollToBottomPillState
         );
       },
       child: Semantics(
-        label: 'Scroll to latest message',
+        label: scrollLabel,
         button: true,
         child: Tooltip(
-          message: 'Scroll to latest message',
+          message: scrollLabel,
           child: Stack(
             clipBehavior: Clip.none,
             children: [

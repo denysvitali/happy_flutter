@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/widgets/scroll_to_bottom_pill.dart';
 
@@ -64,6 +65,9 @@ class _TestScrollToBottomOverlay extends StatelessWidget {
 
 Widget _wrap(Widget child) {
   return MaterialApp(
+    // ScrollToBottomPill reads context.l10n for its tooltip/semantics.
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: SizedBox(
         height: 400,

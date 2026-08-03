@@ -5781,6 +5781,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatCopyThinking => 'Copy thinking';
 
   @override
+  String get chatScrollToLatest => 'Scroll to latest message';
+
+  @override
   String get tasksMarkComplete => 'Mark complete';
 
   @override

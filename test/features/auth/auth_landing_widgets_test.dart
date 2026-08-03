@@ -622,6 +622,48 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('key-hint dismiss icon exposes a named tooltip',
+        (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          AuthButtonGroup(
+            onCreateAccount: () {},
+            onLinkAccount: () {},
+            onRestoreKey: () {},
+            isLoadingCreate: false,
+            l10n: _FakeL10n(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // First tap on the secret-key button reveals the reassurance
+      // card that carries the icon-only dismiss target.
+      await tester.tap(find.text('Restore Key'));
+      await tester.pumpAndSettle();
+
+      final closeIcon = find.byIcon(Icons.close);
+      expect(closeIcon, findsOneWidget);
+
+      final tooltip = tester.widget<Tooltip>(
+        find.ancestor(of: closeIcon, matching: find.byType(Tooltip)),
+      );
+      expect(tooltip.message, 'Dismiss');
+
+      expect(
+        find.ancestor(
+          of: closeIcon,
+          matching: find.bySemanticsLabel('Dismiss'),
+        ),
+        findsWidgets,
+      );
+
+      // The Tooltip/Semantics wrapper must not swallow the tap.
+      await tester.tap(closeIcon);
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.close), findsNothing);
+    });
   });
 }
 
@@ -638,6 +680,9 @@ class _FakeL10n extends AppLocalizations {
 
   @override
   String get authSignInWithSecretKey => 'Restore Key';
+
+  @override
+  String get commonDismiss => 'Dismiss';
 
   @override
   dynamic noSuchMethod(Invocation invocation) => '';
