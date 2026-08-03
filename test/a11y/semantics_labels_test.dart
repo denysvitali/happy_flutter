@@ -230,11 +230,15 @@ void main() {
       // Regression: merging the whole row absorbed interactive trailing
       // widgets into the row node, making them unreachable and letting the
       // absorbed configuration overwrite their tap action.
+      // IconButton(tooltip:) publishes the tooltip as its own semantics
+      // property on Flutter 3.41 — not as the label — and screen readers
+      // announce it from there. The regression this pins is reachability:
+      // the node keeps its own button role and tap action.
       expect(
         tester.getSemantics(find.byTooltip('Delete profile')),
         containsSemantics(
           isButton: true,
-          label: 'Delete profile',
+          tooltip: 'Delete profile',
           hasTapAction: true,
         ),
       );
