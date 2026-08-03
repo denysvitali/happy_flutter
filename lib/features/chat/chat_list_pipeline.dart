@@ -54,10 +54,13 @@ typedef MessageErrorHandler =
 ///   supersede the task's buffered in-flight chips — a finished task
 ///   renders exactly one row.
 /// - Caps a run of ungrouped sidechain orphans at
-///   [sidechainOrphanInlineCap]: the newest `cap` stay inline and the
-///   older ones collapse behind a single `sidechain-orphan-more` row
-///   carrying `hiddenCount`. Pass `null` to render every orphan (what the
-///   "show N more" affordance switches to).
+///   [sidechainOrphanInlineCap]: the newest `cap` prose rows stay inline
+///   and the older ones collapse behind a single `sidechain-orphan-more`
+///   row carrying `hiddenCount`. Orphaned tool-call rows collapse
+///   unconditionally — workflow tasks carry no container row in the main
+///   chain, so inline tool orphans read as the parent's own commands.
+///   Pass `null` to render every orphan (what the "show N more"
+///   affordance switches to).
 /// - Inserts a `null` sentinel after a user `/clear` message (divider)
 /// - Inserts a `model-change` marker row when the model reported by the
 ///   agent changes mid-session (a fallback, a `/model` switch, or the CLI
@@ -99,10 +102,29 @@ List<Map<String, dynamic>?> buildChatListItems({
   void flushOrphanGroup() {
     if (orphanGroup.isEmpty) return;
     final cap = sidechainOrphanInlineCap;
-    if (cap == null || orphanGroup.length <= cap) {
-      items.addAll(orphanGroup);
+    // Orphaned sub-agent tool rows never render inline: workflow tasks
+    // carry no container row in the main chain, so their tool calls
+    // leak as orphans and interleave with the task markers — the
+    // "bundle the tool calls with the task" complaint. They wait
+    // behind the expand row; sub-agent prose keeps the inline cap.
+    // A null cap (expanded) renders everything.
+    final toolOrphans = cap == null
+        ? 0
+        : orphanGroup.where((m) => m['kind'] == 'tool-call').length;
+    final prose = cap == null
+        ? orphanGroup
+        : orphanGroup
+              .where((m) => m['kind'] != 'tool-call')
+              .toList(growable: false);
+    final hiddenProse = cap == null
+        ? 0
+        : prose.length > cap
+        ? prose.length - cap
+        : 0;
+    final hiddenCount = toolOrphans + hiddenProse;
+    if (hiddenCount == 0) {
+      items.addAll(prose);
     } else {
-      final hiddenCount = orphanGroup.length - cap;
       final anchor = orphanGroup.first;
       final anchorId =
           anchor['id'] as String? ??
@@ -115,9 +137,10 @@ List<Map<String, dynamic>?> buildChatListItems({
           'role': 'system',
           'hiddenCount': hiddenCount,
         })
-        // Keep the newest `cap` inline: the tail is the part of the
-        // sub-agent run that leads into whatever comes next.
-        ..addAll(orphanGroup.sublist(hiddenCount));
+        // Keep the newest `cap` prose rows inline: the tail is the
+        // part of the sub-agent run that leads into whatever comes
+        // next.
+        ..addAll(prose.sublist(hiddenProse));
     }
     orphanGroup = <Map<String, dynamic>>[];
   }
@@ -134,9 +157,11 @@ List<Map<String, dynamic>?> buildChatListItems({
     for (final msg in taskGroup) {
       latest[_taskTickKey(msg)] = msg;
     }
-    items.addAll(latest.values.where(
-      (msg) => !completedInTaskRun.contains(_taskTickKey(msg)),
-    ));
+    items.addAll(
+      latest.values.where(
+        (msg) => !completedInTaskRun.contains(_taskTickKey(msg)),
+      ),
+    );
     taskGroup = <Map<String, dynamic>>[];
     completedInTaskRun.clear();
   }
@@ -192,7 +217,8 @@ List<Map<String, dynamic>?> buildChatListItems({
       // A terminal task summary renders inline at its own position and
       // marks the run's buffered chips for that task as superseded, so
       // ticks keep merging across it instead of flushing.
-      final isTerminalTaskSummary = msg['kind'] == 'text' &&
+      final isTerminalTaskSummary =
+          msg['kind'] == 'text' &&
           msg['taskEvent'] == true &&
           (msg['taskStatus'] == 'completed' || msg['taskStatus'] == 'failed');
       if (isTerminalTaskSummary) {

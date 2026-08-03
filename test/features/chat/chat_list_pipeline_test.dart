@@ -88,15 +88,17 @@ void main() {
       final summary = items[0]!;
       expect(summary['kind'], 'hidden-tool-summary');
       // `tools` keeps only real tool calls for the counts label.
-      expect(
-        (summary['tools'] as List).map((t) => (t as Map)['id']),
-        ['t1', 't2'],
-      );
+      expect((summary['tools'] as List).map((t) => (t as Map)['id']), [
+        't1',
+        't2',
+      ]);
       // `items` preserves the full working trace in original order.
-      expect(
-        (summary['items'] as List).map((t) => (t as Map)['id']),
-        ['th1', 't1', 'th2', 't2'],
-      );
+      expect((summary['items'] as List).map((t) => (t as Map)['id']), [
+        'th1',
+        't1',
+        'th2',
+        't2',
+      ]);
       expect(items[1]?['id'], 'm1');
     });
 
@@ -416,29 +418,26 @@ void main() {
     });
 
     test('flushes the hidden-tool group so the marker stays in order', () {
-      final items = build(
-        [
-          agent('a1', model: 'claude-opus-4-5'),
-          {
-            'id': 't1',
-            'role': 'agent',
-            'kind': 'tool-call',
-            'name': 'Read',
-            'state': 'completed',
-            'model': 'claude-opus-4-5',
-          },
-          {
-            'id': 't2',
-            'role': 'agent',
-            'kind': 'tool-call',
-            'name': 'Grep',
-            'state': 'completed',
-            'model': 'claude-sonnet-5',
-          },
-          agent('a2', model: 'claude-sonnet-5'),
-        ],
-        hideToolCalls: true,
-      );
+      final items = build([
+        agent('a1', model: 'claude-opus-4-5'),
+        {
+          'id': 't1',
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Read',
+          'state': 'completed',
+          'model': 'claude-opus-4-5',
+        },
+        {
+          'id': 't2',
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Grep',
+          'state': 'completed',
+          'model': 'claude-sonnet-5',
+        },
+        agent('a2', model: 'claude-sonnet-5'),
+      ], hideToolCalls: true);
       expect(items.length, 5);
       expect(items[0]?['id'], 'a1');
       expect(items[1]?['kind'], 'hidden-tool-summary');
@@ -491,20 +490,14 @@ void main() {
 
       expect(items.length, kSidechainOrphanInlineCap + 1);
       expect(items.first?['kind'], 'sidechain-orphan-more');
-      expect(
-        items.first?['hiddenCount'],
-        100 - kSidechainOrphanInlineCap,
-      );
+      expect(items.first?['hiddenCount'], 100 - kSidechainOrphanInlineCap);
       // The newest orphans stay inline, in order, and are the tail.
       expect(items[1]?['id'], 'orphan-${100 - kSidechainOrphanInlineCap}');
       expect(items.last?['id'], 'orphan-99');
     });
 
     test('a null cap renders every orphan (the expanded state)', () {
-      final items = build(
-        [for (var i = 0; i < 100; i++) orphan(i)],
-        cap: null,
-      );
+      final items = build([for (var i = 0; i < 100; i++) orphan(i)], cap: null);
       expect(items.length, 100);
       expect(
         items.where((m) => m?['kind'] == 'sidechain-orphan-more'),
@@ -524,6 +517,46 @@ void main() {
       expect(items[1]?['hiddenCount'], 30 - kSidechainOrphanInlineCap);
       expect(items.last?['id'], 'a1');
       expect(items.length, kSidechainOrphanInlineCap + 3);
+    });
+
+    test('orphaned tool rows collapse even under the prose cap', () {
+      final items = build([
+        <String, dynamic>{
+          'id': 'tool-0',
+          'role': 'agent',
+          'kind': 'tool-call',
+          'isSidechain': true,
+          'name': 'Bash',
+        },
+        orphan(0),
+        <String, dynamic>{
+          'id': 'tool-1',
+          'role': 'agent',
+          'kind': 'tool-call',
+          'isSidechain': true,
+          'name': 'Bash',
+        },
+      ]);
+
+      // Prose stays inline; both tool rows hide behind the expand row.
+      expect(items.length, 2);
+      expect(items[0]?['kind'], 'sidechain-orphan-more');
+      expect(items[0]?['hiddenCount'], 2);
+      expect(items[1]?['id'], 'orphan-0');
+    });
+
+    test('a null cap renders tool orphans too (expanded state)', () {
+      final items = build([
+        <String, dynamic>{
+          'id': 'tool-0',
+          'role': 'agent',
+          'kind': 'tool-call',
+          'isSidechain': true,
+          'name': 'Bash',
+        },
+        orphan(0),
+      ], cap: null);
+      expect(items.length, 2);
     });
 
     test('hidden chain-bridge links never count as orphans', () {
