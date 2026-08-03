@@ -2,7 +2,94 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-07-31
+**Last Updated**: 2026-08-03
+
+### Observability audit, 2026-08-03
+
+A 26-agent audit across Loki, Prometheus and Jaeger covering the app,
+`happy-server` and the kubernetes daemon. Headline: the client fleet is
+healthy (pipeline zero-drop, frames at baseline, Jul-31 fixes holding), but
+server-side write paths wedged again in a new shape, and 4 user messages were
+permanently lost with zero signal during the brownouts.
+
+**Postgres stall episodes (critical, new).** Four multi-hour bursts in 48h
+(peak 202 errors/h, Aug 2 ~20:00 UTC) wedged every happy-server write path:
+trace aab67f72 shows `AllocateSessionSeqMarkRunning` UPDATE at 29.997s →
+pgconn timeout; machine-row writes (`UpdateMachineDaemonState` — 108k
+heartbeats/48h — plus `BatchUpdateMachineActivity`) burned 61% of all DB
+time. The Jul-31 sessions-row fix holds at p95 but never covered the
+machine-row path. During bursts: ~29% of session creates fail, 13.3% of spawn
+RPCs fail (archive/unarchive run a 10s deadline with no retry), 20 WS
+messages dropped, fetchMessages p95 0.2s→3.1s, degraded sends on the current
+build; 271/272 server ERRORs traced to one user with 22+ concurrent sessions.
+Post-fix residual: CreateMessage 107 errors, seq allocation 56, pool_acquire
+113. Next: bounded/retrying seq reservation on ws.message.store; spawn
+archive/unarchive out of the critical path; one serialized writer per machine
+row with statement timeout; capture pg_stat_activity/pg_locks during the next
+burst; unstick happy-postgres-9-join (~82h incomplete, failover degraded).
+
+**Outbox dead-letters (high, new, P0 breach).** Four sends from build 237901
+went `dead=true` and were never delivered. The outbox budget (~40s: 3 retries
+1s→30s) is shorter than the observed brownouts (30–75 min), so any stall over
+a minute converts to permanent loss; the terminal attempt is uncounted (dead
+branch returns before `recordOutboxFailure`), no dead-letter counter exists,
+and the death WARN never reached Loki. Next: failure-class-aware retry
+(timeout/5xx keep retrying for hours, capped backoff); re-arm dead entries on
+reconnect/foreground; `outbox_dead_lettered` counter + reason + Sentry;
+"message not sent" UI state.
+
+**ErrorBoundary _TypeError burst (high, known-open, fresh evidence).** 87
+ERRORs in 44 min from one resume on build 237901 (launch 43b8321a, 2026-08-02
+20:57–21:41 UTC) — background >2 min → foreground with session refresh.
+Breaks the zero-ERROR baseline on the dominant build; shape matches the
+null-check family marked fixed in 51f1189. Next: pull the symbolicated stack
+(symbols upload since 12028a45), reopen that fix or bisect the five
+session-card/a11y commits for a force-unwrap on the resume path.
+
+**Daemon fleet (high, known-open, four axes).** 113 restarts from etcd
+lease-renewal failures (ongoing); checkout-base-dir blocking all spawns
+outside it, recurring on the newest build 238201; 87 spawns ran unsandboxed
+(boxy binary missing); old daemon emitted 50k-span rootless traces until
+Aug 2. Next: apply the updated manifests (CHECKOUT_BASE_DIR, boxy, 07-30
+process-lifetime-context fix, vcs.revision); lease-renewal retry with jitter
+before shutdown.
+
+**Push down (medium, known-open).** POST /v1/push/send-all → 501
+(FCM_PROJECT_ID unset), 100% error rate; happy-agent retries ~75×/48h
+emitting 40,821-span fan-out traces. Next: set FCM_PROJECT_ID + credentials,
+replay one send-all; cap per-recipient spans.
+
+**Monitoring HA + zero alerts (high, new).** Prometheus 1/2 ready,
+Alertmanager 2/3, rook-ceph-osd-2 down; zero alert rules reference any happy
+metric — every finding in this audit was found by manual sweep; push-only app
+telemetry has no staleness detection. Next: recover the -0 pods (check
+ceph/PVC first), then add happy.rules: dead-letter/invariant counters >0, WS
+drops, spawn error rate, cold-start/fetchMessages burn rate, staleness.
+
+**Invariant telemetry partial and misleading (medium, known-open).**
+`unknown_acked_local_id` fired in the 7d window — likely a restart
+false-positive (rowCount=1, no duplicate) but indistinguishable from a real
+breach, and double-counted per ack; 3 of 4 planned counters absent, no
+denominator. The 07-31 "all P0 invariant counters at zero" held only because
+this event fell outside its 24h window. Next: seed `_sentLocalIds` from
+persisted rows at startup, dedupe the recordAck sites, ship the remaining
+counters + denominator, alert on >0; add `app_message_send_seconds`
+(tap→ack, outcome labels).
+
+**Startup metrics unusable for the re-baseline (medium, new).** Per-launch
+stream identity defeats rate()/increase() (NaN/0 — each launch's cumulative
+series steps 0→1 once and rate() never counts the birth step); values anchor
+at Dart `main()` not process start (50–250ms computable vs the 4.6s Sentry
+baseline); `essential_ready` censored on the slowest launches. Next:
+document + recording-rule `sum(last_over_time(bucket[window])) by (le)`, or a
+per-launch gauge; native process-start anchor; fix metric descriptions.
+
+**Verified healthy.** Pipeline ~8,729 payloads/48h with zero drops/errors/
+decrypt failures; frames p95 9.5ms, frozen frames 0.010%; lifecycle/socket
+fixes hold (0 disposed-crashes, 0 zombie sockets across 447 lifecycle
+cycles); Jul-31 sessions-row lock fix holds at p95 (CreateMessage 0.19s, seq
+0.46s vs 28s pre-fix); ROADMAP WARN cohort (CryptoSecretBox, machine-offline,
+sidechain orphans) drained to zero.
 
 ### Observability sweep, 2026-07-31
 
@@ -118,7 +205,7 @@ The current test count is not enough if this contract can break without failing 
 | Out-of-order delivery tests | Done | Coverage for REST success before a later socket echo, REST success before a later fetch overlap (`message_deduplication_e2e_test.dart`), socket echo before REST (`socket_echo_before_rest_e2e_test.dart`), and socket echo before a tail/history fetch plus duplicate socket re-broadcast sequencing — including broadcast-then-fetch overlap (`socket_echo_before_fetch_e2e_test.dart`). |
 | Core messaging state-machine tests | Done | FSM contract suite at `test/fsm/message_state_machine_contract_test.dart` pins `draft -> sending -> sent/pending/failed -> merged` for both the typed `MessageStateTransitions` spec (Draft→Sending, Sending→Sent/Pending/Failed, Pending→Sent/Failed, Failed→Sending, Sent→Merged) and the `MessageStateMachine.apply` event-log projection. Every legal transition asserts `localId` identity; illegal/no-op transitions (double-optimistic, optimistic-after-merge, retry-on-merged/sending/null, fail-on-merged, missing-localId, ack/merge without serverId) are pinned as strict no-ops or `ArgumentError`s. End-to-end lifecycle walk and two-identical-`continue`-sends-with-distinct-localIds are covered. |
 | User-visible core E2E scenarios | Not Started | Add E2E coverage for rapid follow-ups, background/resume mid-send, disconnected socket with successful REST persistence, and follow-up sends while the agent is still thinking. |
-| Invariant telemetry | Not Started | Emit counters/logs for unmatched optimistic rows, duplicate `localId`s, unknown acked `localId`s, and retry-created duplicates. |
+| Invariant telemetry | In Progress | Audit 2026-08-03 found 1 of 4 counters shipped (`unknown_acked_local_id`) but restart-blind and double-counting per ack, with the other three absent and no denominator. Seed `_sentLocalIds` from persisted rows at startup, dedupe the recordAck sites, ship the remaining counters + a heartbeat denominator, alert on any >0; add `app_message_send_seconds` (tap→ack). |
 
 ### Production Bugs (from GlitchTip, May 2026)
 
@@ -185,7 +272,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | Task | Status | Description |
 |------|--------|-------------|
 | Persist messages to MMKV | Done | `MessageCacheService` caches last 200 messages per session in MMKV. Loaded on app start via `_restoreAllCachedMessages()`. Debounced writes (2s, 5s ceiling) via `_scheduleSaveMessages()`, flushed synchronously on suspend. |
-| Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s, max 3 retries). Restored on startup via `restoreAndFlush()`. |
+| Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s, max 3 retries). Restored on startup via `restoreAndFlush()`. Audit 2026-08-03: the ~40s budget dead-letters sends during server brownouts longer than a minute (4 messages permanently lost, zero signal) — failure-class-aware retry and a dead-letter counter are tracked in the audit section. |
 
 ### 4. Optimistic Mutations
 
