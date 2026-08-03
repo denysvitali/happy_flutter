@@ -91,9 +91,15 @@ outcome labels. Remaining: the `> 0` alert rules (monitoring item below).
 stream identity defeats rate()/increase() (NaN/0 — each launch's cumulative
 series steps 0→1 once and rate() never counts the birth step); values anchor
 at Dart `main()` not process start (50–250ms computable vs the 4.6s Sentry
-baseline); `essential_ready` censored on the slowest launches. Next:
-document + recording-rule `sum(last_over_time(bucket[window])) by (le)`, or a
-per-launch gauge; native process-start anchor; fix metric descriptions.
+baseline); `essential_ready` censored on the slowest launches. **Partially
+fixed in 281fee77:** `essential_ready` is now recorded by a once-guarded
+helper from whichever happens second (the startup future resolving or OTel
+initializing), so the slow-launch tail is no longer censored; both cold-start
+metric descriptions now say "Dart main()" instead of falsely claiming
+"process start". Remaining: the recording rule / per-launch gauge for
+cross-launch quantiles (Prometheus side), and a native process-start anchor
+(needs Android + iOS platform-channel work; iOS has no CI build, so it needs
+its own device-verified pass).
 
 **Verified healthy.** Pipeline ~8,729 payloads/48h with zero drops/errors/
 decrypt failures; frames p95 9.5ms, frozen frames 0.010%; lifecycle/socket
