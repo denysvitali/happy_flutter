@@ -158,7 +158,7 @@ String formatRelativeTime(
   DateTime? now,
   bool compact = false,
   bool useYesterdayLabel = false,
-  String Function(DateTime)? absoluteFallback,
+  String Function(DateTime, {String? locale})? absoluteFallback,
   String? locale,
   AppLocalizations? l10n,
 }) {
@@ -191,7 +191,9 @@ String formatRelativeTime(
     if (compact) return l10n?.relativeDaysCompact(n) ?? '${n}d';
     return l10n?.relativeDaysAgo(n) ?? '${n}d ago';
   }
-  if (absoluteFallback != null) return absoluteFallback(when);
+  if (absoluteFallback != null) {
+    return absoluteFallback(when, locale: locale);
+  }
   return formatShortDate(when, locale: locale);
 }
 

@@ -205,7 +205,7 @@ class SftpLogEntryCard extends StatelessWidget {
 
   String _formatTime(DateTime dt) => formatRelativeTime(
     dt,
-    absoluteFallback: (d) => d.toIsoDateString(),
+    absoluteFallback: (d, {locale}) => d.toIsoDateString(),
   );
 }
 

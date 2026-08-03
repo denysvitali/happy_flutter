@@ -204,6 +204,6 @@ class DeviceTile extends StatelessWidget {
 
   String _formatLastActive() => formatRelativeTime(
     device.lastActive,
-    absoluteFallback: (d) => d.toLocal().toIsoDateString(),
+    absoluteFallback: (d, {locale}) => d.toLocal().toIsoDateString(),
   );
 }
