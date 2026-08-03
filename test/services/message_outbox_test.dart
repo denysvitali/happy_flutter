@@ -319,13 +319,17 @@ void main() {
           );
         },
       );
+      // Marks the outbox initialized — resume() is a no-op without it,
+      // exactly as in production where restoreAndFlush() always runs
+      // after configure().
+      await outbox.restoreAndFlush();
 
       await outbox.add(_makeEntry(localId: 'brownout'));
       // Attempt 1 fires after backoff(0) ≈ 1 s. Each resume() re-arms the
       // pending entry at the 1 s floor, walking through attempts without
       // waiting out the doubling backoff.
-      for (var i = 0; i < 4; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 1400));
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
         outbox.resume();
       }
 
@@ -345,10 +349,11 @@ void main() {
           throw StateError('deliver blew up');
         },
       );
+      await outbox.restoreAndFlush(); // resume() no-ops until initialized
 
       await outbox.add(_makeEntry(localId: 'throwy'));
-      for (var i = 0; i < 4; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 1400));
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
         outbox.resume();
       }
 
