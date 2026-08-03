@@ -251,6 +251,11 @@ Future<void> _runApp() async {
     await startupTransaction.finish();
   }().whenComplete(() {
     _essentialStartupDuration = _coldStartStopwatch.elapsed;
+    // Slow launches: OTel was already initialized by _deferredInit before
+    // this resolved — record now instead of leaving the sample censored.
+    // Fast launches resolved before OTel init; _deferredInit's call to
+    // the same helper records those. The helper guarantees exactly once.
+    _recordEssentialReady();
   });
 
   // Do NOT block the first frame on storage + API init or the
@@ -370,27 +375,49 @@ Future<void> _deferredInit() async {
   deferredStopwatch.stop();
   final otel = OpenTelemetryService();
   final firstFrameDuration = _firstFrameDuration;
-  final essentialStartupDuration = _essentialStartupDuration;
   if (firstFrameDuration != null) {
     otel.recordDuration(
       'app.cold_start.first_frame',
       firstFrameDuration,
-      description: 'Process start to first rendered Flutter frame',
+      // Honest anchor: the stopwatch starts at Dart `main()`, not at
+      // native process start — engine startup precedes both. The Sentry
+      // app-start span covers the native portion; do not compare the two
+      // as if they shared an anchor.
+      description: 'Dart main() to first rendered Flutter frame',
     );
   }
-  if (essentialStartupDuration != null) {
-    otel.recordDuration(
-      'app.cold_start.essential_ready',
-      essentialStartupDuration,
-      description: 'Process start to storage and API readiness',
-    );
-  }
+  // OTel is initialized only now — essential_ready may have resolved
+  // earlier (fast launch) or later (slow launch); the helper records it
+  // exactly once whenever BOTH the duration and OTel are ready.
+  _recordEssentialReady();
   otel.recordDuration(
     'app.deferred_init',
     deferredStopwatch.elapsed,
     description: 'Post-frame deferred initialization duration',
   );
   await transaction.finish();
+}
+
+bool _essentialReadyRecorded = false;
+
+/// Records `app.cold_start.essential_ready` exactly once, as soon as the
+/// duration is known AND OTel is initialized — in whichever order those
+/// two happen. Recording only from `_deferredInit` censored the metric on
+/// the slowest launches (audit 2026-08-03): there, storage/API init
+/// finished AFTER deferred init, so the duration was still null at record
+/// time and the sample vanished — precisely the tail the re-baseline needs.
+void _recordEssentialReady() {
+  final duration = _essentialStartupDuration;
+  final otel = OpenTelemetryService();
+  if (duration == null || !otel.isInitialized || _essentialReadyRecorded) {
+    return;
+  }
+  _essentialReadyRecorded = true;
+  otel.recordDuration(
+    'app.cold_start.essential_ready',
+    duration,
+    description: 'Dart main() to storage and API readiness',
+  );
 }
 
 Future<void> _initializeOptionalFirebase() async {
