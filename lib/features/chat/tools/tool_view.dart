@@ -21,6 +21,7 @@ import 'tool_view_helpers.dart';
 import 'tool_view_registry.dart';
 import 'tool_view_widgets.dart';
 import 'views/ask_user_question_view.dart';
+import 'views/mcp_exec_view.dart';
 import 'views/mcp_result_view.dart';
 import 'views/task_tool_view.dart';
 import 'views/todo_view.dart';
@@ -524,15 +525,22 @@ class _ToolViewState extends ConsumerState<ToolView>
     // nothing at all about what came back. Summarize the payload shape
     // ("4 items", "29 traces") inline next to the title.
     final mcpText = isMCP ? mcpToolTextResult(toolResult) : null;
-    if (status == null && subtitle == null && mcpText != null) {
-      status = mcpResultSummary(mcpText);
+    final mcpExec = isMCP && mcpText == null
+        ? McpExecResult.tryParse(toolResult)
+        : null;
+    if (status == null && subtitle == null) {
+      if (mcpText != null) {
+        status = mcpResultSummary(mcpText);
+      } else if (mcpExec?.exitCode != null) {
+        status = 'exit ${mcpExec!.exitCode}';
+      }
     }
 
     // Determine minimal mode
     final bool minimal;
     if (knownTool != null) {
       minimal = knownTool.minimal;
-    } else if (isMCP && mcpText != null) {
+    } else if (isMCP && (mcpText != null || mcpExec != null)) {
       minimal = false;
     } else {
       // Unknown/MCP tools: always minimal — details via tap/long-press only.
@@ -802,6 +810,32 @@ class _ToolViewState extends ConsumerState<ToolView>
                 !(knownTool?.hideDefaultError ?? false) &&
                 !(errorResult?.isToolUseError ?? false))
               ToolError(message: ToolError.messageFromResult(toolResult)),
+          ],
+        ),
+      );
+    }
+
+    // Exec-shaped MCP servers (ssh, remote shells) answer with a process
+    // record rather than text. Render it as a terminal card instead of the
+    // JSON blob the generic MCP path would produce.
+    final exec = toolName.startsWith('mcp__')
+        ? McpExecResult.tryParse(toolResult)
+        : null;
+    if (exec != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            McpExecView(tool: widget.tool, exec: exec),
+            if (toolCallDebug)
+              ..._debugPayloadSections(
+                toolName: toolName,
+                toolInput: toolInput,
+                toolResult: toolResult,
+                state: state,
+              ),
           ],
         ),
       );

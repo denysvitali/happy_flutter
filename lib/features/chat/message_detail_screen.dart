@@ -16,6 +16,7 @@ import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart' show parseToolState;
 import 'tools/views/codex_mcp_view.dart';
+import 'tools/views/mcp_exec_view.dart';
 import 'tools/views/web_search_view.dart';
 
 /// Screen showing full details of a tool-call message.
@@ -151,6 +152,10 @@ class _ToolDetailView extends StatelessWidget {
         toolName == 'WebSearch' ||
         toolName == 'web_search' ||
         toolName == 'web_search_preview';
+    final isRunning = state == ToolState.running;
+    final execResult = toolName.startsWith('mcp__') && !isRunning
+        ? McpExecResult.tryParse(result)
+        : null;
 
     return ListView(
       padding: AppScreenPadding.standard,
@@ -199,6 +204,14 @@ class _ToolDetailView extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             _RawPayloadDisclosure(input: input, result: result, state: state),
           ],
+          const SizedBox(height: AppSpacing.md),
+        ] else if (execResult != null) ...[
+          // Exec-shaped MCP tools (ssh and friends): terminal card instead of
+          // a JSON tree the reader has to decode field by field. Raw payloads
+          // stay one disclosure away.
+          McpExecView(tool: data, exec: execResult, boxed: false),
+          const SizedBox(height: AppSpacing.md),
+          _RawPayloadDisclosure(input: input, result: result, state: state),
           const SizedBox(height: AppSpacing.md),
         ] else if (KnownTools.codexMcpToolNames.contains(toolName)) ...[
           CodexMcpView(tool: data),
