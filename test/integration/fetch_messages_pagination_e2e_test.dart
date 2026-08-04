@@ -599,6 +599,52 @@ void main() {
         );
       },
     );
+
+    test(
+      'socket catch-up resumes after the last page instead of replaying it',
+      () async {
+        const sessionId = 'sess-socket-catch-up-page-limit';
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 13552,
+        );
+        sync.testSetSessionMessages(sessionId, [
+          {'id': 'cached', 'role': 'agent', 'seq': 13454},
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 13454);
+        sync.testSetSessionSocketCatchUpAfterSeq(sessionId, 13254);
+        sync.testVisibleSessionId = null;
+        sync.messagesSync[sessionId] = InvalidateSync(() async {});
+
+        final requestedAfterSeqs = <int>[];
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          requestedAfterSeqs.add(afterSeq);
+          final seq = requestedAfterSeqs.length == 1 ? 13454 : 13552;
+          return _buildMessagesResponse(
+            [
+              _makeEncryptedMessage(
+                'msg-$seq',
+                seq: seq,
+                content: 'Msg$seq',
+              ),
+            ],
+            hasMore: requestedAfterSeqs.length == 1,
+          );
+        };
+
+        await sync.fetchMessages(sessionId);
+        await sync.fetchMessages(sessionId);
+
+        expect(
+          requestedAfterSeqs,
+          [13254, 13454],
+          reason:
+              'A background catch-up is capped at one page, so its socket '
+              'gap floor must checkpoint the page cursor before the next '
+              'cycle or it will fetch the same page forever.',
+        );
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

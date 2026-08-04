@@ -337,6 +337,11 @@ extension SyncTestHelpers on Sync {
       _sessionLastSeq[sessionId] ?? 0;
 
   @visibleForTesting
+  void testSetSessionSocketCatchUpAfterSeq(String sessionId, int seq) {
+    _sessionSocketCatchUpAfterSeq[sessionId] = seq;
+  }
+
+  @visibleForTesting
   void testMarkSessionRestoredFromMessageCache(String sessionId) {
     _sessionsRestoredFromMessageCache.add(sessionId);
   }

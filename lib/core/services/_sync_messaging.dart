@@ -318,6 +318,13 @@ extension SyncMessaging on Sync {
     }
   }
 
+  void _checkpointSocketCatchUpCursor(String sessionId, int afterSeq) {
+    final catchUpAfterSeq = _sessionSocketCatchUpAfterSeq[sessionId];
+    if (catchUpAfterSeq != null && afterSeq > catchUpAfterSeq) {
+      _sessionSocketCatchUpAfterSeq[sessionId] = afterSeq;
+    }
+  }
+
   /// Fetch messages for a session.
   ///
   /// On first open (no entry in [_sessionLastSeq]) this uses the session's
@@ -1073,6 +1080,13 @@ extension SyncMessaging on Sync {
             afterSeq = processed.maxSeq;
           }
           _advanceSeqCursor(sessionId, afterSeq);
+          // The normal high-water cursor can be ahead of a socket gap, so
+          // fetchMessages starts from this separate overlap floor. Advance
+          // that floor after every verified page as well. Background crawls
+          // yield after one page; leaving the floor unchanged made every
+          // follow-up cycle replay that same page forever and flash the
+          // global "Syncing Messages" banner on each invalidation.
+          _checkpointSocketCatchUpCursor(sessionId, afterSeq);
 
           if (processed.maxSeq > 0 &&
               processed.messages.isEmpty &&
