@@ -911,6 +911,8 @@ extension SyncLifecycle on Sync {
     _sessionsWithPendingUpdates.clear();
     _sessionsWithPendingSocketMessages.clear();
     _sessionSocketCatchUpAfterSeq.clear();
+    _sessionsRestoredFromMessageCache.clear();
+    _sessionsNeedingLegacySocketGapRepair.clear();
     _notifiedPermissionIds.clear();
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();

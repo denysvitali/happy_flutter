@@ -977,6 +977,7 @@ extension SyncMessagingRpc on Sync {
         }
         if (cached.isNotEmpty) {
           _sessionMessages[sessionId] = cached;
+          _sessionsRestoredFromMessageCache.add(sessionId);
           // Seed the content signatures for the restored window, exactly as
           // the cold-start restore in `_restoreRecentCachedMessagesAsync`
           // does. Without this the signature map is empty, so the next tail
@@ -1069,6 +1070,9 @@ extension SyncMessagingRpc on Sync {
           }
         }
       }
+    }
+    if (hasMessages) {
+      _scheduleLegacySocketGapRepair(sessionId);
     }
     messagesSync[sessionId]?.invalidate();
 

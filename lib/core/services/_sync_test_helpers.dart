@@ -117,6 +117,8 @@ extension SyncTestHelpers on Sync {
     _sessionsWithPendingUpdates.remove(sessionId);
     _sessionsWithPendingSocketMessages.remove(sessionId);
     _sessionSocketCatchUpAfterSeq.remove(sessionId);
+    _sessionsRestoredFromMessageCache.remove(sessionId);
+    _sessionsNeedingLegacySocketGapRepair.remove(sessionId);
     _invalidateMessageCaches(sessionId);
     _previewCache.remove(sessionId);
     _previewCacheVersion.remove(sessionId);
@@ -333,6 +335,11 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   int testGetSessionLastSeq(String sessionId) =>
       _sessionLastSeq[sessionId] ?? 0;
+
+  @visibleForTesting
+  void testMarkSessionRestoredFromMessageCache(String sessionId) {
+    _sessionsRestoredFromMessageCache.add(sessionId);
+  }
 
   /// Test helper: directly set _sessionsWithPendingSocketMessages.
   @visibleForTesting

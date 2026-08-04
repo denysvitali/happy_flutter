@@ -999,6 +999,7 @@ extension SyncSocket on Sync {
           batchRestored++;
           totalRestored++;
           _sessionMessages[sessionId] = cached;
+          _sessionsRestoredFromMessageCache.add(sessionId);
           // Audit 2026-08-03: rows restored from the MMKV cache carry
           // localIds minted by an earlier process. Seed them so a later
           // ack does not read as an `unknown_acked_local_id` violation.

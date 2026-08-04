@@ -770,6 +770,80 @@ void main() {
         );
       },
     );
+
+    test(
+      'cached cursor from an older build gets one repair overlap',
+      () async {
+        const sessionId = 'legacy-background-gap-sess-1';
+
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 65,
+        );
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'msg-1',
+            'seq': 1,
+            'role': 'user',
+            'kind': 'text',
+            'content': 'Start',
+            'createdAt': 1700000001000,
+          },
+          {
+            'id': 'msg-65',
+            'seq': 65,
+            'role': 'agent',
+            'kind': 'text',
+            'content': 'Visible later progress',
+            'createdAt': 1700000065000,
+          },
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 65);
+        sync.testMarkSessionRestoredFromMessageCache(sessionId);
+
+        final requestedAfterSeqs = <int>[];
+        sync.testFetchMessagesOverride = (_, afterSeq, __) async {
+          requestedAfterSeqs.add(afterSeq);
+          return {
+            'messages': <Map<String, dynamic>>[
+              _makeEncryptedMessage(
+                'msg-4',
+                seq: 4,
+                content: 'Recovered progress from the old cache gap',
+              ),
+              _makeEncryptedMessage(
+                'msg-65',
+                seq: 65,
+                content: 'Visible later progress',
+              ),
+            ],
+            'hasMore': false,
+          };
+        };
+
+        await sync.onSessionVisible(sessionId);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+
+        expect(
+          requestedAfterSeqs,
+          [0],
+          reason:
+              'The first open after upgrading must overlap the bounded '
+              'cached window instead of trusting the old high-water cursor.',
+        );
+        final messages = sync.testSessionMessages(sessionId)!;
+        expect(
+          messages.where((message) => message['id'] == 'msg-4'),
+          hasLength(1),
+          reason: 'The already-persisted socket gap must be repaired.',
+        );
+        expect(
+          messages.where((message) => message['id'] == 'msg-65'),
+          hasLength(1),
+          reason: 'The repair overlap must deduplicate cached rows.',
+        );
+      },
+    );
   });
 }
 

@@ -654,6 +654,8 @@ extension SyncSocketEvents on Sync {
       _sessionsWithPendingUpdates.remove(sessionId);
       _sessionsWithPendingSocketMessages.remove(sessionId);
       _sessionSocketCatchUpAfterSeq.remove(sessionId);
+      _sessionsRestoredFromMessageCache.remove(sessionId);
+      _sessionsNeedingLegacySocketGapRepair.remove(sessionId);
       _sessionsNeedingFetchProbe.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _sessionSpawnedProfile.remove(sessionId);

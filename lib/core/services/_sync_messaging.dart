@@ -271,6 +271,53 @@ extension SyncMessaging on Sync {
     return false;
   }
 
+  String _socketGapRepairStorageKey(String sessionId) =>
+      'message-socket-gap-repair-v${Sync._socketGapRepairVersion}-$sessionId';
+
+  bool _needsLegacySocketGapRepair(String sessionId) {
+    try {
+      return MMKVStorage().getString(_socketGapRepairStorageKey(sessionId)) !=
+          'complete';
+    } catch (error) {
+      logger.debug(
+        '[fetchMessages] socket gap repair marker read failed: $error',
+      );
+      return true;
+    }
+  }
+
+  void _scheduleLegacySocketGapRepair(String sessionId) {
+    if (!_sessionsRestoredFromMessageCache.contains(sessionId)) return;
+    if (!_needsLegacySocketGapRepair(sessionId)) {
+      _sessionsRestoredFromMessageCache.remove(sessionId);
+      return;
+    }
+
+    final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+    if (cursorSeq <= 0) return;
+    final repairAfterSeq = max(0, cursorSeq - Sync.initialLoad);
+    final existingAfterSeq = _sessionSocketCatchUpAfterSeq[sessionId];
+    if (existingAfterSeq == null || repairAfterSeq < existingAfterSeq) {
+      _sessionSocketCatchUpAfterSeq[sessionId] = repairAfterSeq;
+    }
+    _sessionsNeedingLegacySocketGapRepair.add(sessionId);
+  }
+
+  void _completeLegacySocketGapRepair(String sessionId) {
+    if (!_sessionsNeedingLegacySocketGapRepair.remove(sessionId)) return;
+    _sessionsRestoredFromMessageCache.remove(sessionId);
+    try {
+      MMKVStorage().setString(
+        _socketGapRepairStorageKey(sessionId),
+        'complete',
+      );
+    } catch (error) {
+      logger.debug(
+        '[fetchMessages] socket gap repair marker write failed: $error',
+      );
+    }
+  }
+
   /// Fetch messages for a session.
   ///
   /// On first open (no entry in [_sessionLastSeq]) this uses the session's
@@ -1063,6 +1110,7 @@ extension SyncMessaging on Sync {
             if (socketCatchUpAfterSeq != null) {
               if (afterSeq >= catchUpTarget) {
                 _sessionSocketCatchUpAfterSeq.remove(sessionId);
+                _completeLegacySocketGapRepair(sessionId);
               } else {
                 // The message API has not exposed the whole socket window
                 // yet. Retain the floor and retry instead of declaring the
@@ -1839,6 +1887,8 @@ extension SyncMessaging on Sync {
     _sessionsWithPendingUpdates.remove(sessionId);
     _sessionsWithPendingSocketMessages.remove(sessionId);
     _sessionSocketCatchUpAfterSeq.remove(sessionId);
+    _sessionsRestoredFromMessageCache.remove(sessionId);
+    _sessionsNeedingLegacySocketGapRepair.remove(sessionId);
     _sessionsNeedingFetchProbe.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);

@@ -327,6 +327,10 @@ class Sync {
 
   /// Number of recent messages to load on first open of a session.
   static const int initialLoad = kIsWeb ? 100 : 200;
+
+  /// Bump when an older persisted message window needs another bounded
+  /// authoritative verification after an upgrade.
+  static const int _socketGapRepairVersion = 1;
   static const Set<String> _supportedPermissionModes = {
     'default',
     'acceptEdits',
@@ -458,6 +462,12 @@ what you have, you must use the options mode.
   /// the pre-burst cursor so [fetchMessages] overlaps the socket window and
   /// recovers any dropped or out-of-order events without duplicating rows.
   final Map<String, int> _sessionSocketCatchUpAfterSeq = {};
+
+  /// Sessions whose rows came from the persisted message cache this process.
+  final Set<String> _sessionsRestoredFromMessageCache = {};
+
+  /// Cached sessions currently running the one-time upgrade repair overlap.
+  final Set<String> _sessionsNeedingLegacySocketGapRepair = {};
 
   /// Permission IDs for which a local notification has already been
   /// fired.  Prevents duplicate notifications across repeated
@@ -1231,6 +1241,8 @@ what you have, you must use the options mode.
   void testClearSessionsWithPendingSocketMessages() {
     _sessionsWithPendingSocketMessages.clear();
     _sessionSocketCatchUpAfterSeq.clear();
+    _sessionsRestoredFromMessageCache.clear();
+    _sessionsNeedingLegacySocketGapRepair.clear();
   }
 
   Map<String, Machine> get machines => Map.unmodifiable(_machines);
