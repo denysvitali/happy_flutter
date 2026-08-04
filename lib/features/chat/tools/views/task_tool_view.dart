@@ -60,7 +60,8 @@ class TaskToolView extends ConsumerStatefulWidget {
     // chronological order (the chat ListView is reversed, so a cold load
     // mounts the newest tool first) — per-item guards below use this to
     // keep older events from clobbering newer state.
-    final eventAt = WireParsers.parseInt(tool['completedAt']) ??
+    final eventAt =
+        WireParsers.parseInt(tool['completedAt']) ??
         WireParsers.parseInt(tool['createdAt']) ??
         now;
     final name = (tool['name'] as String?) ?? '';
@@ -172,7 +173,8 @@ class TaskToolView extends ConsumerStatefulWidget {
         final map = WireParsers.asMap(result);
         final List<TodoItem> parsed;
         if (map != null) {
-          final raw = WireParsers.asList(map['tasks']) ??
+          final raw =
+              WireParsers.asList(map['tasks']) ??
               WireParsers.asList(map['items']) ??
               WireParsers.asList(map['todos']) ??
               const [];
@@ -201,13 +203,15 @@ class TaskToolView extends ConsumerStatefulWidget {
           map = _mapFromGetResultText(result);
         }
         if (map == null) return existing;
-        final subject = (map['subject'] as String?) ??
+        final subject =
+            (map['subject'] as String?) ??
             (map['title'] as String?) ??
             (map['description'] as String?) ??
             (map['content'] as String?);
         if (subject == null || subject.isEmpty) return existing;
         final itemId = _deriveIdStatic(
-          explicit: (map['id'] as String?) ??
+          explicit:
+              (map['id'] as String?) ??
               (map['taskId'] as String?) ??
               (WireParsers.asMap(tool['input'])?['taskId'] as String?),
           fallback: 'get-$subject',
@@ -260,7 +264,9 @@ class TaskToolView extends ConsumerStatefulWidget {
       return null;
     }
     if (result is String) {
-      final m = RegExp(r'Task\s+#([A-Za-z0-9_-]+)\s+created').firstMatch(result);
+      final m = RegExp(
+        r'Task\s+#([A-Za-z0-9_-]+)\s+created',
+      ).firstMatch(result);
       return m?.group(1);
     }
     return null;
@@ -300,11 +306,15 @@ class TaskToolView extends ConsumerStatefulWidget {
   ///
   /// Production shape: `Task #<id>: <subject>` followed by `Status: <s>`.
   static Map<String, dynamic>? _mapFromGetResultText(String text) {
-    final head = RegExp(r'^Task\s+#([A-Za-z0-9_-]+):\s+(.+)$', multiLine: true)
-        .firstMatch(text);
+    final head = RegExp(
+      r'^Task\s+#([A-Za-z0-9_-]+):\s+(.+)$',
+      multiLine: true,
+    ).firstMatch(text);
     if (head == null) return null;
-    final status =
-        RegExp(r'^Status:\s+(\S+)', multiLine: true).firstMatch(text);
+    final status = RegExp(
+      r'^Status:\s+(\S+)',
+      multiLine: true,
+    ).firstMatch(text);
     return {
       'id': head.group(1),
       'subject': head.group(2)!.trim(),
@@ -319,8 +329,10 @@ class TaskToolView extends ConsumerStatefulWidget {
     BuildContext context,
   ) {
     if (sessionId == null) return const [];
-    final state = ProviderScope.containerOf(context, listen: false)
-        .read(todoStateNotifierProvider);
+    final state = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(todoStateNotifierProvider);
     return state.bySession[sessionId] ?? const [];
   }
 
@@ -359,7 +371,8 @@ class TaskToolView extends ConsumerStatefulWidget {
     for (var i = 0; i < raw.length; i++) {
       final m = raw[i];
       if (m is! Map) continue;
-      final subject = m['subject'] as String? ??
+      final subject =
+          m['subject'] as String? ??
           m['title'] as String? ??
           m['content'] as String? ??
           m['description'] as String?;
@@ -452,16 +465,38 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
     final status = input['status'] as String?;
     final activeForm = input['activeForm'] as String?;
     final subject = input['subject'] as String?;
+    // The update payload names the task by id only. Resolve the subject
+    // from the task list this session already built (TaskCreate/TaskList
+    // push into it) so the row says which task changed, not "Task #5".
+    final known = subject ?? _knownSubjectFor(taskId);
 
     return _TaskBody(
       icon: Icons.edit_note,
       iconColor: Theme.of(context).colorScheme.primary,
-      headline: subject ?? (taskId != null ? 'Task #$taskId' : null),
+      headline: known ?? (taskId != null ? 'Task #$taskId' : null),
       sublines: [
         if (activeForm != null && activeForm.isNotEmpty) activeForm,
+        if (known != null && taskId != null) '#$taskId',
       ],
       status: status,
     );
+  }
+
+  /// Subject of [taskId] as currently known to this session's task list,
+  /// or null when unknown or still a reverse-replay placeholder.
+  String? _knownSubjectFor(String? taskId) {
+    if (taskId == null) return null;
+    final sessionId = widget.sessionId;
+    if (sessionId == null) return null;
+    final items = ref.watch(todoStateNotifierProvider).bySession[sessionId];
+    if (items == null) return null;
+    for (final item in items) {
+      if (item.id != taskId) continue;
+      if (item.content.isEmpty) return null;
+      if (item.content == TaskToolView._placeholderContent(taskId)) return null;
+      return item.content;
+    }
+    return null;
   }
 
   Widget _buildList(BuildContext context) {
@@ -491,7 +526,8 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
       final id = input['taskId'] as String? ?? input['id'] as String?;
       return _EmptyHint(id != null ? 'No data for #$id' : 'No data');
     }
-    final subject = (result['subject'] as String?) ??
+    final subject =
+        (result['subject'] as String?) ??
         (result['title'] as String?) ??
         (result['description'] as String?);
     final status = result['status'] as String?;
@@ -500,29 +536,31 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
       icon: Icons.task_alt,
       iconColor: Theme.of(context).colorScheme.primary,
       headline: subject,
-      sublines: [
-        if (activeForm != null && activeForm.isNotEmpty) activeForm,
-      ],
+      sublines: [if (activeForm != null && activeForm.isNotEmpty) activeForm],
       status: status,
     );
   }
 
   static List<_TaskItem> _extractListItems(Map<String, dynamic>? result) {
     if (result == null) return const [];
-    final raw = WireParsers.asList(result['tasks']) ??
+    final raw =
+        WireParsers.asList(result['tasks']) ??
         WireParsers.asList(result['items']) ??
         WireParsers.asList(result['todos']);
     if (raw == null) return const [];
     return raw
         .whereType<Map>()
-        .map((m) => _TaskItem(
-              subject: m['subject'] as String? ??
-                  m['title'] as String? ??
-                  m['content'] as String? ??
-                  m['description'] as String?,
-              status: m['status'] as String?,
-              activeForm: m['activeForm'] as String?,
-            ))
+        .map(
+          (m) => _TaskItem(
+            subject:
+                m['subject'] as String? ??
+                m['title'] as String? ??
+                m['content'] as String? ??
+                m['description'] as String?,
+            status: m['status'] as String?,
+            activeForm: m['activeForm'] as String?,
+          ),
+        )
         .where((t) => t.subject != null && t.subject!.isNotEmpty)
         .toList();
   }
@@ -687,9 +725,9 @@ class _EmptyHint extends StatelessWidget {
     return Text(
       message,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontStyle: FontStyle.italic,
-          ),
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        fontStyle: FontStyle.italic,
+      ),
     );
   }
 }

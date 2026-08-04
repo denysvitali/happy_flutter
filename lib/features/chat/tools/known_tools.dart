@@ -508,9 +508,24 @@ class KnownTools {
     'TaskUpdate': ToolDefinition(
       icon: todoIcon,
       title: 'Update Task',
+      // A TaskUpdate usually carries only `taskId` + `status`, so the old
+      // activeForm/subject-only subtitle rendered a bare "Update Task" row
+      // that said nothing about what changed. Always fall back to the id
+      // and append the new status.
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['activeForm'] as String? ?? input?['subject'] as String?;
+        if (input == null) return null;
+        final taskId = input['taskId'] as String? ?? input['id'] as String?;
+        final what =
+            input['activeForm'] as String? ??
+            input['subject'] as String? ??
+            (taskId != null ? '#$taskId' : null);
+        final status = input['status'] as String?;
+        final label = status == null || status.isEmpty
+            ? null
+            : status.replaceAll('_', ' ');
+        if (what == null) return label;
+        return label == null ? what : '$what → $label';
       },
     ),
     'TaskList': ToolDefinition(icon: todoIcon, title: 'List Tasks'),

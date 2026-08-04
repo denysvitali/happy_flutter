@@ -684,6 +684,17 @@ Map<String, dynamic> _webSearchInput(Map<String, dynamic> data) {
 /// applicable, so they also serve as bridge records for the grouper).
 /// Unrecognized meta subtypes fall back to an invisible bridge
 /// record when they carry a sidechain uuid, or a no-op otherwise.
+/// Human label for a task lifecycle subtype, used when the wire payload
+/// carries no description/summary — otherwise the chip read "Task
+/// task_updated".
+String _taskPhaseLabel(String? subtype) => switch (subtype) {
+  DataType.taskStarted => 'Task started',
+  DataType.taskProgress => 'Task running',
+  DataType.taskUpdated => 'Task updated',
+  DataType.taskNotification => 'Task update',
+  _ => 'Task',
+};
+
 void _processMetaOutput({
   required String id,
   required int seq,
@@ -825,9 +836,11 @@ void _processMetaOutput({
       // `local_bash` tasks put the whole shell command in `description`;
       // flatten + clamp so the chip stays one readable line.
       final compacted = compactTaskLabel(
-        description ?? summary ?? 'Task $subtype',
+        description ?? summary ?? _taskPhaseLabel(subtype),
       );
-      final baseLabel = compacted.isEmpty ? 'Task $subtype' : compacted;
+      final baseLabel = compacted.isEmpty
+          ? _taskPhaseLabel(subtype)
+          : compacted;
       // Only prefix when the description does not already name the tool
       // ANYWHERE. Workflow agents label themselves "<Description>:
       // <agent-label>", which put the tool name at the end — a

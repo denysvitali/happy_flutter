@@ -85,6 +85,14 @@ class AgentEventWidget extends StatelessWidget {
   /// shows a start marker instead of only a completion card.
   bool get _isTaskStart => message?['taskPhase'] == 'task_started';
 
+  /// Prefix shown before the label for a task lifecycle row. Derived from
+  /// the phase so an update row does not claim the task is "running".
+  String get _taskPhaseLabel => switch (message?['taskPhase']) {
+    'task_started' => 'Task started',
+    'task_updated' || 'task_notification' => 'Task updated',
+    _ => 'Task running',
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -112,6 +120,12 @@ class AgentEventWidget extends StatelessWidget {
     // rows (sm outer + sm+2 inner); centered min-width blocks made the
     // labels zigzag horizontally down the transcript. Plain system
     // notices keep the centered divider treatment.
+    // A payload with no description falls back to the phase name, which
+    // would print "Task updated · Task updated". Show the prefix only.
+    final labelIsPhaseOnly =
+        _isTaskEvent &&
+        (displayLabel.trim() == _taskPhaseLabel ||
+            displayLabel.trim() == 'Task');
     final rowChildren = <Widget>[
       if (_isTaskEvent) ...[
         Icon(
@@ -123,14 +137,16 @@ class AgentEventWidget extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.xs),
         Text(
-          _isTaskStart ? 'Task started' : 'Task running',
+          _taskPhaseLabel,
           style: theme.textTheme.labelSmall?.copyWith(
             color: color,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(width: AppSpacing.xs),
-        Text('·', style: theme.textTheme.labelSmall?.copyWith(color: color)),
+        if (!labelIsPhaseOnly) ...[
+          const SizedBox(width: AppSpacing.xs),
+          Text('·', style: theme.textTheme.labelSmall?.copyWith(color: color)),
+        ],
         const SizedBox(width: AppSpacing.xs),
       ],
       if (subAgentTool != null) ...[
@@ -151,24 +167,25 @@ class AgentEventWidget extends StatelessWidget {
         Icon(Icons.warning_amber_rounded, size: 16, color: color),
         const SizedBox(width: AppSpacing.xs),
       ],
-      Flexible(
-        child: Text(
-          // Defensive clamp: cached/legacy events can carry a whole
-          // multi-line shell command as their label, which would
-          // otherwise dump a wall of centered text into the timeline.
-          compactTaskLabel(displayLabel),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: color,
-            fontWeight: isUnrendered ? FontWeight.w600 : null,
+      if (!labelIsPhaseOnly)
+        Flexible(
+          child: Text(
+            // Defensive clamp: cached/legacy events can carry a whole
+            // multi-line shell command as their label, which would
+            // otherwise dump a wall of centered text into the timeline.
+            compactTaskLabel(displayLabel),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: color,
+              fontWeight: isUnrendered ? FontWeight.w600 : null,
+            ),
+            // Left-align wrapped lines against the leading icon/prefix;
+            // per-line centering parked two centered lines beside a
+            // vertically-centered prefix and read as a layout bug.
+            textAlign: TextAlign.start,
           ),
-          // Left-align wrapped lines against the leading icon/prefix;
-          // per-line centering parked two centered lines beside a
-          // vertically-centered prefix and read as a layout bug.
-          textAlign: TextAlign.start,
         ),
-      ),
     ];
     return Padding(
       padding: EdgeInsets.symmetric(
