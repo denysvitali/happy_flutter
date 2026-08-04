@@ -426,7 +426,12 @@ extension SyncSocketEvents on Sync {
       }
     }
 
-    final cursorBeforeEvent = _sessionLastSeq[sessionId] ?? 0;
+    final storedCursorSeq = _sessionLastSeq[sessionId];
+    final hasLocalMessages = _sessionMessages[sessionId]?.isNotEmpty ?? false;
+    var cursorBeforeEvent = storedCursorSeq ?? 0;
+    if (cursorBeforeEvent <= 0 && !hasLocalMessages) {
+      cursorBeforeEvent = _sessions[sessionId]?.lastSeq ?? 0;
+    }
     final hasSocketSeqGap = msgSeq != null && msgSeq > cursorBeforeEvent + 1;
     if (!isVisible || hasSocketSeqGap) {
       // A background session with no established cursor must retain normal
