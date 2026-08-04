@@ -578,7 +578,9 @@ extension SyncMessaging on Sync {
         );
         final useTailLoad = window.useTailLoad;
         final isGapRecovery = window.isGapRecovery;
-        afterSeq = window.afterSeq;
+        afterSeq = socketCatchUpAfterSeq != null
+            ? min(window.afterSeq, socketCatchUpAfterSeq)
+            : window.afterSeq;
 
         if (useTailLoad) {
           if (strippedImageAfterSeq != null) {
