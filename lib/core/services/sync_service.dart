@@ -449,6 +449,16 @@ what you have, you must use the options mode.
   /// the user opens a session that had pending socket messages.
   final Set<String> _sessionsWithPendingSocketMessages = {};
 
+  /// Lowest cursor observed before a socket burst that needs authoritative
+  /// HTTP verification.
+  ///
+  /// Inline socket processing advances [_sessionLastSeq] to a high-water
+  /// mark. If the chat is hidden, or seq N+2 arrives before N+1, reopening
+  /// from that high-water mark permanently skips the missing lower seq. Keep
+  /// the pre-burst cursor so [fetchMessages] overlaps the socket window and
+  /// recovers any dropped or out-of-order events without duplicating rows.
+  final Map<String, int> _sessionSocketCatchUpAfterSeq = {};
+
   /// Permission IDs for which a local notification has already been
   /// fired.  Prevents duplicate notifications across repeated
   /// [fetchSessions] calls.
@@ -1220,6 +1230,7 @@ what you have, you must use the options mode.
   @visibleForTesting
   void testClearSessionsWithPendingSocketMessages() {
     _sessionsWithPendingSocketMessages.clear();
+    _sessionSocketCatchUpAfterSeq.clear();
   }
 
   Map<String, Machine> get machines => Map.unmodifiable(_machines);

@@ -910,6 +910,7 @@ extension SyncLifecycle on Sync {
     _sessionsNeedingTailRefresh.clear();
     _sessionsWithPendingUpdates.clear();
     _sessionsWithPendingSocketMessages.clear();
+    _sessionSocketCatchUpAfterSeq.clear();
     _notifiedPermissionIds.clear();
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();

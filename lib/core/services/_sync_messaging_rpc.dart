@@ -914,9 +914,10 @@ extension SyncMessagingRpc on Sync {
     );
 
     // If this session received socket messages while non-visible, we MUST
-    // fetch from the server to get those messages.  Socket messages are NOT
-    // stored in _sessionMessages for non-visible sessions (only the seq
-    // cursor is advanced), so the cache may be stale even if it has data.
+    // fetch from the server to verify the burst. Embedded messages are
+    // processed inline, but a dropped/out-of-order event can sit below the
+    // newer high-water cursor. [_sessionSocketCatchUpAfterSeq] preserves the
+    // pre-burst floor so fetchMessages overlaps that window.
     final hasPendingSocketMessages = _sessionsWithPendingSocketMessages.remove(
       sessionId,
     );
@@ -1054,12 +1055,10 @@ extension SyncMessagingRpc on Sync {
           );
         }
       } else if (hadPendingUpdates) {
-        // Socket events arrived while session was non-visible, but cursor
-        // appears caught up or ahead.  Only tail-refresh when cursor data
-        // is truly invalid (zero/negative).  When cursor >= server, the
-        // incremental delta fetch is either a no-op (caught up) or will
-        // pick up any remaining messages — a destructive tail-refresh
-        // would unnecessarily wipe and re-download messages.
+        // Socket events arrived while the session was non-visible. The
+        // pre-burst catch-up floor makes the normal fetch overlap those
+        // events even when the high-water cursor appears caught up. Only
+        // request the broader tail path when cursor data is truly invalid.
         if (cursorSeq <= 0 || serverLastSeq <= 0) {
           _requestTailRefresh(sessionId);
           if (logger.shouldLog(LogLevel.debug)) {

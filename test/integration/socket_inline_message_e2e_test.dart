@@ -690,6 +690,86 @@ void main() {
         );
       },
     );
+
+    test(
+      'background seq jump reopens from the pre-burst cursor',
+      () async {
+        const sessionId = 'background-gap-sess-1';
+
+        sync.testSessions[sessionId] = _makeSession(
+          sessionId,
+          lastSeq: 10,
+        );
+        sync.testSetSessionMessages(sessionId, [
+          {
+            'id': 'msg-10',
+            'seq': 10,
+            'role': 'agent',
+            'kind': 'text',
+            'content': 'Before leaving chat',
+            'createdAt': 1700000010000,
+          },
+        ]);
+        sync.testSetSessionLastSeq(sessionId, 10);
+        sync.testVisibleSessionId = 'some-other-session';
+
+        // Seq 11 is lost by the socket while the chat is hidden. Seq 12
+        // arrives inline and advances the high-water cursor past the gap.
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': _makeEncryptedMessage(
+            'msg-12',
+            seq: 12,
+            content: 'Arrived after the gap',
+          ),
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        expect(sync.testGetSessionLastSeq(sessionId), 12);
+
+        final requestedAfterSeqs = <int>[];
+        sync.testFetchMessagesOverride = (_, afterSeq, __) async {
+          requestedAfterSeqs.add(afterSeq);
+          return {
+            'messages': <Map<String, dynamic>>[
+              _makeEncryptedMessage(
+                'msg-11',
+                seq: 11,
+                content: 'Recovered missing progress',
+              ),
+              _makeEncryptedMessage(
+                'msg-12',
+                seq: 12,
+                content: 'Arrived after the gap',
+              ),
+            ],
+            'hasMore': false,
+          };
+        };
+
+        await sync.onSessionVisible(sessionId);
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+
+        expect(
+          requestedAfterSeqs,
+          [10],
+          reason:
+              'Reopening must verify from the cursor before the hidden '
+              'burst, not skip from the newer high-water seq.',
+        );
+        final messages = sync.testSessionMessages(sessionId)!;
+        expect(
+          messages.where((message) => message['id'] == 'msg-11'),
+          hasLength(1),
+          reason: 'The socket gap must be recovered from HTTP exactly once.',
+        );
+        expect(
+          messages.where((message) => message['id'] == 'msg-12'),
+          hasLength(1),
+          reason: 'The overlapping socket row must not be duplicated.',
+        );
+      },
+    );
   });
 }
 

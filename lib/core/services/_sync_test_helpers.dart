@@ -116,6 +116,7 @@ extension SyncTestHelpers on Sync {
     _sessionsNeedingVisibleRegroup.remove(sessionId);
     _sessionsWithPendingUpdates.remove(sessionId);
     _sessionsWithPendingSocketMessages.remove(sessionId);
+    _sessionSocketCatchUpAfterSeq.remove(sessionId);
     _invalidateMessageCaches(sessionId);
     _previewCache.remove(sessionId);
     _previewCacheVersion.remove(sessionId);

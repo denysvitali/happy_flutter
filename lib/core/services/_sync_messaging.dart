@@ -386,13 +386,17 @@ extension SyncMessaging on Sync {
           _seedSeqCursorFromCache(sessionId, cachedCursorSeq);
         }
         final rawCursorSeq = max(persistedCursorSeq, cachedCursorSeq ?? 0);
-        final cursorSeq =
+        final reconnectCursorSeq =
             (forceProbe &&
                 sessionId == _visibleSessionId &&
                 _reconnectCursorSnapshot != null &&
                 _reconnectCursorSnapshot! < rawCursorSeq)
             ? _reconnectCursorSnapshot!
             : rawCursorSeq;
+        final socketCatchUpAfterSeq = _sessionSocketCatchUpAfterSeq[sessionId];
+        final cursorSeq = socketCatchUpAfterSeq != null
+            ? min(reconnectCursorSeq, socketCatchUpAfterSeq)
+            : reconnectCursorSeq;
         if (forceProbe &&
             _reconnectCursorSnapshot != null &&
             sessionId == _visibleSessionId) {
@@ -421,6 +425,8 @@ extension SyncMessaging on Sync {
           'forceProbe=$forceProbe '
           'hasLargeDelta=$hasLargeDelta '
           'cursorSeq=$cursorSeq '
+          'rawCursorSeq=$rawCursorSeq '
+          'socketCatchUpAfterSeq=$socketCatchUpAfterSeq '
           'serverLastSeq=$serverLastSeq',
         );
 
@@ -1050,6 +1056,21 @@ extension SyncMessaging on Sync {
           }
 
           if (!hasMore) {
+            final catchUpTarget = max(
+              max(rawCursorSeq, _sessionLastSeq[sessionId] ?? 0),
+              max(serverLastSeq, _sessions[sessionId]?.lastSeq ?? 0),
+            );
+            if (socketCatchUpAfterSeq != null) {
+              if (afterSeq >= catchUpTarget) {
+                _sessionSocketCatchUpAfterSeq.remove(sessionId);
+              } else {
+                // The message API has not exposed the whole socket window
+                // yet. Retain the floor and retry instead of declaring the
+                // newer high-water cursor authoritative over a known gap.
+                _sessionSocketCatchUpAfterSeq[sessionId] = afterSeq;
+                messagesSync[sessionId]?.invalidate();
+              }
+            }
             await pageSpan.finish();
             break;
           }
@@ -1817,6 +1838,7 @@ extension SyncMessaging on Sync {
     _sessionsNeedingVisibleRegroup.remove(sessionId);
     _sessionsWithPendingUpdates.remove(sessionId);
     _sessionsWithPendingSocketMessages.remove(sessionId);
+    _sessionSocketCatchUpAfterSeq.remove(sessionId);
     _sessionsNeedingFetchProbe.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);

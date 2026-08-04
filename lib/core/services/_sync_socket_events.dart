@@ -409,6 +409,7 @@ extension SyncSocketEvents on Sync {
     // upsert/apply. Fallback paths release the pending key so socket
     // re-delivery can retry instead of being suppressed forever.
     final embeddedMessage = WireParsers.asMap(data['message']);
+    final msgSeq = embeddedMessage?['seq'] as int?;
     String? inlineDedupKey;
     if (embeddedMessage != null) {
       final msgId = embeddedMessage['id'] as String?;
@@ -422,6 +423,37 @@ extension SyncSocketEvents on Sync {
             !_pendingInlineMessageKeys.add(inlineDedupKey)) {
           return; // already seen (committed or currently processing)
         }
+      }
+    }
+
+    final cursorBeforeEvent = _sessionLastSeq[sessionId] ?? 0;
+    final hasSocketSeqGap = msgSeq != null && msgSeq > cursorBeforeEvent + 1;
+    if (!isVisible || hasSocketSeqGap) {
+      // A background session with no established cursor must retain normal
+      // tail-load bounds; starting at zero could crawl an entire multi-year
+      // transcript merely to verify one new socket event.
+      final catchUpAfterSeq = cursorBeforeEvent > 0
+          ? cursorBeforeEvent
+          : max(0, (msgSeq ?? 0) - Sync.initialLoad);
+      _sessionSocketCatchUpAfterSeq.putIfAbsent(
+        sessionId,
+        () => catchUpAfterSeq,
+      );
+
+      final session = _sessions[sessionId];
+      if (msgSeq != null &&
+          session != null &&
+          (session.lastSeq ?? 0) < msgSeq) {
+        // Keep the server high-water hint current before the async inline
+        // queue runs, so an immediate gap fetch cannot incorrectly take the
+        // cursor==server early exit.
+        _sessions[sessionId] = session.copyWith(lastSeq: msgSeq);
+      }
+      if (isVisible && hasSocketSeqGap) {
+        // The inline event may advance the high-water cursor past the gap.
+        // Queue an overlapping HTTP fetch while the pre-gap floor is still
+        // available to fetchMessages.
+        messagesSync[sessionId]?.invalidate();
       }
     }
 
@@ -487,7 +519,6 @@ extension SyncSocketEvents on Sync {
       // (the local message cache may not include this message until
       // inline decryption finishes, and the next fetchSessions hasn't
       // run yet).
-      final msgSeq = embeddedMessage?['seq'] as int?;
       final msgCreatedAt = embeddedMessage?['createdAt'] is int
           ? embeddedMessage!['createdAt'] as int
           : null;
@@ -622,6 +653,7 @@ extension SyncSocketEvents on Sync {
       _sessionsNeedingTailRefresh.remove(sessionId);
       _sessionsWithPendingUpdates.remove(sessionId);
       _sessionsWithPendingSocketMessages.remove(sessionId);
+      _sessionSocketCatchUpAfterSeq.remove(sessionId);
       _sessionsNeedingFetchProbe.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _sessionSpawnedProfile.remove(sessionId);
