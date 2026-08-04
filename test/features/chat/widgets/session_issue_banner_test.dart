@@ -62,4 +62,24 @@ void main() {
     expect(find.byIcon(Icons.restart_alt_rounded), findsOneWidget);
     expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
   });
+
+  testWidgets('shows a copy action when provided', (tester) async {
+    var copied = false;
+    await tester.pumpWidget(
+      _wrap(
+        SessionIssueBanner(
+          issue: const SendIssue(
+            title: 'Agent failed',
+            message: 'The process stopped.',
+            blocksSend: true,
+          ),
+          onCopy: () => copied = true,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byIcon(Icons.copy_rounded));
+
+    expect(copied, isTrue);
+  });
 }

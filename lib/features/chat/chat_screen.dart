@@ -30,6 +30,7 @@ import '../../core/services/tts_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
+import '../../core/utils/clipboard_utils.dart';
 import '../../core/wire/wire_parsers.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
@@ -1034,6 +1035,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ).showSnackBar(SnackBar(content: Text(issue.snackBarText)));
   }
 
+  Future<void> _copySessionIssue(_SessionSendIssue issue) async {
+    final result = await setClipboardTextSafely(
+      '${issue.title}\n${issue.message}',
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.success
+              ? context.l10n.commonCopiedToClipboard
+              : context.l10n.textSelectionFailedToCopy,
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   /// Recomputes the memoized backward scans over [_messages]:
   /// the latest user message carrying a sendStatus, the createdAt of the
   /// last visible (non-sidechain) message, and (debug only) the max seq.
@@ -1460,6 +1478,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               message: issue.message,
               blocksSend: issue.blocksSend,
             ),
+            onCopy: () => _copySessionIssue(issue),
           ),
         if (!hasSendIssue) ...[
           SessionGoalBanner(sessionId: widget.sessionId),

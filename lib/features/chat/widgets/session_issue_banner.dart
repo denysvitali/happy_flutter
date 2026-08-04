@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -21,9 +22,10 @@ import 'chat_app_bar.dart' show SendIssue;
 /// [buildChatStatusChips] in chat_app_bar.dart) so it can be
 /// tested in isolation.
 class SessionIssueBanner extends StatelessWidget {
-  const SessionIssueBanner({required this.issue, super.key});
+  const SessionIssueBanner({required this.issue, this.onCopy, super.key});
 
   final SendIssue issue;
+  final VoidCallback? onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +88,18 @@ class SessionIssueBanner extends StatelessWidget {
                 ],
               ),
             ),
+            if (onCopy != null)
+              IconButton(
+                onPressed: onCopy,
+                icon: const Icon(Icons.copy_rounded),
+                tooltip: context.l10n.commonCopy,
+                constraints: const BoxConstraints(
+                  minWidth: AppTouchTarget.min,
+                  minHeight: AppTouchTarget.min,
+                ),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
           ],
         ),
       ),
