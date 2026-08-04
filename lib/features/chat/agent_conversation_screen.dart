@@ -17,6 +17,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/wire/wire_parsers.dart';
 import '../workflows/workflow_display.dart';
 import '../workflows/workflow_run_screen.dart';
+import 'agent_steps.dart';
 import 'chat_tts_gate.dart';
 import 'markdown/markdown.dart';
 import 'markdown/markdown_view.dart';
@@ -389,7 +390,7 @@ class _AgentConversationScreenState
         promptRaw.isNotEmpty &&
         promptRaw != descriptionRaw;
 
-    final displayChildren = _buildDisplayChildren(children, isRunning);
+    final displayChildren = buildAgentDisplayChildren(children, isRunning);
 
     final messagesView = _buildMessagesView(
       theme: theme,
@@ -629,110 +630,6 @@ class _AgentConversationScreenState
   }
 
   ToolState _parseToolState(String state) => parseToolState(state);
-
-  /// Collapses the sub-agent activity feed so transient indicators don't
-  /// drown the result. Transient = sub-agent progress chips, task completion
-  /// notifications, and thinking placeholders: meta rows the screen shows
-  /// while work happens, none of them sub-agent transcript content.
-  /// While the task runs, a run of transient rows describing the same step
-  /// collapses to one indicator — the newest, so the completion notification
-  /// supersedes the in-flight chip it echoes instead of printing the step
-  /// label twice.
-  ///
-  /// Once finished, thinking placeholders (no user-visible content) are
-  /// always dropped. Progress chips are dropped too *when the agent left a
-  /// real transcript* (durable text / tool-call / error / nested-task rows)
-  /// — there the chips are noise next to the actual work. But async /
-  /// background agents never stream their inner tool calls across the wire,
-  /// so their sidechain carries *only* progress chips: those chips are the
-  /// "N steps" the session list promises, and dropping them leaves an empty
-  /// feed that falls through to the (useless) async-launch receipt. In that
-  /// chips-only case we keep them, de-duplicated, so the detail shows the
-  /// steps the user tapped to see.
-  List<Map<String, dynamic>> _buildDisplayChildren(
-    List<Map<String, dynamic>> children,
-    bool isRunning,
-  ) {
-    final hasDurable = children.any((c) => _transientKey(c) == null);
-    final out = <Map<String, dynamic>>[];
-    String? prevTransientKey;
-    String? prevTool;
-    for (final c in children) {
-      final key = _transientKey(c);
-      if (key == null) {
-        prevTransientKey = null;
-        prevTool = null;
-        out.add(c);
-        continue;
-      }
-      if (!isRunning) {
-        // Finished: thinking placeholders carry nothing to show.
-        if (c['kind'] == 'text' && c['isThinking'] == true) continue;
-        // A real transcript already fills the feed; meta rows beside it are
-        // noise.
-        if (hasDurable) continue;
-        // Chips-only sidechain: these progress ticks are the steps — keep
-        // them (same-step runs collapsed) instead of an empty feed.
-      }
-      final tool = _taskRowTool(c);
-      // Tools must be compatible as well as labels: `Read · notes.md` then
-      // `Write · notes.md` are two real steps that share a stripped label,
-      // whereas a tool-less completion echo belongs to whatever ran last.
-      final sameTool = tool == null || prevTool == null || tool == prevTool;
-      if (key == prevTransientKey && sameTool) {
-        // Same step reported again: keep the newest row, which carries the
-        // final status (a `completed` notification replaces the chip that
-        // announced the identical label while the step was in flight).
-        out[out.length - 1] = c;
-        prevTool = tool ?? prevTool;
-        continue;
-      }
-      prevTransientKey = key;
-      prevTool = tool;
-      out.add(c);
-    }
-    return out;
-  }
-
-  /// Collapse key when [c] is a transient activity indicator — a sub-agent
-  /// progress chip, a task completion notification, or a thinking
-  /// placeholder; `null` for durable rows (real text, tool calls, errors,
-  /// nested tasks).
-  ///
-  /// Task rows key on their *displayed* label so the progress chip and the
-  /// completion notification that echoes it collapse into one row. The
-  /// leading `<tool> · ` the emitter prepends to in-flight chips is stripped
-  /// first, since the notification never carries it.
-  String? _transientKey(Map<String, dynamic> c) {
-    if (c['kind'] == 'text' && c['isThinking'] == true) {
-      return 'thinking';
-    }
-    // Completion notifications arrive as `kind: 'text'`, in-flight ticks as
-    // `kind: 'agent-event'`; both are task meta, neither is transcript.
-    if (c['taskEvent'] == true) {
-      return 'task:${_taskRowLabel(c)}';
-    }
-    return null;
-  }
-
-  /// The tool a task meta row reports, or `null` when it names none (task
-  /// completion notifications never do).
-  static String? _taskRowTool(Map<String, dynamic> c) {
-    final tool = c['subAgentLastTool'];
-    return (tool is String && tool.isNotEmpty) ? tool : null;
-  }
-
-  /// The label a task meta row renders, minus the `<tool> · ` prefix.
-  static String _taskRowLabel(Map<String, dynamic> c) {
-    final label = WorkflowRun.stepLabel(c);
-    final tool = _taskRowTool(c);
-    if (tool == null) return label;
-    const sep = ' · ';
-    if (label == tool) return '';
-    return label.startsWith('$tool$sep')
-        ? label.substring(tool.length + sep.length)
-        : label;
-  }
 
   /// Builds the scrollable feed below the debug card.
   ///

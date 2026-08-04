@@ -3,6 +3,7 @@ import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
+import 'package:happy_flutter/features/chat/agent_steps.dart';
 
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
 ///
@@ -199,8 +200,11 @@ class KnownTools {
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
-        final children = WireParsers.asList(tool['children']);
-        final count = children?.length ?? 0;
+        // Count the rows the detail screen will actually render, not the
+        // raw children: a background agent's sidechain is mostly progress
+        // chips that the feed collapses, and an inflated chip promised
+        // steps the detail then failed to show.
+        final count = agentStepCount(tool);
         return count > 0 ? '$count steps' : null;
       },
     ),
@@ -214,8 +218,11 @@ class KnownTools {
         return input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
-        final children = WireParsers.asList(tool['children']);
-        final count = children?.length ?? 0;
+        // Count the rows the detail screen will actually render, not the
+        // raw children: a background agent's sidechain is mostly progress
+        // chips that the feed collapses, and an inflated chip promised
+        // steps the detail then failed to show.
+        final count = agentStepCount(tool);
         return count > 0 ? '$count steps' : null;
       },
     ),
@@ -229,8 +236,11 @@ class KnownTools {
         return input?['name'] as String? ?? input?['workflowName'] as String?;
       },
       extractStatus: (tool, _) {
-        final children = WireParsers.asList(tool['children']);
-        final count = children?.length ?? 0;
+        // Count the rows the detail screen will actually render, not the
+        // raw children: a background agent's sidechain is mostly progress
+        // chips that the feed collapses, and an inflated chip promised
+        // steps the detail then failed to show.
+        final count = agentStepCount(tool);
         return count > 0 ? '$count steps' : null;
       },
     ),
