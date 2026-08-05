@@ -129,13 +129,13 @@ const _workflowPresets = [
   ),
   _WorkflowPreset(
     title: 'Voice',
-    subtitle: 'Speech on, inline context, classic session browsing',
+    subtitle: 'Speech on, inline context, mission-control browsing',
     icon: Icons.record_voice_over,
     values: {
       'ttsEnabled': true,
       'viewInline': true,
       'hideToolCalls': false,
-      'sessionsViewStyle': 'classic',
+      'sessionsViewStyle': 'mission_control',
     },
   ),
   _WorkflowPreset(

@@ -33,7 +33,7 @@ void main() {
       expect(settings, isA<Settings>());
       expect(settings.themeMode, 'system');
       expect(settings.compactSessionView, isFalse);
-      expect(settings.sessionsViewStyle, 'classic');
+      expect(settings.sessionsViewStyle, 'mission_control');
       expect(settings.expandTodos, isTrue);
       expect(settings.showLineNumbers, isTrue);
       expect(settings.agentInputEnterToSend, isFalse);

@@ -384,10 +384,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return switch (value) {
       'folder' => l10n.sessionsViewStyleFolderCentric,
       'unread_focus' => l10n.sessionsViewStyleUnreadFocus,
-      'beacon_grid' => l10n.sessionsViewStyleBeaconGrid,
-      'command_palette' => l10n.sessionsViewStyleCommandPalette,
-      'swipe' => l10n.sessionsViewStyleSwipe,
-      _ => l10n.sessionsViewStyleClassic,
+      _ => l10n.sessionsViewStyleMissionControl,
     };
   }
 
@@ -416,8 +413,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     RadioListTile<String>(
-                      value: 'classic',
-                      title: Text(l10n.sessionsViewStyleClassic),
+                      value: 'mission_control',
+                      title: Text(l10n.sessionsViewStyleMissionControl),
                     ),
                     RadioListTile<String>(
                       value: 'folder',
@@ -426,18 +423,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     RadioListTile<String>(
                       value: 'unread_focus',
                       title: Text(l10n.sessionsViewStyleUnreadFocus),
-                    ),
-                    RadioListTile<String>(
-                      value: 'beacon_grid',
-                      title: Text(l10n.sessionsViewStyleBeaconGrid),
-                    ),
-                    RadioListTile<String>(
-                      value: 'command_palette',
-                      title: Text(l10n.sessionsViewStyleCommandPalette),
-                    ),
-                    RadioListTile<String>(
-                      value: 'swipe',
-                      title: Text(l10n.sessionsViewStyleSwipe),
                     ),
                   ],
                 ),

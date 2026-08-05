@@ -4375,12 +4375,6 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1 {1 archived} other {{count} archived}}'**
   String sessionsFolderArchivedCount(int count);
 
-  /// No description provided for @sessionsViewStyleClassic.
-  ///
-  /// In en, this message translates to:
-  /// **'Classic list'**
-  String get sessionsViewStyleClassic;
-
   /// No description provided for @sessionsViewStyleFolderCentric.
   ///
   /// In en, this message translates to:
@@ -4393,23 +4387,59 @@ abstract class AppLocalizations {
   /// **'Unread Focus'**
   String get sessionsViewStyleUnreadFocus;
 
-  /// No description provided for @sessionsViewStyleBeaconGrid.
+  /// No description provided for @sessionsViewStyleMissionControl.
   ///
   /// In en, this message translates to:
-  /// **'Beacon Grid'**
-  String get sessionsViewStyleBeaconGrid;
+  /// **'Mission Control'**
+  String get sessionsViewStyleMissionControl;
 
-  /// No description provided for @sessionsViewStyleCommandPalette.
+  /// No description provided for @missionControlWaiting.
   ///
   /// In en, this message translates to:
-  /// **'Command Palette'**
-  String get sessionsViewStyleCommandPalette;
+  /// **'Waiting on you'**
+  String get missionControlWaiting;
 
-  /// No description provided for @sessionsViewStyleSwipe.
+  /// No description provided for @missionControlLive.
   ///
   /// In en, this message translates to:
-  /// **'Swipe Actions'**
-  String get sessionsViewStyleSwipe;
+  /// **'Live now'**
+  String get missionControlLive;
+
+  /// No description provided for @missionControlWorkspaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspaces'**
+  String get missionControlWorkspaces;
+
+  /// No description provided for @missionControlAllQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'All quiet — nothing needs you right now'**
+  String get missionControlAllQuiet;
+
+  /// No description provided for @missionControlStatBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'blocked'**
+  String get missionControlStatBlocked;
+
+  /// No description provided for @missionControlStatUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'unread'**
+  String get missionControlStatUnread;
+
+  /// No description provided for @missionControlStatWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'working'**
+  String get missionControlStatWorking;
+
+  /// No description provided for @missionControlStatIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'idle'**
+  String get missionControlStatIdle;
 
   /// No description provided for @autoArchiveTitle.
   ///

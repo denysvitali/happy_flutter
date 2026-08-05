@@ -19,6 +19,7 @@ import '../../../core/sync/sync_subscription_mixin.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
 import 'folder_view_cards.dart';
+import 'mission_control_view.dart';
 import 'session_animations.dart';
 import 'session_cards.dart';
 import 'session_dismissible.dart';
@@ -391,6 +392,18 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       );
     }
 
+    if (sessionsViewStyle == 'mission_control') {
+      return _buildMissionControlView(
+        context,
+        activeSessions,
+        inactiveSessions,
+        machines,
+        uiState,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      );
+    }
+
     if (sessionsViewStyle == 'unread_focus') {
       return _buildUnreadFocusView(
         context,
@@ -450,6 +463,36 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     if (entry.unreadCount > 0) return true;
     final status = getSessionStatus(session);
     return status.isPulsing;
+  }
+
+  Widget _buildMissionControlView(
+    BuildContext context,
+    List<Session> activeSessions,
+    List<Session> inactiveSessions,
+    Map<String, Machine> machines,
+    SessionUiState uiState, {
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+  }) {
+    return MissionControlView(
+      scrollController: widget.scrollController,
+      activeSessions: activeSessions,
+      inactiveSessions: inactiveSessions,
+      machines: machines,
+      uiState: uiState,
+      attentionCardBuilder: (session, entry) => _buildNeedsAttentionCard(
+        session,
+        entry: entry,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      ),
+      rowBuilder: (session, entry) => _buildUnreadFocusListRow(
+        session,
+        entry: entry,
+        showFlavorIcons: showFlavorIcons,
+        avatarStyle: avatarStyle,
+      ),
+    );
   }
 
   Widget _buildUnreadFocusView(

@@ -49,7 +49,7 @@ class Settings {
   String avatarStyle = 'brutalist';
   bool showFlavorIcons = false;
   bool compactSessionView = false;
-  String sessionsViewStyle = 'classic';
+  String sessionsViewStyle = 'mission_control';
   bool hideInactiveSessions = false;
   bool reviewPromptAnswered = false;
   bool? reviewPromptLikedApp;

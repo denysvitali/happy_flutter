@@ -2432,22 +2432,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get sessionsViewStyleClassic => 'Classic list';
-
-  @override
   String get sessionsViewStyleFolderCentric => 'Folder-centric';
 
   @override
   String get sessionsViewStyleUnreadFocus => 'Unread Focus';
 
   @override
-  String get sessionsViewStyleBeaconGrid => 'Beacon Grid';
+  String get sessionsViewStyleMissionControl => 'Mission Control';
 
   @override
-  String get sessionsViewStyleCommandPalette => 'Command Palette';
+  String get missionControlWaiting => 'Waiting on you';
 
   @override
-  String get sessionsViewStyleSwipe => 'Swipe Actions';
+  String get missionControlLive => 'Live now';
+
+  @override
+  String get missionControlWorkspaces => 'Workspaces';
+
+  @override
+  String get missionControlAllQuiet =>
+      'All quiet — nothing needs you right now';
+
+  @override
+  String get missionControlStatBlocked => 'blocked';
+
+  @override
+  String get missionControlStatUnread => 'unread';
+
+  @override
+  String get missionControlStatWorking => 'working';
+
+  @override
+  String get missionControlStatIdle => 'idle';
 
   @override
   String get autoArchiveTitle => 'Auto-Archive';
