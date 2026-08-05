@@ -2460,6 +2460,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get missionControlStatIdle => 'idle';
 
   @override
+  String missionControlMoreActions(int count) {
+    return '… +$count more';
+  }
+
+  @override
+  String missionControlQuietWorkspaces(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count quiet workspaces',
+      one: '1 quiet workspace',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get autoArchiveTitle => 'Auto-Archive';
 
   @override

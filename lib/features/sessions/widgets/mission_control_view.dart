@@ -15,16 +15,16 @@ import 'session_headers.dart';
 
 /// How a session is triaged in Mission Control.
 enum MissionLane {
-  /// A permission request is pending — the agent is blocked on the user.
+  /// Permission request pending — agent blocked on the user.
   blocked,
 
   /// Unread messages the user has not seen.
   unread,
 
-  /// The agent is working right now.
+  /// Agent working right now.
   live,
 
-  /// Nothing is happening.
+  /// Nothing happening.
   quiet,
 }
 
@@ -48,18 +48,54 @@ Color _laneColor(MissionLane lane, ColorScheme cs) {
   };
 }
 
-/// Rows an expanded workspace shows before folding the tail.
-const _expandedPreviewCount = 6;
+/// Max action rows shown before a "… +n" fold. Keeps the radar on one
+/// screen even when many sessions pile up.
+const missionControlActionPreview = 6;
 
-/// Sessions triage view: whatever needs you at the top, then every
-/// workspace as a single dense line.
+/// A workspace with no hot sessions and no activity inside this window
+/// is quiet — folded behind the quiet drawer by default.
+const missionControlQuietWindow = Duration(hours: 3);
+
+/// Last-activity timestamp for [session], preferring the message cache.
+int missionLastActivityAt(Session session, SessionUiEntry entry) {
+  return entry.lastMessageTimestamp ??
+      session.lastMessageAt ??
+      (session.activeAt > session.updatedAt
+          ? session.activeAt
+          : session.updatedAt);
+}
+
+/// Formats a running duration as `12s`, `4m 05s` or `1h 12m`.
+String formatElapsedShort(int millis) {
+  final seconds = (millis < 0 ? 0 : millis) ~/ 1000;
+  if (seconds < 60) return '${seconds}s';
+  final minutes = seconds ~/ 60;
+  if (minutes < 60) {
+    return '${minutes}m ${(seconds % 60).toString().padLeft(2, '0')}s';
+  }
+  return '${minutes ~/ 60}h ${minutes % 60}m';
+}
+
+/// Shortens a display path to its last two segments:
+/// `~/git/fw-analyzer/.firmware` → `fw-analyzer/.firmware`.
+String missionShortPath(String displayPath) {
+  final segments = displayPath
+      .split('/')
+      .where((segment) => segment.isNotEmpty && segment != '~')
+      .toList();
+  if (segments.isEmpty) return displayPath;
+  if (segments.length == 1) return segments.single;
+  return segments.sublist(segments.length - 2).join('/');
+}
+
+/// Action-first session radar.
 ///
-/// The design goal is one screen, not a scroll. A workspace renders as
-/// its shortened path, the machine it runs on and a count per lane —
-/// roughly 32px each, so 25 workspaces fit without paging. Only a
-/// workspace holding live or unread work opens itself; the rest expand
-/// on tap, and an expanded workspace shows its first few sessions with
-/// the tail folded behind a "… +n" row.
+/// Design rule: the list is what needs you, not the archive.
+/// - Blocked / unread / live sessions render as action rows at the top.
+/// - Workspaces are one-line status only. Tap opens the existing folder
+///   detail — never expands sessions inline (that was the scroll dump).
+/// - Quiet workspaces (no hot sessions, no activity in 3h) hide behind
+///   a single "N quiet" drawer.
 class MissionControlView extends StatefulWidget {
   const MissionControlView({
     required this.activeSessions,
@@ -68,6 +104,7 @@ class MissionControlView extends StatefulWidget {
     required this.uiState,
     required this.attentionCardBuilder,
     required this.rowBuilder,
+    required this.onOpenWorkspace,
     super.key,
     this.scrollController,
   });
@@ -77,12 +114,15 @@ class MissionControlView extends StatefulWidget {
   final Map<String, Machine> machines;
   final SessionUiState uiState;
 
-  /// Builds the prominent card used for sessions that need the user.
+  /// Prominent card for blocked / unread sessions.
   final Widget Function(Session session, SessionUiEntry entry)
   attentionCardBuilder;
 
-  /// Builds a compact row used inside workspace groups.
+  /// Compact row for live sessions.
   final Widget Function(Session session, SessionUiEntry entry) rowBuilder;
+
+  /// Opens the existing folder-detail drill-in for a workspace.
+  final void Function(SessionFolderHeader header) onOpenWorkspace;
 
   final ScrollController? scrollController;
 
@@ -91,18 +131,9 @@ class MissionControlView extends StatefulWidget {
 }
 
 class _MissionControlViewState extends State<MissionControlView> {
-  /// Workspaces the user opened or closed by hand. Everything else
-  /// follows the auto rule: open only when it holds live/unread work.
-  final Map<String, bool> _overrides = <String, bool>{};
+  bool _showAllActions = false;
+  bool _showQuiet = false;
 
-  /// Expanded workspaces the user unfolded past the row preview.
-  final Map<String, bool> _showAll = <String, bool>{};
-
-  final GlobalKey _liveKey = GlobalKey();
-  final GlobalKey _workspacesKey = GlobalKey();
-
-  /// One ticker for every live row, started only while something is
-  /// live. [now] is what the rows render against.
   Timer? _tick;
   int _now = DateTime.now().millisecondsSinceEpoch;
 
@@ -144,37 +175,6 @@ class _MissionControlViewState extends State<MissionControlView> {
     }
   }
 
-  /// Summary-lane taps jump the list to the section that lane renders.
-  void _jumpToLane(MissionLane lane) {
-    switch (lane) {
-      case MissionLane.blocked:
-      case MissionLane.unread:
-        final controller = widget.scrollController;
-        if (controller != null && controller.hasClients) {
-          controller.animateTo(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
-        }
-      case MissionLane.live:
-        _ensureVisible(_liveKey);
-      case MissionLane.quiet:
-        _ensureVisible(_workspacesKey);
-    }
-  }
-
-  void _ensureVisible(GlobalKey key) {
-    final context = key.currentContext;
-    if (context == null) return;
-    Scrollable.ensureVisible(
-      context,
-      alignment: 0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -185,7 +185,8 @@ class _MissionControlViewState extends State<MissionControlView> {
     final counts = <MissionLane, int>{
       for (final lane in MissionLane.values) lane: 0,
     };
-    final attention = <Session>[];
+    final blocked = <Session>[];
+    final unread = <Session>[];
     final live = <Session>[];
     for (final session in widget.activeSessions) {
       final lane = missionLaneFor(session, _entry(session.id));
@@ -193,22 +194,22 @@ class _MissionControlViewState extends State<MissionControlView> {
       counts[lane] = counts[lane]! + 1;
       switch (lane) {
         case MissionLane.blocked:
+          blocked.add(session);
         case MissionLane.unread:
-          attention.add(session);
+          unread.add(session);
         case MissionLane.live:
           live.add(session);
         case MissionLane.quiet:
           break;
       }
     }
-    // Blocked before unread: a stalled agent costs more than an unseen
-    // reply. Recency ordering inside each lane comes from the input.
-    attention.sort((a, b) => lanes[a.id]!.index.compareTo(lanes[b.id]!.index));
-    // Already rendered up top; a workspace shows them as dots only, so
-    // the same session never appears twice on screen.
-    final promoted = {
-      for (final session in [...attention, ...live]) session.id,
-    };
+    // Action stack: blocked first (stalled agent), then unread, then live.
+    final actions = [...blocked, ...unread, ...live];
+    final shownActions = !_showAllActions &&
+            actions.length > missionControlActionPreview
+        ? actions.sublist(0, missionControlActionPreview)
+        : actions;
+    final hiddenActions = actions.length - shownActions.length;
 
     final unreadLookup = <String, int>{
       for (final e in widget.uiState.bySessionId.entries)
@@ -226,24 +227,43 @@ class _MissionControlViewState extends State<MissionControlView> {
       getUnreadCount: (id) => unreadLookup[id] ?? 0,
     );
 
+    final active = <SessionFolderGroup>[];
+    final quiet = <SessionFolderGroup>[];
+    for (final group in workspaces) {
+      final all = [...group.activeSessions, ...group.inactiveSessions];
+      final hot = all.any(
+        (session) =>
+            (lanes[session.id] ?? MissionLane.quiet) != MissionLane.quiet,
+      );
+      final recent = all.any(
+        (session) =>
+            _now - missionLastActivityAt(session, _entry(session.id)) <=
+            missionControlQuietWindow.inMilliseconds,
+      );
+      if (hot || recent) {
+        active.add(group);
+      } else {
+        quiet.add(group);
+      }
+    }
+
     final items = <Widget>[
-      _SummaryLine(
+      _Radar(
         blocked: counts[MissionLane.blocked]!,
         unread: counts[MissionLane.unread]!,
         working: counts[MissionLane.live]!,
         idle: counts[MissionLane.quiet]!,
-        onLaneTap: _jumpToLane,
       ),
     ];
 
-    if (attention.isEmpty && live.isEmpty) {
+    if (actions.isEmpty) {
       items.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
             AppSpacing.xxs,
             AppSpacing.lg,
-            AppSpacing.xs,
+            AppSpacing.sm,
           ),
           child: Text(
             l10n.missionControlAllQuiet,
@@ -254,113 +274,69 @@ class _MissionControlViewState extends State<MissionControlView> {
           ),
         ),
       );
+    } else {
+      for (final session in shownActions) {
+        final entry = _entry(session.id);
+        final lane = lanes[session.id]!;
+        if (lane == MissionLane.live) {
+          items.add(
+            _LiveShell(
+              session: session,
+              entry: entry,
+              now: _now,
+              child: widget.rowBuilder(session, entry),
+            ),
+          );
+        } else {
+          items.add(widget.attentionCardBuilder(session, entry));
+        }
+      }
+      if (hiddenActions > 0 || _showAllActions) {
+        items.add(
+          _MoreRow(
+            label: _showAllActions
+                ? l10n.machineShowLess
+                : l10n.missionControlMoreActions(hiddenActions),
+            onTap: () => setState(() => _showAllActions = !_showAllActions),
+          ),
+        );
+      }
     }
 
-    for (final session in attention) {
-      items.add(widget.attentionCardBuilder(session, _entry(session.id)));
-    }
-
-    if (live.isNotEmpty) {
+    if (active.isNotEmpty || quiet.isNotEmpty) {
       items.add(
-        _MissionGroup(
-          key: _liveKey,
-          children: [
-            for (final session in live)
-              _LiveRow(
-                session: session,
-                entry: _entry(session.id),
-                now: _now,
-                child: widget.rowBuilder(session, _entry(session.id)),
-              ),
-          ],
-        ),
-      );
-    }
-
-    if (workspaces.isNotEmpty) {
-      items.add(
-        KeyedSubtree(
-          key: _workspacesKey,
-          child: SectionHeader(
-            title: l10n.missionControlWorkspaces,
-            trailing: Text(
-              '${workspaces.length}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                fontSize: AppFontSize.xs,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+        SectionHeader(
+          title: l10n.missionControlWorkspaces,
+          trailing: Text(
+            '${workspaces.length}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+              fontSize: AppFontSize.xs,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
         ),
       );
-      // One open workspace is a glance; five is a scroll. Only the most
-      // recently active hot workspace opens on its own — the rest keep
-      // their lane counts on the line and open on tap.
-      String? autoExpandedKey;
-      for (final group in workspaces) {
-        final anyHot = [...group.activeSessions, ...group.inactiveSessions]
-            .any((session) =>
-                (lanes[session.id] ?? MissionLane.quiet) != MissionLane.quiet);
-        if (anyHot) {
-          autoExpandedKey = group.header.folderKey;
-          break;
-        }
+      items.add(
+        _WorkspaceList(
+          groups: [
+            ...active,
+            if (_showQuiet) ...quiet,
+          ],
+          lanes: lanes,
+          onOpen: widget.onOpenWorkspace,
+        ),
+      );
+      if (quiet.isNotEmpty) {
+        items.add(
+          _MoreRow(
+            label: _showQuiet
+                ? l10n.machineShowLess
+                : l10n.missionControlQuietWorkspaces(quiet.length),
+            onTap: () => setState(() => _showQuiet = !_showQuiet),
+          ),
+        );
       }
-
-      final rows = <Widget>[];
-      for (final group in workspaces) {
-        final all = [...group.activeSessions, ...group.inactiveSessions];
-        final sessions = [
-          for (final session in all)
-            if (!promoted.contains(session.id)) session,
-        ];
-        final laneStrip = [
-          for (final session in all)
-            lanes[session.id] ?? MissionLane.quiet,
-        ];
-        final key = group.header.folderKey;
-        final expanded = _overrides[key] ?? (key == autoExpandedKey);
-        final showAll = _showAll[key] ?? false;
-        // A long-lived workspace would otherwise dump a hundred rows
-        // into the list the moment it opens: show a preview, fold the
-        // tail (the oldest sessions — input order is recency-sorted).
-        // Hot rows first so the preview never shows six idle lines
-        // while the session that made the workspace hot sits folded.
-        final ordered = [
-          ...sessions.where((session) =>
-              (lanes[session.id] ?? MissionLane.quiet) != MissionLane.quiet),
-          ...sessions.where((session) =>
-              (lanes[session.id] ?? MissionLane.quiet) == MissionLane.quiet),
-        ];
-        final shown = !showAll && ordered.length > _expandedPreviewCount
-            ? ordered.sublist(0, _expandedPreviewCount)
-            : ordered;
-        final hidden = sessions.length - shown.length;
-        rows
-          ..add(
-            _WorkspaceLine(
-              header: group.header,
-              lanes: laneStrip,
-              expanded: expanded,
-              onTap: () => setState(() => _overrides[key] = !expanded),
-            ),
-          )
-          ..addAll([
-            if (expanded)
-              for (final session in shown)
-                widget.rowBuilder(session, _entry(session.id)),
-          ])
-          ..addAll([
-            if (expanded && (hidden > 0 || showAll))
-              _FoldRow(
-                hidden: hidden,
-                showingAll: showAll,
-                onTap: () => setState(() => _showAll[key] = !showAll),
-              ),
-          ]);
-      }
-      items.add(_MissionGroup(children: rows));
     }
 
     return ListView.builder(
@@ -374,47 +350,19 @@ class _MissionControlViewState extends State<MissionControlView> {
   }
 }
 
-/// Rounded container that gives a run of dense rows one surface.
-class _MissionGroup extends StatelessWidget {
-  const _MissionGroup({required this.children, super.key});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    if (children.isEmpty) return const SizedBox.shrink();
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xxs,
-      ),
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Column(mainAxisSize: MainAxisSize.min, children: children),
-    );
-  }
-}
-
-/// One-line fleet summary — only the lanes that hold anything, no
-/// cards. Tapping a lane jumps to the section that renders it.
-class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({
+/// Fleet counts — only non-zero lanes.
+class _Radar extends StatelessWidget {
+  const _Radar({
     required this.blocked,
     required this.unread,
     required this.working,
     required this.idle,
-    this.onLaneTap,
   });
 
   final int blocked;
   final int unread;
   final int working;
   final int idle;
-  final ValueChanged<MissionLane>? onLaneTap;
 
   @override
   Widget build(BuildContext context) {
@@ -428,41 +376,39 @@ class _SummaryLine extends StatelessWidget {
         AppSpacing.lg,
         AppSpacing.sm,
         AppSpacing.lg,
-        AppSpacing.xxs,
+        AppSpacing.xs,
       ),
-      child: Row(
+      child: Wrap(
+        spacing: AppSpacing.md,
+        runSpacing: AppSpacing.xxs,
         children: [
           if (blocked > 0)
-            _SummaryStat(
+            _RadarChip(
               label: l10n.missionControlStatBlocked,
               count: blocked,
               color: cs.error,
               pulse: true,
-              onTap: () => onLaneTap?.call(MissionLane.blocked),
             ),
           if (unread > 0)
-            _SummaryStat(
+            _RadarChip(
               label: l10n.missionControlStatUnread,
               count: unread,
               color: cs.primary,
               pulse: false,
-              onTap: () => onLaneTap?.call(MissionLane.unread),
             ),
           if (working > 0)
-            _SummaryStat(
+            _RadarChip(
               label: l10n.missionControlStatWorking,
               count: working,
               color: cs.tertiary,
               pulse: true,
-              onTap: () => onLaneTap?.call(MissionLane.live),
             ),
           if (idle > 0)
-            _SummaryStat(
+            _RadarChip(
               label: l10n.missionControlStatIdle,
               count: idle,
               color: cs.onSurfaceVariant,
               pulse: false,
-              onTap: () => onLaneTap?.call(MissionLane.quiet),
             ),
         ],
       ),
@@ -470,62 +416,49 @@ class _SummaryLine extends StatelessWidget {
   }
 }
 
-class _SummaryStat extends StatelessWidget {
-  const _SummaryStat({
+class _RadarChip extends StatelessWidget {
+  const _RadarChip({
     required this.label,
     required this.count,
     required this.color,
     required this.pulse,
-    this.onTap,
   });
 
   final String label;
   final int count;
   final Color color;
   final bool pulse;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.xxs,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _LaneDot(color: color, pulse: pulse),
+        const SizedBox(width: AppSpacing.xxs),
+        Text(
+          '$count',
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            fontSize: AppFontSize.xs,
+            color: color,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _LaneDot(color: color, pulse: pulse),
-            const SizedBox(width: AppSpacing.xxs),
-            Text(
-              '$count',
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: AppFontSize.xs,
-                color: color,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xxs),
-            Text(
-              label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: AppFontSize.xxs,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+        const SizedBox(width: AppSpacing.xxs),
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: AppFontSize.xxs,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
-/// Status dot, optionally breathing.
 class _LaneDot extends StatelessWidget {
   const _LaneDot({required this.color, this.pulse = false, this.size = 6});
 
@@ -575,11 +508,9 @@ class _BreathingState extends State<_Breathing>
   }
 }
 
-/// A running session: its row plus a footer with how long it has been
-/// working and what it is working on. The parent view owns the 1s
-/// ticker and passes [now].
-class _LiveRow extends StatelessWidget {
-  const _LiveRow({
+/// Live session: row + elapsed footer. Parent owns the 1s ticker.
+class _LiveShell extends StatelessWidget {
+  const _LiveShell({
     required this.session,
     required this.entry,
     required this.now,
@@ -643,17 +574,12 @@ class _LiveRow extends StatelessWidget {
   }
 }
 
-/// Tail of an expanded workspace: "… +n" while folded, "Show less"
-/// once unfolded.
-class _FoldRow extends StatelessWidget {
-  const _FoldRow({
-    required this.hidden,
-    required this.showingAll,
-    required this.onTap,
-  });
+/// "… +n" / "Show less" toggle used for action overflow and quiet
+/// workspaces.
+class _MoreRow extends StatelessWidget {
+  const _MoreRow({required this.label, required this.onTap});
 
-  final int hidden;
-  final bool showingAll;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -664,19 +590,16 @@ class _FoldRow extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
         ),
-        child: Center(
-          child: Text(
-            showingAll
-                ? context.l10n.machineShowLess
-                : '… +$hidden',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: AppFontSize.xxs,
-              color: cs.onSurfaceVariant,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: AppFontSize.xs,
+            fontWeight: FontWeight.w600,
+            color: cs.onSurfaceVariant,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ),
@@ -684,44 +607,71 @@ class _FoldRow extends StatelessWidget {
   }
 }
 
-/// Formats a running duration as `12s`, `4m 05s` or `1h 12m`.
-String formatElapsedShort(int millis) {
-  final seconds = (millis < 0 ? 0 : millis) ~/ 1000;
-  if (seconds < 60) return '${seconds}s';
-  final minutes = seconds ~/ 60;
-  if (minutes < 60) {
-    return '${minutes}m ${(seconds % 60).toString().padLeft(2, '0')}s';
+/// One surface holding every visible workspace line.
+class _WorkspaceList extends StatelessWidget {
+  const _WorkspaceList({
+    required this.groups,
+    required this.lanes,
+    required this.onOpen,
+  });
+
+  final List<SessionFolderGroup> groups;
+  final Map<String, MissionLane> lanes;
+  final void Function(SessionFolderHeader header) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (groups.isEmpty) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xxs,
+      ),
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < groups.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.35),
+              ),
+            _WorkspaceLine(
+              header: groups[i].header,
+              sessions: [
+                ...groups[i].activeSessions,
+                ...groups[i].inactiveSessions,
+              ],
+              lanes: lanes,
+              onTap: () => onOpen(groups[i].header),
+            ),
+          ],
+        ],
+      ),
+    );
   }
-  return '${minutes ~/ 60}h ${minutes % 60}m';
 }
 
-/// Shortens a display path to its last two segments, keeping the part
-/// that identifies the project: `~/git/fw-analyzer/.firmware` renders
-/// as `fw-analyzer/.firmware`.
-String missionShortPath(String displayPath) {
-  final segments = displayPath
-      .split('/')
-      .where((segment) => segment.isNotEmpty && segment != '~')
-      .toList();
-  if (segments.isEmpty) return displayPath;
-  if (segments.length == 1) return segments.single;
-  return segments.sublist(segments.length - 2).join('/');
-}
-
-/// One workspace, one line: shortened path, the machine it lives on,
-/// and a count per non-quiet lane. Idle sessions are a plain total —
-/// drawing a dot each turned every row into grey confetti.
+/// One workspace, one line. Tap drills into folder detail — never
+/// expands sessions here.
 class _WorkspaceLine extends StatelessWidget {
   const _WorkspaceLine({
     required this.header,
+    required this.sessions,
     required this.lanes,
-    required this.expanded,
     required this.onTap,
   });
 
   final SessionFolderHeader header;
-  final List<MissionLane> lanes;
-  final bool expanded;
+  final List<Session> sessions;
+  final Map<String, MissionLane> lanes;
   final VoidCallback onTap;
 
   @override
@@ -731,7 +681,8 @@ class _WorkspaceLine extends StatelessWidget {
     final counts = <MissionLane, int>{
       for (final lane in MissionLane.values) lane: 0,
     };
-    for (final lane in lanes) {
+    for (final session in sessions) {
+      final lane = lanes[session.id] ?? MissionLane.quiet;
       counts[lane] = counts[lane]! + 1;
     }
 
@@ -739,20 +690,21 @@ class _WorkspaceLine extends StatelessWidget {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xs,
-          AppSpacing.xs,
           AppSpacing.md,
-          AppSpacing.xs,
+          AppSpacing.sm,
+          AppSpacing.md,
+          AppSpacing.sm,
         ),
         child: Row(
           children: [
             Icon(
-              expanded ? Icons.expand_more : Icons.chevron_right,
+              Icons.folder_outlined,
               size: AppIconSize.sm,
               color: cs.onSurfaceVariant,
             ),
-            const SizedBox(width: AppSpacing.xxs),
+            const SizedBox(width: AppSpacing.sm),
             Flexible(
+              flex: 3,
               child: Text(
                 missionShortPath(header.displayPath),
                 maxLines: 1,
@@ -765,6 +717,7 @@ class _WorkspaceLine extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.xs),
             Flexible(
+              flex: 2,
               child: Text(
                 header.machineName,
                 maxLines: 1,
@@ -794,13 +747,18 @@ class _WorkspaceLine extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: AppSpacing.sm),
               child: Text(
-                '${lanes.length}',
+                '${sessions.length}',
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontSize: AppFontSize.xxs,
                   color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: AppIconSize.sm,
+              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ],
         ),
@@ -809,7 +767,6 @@ class _WorkspaceLine extends StatelessWidget {
   }
 }
 
-/// Coloured dot plus count, e.g. a red `2` for two blocked sessions.
 class _LaneCount extends StatelessWidget {
   const _LaneCount({
     required this.count,
@@ -843,8 +800,9 @@ class _LaneCount extends StatelessWidget {
   }
 }
 
-/// A session inside an expanded workspace: one line, no avatar, no
-/// preview — status dot, name, unread badge, relative time.
+/// Dense one-line session row for live sessions (and any caller that
+/// wants the compact form). Public so the parent can wire selection +
+/// dismissible around it.
 class MissionSessionRow extends StatelessWidget {
   const MissionSessionRow({
     required this.session,
@@ -874,10 +832,10 @@ class MissionSessionRow extends StatelessWidget {
         onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xs,
             AppSpacing.md,
-            AppSpacing.xs,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.sm,
           ),
           child: Row(
             children: [
@@ -886,7 +844,7 @@ class MissionSessionRow extends StatelessWidget {
                     ? Color(status.statusDotColor)
                     : _laneColor(lane, cs),
                 pulse: status.isPulsing,
-                size: 5,
+                size: 6,
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -894,7 +852,9 @@ class MissionSessionRow extends StatelessWidget {
                   getSessionName(session),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               if (entry.unreadCount > 0) ...[

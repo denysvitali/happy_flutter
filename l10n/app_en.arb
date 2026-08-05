@@ -994,6 +994,24 @@
   "missionControlStatUnread": "unread",
   "missionControlStatWorking": "working",
   "missionControlStatIdle": "idle",
+  "missionControlMoreActions": "\u2026 +{count} more",
+  "@missionControlMoreActions": {
+    "description": "Expander for overflow action rows in Mission Control",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missionControlQuietWorkspaces": "{count, plural, =1 {1 quiet workspace} other {{count} quiet workspaces}}",
+  "@missionControlQuietWorkspaces": {
+    "description": "Drawer for workspaces with no recent activity",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "autoArchiveTitle": "Auto-Archive",
   "autoArchiveSection": "Auto-Archive",
   "autoArchiveAfterDays": "Archive after days",

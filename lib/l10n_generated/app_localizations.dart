@@ -4429,6 +4429,18 @@ abstract class AppLocalizations {
   /// **'idle'**
   String get missionControlStatIdle;
 
+  /// Expander for overflow action rows in Mission Control
+  ///
+  /// In en, this message translates to:
+  /// **'… +{count} more'**
+  String missionControlMoreActions(int count);
+
+  /// Drawer for workspaces with no recent activity
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 quiet workspace} other {{count} quiet workspaces}}'**
+  String missionControlQuietWorkspaces(int count);
+
   /// No description provided for @autoArchiveTitle.
   ///
   /// In en, this message translates to:

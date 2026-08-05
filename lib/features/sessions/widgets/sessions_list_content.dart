@@ -487,6 +487,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         avatarStyle: avatarStyle,
       ),
       rowBuilder: (session, entry) => _buildMissionSessionRow(session, entry),
+      onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
   }
 

@@ -3,11 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
+import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 
-/// Mission Control triages sessions into lanes: a pending permission
-/// outranks unread, unread outranks "working", and everything else is
-/// quiet. Getting that order wrong buries a stalled agent.
+/// Mission Control is an action radar, not a session archive.
+///
+/// Blocked outranks unread outranks live. Workspaces never expand
+/// sessions inline — they drill into the folder detail. Quiet
+/// workspaces (no hot sessions, no activity in 3h) hide behind a
+/// drawer. Action overflow folds past six rows.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -62,6 +66,17 @@ void main() {
     });
   });
 
+  group('missionShortPath', () {
+    test('keeps the last two segments', () {
+      expect(
+        missionShortPath('~/git/fw-analyzer/.firmware'),
+        'fw-analyzer/.firmware',
+      );
+      expect(missionShortPath('~/kernel'), 'kernel');
+      expect(missionShortPath('~'), '~');
+    });
+  });
+
   testWidgets('blocked sessions render above live ones', (tester) async {
     final blocked = _session(
       id: 'blocked',
@@ -80,26 +95,32 @@ void main() {
     expect(cardY, lessThan(liveY));
   });
 
-  testWidgets('a quiet workspace stays collapsed until tapped', (
-    tester,
-  ) async {
+  testWidgets('a workspace never expands sessions inline', (tester) async {
+    final opened = <String>[];
     final session = _session(id: 'ws', path: '/home/dev/project');
 
-    await tester.pumpWidget(_app(activeSessions: [session]));
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [session],
+        onOpenWorkspace: (header) => opened.add(header.folderKey),
+      ),
+    );
     await tester.pump();
 
-    // One line for the workspace, no session rows.
-    expect(find.text('Workspaces'), findsOneWidget);
     expect(find.textContaining('project'), findsOneWidget);
     expect(find.text('row-ws'), findsNothing);
 
     await tester.tap(find.textContaining('project'));
     await tester.pump();
 
-    expect(find.text('row-ws'), findsOneWidget);
+    // Still no inline rows — drill-in only.
+    expect(find.text('row-ws'), findsNothing);
+    expect(opened, isNotEmpty);
   });
 
-  testWidgets('a workspace with unread work opens itself', (tester) async {
+  testWidgets('hot sessions appear as action rows, not workspace rows', (
+    tester,
+  ) async {
     final session = _session(id: 'hot', path: '/home/dev/project');
 
     await tester.pumpWidget(
@@ -112,74 +133,61 @@ void main() {
     );
     await tester.pump();
 
-    // Promoted to the attention lane, so the workspace lists it as a
-    // dot only — never twice.
     expect(find.text('card-hot'), findsOneWidget);
     expect(find.text('row-hot'), findsNothing);
   });
 
-  testWidgets('a workspace line counts lanes instead of drawing a dot '
-      'per session', (tester) async {
-    final unread = _session(id: 'u', path: '/home/dev/project');
-    final quiet1 = _session(id: 'q1', path: '/home/dev/project');
-    final quiet2 = _session(id: 'q2', path: '/home/dev/project');
-
-    await tester.pumpWidget(
-      _app(
-        activeSessions: [unread, quiet1, quiet2],
-        uiState: const SessionUiState(
-          bySessionId: {'u': SessionUiEntry(unreadCount: 1)},
-        ),
-      ),
-    );
-    await tester.pump();
-
-    // Last two path segments only, plus the total session count.
-    expect(find.text('dev/project'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
-  });
-
-  test('missionShortPath keeps the last two segments', () {
-    expect(missionShortPath('~/git/fw-analyzer/.firmware'),
-        'fw-analyzer/.firmware');
-    expect(missionShortPath('~/kernel'), 'kernel');
-    expect(missionShortPath('~'), '~');
-  });
-
-  testWidgets('the summary line hides empty lanes', (tester) async {
-    final session = _session(id: 'q', path: '/home/dev/project');
-
-    await tester.pumpWidget(_app(activeSessions: [session]));
-    await tester.pump();
-
-    expect(find.text('idle'), findsOneWidget);
-    expect(find.text('blocked'), findsNothing);
-    expect(find.text('unread'), findsNothing);
-    expect(find.text('working'), findsNothing);
-  });
-
-  testWidgets('an expanded workspace folds its tail behind … +n', (
-    tester,
-  ) async {
+  testWidgets('action overflow folds past six rows', (tester) async {
     final sessions = [
       for (var i = 0; i < 8; i++)
-        _session(id: 's$i', path: '/home/dev/project'),
+        _session(
+          id: 's$i',
+          thinking: true,
+          path: '/home/dev/p$i',
+        ),
     ];
 
     await tester.pumpWidget(_app(activeSessions: sessions));
     await tester.pump();
 
-    await tester.tap(find.textContaining('dev/project'));
-    await tester.pump();
-
     expect(find.textContaining('row-s'), findsNWidgets(6));
-    expect(find.text('… +2'), findsOneWidget);
+    expect(find.text('… +2 more'), findsOneWidget);
 
-    await tester.tap(find.text('… +2'));
+    await tester.tap(find.text('… +2 more'));
     await tester.pump();
 
     expect(find.textContaining('row-s'), findsNWidgets(8));
     expect(find.text('Show less'), findsOneWidget);
+  });
+
+  testWidgets('quiet workspaces hide behind a drawer', (tester) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final day = const Duration(days: 1).inMilliseconds;
+    final week = const Duration(days: 7).inMilliseconds;
+    final recent = _session(id: 'recent', path: '/home/dev/recent');
+    final old = _session(id: 'old', path: '/home/dev/old');
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [recent, old],
+        uiState: SessionUiState(
+          bySessionId: {
+            'recent': SessionUiEntry(lastMessageTimestamp: now - day),
+            'old': SessionUiEntry(lastMessageTimestamp: now - week),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('recent'), findsOneWidget);
+    expect(find.textContaining('old'), findsNothing);
+    expect(find.textContaining('quiet workspace'), findsOneWidget);
+
+    await tester.tap(find.textContaining('quiet workspace'));
+    await tester.pump();
+
+    expect(find.textContaining('old'), findsOneWidget);
   });
 
   testWidgets('a live row shows what the session is working on', (
@@ -202,47 +210,23 @@ void main() {
     expect(find.textContaining('rg -n pattern'), findsOneWidget);
   });
 
-  testWidgets('only the most recent hot workspace auto-expands', (
-    tester,
-  ) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final day = const Duration(days: 1).inMilliseconds;
-    final hotA = _session(id: 'a', path: '/home/dev/aaa');
-    final quietA = _session(id: 'qa', path: '/home/dev/aaa');
-    final hotB = _session(id: 'b', path: '/home/dev/bbb');
-    final quietB = _session(id: 'qb', path: '/home/dev/bbb');
+  testWidgets('radar hides empty lanes', (tester) async {
+    final session = _session(id: 'q', path: '/home/dev/project');
 
-    await tester.pumpWidget(
-      _app(
-        activeSessions: [hotA, quietA, hotB, quietB],
-        uiState: SessionUiState(
-          bySessionId: {
-            'a': SessionUiEntry(
-              unreadCount: 1,
-              lastMessageTimestamp: now - 1000,
-            ),
-            'qa': SessionUiEntry(lastMessageTimestamp: now - day),
-            'b': SessionUiEntry(
-              unreadCount: 1,
-              lastMessageTimestamp: now - 60000,
-            ),
-            'qb': SessionUiEntry(lastMessageTimestamp: now - day),
-          },
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(activeSessions: [session]));
     await tester.pump();
 
-    // The hottest workspace previews its quiet sessions; the other
-    // stays a single line.
-    expect(find.text('row-qa'), findsOneWidget);
-    expect(find.text('row-qb'), findsNothing);
+    expect(find.text('idle'), findsOneWidget);
+    expect(find.text('blocked'), findsNothing);
+    expect(find.text('unread'), findsNothing);
+    expect(find.text('working'), findsNothing);
   });
 }
 
 Widget _app({
   required List<Session> activeSessions,
   SessionUiState uiState = SessionUiState.empty,
+  void Function(SessionFolderHeader header)? onOpenWorkspace,
 }) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -255,6 +239,7 @@ Widget _app({
         uiState: uiState,
         attentionCardBuilder: (session, entry) => Text('card-${session.id}'),
         rowBuilder: (session, entry) => Text('row-${session.id}'),
+        onOpenWorkspace: onOpenWorkspace ?? (_) {},
       ),
     ),
   );
