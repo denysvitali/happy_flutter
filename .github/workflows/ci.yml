@@ -313,15 +313,6 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      # Disk free is only needed when the NDK has to be re-downloaded; skip on
-      # the warm path where the image already has the NDK or the cache hits.
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL \
-            /usr/local/share/boost /opt/microsoft/powershell \
-            /usr/local/share/chromedriver-linux64 /usr/local/share/edge_driver \
-            /usr/local/share/gecko_driver /usr/share/swift || true
-
       - name: Setup mise
         uses: jdx/mise-action@v3
         with:
@@ -363,8 +354,8 @@ jobs:
 
   build-release:
     name: Build Release APK
-    # 4-core runners roughly halve Dart AOT + R8 wall time vs ubuntu-latest.
-    # Falls back to ubuntu-latest if the larger runner label is unavailable.
+    # Free public-repo larger runner when available: more cores cut Dart AOT
+    # + R8 wall time. Falls back to ubuntu-latest if the label is rejected.
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -395,13 +386,8 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
-      # Cheap free-space sweep. Skips apt/df so it stays under ~2s.
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL \
-            /usr/local/share/boost /opt/microsoft/powershell \
-            /usr/local/share/chromedriver-linux64 /usr/local/share/edge_driver \
-            /usr/local/share/gecko_driver /usr/share/swift || true
+      # No free-disk step: GHA image already has NDK 28.2; wiping unused
+      # toolchains cost ~12s for no gain on warm runs.
 
       - name: Setup mise
         uses: jdx/mise-action@v3

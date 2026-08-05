@@ -1,14 +1,10 @@
 name: Setup Android build
 description: >
-  Fast shared setup for Flutter Android APK jobs. Fixes the NDK cache path
-  (workflow-level env.ANDROID_HOME is empty at parse time), restores Gradle
-  via gradle/actions/setup-gradle, and warms pub + Flutter tool caches.
+  Fast shared setup for Flutter Android APK jobs. Resolves ANDROID_HOME
+  (workflow-level env is empty at parse time), ensures NDK + CMake, restores
+  Gradle User Home via gradle/actions/setup-gradle, and warms pub cache.
 
 inputs:
-  java-version:
-    description: Unused (Java comes from mise). Kept for future overrides.
-    required: false
-    default: '21'
   cache-write:
     description: Whether this job may write the Gradle cache back.
     required: false
@@ -24,20 +20,31 @@ runs:
         set -euo pipefail
         SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
         NDK_VERSION="28.2.13676358"
+        CMAKE_VERSION="3.22.1"
         NDK_PATH="$SDK/ndk/$NDK_VERSION"
-        echo "sdk=$SDK" >> "$GITHUB_OUTPUT"
-        echo "ndk_path=$NDK_PATH" >> "$GITHUB_OUTPUT"
-        echo "ndk_version=$NDK_VERSION" >> "$GITHUB_OUTPUT"
-        # Export for subsequent steps / Gradle.
-        echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
-        echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
-        echo "ANDROID_NDK_HOME=$NDK_PATH" >> "$GITHUB_ENV"
+        CMAKE_PATH="$SDK/cmake/$CMAKE_VERSION"
+        {
+          echo "sdk=$SDK"
+          echo "ndk_path=$NDK_PATH"
+          echo "ndk_version=$NDK_VERSION"
+          echo "cmake_path=$CMAKE_PATH"
+          echo "cmake_version=$CMAKE_VERSION"
+        } >> "$GITHUB_OUTPUT"
+        {
+          echo "ANDROID_HOME=$SDK"
+          echo "ANDROID_SDK_ROOT=$SDK"
+          echo "ANDROID_NDK_HOME=$NDK_PATH"
+        } >> "$GITHUB_ENV"
         echo "Resolved ANDROID_HOME=$SDK"
-        echo "Resolved NDK path=$NDK_PATH"
         if [ -d "$NDK_PATH" ]; then
           echo "ndk_present=true" >> "$GITHUB_OUTPUT"
         else
           echo "ndk_present=false" >> "$GITHUB_OUTPUT"
+        fi
+        if [ -d "$CMAKE_PATH" ]; then
+          echo "cmake_present=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "cmake_present=false" >> "$GITHUB_OUTPUT"
         fi
 
     - name: Cache Android NDK
@@ -48,17 +55,26 @@ runs:
         path: ${{ steps.android.outputs.ndk_path }}
         key: ${{ runner.os }}-android-ndk-${{ steps.android.outputs.ndk_version }}
 
-    - name: Install Android NDK
+    - name: Cache Android CMake
+      id: cmake-cache
+      if: steps.android.outputs.cmake_present != 'true'
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.android.outputs.cmake_path }}
+        key: ${{ runner.os }}-android-cmake-${{ steps.android.outputs.cmake_version }}
+
+    - name: Install Android NDK / CMake
       if: >-
-        steps.android.outputs.ndk_present != 'true' &&
-        steps.ndk-cache.outputs.cache-hit != 'true'
+        (steps.android.outputs.ndk_present != 'true' &&
+         steps.ndk-cache.outputs.cache-hit != 'true') ||
+        (steps.android.outputs.cmake_present != 'true' &&
+         steps.cmake-cache.outputs.cache-hit != 'true')
       shell: bash
       run: |
         set -euo pipefail
         SDK="${{ steps.android.outputs.sdk }}"
         SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
         if [ ! -x "$SDKMANAGER" ]; then
-          # Some images nest cmdline-tools under versioned dirs.
           SDKMANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n1 || true)"
         fi
         if [ -z "${SDKMANAGER:-}" ] || [ ! -x "$SDKMANAGER" ]; then
@@ -66,15 +82,27 @@ runs:
           exit 1
         fi
         yes | "$SDKMANAGER" --licenses >/dev/null || true
-        "$SDKMANAGER" "ndk;${{ steps.android.outputs.ndk_version }}"
+        pkgs=()
+        if [ ! -d "${{ steps.android.outputs.ndk_path }}" ]; then
+          pkgs+=("ndk;${{ steps.android.outputs.ndk_version }}")
+        fi
+        if [ ! -d "${{ steps.android.outputs.cmake_path }}" ]; then
+          pkgs+=("cmake;${{ steps.android.outputs.cmake_version }}")
+        fi
+        if [ ${#pkgs[@]} -gt 0 ]; then
+          "$SDKMANAGER" "${pkgs[@]}"
+        fi
 
     - name: Setup Gradle (dependency + build cache)
       uses: gradle/actions/setup-gradle@v4
       with:
         # Write only from release so concurrent debug/release don't race the key.
         cache-read-only: ${{ inputs.cache-write != 'true' }}
-        # Drop unused transforms so the ~2GB cache stays lean and restores fast.
-        gradle-home-cache-cleanup: true
+        # Cleanup re-runs Gradle at job end (~50s) and rewrites the cache every
+        # time. Skip it — dependency cache already stays lean enough, and the
+        # 2+GB save is dominated by jar downloads we want to keep.
+        cache-cleanup: never
+        add-job-summary: on-failure
 
     - name: Cache pub dependencies
       uses: actions/cache@v5
