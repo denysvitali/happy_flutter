@@ -294,6 +294,20 @@ class _MissionControlViewState extends State<MissionControlView> {
           ),
         ),
       );
+      // One open workspace is a glance; five is a scroll. Only the most
+      // recently active hot workspace opens on its own — the rest keep
+      // their lane counts on the line and open on tap.
+      String? autoExpandedKey;
+      for (final group in workspaces) {
+        final anyHot = [...group.activeSessions, ...group.inactiveSessions]
+            .any((session) =>
+                (lanes[session.id] ?? MissionLane.quiet) != MissionLane.quiet);
+        if (anyHot) {
+          autoExpandedKey = group.header.folderKey;
+          break;
+        }
+      }
+
       final rows = <Widget>[];
       for (final group in workspaces) {
         final all = [...group.activeSessions, ...group.inactiveSessions];
@@ -305,16 +319,23 @@ class _MissionControlViewState extends State<MissionControlView> {
           for (final session in all)
             lanes[session.id] ?? MissionLane.quiet,
         ];
-        final hot = laneStrip.any((lane) => lane != MissionLane.quiet);
         final key = group.header.folderKey;
-        final expanded = _overrides[key] ?? hot;
+        final expanded = _overrides[key] ?? (key == autoExpandedKey);
         final showAll = _showAll[key] ?? false;
         // A long-lived workspace would otherwise dump a hundred rows
         // into the list the moment it opens: show a preview, fold the
         // tail (the oldest sessions — input order is recency-sorted).
-        final shown = !showAll && sessions.length > _expandedPreviewCount
-            ? sessions.sublist(0, _expandedPreviewCount)
-            : sessions;
+        // Hot rows first so the preview never shows six idle lines
+        // while the session that made the workspace hot sits folded.
+        final ordered = [
+          ...sessions.where((session) =>
+              (lanes[session.id] ?? MissionLane.quiet) != MissionLane.quiet),
+          ...sessions.where((session) =>
+              (lanes[session.id] ?? MissionLane.quiet) == MissionLane.quiet),
+        ];
+        final shown = !showAll && ordered.length > _expandedPreviewCount
+            ? ordered.sublist(0, _expandedPreviewCount)
+            : ordered;
         final hidden = sessions.length - shown.length;
         rows
           ..add(

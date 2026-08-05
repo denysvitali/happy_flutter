@@ -201,6 +201,43 @@ void main() {
 
     expect(find.textContaining('rg -n pattern'), findsOneWidget);
   });
+
+  testWidgets('only the most recent hot workspace auto-expands', (
+    tester,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final day = const Duration(days: 1).inMilliseconds;
+    final hotA = _session(id: 'a', path: '/home/dev/aaa');
+    final quietA = _session(id: 'qa', path: '/home/dev/aaa');
+    final hotB = _session(id: 'b', path: '/home/dev/bbb');
+    final quietB = _session(id: 'qb', path: '/home/dev/bbb');
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [hotA, quietA, hotB, quietB],
+        uiState: SessionUiState(
+          bySessionId: {
+            'a': SessionUiEntry(
+              unreadCount: 1,
+              lastMessageTimestamp: now - 1000,
+            ),
+            'qa': SessionUiEntry(lastMessageTimestamp: now - day),
+            'b': SessionUiEntry(
+              unreadCount: 1,
+              lastMessageTimestamp: now - 60000,
+            ),
+            'qb': SessionUiEntry(lastMessageTimestamp: now - day),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // The hottest workspace previews its quiet sessions; the other
+    // stays a single line.
+    expect(find.text('row-qa'), findsOneWidget);
+    expect(find.text('row-qb'), findsNothing);
+  });
 }
 
 Widget _app({
