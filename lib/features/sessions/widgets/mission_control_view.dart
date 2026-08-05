@@ -104,10 +104,9 @@ String missionShortHost(String machineName) {
     name = name.substring(at + 1);
   }
   // k8s pods: `workspace-denys-local-6589959b66-pzg66` → `workspace-denys`.
-  // Any name with 3+ dash segments and length > 16 is treated the same —
-  // the tail is almost always a hash, never the part the user reads.
-  final parts = name.split('-').where((p) => p.isNotEmpty).toList();
-  if (parts.length >= 3 && name.length > 16) {
+  // Any long multi-segment name: keep the first two tokens, drop the rest.
+  final parts = name.split('-').where((part) => part.isNotEmpty).toList();
+  if (parts.length >= 3 && name.length > 14) {
     return parts.take(2).join('-');
   }
   return name;
@@ -127,8 +126,7 @@ class MissionControlView extends StatefulWidget {
     required this.inactiveSessions,
     required this.machines,
     required this.uiState,
-    required this.attentionCardBuilder,
-    required this.liveCardBuilder,
+    required this.actionCardBuilder,
     required this.onOpenWorkspace,
     super.key,
     this.scrollController,
@@ -139,13 +137,13 @@ class MissionControlView extends StatefulWidget {
   final Map<String, Machine> machines;
   final SessionUiState uiState;
 
-  /// Prominent card for blocked / unread sessions.
-  final Widget Function(Session session, SessionUiEntry entry)
-  attentionCardBuilder;
-
-  /// Dense live-session card: name + elapsed + activity on one surface.
-  final Widget Function(Session session, SessionUiEntry entry, int now)
-  liveCardBuilder;
+  /// One compact action row per session (blocked / unread / live).
+  final Widget Function(
+    Session session,
+    SessionUiEntry entry,
+    MissionLane lane,
+    int now,
+  ) actionCardBuilder;
 
   /// Opens the existing folder-detail drill-in for a workspace.
   final void Function(SessionFolderHeader header) onOpenWorkspace;
@@ -301,34 +299,19 @@ class _MissionControlViewState extends State<MissionControlView> {
         ),
       );
     } else if (actions.isNotEmpty) {
-      final attentionShown = <Session>[];
-      final liveShown = <Session>[];
-      for (final session in shownActions) {
-        if (lanes[session.id] == MissionLane.live) {
-          liveShown.add(session);
-        } else {
-          attentionShown.add(session);
-        }
-      }
-      for (final session in attentionShown) {
-        items.add(
-          widget.attentionCardBuilder(session, _entry(session.id)),
-        );
-      }
-      if (liveShown.isNotEmpty) {
-        items.add(
-          _LiveGroup(
-            children: [
-              for (final session in liveShown)
-                widget.liveCardBuilder(
-                  session,
-                  _entry(session.id),
-                  _now,
-                ),
-            ],
-          ),
-        );
-      }
+      items.add(
+        _ActionGroup(
+          children: [
+            for (final session in shownActions)
+              widget.actionCardBuilder(
+                session,
+                _entry(session.id),
+                lanes[session.id]!,
+                _now,
+              ),
+          ],
+        ),
+      );
       if (hiddenActions > 0 || _showAllActions) {
         items.add(
           _MoreRow(
@@ -546,9 +529,9 @@ class _BreathingState extends State<_Breathing>
   }
 }
 
-/// Rounded surface for the live-session stack.
-class _LiveGroup extends StatelessWidget {
-  const _LiveGroup({required this.children});
+/// Rounded surface for the action stack (blocked / unread / live).
+class _ActionGroup extends StatelessWidget {
+  const _ActionGroup({required this.children});
 
   final List<Widget> children;
 
@@ -565,9 +548,6 @@ class _LiveGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: cs.tertiary.withValues(alpha: 0.25),
-        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -877,13 +857,16 @@ class _LaneCount extends StatelessWidget {
   }
 }
 
-/// Dense live-session card: status, name, elapsed, optional activity.
+/// Compact one-line action row for Mission Control.
 ///
-/// Public so the parent can wrap selection + dismissible around it.
-class MissionLiveCard extends StatelessWidget {
-  const MissionLiveCard({
+/// Blocked / unread / live all share this shape: lane dot, name,
+/// optional one-line subtitle, trailing badge (unread count or elapsed).
+/// No avatar, no multi-line preview — density over chrome.
+class MissionActionRow extends StatelessWidget {
+  const MissionActionRow({
     required this.session,
     required this.entry,
+    required this.lane,
     required this.now,
     required this.onTap,
     required this.onLongPress,
@@ -893,6 +876,7 @@ class MissionLiveCard extends StatelessWidget {
 
   final Session session;
   final SessionUiEntry entry;
+  final MissionLane lane;
   final int now;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -902,12 +886,29 @@ class MissionLiveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final since =
-        entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
+    final status = getSessionStatus(session);
     final activity = getSessionActivity(context, session);
     final preview = entry.lastMessagePreview;
+
+    // Prefer the live signal; fall back to a single-line preview.
     final subtitle = activity?.label ??
         (preview != null && preview.isNotEmpty ? preview : null);
+
+    final since =
+        entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
+    final trailing = switch (lane) {
+      MissionLane.live => formatElapsedShort(now - since),
+      MissionLane.unread when entry.unreadCount > 0 =>
+        entry.unreadCount > 99 ? '99+' : '${entry.unreadCount}',
+      MissionLane.blocked => '!',
+      _ => null,
+    };
+    final trailingColor = switch (lane) {
+      MissionLane.live => cs.tertiary,
+      MissionLane.unread => cs.primary,
+      MissionLane.blocked => cs.error,
+      MissionLane.quiet => cs.onSurfaceVariant,
+    };
 
     return Material(
       color: selected ? cs.primary.withValues(alpha: 0.08) : Colors.transparent,
@@ -915,53 +916,57 @@ class MissionLiveCard extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.md,
-            AppSpacing.sm,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
           child: Row(
             children: [
-              _LaneDot(color: cs.tertiary, pulse: true, size: 7),
+              _LaneDot(
+                color: _laneColor(lane, cs),
+                pulse: lane == MissionLane.blocked ||
+                    lane == MissionLane.live ||
+                    status.isPulsing,
+                size: 7,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      getSessionName(session),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                child: Text(
+                  getSessionName(session),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: AppFontSize.xxs,
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.75),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: AppFontSize.xxs,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                formatElapsedShort(now - since),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.tertiary,
-                  fontWeight: FontWeight.w700,
-                  fontSize: AppFontSize.xs,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              ],
+              if (trailing != null) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  trailing,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: trailingColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: AppFontSize.xs,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),

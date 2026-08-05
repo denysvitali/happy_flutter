@@ -106,9 +106,9 @@ void main() {
     await tester.pumpWidget(_app(activeSessions: [live, blocked]));
     await tester.pump();
 
-    expect(find.text('card-blocked'), findsOneWidget);
-    final cardY = tester.getTopLeft(find.text('card-blocked')).dy;
-    final liveY = tester.getTopLeft(find.text('live-live')).dy;
+    expect(find.text('action-blocked'), findsOneWidget);
+    final cardY = tester.getTopLeft(find.text('action-blocked')).dy;
+    final liveY = tester.getTopLeft(find.text('action-live')).dy;
     expect(cardY, lessThan(liveY));
   });
 
@@ -125,13 +125,13 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('project'), findsOneWidget);
-    expect(find.text('row-ws'), findsNothing);
+    expect(find.text('action-ws'), findsNothing);
 
     await tester.tap(find.textContaining('project'));
     await tester.pump();
 
     // Still no inline rows — drill-in only.
-    expect(find.text('row-ws'), findsNothing);
+    expect(find.text('action-ws'), findsNothing);
     expect(opened, isNotEmpty);
   });
 
@@ -150,8 +150,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('card-hot'), findsOneWidget);
-    expect(find.text('row-hot'), findsNothing);
+    expect(find.text('action-hot'), findsOneWidget);
+    expect(find.text('action-hot'), findsNothing);
   });
 
   testWidgets('action overflow folds past six rows', (tester) async {
@@ -167,13 +167,13 @@ void main() {
     await tester.pumpWidget(_app(activeSessions: sessions));
     await tester.pump();
 
-    expect(find.textContaining('live-s'), findsNWidgets(6));
+    expect(find.textContaining('action-s'), findsNWidgets(6));
     expect(find.text('… +2 more'), findsOneWidget);
 
     await tester.tap(find.text('… +2 more'));
     await tester.pump();
 
-    expect(find.textContaining('live-s'), findsNWidgets(8));
+    expect(find.textContaining('action-s'), findsNWidgets(8));
     expect(find.text('Show less'), findsOneWidget);
   });
 
@@ -209,14 +209,13 @@ void main() {
     expect(find.textContaining('old'), findsOneWidget);
   });
 
-  testWidgets('a live session renders in the live group', (tester) async {
+  testWidgets('a live session renders in the action group', (tester) async {
     final session = _session(id: 'live', thinking: true);
 
     await tester.pumpWidget(_app(activeSessions: [session]));
     await tester.pump();
 
-    expect(find.text('live-live'), findsOneWidget);
-    expect(find.text('card-live'), findsNothing);
+    expect(find.text('action-live'), findsOneWidget);
   });
 
   testWidgets('radar hides empty lanes', (tester) async {
@@ -248,8 +247,8 @@ Widget _app({
         inactiveSessions: const [],
         machines: const {},
         uiState: uiState,
-        attentionCardBuilder: (session, entry) => Text('card-${session.id}'),
-        liveCardBuilder: (session, entry, now) => Text('live-${session.id}'),
+        actionCardBuilder: (session, entry, lane, now) =>
+            Text('action-${session.id}'),
         onOpenWorkspace: onOpenWorkspace ?? (_) {},
       ),
     ),

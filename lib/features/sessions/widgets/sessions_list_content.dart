@@ -494,27 +494,23 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       inactiveSessions: inactiveSessions,
       machines: machines,
       uiState: uiState,
-      attentionCardBuilder: (session, entry) => _buildNeedsAttentionCard(
-        session,
-        entry: entry,
-        showFlavorIcons: showFlavorIcons,
-        avatarStyle: avatarStyle,
-      ),
-      liveCardBuilder: (session, entry, now) =>
-          _buildMissionLiveCard(session, entry, now),
+      actionCardBuilder: (session, entry, lane, now) =>
+          _buildMissionActionRow(session, entry, lane, now),
       onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
   }
 
-  Widget _buildMissionLiveCard(
+  Widget _buildMissionActionRow(
     Session session,
     SessionUiEntry entry,
+    MissionLane lane,
     int now,
   ) {
     final sel = _sel.value;
-    final row = MissionLiveCard(
+    final row = MissionActionRow(
       session: session,
       entry: entry,
+      lane: lane,
       now: now,
       onTap: sel.isActive
           ? () => _onSessionTapInSelectionMode(session.id)
