@@ -80,7 +80,13 @@ void main() {
   group('missionShortHost', () {
     test('strips k8s hash tails and user@ prefixes', () {
       expect(
-        missionShortHost('workspace@workspace-denys-local-6589959b'),
+        missionShortHost(
+          'workspace@workspace-denys-local-6589959b66-pzg66',
+        ),
+        'workspace-denys',
+      );
+      expect(
+        missionShortHost('workspace-denys-local-6589959b66-pzg66'),
         'workspace-denys',
       );
       expect(missionShortHost('root@OpenWrt (go)'), 'OpenWrt');
@@ -102,7 +108,7 @@ void main() {
 
     expect(find.text('card-blocked'), findsOneWidget);
     final cardY = tester.getTopLeft(find.text('card-blocked')).dy;
-    final liveY = tester.getTopLeft(find.text('row-live')).dy;
+    final liveY = tester.getTopLeft(find.text('live-live')).dy;
     expect(cardY, lessThan(liveY));
   });
 
@@ -161,13 +167,13 @@ void main() {
     await tester.pumpWidget(_app(activeSessions: sessions));
     await tester.pump();
 
-    expect(find.textContaining('row-s'), findsNWidgets(6));
+    expect(find.textContaining('live-s'), findsNWidgets(6));
     expect(find.text('… +2 more'), findsOneWidget);
 
     await tester.tap(find.text('… +2 more'));
     await tester.pump();
 
-    expect(find.textContaining('row-s'), findsNWidgets(8));
+    expect(find.textContaining('live-s'), findsNWidgets(8));
     expect(find.text('Show less'), findsOneWidget);
   });
 
@@ -203,24 +209,14 @@ void main() {
     expect(find.textContaining('old'), findsOneWidget);
   });
 
-  testWidgets('a live row shows what the session is working on', (
-    tester,
-  ) async {
+  testWidgets('a live session renders in the live group', (tester) async {
     final session = _session(id: 'live', thinking: true);
 
-    await tester.pumpWidget(
-      _app(
-        activeSessions: [session],
-        uiState: const SessionUiState(
-          bySessionId: {
-            'live': SessionUiEntry(lastMessagePreview: 'rg -n pattern'),
-          },
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(activeSessions: [session]));
     await tester.pump();
 
-    expect(find.textContaining('rg -n pattern'), findsOneWidget);
+    expect(find.text('live-live'), findsOneWidget);
+    expect(find.text('card-live'), findsNothing);
   });
 
   testWidgets('radar hides empty lanes', (tester) async {
@@ -253,7 +249,7 @@ Widget _app({
         machines: const {},
         uiState: uiState,
         attentionCardBuilder: (session, entry) => Text('card-${session.id}'),
-        rowBuilder: (session, entry) => Text('row-${session.id}'),
+        liveCardBuilder: (session, entry, now) => Text('live-${session.id}'),
         onOpenWorkspace: onOpenWorkspace ?? (_) {},
       ),
     ),

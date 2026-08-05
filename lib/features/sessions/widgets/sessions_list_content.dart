@@ -500,16 +500,22 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       ),
-      rowBuilder: (session, entry) => _buildMissionSessionRow(session, entry),
+      liveCardBuilder: (session, entry, now) =>
+          _buildMissionLiveCard(session, entry, now),
       onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
   }
 
-  Widget _buildMissionSessionRow(Session session, SessionUiEntry entry) {
+  Widget _buildMissionLiveCard(
+    Session session,
+    SessionUiEntry entry,
+    int now,
+  ) {
     final sel = _sel.value;
-    final row = MissionSessionRow(
+    final row = MissionLiveCard(
       session: session,
       entry: entry,
+      now: now,
       onTap: sel.isActive
           ? () => _onSessionTapInSelectionMode(session.id)
           : () => _navigateToChat(session.id),

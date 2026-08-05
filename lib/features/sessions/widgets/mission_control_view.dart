@@ -9,7 +9,6 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
-import 'session_badges.dart';
 import 'session_cards.dart';
 import 'session_headers.dart';
 
@@ -104,15 +103,12 @@ String missionShortHost(String machineName) {
   if (at >= 0 && at < name.length - 1) {
     name = name.substring(at + 1);
   }
-  // k8s-style: keep the first two dash segments, drop the hash tail.
-  final parts = name.split('-');
-  if (parts.length >= 3) {
-    final last = parts.last;
-    final looksLikeHash = last.length >= 5 &&
-        RegExp(r'^[a-f0-9]+$', caseSensitive: false).hasMatch(last);
-    if (looksLikeHash) {
-      return parts.take(2).join('-');
-    }
+  // k8s pods: `workspace-denys-local-6589959b66-pzg66` → `workspace-denys`.
+  // Any name with 3+ dash segments and length > 16 is treated the same —
+  // the tail is almost always a hash, never the part the user reads.
+  final parts = name.split('-').where((p) => p.isNotEmpty).toList();
+  if (parts.length >= 3 && name.length > 16) {
+    return parts.take(2).join('-');
   }
   return name;
 }
@@ -132,7 +128,7 @@ class MissionControlView extends StatefulWidget {
     required this.machines,
     required this.uiState,
     required this.attentionCardBuilder,
-    required this.rowBuilder,
+    required this.liveCardBuilder,
     required this.onOpenWorkspace,
     super.key,
     this.scrollController,
@@ -147,8 +143,9 @@ class MissionControlView extends StatefulWidget {
   final Widget Function(Session session, SessionUiEntry entry)
   attentionCardBuilder;
 
-  /// Compact row for live sessions.
-  final Widget Function(Session session, SessionUiEntry entry) rowBuilder;
+  /// Dense live-session card: name + elapsed + activity on one surface.
+  final Widget Function(Session session, SessionUiEntry entry, int now)
+  liveCardBuilder;
 
   /// Opens the existing folder-detail drill-in for a workspace.
   final void Function(SessionFolderHeader header) onOpenWorkspace;
@@ -304,21 +301,33 @@ class _MissionControlViewState extends State<MissionControlView> {
         ),
       );
     } else if (actions.isNotEmpty) {
+      final attentionShown = <Session>[];
+      final liveShown = <Session>[];
       for (final session in shownActions) {
-        final entry = _entry(session.id);
-        final lane = lanes[session.id]!;
-        if (lane == MissionLane.live) {
-          items.add(
-            _LiveShell(
-              session: session,
-              entry: entry,
-              now: _now,
-              child: widget.rowBuilder(session, entry),
-            ),
-          );
+        if (lanes[session.id] == MissionLane.live) {
+          liveShown.add(session);
         } else {
-          items.add(widget.attentionCardBuilder(session, entry));
+          attentionShown.add(session);
         }
+      }
+      for (final session in attentionShown) {
+        items.add(
+          widget.attentionCardBuilder(session, _entry(session.id)),
+        );
+      }
+      if (liveShown.isNotEmpty) {
+        items.add(
+          _LiveGroup(
+            children: [
+              for (final session in liveShown)
+                widget.liveCardBuilder(
+                  session,
+                  _entry(session.id),
+                  _now,
+                ),
+            ],
+          ),
+        );
       }
       if (hiddenActions > 0 || _showAllActions) {
         items.add(
@@ -537,68 +546,43 @@ class _BreathingState extends State<_Breathing>
   }
 }
 
-/// Live session: row + elapsed footer. Parent owns the 1s ticker.
-class _LiveShell extends StatelessWidget {
-  const _LiveShell({
-    required this.session,
-    required this.entry,
-    required this.now,
-    required this.child,
-  });
+/// Rounded surface for the live-session stack.
+class _LiveGroup extends StatelessWidget {
+  const _LiveGroup({required this.children});
 
-  final Session session;
-  final SessionUiEntry entry;
-  final int now;
-  final Widget child;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final since =
-        entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
-    final preview = entry.lastMessagePreview;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        child,
-        Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            0,
-            AppSpacing.md,
-            AppSpacing.xxs,
-          ),
-          child: Row(
-            children: [
-              _LaneDot(color: cs.tertiary, pulse: true),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                formatElapsedShort(now - since),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.tertiary,
-                  fontSize: AppFontSize.xxs,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              if (preview != null && preview.isNotEmpty) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
-                  child: buildPreviewText(
-                    context: context,
-                    preview: preview,
-                    role: entry.lastMessageRole,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontSize: AppFontSize.xxs,
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-            ],
-          ),
+    if (children.isEmpty) return const SizedBox.shrink();
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xxs,
+      ),
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: cs.tertiary.withValues(alpha: 0.25),
         ),
-      ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: cs.outlineVariant.withValues(alpha: 0.35),
+              ),
+            children[i],
+          ],
+        ],
+      ),
     );
   }
 }
@@ -893,13 +877,14 @@ class _LaneCount extends StatelessWidget {
   }
 }
 
-/// Dense one-line session row for live sessions (and any caller that
-/// wants the compact form). Public so the parent can wire selection +
-/// dismissible around it.
-class MissionSessionRow extends StatelessWidget {
-  const MissionSessionRow({
+/// Dense live-session card: status, name, elapsed, optional activity.
+///
+/// Public so the parent can wrap selection + dismissible around it.
+class MissionLiveCard extends StatelessWidget {
+  const MissionLiveCard({
     required this.session,
     required this.entry,
+    required this.now,
     required this.onTap,
     required this.onLongPress,
     super.key,
@@ -908,6 +893,7 @@ class MissionSessionRow extends StatelessWidget {
 
   final Session session;
   final SessionUiEntry entry;
+  final int now;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final bool selected;
@@ -916,8 +902,13 @@ class MissionSessionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final status = getSessionStatus(session);
-    final lane = missionLaneFor(session, entry);
+    final since =
+        entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
+    final activity = getSessionActivity(context, session);
+    final preview = entry.lastMessagePreview;
+    final subtitle = activity?.label ??
+        (preview != null && preview.isNotEmpty ? preview : null);
+
     return Material(
       color: selected ? cs.primary.withValues(alpha: 0.08) : Colors.transparent,
       child: InkWell(
@@ -932,39 +923,43 @@ class MissionSessionRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _LaneDot(
-                color: lane == MissionLane.quiet
-                    ? Color(status.statusDotColor)
-                    : _laneColor(lane, cs),
-                pulse: status.isPulsing,
-                size: 6,
-              ),
+              _LaneDot(color: cs.tertiary, pulse: true, size: 7),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text(
-                  getSessionName(session),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      getSessionName(session),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: AppFontSize.xxs,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              if (entry.unreadCount > 0) ...[
-                const SizedBox(width: AppSpacing.xs),
-                UnreadBadge(count: entry.unreadCount),
-              ],
               const SizedBox(width: AppSpacing.sm),
               Text(
-                formatTimestamp(
-                  entry.lastMessageTimestamp ??
-                      session.lastMessageAt ??
-                      session.updatedAt,
-                  relative: true,
-                ),
+                formatElapsedShort(now - since),
                 style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xxs,
-                  color: cs.onSurfaceVariant,
+                  color: cs.tertiary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: AppFontSize.xs,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ],
