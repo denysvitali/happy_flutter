@@ -393,6 +393,20 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     if (sessionsViewStyle == 'mission_control') {
+      // Workspace tap drills into the existing folder-detail view; the
+      // AppBar already switches to the folder header via folderNotifier.
+      if (_selectedFolderKey != null) {
+        return _buildFolderModeView(
+          context,
+          activeSessions,
+          inactiveSessions,
+          machines,
+          uiState,
+          triggerStagger: triggerStagger,
+          showFlavorIcons: showFlavorIcons,
+          avatarStyle: avatarStyle,
+        );
+      }
       return _buildMissionControlView(
         context,
         activeSessions,
