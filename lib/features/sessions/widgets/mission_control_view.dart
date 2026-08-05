@@ -9,8 +9,8 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
-import '../../../core/utils/utils.dart';
 import 'session_badges.dart';
+import 'session_cards.dart';
 import 'session_headers.dart';
 
 /// How a session is triaged in Mission Control.
@@ -48,14 +48,18 @@ Color _laneColor(MissionLane lane, ColorScheme cs) {
   };
 }
 
+/// Rows an expanded workspace shows before folding the tail.
+const _expandedPreviewCount = 6;
+
 /// Sessions triage view: whatever needs you at the top, then every
 /// workspace as a single dense line.
 ///
 /// The design goal is one screen, not a scroll. A workspace renders as
-/// its name, one dot per session coloured by lane, and its counts —
+/// its shortened path, the machine it runs on and a count per lane —
 /// roughly 32px each, so 25 workspaces fit without paging. Only a
 /// workspace holding live or unread work opens itself; the rest expand
-/// on tap.
+/// on tap, and an expanded workspace shows its first few sessions with
+/// the tail folded behind a "… +n" row.
 class MissionControlView extends StatefulWidget {
   const MissionControlView({
     required this.activeSessions,
@@ -91,8 +95,85 @@ class _MissionControlViewState extends State<MissionControlView> {
   /// follows the auto rule: open only when it holds live/unread work.
   final Map<String, bool> _overrides = <String, bool>{};
 
+  /// Expanded workspaces the user unfolded past the row preview.
+  final Map<String, bool> _showAll = <String, bool>{};
+
+  final GlobalKey _liveKey = GlobalKey();
+  final GlobalKey _workspacesKey = GlobalKey();
+
+  /// One ticker for every live row, started only while something is
+  /// live. [now] is what the rows render against.
+  Timer? _tick;
+  int _now = DateTime.now().millisecondsSinceEpoch;
+
   SessionUiEntry _entry(String id) =>
       widget.uiState.bySessionId[id] ?? SessionUiEntry.empty;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTicker();
+  }
+
+  @override
+  void didUpdateWidget(MissionControlView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncTicker();
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  void _syncTicker() {
+    final needed = widget.activeSessions.any(
+      (session) =>
+          missionLaneFor(session, _entry(session.id)) == MissionLane.live,
+    );
+    if (needed && _tick == null) {
+      _tick = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) {
+          setState(() => _now = DateTime.now().millisecondsSinceEpoch);
+        }
+      });
+    } else if (!needed && _tick != null) {
+      _tick?.cancel();
+      _tick = null;
+    }
+  }
+
+  /// Summary-lane taps jump the list to the section that lane renders.
+  void _jumpToLane(MissionLane lane) {
+    switch (lane) {
+      case MissionLane.blocked:
+      case MissionLane.unread:
+        final controller = widget.scrollController;
+        if (controller != null && controller.hasClients) {
+          controller.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      case MissionLane.live:
+        _ensureVisible(_liveKey);
+      case MissionLane.quiet:
+        _ensureVisible(_workspacesKey);
+    }
+  }
+
+  void _ensureVisible(GlobalKey key) {
+    final context = key.currentContext;
+    if (context == null) return;
+    Scrollable.ensureVisible(
+      context,
+      alignment: 0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,6 +232,7 @@ class _MissionControlViewState extends State<MissionControlView> {
         unread: counts[MissionLane.unread]!,
         working: counts[MissionLane.live]!,
         idle: counts[MissionLane.quiet]!,
+        onLaneTap: _jumpToLane,
       ),
     ];
 
@@ -181,11 +263,13 @@ class _MissionControlViewState extends State<MissionControlView> {
     if (live.isNotEmpty) {
       items.add(
         _MissionGroup(
+          key: _liveKey,
           children: [
             for (final session in live)
               _LiveRow(
                 session: session,
                 entry: _entry(session.id),
+                now: _now,
                 child: widget.rowBuilder(session, _entry(session.id)),
               ),
           ],
@@ -195,28 +279,43 @@ class _MissionControlViewState extends State<MissionControlView> {
 
     if (workspaces.isNotEmpty) {
       items.add(
-        SectionHeader(
-          title: l10n.missionControlWorkspaces,
-          trailing: Text(
-            '${workspaces.length}',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-              fontSize: AppFontSize.xs,
-              fontFeatures: const [FontFeature.tabularFigures()],
+        KeyedSubtree(
+          key: _workspacesKey,
+          child: SectionHeader(
+            title: l10n.missionControlWorkspaces,
+            trailing: Text(
+              '${workspaces.length}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                fontSize: AppFontSize.xs,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ),
       );
       final rows = <Widget>[];
       for (final group in workspaces) {
-        final sessions = [...group.activeSessions, ...group.inactiveSessions];
+        final all = [...group.activeSessions, ...group.inactiveSessions];
+        final sessions = [
+          for (final session in all)
+            if (!promoted.contains(session.id)) session,
+        ];
         final laneStrip = [
-          for (final session in sessions)
+          for (final session in all)
             lanes[session.id] ?? MissionLane.quiet,
         ];
         final hot = laneStrip.any((lane) => lane != MissionLane.quiet);
         final key = group.header.folderKey;
         final expanded = _overrides[key] ?? hot;
+        final showAll = _showAll[key] ?? false;
+        // A long-lived workspace would otherwise dump a hundred rows
+        // into the list the moment it opens: show a preview, fold the
+        // tail (the oldest sessions — input order is recency-sorted).
+        final shown = !showAll && sessions.length > _expandedPreviewCount
+            ? sessions.sublist(0, _expandedPreviewCount)
+            : sessions;
+        final hidden = sessions.length - shown.length;
         rows
           ..add(
             _WorkspaceLine(
@@ -228,9 +327,16 @@ class _MissionControlViewState extends State<MissionControlView> {
           )
           ..addAll([
             if (expanded)
-              for (final session in sessions)
-                if (!promoted.contains(session.id))
-                  widget.rowBuilder(session, _entry(session.id)),
+              for (final session in shown)
+                widget.rowBuilder(session, _entry(session.id)),
+          ])
+          ..addAll([
+            if (expanded && (hidden > 0 || showAll))
+              _FoldRow(
+                hidden: hidden,
+                showingAll: showAll,
+                onTap: () => setState(() => _showAll[key] = !showAll),
+              ),
           ]);
       }
       items.add(_MissionGroup(children: rows));
@@ -249,7 +355,7 @@ class _MissionControlViewState extends State<MissionControlView> {
 
 /// Rounded container that gives a run of dense rows one surface.
 class _MissionGroup extends StatelessWidget {
-  const _MissionGroup({required this.children});
+  const _MissionGroup({required this.children, super.key});
 
   final List<Widget> children;
 
@@ -272,22 +378,28 @@ class _MissionGroup extends StatelessWidget {
   }
 }
 
-/// One-line fleet summary — four counts, no cards.
+/// One-line fleet summary — only the lanes that hold anything, no
+/// cards. Tapping a lane jumps to the section that renders it.
 class _SummaryLine extends StatelessWidget {
   const _SummaryLine({
     required this.blocked,
     required this.unread,
     required this.working,
     required this.idle,
+    this.onLaneTap,
   });
 
   final int blocked;
   final int unread;
   final int working;
   final int idle;
+  final ValueChanged<MissionLane>? onLaneTap;
 
   @override
   Widget build(BuildContext context) {
+    if (blocked + unread + working + idle == 0) {
+      return const SizedBox.shrink();
+    }
     final l10n = context.l10n;
     final cs = Theme.of(context).colorScheme;
     return Padding(
@@ -299,30 +411,38 @@ class _SummaryLine extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _SummaryStat(
-            label: l10n.missionControlStatBlocked,
-            count: blocked,
-            color: cs.error,
-            pulse: blocked > 0,
-          ),
-          _SummaryStat(
-            label: l10n.missionControlStatUnread,
-            count: unread,
-            color: cs.primary,
-            pulse: false,
-          ),
-          _SummaryStat(
-            label: l10n.missionControlStatWorking,
-            count: working,
-            color: cs.tertiary,
-            pulse: working > 0,
-          ),
-          _SummaryStat(
-            label: l10n.missionControlStatIdle,
-            count: idle,
-            color: cs.onSurfaceVariant,
-            pulse: false,
-          ),
+          if (blocked > 0)
+            _SummaryStat(
+              label: l10n.missionControlStatBlocked,
+              count: blocked,
+              color: cs.error,
+              pulse: true,
+              onTap: () => onLaneTap?.call(MissionLane.blocked),
+            ),
+          if (unread > 0)
+            _SummaryStat(
+              label: l10n.missionControlStatUnread,
+              count: unread,
+              color: cs.primary,
+              pulse: false,
+              onTap: () => onLaneTap?.call(MissionLane.unread),
+            ),
+          if (working > 0)
+            _SummaryStat(
+              label: l10n.missionControlStatWorking,
+              count: working,
+              color: cs.tertiary,
+              pulse: true,
+              onTap: () => onLaneTap?.call(MissionLane.live),
+            ),
+          if (idle > 0)
+            _SummaryStat(
+              label: l10n.missionControlStatIdle,
+              count: idle,
+              color: cs.onSurfaceVariant,
+              pulse: false,
+              onTap: () => onLaneTap?.call(MissionLane.quiet),
+            ),
         ],
       ),
     );
@@ -335,45 +455,50 @@ class _SummaryStat extends StatelessWidget {
     required this.count,
     required this.color,
     required this.pulse,
+    this.onTap,
   });
 
   final String label;
   final int count;
   final Color color;
   final bool pulse;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final active = count > 0;
-    return Padding(
-      padding: const EdgeInsets.only(right: AppSpacing.md),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _LaneDot(
-            color: active ? color : color.withValues(alpha: 0.3),
-            pulse: pulse,
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-          Text(
-            '$count',
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              fontSize: AppFontSize.xs,
-              color: active ? color : theme.colorScheme.onSurfaceVariant,
-              fontFeatures: const [FontFeature.tabularFigures()],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _LaneDot(color: color, pulse: pulse),
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              '$count',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: AppFontSize.xs,
+                color: color,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.xxs),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: AppFontSize.xxs,
-              color: theme.colorScheme.onSurfaceVariant,
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: AppFontSize.xxs,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -429,54 +554,33 @@ class _BreathingState extends State<_Breathing>
   }
 }
 
-/// A running session: its row plus how long it has been working.
-/// Refreshes once a second while mounted.
-class _LiveRow extends StatefulWidget {
+/// A running session: its row plus a footer with how long it has been
+/// working and what it is working on. The parent view owns the 1s
+/// ticker and passes [now].
+class _LiveRow extends StatelessWidget {
   const _LiveRow({
     required this.session,
     required this.entry,
+    required this.now,
     required this.child,
   });
 
   final Session session;
   final SessionUiEntry entry;
+  final int now;
   final Widget child;
-
-  @override
-  State<_LiveRow> createState() => _LiveRowState();
-}
-
-class _LiveRowState extends State<_LiveRow> {
-  Timer? _tick;
-
-  @override
-  void initState() {
-    super.initState();
-    _tick = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _tick?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final session = widget.session;
     final since =
-        widget.entry.lastMessageTimestamp ??
-        session.lastMessageAt ??
-        session.activeAt;
-    final elapsed = DateTime.now().millisecondsSinceEpoch - since;
+        entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
+    final preview = entry.lastMessagePreview;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        widget.child,
+        child,
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.md,
@@ -489,17 +593,72 @@ class _LiveRowState extends State<_LiveRow> {
               _LaneDot(color: cs.tertiary, pulse: true),
               const SizedBox(width: AppSpacing.xs),
               Text(
-                formatElapsedShort(elapsed),
+                formatElapsedShort(now - since),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: cs.tertiary,
                   fontSize: AppFontSize.xxs,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
+              if (preview != null && preview.isNotEmpty) ...[
+                const SizedBox(width: AppSpacing.xs),
+                Flexible(
+                  child: buildPreviewText(
+                    context: context,
+                    preview: preview,
+                    role: entry.lastMessageRole,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: AppFontSize.xxs,
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Tail of an expanded workspace: "… +n" while folded, "Show less"
+/// once unfolded.
+class _FoldRow extends StatelessWidget {
+  const _FoldRow({
+    required this.hidden,
+    required this.showingAll,
+    required this.onTap,
+  });
+
+  final int hidden;
+  final bool showingAll;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        child: Center(
+          child: Text(
+            showingAll
+                ? context.l10n.machineShowLess
+                : '… +$hidden',
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontSize: AppFontSize.xxs,
+              color: cs.onSurfaceVariant,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

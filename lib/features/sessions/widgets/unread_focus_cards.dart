@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/components/pressable_card.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
+import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/snack.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
@@ -27,6 +31,7 @@ class NeedsAttentionCard extends StatefulWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.unreadCount = 0,
+    this.permissionRequests,
   });
 
   final Session session;
@@ -40,6 +45,11 @@ class NeedsAttentionCard extends StatefulWidget {
   final bool selectionMode;
   final bool isSelected;
   final int unreadCount;
+
+  /// Pending permission requests; when non-empty the card renders
+  /// inline Allow/Deny so a blocked agent unblocks without a tap into
+  /// the chat.
+  final Map<String, RequestInfo>? permissionRequests;
 
   @override
   State<NeedsAttentionCard> createState() => _NeedsAttentionCardState();
@@ -172,6 +182,16 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                                     maxLines: 2,
                                   ),
                                 ],
+                                if (widget.permissionRequests != null &&
+                                    widget.permissionRequests!.isNotEmpty &&
+                                    !widget.selectionMode) ...[
+                                  const SizedBox(height: AppSpacing.xxs),
+                                  _CardPermissionRow(
+                                    sessionId: session.id,
+                                    requests: widget.permissionRequests!,
+                                    isOnline: session.presence == 'online',
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -203,6 +223,102 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
           ),
         ),
       );
+  }
+}
+
+/// Inline Allow/Deny for the oldest pending permission request, so a
+/// blocked agent unblocks without opening the chat. Mirrors the
+/// handler in `PendingPermissionBar`.
+class _CardPermissionRow extends ConsumerStatefulWidget {
+  const _CardPermissionRow({
+    required this.sessionId,
+    required this.requests,
+    required this.isOnline,
+  });
+
+  final String sessionId;
+  final Map<String, RequestInfo> requests;
+  final bool isOnline;
+
+  @override
+  ConsumerState<_CardPermissionRow> createState() =>
+      _CardPermissionRowState();
+}
+
+class _CardPermissionRowState extends ConsumerState<_CardPermissionRow> {
+  bool _busy = false;
+
+  Future<void> _act(bool allow) async {
+    if (_busy || !widget.isOnline || widget.requests.isEmpty) return;
+    final requestId = widget.requests.keys.first;
+    setState(() => _busy = true);
+    await HapticFeedback.mediumImpact();
+    try {
+      final notifier = ref.read(permissionsNotifierProvider.notifier);
+      if (allow) {
+        await notifier.allow(widget.sessionId, requestId);
+      } else {
+        await notifier.deny(widget.sessionId, requestId);
+      }
+    } catch (_) {
+      if (mounted) context.showSnack(context.l10n.permissionActionFailed);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final first = widget.requests.entries.first;
+    final count = widget.requests.length;
+    final label = count > 1
+        ? '${first.value.tool} · +${count - 1}'
+        : first.value.tool;
+    return Row(
+      children: [
+        Icon(Icons.shield_outlined, size: 14, color: cs.error),
+        const SizedBox(width: AppSpacing.xxs),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        if (_busy)
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        else ...[
+          TextButton(
+            onPressed: widget.isOnline ? () => _act(false) : null,
+            style: TextButton.styleFrom(
+              foregroundColor: cs.onSurfaceVariant,
+              minimumSize: const Size(AppTouchTarget.min, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(l10n.permissionDeny),
+          ),
+          FilledButton(
+            onPressed: widget.isOnline ? () => _act(true) : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: cs.error,
+              foregroundColor: cs.onError,
+              minimumSize: const Size(AppTouchTarget.min, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(l10n.permissionAllow),
+          ),
+        ],
+      ],
+    );
   }
 }
 

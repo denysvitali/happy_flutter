@@ -633,6 +633,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       isSelected: sel.selectedIds.contains(session.id),
       selectionMode: sel.isActive,
       unreadCount: entry.unreadCount,
+      permissionRequests: session.agentState?.requests,
     );
     return sel.isActive
         ? card

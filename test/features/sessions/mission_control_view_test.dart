@@ -145,6 +145,62 @@ void main() {
     expect(missionShortPath('~/kernel'), 'kernel');
     expect(missionShortPath('~'), '~');
   });
+
+  testWidgets('the summary line hides empty lanes', (tester) async {
+    final session = _session(id: 'q', path: '/home/dev/project');
+
+    await tester.pumpWidget(_app(activeSessions: [session]));
+    await tester.pump();
+
+    expect(find.text('idle'), findsOneWidget);
+    expect(find.text('blocked'), findsNothing);
+    expect(find.text('unread'), findsNothing);
+    expect(find.text('working'), findsNothing);
+  });
+
+  testWidgets('an expanded workspace folds its tail behind … +n', (
+    tester,
+  ) async {
+    final sessions = [
+      for (var i = 0; i < 8; i++)
+        _session(id: 's$i', path: '/home/dev/project'),
+    ];
+
+    await tester.pumpWidget(_app(activeSessions: sessions));
+    await tester.pump();
+
+    await tester.tap(find.textContaining('dev/project'));
+    await tester.pump();
+
+    expect(find.textContaining('row-s'), findsNWidgets(6));
+    expect(find.text('… +2'), findsOneWidget);
+
+    await tester.tap(find.text('… +2'));
+    await tester.pump();
+
+    expect(find.textContaining('row-s'), findsNWidgets(8));
+    expect(find.text('Show less'), findsOneWidget);
+  });
+
+  testWidgets('a live row shows what the session is working on', (
+    tester,
+  ) async {
+    final session = _session(id: 'live', thinking: true);
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [session],
+        uiState: const SessionUiState(
+          bySessionId: {
+            'live': SessionUiEntry(lastMessagePreview: 'rg -n pattern'),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('rg -n pattern'), findsOneWidget);
+  });
 }
 
 Widget _app({
