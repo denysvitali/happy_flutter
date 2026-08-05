@@ -128,6 +128,53 @@ void main() {
 
     expect(find.text('row-ws'), findsNothing);
   });
+
+  testWidgets('sessions idle for over 3h hide behind the older expander', (
+    tester,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final fresh = _session(id: 'fresh', path: '/home/dev/project');
+    final stale = _session(id: 'stale', path: '/home/dev/project');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MissionControlView(
+            activeSessions: [fresh, stale],
+            inactiveSessions: const [],
+            machines: const {},
+            uiState: SessionUiState(
+              bySessionId: {
+                'fresh': SessionUiEntry(lastMessageTimestamp: now - 60000),
+                'stale': SessionUiEntry(
+                  lastMessageTimestamp:
+                      now - const Duration(hours: 4).inMilliseconds,
+                ),
+              },
+            ),
+            attentionCardBuilder: (s, e) => Text('card-${s.id}'),
+            rowBuilder: (s, e) => Text('row-${s.id}'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('row-fresh'), findsOneWidget);
+    expect(find.text('row-stale'), findsNothing);
+
+    await tester.tap(find.text('… 1 older'));
+    await tester.pump();
+
+    expect(find.text('row-stale'), findsOneWidget);
+
+    await tester.tap(find.text('Hide older'));
+    await tester.pump();
+
+    expect(find.text('row-stale'), findsNothing);
+  });
 }
 
 Session _session({

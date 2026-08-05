@@ -38,6 +38,20 @@ MissionLane missionLaneFor(Session session, SessionUiEntry entry) {
   return MissionLane.quiet;
 }
 
+/// Sessions with no activity in this window are folded behind the
+/// "… N older" expander inside their workspace, so a workspace shows
+/// only what moved recently.
+const missionControlRecentWindow = Duration(hours: 3);
+
+/// Last-activity timestamp for [session], preferring the message cache.
+int missionLastActivityAt(Session session, SessionUiEntry entry) {
+  return entry.lastMessageTimestamp ??
+      session.lastMessageAt ??
+      (session.activeAt > session.updatedAt
+          ? session.activeAt
+          : session.updatedAt);
+}
+
 /// Sessions triage view: what is blocked on you, what is running right
 /// now, and everything else folded into its workspace.
 ///
@@ -128,6 +142,7 @@ class _MissionControlViewState extends State<MissionControlView> {
       (_) => _syncTicker(hasLive: live.isNotEmpty),
     );
 
+    final now = DateTime.now().millisecondsSinceEpoch;
     final unreadLookup = <String, int>{
       for (final e in widget.uiState.bySessionId.entries)
         e.key: e.value.unreadCount,
@@ -216,6 +231,18 @@ class _MissionControlViewState extends State<MissionControlView> {
         );
       for (final group in workspaces) {
         final key = group.header.folderKey;
+        final recent = <Session>[];
+        final older = <Session>[];
+        for (final session in [
+          ...group.activeSessions,
+          ...group.inactiveSessions,
+        ]) {
+          final entry = _entry(session.id);
+          final isRecent =
+              now - missionLastActivityAt(session, entry) <=
+              missionControlRecentWindow.inMilliseconds;
+          (isRecent ? recent : older).add(session);
+        }
         items.add(
           _WorkspaceGroup(
             header: group.header,
@@ -226,10 +253,11 @@ class _MissionControlViewState extends State<MissionControlView> {
               }
             }),
             rows: [
-              for (final session in [
-                ...group.activeSessions,
-                ...group.inactiveSessions,
-              ])
+              for (final session in recent)
+                widget.rowBuilder(session, _entry(session.id)),
+            ],
+            olderRows: [
+              for (final session in older)
                 widget.rowBuilder(session, _entry(session.id)),
             ],
           ),
@@ -598,18 +626,30 @@ class _ActivityBarState extends State<_ActivityBar>
 
 /// A working directory with its sessions, collapsible in place — the
 /// folder view without the drill-down.
-class _WorkspaceGroup extends StatelessWidget {
+///
+/// Sessions with no activity in [missionControlRecentWindow] live in
+/// [olderRows], hidden behind a "… N older" expander.
+class _WorkspaceGroup extends StatefulWidget {
   const _WorkspaceGroup({
     required this.header,
     required this.collapsed,
     required this.onToggle,
     required this.rows,
+    required this.olderRows,
   });
 
   final SessionFolderHeader header;
   final bool collapsed;
   final VoidCallback onToggle;
   final List<Widget> rows;
+  final List<Widget> olderRows;
+
+  @override
+  State<_WorkspaceGroup> createState() => _WorkspaceGroupState();
+}
+
+class _WorkspaceGroupState extends State<_WorkspaceGroup> {
+  bool _showOlder = false;
 
   @override
   Widget build(BuildContext context) {
@@ -629,7 +669,7 @@ class _WorkspaceGroup extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           InkWell(
-            onTap: onToggle,
+            onTap: widget.onToggle,
             child: Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
@@ -638,7 +678,7 @@ class _WorkspaceGroup extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    collapsed
+                    widget.collapsed
                         ? Icons.folder_outlined
                         : Icons.folder_open_outlined,
                     size: AppIconSize.sm,
@@ -650,7 +690,7 @@ class _WorkspaceGroup extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          header.displayPath,
+                          widget.header.displayPath,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(
@@ -658,8 +698,8 @@ class _WorkspaceGroup extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${header.machineName} · '
-                          '${header.sessionCount}',
+                          '${widget.header.machineName} · '
+                          '${widget.header.sessionCount}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.labelSmall?.copyWith(
@@ -670,10 +710,10 @@ class _WorkspaceGroup extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (header.unreadCount > 0)
-                    _CountPill(count: header.unreadCount, emphasised: true),
+                  if (widget.header.unreadCount > 0)
+                    _CountPill(count: widget.header.unreadCount, emphasised: true),
                   Icon(
-                    collapsed ? Icons.expand_more : Icons.expand_less,
+                    widget.collapsed ? Icons.expand_more : Icons.expand_less,
                     size: AppIconSize.sm,
                     color: cs.onSurfaceVariant,
                   ),
@@ -681,17 +721,47 @@ class _WorkspaceGroup extends StatelessWidget {
               ),
             ),
           ),
-          if (!collapsed)
-            for (var i = 0; i < rows.length; i++) ...[
-              Divider(
-                height: 1,
-                thickness: 1,
-                color: cs.outlineVariant.withValues(alpha: 0.4),
-              ),
-              rows[i],
+          if (!widget.collapsed) ...[
+            for (final row in [
+              ...widget.rows,
+              if (_showOlder) ...widget.olderRows,
+            ]) ...[
+              _divider(cs),
+              row,
             ],
+            if (widget.olderRows.isNotEmpty) ...[
+              _divider(cs),
+              InkWell(
+                onTap: () => setState(() => _showOlder = !_showOlder),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.sm,
+                  ),
+                  child: Text(
+                    _showOlder
+                        ? context.l10n.missionControlHideOlder
+                        : context.l10n.missionControlShowOlder(
+                            widget.olderRows.length,
+                          ),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: cs.onSurfaceVariant,
+                      fontSize: AppFontSize.xs,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ],
       ),
     );
   }
 }
+
+Widget _divider(ColorScheme cs) => Divider(
+  height: 1,
+  thickness: 1,
+  color: cs.outlineVariant.withValues(alpha: 0.4),
+);

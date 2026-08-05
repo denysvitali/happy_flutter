@@ -2466,6 +2466,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get missionControlStatIdle => 'idle';
 
   @override
+  String missionControlShowOlder(int count) {
+    return '… $count older';
+  }
+
+  @override
+  String get missionControlHideOlder => 'Hide older';
+
+  @override
   String get autoArchiveTitle => 'Auto-Archive';
 
   @override

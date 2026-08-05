@@ -4441,6 +4441,18 @@ abstract class AppLocalizations {
   /// **'idle'**
   String get missionControlStatIdle;
 
+  /// Expander for sessions with no activity in the last 3 hours
+  ///
+  /// In en, this message translates to:
+  /// **'… {count} older'**
+  String missionControlShowOlder(int count);
+
+  /// No description provided for @missionControlHideOlder.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide older'**
+  String get missionControlHideOlder;
+
   /// No description provided for @autoArchiveTitle.
   ///
   /// In en, this message translates to:

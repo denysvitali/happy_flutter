@@ -996,6 +996,16 @@
   "missionControlStatUnread": "unread",
   "missionControlStatWorking": "working",
   "missionControlStatIdle": "idle",
+  "missionControlShowOlder": "\u2026 {count} older",
+  "@missionControlShowOlder": {
+    "description": "Expander for sessions with no activity in the last 3 hours",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missionControlHideOlder": "Hide older",
   "autoArchiveTitle": "Auto-Archive",
   "autoArchiveSection": "Auto-Archive",
   "autoArchiveAfterDays": "Archive after days",
