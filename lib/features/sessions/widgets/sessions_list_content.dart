@@ -486,13 +486,24 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       ),
-      rowBuilder: (session, entry) => _buildUnreadFocusListRow(
-        session,
-        entry: entry,
-        showFlavorIcons: showFlavorIcons,
-        avatarStyle: avatarStyle,
-      ),
+      rowBuilder: (session, entry) => _buildMissionSessionRow(session, entry),
     );
+  }
+
+  Widget _buildMissionSessionRow(Session session, SessionUiEntry entry) {
+    final sel = _sel.value;
+    final row = MissionSessionRow(
+      session: session,
+      entry: entry,
+      onTap: sel.isActive
+          ? () => _onSessionTapInSelectionMode(session.id)
+          : () => _navigateToChat(session.id),
+      onLongPress: () => _onSessionLongPress(session.id),
+      selected: sel.selectedIds.contains(session.id),
+    );
+    return sel.isActive
+        ? row
+        : DismissibleActiveSession(session: session, child: row);
   }
 
   Widget _buildUnreadFocusView(

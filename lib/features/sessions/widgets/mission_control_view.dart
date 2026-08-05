@@ -9,6 +9,8 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../../core/utils/utils.dart';
+import 'session_badges.dart';
 import 'session_headers.dart';
 
 /// How a session is triaged in Mission Control.
@@ -35,19 +37,6 @@ MissionLane missionLaneFor(Session session, SessionUiEntry entry) {
   if (entry.unreadCount > 0) return MissionLane.unread;
   if (status.state == SessionState.thinking) return MissionLane.live;
   return MissionLane.quiet;
-}
-
-/// A session that moved inside this window counts as recent; it is what
-/// the per-workspace "N recent" hint reports.
-const missionControlRecentWindow = Duration(hours: 3);
-
-/// Last-activity timestamp for [session], preferring the message cache.
-int missionLastActivityAt(Session session, SessionUiEntry entry) {
-  return entry.lastMessageTimestamp ??
-      session.lastMessageAt ??
-      (session.activeAt > session.updatedAt
-          ? session.activeAt
-          : session.updatedAt);
 }
 
 Color _laneColor(MissionLane lane, ColorScheme cs) {
@@ -110,7 +99,6 @@ class _MissionControlViewState extends State<MissionControlView> {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final now = DateTime.now().millisecondsSinceEpoch;
 
     final lanes = <String, MissionLane>{};
     final counts = <MissionLane, int>{
@@ -227,13 +215,6 @@ class _MissionControlViewState extends State<MissionControlView> {
             lanes[session.id] ?? MissionLane.quiet,
         ];
         final hot = laneStrip.any((lane) => lane != MissionLane.quiet);
-        final recentCount = sessions
-            .where(
-              (session) =>
-                  now - missionLastActivityAt(session, _entry(session.id)) <=
-                  missionControlRecentWindow.inMilliseconds,
-            )
-            .length;
         final key = group.header.folderKey;
         final expanded = _overrides[key] ?? hot;
         rows
@@ -241,7 +222,6 @@ class _MissionControlViewState extends State<MissionControlView> {
             _WorkspaceLine(
               header: group.header,
               lanes: laneStrip,
-              recentCount: recentCount,
               expanded: expanded,
               onTap: () => setState(() => _overrides[key] = !expanded),
             ),
@@ -535,23 +515,32 @@ String formatElapsedShort(int millis) {
   return '${minutes ~/ 60}h ${minutes % 60}m';
 }
 
-/// One workspace on one line: name, a dot per session coloured by lane,
-/// how many moved recently, and its unread count.
+/// Shortens a display path to its last two segments, keeping the part
+/// that identifies the project: `~/git/fw-analyzer/.firmware` renders
+/// as `fw-analyzer/.firmware`.
+String missionShortPath(String displayPath) {
+  final segments = displayPath
+      .split('/')
+      .where((segment) => segment.isNotEmpty && segment != '~')
+      .toList();
+  if (segments.isEmpty) return displayPath;
+  if (segments.length == 1) return segments.single;
+  return segments.sublist(segments.length - 2).join('/');
+}
+
+/// One workspace, one line: shortened path, the machine it lives on,
+/// and a count per non-quiet lane. Idle sessions are a plain total —
+/// drawing a dot each turned every row into grey confetti.
 class _WorkspaceLine extends StatelessWidget {
   const _WorkspaceLine({
     required this.header,
     required this.lanes,
-    required this.recentCount,
     required this.expanded,
     required this.onTap,
   });
 
-  /// Beyond this the strip stops drawing dots and shows `+n`.
-  static const maxDots = 10;
-
   final SessionFolderHeader header;
   final List<MissionLane> lanes;
-  final int recentCount;
   final bool expanded;
   final VoidCallback onTap;
 
@@ -559,18 +548,21 @@ class _WorkspaceLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    // Loudest lane first, so a blocked session is never the dot that
-    // falls off the end of the strip.
-    final sorted = [...lanes]..sort((a, b) => a.index.compareTo(b.index));
-    final shown = sorted.take(maxDots).toList();
-    final overflow = sorted.length - shown.length;
+    final counts = <MissionLane, int>{
+      for (final lane in MissionLane.values) lane: 0,
+    };
+    for (final lane in lanes) {
+      counts[lane] = counts[lane]! + 1;
+    }
 
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xs,
+          AppSpacing.xs,
+          AppSpacing.md,
+          AppSpacing.xs,
         ),
         child: Row(
           children: [
@@ -582,7 +574,7 @@ class _WorkspaceLine extends StatelessWidget {
             const SizedBox(width: AppSpacing.xxs),
             Flexible(
               child: Text(
-                header.displayPath,
+                missionShortPath(header.displayPath),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
@@ -592,56 +584,158 @@ class _WorkspaceLine extends StatelessWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            for (final lane in shown)
-              Padding(
-                padding: const EdgeInsets.only(right: 3),
-                child: _LaneDot(
-                  color: _laneColor(lane, cs),
-                  pulse: lane == MissionLane.blocked,
-                  size: lane == MissionLane.quiet ? 4 : 6,
-                ),
-              ),
-            if (overflow > 0)
-              Text(
-                '+$overflow',
+            Flexible(
+              child: Text(
+                header.machineName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
                 style: theme.textTheme.labelSmall?.copyWith(
                   fontSize: AppFontSize.xxs,
-                  color: cs.onSurfaceVariant,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+            const Spacer(),
+            for (final lane in [
+              MissionLane.blocked,
+              MissionLane.unread,
+              MissionLane.live,
+            ])
+              if (counts[lane]! > 0)
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.xs),
+                  child: _LaneCount(
+                    count: counts[lane]!,
+                    color: _laneColor(lane, cs),
+                    pulse: lane != MissionLane.unread,
+                  ),
+                ),
+            Padding(
+              padding: const EdgeInsets.only(left: AppSpacing.sm),
+              child: Text(
+                '${lanes.length}',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: AppFontSize.xxs,
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-            const Spacer(),
-            if (recentCount > 0)
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.xs),
-                child: Text(
-                  context.l10n.missionControlRecentCount(recentCount),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: AppFontSize.xxs,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            if (header.unreadCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: 1,
-                ),
-                decoration: BoxDecoration(
-                  color: cs.primary,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Text(
-                  '${header.unreadCount}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onPrimary,
-                    fontWeight: FontWeight.w700,
-                    fontSize: AppFontSize.xxs,
-                  ),
-                ),
-              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Coloured dot plus count, e.g. a red `2` for two blocked sessions.
+class _LaneCount extends StatelessWidget {
+  const _LaneCount({
+    required this.count,
+    required this.color,
+    required this.pulse,
+  });
+
+  final int count;
+  final Color color;
+  final bool pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _LaneDot(color: color, pulse: pulse, size: 5),
+        const SizedBox(width: 3),
+        Text(
+          '$count',
+          style: theme.textTheme.labelSmall?.copyWith(
+            fontSize: AppFontSize.xxs,
+            fontWeight: FontWeight.w700,
+            color: color,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A session inside an expanded workspace: one line, no avatar, no
+/// preview — status dot, name, unread badge, relative time.
+class MissionSessionRow extends StatelessWidget {
+  const MissionSessionRow({
+    required this.session,
+    required this.entry,
+    required this.onTap,
+    required this.onLongPress,
+    super.key,
+    this.selected = false,
+  });
+
+  final Session session;
+  final SessionUiEntry entry;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final status = getSessionStatus(session);
+    final lane = missionLaneFor(session, entry);
+    return Material(
+      color: selected ? cs.primary.withValues(alpha: 0.08) : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.xs,
+            AppSpacing.md,
+            AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              _LaneDot(
+                color: lane == MissionLane.quiet
+                    ? Color(status.statusDotColor)
+                    : _laneColor(lane, cs),
+                pulse: status.isPulsing,
+                size: 5,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  getSessionName(session),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+              if (entry.unreadCount > 0) ...[
+                const SizedBox(width: AppSpacing.xs),
+                UnreadBadge(count: entry.unreadCount),
+              ],
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                formatTimestamp(
+                  entry.lastMessageTimestamp ??
+                      session.lastMessageAt ??
+                      session.updatedAt,
+                  relative: true,
+                ),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  fontSize: AppFontSize.xxs,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

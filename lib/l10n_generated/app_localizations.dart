@@ -4429,12 +4429,6 @@ abstract class AppLocalizations {
   /// **'idle'**
   String get missionControlStatIdle;
 
-  /// Workspace line hint: sessions active in the last 3 hours
-  ///
-  /// In en, this message translates to:
-  /// **'{count} recent'**
-  String missionControlRecentCount(int count);
-
   /// No description provided for @autoArchiveTitle.
   ///
   /// In en, this message translates to:

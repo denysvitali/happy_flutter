@@ -994,15 +994,6 @@
   "missionControlStatUnread": "unread",
   "missionControlStatWorking": "working",
   "missionControlStatIdle": "idle",
-  "missionControlRecentCount": "{count} recent",
-  "@missionControlRecentCount": {
-    "description": "Workspace line hint: sessions active in the last 3 hours",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "autoArchiveTitle": "Auto-Archive",
   "autoArchiveSection": "Auto-Archive",
   "autoArchiveAfterDays": "Archive after days",

@@ -2460,11 +2460,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get missionControlStatIdle => 'idle';
 
   @override
-  String missionControlRecentCount(int count) {
-    return '$count recent';
-  }
-
-  @override
   String get autoArchiveTitle => 'Auto-Archive';
 
   @override

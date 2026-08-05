@@ -118,30 +118,32 @@ void main() {
     expect(find.text('row-hot'), findsNothing);
   });
 
-  testWidgets('the recent hint counts only sessions active within 3h', (
-    tester,
-  ) async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final fresh = _session(id: 'fresh', path: '/home/dev/project');
-    final stale = _session(id: 'stale', path: '/home/dev/project');
+  testWidgets('a workspace line counts lanes instead of drawing a dot '
+      'per session', (tester) async {
+    final unread = _session(id: 'u', path: '/home/dev/project');
+    final quiet1 = _session(id: 'q1', path: '/home/dev/project');
+    final quiet2 = _session(id: 'q2', path: '/home/dev/project');
 
     await tester.pumpWidget(
       _app(
-        activeSessions: [fresh, stale],
-        uiState: SessionUiState(
-          bySessionId: {
-            'fresh': SessionUiEntry(lastMessageTimestamp: now - 60000),
-            'stale': SessionUiEntry(
-              lastMessageTimestamp:
-                  now - const Duration(hours: 4).inMilliseconds,
-            ),
-          },
+        activeSessions: [unread, quiet1, quiet2],
+        uiState: const SessionUiState(
+          bySessionId: {'u': SessionUiEntry(unreadCount: 1)},
         ),
       ),
     );
     await tester.pump();
 
-    expect(find.text('1 recent'), findsOneWidget);
+    // Last two path segments only, plus the total session count.
+    expect(find.text('dev/project'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+  });
+
+  test('missionShortPath keeps the last two segments', () {
+    expect(missionShortPath('~/git/fw-analyzer/.firmware'),
+        'fw-analyzer/.firmware');
+    expect(missionShortPath('~/kernel'), 'kernel');
+    expect(missionShortPath('~'), '~');
   });
 }
 
