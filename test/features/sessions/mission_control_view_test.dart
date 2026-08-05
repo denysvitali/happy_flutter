@@ -71,65 +71,54 @@ void main() {
     );
     final live = _session(id: 'live', thinking: true);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: MissionControlView(
-            activeSessions: [live, blocked],
-            inactiveSessions: const [],
-            machines: const {},
-            uiState: const SessionUiState(),
-            attentionCardBuilder: (session, entry) =>
-                Text('card-${session.id}'),
-            rowBuilder: (session, entry) => Text('row-${session.id}'),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(activeSessions: [live, blocked]));
     await tester.pump();
 
-    expect(find.text('Waiting on you'), findsOneWidget);
-    expect(find.text('Live now'), findsOneWidget);
     expect(find.text('card-blocked'), findsOneWidget);
-    expect(find.text('row-live'), findsWidgets);
     final cardY = tester.getTopLeft(find.text('card-blocked')).dy;
-    final liveY = tester.getTopLeft(find.text('row-live').first).dy;
+    final liveY = tester.getTopLeft(find.text('row-live')).dy;
     expect(cardY, lessThan(liveY));
   });
 
-  testWidgets('workspace groups collapse in place', (tester) async {
+  testWidgets('a quiet workspace stays collapsed until tapped', (
+    tester,
+  ) async {
     final session = _session(id: 'ws', path: '/home/dev/project');
 
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: MissionControlView(
-            activeSessions: [session],
-            inactiveSessions: const [],
-            machines: const {},
-            uiState: const SessionUiState(),
-            attentionCardBuilder: (s, e) => Text('card-${s.id}'),
-            rowBuilder: (s, e) => Text('row-${s.id}'),
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_app(activeSessions: [session]));
     await tester.pump();
 
+    // One line for the workspace, no session rows.
     expect(find.text('Workspaces'), findsOneWidget);
-    expect(find.text('row-ws'), findsOneWidget);
+    expect(find.textContaining('project'), findsOneWidget);
+    expect(find.text('row-ws'), findsNothing);
 
     await tester.tap(find.textContaining('project'));
     await tester.pump();
 
-    expect(find.text('row-ws'), findsNothing);
+    expect(find.text('row-ws'), findsOneWidget);
   });
 
-  testWidgets('sessions idle for over 3h hide behind the older expander', (
+  testWidgets('a workspace with unread work opens itself', (tester) async {
+    final session = _session(id: 'hot', path: '/home/dev/project');
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [session],
+        uiState: const SessionUiState(
+          bySessionId: {'hot': SessionUiEntry(unreadCount: 2)},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Promoted to the attention lane, so the workspace lists it as a
+    // dot only — never twice.
+    expect(find.text('card-hot'), findsOneWidget);
+    expect(find.text('row-hot'), findsNothing);
+  });
+
+  testWidgets('the recent hint counts only sessions active within 3h', (
     tester,
   ) async {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -137,44 +126,43 @@ void main() {
     final stale = _session(id: 'stale', path: '/home/dev/project');
 
     await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: MissionControlView(
-            activeSessions: [fresh, stale],
-            inactiveSessions: const [],
-            machines: const {},
-            uiState: SessionUiState(
-              bySessionId: {
-                'fresh': SessionUiEntry(lastMessageTimestamp: now - 60000),
-                'stale': SessionUiEntry(
-                  lastMessageTimestamp:
-                      now - const Duration(hours: 4).inMilliseconds,
-                ),
-              },
+      _app(
+        activeSessions: [fresh, stale],
+        uiState: SessionUiState(
+          bySessionId: {
+            'fresh': SessionUiEntry(lastMessageTimestamp: now - 60000),
+            'stale': SessionUiEntry(
+              lastMessageTimestamp:
+                  now - const Duration(hours: 4).inMilliseconds,
             ),
-            attentionCardBuilder: (s, e) => Text('card-${s.id}'),
-            rowBuilder: (s, e) => Text('row-${s.id}'),
-          ),
+          },
         ),
       ),
     );
     await tester.pump();
 
-    expect(find.text('row-fresh'), findsOneWidget);
-    expect(find.text('row-stale'), findsNothing);
-
-    await tester.tap(find.text('… 1 older'));
-    await tester.pump();
-
-    expect(find.text('row-stale'), findsOneWidget);
-
-    await tester.tap(find.text('Hide older'));
-    await tester.pump();
-
-    expect(find.text('row-stale'), findsNothing);
+    expect(find.text('1 recent'), findsOneWidget);
   });
+}
+
+Widget _app({
+  required List<Session> activeSessions,
+  SessionUiState uiState = SessionUiState.empty,
+}) {
+  return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(
+      body: MissionControlView(
+        activeSessions: activeSessions,
+        inactiveSessions: const [],
+        machines: const {},
+        uiState: uiState,
+        attentionCardBuilder: (session, entry) => Text('card-${session.id}'),
+        rowBuilder: (session, entry) => Text('row-${session.id}'),
+      ),
+    ),
+  );
 }
 
 Session _session({

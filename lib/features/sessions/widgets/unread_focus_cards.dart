@@ -223,6 +223,7 @@ class UnreadFocusListRow extends StatelessWidget {
     this.selectionMode = false,
     this.isSelected = false,
     this.archiveCountdownLabel,
+    this.unreadCount = 0,
   });
 
   final Session session;
@@ -236,6 +237,7 @@ class UnreadFocusListRow extends StatelessWidget {
   final bool selectionMode;
   final bool isSelected;
   final String? archiveCountdownLabel;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -356,6 +358,7 @@ class UnreadFocusListRow extends StatelessWidget {
                       session.updatedAt,
                   theme: theme,
                   cs: cs,
+                  unreadCount: unreadCount,
                   todoProgress: todoProgress,
                 ),
                 if (session.pinned) ...[

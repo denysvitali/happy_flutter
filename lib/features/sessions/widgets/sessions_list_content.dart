@@ -648,6 +648,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       lastMessageRole: entry.lastMessageRole,
       isSelected: sel.selectedIds.contains(session.id),
       selectionMode: sel.isActive,
+      unreadCount: entry.unreadCount,
     );
     return sel.isActive
         ? row

@@ -2441,12 +2441,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsViewStyleMissionControl => 'Mission Control';
 
   @override
-  String get missionControlWaiting => 'Waiting on you';
-
-  @override
-  String get missionControlLive => 'Live now';
-
-  @override
   String get missionControlWorkspaces => 'Workspaces';
 
   @override
@@ -2466,12 +2460,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get missionControlStatIdle => 'idle';
 
   @override
-  String missionControlShowOlder(int count) {
-    return '… $count older';
+  String missionControlRecentCount(int count) {
+    return '$count recent';
   }
-
-  @override
-  String get missionControlHideOlder => 'Hide older';
 
   @override
   String get autoArchiveTitle => 'Auto-Archive';

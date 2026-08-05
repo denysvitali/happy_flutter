@@ -4393,18 +4393,6 @@ abstract class AppLocalizations {
   /// **'Mission Control'**
   String get sessionsViewStyleMissionControl;
 
-  /// No description provided for @missionControlWaiting.
-  ///
-  /// In en, this message translates to:
-  /// **'Waiting on you'**
-  String get missionControlWaiting;
-
-  /// No description provided for @missionControlLive.
-  ///
-  /// In en, this message translates to:
-  /// **'Live now'**
-  String get missionControlLive;
-
   /// No description provided for @missionControlWorkspaces.
   ///
   /// In en, this message translates to:
@@ -4441,17 +4429,11 @@ abstract class AppLocalizations {
   /// **'idle'**
   String get missionControlStatIdle;
 
-  /// Expander for sessions with no activity in the last 3 hours
+  /// Workspace line hint: sessions active in the last 3 hours
   ///
   /// In en, this message translates to:
-  /// **'… {count} older'**
-  String missionControlShowOlder(int count);
-
-  /// No description provided for @missionControlHideOlder.
-  ///
-  /// In en, this message translates to:
-  /// **'Hide older'**
-  String get missionControlHideOlder;
+  /// **'{count} recent'**
+  String missionControlRecentCount(int count);
 
   /// No description provided for @autoArchiveTitle.
   ///

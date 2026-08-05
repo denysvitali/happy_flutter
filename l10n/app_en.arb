@@ -988,24 +988,21 @@
   "sessionsViewStyleFolderCentric": "Folder-centric",
   "sessionsViewStyleUnreadFocus": "Unread Focus",
   "sessionsViewStyleMissionControl": "Mission Control",
-  "missionControlWaiting": "Waiting on you",
-  "missionControlLive": "Live now",
   "missionControlWorkspaces": "Workspaces",
   "missionControlAllQuiet": "All quiet \u2014 nothing needs you right now",
   "missionControlStatBlocked": "blocked",
   "missionControlStatUnread": "unread",
   "missionControlStatWorking": "working",
   "missionControlStatIdle": "idle",
-  "missionControlShowOlder": "\u2026 {count} older",
-  "@missionControlShowOlder": {
-    "description": "Expander for sessions with no activity in the last 3 hours",
+  "missionControlRecentCount": "{count} recent",
+  "@missionControlRecentCount": {
+    "description": "Workspace line hint: sessions active in the last 3 hours",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
   },
-  "missionControlHideOlder": "Hide older",
   "autoArchiveTitle": "Auto-Archive",
   "autoArchiveSection": "Auto-Archive",
   "autoArchiveAfterDays": "Archive after days",
