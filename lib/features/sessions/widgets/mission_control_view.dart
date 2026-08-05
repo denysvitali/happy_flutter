@@ -704,33 +704,31 @@ class _WorkspaceLine extends StatelessWidget {
               color: cs.onSurfaceVariant,
             ),
             const SizedBox(width: AppSpacing.sm),
-            Flexible(
-              flex: 3,
-              child: Text(
-                missionShortPath(header.displayPath),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: missionShortPath(header.displayPath),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '  ${header.machineName}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: AppFontSize.xxs,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              flex: 2,
-              child: Text(
-                header.machineName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xxs,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                ),
-              ),
-            ),
-            const Spacer(),
             for (final lane in [
               MissionLane.blocked,
               MissionLane.unread,
@@ -745,21 +743,28 @@ class _WorkspaceLine extends StatelessWidget {
                     pulse: lane != MissionLane.unread,
                   ),
                 ),
-            Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.sm),
-              child: Text(
-                '${sessions.length}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: AppFontSize.xxs,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+            // Fixed width so 1 / 11 / 89 all share one right edge.
+            // 3 tabular digits + chevron; path/machine eat the rest.
+            SizedBox(
+              width: 44,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Text(
+                    '${sessions.length}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: AppFontSize.xxs,
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    size: AppIconSize.sm,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
+                ],
               ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              size: AppIconSize.sm,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
             ),
           ],
         ),
