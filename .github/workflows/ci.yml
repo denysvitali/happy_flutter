@@ -277,7 +277,7 @@ jobs:
   build-debug:
     name: Build Debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     # Run on push/PR events (but not tags), or workflow_dispatch with debug or both selected
     if: |
       (github.event_name != 'workflow_dispatch' &&
@@ -296,7 +296,10 @@ jobs:
         id: build_meta
         run: |
           BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
+          FLAVOR="${{ github.event.inputs.flavor }}"
+          if [ -z "$FLAVOR" ]; then FLAVOR="production"; fi
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
       - name: Prepare signing keystore (optional)
         id: debug_keystore
@@ -310,18 +313,14 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
+      # Disk free is only needed when the NDK has to be re-downloaded; skip on
+      # the warm path where the image already has the NDK or the cache hits.
       - name: Free disk space
         run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /opt/microsoft/powershell
-          sudo rm -rf /usr/local/share/chromedriver-linux64
-          sudo rm -rf /usr/local/share/edge_driver
-          sudo rm -rf /usr/local/share/gecko_driver
-          sudo rm -rf /usr/share/swift
-          df -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL \
+            /usr/local/share/boost /opt/microsoft/powershell \
+            /usr/local/share/chromedriver-linux64 /usr/local/share/edge_driver \
+            /usr/local/share/gecko_driver /usr/share/swift || true
 
       - name: Setup mise
         uses: jdx/mise-action@v3
@@ -329,81 +328,45 @@ jobs:
           install: true
           cache: true
 
-      - name: Cache Android NDK
-        id: ndk-cache
-        uses: actions/cache@v5
+      - name: Setup Android build
+        uses: ./.github/actions/setup-android-build
         with:
-          path: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
-          key: ${{ runner.os }}-android-ndk-28.2.13676358
-
-      - name: Accept Android SDK licenses
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDKMANAGER" --licenses || true
-
-      - name: Setup Android NDK
-        if: steps.ndk-cache.outputs.cache-hit != 'true'
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          "$SDKMANAGER" "ndk;28.2.13676358"
-
-      - name: Cache Gradle
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: mise exec -- flutter pub get
-
-      - name: Determine flavor
-        id: flavor
-        run: |
-          FLAVOR="${{ github.event.inputs.flavor }}"
-          if [ -z "$FLAVOR" ]; then
-            FLAVOR="production"
-          fi
-          echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
+          # Debug is read-only so it never races the release job's cache write.
+          cache-write: 'false'
 
       - name: Build Debug APK
         run: |
           mise exec -- flutter build apk --debug --no-pub \
-            --flavor ${{ steps.flavor.outputs.FLAVOR }} \
+            --flavor ${{ steps.build_meta.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }}
         env:
-          APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
+          APP_ENV: ${{ steps.build_meta.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ steps.debug_keystore.outputs.KEYSTORE_PATH }}
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
+          GRADLE_OPTS: >-
+            -Dorg.gradle.daemon=false
+            -Dorg.gradle.parallel=true
+            -Dorg.gradle.caching=true
+            -Dorg.gradle.configureondemand=true
+            -Dkotlin.compiler.execution.strategy=in-process
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v7
         with:
-          name: happy-flutter-debug-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-debug.apk
+          name: happy-flutter-debug-${{ steps.build_meta.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: build/app/outputs/flutter-apk/app-${{ steps.build_meta.outputs.FLAVOR }}-debug.apk
           retention-days: 14
 
   build-release:
     name: Build Release APK
+    # 4-core runners roughly halve Dart AOT + R8 wall time vs ubuntu-latest.
+    # Falls back to ubuntu-latest if the larger runner label is unavailable.
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
@@ -417,35 +380,28 @@ jobs:
         id: build_meta
         run: |
           BUILD_NUMBER=$(( ${{ github.run_number }} * 100 + ${{ github.run_attempt }} ))
+          FLAVOR="${{ github.event.inputs.flavor }}"
+          if [ -z "$FLAVOR" ]; then FLAVOR="production"; fi
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
 
-      - name: Validate signing keystore
+      - name: Validate + create signing keystore
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "::error::KEYSTORE_BASE64 is required for release APK generation"
             exit 1
           fi
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf /opt/microsoft/powershell
-          sudo rm -rf /usr/local/share/chromedriver-linux64
-          sudo rm -rf /usr/local/share/edge_driver
-          sudo rm -rf /usr/local/share/gecko_driver
-          sudo rm -rf /usr/share/swift
-          df -h
-
-      - name: Create keystore
-        run: |
           echo "$KEYSTORE_BASE64" | base64 -d > release-keystore.jks
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      # Cheap free-space sweep. Skips apt/df so it stays under ~2s.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL \
+            /usr/local/share/boost /opt/microsoft/powershell \
+            /usr/local/share/chromedriver-linux64 /usr/local/share/edge_driver \
+            /usr/local/share/gecko_driver /usr/share/swift || true
 
       - name: Setup mise
         uses: jdx/mise-action@v3
@@ -453,68 +409,32 @@ jobs:
           install: true
           cache: true
 
-      - name: Cache Android NDK
-        id: ndk-cache
-        uses: actions/cache@v5
+      - name: Setup Android build
+        uses: ./.github/actions/setup-android-build
         with:
-          path: ${{ env.ANDROID_HOME }}/ndk/28.2.13676358
-          key: ${{ runner.os }}-android-ndk-28.2.13676358
-
-      - name: Accept Android SDK licenses
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDKMANAGER" --licenses || true
-
-      - name: Setup Android NDK
-        if: steps.ndk-cache.outputs.cache-hit != 'true'
-        run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          "$SDKMANAGER" "ndk;28.2.13676358"
-
-      - name: Cache Gradle
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: mise exec -- flutter pub get
-
-      - name: Determine flavor
-        id: flavor
-        run: |
-          FLAVOR="${{ github.event.inputs.flavor }}"
-          if [ -z "$FLAVOR" ]; then
-            FLAVOR="production"
-          fi
-          echo "FLAVOR=$FLAVOR" >> $GITHUB_OUTPUT
+          cache-write: 'true'
 
       - name: Build Release APK
         env:
-          APP_ENV: ${{ steps.flavor.outputs.FLAVOR }}
+          APP_ENV: ${{ steps.build_meta.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
-          GRADLE_OPTS: '-Dorg.gradle.jvmargs=-Xmx4g'
+          # Match gradle.properties heap; keep daemon off on ephemeral runners
+          # so setup-gradle can cleanly snapshot the home dir at job end.
+          GRADLE_OPTS: >-
+            -Dorg.gradle.jvmargs=-Xmx6g
+            -Dorg.gradle.daemon=false
+            -Dorg.gradle.parallel=true
+            -Dorg.gradle.caching=true
+            -Dorg.gradle.configureondemand=true
+            -Dkotlin.compiler.execution.strategy=in-process
+            -Dkotlin.daemon.enabled=false
         run: |
           set +e
           mise exec -- flutter build apk --release --no-pub \
-            --flavor ${{ steps.flavor.outputs.FLAVOR }} \
+            --flavor ${{ steps.build_meta.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --dart-define=SENTRY_RELEASE=happy_flutter@1.0.0+${{ steps.build_meta.outputs.BUILD_NUMBER }} \
@@ -545,14 +465,14 @@ jobs:
       - name: Upload Release APK
         uses: actions/upload-artifact@v7
         with:
-          name: happy-flutter-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          path: build/app/outputs/flutter-apk/app-${{ steps.flavor.outputs.FLAVOR }}-release.apk
+          name: happy-flutter-release-${{ steps.build_meta.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: build/app/outputs/flutter-apk/app-${{ steps.build_meta.outputs.FLAVOR }}-release.apk
           retention-days: 14
 
       - name: Upload debug info artifact
         uses: actions/upload-artifact@v7
         with:
-          name: debug-info-release-${{ steps.flavor.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          name: debug-info-release-${{ steps.build_meta.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
           path: build/debug-info/
           retention-days: 90
 
