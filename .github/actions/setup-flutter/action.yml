@@ -1,0 +1,61 @@
+name: Setup Flutter (prewarmed)
+description: >
+  Install Flutter via mise, restore a prewarmed SDK (flutter_tools.snapshot
+  already built), and warm on miss before saving. Avoids the mise-action
+  trap of saving the cache before Flutter is first executed.
+
+inputs:
+  precache-android:
+    description: Run `flutter precache --android` after install.
+    required: false
+    default: 'false'
+  cache-write:
+    description: Whether this job may write the prewarmed SDK cache.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Restore prewarmed Flutter SDK
+      id: flutter-sdk
+      uses: actions/cache/restore@v5
+      with:
+        path: ~/.local/share/mise
+        key: >-
+          mise-flutter-prewarmed-v3-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+        restore-keys: |
+          mise-flutter-prewarmed-v3-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Setup mise (Flutter + Java)
+      uses: jdx/mise-action@v3
+      with:
+        install: true
+        # Flutter ships its own Dart. Java is required for Android Gradle.
+        # Make is already on the hosted runner PATH for sodium's native build.
+        install_args: flutter java
+        # Manual restore/save around the warm step so the snapshot lands
+        # in the cache. mise-action's internal cache saves before warm.
+        cache: false
+
+    - name: Warm Flutter CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+        mise exec -- flutter --version
+        if [ "${{ inputs.precache-android }}" = "true" ]; then
+          mise exec -- flutter precache --android
+        fi
+
+    - name: Save prewarmed Flutter SDK
+      if: >-
+        ${{ inputs.cache-write == 'true' &&
+        steps.flutter-sdk.outputs.cache-hit != 'true' &&
+        github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v5
+      with:
+        path: ~/.local/share/mise
+        key: >-
+          mise-flutter-prewarmed-v3-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}

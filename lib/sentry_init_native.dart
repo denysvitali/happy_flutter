@@ -6,20 +6,14 @@ import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/services/logger_service.dart';
+import 'core/utils/package_info_cache.dart';
 import 'sentry_config.dart';
 
-// Baked in at build time via --dart-define=SENTRY_RELEASE=...
-// Must match the release string used by sentry_dart_plugin when
-// uploading debug symbols (set via SENTRY_RELEASE env var in CI).
-// Falls back to null so Sentry auto-detects from PackageInfo in
-// local builds where --dart-define is not passed.
-const _sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
-
-// Baked in at build time via --dart-define=SENTRY_DIST=<build-number>.
-// Must match SENTRY_DIST used by sentry_dart_plugin when uploading debug
-// symbols, otherwise GlitchTip cannot associate the uploaded symbols with
-// incoming events and obfuscated stack traces never symbolicate.
-const _sentryDist = String.fromEnvironment('SENTRY_DIST');
+// Optional overrides for non-Android packaging (e.g. web still uses
+// --dart-define). Prefer PackageInfo on mobile so CI can change
+// versionCode without invalidating Flutter AOT inputs.
+const _sentryReleaseOverride = String.fromEnvironment('SENTRY_RELEASE');
+const _sentryDistOverride = String.fromEnvironment('SENTRY_DIST');
 
 Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   if (!sentryEnabled) {
@@ -30,6 +24,17 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
     return;
   }
 
+  // Runtime identity from the APK/IPA, not a compile-time dart-define.
+  // CI must set SENTRY_RELEASE for sentry_dart_plugin to the same string:
+  // happy_flutter@${version}+${buildNumber}.
+  final packageInfo = await PackageInfoCache.get();
+  final release = _sentryReleaseOverride.isNotEmpty
+      ? _sentryReleaseOverride
+      : 'happy_flutter@${packageInfo.version}+${packageInfo.buildNumber}';
+  final dist = _sentryDistOverride.isNotEmpty
+      ? _sentryDistOverride
+      : packageInfo.buildNumber;
+
   await SentryFlutter.init((options) {
     options
       ..dsn = sentryDsn
@@ -37,8 +42,8 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..tracesSampleRate = sentryTracesSampleRate
       // ignore: experimental_member_use
       ..profilesSampleRate = sentryProfilesSampleRate
-      ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
-      ..dist = _sentryDist.isNotEmpty ? _sentryDist : null
+      ..release = release
+      ..dist = dist
       ..environment = kReleaseMode ? 'production' : 'debug'
       // ANR detection: capture foreground "Application Not Responding" events.
       ..anrEnabled = sentryAnrEnabled
