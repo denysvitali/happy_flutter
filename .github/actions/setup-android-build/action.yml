@@ -1,12 +1,13 @@
 name: Setup Android build
 description: >
-  Fast shared setup for Flutter Android APK jobs. Resolves ANDROID_HOME
-  (workflow-level env is empty at parse time), ensures NDK + CMake, restores
-  Gradle User Home via gradle/actions/setup-gradle, and warms pub cache.
+  Shared setup for Flutter Android APK jobs. Resolves ANDROID_HOME (workflow
+  env is empty at parse time), ensures NDK + CMake, restores Gradle User Home
+  and pub via actions/cache (faster than setup-gradle for our workload).
 
 inputs:
   cache-write:
-    description: Whether this job may write the Gradle cache back.
+    description: Unused (kept for call-site compatibility). Cache write is
+      controlled by the job-level actions/cache step.
     required: false
     default: 'true'
 
@@ -93,16 +94,18 @@ runs:
           "$SDKMANAGER" "${pkgs[@]}"
         fi
 
-    - name: Setup Gradle (dependency + build cache)
-      uses: gradle/actions/setup-gradle@v4
+    # actions/cache is faster here than gradle/actions/setup-gradle: the latter
+    # spent 93s restore + 60s post-save on a warm run vs ~22s restore + ~1s
+    # post with the plain cache of ~/.gradle/{caches,wrapper}.
+    - name: Cache Gradle
+      uses: actions/cache@v5
       with:
-        # Write only from release so concurrent debug/release don't race the key.
-        cache-read-only: ${{ inputs.cache-write != 'true' }}
-        # Cleanup re-runs Gradle at job end (~50s) and rewrites the cache every
-        # time. Skip it — dependency cache already stays lean enough, and the
-        # 2+GB save is dominated by jar downloads we want to keep.
-        cache-cleanup: never
-        add-job-summary: on-failure
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties', 'android/gradle.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
 
     - name: Cache pub dependencies
       uses: actions/cache@v5
