@@ -162,8 +162,10 @@ void main() {
 
   testWidgets('quiet workspaces hide behind a drawer', (tester) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    // Quiet window is 3h (missionControlQuietWindow). "recent" must be
+    // inside that, "old" outside, or both fold into the quiet drawer.
+    final hour = const Duration(hours: 1).inMilliseconds;
     final day = const Duration(days: 1).inMilliseconds;
-    final week = const Duration(days: 7).inMilliseconds;
     final recent = _session(id: 'recent', path: '/home/dev/recent');
     final old = _session(id: 'old', path: '/home/dev/old');
 
@@ -172,8 +174,8 @@ void main() {
         activeSessions: [recent, old],
         uiState: SessionUiState(
           bySessionId: {
-            'recent': SessionUiEntry(lastMessageTimestamp: now - day),
-            'old': SessionUiEntry(lastMessageTimestamp: now - week),
+            'recent': SessionUiEntry(lastMessageTimestamp: now - hour),
+            'old': SessionUiEntry(lastMessageTimestamp: now - day),
           },
         ),
       ),
