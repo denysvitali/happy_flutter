@@ -1,0 +1,91 @@
+name: Setup Android build
+description: >
+  Fast shared setup for Flutter Android APK jobs. Fixes the NDK cache path
+  (workflow-level env.ANDROID_HOME is empty at parse time), restores Gradle
+  via gradle/actions/setup-gradle, and warms pub + Flutter tool caches.
+
+inputs:
+  java-version:
+    description: Unused (Java comes from mise). Kept for future overrides.
+    required: false
+    default: '21'
+  cache-write:
+    description: Whether this job may write the Gradle cache back.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve Android SDK paths
+      id: android
+      shell: bash
+      run: |
+        set -euo pipefail
+        SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+        NDK_VERSION="28.2.13676358"
+        NDK_PATH="$SDK/ndk/$NDK_VERSION"
+        echo "sdk=$SDK" >> "$GITHUB_OUTPUT"
+        echo "ndk_path=$NDK_PATH" >> "$GITHUB_OUTPUT"
+        echo "ndk_version=$NDK_VERSION" >> "$GITHUB_OUTPUT"
+        # Export for subsequent steps / Gradle.
+        echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+        echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+        echo "ANDROID_NDK_HOME=$NDK_PATH" >> "$GITHUB_ENV"
+        echo "Resolved ANDROID_HOME=$SDK"
+        echo "Resolved NDK path=$NDK_PATH"
+        if [ -d "$NDK_PATH" ]; then
+          echo "ndk_present=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "ndk_present=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Cache Android NDK
+      id: ndk-cache
+      if: steps.android.outputs.ndk_present != 'true'
+      uses: actions/cache@v5
+      with:
+        path: ${{ steps.android.outputs.ndk_path }}
+        key: ${{ runner.os }}-android-ndk-${{ steps.android.outputs.ndk_version }}
+
+    - name: Install Android NDK
+      if: >-
+        steps.android.outputs.ndk_present != 'true' &&
+        steps.ndk-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        SDK="${{ steps.android.outputs.sdk }}"
+        SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -x "$SDKMANAGER" ]; then
+          # Some images nest cmdline-tools under versioned dirs.
+          SDKMANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n1 || true)"
+        fi
+        if [ -z "${SDKMANAGER:-}" ] || [ ! -x "$SDKMANAGER" ]; then
+          echo "::error::sdkmanager not found under $SDK"
+          exit 1
+        fi
+        yes | "$SDKMANAGER" --licenses >/dev/null || true
+        "$SDKMANAGER" "ndk;${{ steps.android.outputs.ndk_version }}"
+
+    - name: Setup Gradle (dependency + build cache)
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        # Write only from release so concurrent debug/release don't race the key.
+        cache-read-only: ${{ inputs.cache-write != 'true' }}
+        # Drop unused transforms so the ~2GB cache stays lean and restores fast.
+        gradle-home-cache-cleanup: true
+
+    - name: Cache pub dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.pub-cache
+          .dart_tool
+        key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+        restore-keys: |
+          pub-${{ runner.os }}-
+
+    - name: Get dependencies
+      shell: bash
+      run: mise exec -- flutter pub get

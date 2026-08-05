@@ -88,6 +88,35 @@ String missionShortPath(String displayPath) {
   return segments.sublist(segments.length - 2).join('/');
 }
 
+/// Short host for the workspace line.
+///
+/// Kubernetes pod names like `workspace@workspace-denys-local-6589…`
+/// collapse to the first meaningful token (`workspace`). Bare hosts
+/// (`root@OpenWrt`) and short names pass through.
+String missionShortHost(String machineName) {
+  var name = machineName.trim();
+  if (name.isEmpty) return name;
+  // Drop trailing parenthetical flavour, e.g. `root@happy (go)`.
+  final paren = name.indexOf(' (');
+  if (paren > 0) name = name.substring(0, paren);
+  // Prefer the host side of user@host.
+  final at = name.lastIndexOf('@');
+  if (at >= 0 && at < name.length - 1) {
+    name = name.substring(at + 1);
+  }
+  // k8s-style: keep the first two dash segments, drop the hash tail.
+  final parts = name.split('-');
+  if (parts.length >= 3) {
+    final last = parts.last;
+    final looksLikeHash = last.length >= 5 &&
+        RegExp(r'^[a-f0-9]+$', caseSensitive: false).hasMatch(last);
+    if (looksLikeHash) {
+      return parts.take(2).join('-');
+    }
+  }
+  return name;
+}
+
 /// Action-first session radar.
 ///
 /// Design rule: the list is what needs you, not the archive.
@@ -256,12 +285,12 @@ class _MissionControlViewState extends State<MissionControlView> {
       ),
     ];
 
-    if (actions.isEmpty) {
+    if (actions.isEmpty && workspaces.isEmpty) {
       items.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
-            AppSpacing.xxs,
+            AppSpacing.sm,
             AppSpacing.lg,
             AppSpacing.sm,
           ),
@@ -274,7 +303,7 @@ class _MissionControlViewState extends State<MissionControlView> {
           ),
         ),
       );
-    } else {
+    } else if (actions.isNotEmpty) {
       for (final session in shownActions) {
         final entry = _entry(session.id);
         final lane = lanes[session.id]!;
@@ -330,10 +359,9 @@ class _MissionControlViewState extends State<MissionControlView> {
         );
       if (quiet.isNotEmpty) {
         items.add(
-          _MoreRow(
-            label: _showQuiet
-                ? l10n.machineShowLess
-                : l10n.missionControlQuietWorkspaces(quiet.length),
+          _QuietDrawer(
+            count: quiet.length,
+            open: _showQuiet,
             onTap: () => setState(() => _showQuiet = !_showQuiet),
           ),
         );
@@ -608,6 +636,71 @@ class _MoreRow extends StatelessWidget {
   }
 }
 
+/// Quiet-workspace drawer: one row under the list, same surface language.
+class _QuietDrawer extends StatelessWidget {
+  const _QuietDrawer({
+    required this.count,
+    required this.open,
+    required this.onTap,
+  });
+
+  final int count;
+  final bool open;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = context.l10n;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.xs,
+        AppSpacing.md,
+        0,
+      ),
+      child: Material(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        clipBehavior: Clip.hardEdge,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  open ? Icons.expand_less : Icons.expand_more,
+                  size: AppIconSize.sm,
+                  color: cs.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    open
+                        ? l10n.machineShowLess
+                        : l10n.missionControlQuietWorkspaces(count),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontSize: AppFontSize.xs,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurfaceVariant,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// One surface holding every visible workspace line.
 class _WorkspaceList extends StatelessWidget {
   const _WorkspaceList({
@@ -692,18 +785,12 @@ class _WorkspaceLine extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.md,
+          AppSpacing.smd,
           AppSpacing.sm,
-          AppSpacing.md,
-          AppSpacing.sm,
+          AppSpacing.smd,
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.folder_outlined,
-              size: AppIconSize.sm,
-              color: cs.onSurfaceVariant,
-            ),
-            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text.rich(
                 TextSpan(
@@ -716,10 +803,10 @@ class _WorkspaceLine extends StatelessWidget {
                       ),
                     ),
                     TextSpan(
-                      text: '  ${header.machineName}',
+                      text: '  ${missionShortHost(header.machineName)}',
                       style: theme.textTheme.labelSmall?.copyWith(
                         fontSize: AppFontSize.xxs,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
                       ),
                     ),
                   ],

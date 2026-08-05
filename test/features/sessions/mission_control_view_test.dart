@@ -77,6 +77,17 @@ void main() {
     });
   });
 
+  group('missionShortHost', () {
+    test('strips k8s hash tails and user@ prefixes', () {
+      expect(
+        missionShortHost('workspace@workspace-denys-local-6589959b'),
+        'workspace-denys',
+      );
+      expect(missionShortHost('root@OpenWrt (go)'), 'OpenWrt');
+      expect(missionShortHost('happy'), 'happy');
+    });
+  });
+
   testWidgets('blocked sessions render above live ones', (tester) async {
     final blocked = _session(
       id: 'blocked',
@@ -222,6 +233,8 @@ void main() {
     expect(find.text('blocked'), findsNothing);
     expect(find.text('unread'), findsNothing);
     expect(find.text('working'), findsNothing);
+    // Idle chip is enough — no duplicate "all quiet" banner.
+    expect(find.textContaining('All quiet'), findsNothing);
   });
 }
 
