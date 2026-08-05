@@ -110,6 +110,7 @@ part '_sync_sessions.dart';
 part '_sync_socket.dart';
 part '_sync_socket_events.dart';
 part '_sync_loops.dart';
+part '_sync_machine_loops.dart';
 part '_sync_workflows.dart';
 part 'message_pipeline/message_models.dart';
 part 'message_pipeline/message_ingestion_orchestrator.dart';

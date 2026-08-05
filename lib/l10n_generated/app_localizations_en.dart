@@ -5798,4 +5798,111 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksMarkIncomplete => 'Mark incomplete';
+
+  @override
+  String get goalLoopsTitle => 'Goal loops';
+
+  @override
+  String get goalLoopsNewButton => 'New goal loop';
+
+  @override
+  String get goalLoopsCreateTitle => 'Start a goal loop';
+
+  @override
+  String get goalLoopsCreateSubtitle =>
+      'The agent works towards the goal in repeated sessions, each starting with an empty context, until it reports the goal reached.';
+
+  @override
+  String get goalLoopsGoalLabel => 'Goal';
+
+  @override
+  String get goalLoopsGoalHint =>
+      'Get the integration test suite passing on CI';
+
+  @override
+  String get goalLoopsGoalHelper =>
+      'Say what \"done\" means. A goal the agent can check for itself is one it can stop on.';
+
+  @override
+  String get goalLoopsDirectoryHelper =>
+      'Each iteration runs here and keeps its notes in the progress file.';
+
+  @override
+  String get goalLoopsAdvanced => 'Advanced';
+
+  @override
+  String goalLoopsMaxIterations(int count) {
+    return 'Stop after $count iterations';
+  }
+
+  @override
+  String get goalLoopsMaxIterationsHelper =>
+      'A safety net for a goal that can never be reached. The loop normally stops on its own well before this.';
+
+  @override
+  String get goalLoopsProgressFileLabel => 'Progress file';
+
+  @override
+  String get goalLoopsProgressFileHelper =>
+      'The loop\'s only memory between iterations. Created for you if it does not exist.';
+
+  @override
+  String get goalLoopsInstructionsLabel => 'Extra instructions';
+
+  @override
+  String get goalLoopsInstructionsHint =>
+      'Never push to main. Run mise run test before claiming anything passes.';
+
+  @override
+  String get goalLoopsInstructionsHelper =>
+      'Added to every iteration\'s prompt.';
+
+  @override
+  String get goalLoopsStartButton => 'Start loop';
+
+  @override
+  String get goalLoopsActiveSection => 'Working';
+
+  @override
+  String get goalLoopsFinishedSection => 'Stopped';
+
+  @override
+  String get goalLoopsEmptyTitle => 'No goal loops';
+
+  @override
+  String get goalLoopsEmptyMessage =>
+      'A goal loop keeps restarting an agent with a fresh context until its goal is reached.';
+
+  @override
+  String goalLoopsIterationProgress(int done, int max) {
+    return '$done of $max iterations';
+  }
+
+  @override
+  String get goalLoopsIterating => 'Working now';
+
+  @override
+  String get goalLoopsOpenSession => 'Open session';
+
+  @override
+  String get goalLoopsResumeButton => 'Resume loop';
+
+  @override
+  String get goalLoopsDeleteConfirmMessage =>
+      'Delete this goal loop? The progress file is left on disk.';
+
+  @override
+  String get goalLoopsStatusRunning => 'Working';
+
+  @override
+  String get goalLoopsStatusComplete => 'Reached';
+
+  @override
+  String get goalLoopsStatusBlocked => 'Needs you';
+
+  @override
+  String get goalLoopsStatusStalled => 'Stalled';
+
+  @override
+  String get goalLoopsStatusExhausted => 'Out of iterations';
 }

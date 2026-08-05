@@ -251,6 +251,82 @@ envelope (same `data.type` discriminator pattern as `ready`, `thinking_done`,
 6. **LoopsScreen widget test** — `test/features/loops/loops_screen_test.dart`.
 7. **Chat header badge widget test** — `test/features/loops/loop_count_badge_test.dart`.
 
+## Goal Loops — Machine Loops That Iterate Until Done
+
+**Added:** 2026-08-05. Scope: happy_cli_go daemon + happy_flutter client.
+
+A goal loop is a machine loop with a **goal** instead of a fixed prompt. Every
+run spawns a session with an **empty context**, so the loop's only memory
+between runs is a progress file on disk (`PROGRESS.md` by default, relative to
+the loop's directory). Each iteration reads it, does the next increment of
+work, writes down what it learned, and the daemon decides from the outcome
+whether to iterate again or stop.
+
+### How a run ends
+
+The agent declares the outcome explicitly through two MCP tools on the
+`happy` server injected into every Claude session:
+
+| Tool | Params | Meaning |
+|---|---|---|
+| `mcp__happy__loop_complete` | `summary`, `evidence` (both required) | The goal is genuinely reached. `evidence` must be verification the agent actually performed. |
+| `mcp__happy__loop_blocked` | `reason`, optional `needed` | Only a human can unblock it. The loop parks in `blocked`. |
+
+Both write a `RunState` JSON file (`.happy/loop-<id>.json`, self-gitignored)
+the daemon reads after the run, and mirror the status into the progress
+file's managed block (`<!-- happy-loop:begin --> … <!-- happy-loop:end -->`),
+so the markdown a human reads never contradicts the tool call. Neither needs
+network access — a sandboxed run cannot reach the daemon's loopback control
+plane.
+
+Agents without the happy tools (Codex, OpenCode) can still end a loop by
+editing the `- **Status:**` line in the progress file. The marker is parsed
+**only inside the managed block**, so an agent quoting "Status: COMPLETE" in
+its own notes cannot end the loop by accident.
+
+### Terminal states
+
+| Status | Meaning | Restarts via |
+|---|---|---|
+| `complete` | Goal reached and verified | `loop-resume` (explicit user action only) |
+| `blocked` | Needs a human decision/credential | `loop-resume` |
+| `stalled` | 3 consecutive runs left the progress file byte-identical | `loop-resume` |
+| `exhausted` | Iteration cap reached (default 25, ceiling 500) | `loop-resume` (auto-bumps the cap) |
+
+Terminal loops stay in the list with their outcome — unpausing them does
+**nothing**; resuming is the only restart path, and it clears the stale
+BLOCKED verdict first.
+
+### Wire contract additions (all `omitempty`, so legacy payloads are unchanged)
+
+```go
+// happy-cli-go internal/cli/loops/loops.go — mirrored in lib/core/models/loop.dart
+Goal           string `json:"goal,omitempty"`
+ProgressFile   string `json:"progressFile,omitempty"`
+MaxIterations  int    `json:"maxIterations,omitempty"`
+Status         string `json:"status,omitempty"`       // running|complete|blocked|stalled|exhausted
+StatusDetail   string `json:"statusDetail,omitempty"`
+CompletedAt    int64  `json:"completedAt,omitempty"`
+ProgressDigest string `json:"progressDigest,omitempty"`
+StalledRuns    int    `json:"stalledRuns,omitempty"`
+```
+
+The daemon publishes machine loops (goal loops included) into the encrypted
+`daemonState` blob under the `machineLoops` key; the Flutter client projects
+them from there — `GoalLoopsNotifier` is a pure projection over
+`machinesNotifierProvider`, no polling. Mutations ride machine-scoped RPCs:
+`loop-create` (with `goal`), `loop-delete`, `loop-pause`, `loop-list`, and
+the new `loop-resume`.
+
+### Client surface
+
+- `/goal-loops` — Goal Loops screen (flag icon on the All Loops app bar),
+  split into Working / Stopped sections.
+- `CreateGoalLoopSheet` — goal, machine, directory; advanced: agent,
+  iteration cap, progress file, per-iteration instructions.
+- `GoalLoopCard` — goal headline, status chip, iteration progress bar
+  (against the cap), the reason it stopped, and pause/resume/delete/open-session.
+
 ## Migration / Rollout
 
 Loops are a purely additive feature. No migration is required. Existing

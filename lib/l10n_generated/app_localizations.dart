@@ -10374,6 +10374,192 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mark incomplete'**
   String get tasksMarkIncomplete;
+
+  /// Title of the goal loops screen
+  ///
+  /// In en, this message translates to:
+  /// **'Goal loops'**
+  String get goalLoopsTitle;
+
+  /// FAB label to start a goal loop
+  ///
+  /// In en, this message translates to:
+  /// **'New goal loop'**
+  String get goalLoopsNewButton;
+
+  /// Title of the create goal loop sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Start a goal loop'**
+  String get goalLoopsCreateTitle;
+
+  /// Explains what a goal loop does
+  ///
+  /// In en, this message translates to:
+  /// **'The agent works towards the goal in repeated sessions, each starting with an empty context, until it reports the goal reached.'**
+  String get goalLoopsCreateSubtitle;
+
+  /// Label for the goal text field
+  ///
+  /// In en, this message translates to:
+  /// **'Goal'**
+  String get goalLoopsGoalLabel;
+
+  /// Example goal
+  ///
+  /// In en, this message translates to:
+  /// **'Get the integration test suite passing on CI'**
+  String get goalLoopsGoalHint;
+
+  /// Guidance for writing a good goal
+  ///
+  /// In en, this message translates to:
+  /// **'Say what \"done\" means. A goal the agent can check for itself is one it can stop on.'**
+  String get goalLoopsGoalHelper;
+
+  /// Helper under the directory field
+  ///
+  /// In en, this message translates to:
+  /// **'Each iteration runs here and keeps its notes in the progress file.'**
+  String get goalLoopsDirectoryHelper;
+
+  /// Toggle for optional goal loop settings
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get goalLoopsAdvanced;
+
+  /// Iteration cap slider label
+  ///
+  /// In en, this message translates to:
+  /// **'Stop after {count} iterations'**
+  String goalLoopsMaxIterations(int count);
+
+  /// Helper under the iteration cap slider
+  ///
+  /// In en, this message translates to:
+  /// **'A safety net for a goal that can never be reached. The loop normally stops on its own well before this.'**
+  String get goalLoopsMaxIterationsHelper;
+
+  /// Label for the progress file field
+  ///
+  /// In en, this message translates to:
+  /// **'Progress file'**
+  String get goalLoopsProgressFileLabel;
+
+  /// Helper under the progress file field
+  ///
+  /// In en, this message translates to:
+  /// **'The loop\'s only memory between iterations. Created for you if it does not exist.'**
+  String get goalLoopsProgressFileHelper;
+
+  /// Label for per-iteration extra instructions
+  ///
+  /// In en, this message translates to:
+  /// **'Extra instructions'**
+  String get goalLoopsInstructionsLabel;
+
+  /// Example extra instructions
+  ///
+  /// In en, this message translates to:
+  /// **'Never push to main. Run mise run test before claiming anything passes.'**
+  String get goalLoopsInstructionsHint;
+
+  /// Helper for extra instructions
+  ///
+  /// In en, this message translates to:
+  /// **'Added to every iteration\'s prompt.'**
+  String get goalLoopsInstructionsHelper;
+
+  /// Submit button of the create goal loop sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Start loop'**
+  String get goalLoopsStartButton;
+
+  /// Section header for loops still iterating
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get goalLoopsActiveSection;
+
+  /// Section header for loops that ended
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get goalLoopsFinishedSection;
+
+  /// Empty state title
+  ///
+  /// In en, this message translates to:
+  /// **'No goal loops'**
+  String get goalLoopsEmptyTitle;
+
+  /// Empty state body
+  ///
+  /// In en, this message translates to:
+  /// **'A goal loop keeps restarting an agent with a fresh context until its goal is reached.'**
+  String get goalLoopsEmptyMessage;
+
+  /// Iteration counter under the progress bar
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {max} iterations'**
+  String goalLoopsIterationProgress(int done, int max);
+
+  /// Shown while an iteration is in flight
+  ///
+  /// In en, this message translates to:
+  /// **'Working now'**
+  String get goalLoopsIterating;
+
+  /// Opens the session of the current or last iteration
+  ///
+  /// In en, this message translates to:
+  /// **'Open session'**
+  String get goalLoopsOpenSession;
+
+  /// Restarts a loop that stopped
+  ///
+  /// In en, this message translates to:
+  /// **'Resume loop'**
+  String get goalLoopsResumeButton;
+
+  /// Delete confirmation body for a goal loop
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this goal loop? The progress file is left on disk.'**
+  String get goalLoopsDeleteConfirmMessage;
+
+  /// Status chip: still iterating
+  ///
+  /// In en, this message translates to:
+  /// **'Working'**
+  String get goalLoopsStatusRunning;
+
+  /// Status chip: goal reached
+  ///
+  /// In en, this message translates to:
+  /// **'Reached'**
+  String get goalLoopsStatusComplete;
+
+  /// Status chip: blocked on a human
+  ///
+  /// In en, this message translates to:
+  /// **'Needs you'**
+  String get goalLoopsStatusBlocked;
+
+  /// Status chip: iterations stopped changing anything
+  ///
+  /// In en, this message translates to:
+  /// **'Stalled'**
+  String get goalLoopsStatusStalled;
+
+  /// Status chip: hit the iteration cap
+  ///
+  /// In en, this message translates to:
+  /// **'Out of iterations'**
+  String get goalLoopsStatusExhausted;
 }
 
 class _AppLocalizationsDelegate

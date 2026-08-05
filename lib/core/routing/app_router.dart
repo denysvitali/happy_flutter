@@ -19,6 +19,7 @@ import '../../features/chat/session_recent_screen.dart';
 import '../../features/dev/dev_logs_screen.dart';
 import '../../features/inbox/friend_search_screen.dart';
 import '../../features/inbox/friends_screen.dart';
+import '../../features/loops/goal_loops_screen.dart';
 import '../../features/loops/loops_screen.dart';
 import '../../features/dev/encryption_debug_screen.dart';
 import '../../features/dev/network_inspector_screen.dart';

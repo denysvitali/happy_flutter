@@ -20,6 +20,12 @@ List<RouteBase> get featureRoutes => [
       },
     ),
     GoRoute(
+      path: '/goal-loops',
+      name: 'goal-loops',
+      pageBuilder: (context, state) =>
+          _fadePage(const AuthGate(child: GoalLoopsScreen()), state),
+    ),
+    GoRoute(
       path: '/artifacts',
       name: 'artifacts',
       pageBuilder: (context, state) =>

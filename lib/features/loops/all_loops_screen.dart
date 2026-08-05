@@ -150,7 +150,16 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen>
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.allLoopsTitle)),
+      appBar: AppBar(
+        title: Text(l10n.allLoopsTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.flag_outlined),
+            tooltip: l10n.goalLoopsTitle,
+            onPressed: () => context.push('/goal-loops'),
+          ),
+        ],
+      ),
       body: initialLoading
           ? const AppLoadingIndicator()
           : refreshError != null

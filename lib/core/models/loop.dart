@@ -12,6 +12,51 @@ library;
 
 import '../wire/wire_parsers.dart';
 
+/// Lifecycle state of a goal loop.
+///
+/// Only goal loops carry a status; a plain scheduled loop is always
+/// [LoopStatus.running]. Everything except [LoopStatus.running] is terminal:
+/// the daemon will not start another iteration, and the loop stays in the
+/// list so the user can see how it ended.
+enum LoopStatus {
+  /// Iterating, or waiting for the next iteration.
+  running,
+
+  /// The goal was reached and the iteration verified it.
+  complete,
+
+  /// Progress needs a human — a credential, a decision, an external system.
+  blocked,
+
+  /// Consecutive iterations stopped changing the progress file, so further
+  /// iterations would read exactly the same context.
+  stalled,
+
+  /// The iteration cap was reached without the goal being met.
+  exhausted;
+
+  /// Parses the daemon's wire value. Unknown/absent values mean running,
+  /// which is the safe default: a loop is only shown as finished when the
+  /// daemon says so explicitly.
+  static LoopStatus fromWire(String? raw) {
+    switch (raw) {
+      case 'complete':
+        return LoopStatus.complete;
+      case 'blocked':
+        return LoopStatus.blocked;
+      case 'stalled':
+        return LoopStatus.stalled;
+      case 'exhausted':
+        return LoopStatus.exhausted;
+      default:
+        return LoopStatus.running;
+    }
+  }
+
+  /// Whether the daemon has stopped iterating this loop for good.
+  bool get isTerminal => this != LoopStatus.running;
+}
+
 class Loop {
   /// Build a [Loop] from a wire payload, tolerating lenient numeric and
   /// boolean coercion (see [WireParsers]).
@@ -49,6 +94,17 @@ class Loop {
         lastFiredAt: WireParsers.parseInt(json['lastFiredAt']),
         fireCount: WireParsers.parseInt(json['fireCount']) ?? 0,
         paused: WireParsers.parseBool(json['paused']) ?? false,
+        machineId: WireParsers.parseString(json['machineId']) ?? '',
+        directory: WireParsers.parseString(json['directory']) ?? '',
+        agent: WireParsers.parseString(json['agent']) ?? '',
+        lastSessionId: WireParsers.parseString(json['lastSessionId']),
+        activeSessionId: WireParsers.parseString(json['activeSessionId']),
+        goal: WireParsers.parseString(json['goal']) ?? '',
+        progressFile: WireParsers.parseString(json['progressFile']) ?? '',
+        maxIterations: WireParsers.parseInt(json['maxIterations']) ?? 0,
+        status: WireParsers.parseString(json['status']) ?? '',
+        statusDetail: WireParsers.parseString(json['statusDetail']) ?? '',
+        completedAt: WireParsers.parseInt(json['completedAt']),
       );
     } catch (_) {
       return null;
@@ -88,6 +144,53 @@ class Loop {
   /// Manually paused by the user. Paused loops do not fire until resumed.
   final bool paused;
 
+  // ── Machine-loop fields ────────────────────────────────────────────────
+  // A machine loop is owned by the daemon rather than by a live session:
+  // every run spawns a fresh session in [directory]. Empty for the
+  // session-scoped loops that fire inside an already-running session.
+
+  /// Machine whose daemon owns this loop. Empty for a session loop.
+  final String machineId;
+
+  /// Working directory each run is spawned in.
+  final String directory;
+
+  /// Agent flavor to spawn (`claude`, `codex`, …). Empty means the daemon's
+  /// default.
+  final String agent;
+
+  /// Session spawned for the most recent run, if any.
+  final String? lastSessionId;
+
+  /// Session of the run currently in flight; null between runs. Its presence
+  /// is what "this loop is working right now" means.
+  final String? activeSessionId;
+
+  // ── Goal-loop fields ───────────────────────────────────────────────────
+  // A goal loop iterates towards [goal] with an empty context each run,
+  // using [progressFile] as its only memory, and stops when a run reports
+  // the goal genuinely reached.
+
+  /// The objective. Non-empty exactly when this is a goal loop.
+  final String goal;
+
+  /// The loop's memory between runs, relative to [directory]. Empty means
+  /// the daemon's default (`PROGRESS.md`).
+  final String progressFile;
+
+  /// Iteration cap. Zero means the daemon's default.
+  final int maxIterations;
+
+  /// Raw lifecycle state from the daemon; see [loopStatus].
+  final String status;
+
+  /// Why the loop is in its current [status] — the completion summary, or
+  /// what it is blocked on.
+  final String statusDetail;
+
+  /// When the loop reached a terminal status, in ms since epoch.
+  final int? completedAt;
+
   const Loop({
     required this.id,
     required this.sessionId,
@@ -99,7 +202,19 @@ class Loop {
     this.lastFiredAt,
     this.fireCount = 0,
     this.paused = false,
+    this.machineId = '',
+    this.directory = '',
+    this.agent = '',
+    this.lastSessionId,
+    this.activeSessionId,
+    this.goal = '',
+    this.progressFile = '',
+    this.maxIterations = 0,
+    this.status = '',
+    this.statusDetail = '',
+    this.completedAt,
   });
+
 
   factory Loop.fromJson(Map<String, dynamic> json) {
     return Loop(
@@ -115,9 +230,23 @@ class Loop {
           : (json['lastFiredAt'] as num).toInt(),
       fireCount: (json['fireCount'] as num?)?.toInt() ?? 0,
       paused: json['paused'] as bool? ?? false,
+      machineId: json['machineId'] as String? ?? '',
+      directory: json['directory'] as String? ?? '',
+      agent: json['agent'] as String? ?? '',
+      lastSessionId: json['lastSessionId'] as String?,
+      activeSessionId: json['activeSessionId'] as String?,
+      goal: json['goal'] as String? ?? '',
+      progressFile: json['progressFile'] as String? ?? '',
+      maxIterations: (json['maxIterations'] as num?)?.toInt() ?? 0,
+      status: json['status'] as String? ?? '',
+      statusDetail: json['statusDetail'] as String? ?? '',
+      completedAt: (json['completedAt'] as num?)?.toInt(),
     );
   }
 
+  /// Serializes back to the daemon's wire shape. Optional fields are omitted
+  /// when empty so a round-trip through [LoopStorage] reproduces exactly what
+  /// the daemon sent (Go's `omitempty`).
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
@@ -130,6 +259,17 @@ class Loop {
       if (lastFiredAt != null) 'lastFiredAt': lastFiredAt,
       'fireCount': fireCount,
       'paused': paused,
+      if (machineId.isNotEmpty) 'machineId': machineId,
+      if (directory.isNotEmpty) 'directory': directory,
+      if (agent.isNotEmpty) 'agent': agent,
+      if (lastSessionId != null) 'lastSessionId': lastSessionId,
+      if (activeSessionId != null) 'activeSessionId': activeSessionId,
+      if (goal.isNotEmpty) 'goal': goal,
+      if (progressFile.isNotEmpty) 'progressFile': progressFile,
+      if (maxIterations != 0) 'maxIterations': maxIterations,
+      if (status.isNotEmpty) 'status': status,
+      if (statusDetail.isNotEmpty) 'statusDetail': statusDetail,
+      if (completedAt != null) 'completedAt': completedAt,
     };
   }
 
@@ -145,6 +285,18 @@ class Loop {
     bool clearLastFiredAt = false,
     int? fireCount,
     bool? paused,
+    String? machineId,
+    String? directory,
+    String? agent,
+    String? lastSessionId,
+    String? activeSessionId,
+    bool clearActiveSessionId = false,
+    String? goal,
+    String? progressFile,
+    int? maxIterations,
+    String? status,
+    String? statusDetail,
+    int? completedAt,
   }) {
     return Loop(
       id: id ?? this.id,
@@ -158,8 +310,47 @@ class Loop {
           clearLastFiredAt ? null : (lastFiredAt ?? this.lastFiredAt),
       fireCount: fireCount ?? this.fireCount,
       paused: paused ?? this.paused,
+      machineId: machineId ?? this.machineId,
+      directory: directory ?? this.directory,
+      agent: agent ?? this.agent,
+      lastSessionId: lastSessionId ?? this.lastSessionId,
+      activeSessionId: clearActiveSessionId
+          ? null
+          : (activeSessionId ?? this.activeSessionId),
+      goal: goal ?? this.goal,
+      progressFile: progressFile ?? this.progressFile,
+      maxIterations: maxIterations ?? this.maxIterations,
+      status: status ?? this.status,
+      statusDetail: statusDetail ?? this.statusDetail,
+      completedAt: completedAt ?? this.completedAt,
     );
   }
+
+  /// Whether the daemon owns this loop (spawn-a-session-per-run) rather than
+  /// a live session (inject-a-prompt-per-fire).
+  bool get isMachineLoop => machineId.isNotEmpty || directory.isNotEmpty;
+
+  /// Whether this loop iterates towards a goal until it reports done.
+  bool get isGoalLoop => goal.isNotEmpty;
+
+  /// Parsed lifecycle state.
+  LoopStatus get loopStatus =>
+      LoopStatus.fromWire(status.isEmpty ? null : status);
+
+  /// Whether the daemon has stopped iterating this loop for good.
+  bool get isTerminal => loopStatus.isTerminal;
+
+  /// Whether an iteration is in flight right now.
+  bool get isIterating =>
+      activeSessionId != null && activeSessionId!.isNotEmpty;
+
+  /// The progress file the loop actually uses.
+  String get effectiveProgressFile =>
+      progressFile.isEmpty ? 'PROGRESS.md' : progressFile;
+
+  /// Iterations completed so far. [fireCount] counts started runs, which is
+  /// the same thing between iterations and one ahead during one.
+  int get completedIterations => isIterating ? fireCount - 1 : fireCount;
 
   /// Whether the loop's expiry has passed (one-shots that fired self-delete
   /// on the daemon side; this flag surfaces a soon-to-be-removed loop in
@@ -182,10 +373,23 @@ class Loop {
           expiresAt == other.expiresAt &&
           lastFiredAt == other.lastFiredAt &&
           fireCount == other.fireCount &&
-          paused == other.paused;
+          paused == other.paused &&
+          machineId == other.machineId &&
+          directory == other.directory &&
+          agent == other.agent &&
+          lastSessionId == other.lastSessionId &&
+          activeSessionId == other.activeSessionId &&
+          goal == other.goal &&
+          progressFile == other.progressFile &&
+          maxIterations == other.maxIterations &&
+          status == other.status &&
+          statusDetail == other.statusDetail &&
+          completedAt == other.completedAt;
 
+  // Object.hash tops out at 20 positional arguments; hashAll has no such
+  // limit and keeps the field list here mechanical.
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll(<Object?>[
         id,
         sessionId,
         expression,
@@ -196,10 +400,23 @@ class Loop {
         lastFiredAt,
         fireCount,
         paused,
-      );
+        machineId,
+        directory,
+        agent,
+        lastSessionId,
+        activeSessionId,
+        goal,
+        progressFile,
+        maxIterations,
+        status,
+        statusDetail,
+        completedAt,
+      ]);
 
   @override
-  String toString() =>
-      'Loop(id: $id, expression: $expression, paused: $paused, '
-      'fireCount: $fireCount)';
+  String toString() => isGoalLoop
+      ? 'Loop(id: $id, goal: $goal, status: $status, '
+          'fireCount: $fireCount)'
+      : 'Loop(id: $id, expression: $expression, paused: $paused, '
+          'fireCount: $fireCount)';
 }
