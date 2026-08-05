@@ -2,57 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
-import '../../../core/theme/syntax_theme.dart';
+import 'json_syntax.dart';
 
 const double _jsonIndent = 8;
-
-// ---------------------------------------------------------------------------
-// Syntax-highlight color palettes
-// ---------------------------------------------------------------------------
-
-class _JsonColors {
-  const _JsonColors({
-    required this.key,
-    required this.string,
-    required this.number,
-    required this.boolean,
-    required this.nullValue,
-    required this.bracket,
-    required this.punctuation,
-    required this.muted,
-  });
-
-  final Color key;
-  final Color string;
-  final Color number;
-  final Color boolean;
-  final Color nullValue;
-  final Color bracket;
-  final Color punctuation;
-  final Color muted;
-
-  static _JsonColors of(Brightness brightness, Color onSurface) {
-    // Map JSON's semantic roles onto the [SyntaxTheme] tokens so a
-    // single palette drives both the code-block highlighter and the
-    // JSON tree viewer. The ThemeHelper registers both light and dark
-    // variants, so the matching one is always present.
-    final syntax = brightness == Brightness.dark
-        ? SyntaxTheme.dark
-        : SyntaxTheme.light;
-    return _JsonColors(
-      key: syntax.colorFor('property'),
-      string: syntax.colorFor('string'),
-      number: syntax.colorFor('number'),
-      boolean: syntax.colorFor('boolean'),
-      nullValue: syntax.colorFor('default'),
-      bracket: syntax.colorFor('bracket'),
-      // Punctuation and muted are alpha tints of onSurface so they
-      // adapt to whatever surface the JSON sits on.
-      punctuation: onSurface.withValues(alpha: 0.5),
-      muted: onSurface.withValues(alpha: 0.4),
-    );
-  }
-}
 
 TextStyle _mono(BuildContext context) {
   return TextStyle(
@@ -430,7 +382,7 @@ class _JsonNodeState extends State<_JsonNode> {
   // -------------------------------------------------------------------------
 
   Widget _buildObject(BuildContext context, Map<String, dynamic> map) {
-    final colors = _JsonColors.of(
+    final colors = JsonSyntaxColors.of(
       Theme.of(context).brightness,
       Theme.of(context).colorScheme.onSurface,
     );
@@ -529,7 +481,7 @@ class _JsonNodeState extends State<_JsonNode> {
   // -------------------------------------------------------------------------
 
   Widget _buildArray(BuildContext context, List<dynamic> list) {
-    final colors = _JsonColors.of(
+    final colors = JsonSyntaxColors.of(
       Theme.of(context).brightness,
       Theme.of(context).colorScheme.onSurface,
     );
@@ -624,7 +576,7 @@ class _JsonNodeState extends State<_JsonNode> {
   // -------------------------------------------------------------------------
 
   Widget _buildPrimitive(BuildContext context, dynamic value) {
-    final colors = _JsonColors.of(
+    final colors = JsonSyntaxColors.of(
       Theme.of(context).brightness,
       Theme.of(context).colorScheme.onSurface,
     );
@@ -688,7 +640,7 @@ class _ObjectEntryRow extends StatelessWidget {
   final dynamic value;
   final int depth;
   final bool trailingComma;
-  final _JsonColors colors;
+  final JsonSyntaxColors colors;
   final TextStyle mono;
 
   @override

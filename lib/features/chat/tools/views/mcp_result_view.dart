@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
+import '../json_syntax.dart' show JsonSyntaxColors, buildJsonSpans;
 import '../json_viewer.dart' show ToolOutputScrollFrame;
 import '../tool_view_helpers.dart';
 import '../tool_view_widgets.dart';
@@ -67,6 +68,14 @@ class _McpResultViewState extends State<McpResultView> {
         ? lines.take(widget.collapsedMaxLines).join('\n')
         : _payload.text;
 
+    final baseStyle = TextStyle(
+      fontFamily: 'monospace',
+      fontFamilyFallback: const ['Courier New', 'Courier'],
+      fontSize: AppFontSize.sm,
+      color: cs.onSurface,
+      height: AppLineHeight.relaxed,
+    );
+
     final body = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.smd,
@@ -74,16 +83,19 @@ class _McpResultViewState extends State<McpResultView> {
       ),
       child: ToolOutputScrollFrame(
         maxHeight: _expanded ? widget.expandedMaxHeight : null,
-        child: SelectableText(
-          visibleText,
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontFamilyFallback: const ['Courier New', 'Courier'],
-            fontSize: AppFontSize.sm,
-            color: cs.onSurface,
-            height: AppLineHeight.relaxed,
-          ),
-        ),
+        // Keys, strings, numbers and booleans each get their own color when
+        // the payload is JSON; anything else stays plain monospace.
+        child: _payload.isJson
+            ? SelectableText.rich(
+                TextSpan(
+                  style: baseStyle,
+                  children: buildJsonSpans(
+                    visibleText,
+                    JsonSyntaxColors.of(theme.brightness, cs.onSurface),
+                  ),
+                ),
+              )
+            : SelectableText(visibleText, style: baseStyle),
       ),
     );
 
@@ -163,6 +175,7 @@ class _McpPayload {
     required this.text,
     required this.lines,
     required this.label,
+    required this.isJson,
   });
 
   factory _McpPayload.parse(String raw) {
@@ -175,10 +188,14 @@ class _McpPayload {
       text: pretty,
       lines: lines,
       label: '$kind · $count line${count == 1 ? '' : 's'}',
+      isJson: decoded != null,
     );
   }
 
   final String text;
   final List<String> lines;
   final String label;
+
+  /// Whether the payload parsed as JSON, and so may be syntax-highlighted.
+  final bool isJson;
 }

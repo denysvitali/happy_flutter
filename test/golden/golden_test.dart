@@ -550,6 +550,61 @@ void main() {
       );
     });
 
+    // One minified payload, exactly as an MCP server answers — the view is
+    // responsible for pretty-printing and coloring it.
+    const mcpJsonResult = '{"devices":[{"id":"d2772243110f","device_mode":'
+        '"normal","firmware_version":"v0.1.0 (d5040ccc)","gps_interval":30,'
+        '"coap_failures":0,"error_count":0,"field_notes":null,"online":true}],'
+        '"total":1}';
+
+    testWidgets('mcp json result - light', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 500 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _toolApp({
+          'name': 'mcp__gps-tracker__list_devices',
+          'input': <String, dynamic>{},
+          'result': mcpJsonResult,
+          'state': 'completed',
+        }),
+      );
+      await tester.pump();
+      await tester.tap(find.byType(ToolView));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tool_mcp_json_light.png'),
+      );
+    });
+
+    testWidgets('mcp json result - dark', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 500 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _toolApp({
+          'name': 'mcp__gps-tracker__list_devices',
+          'input': <String, dynamic>{},
+          'result': mcpJsonResult,
+          'state': 'completed',
+        }, dark: true),
+      );
+      await tester.pump();
+      await tester.tap(find.byType(ToolView));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tool_mcp_json_dark.png'),
+      );
+    });
+
     testWidgets('bash running - light', (tester) async {
       tester.view.physicalSize = const Size(390 * 2, 300 * 2);
       tester.view.devicePixelRatio = 2.0;
