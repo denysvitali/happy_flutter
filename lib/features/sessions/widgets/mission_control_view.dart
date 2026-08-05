@@ -316,17 +316,17 @@ class _MissionControlViewState extends State<MissionControlView> {
             ),
           ),
         ),
-      );
-      items.add(
-        _WorkspaceList(
-          groups: [
-            ...active,
-            if (_showQuiet) ...quiet,
-          ],
-          lanes: lanes,
-          onOpen: widget.onOpenWorkspace,
-        ),
-      );
+      )
+        ..add(
+          _WorkspaceList(
+            groups: [
+              ...active,
+              if (_showQuiet) ...quiet,
+            ],
+            lanes: lanes,
+            onOpen: widget.onOpenWorkspace,
+          ),
+        );
       if (quiet.isNotEmpty) {
         items.add(
           _MoreRow(
