@@ -304,19 +304,20 @@ class _MissionControlViewState extends State<MissionControlView> {
     }
 
     if (active.isNotEmpty || quiet.isNotEmpty) {
-      items.add(
-        SectionHeader(
-          title: l10n.missionControlWorkspaces,
-          trailing: Text(
-            '${workspaces.length}',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-              fontSize: AppFontSize.xs,
-              fontFeatures: const [FontFeature.tabularFigures()],
+      items
+        ..add(
+          SectionHeader(
+            title: l10n.missionControlWorkspaces,
+            trailing: Text(
+              '${workspaces.length}',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                fontSize: AppFontSize.xs,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
-        ),
-      )
+        )
         ..add(
           _WorkspaceList(
             groups: [
