@@ -823,13 +823,17 @@ void main() {
 
   group('Chat Screen', () {
     Widget _chatApp({bool dark = false}) {
-      return MaterialApp(
-        theme: _testLightTheme(),
-        darkTheme: _testDarkTheme(),
-        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        debugShowCheckedModeBanner: false,
-        home: const _MockChatView(),
+      // The mock conversation includes a tool call, and [ToolView] reads
+      // settings through Riverpod — without a scope it throws mid-build.
+      return ProviderScope(
+        child: MaterialApp(
+          theme: _testLightTheme(),
+          darkTheme: _testDarkTheme(),
+          themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          debugShowCheckedModeBanner: false,
+          home: const _MockChatView(),
+        ),
       );
     }
 
