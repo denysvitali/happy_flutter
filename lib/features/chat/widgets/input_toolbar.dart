@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../model_selection_resolver.dart';
 import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
 
@@ -124,64 +125,75 @@ class ProfileChip extends StatelessWidget {
     final label =
         profile?.name ?? AppLocalizations.of(context).chatInputProfileDefault;
     final displayLabel = isDefault ? 'Profile' : label;
+    // Name alone is not routing — host shows which API the spawn hits.
+    final host = profileBackendHost(profile);
+    final semanticLabel = host == null
+        ? 'Profile: $label'
+        : 'Profile: $label · $host';
+    final tooltip = host == null ? label : '$label · $host';
 
     return Semantics(
       button: true,
-      label: 'Profile: $label',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: AppTouchTarget.min,
-            minWidth: AppTouchTarget.min,
-          ),
-          // widthFactor/heightFactor keep Align intrinsic-sized so Wrap
-          // places chips on one row; bare Align expands to full width.
-          child: Align(
-            alignment: Alignment.center,
-            widthFactor: 1,
-            heightFactor: 1,
-            child: Container(
-              height: _toolbarChipVisualHeight,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: isDefault
-                    ? cs.onSurface.withValues(alpha: 0.05)
-                    : cs.tertiary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.swap_horiz_rounded,
-                    size: 11,
-                    color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 68),
-                    child: Text(
-                      displayLabel,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: AppFontSize.xxs,
-                        color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      label: semanticLabel,
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppTouchTarget.min,
+              minWidth: AppTouchTarget.min,
+            ),
+            // widthFactor/heightFactor keep Align intrinsic-sized so Wrap
+            // places chips on one row; bare Align expands to full width.
+            child: Align(
+              alignment: Alignment.center,
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Container(
+                height: _toolbarChipVisualHeight,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: isDefault
+                      ? cs.onSurface.withValues(alpha: 0.05)
+                      : cs.tertiary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.swap_horiz_rounded,
+                      size: 11,
+                      color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                     ),
-                  ),
-                  const SizedBox(width: 1),
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 12,
-                    color: isDefault
-                        ? cs.onSurfaceVariant.withValues(alpha: 0.65)
-                        : cs.tertiary.withValues(alpha: 0.65),
-                  ),
-                ],
+                    const SizedBox(width: AppSpacing.xs),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 68),
+                      child: Text(
+                        displayLabel,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: AppFontSize.xxs,
+                          color: isDefault
+                              ? cs.onSurfaceVariant
+                              : cs.tertiary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 1),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 12,
+                      color: isDefault
+                          ? cs.onSurfaceVariant.withValues(alpha: 0.65)
+                          : cs.tertiary.withValues(alpha: 0.65),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

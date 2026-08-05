@@ -326,6 +326,7 @@ void main() {
       );
 
       expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isTrue);
+      expect(profileBackendHost(profile), 'api.kimi.com');
       expect(
         ChatModelMode.availableForProfile(
           flavor: 'claude',
@@ -343,6 +344,57 @@ void main() {
       );
 
       expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isFalse);
+      expect(profileBackendHost(profile), 'api.anthropic.com');
+    });
+
+    test(
+      r'expands ${VAR:-default} base URLs so built-in Qwen is third-party',
+      () {
+        // Built-in profiles store daemon expansion refs, not bare URLs.
+        // Without expanding the default, host parse fails and Qwen is
+        // misclassified as official Anthropic (Claude aliases stay on).
+        final profile = _profile(
+          id: 'qwen',
+          environmentVariables: [
+            EnvironmentVariable(
+              name: 'ANTHROPIC_BASE_URL',
+              value:
+                  r'${QWEN_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic}',
+            ),
+          ],
+        );
+
+        expect(
+          expandEnvDefault(
+            r'${QWEN_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic}',
+          ),
+          'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic',
+        );
+        expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isTrue);
+        expect(
+          profileBackendHost(profile),
+          'token-plan.ap-southeast-1.maas.aliyuncs.com',
+        );
+      },
+    );
+
+    test('surfaces host for a misnamed custom profile pointing at Kimi', () {
+      // Regression: name "Qwen 3.8" + env → kimi.com was invisible in the
+      // chip/picker, so the user thought they were on Qwen while every
+      // spawn hit Kimi and returned 403 usage-limit errors.
+      final profile = _profile(
+        id: 'custom-qwen-misrouted',
+        name: 'Qwen 3.8',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value: 'https://api.kimi.com/coding/',
+          ),
+        ],
+      );
+
+      expect(profileBackendHost(profile), 'api.kimi.com');
+      expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isTrue);
     });
   });
   group('provider-owned Codex effort round-trip', () {
@@ -454,18 +506,21 @@ void main() {
 
 AIBackendProfile _profile({
   required String id,
+  String? name,
   String? defaultModelMode,
   String? defaultPermissionMode,
   AnthropicConfig? anthropicConfig,
   ProfileCompatibility compatibility = const ProfileCompatibility(),
   List<String> models = const [],
+  List<EnvironmentVariable> environmentVariables = const [],
 }) {
   return AIBackendProfile(
     id: id,
-    name: id,
+    name: name ?? id,
     defaultModelMode: defaultModelMode,
     defaultPermissionMode: defaultPermissionMode,
     anthropicConfig: anthropicConfig,
+    environmentVariables: environmentVariables,
     compatibility: compatibility,
     models: models,
   );

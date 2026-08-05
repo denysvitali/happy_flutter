@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../../core/models/settings.dart';
 import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart';
@@ -177,7 +179,40 @@ bool profileOwnsRawCodexModel(AIBackendProfile? profile) {
   }
   final baseUrl =
       profile.openaiConfig?.baseUrl ?? _envValue(profile, 'OPENAI_BASE_URL');
-  return baseUrl != null && !_isOfficialOpenAIBaseUrl(baseUrl);
+  return baseUrl != null &&
+      !_isOfficialOpenAIBaseUrl(expandEnvDefault(baseUrl));
+}
+
+/// Host of the profile's primary backend URL, or null when none can be
+/// parsed.
+///
+/// Profiles are routed by env vars, not by display name — a custom profile
+/// called "Qwen" can still point at `api.kimi.com`. Built-in profiles store
+/// `${VAR:-default}` refs; the host is taken from the embedded default so
+/// the UI matches what the daemon will expand when no process override
+/// exists.
+String? profileBackendHost(AIBackendProfile? profile) {
+  if (profile == null) return null;
+  final candidates = <String?>[
+    profile.anthropicConfig?.baseUrl,
+    profile.openaiConfig?.baseUrl,
+    _envValue(profile, 'ANTHROPIC_BASE_URL'),
+    _envValue(profile, 'OPENAI_BASE_URL'),
+  ];
+  for (final raw in candidates) {
+    if (raw == null) continue;
+    final uri = Uri.tryParse(expandEnvDefault(raw));
+    if (uri != null && uri.host.isNotEmpty) return uri.host;
+  }
+  return null;
+}
+
+/// Expand a single `${VAR:-default}` shell-style ref to its default, or
+/// return [raw] unchanged when it is not that form.
+@visibleForTesting
+String expandEnvDefault(String raw) {
+  final match = RegExp(r'^\$\{[^:}]+:-(.*)\}$').firstMatch(raw.trim());
+  return (match?.group(1) ?? raw).trim();
 }
 
 bool profileUsesThirdPartyAnthropicBaseUrl(AIBackendProfile? profile) {
@@ -186,7 +221,7 @@ bool profileUsesThirdPartyAnthropicBaseUrl(AIBackendProfile? profile) {
       profile.anthropicConfig?.baseUrl ??
       _envValue(profile, 'ANTHROPIC_BASE_URL');
   if (baseUrl == null) return false;
-  final host = Uri.tryParse(baseUrl)?.host.toLowerCase();
+  final host = Uri.tryParse(expandEnvDefault(baseUrl))?.host.toLowerCase();
   return host != null &&
       host.isNotEmpty &&
       host != 'api.anthropic.com' &&

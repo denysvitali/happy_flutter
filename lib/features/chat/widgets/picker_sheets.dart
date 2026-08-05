@@ -5,6 +5,7 @@ import '../../../core/components/app_sheet.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../model_selection_resolver.dart';
 import 'model_mode.dart';
 
 // ---------------------------------------------------------------------------
@@ -646,29 +647,6 @@ class _GroupedModelPickerContentState
 // Profile picker bottom sheet
 // ---------------------------------------------------------------------------
 
-/// Host of the profile's primary backend URL, or null when none can be
-/// parsed. Profiles are routed by their env vars, not by their name — a
-/// profile called "Qwen" can still point at api.kimi.com, so the picker
-/// surfaces the host to make mismatches visible at a glance.
-String? _profileBackendHost(AIBackendProfile profile) {
-  final candidates = <String?>[
-    profile.anthropicConfig?.baseUrl,
-    profile.openaiConfig?.baseUrl,
-    for (final env in profile.environmentVariables)
-      if (env.name == 'ANTHROPIC_BASE_URL' || env.name == 'OPENAI_BASE_URL')
-        env.value,
-  ];
-  for (final raw in candidates) {
-    if (raw == null) continue;
-    // Built-in profiles carry `${VAR:-default}` references; the daemon
-    // expands them, so judge the host by the embedded default.
-    final match = RegExp(r'^\$\{[^:}]+:-(.*)\}$').firstMatch(raw.trim());
-    final uri = Uri.tryParse((match?.group(1) ?? raw).trim());
-    if (uri != null && uri.host.isNotEmpty) return uri.host;
-  }
-  return null;
-}
-
 Widget _buildProfileTile(
   BuildContext ctx,
   AIBackendProfile profile,
@@ -678,7 +656,9 @@ Widget _buildProfileTile(
 ) {
   final cs = theme.colorScheme;
   final isSelected = current?.id == profile.id;
-  final host = _profileBackendHost(profile);
+  // Profiles are routed by env vars, not by name — a custom "Qwen" can
+  // still point at api.kimi.com. Host is expanded from `${VAR:-default}`.
+  final host = profileBackendHost(profile);
   final subtitle = [?profile.description, ?host].join(' · ');
 
   return InkWell(

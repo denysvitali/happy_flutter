@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart'
@@ -221,6 +222,43 @@ void main() {
       // Toolbar itself must stay a single chip-height strip, not 3 stacks.
       final toolbarSize = tester.getSize(find.byType(InputToolbar));
       expect(toolbarSize.height, lessThan(60));
+    },
+  );
+
+  testWidgets(
+    'profile chip semantics include backend host so misroutes are audible',
+    (tester) async {
+      // Regression: name "Qwen 3.8" + env → kimi.com was invisible on the
+      // chip; only the picker subtitle showed the host after the first fix.
+      final misrouted = AIBackendProfile(
+        id: 'custom-qwen-misrouted',
+        name: 'Qwen 3.8',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value: 'https://api.kimi.com/coding/',
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        wrap(
+          InputToolbar(
+            modelMode: ChatModelMode.defaultModel,
+            availableModels: const [ChatModelMode.defaultModel],
+            selectedProfile: misrouted,
+            onShowModelPicker: () {},
+            onShowProfilePicker: () {},
+          ),
+        ),
+      );
+
+      expect(
+        find.bySemanticsLabel(RegExp(r'Profile: Qwen 3\.8 · api\.kimi\.com')),
+        findsOneWidget,
+      );
+      // Visible label still the short name (chip width is capped).
+      expect(find.text('Qwen 3.8'), findsOneWidget);
     },
   );
 }
