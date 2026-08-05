@@ -113,6 +113,13 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         _smallFastModelCtrl.text = '';
         _timeoutCtrl.text = '600000';
         break;
+      case 'qwen':
+        _baseUrlCtrl.text =
+            'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic';
+        _modelCtrl.text = 'qwen3.7-max';
+        _smallFastModelCtrl.text = 'qwen3.6-flash';
+        _timeoutCtrl.text = '3000000';
+        break;
       case 'qwen-token-plan-codex':
         _baseUrlCtrl.text =
             'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
