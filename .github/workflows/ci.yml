@@ -353,17 +353,67 @@ jobs:
           path: build/app/outputs/flutter-apk/app-${{ steps.build_meta.outputs.FLAVOR }}-debug.apk
           retention-days: 14
 
-  build-release:
-    name: Build Release APK
+  # Decide whether this push actually changes the release APK product.
+  # Free GHA can't make a cold recompile cheap; skipping the job is the free win.
+  release-needed:
+    name: Release needed?
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Only ship signed release on main/tags/manual release dispatch.
-    # PRs and develop use build-debug.
     if: >-
       startsWith(github.ref, 'refs/tags/v') ||
       github.ref == 'refs/heads/main' ||
       (github.event_name == 'workflow_dispatch' &&
        (inputs.build_type == 'release' || inputs.build_type == 'both'))
+    outputs:
+      needed: ${{ steps.gate.outputs.needed }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # Need parent for push path diffs. Tags / first push / dispatch
+          # always rebuild.
+          fetch-depth: 0
+
+      - name: Gate on APK-affecting paths
+        id: gate
+        run: |
+          set -euo pipefail
+          # Always build for tags and manual release dispatches.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "Gate: always (tag or workflow_dispatch)"
+            exit 0
+          fi
+
+          BEFORE="${{ github.event.before }}"
+          # New branch / force-push with zero before SHA → rebuild.
+          if [ -z "$BEFORE" ] || \
+             [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "Gate: always (no before SHA)"
+            exit 0
+          fi
+
+          # Paths that change the signed production APK contents or the
+          # toolchain that produces it. Session UI-only commits skip release.
+          PATTERN='^(lib/|android/|assets/|l10n/|pubspec\.yaml|pubspec\.lock|\.mise\.toml|\.github/actions/setup-android-build/|\.github/actions/setup-flutter/)'
+          if git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -E "$PATTERN" >/dev/null; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            echo "Gate: APK-affecting paths changed"
+            git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -E "$PATTERN" | head -20
+          else
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Gate: no APK-affecting paths — skip release APK"
+          fi
+
+  build-release:
+    name: Build Release APK
+    needs: release-needed
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Only ship signed release on main/tags/manual release dispatch when
+    # the gate says the APK product changed (or force paths).
+    if: needs.release-needed.outputs.needed == 'true'
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
@@ -388,13 +438,26 @@ jobs:
             echo "SEMVER=$SEMVER"
             echo "SENTRY_RELEASE=$SENTRY_RELEASE"
           } >> $GITHUB_OUTPUT
-          # Expose for sentry_dart_plugin + any later steps.
           {
             echo "SENTRY_RELEASE=$SENTRY_RELEASE"
             echo "SENTRY_DIST=$BUILD_NUMBER"
           } >> $GITHUB_ENV
 
+      # Exact product cache for same SHA + build number (workflow re-runs).
+      # Content key includes SHA so a different commit never reuses an APK.
+      - name: Restore prebuilt release APK
+        id: apk-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            build/app/outputs/flutter-apk
+            build/debug-info
+          key: >-
+            release-apk-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}-${{
+            steps.build_meta.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}-sig1
+
       - name: Validate + create signing keystore
+        if: steps.apk-cache.outputs.cache-hit != 'true'
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "::error::KEYSTORE_BASE64 is required for release APK generation"
@@ -405,6 +468,7 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Setup Flutter
+        if: steps.apk-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup-flutter
         with:
           precache-android: 'true'
@@ -412,18 +476,19 @@ jobs:
 
       - name: Setup Android build
         id: android-setup
+        if: steps.apk-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup-android-build
         with:
           cache-write: 'true'
 
       - name: Build Release APK
+        if: steps.apk-cache.outputs.cache-hit != 'true'
         env:
           APP_ENV: ${{ steps.build_meta.outputs.FLAVOR }}
           KEYSTORE_PATH: ${{ github.workspace }}/release-keystore.jks
           KEYSTORE_STORE_PASSWORD: ${{ secrets.KEYSTORE_STORE_PASSWORD }}
           KEYSTORE_KEY_PASSWORD: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
           KEYSTORE_KEY_ALIAS: ${{ secrets.KEYSTORE_KEY_ALIAS }}
-          # jvmargs live in gradle.properties; keep daemon off on ephemeral VMs.
           GRADLE_OPTS: >-
             -Dorg.gradle.daemon=false
             -Dorg.gradle.parallel=true
@@ -434,7 +499,6 @@ jobs:
           set +e
           # No --dart-define=SENTRY_RELEASE: runtime PackageInfo supplies it
           # so AOT inputs stay stable across versionCode-only changes.
-          # --performance-measurement-file records assemble target times.
           mise exec -- flutter build apk --release --no-pub \
             --flavor ${{ steps.build_meta.outputs.FLAVOR }} \
             --target-platform android-arm64 \
@@ -456,9 +520,23 @@ jobs:
             exit "$status"
           fi
 
+      - name: Save prebuilt release APK
+        if: >-
+          success() &&
+          steps.apk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            build/app/outputs/flutter-apk
+            build/debug-info
+          key: >-
+            release-apk-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}-${{
+            steps.build_meta.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}-sig1
+
       - name: Save native hook outputs
         if: >-
           success() &&
+          steps.apk-cache.outputs.cache-hit != 'true' &&
           steps.android-setup.outputs.native-hooks-cache-hit != 'true' &&
           github.event_name != 'pull_request'
         uses: actions/cache/save@v5
@@ -470,7 +548,7 @@ jobs:
             'android/app/build.gradle.kts') }}
 
       - name: Upload Flutter performance report
-        if: always()
+        if: always() && steps.apk-cache.outputs.cache-hit != 'true'
         uses: actions/upload-artifact@v7
         with:
           name: flutter-perf-${{ github.run_id }}-${{ github.run_attempt }}
@@ -479,7 +557,9 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload debug symbols to Sentry
-        if: env.SENTRY_AUTH_TOKEN != ''
+        if: >-
+          env.SENTRY_AUTH_TOKEN != '' &&
+          steps.apk-cache.outputs.cache-hit != 'true'
         run: |
           mise exec -- flutter pub run sentry_dart_plugin
         env:
@@ -573,12 +653,20 @@ jobs:
 
   publish-release:
     name: Publish GitHub Release
-    needs: [build-release, build-linux]
+    needs: [release-needed, build-release, build-linux]
     runs-on: ubuntu-latest
+    # Skip when release APK was path-gated off (no APK product change).
+    # build-release is skipped in that case; publishing without it would fail
+    # the artifact download.
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.ref, 'refs/tags/v') ||
-      github.ref == 'refs/heads/main'
+      always() &&
+      needs.release-needed.result == 'success' &&
+      needs.release-needed.outputs.needed == 'true' &&
+      needs.build-release.result == 'success' &&
+      needs.build-linux.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+       startsWith(github.ref, 'refs/tags/v') ||
+       github.ref == 'refs/heads/main')
 
     steps:
       - name: Checkout repository
