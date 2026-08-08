@@ -21,6 +21,7 @@ import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 import 'package:happy_flutter/features/chat/chat_input.dart';
 import 'package:happy_flutter/features/chat/chat_screen.dart';
+import 'package:happy_flutter/features/chat/widgets/chat_input_buttons.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
 import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart'
@@ -489,8 +490,10 @@ void main() {
     });
 
     testWidgets(
-      'shows stopped-process feedback and blocks sends without restore target',
+      'shows stopped-process feedback and disables sends '
+      'without restore target',
       (tester) async {
+        final semantics = tester.ensureSemantics();
         sync.isInitialized = true;
         sync.messagesSync['session_1'] = InvalidateSync(() async {});
         sync.testSetSessionMessages('session_1', const []);
@@ -518,15 +521,24 @@ void main() {
         );
 
         await tester.enterText(find.byType(TextField), 'continue');
-        await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
         await tester.pump();
 
         expect(
-          find.textContaining('This session cannot respond'),
-          findsOneWidget,
+          tester.getSemantics(find.byType(SendButton)),
+          isSemantics(
+            label: 'Send',
+            isButton: true,
+            hasEnabledState: true,
+            isEnabled: false,
+            hasTapAction: false,
+          ),
         );
+        await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+        await tester.pump();
+
         expect(sync.messagesForSession('session_1'), isEmpty);
         expect(find.text('continue'), findsOneWidget);
+        semantics.dispose();
       },
     );
 

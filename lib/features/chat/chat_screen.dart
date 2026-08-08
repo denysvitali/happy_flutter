@@ -1413,6 +1413,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             attachmentController: _attachmentController,
             onSend: _sendMessage,
             isSending: _isSending,
+            isSendDisabled: _sessionSendIssue?.blocksSend ?? false,
             permissionMode: _permissionMode,
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,
