@@ -287,7 +287,10 @@ class ToolHeader extends StatelessWidget {
               onPressed: onOpenDetails,
               tooltip: context.l10n.toolDetailsView,
               constraints: compact
-                  ? BoxConstraints.tight(Size.square(rowHeight))
+                  ? BoxConstraints.tightFor(
+                      width: _activeHeight,
+                      height: rowHeight,
+                    )
                   : BoxConstraints(minWidth: rowHeight, minHeight: rowHeight),
               style: IconButton.styleFrom(
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,

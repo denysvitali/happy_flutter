@@ -284,7 +284,7 @@ void main() {
       final primary = find.byKey(const ValueKey('tool-header-primary-action'));
       final details = find.byKey(const ValueKey('tool-header-details-action'));
       expect(tester.getSize(primary).height, 30);
-      expect(tester.getSize(details), const Size(30, 30));
+      expect(tester.getSize(details), const Size(36, 30));
     });
 
     testWidgets('collapsed active header is dense but expanded stays full', (
