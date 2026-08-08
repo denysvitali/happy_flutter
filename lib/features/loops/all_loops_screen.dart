@@ -214,12 +214,10 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen>
                       ),
                       if (allGroups.isEmpty)
                         const SliverFillRemaining(
-                          hasScrollBody: false,
                           child: _AllLoopsEmptyState(),
                         )
                       else if (filteredGroups.isEmpty)
                         SliverFillRemaining(
-                          hasScrollBody: false,
                           child: _FilteredLoopsEmptyState(
                             filter: _filter,
                             onShowAll: () {
