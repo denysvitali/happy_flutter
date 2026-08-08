@@ -1,10 +1,23 @@
+/// Removes the shell process used to transport a Codex terminal command.
+///
+/// The wrapper is an implementation detail of the agent runner; the command
+/// inside it is the useful part to show in summaries and terminal cards.
 String cleanShellCommand(String? raw) {
   if (raw == null) return '';
   var command = raw.trim();
-  const prefix = '/bin/bash -lc ';
-  if (command.startsWith(prefix)) {
-    command = command.substring(prefix.length).trim();
-    command = _stripWrappedQuotes(command);
+  const transportWrappers = [
+    '/bin/sh -lc',
+    '/bin/bash -lc',
+    '/usr/bin/sh -lc',
+    '/usr/bin/bash -lc',
+  ];
+  for (final wrapper in transportWrappers) {
+    if (command == wrapper) return '';
+    if (command.startsWith('$wrapper ')) {
+      command = command.substring(wrapper.length).trim();
+      command = _stripWrappedQuotes(command);
+      break;
+    }
   }
   return command;
 }

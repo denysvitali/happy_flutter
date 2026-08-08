@@ -279,7 +279,9 @@ class KnownTools {
       hideDefaultError: true,
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['cmd'] as String? ?? input?['command'] as String?;
+        final command =
+            input?['cmd'] as String? ?? input?['command'] as String?;
+        return command == null ? null : cleanShellCommand(command);
       },
     ),
     'functions.exec_command': ToolDefinition(
@@ -289,7 +291,9 @@ class KnownTools {
       hideDefaultError: true,
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['cmd'] as String? ?? input?['command'] as String?;
+        final command =
+            input?['cmd'] as String? ?? input?['command'] as String?;
+        return command == null ? null : cleanShellCommand(command);
       },
     ),
     'Glob': ToolDefinition(

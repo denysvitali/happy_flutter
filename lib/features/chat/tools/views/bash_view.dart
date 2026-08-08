@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/tool_result_parser.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
@@ -99,8 +100,9 @@ class ExecCommandView extends StatelessWidget {
     final result = tool['result'];
     final state = tool['state'] as String? ?? 'pending';
 
-    final command =
-        input['cmd'] as String? ?? input['command'] as String? ?? '';
+    final command = cleanShellCommand(
+      input['cmd'] as String? ?? input['command'] as String?,
+    );
     final cwd = input['workdir'] as String? ?? input['cwd'] as String?;
 
     final stdout = state == 'completed' && result != null

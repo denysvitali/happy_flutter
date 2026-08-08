@@ -338,6 +338,34 @@ void main() {
       expect(find.text('Show JSON'), findsNothing);
     });
 
+    testWidgets('hides Codex transport shell wrapper in summary and body', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrapTool({
+          'name': 'functions.exec_command',
+          'toolUseId': 'cmd-wrapper-1',
+          'input': {'cmd': "/bin/sh -lc 'printf ok'", 'workdir': '/repo'},
+          'state': 'completed',
+          'result': {
+            'exitCode': 0,
+            'output': 'ok',
+            'stdout': 'ok',
+            'status': 'completed',
+          },
+        }),
+      );
+
+      expect(_richTextContent(tester), contains('Terminal  printf ok'));
+      expect(_richTextContent(tester), isNot(contains('/bin/sh -lc')));
+
+      await tester.tap(find.byType(ToolView));
+      await tester.pumpAndSettle();
+
+      expect(find.text('printf ok'), findsWidgets);
+      expect(find.textContaining('/bin/sh -lc'), findsNothing);
+    });
+
     testWidgets('renders ANSI escape sequences as styled text', (tester) async {
       const output =
           '\x1B[36mINFO\x1B[0m[0000] conditions\r\n'
