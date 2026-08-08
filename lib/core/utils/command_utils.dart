@@ -6,9 +6,13 @@ String cleanShellCommand(String? raw) {
   if (raw == null) return '';
   var command = raw.trim();
   const transportWrappers = [
+    '/bin/sh -c',
     '/bin/sh -lc',
+    '/bin/bash -c',
     '/bin/bash -lc',
+    '/usr/bin/sh -c',
     '/usr/bin/sh -lc',
+    '/usr/bin/bash -c',
     '/usr/bin/bash -lc',
   ];
   for (final wrapper in transportWrappers) {
