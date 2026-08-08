@@ -138,10 +138,11 @@ void main() {
             .onPressed,
         isNull,
       );
-      expect(
-        find.bySemanticsLabel('Permission action in progress'),
-        findsOneWidget,
+      final progress = find.semantics.byLabel(
+        RegExp('Permission action in progress'),
       );
+      expect(progress, findsOne);
+      expect(progress, isSemantics(isLiveRegion: true));
 
       // Complete the callback
       completer.complete();

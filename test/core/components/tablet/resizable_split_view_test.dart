@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RendererBinding;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -183,16 +182,15 @@ void main() {
     final before = _masterWidth(tester);
     // Target the operable node directly; descendants also include the
     // divider line's inherited semantics wrappers.
-    final node = tester.getSemantics(_dividerSemantics());
+    final slider = find.semantics.byLabel('Resize');
+    expect(slider, findsOne);
+    final node = slider.evaluate().single;
     expect(node.label, 'Resize');
     expect(node.value, '${before.round()} pixels wide');
     expect(node.getSemanticsData().hasAction(SemanticsAction.increase), isTrue);
     expect(node.getSemanticsData().hasAction(SemanticsAction.decrease), isTrue);
 
-    RendererBinding.instance.rootPipelineOwner.semanticsOwner!.performAction(
-      node.id,
-      SemanticsAction.increase,
-    );
+    tester.semantics.increase(slider);
     await tester.pumpAndSettle();
     expect(
       _masterWidth(tester),
@@ -206,10 +204,7 @@ void main() {
     );
     expect(mmkv.values['pane-layout-widths'], contains('sessions'));
 
-    RendererBinding.instance.rootPipelineOwner.semanticsOwner!.performAction(
-      node.id,
-      SemanticsAction.decrease,
-    );
+    tester.semantics.decrease(slider);
     await tester.pumpAndSettle();
     expect(_masterWidth(tester), closeTo(before, 0.5));
 
