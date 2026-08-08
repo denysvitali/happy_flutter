@@ -113,15 +113,20 @@ class ToolHeader extends StatelessWidget {
   /// Explicit alternative to [onLongPress] for opening tool details.
   final VoidCallback? onOpenDetails;
 
-  static const double _compactHeight = 36;
+  static const double _completedHeight = 30;
+  static const double _activeHeight = 36;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final compact =
-        state == ToolState.completed && !expanded && !hasPermissionRequest;
-    final rowHeight = compact ? _compactHeight : AppTouchTarget.min;
+    final compact = !expanded && !hasPermissionRequest;
+    final completedCompact = compact && state == ToolState.completed;
+    final rowHeight = completedCompact
+        ? _completedHeight
+        : compact
+        ? _activeHeight
+        : AppTouchTarget.min;
 
     final titleStyle = theme.textTheme.titleSmall?.copyWith(
       fontWeight: FontWeight.w600,
@@ -283,15 +288,21 @@ class ToolHeader extends StatelessWidget {
               tooltip: context.l10n.toolDetailsView,
               constraints: compact
                   ? BoxConstraints.tight(Size.square(rowHeight))
-                  : BoxConstraints(
-                      minWidth: rowHeight,
-                      minHeight: rowHeight,
-                    ),
+                  : BoxConstraints(minWidth: rowHeight, minHeight: rowHeight),
               style: IconButton.styleFrom(
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
-              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              padding: EdgeInsets.all(
+                completedCompact
+                    ? AppSpacing.xsm
+                    : compact
+                    ? AppSpacing.sm
+                    : AppSpacing.md,
+              ),
+              icon: Icon(
+                Icons.open_in_new_rounded,
+                size: compact ? AppIconSize.md : AppIconSize.lg,
+              ),
             ),
         ],
       ),

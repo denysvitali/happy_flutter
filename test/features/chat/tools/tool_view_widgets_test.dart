@@ -208,11 +208,11 @@ void main() {
 
       final primary = find.byKey(const ValueKey('tool-header-primary-action'));
       final details = find.byKey(const ValueKey('tool-header-details-action'));
-      expect(tester.getSize(primary).height, 36);
-      expect(tester.getSize(details), const Size(36, 36));
+      expect(tester.getSize(primary).height, 30);
+      expect(tester.getSize(details), const Size(30, 30));
     });
 
-    testWidgets('active and expanded headers keep full touch height', (
+    testWidgets('collapsed active header is dense but expanded stays full', (
       tester,
     ) async {
       Future<double> pumpHeader({
@@ -241,17 +241,14 @@ void main() {
             .height;
       }
 
-      expect(
-        await pumpHeader(state: ToolState.running, expanded: false),
-        greaterThanOrEqualTo(AppTouchTarget.min),
-      );
+      expect(await pumpHeader(state: ToolState.running, expanded: false), 36);
       expect(
         await pumpHeader(state: ToolState.completed, expanded: true),
         greaterThanOrEqualTo(AppTouchTarget.min),
       );
     });
 
-    testWidgets('active disclosure and details meet touch and semantics', (
+    testWidgets('permission disclosure keeps full touch and semantics', (
       tester,
     ) async {
       var expanded = false;
@@ -269,7 +266,7 @@ void main() {
                 expanded: expanded,
                 showCheckFlash: false,
                 chevronAnim: AlwaysStoppedAnimation<double>(expanded ? 0.5 : 0),
-                hasPermissionRequest: false,
+                hasPermissionRequest: true,
                 onTap: () => setState(() => expanded = !expanded),
                 onOpenDetails: () => detailCalls++,
               ),
@@ -294,7 +291,7 @@ void main() {
       );
 
       final collapsedNode = tester.getSemantics(
-        find.bySemanticsLabel('Read file, Queued'),
+        find.bySemanticsLabel('Read file, Approval needed'),
       );
       expect(collapsedNode.flagsCollection.isButton, isTrue);
       expect(collapsedNode.flagsCollection.isExpanded, Tristate.isFalse);
@@ -303,7 +300,7 @@ void main() {
       await tester.pump();
       expect(expanded, isTrue);
       final expandedNode = tester.getSemantics(
-        find.bySemanticsLabel('Read file, Queued'),
+        find.bySemanticsLabel('Read file, Approval needed'),
       );
       expect(expandedNode.flagsCollection.isExpanded, Tristate.isTrue);
 
