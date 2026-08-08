@@ -218,9 +218,9 @@ void main() {
       tester,
     ) async {
       stubRpc(
-        (call) => _snapshot(
+        (method) => _snapshot(
           servers: [
-            _stdioServer(name: 'search', enabled: call.method == 'mcp-toggle'),
+            _stdioServer(name: 'search', enabled: method == 'mcp-toggle'),
           ],
         ),
       );
