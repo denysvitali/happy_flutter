@@ -185,7 +185,73 @@ void main() {
       expect(find.text('Done'), findsOneWidget);
     });
 
-    testWidgets('disclosure and details actions meet touch and semantics', (
+    testWidgets('completed collapsed header uses compact timeline height', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _localizedApp(
+          home: Scaffold(
+            body: ToolHeader(
+              toolIcon: const Icon(Icons.terminal),
+              toolTitle: 'Terminal',
+              state: ToolState.completed,
+              hasContent: true,
+              showCheckFlash: false,
+              chevronAnim: const AlwaysStoppedAnimation<double>(0),
+              hasPermissionRequest: false,
+              onTap: () {},
+              onOpenDetails: () {},
+            ),
+          ),
+        ),
+      );
+
+      final primary = find.byKey(const ValueKey('tool-header-primary-action'));
+      final details = find.byKey(const ValueKey('tool-header-details-action'));
+      expect(tester.getSize(primary).height, 36);
+      expect(tester.getSize(details), const Size(36, 36));
+    });
+
+    testWidgets('active and expanded headers keep full touch height', (
+      tester,
+    ) async {
+      Future<double> pumpHeader({
+        required ToolState state,
+        required bool expanded,
+      }) async {
+        await tester.pumpWidget(
+          _localizedApp(
+            home: Scaffold(
+              body: ToolHeader(
+                toolIcon: const Icon(Icons.terminal),
+                toolTitle: 'Terminal',
+                state: state,
+                hasContent: true,
+                expanded: expanded,
+                showCheckFlash: false,
+                chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                hasPermissionRequest: false,
+                onTap: () {},
+              ),
+            ),
+          ),
+        );
+        return tester
+            .getSize(find.byKey(const ValueKey('tool-header-primary-action')))
+            .height;
+      }
+
+      expect(
+        await pumpHeader(state: ToolState.running, expanded: false),
+        greaterThanOrEqualTo(AppTouchTarget.min),
+      );
+      expect(
+        await pumpHeader(state: ToolState.completed, expanded: true),
+        greaterThanOrEqualTo(AppTouchTarget.min),
+      );
+    });
+
+    testWidgets('active disclosure and details meet touch and semantics', (
       tester,
     ) async {
       var expanded = false;
@@ -198,7 +264,7 @@ void main() {
               builder: (context, setState) => ToolHeader(
                 toolIcon: const Icon(Icons.description_outlined),
                 toolTitle: 'Read file',
-                state: ToolState.completed,
+                state: ToolState.pending,
                 hasContent: true,
                 expanded: expanded,
                 showCheckFlash: false,
@@ -228,7 +294,7 @@ void main() {
       );
 
       final collapsedNode = tester.getSemantics(
-        find.bySemanticsLabel('Read file, Done'),
+        find.bySemanticsLabel('Read file, Queued'),
       );
       expect(collapsedNode.flagsCollection.isButton, isTrue);
       expect(collapsedNode.flagsCollection.isExpanded, Tristate.isFalse);
@@ -237,7 +303,7 @@ void main() {
       await tester.pump();
       expect(expanded, isTrue);
       final expandedNode = tester.getSemantics(
-        find.bySemanticsLabel('Read file, Done'),
+        find.bySemanticsLabel('Read file, Queued'),
       );
       expect(expandedNode.flagsCollection.isExpanded, Tristate.isTrue);
 

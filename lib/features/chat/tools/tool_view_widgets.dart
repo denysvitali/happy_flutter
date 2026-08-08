@@ -113,10 +113,15 @@ class ToolHeader extends StatelessWidget {
   /// Explicit alternative to [onLongPress] for opening tool details.
   final VoidCallback? onOpenDetails;
 
+  static const double _compactHeight = 36;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final compact =
+        state == ToolState.completed && !expanded && !hasPermissionRequest;
+    final rowHeight = compact ? _compactHeight : AppTouchTarget.min;
 
     final titleStyle = theme.textTheme.titleSmall?.copyWith(
       fontWeight: FontWeight.w600,
@@ -205,7 +210,7 @@ class ToolHeader extends StatelessWidget {
     ];
 
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+      constraints: BoxConstraints(minHeight: rowHeight),
       child: Row(
         children: [
           Expanded(
@@ -229,13 +234,11 @@ class ToolHeader extends StatelessWidget {
                   onTap: onTap,
                   onLongPress: onLongPress,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: AppTouchTarget.min,
-                    ),
+                    constraints: BoxConstraints(minHeight: rowHeight),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.smd,
-                        vertical: AppSpacing.xsm,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: compact ? AppSpacing.sm : AppSpacing.smd,
+                        vertical: compact ? AppSpacing.xxs : AppSpacing.xsm,
                       ),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -278,10 +281,11 @@ class ToolHeader extends StatelessWidget {
               key: const ValueKey('tool-header-details-action'),
               onPressed: onOpenDetails,
               tooltip: context.l10n.toolDetailsView,
-              constraints: const BoxConstraints(
-                minWidth: AppTouchTarget.min,
-                minHeight: AppTouchTarget.min,
+              constraints: BoxConstraints(
+                minWidth: rowHeight,
+                minHeight: rowHeight,
               ),
+              padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
             ),
         ],
