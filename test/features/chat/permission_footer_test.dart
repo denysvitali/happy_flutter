@@ -107,7 +107,6 @@ void main() {
     ) async {
       final completer = Completer<void>();
       final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
 
       await tester.pumpWidget(
         _wrap(
@@ -151,6 +150,7 @@ void main() {
       // Buttons should reappear
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.text('Allow'), findsOneWidget);
+      semantics.dispose();
     });
 
     testWidgets('All edits shows loading spinner while callback runs', (
