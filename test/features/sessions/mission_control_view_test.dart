@@ -8,10 +8,9 @@ import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dar
 
 /// Mission Control is an action radar, not a session archive.
 ///
-/// Blocked outranks unread outranks live. Workspaces never expand
-/// sessions inline — they drill into the folder detail. Quiet
-/// workspaces (no hot sessions, no activity in 3h) hide behind a
-/// drawer. Action overflow folds past six rows.
+/// Blocked outranks unread outranks live. Attention and working sessions
+/// render in separate sections, status metrics filter the action deck, and
+/// workspaces always drill into folder detail.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -80,9 +79,7 @@ void main() {
   group('missionShortHost', () {
     test('strips k8s hash tails and user@ prefixes', () {
       expect(
-        missionShortHost(
-          'workspace@workspace-denys-local-6589959b66-pzg66',
-        ),
+        missionShortHost('workspace@workspace-denys-local-6589959b66-pzg66'),
         'workspace-denys',
       );
       expect(
@@ -110,6 +107,8 @@ void main() {
     final cardY = tester.getTopLeft(find.text('action-blocked')).dy;
     final liveY = tester.getTopLeft(find.text('action-live')).dy;
     expect(cardY, lessThan(liveY));
+    expect(find.text('Needs attention'), findsOneWidget);
+    expect(find.text('Working now'), findsWidgets);
   });
 
   testWidgets('a workspace never expands sessions inline', (tester) async {
@@ -135,9 +134,7 @@ void main() {
     expect(opened, isNotEmpty);
   });
 
-  testWidgets('hot sessions appear as action rows, not workspace rows', (
-    tester,
-  ) async {
+  testWidgets('hot sessions appear in the action deck', (tester) async {
     final session = _session(id: 'hot', path: '/home/dev/project');
 
     await tester.pumpWidget(
@@ -151,26 +148,21 @@ void main() {
     await tester.pump();
 
     expect(find.text('action-hot'), findsOneWidget);
-    expect(find.text('action-hot'), findsNothing);
   });
 
-  testWidgets('action overflow folds past six rows', (tester) async {
+  testWidgets('each action section folds past four rows', (tester) async {
     final sessions = [
       for (var i = 0; i < 8; i++)
-        _session(
-          id: 's$i',
-          thinking: true,
-          path: '/home/dev/p$i',
-        ),
+        _session(id: 's$i', thinking: true, path: '/home/dev/p$i'),
     ];
 
     await tester.pumpWidget(_app(activeSessions: sessions));
     await tester.pump();
 
-    expect(find.textContaining('action-s'), findsNWidgets(6));
-    expect(find.text('… +2 more'), findsOneWidget);
+    expect(find.textContaining('action-s'), findsNWidgets(4));
+    expect(find.text('… +4 more'), findsOneWidget);
 
-    await tester.tap(find.text('… +2 more'));
+    await tester.tap(find.text('… +4 more'));
     await tester.pump();
 
     expect(find.textContaining('action-s'), findsNWidgets(8));
@@ -218,18 +210,86 @@ void main() {
     expect(find.text('action-live'), findsOneWidget);
   });
 
-  testWidgets('radar hides empty lanes', (tester) async {
+  testWidgets('summary keeps zero lanes visible for fleet awareness', (
+    tester,
+  ) async {
     final session = _session(id: 'q', path: '/home/dev/project');
 
     await tester.pumpWidget(_app(activeSessions: [session]));
     await tester.pump();
 
     expect(find.text('idle'), findsOneWidget);
-    expect(find.text('blocked'), findsNothing);
-    expect(find.text('unread'), findsNothing);
-    expect(find.text('working'), findsNothing);
-    // Idle chip is enough — no duplicate "all quiet" banner.
-    expect(find.textContaining('All quiet'), findsNothing);
+    expect(find.text('blocked'), findsOneWidget);
+    expect(find.text('unread'), findsOneWidget);
+    expect(find.text('working'), findsOneWidget);
+    expect(find.textContaining('All quiet'), findsOneWidget);
+  });
+
+  testWidgets('status metrics filter and restore the action deck', (
+    tester,
+  ) async {
+    final unread = _session(id: 'unread');
+    final live = _session(id: 'live', thinking: true);
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [unread, live],
+        uiState: const SessionUiState(
+          bySessionId: {'unread': SessionUiEntry(unreadCount: 2)},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('action-unread'), findsOneWidget);
+    expect(find.text('action-live'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('mission-filter-unread')));
+    await tester.pump();
+
+    expect(find.text('action-unread'), findsOneWidget);
+    expect(find.text('action-live'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('mission-filter-unread')));
+    await tester.pump();
+
+    expect(find.text('action-live'), findsOneWidget);
+  });
+
+  testWidgets('action tiles preserve title width and minimum tap target', (
+    tester,
+  ) async {
+    final session = _session(
+      id: 'tile',
+      path: '/home/dev/happy_flutter',
+      thinking: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MissionActionRow(
+            session: session,
+            entry: const SessionUiEntry(
+              lastMessagePreview: 'Running the analyzer',
+            ),
+            lane: MissionLane.live,
+            onTap: () {},
+            onLongPress: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('happy_flutter'), findsOneWidget);
+    expect(find.textContaining('dev/happy_flutter'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(MissionActionRow)).height,
+      greaterThanOrEqualTo(48),
+    );
   });
 }
 
@@ -247,7 +307,7 @@ Widget _app({
         inactiveSessions: const [],
         machines: const {},
         uiState: uiState,
-        actionCardBuilder: (session, entry, lane, now) =>
+        actionCardBuilder: (session, entry, lane) =>
             Text('action-${session.id}'),
         onOpenWorkspace: onOpenWorkspace ?? (_) {},
       ),

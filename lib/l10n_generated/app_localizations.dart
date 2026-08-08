@@ -4405,6 +4405,48 @@ abstract class AppLocalizations {
   /// **'All quiet — nothing needs you right now'**
   String get missionControlAllQuiet;
 
+  /// Mission Control summary for sessions requiring attention
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 session needs you} other {{count} sessions need you}}'**
+  String missionControlNeedsYou(int count);
+
+  /// Mission Control summary for actively working agents
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 agent working now} other {{count} agents working now}}'**
+  String missionControlWorkingNow(int count);
+
+  /// No description provided for @missionControlNeedsAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs attention'**
+  String get missionControlNeedsAttention;
+
+  /// No description provided for @missionControlWorkingSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Working now'**
+  String get missionControlWorkingSection;
+
+  /// No description provided for @missionControlWorkspacePulse.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace pulse'**
+  String get missionControlWorkspacePulse;
+
+  /// No description provided for @missionControlReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Review'**
+  String get missionControlReview;
+
+  /// Compact unread count displayed on a Mission Control tile
+  ///
+  /// In en, this message translates to:
+  /// **'{count} new'**
+  String missionControlNewCount(int count);
+
   /// No description provided for @missionControlStatBlocked.
   ///
   /// In en, this message translates to:

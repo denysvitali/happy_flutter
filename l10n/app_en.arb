@@ -990,6 +990,37 @@
   "sessionsViewStyleMissionControl": "Mission Control",
   "missionControlWorkspaces": "Workspaces",
   "missionControlAllQuiet": "All quiet \u2014 nothing needs you right now",
+  "missionControlNeedsYou": "{count, plural, =1 {1 session needs you} other {{count} sessions need you}}",
+  "@missionControlNeedsYou": {
+    "description": "Mission Control summary for sessions requiring attention",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missionControlWorkingNow": "{count, plural, =1 {1 agent working now} other {{count} agents working now}}",
+  "@missionControlWorkingNow": {
+    "description": "Mission Control summary for actively working agents",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missionControlNeedsAttention": "Needs attention",
+  "missionControlWorkingSection": "Working now",
+  "missionControlWorkspacePulse": "Workspace pulse",
+  "missionControlReview": "Review",
+  "missionControlNewCount": "{count} new",
+  "@missionControlNewCount": {
+    "description": "Compact unread count displayed on a Mission Control tile",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "missionControlStatBlocked": "blocked",
   "missionControlStatUnread": "unread",
   "missionControlStatWorking": "working",

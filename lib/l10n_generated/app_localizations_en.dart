@@ -2448,6 +2448,45 @@ class AppLocalizationsEn extends AppLocalizations {
       'All quiet — nothing needs you right now';
 
   @override
+  String missionControlNeedsYou(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions need you',
+      one: '1 session needs you',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String missionControlWorkingNow(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count agents working now',
+      one: '1 agent working now',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get missionControlNeedsAttention => 'Needs attention';
+
+  @override
+  String get missionControlWorkingSection => 'Working now';
+
+  @override
+  String get missionControlWorkspacePulse => 'Workspace pulse';
+
+  @override
+  String get missionControlReview => 'Review';
+
+  @override
+  String missionControlNewCount(int count) {
+    return '$count new';
+  }
+
+  @override
   String get missionControlStatBlocked => 'blocked';
 
   @override

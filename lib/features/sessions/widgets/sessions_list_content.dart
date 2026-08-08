@@ -494,8 +494,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       inactiveSessions: inactiveSessions,
       machines: machines,
       uiState: uiState,
-      actionCardBuilder: (session, entry, lane, now) =>
-          _buildMissionActionRow(session, entry, lane, now),
+      actionCardBuilder: (session, entry, lane) =>
+          _buildMissionActionRow(session, entry, lane),
       onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
   }
@@ -504,14 +504,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     Session session,
     SessionUiEntry entry,
     MissionLane lane,
-    int now,
   ) {
     final sel = _sel.value;
     final row = MissionActionRow(
       session: session,
       entry: entry,
       lane: lane,
-      now: now,
       onTap: sel.isActive
           ? () => _onSessionTapInSelectionMode(session.id)
           : () => _navigateToChat(session.id),
