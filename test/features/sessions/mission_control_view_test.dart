@@ -261,6 +261,14 @@ void main() {
     expect(tester.getCenter(find.text('unread')).dy, wideY);
     expect(tester.getCenter(find.text('working')).dy, wideY);
     expect(tester.getCenter(find.text('idle')).dy, wideY);
+    for (final lane in MissionLane.values) {
+      expect(
+        tester
+            .getSize(find.byKey(ValueKey('mission-filter-${lane.name}')))
+            .height,
+        greaterThanOrEqualTo(44),
+      );
+    }
 
     await pumpSummary(320);
     await tester.pump();
