@@ -76,6 +76,13 @@ class OpenTelemetryService {
       <String, Histogram<double>>{};
   final Map<String, Counter<int>> _counters = <String, Counter<int>>{};
 
+  /// Identity copied onto every metric point as a defensive fallback.
+  ///
+  /// The Flutter OTel wrapper has previously discarded the MeterProvider
+  /// resource entirely. Keeping the resource fix is still useful, but point
+  /// attributes make Prometheus attribution independent of that SDK plumbing.
+  Map<String, Object> _defaultMetricAttributes = const <String, Object>{};
+
   /// `signal:phase` keys already reported by [_reportPipelineError], so a
   /// recurring failure logs once per process instead of once per record.
   final Set<String> _reportedPipelineErrors = <String>{};
@@ -149,6 +156,11 @@ class OpenTelemetryService {
     try {
       await _trustedCertsFuture;
       final packageInfo = await PackageInfoCache.get();
+      _defaultMetricAttributes = buildMetricAttributes(
+        appVersion: packageInfo.version,
+        buildNumber: packageInfo.buildNumber,
+        releaseMode: kReleaseMode,
+      );
 
       // Use OTLP/HTTP for all signals so native builds talk to the same
       // collector ingress as web builds.
@@ -220,6 +232,27 @@ class OpenTelemetryService {
     'deployment.environment': releaseMode ? 'production' : 'debug',
     'service.build': buildNumber,
     'service.instance.id': launchInstanceId,
+  });
+
+  /// Stable identity copied onto every metric data point.
+  ///
+  /// These duplicate the OTel resource attributes intentionally. If the SDK
+  /// resource reaches the exporter, the values agree. If a wrapper drops it,
+  /// Prometheus still receives service/build/environment/instance labels.
+  @visibleForTesting
+  static Map<String, Object> buildMetricAttributes({
+    required String appVersion,
+    required String buildNumber,
+    required bool releaseMode,
+    Map<String, Object?> attributes = const <String, Object?>{},
+  }) => _safeAttributes({
+    ...attributes,
+    'service.name': serviceName,
+    'service.version': appVersion,
+    ...buildResourceAttributes(
+      buildNumber: buildNumber,
+      releaseMode: releaseMode,
+    ),
   });
 
   Future<void> waitUntilReady({
@@ -316,7 +349,11 @@ class OpenTelemetryService {
               unit: '{event}',
             ),
           )
-          .addWithMap(1, <String, Object>{'signal': signal, 'phase': phase});
+          .addWithMap(1, <String, Object>{
+            'signal': signal,
+            'phase': phase,
+            ..._defaultMetricAttributes,
+          });
     } catch (_) {
       // The metrics pipeline is the thing that is broken; nothing to do.
     }
@@ -441,7 +478,10 @@ class OpenTelemetryService {
         );
       });
       final seconds = duration.inMicroseconds / 1e6;
-      final safe = _safeAttributes(attributes);
+      final safe = _safeAttributes({
+        ...attributes,
+        ..._defaultMetricAttributes,
+      });
       if (safe.isEmpty) {
         histogram.record(seconds);
       } else {
@@ -480,7 +520,7 @@ class OpenTelemetryService {
   /// Production code must never set this.
   @visibleForTesting
   static void Function(String name, int value, Map<String, Object?> attributes)?
-      debugCountSink;
+  debugCountSink;
 
   /// Increment a low-cardinality counter. Best-effort and safe before OTel
   /// initialization, matching [recordDuration].
@@ -508,7 +548,10 @@ class OpenTelemetryService {
           unit: '{event}',
         );
       });
-      final safe = _safeAttributes(attributes);
+      final safe = _safeAttributes({
+        ...attributes,
+        ..._defaultMetricAttributes,
+      });
       if (safe.isEmpty) {
         counter.add(value);
       } else {

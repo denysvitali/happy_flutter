@@ -1042,7 +1042,7 @@ extension SyncMessagingRpc on Sync {
       // The session.lastSeq hint can be stale when background socket events
       // arrived without an embedded message. Bypass fetchMessages()'s
       // cursor==server skip once so the message API is authoritative.
-      _sessionsNeedingFetchProbe.add(sessionId);
+      _requestMessageFetchProbe(sessionId);
     }
     if (!isInitialized) return;
     if (!messagesSync.containsKey(sessionId)) {
@@ -1057,6 +1057,9 @@ extension SyncMessagingRpc on Sync {
       // and do not initialize the global network sync queues.
       return;
     }
+    final deferredProbeIntent = shouldProbeAfterSessionsRefresh
+        ? _captureMessageFetchProbeIntent(sessionId)
+        : null;
 
     // Only tail-refresh when we have no messages in memory for this session
     // (first open or after restart).  When messages are already loaded the
@@ -1203,7 +1206,7 @@ extension SyncMessagingRpc on Sync {
       unawaited(
         sessionsSync.awaitQueue().then((_) {
           if (!isInitialized || _visibleSessionId != sessionId) return;
-          _sessionsNeedingFetchProbe.add(sessionId);
+          _requestMessageFetchProbe(sessionId, intent: deferredProbeIntent);
           messagesSync[sessionId]?.invalidate();
         }),
       );

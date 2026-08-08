@@ -8,8 +8,10 @@ const String _encryptionMissingReason = 'encryptionMissing';
 
 extension SyncMessagePipeline on Sync {
   String _newTraceId(String sessionId, String suffix) {
-    final randomSuffix =
-        Random().nextInt(1 << 16).toRadixString(16).padLeft(4, '0');
+    final randomSuffix = Random()
+        .nextInt(1 << 16)
+        .toRadixString(16)
+        .padLeft(4, '0');
     return '$sessionId-$suffix-$randomSuffix-${DateTime.now().millisecondsSinceEpoch}';
   }
 
@@ -47,7 +49,8 @@ extension SyncMessagePipeline on Sync {
         _summarizeNotified(sessionId)) {
       return;
     }
-    final message = '[pipeline] $traceId session=$sessionId '
+    final message =
+        '[pipeline] $traceId session=$sessionId '
         'stage=${stage.name} outcome=$outcome payload=$data';
     switch (level) {
       case LogLevel.info:
@@ -84,7 +87,9 @@ extension SyncMessagePipeline on Sync {
 
   void _flushNotifiedSummary(int elapsedMs) {
     if (_notifiedSuppressed == 0) return;
-    logger.debug(
+    // Summary is INFO so the DEBUG export sampler cannot discard the count
+    // after doing the useful work of folding thousands of terminal records.
+    logger.info(
       '[pipeline] stage=notified outcome=summary '
       'suppressed=$_notifiedSuppressed sessions=${_notifiedSessions.length} '
       'windowMs=$elapsedMs',
@@ -95,7 +100,10 @@ extension SyncMessagePipeline on Sync {
 
   /// Window state for [_summarizeNotified]. Static because `Sync` is a
   /// singleton and this is process-wide log-volume policy, not session state.
-  static const int _notifiedSummaryWindowMs = 60000;
+  // Five minutes bounds routine terminal pipeline export to at most two
+  // records per window (one trace anchor plus one counted summary). Every
+  // non-ok outcome bypasses this policy and is still logged immediately.
+  static const int _notifiedSummaryWindowMs = 5 * 60 * 1000;
   static int _notifiedWindowStartedAtMs = 0;
   static int _notifiedSuppressed = 0;
   static final Set<String> _notifiedSessions = <String>{};
@@ -118,7 +126,9 @@ extension SyncMessagePipeline on Sync {
     _recentInlineMessageKeys.add(dedupKey);
     _recentInlineMessageKeyOrder.addLast(dedupKey);
     while (_recentInlineMessageKeyOrder.length > Sync._maxRecentInlineKeys) {
-      _recentInlineMessageKeys.remove(_recentInlineMessageKeyOrder.removeFirst());
+      _recentInlineMessageKeys.remove(
+        _recentInlineMessageKeyOrder.removeFirst(),
+      );
     }
   }
 
@@ -138,21 +148,21 @@ extension SyncMessagePipeline on Sync {
   }
 
   /// Returns true when [messages] contains any groupable sidechain content.
-///
-/// Keep this in sync with [SidechainGrouper]'s eligibility conditions so
-/// every path that can carry sidechain children (socket, HTTP fetch,
-/// mutation preview) triggers grouping and avoids double-rendering an
-/// already-grouped child that arrives in an overlapping fetch.
-///
-/// `parentToolUseId` is intentionally checked with an `is String` guard
-/// (instead of `as String?`) so a wrong runtime type — e.g. an `int` —
-/// is treated as "no anchor" rather than crashing the whole batch. A
-/// malformed wire shape must never blackhole sidechain grouping.
-///
-/// This is the canonical source of truth: `_sync_messaging.dart`'s
-/// `pageHasSidechain` must call this rather than re-inlining the
-/// predicate, otherwise the two gates can drift and an overlapping
-/// fetch can land back in the flat list.
+  ///
+  /// Keep this in sync with [SidechainGrouper]'s eligibility conditions so
+  /// every path that can carry sidechain children (socket, HTTP fetch,
+  /// mutation preview) triggers grouping and avoids double-rendering an
+  /// already-grouped child that arrives in an overlapping fetch.
+  ///
+  /// `parentToolUseId` is intentionally checked with an `is String` guard
+  /// (instead of `as String?`) so a wrong runtime type — e.g. an `int` —
+  /// is treated as "no anchor" rather than crashing the whole batch. A
+  /// malformed wire shape must never blackhole sidechain grouping.
+  ///
+  /// This is the canonical source of truth: `_sync_messaging.dart`'s
+  /// `pageHasSidechain` must call this rather than re-inlining the
+  /// predicate, otherwise the two gates can drift and an overlapping
+  /// fetch can land back in the flat list.
   bool hasSidechainMessage(List<Map<String, dynamic>> messages) =>
       messages.any(_hasSidechainSignal);
 
@@ -188,9 +198,7 @@ extension SyncMessagePipeline on Sync {
         ? const <String, dynamic>{}
         : WireParsers.asMap(rawPayloadMap['message']) ?? rawPayloadMap;
 
-    final messages = <Map<String, dynamic>>[
-      if (embedded.isNotEmpty) embedded,
-    ];
+    final messages = <Map<String, dynamic>>[if (embedded.isNotEmpty) embedded];
 
     _logPipelineStage(
       traceId,
@@ -228,9 +236,9 @@ extension SyncMessagePipeline on Sync {
       },
     );
 
-    final messages = batch.rawMessages
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
+    final messages = batch.rawMessages.whereType<Map<String, dynamic>>().toList(
+      growable: false,
+    );
 
     _logPipelineStage(
       batch.traceId,
@@ -437,10 +445,7 @@ extension SyncMessagePipeline on Sync {
           sessionId,
           MessagePipelineStage.merged,
           'skipped-mutation',
-          <String, dynamic>{
-            'mutate': false,
-            'maxSeq': processed.maxSeq,
-          },
+          <String, dynamic>{'mutate': false, 'maxSeq': processed.maxSeq},
         );
         return ProcessedMessageBundle(
           messages: processed.messages,

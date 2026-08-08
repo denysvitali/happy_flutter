@@ -246,9 +246,7 @@ extension SyncLifecycle on Sync {
     // below was permanently true for the same reason).
     final suspendedAtMs = _lastSuspendedAtMs;
     _lastSuspendedAtMs = null;
-    final backgroundedForMs = suspendedAtMs != null
-        ? nowMs - suspendedAtMs
-        : 0;
+    final backgroundedForMs = suspendedAtMs != null ? nowMs - suspendedAtMs : 0;
     final zombieSocket =
         socketStatusAtResume == ConnectionStatus.connected &&
         backgroundedForMs > Sync._zombieSocketMaxIdleMs;
@@ -462,6 +460,10 @@ extension SyncLifecycle on Sync {
               messagesSync[sessionId] = _createMessagesSync(sessionId);
             }
           }
+          final probeIntents = <String, ({int order, int requiredAfterSeq})>{
+            for (final sessionId in sessionsToRefresh)
+              sessionId: _captureMessageFetchProbeIntent(sessionId),
+          };
 
           // Ensure sessions are fresh, then refresh messages.
           // Use invalidate() + awaitQueue() instead of a second
@@ -492,7 +494,10 @@ extension SyncLifecycle on Sync {
                 )
                 .then((_) {
                   for (final sessionId in sessionsToRefresh) {
-                    _sessionsNeedingFetchProbe.add(sessionId);
+                    _requestMessageFetchProbe(
+                      sessionId,
+                      intent: probeIntents[sessionId],
+                    );
                     try {
                       messagesSync[sessionId]?.invalidate();
                     } on Object catch (e, st) {
@@ -683,7 +688,7 @@ extension SyncLifecycle on Sync {
           if (!messagesSync.containsKey(sessionId)) {
             messagesSync[sessionId] = _createMessagesSync(sessionId);
           }
-          _sessionsNeedingFetchProbe.add(sessionId);
+          _requestMessageFetchProbe(sessionId);
           messagesSync[sessionId]?.invalidate();
         } on Object catch (e, st) {
           logger.warning(
@@ -997,6 +1002,9 @@ extension SyncLifecycle on Sync {
     // from the previous user would force spurious fetch probes for
     // sessions that do not exist post-login).
     _sessionsNeedingFetchProbe.clear();
+    _messageFetchProbeIntents.clear();
+    _messageFetchCoverage.clear();
+    _messageFetchWorkOrder = 0;
     // _sessionsNeedingVisibleRegroup cleared in shutdown (orphans from
     // the previous user would be re-grouped on next login, causing
     // spurious UI work).

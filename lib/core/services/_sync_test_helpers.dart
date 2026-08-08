@@ -123,7 +123,8 @@ extension SyncTestHelpers on Sync {
     _sessionLastSeq.remove(sessionId);
     _sessionFirstLoadedSeq.remove(sessionId);
     _sessionContentSignatures.remove(sessionId);
-    _sessionsNeedingFetchProbe.remove(sessionId);
+    _cancelMessageFetchProbe(sessionId);
+    _messageFetchCoverage.remove(sessionId);
     _lastNoEmbedEventCursorSeq.remove(sessionId);
     _sessionsNeedingTailRefresh.remove(sessionId);
     _sessionsNeedingVisibleRegroup.remove(sessionId);
@@ -379,7 +380,7 @@ extension SyncTestHelpers on Sync {
 
   @visibleForTesting
   void testAddFetchProbe(String sessionId) {
-    _sessionsNeedingFetchProbe.add(sessionId);
+    _requestMessageFetchProbe(sessionId);
   }
 
   @visibleForTesting
@@ -703,6 +704,8 @@ extension SyncTestHelpers on Sync {
     _sessionsWithPendingUpdates.clear();
     _sessionsWithPendingSocketMessages.clear();
     _sessionsNeedingFetchProbe.clear();
+    _messageFetchProbeIntents.clear();
+    _messageFetchCoverage.clear();
     _sessionsNeedingTailRefresh.clear();
     _sessionsNeedingVisibleRegroup.clear();
     _sessionsNeedingSidechainRegroup.clear();

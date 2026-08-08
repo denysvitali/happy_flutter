@@ -70,9 +70,14 @@ extension SyncSocketEvents on Sync {
       // events can advance the cursor past the disconnect gap,
       // causing the reconnection fetch to skip messages that arrived
       // while the socket was down.
-      if (_visibleSessionId != null) {
-        _reconnectCursorSnapshot = _sessionLastSeq[_visibleSessionId] ?? 0;
+      final reconnectProbeSessionId = _visibleSessionId;
+      if (reconnectProbeSessionId != null) {
+        _reconnectCursorSnapshot =
+            _sessionLastSeq[reconnectProbeSessionId] ?? 0;
       }
+      final reconnectProbeIntent = reconnectProbeSessionId == null
+          ? null
+          : _captureMessageFetchProbeIntent(reconnectProbeSessionId);
       // A reconnect means the local session catalog can be stale, but
       // repeated broad catalog refreshes are expensive. Keep the visible
       // message recovery below on every reconnect, and throttle only the
@@ -182,7 +187,12 @@ extension SyncSocketEvents on Sync {
             // sessions fetch was in flight has already landed.
             final vid = _visibleSessionId;
             if (vid != null) {
-              _sessionsNeedingFetchProbe.add(vid);
+              _requestMessageFetchProbe(
+                vid,
+                intent: vid == reconnectProbeSessionId
+                    ? reconnectProbeIntent
+                    : null,
+              );
               messagesSync[vid]?.invalidate();
             }
           }),
@@ -506,7 +516,7 @@ extension SyncSocketEvents on Sync {
         }
         _lastNoEmbedEventMs[sessionId] = nowMs;
         _lastNoEmbedEventCursorSeq[sessionId] = cursorSeq;
-        _sessionsNeedingFetchProbe.add(sessionId);
+        _requestMessageFetchProbe(sessionId);
         messagesSync[sessionId]?.invalidate();
       }
       if (logger.shouldLog(LogLevel.debug)) {
@@ -664,7 +674,8 @@ extension SyncSocketEvents on Sync {
       _sessionSocketCatchUpAfterSeq.remove(sessionId);
       _sessionsRestoredFromMessageCache.remove(sessionId);
       _sessionsNeedingLegacySocketGapRepair.remove(sessionId);
-      _sessionsNeedingFetchProbe.remove(sessionId);
+      _cancelMessageFetchProbe(sessionId);
+      _messageFetchCoverage.remove(sessionId);
       _sessionSpawnedAt.remove(sessionId);
       _sessionSpawnedProfile.remove(sessionId);
       _sessionSpawnedModel.remove(sessionId);

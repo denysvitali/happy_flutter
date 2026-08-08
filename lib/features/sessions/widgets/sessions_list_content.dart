@@ -101,6 +101,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   String? _lastSearchQuery;
   List<ListItem>? _listItemsCache;
   int? _listItemsCacheSignature;
+  Widget? _retainedVisibleTree;
   late bool _sessionsRouteActive;
 
   /// Gate rapid taps on session cards.  Without this, 4 taps within
@@ -267,6 +268,18 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   @override
   Widget build(BuildContext context) {
+    // SessionsScreen deliberately retains its tab subtree, and pushed routes
+    // retain the sessions route during their transition. Stop watching broad
+    // collection providers while this list is covered: streaming chat updates
+    // otherwise rebuild the entire 200+ session Mission Control tree behind
+    // ChatScreen / MessageDetailScreen. Returning the identical previously
+    // rendered widget also preserves the outgoing route during slide
+    // transitions instead of flashing an empty sessions pane.
+    if (!_isVisible) {
+      PerformanceContextService().setCurrentSessionsView(null);
+      return _retainedVisibleTree ?? const SizedBox.shrink();
+    }
+
     final hideInactive = ref.watch(
       settingsNotifierProvider.select((s) => s.hideInactiveSessions),
     );
@@ -347,15 +360,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     if (sessionListCount == 0 && !_hasLoaded) {
-      return const SessionListShimmer();
+      return _retainVisibleTree(const SessionListShimmer());
     }
 
     if (sessionListCount == 0 && searchQuery.isNotEmpty) {
-      return _buildSearchEmptyState(context);
+      return _retainVisibleTree(_buildSearchEmptyState(context));
     }
 
     if (sessionListCount == 0) {
-      return const EmptySessionsView();
+      return _retainVisibleTree(const EmptySessionsView());
     }
 
     final triggerStagger = !_animationTriggered;
@@ -363,25 +376,32 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       _animationTriggered = true;
     }
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
-      },
-      color: Theme.of(context).colorScheme.primary,
-      child: _buildSessionsList(
-        context,
-        activeSessions,
-        inactiveSessions,
-        machines,
-        orderingProjection,
-        aggregateUiState,
-        sessionsViewStyle: sessionsViewStyle,
-        triggerStagger: triggerStagger,
-        hideInactive: hideInactive,
-        showFlavorIcons: showFlavorIcons,
-        avatarStyle: avatarStyle,
+    return _retainVisibleTree(
+      RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
+        },
+        color: Theme.of(context).colorScheme.primary,
+        child: _buildSessionsList(
+          context,
+          activeSessions,
+          inactiveSessions,
+          machines,
+          orderingProjection,
+          aggregateUiState,
+          sessionsViewStyle: sessionsViewStyle,
+          triggerStagger: triggerStagger,
+          hideInactive: hideInactive,
+          showFlavorIcons: showFlavorIcons,
+          avatarStyle: avatarStyle,
+        ),
       ),
     );
+  }
+
+  Widget _retainVisibleTree(Widget tree) {
+    _retainedVisibleTree = tree;
+    return tree;
   }
 
   Widget _buildSearchEmptyState(BuildContext context) {

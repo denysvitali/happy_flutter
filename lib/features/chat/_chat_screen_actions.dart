@@ -310,14 +310,35 @@ extension _ChatScreenActions on _ChatScreenState {
         attributes: {'has_cached_messages': hasCached},
       );
       final queueFuture = sync.messagesSync[sessionId]?.awaitQueue();
+      final syncAwaitStopwatch = Stopwatch()..start();
+      void recordSyncAwaitMetric(String mode, String outcome) {
+        if (!syncAwaitStopwatch.isRunning) return;
+        syncAwaitStopwatch.stop();
+        OpenTelemetryService().recordDuration(
+          'app.chat.sync.await',
+          syncAwaitStopwatch.elapsed,
+          attributes: <String, Object?>{
+            'mode': mode,
+            'outcome': outcome,
+            'has_cached_messages': hasCached,
+            'queue_present': queueFuture != null,
+          },
+          description: 'Time the chat waits for its message sync queue',
+        );
+      }
+
       if (hasCached) {
         awaitSpan.setData('mode', 'background');
         otelAwaitSpan?.setAttribute('mode', 'background');
         if (queueFuture != null) {
+          var backgroundOutcome = 'success';
           unawaited(
             queueFuture
                 .timeout(_backgroundAwaitBudget)
                 .catchError((Object e, StackTrace st) {
+                  backgroundOutcome = e is TimeoutException
+                      ? 'timeout'
+                      : 'error';
                   // Real refresh fail — surface as a breadcrumb but
                   // don't fail the transaction; the user already sees
                   // cached data.
@@ -347,20 +368,24 @@ extension _ChatScreenActions on _ChatScreenState {
                   );
                   unawaited(awaitSpan.finish());
                   otelAwaitSpan?.end();
+                  recordSyncAwaitMetric('background', backgroundOutcome);
                 }),
           );
         } else {
           unawaited(awaitSpan.finish());
           otelAwaitSpan?.end();
+          recordSyncAwaitMetric('background', 'no_queue');
         }
       } else {
         awaitSpan.setData('mode', 'blocking');
         otelAwaitSpan?.setAttribute('mode', 'blocking');
+        var blockingOutcome = queueFuture == null ? 'no_queue' : 'success';
         try {
           await queueFuture?.timeout(_blockingAwaitBudget);
           awaitSpan.setData('timedOut', false);
           otelAwaitSpan?.setAttribute('timed_out', false);
         } catch (e) {
+          blockingOutcome = e is TimeoutException ? 'timeout' : 'error';
           success = false;
           awaitSpan
             ..setData('timedOut', true)
@@ -371,6 +396,7 @@ extension _ChatScreenActions on _ChatScreenState {
         }
         unawaited(awaitSpan.finish());
         otelAwaitSpan?.end(ok: success);
+        recordSyncAwaitMetric('blocking', blockingOutcome);
       }
     } catch (error, stack) {
       success = false;

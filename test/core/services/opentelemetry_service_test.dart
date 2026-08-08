@@ -130,6 +130,28 @@ void main() {
       expect(debug['deployment.environment'], 'debug');
       expect(release['service.build'], '237701');
     });
+
+    test(
+      'duplicates identity onto metric points when SDK resource is lost',
+      () {
+        final attributes = OpenTelemetryService.buildMetricAttributes(
+          appVersion: '1.14.2',
+          buildNumber: '237701',
+          releaseMode: true,
+          attributes: const {'outcome': 'success'},
+        );
+
+        expect(attributes['service.name'], OpenTelemetryService.serviceName);
+        expect(attributes['service.version'], '1.14.2');
+        expect(attributes['service.build'], '237701');
+        expect(attributes['deployment.environment'], 'production');
+        expect(
+          attributes['service.instance.id'],
+          OpenTelemetryService.launchInstanceId,
+        );
+        expect(attributes['outcome'], 'success');
+      },
+    );
   });
 
   // `end()` used to always pass an explicit span status, so the very common

@@ -386,6 +386,113 @@ void main() {
         isNot(contains('cf6949f3e2e86b18f1b12f0fc')),
       );
     });
+
+    test('HTTP metric attributes use bounded status and phase labels', () {
+      final options = RequestOptions(
+        baseUrl: 'https://test.example.com',
+        path:
+            '/v3/sessions/cf6949f3e2e86b18f1b12f0fc/messages'
+            '?token=secret',
+        method: 'POST',
+      );
+
+      final attributes = ApiClient.debugBuildHttpMetricAttributes(
+        options,
+        statusCode: 503,
+        phase: 'total',
+      );
+
+      expect(attributes['http.route'], '/v3/sessions/:id/messages');
+      expect(attributes['http.request.method'], 'POST');
+      expect(attributes['http.response.status_code'], 503);
+      expect(attributes['http.response.status_class'], '5xx');
+      expect(attributes['outcome'], 'http_error');
+      expect(attributes['phase'], 'total');
+      expect(attributes.values.join(' '), isNot(contains('secret')));
+      expect(
+        attributes.values.join(' '),
+        isNot(contains('cf6949f3e2e86b18f1b12f0fc')),
+      );
+    });
+
+    test('transport errors report a bounded failure phase', () {
+      final options = RequestOptions(
+        baseUrl: 'https://test.example.com',
+        path: '/v1/machines',
+        method: 'GET',
+      );
+      final error = DioException(
+        requestOptions: options,
+        type: DioExceptionType.receiveTimeout,
+      );
+
+      final attributes = ApiClient.debugBuildHttpMetricAttributes(
+        options,
+        error: error,
+        phase: 'attempt',
+      );
+
+      expect(attributes['outcome'], 'transport_error');
+      expect(attributes['failure.phase'], 'receive');
+      expect(attributes['error.type'], 'receiveTimeout');
+    });
+  });
+
+  group('ApiClient OpenTelemetry metrics', () {
+    late ApiClient apiClient;
+    late List<(String, Duration, Map<String, Object?>)> samples;
+
+    setUp(() async {
+      samples = <(String, Duration, Map<String, Object?>)>[];
+      OpenTelemetryService.debugDurationSink = (name, duration, attributes) {
+        samples.add((name, duration, attributes));
+      };
+      apiClient = ApiClient();
+      await apiClient.initialize(serverUrl: 'https://test.example.com');
+      apiClient.testDio!.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: 201,
+                data: const <String, dynamic>{'ok': true},
+              ),
+              true,
+            );
+          },
+        ),
+      );
+    });
+
+    tearDown(() {
+      OpenTelemetryService.debugDurationSink = null;
+      apiClient.dispose();
+    });
+
+    test(
+      'records attempt and total duration for every completed request',
+      () async {
+        await apiClient.post(
+          '/v3/sessions/cf6949f3e2e86b18f1b12f0fc/messages',
+          data: const <String, dynamic>{'message': 'encrypted'},
+        );
+
+        final httpSamples = samples
+            .where((sample) => sample.$1 == 'app.http.client.duration')
+            .toList();
+        expect(httpSamples, hasLength(2));
+        expect(
+          httpSamples.map((sample) => sample.$3['phase']),
+          containsAll(<String>['attempt', 'total']),
+        );
+        for (final sample in httpSamples) {
+          expect(sample.$3['outcome'], 'success');
+          expect(sample.$3['http.response.status_class'], '2xx');
+          expect(sample.$3.containsKey('server.address'), isFalse);
+        }
+      },
+    );
   });
 
   group('ApiClient cache instrumentation', () {

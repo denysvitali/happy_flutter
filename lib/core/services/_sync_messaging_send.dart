@@ -15,6 +15,72 @@ class PermanentSendFailure extends StateError {
   PermanentSendFailure(super.message);
 }
 
+typedef _ResolvedSendOptions = ({
+  String effectivePermissionMode,
+  String effectiveModelMode,
+});
+
+typedef _PreparedSendPayload = ({
+  String wirePermissionMode,
+  String localId,
+  String sentFrom,
+  String? model,
+  String displayContent,
+  Map<String, dynamic> rawRecord,
+});
+
+/// Measure one bounded send-preparation phase in both Jaeger and Prometheus.
+///
+/// Phase and outcome are deliberately the only metric labels. Session ids,
+/// local ids, model names, and message content would turn this histogram into
+/// a high-cardinality stream (and could expose user-controlled values).
+Future<T> _measureSendPreparation<T>({
+  required OpenTelemetryService otelService,
+  required OTelSpan? parentSpan,
+  required String phase,
+  required FutureOr<T> Function() body,
+}) async {
+  final stopwatch = Stopwatch()..start();
+  final phaseSpan = parentSpan == null
+      ? null
+      : otelService.startChildSpan(
+          'chat.send.prepare.$phase',
+          parent: parentSpan,
+          attributes: <String, Object?>{'send.prepare.phase': phase},
+        );
+  var outcome = 'success';
+  try {
+    return await Future<T>.sync(body);
+  } catch (error, stack) {
+    outcome = 'error';
+    phaseSpan?.recordError(error, stack);
+    rethrow;
+  } finally {
+    stopwatch.stop();
+    otelService.recordDuration(
+      'app.chat.send.prepare',
+      stopwatch.elapsed,
+      attributes: <String, Object?>{'phase': phase, 'outcome': outcome},
+      description: 'Outbound message preparation duration by phase',
+    );
+    phaseSpan?.end(ok: outcome == 'success');
+  }
+}
+
+void _recordSendPreparationTotal(
+  OpenTelemetryService otelService,
+  Stopwatch stopwatch, {
+  required String outcome,
+}) {
+  if (stopwatch.isRunning) stopwatch.stop();
+  otelService.recordDuration(
+    'app.chat.send.prepare',
+    stopwatch.elapsed,
+    attributes: <String, Object?>{'phase': 'total', 'outcome': outcome},
+    description: 'Outbound message preparation duration by phase',
+  );
+}
+
 /// Hard wall-clock budget covering ONE foreground send attempt end to
 /// end: agent-readiness wait plus every HTTP attempt.
 ///
@@ -151,6 +217,11 @@ extension SyncMessagingSend on Sync {
     } catch (error, stack) {
       // Setup failed before _completeSend could take ownership of the
       // span — end it here so the failure is exported instead of leaked.
+      _recordSendPreparationTotal(
+        otelService,
+        prepareStopwatch,
+        outcome: 'error',
+      );
       sendSpan
         ?..recordError(error, stack)
         ..setAttribute('send.outcome', 'setup_failed')
@@ -173,132 +244,200 @@ extension SyncMessagingSend on Sync {
     String? profileId,
     List<OutgoingImage>? images,
   }) async {
-    var sessionEncryption = encryption.getSessionEncryption(sessionId);
-    if (sessionEncryption == null) {
-      logger.info(
-        '[sendMessage] encryption missing for session=$sessionId, '
-        'attempting recovery',
-      );
-      // Try fetching just this session before doing a full list re-fetch.
-      await fetchSingleSession(sessionId);
-      sessionEncryption = encryption.getSessionEncryption(sessionId);
-      if (sessionEncryption == null) {
-        await _boundedSessionsRefresh();
-        sessionEncryption = encryption.getSessionEncryption(sessionId);
-      }
-      if (sessionEncryption == null) {
-        _forceFullFetchNext = true;
-        await _boundedSessionsRefresh();
-        sessionEncryption = encryption.getSessionEncryption(sessionId);
-      }
-      if (sessionEncryption == null) {
-        throw StateError('Session encryption not initialized for $sessionId');
-      }
-    }
-
-    var session = _sessions[sessionId];
-    if (session == null) {
-      // Try fetching just this session instead of a full list re-fetch.
-      session = await fetchSingleSession(sessionId);
-      if (session == null) {
-        _forceFullFetchNext = true;
-        await _boundedSessionsRefresh();
-        session = _sessions[sessionId];
-      }
-    }
-    if (session == null) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      session = Session(
-        id: sessionId,
-        seq: 0,
-        createdAt: now,
-        updatedAt: now,
-        active: true,
-        activeAt: now,
-        metadata: Metadata(host: '', lifecycleState: 'starting'),
-        metadataVersion: 0,
-        agentStateVersion: 0,
-        thinking: false,
-        presence: 'offline',
-        permissionMode: permissionMode,
-        modelMode: modelMode,
-      );
-      _sessions[sessionId] = session;
-      _notifyDataChanged({SyncDomain.sessions});
-    }
-
-    final requestedPermissionMode = permissionMode;
-    final sandboxEnabled = session.metadata?.sandboxEnabled ?? false;
-    final storedPermissionMode = session.permissionMode;
-    final effectivePermissionMode =
-        requestedPermissionMode != null && requestedPermissionMode != 'default'
-        ? requestedPermissionMode
-        : (storedPermissionMode != null && storedPermissionMode != 'default')
-        ? storedPermissionMode
-        : (sandboxEnabled ? 'bypassPermissions' : 'default');
-
-    // Compute effective model mode before _resolveSendTargetSession so we can
-    // pass it for model-change detection. Use the current session's flavor —
-    // if auto-restore spawns a new session the flavor will be correct there.
-    final flavor = session.metadata?.flavor ?? settingsSnapshot.lastUsedAgent;
-    final isGemini = flavor == 'gemini';
-    final requestedModelMode = _normalizeModelModeForAgent(modelMode, flavor);
-    final effectiveModelMode =
-        requestedModelMode != null && requestedModelMode != 'default'
-        ? requestedModelMode
-        : isGemini
-        ? 'gemini-2.5-pro'
-        : 'default';
-
-    final sendTarget = await _resolveSendTargetSession(
-      sessionId: sessionId,
-      session: session,
-      sessionEncryption: sessionEncryption,
-      effectivePermissionMode: effectivePermissionMode,
-      profileId: profileId,
-      modelMode: effectiveModelMode,
+    var sessionEncryption = await _measureSendPreparation<SessionEncryption>(
+      otelService: otelService,
+      parentSpan: sendSpan,
+      phase: 'encryption_context',
+      body: () async {
+        var resolved = encryption.getSessionEncryption(sessionId);
+        if (resolved == null) {
+          logger.info(
+            '[sendMessage] encryption missing for session=$sessionId, '
+            'attempting recovery',
+          );
+          // Try fetching just this session before doing a full list re-fetch.
+          await fetchSingleSession(sessionId);
+          resolved = encryption.getSessionEncryption(sessionId);
+          if (resolved == null) {
+            await _boundedSessionsRefresh();
+            resolved = encryption.getSessionEncryption(sessionId);
+          }
+          if (resolved == null) {
+            _forceFullFetchNext = true;
+            await _boundedSessionsRefresh();
+            resolved = encryption.getSessionEncryption(sessionId);
+          }
+          if (resolved == null) {
+            throw StateError(
+              'Session encryption not initialized for $sessionId',
+            );
+          }
+        }
+        return resolved;
+      },
     );
+
+    var session = await _measureSendPreparation<Session>(
+      otelService: otelService,
+      parentSpan: sendSpan,
+      phase: 'session_context',
+      body: () async {
+        var resolved = _sessions[sessionId];
+        if (resolved == null) {
+          // Try fetching just this session instead of a full list re-fetch.
+          resolved = await fetchSingleSession(sessionId);
+          if (resolved == null) {
+            _forceFullFetchNext = true;
+            await _boundedSessionsRefresh();
+            resolved = _sessions[sessionId];
+          }
+        }
+        if (resolved == null) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          resolved = Session(
+            id: sessionId,
+            seq: 0,
+            createdAt: now,
+            updatedAt: now,
+            active: true,
+            activeAt: now,
+            metadata: Metadata(host: '', lifecycleState: 'starting'),
+            metadataVersion: 0,
+            agentStateVersion: 0,
+            thinking: false,
+            presence: 'offline',
+            permissionMode: permissionMode,
+            modelMode: modelMode,
+          );
+          _sessions[sessionId] = resolved;
+          _notifyDataChanged({SyncDomain.sessions});
+        }
+        return resolved;
+      },
+    );
+
+    final resolvedOptions = await _measureSendPreparation<_ResolvedSendOptions>(
+      otelService: otelService,
+      parentSpan: sendSpan,
+      phase: 'send_options',
+      body: () {
+        final requestedPermissionMode = permissionMode;
+        final sandboxEnabled = session.metadata?.sandboxEnabled ?? false;
+        final storedPermissionMode = session.permissionMode;
+        final effectivePermissionMode =
+            requestedPermissionMode != null &&
+                requestedPermissionMode != 'default'
+            ? requestedPermissionMode
+            : (storedPermissionMode != null &&
+                  storedPermissionMode != 'default')
+            ? storedPermissionMode
+            : (sandboxEnabled ? 'bypassPermissions' : 'default');
+
+        // Compute before target resolution so model changes can restore.
+        final flavor =
+            session.metadata?.flavor ?? settingsSnapshot.lastUsedAgent;
+        final requestedModelMode = _normalizeModelModeForAgent(
+          modelMode,
+          flavor,
+        );
+        final effectiveModelMode =
+            requestedModelMode != null && requestedModelMode != 'default'
+            ? requestedModelMode
+            : flavor == 'gemini'
+            ? 'gemini-2.5-pro'
+            : 'default';
+        return (
+          effectivePermissionMode: effectivePermissionMode,
+          effectiveModelMode: effectiveModelMode,
+        );
+      },
+    );
+    final effectivePermissionMode = resolvedOptions.effectivePermissionMode;
+    final effectiveModelMode = resolvedOptions.effectiveModelMode;
+
+    final sendTarget =
+        await _measureSendPreparation<
+          ({
+            String sessionId,
+            Session session,
+            SessionEncryption sessionEncryption,
+          })
+        >(
+          otelService: otelService,
+          parentSpan: sendSpan,
+          phase: 'target_resolution',
+          body: () => _resolveSendTargetSession(
+            sessionId: sessionId,
+            session: session,
+            sessionEncryption: sessionEncryption,
+            effectivePermissionMode: effectivePermissionMode,
+            profileId: profileId,
+            modelMode: effectiveModelMode,
+          ),
+        );
     final targetSessionId = sendTarget.sessionId;
     session = sendTarget.session;
     sessionEncryption = sendTarget.sessionEncryption;
 
-    final wirePermissionMode =
-        Sync._supportedPermissionModes.contains(effectivePermissionMode)
-        ? effectivePermissionMode
-        : 'default';
-    if (wirePermissionMode != effectivePermissionMode) {
-      logger.warning(
-        '[sendMessage] unsupported permission mode '
-        '"$effectivePermissionMode" for session=$sessionId; '
-        'falling back to "$wirePermissionMode"',
-      );
-    }
-    final localId = clientLocalId ?? createLocalMessageId();
-    final sentFrom = switch (defaultTargetPlatform) {
-      TargetPlatform.android => 'android',
-      TargetPlatform.iOS => 'ios',
-      TargetPlatform.macOS => 'mac',
-      _ => 'web',
-    };
-    final model = effectiveModelMode != 'default' ? effectiveModelMode : null;
-    final outboundContent = _buildOutboundUserContent(text, images: images);
-    final displayContent = _extractDisplayTextFromUserContent(
-      outboundContent,
-      text,
-    );
-
-    final rawRecord = <String, dynamic>{
-      'role': 'user',
-      'content': outboundContent,
-      'meta': <String, dynamic>{
-        'sentFrom': sentFrom,
-        'permissionMode': wirePermissionMode,
-        'model': model,
-        'fallbackModel': null,
-        'appendSystemPrompt': Sync._appendSystemPrompt,
-        'displayText': ?displayText,
+    final payload = await _measureSendPreparation<_PreparedSendPayload>(
+      otelService: otelService,
+      parentSpan: sendSpan,
+      phase: 'payload_build',
+      body: () {
+        final wirePermissionMode =
+            Sync._supportedPermissionModes.contains(effectivePermissionMode)
+            ? effectivePermissionMode
+            : 'default';
+        if (wirePermissionMode != effectivePermissionMode) {
+          logger.warning(
+            '[sendMessage] unsupported permission mode '
+            '"$effectivePermissionMode" for session=$sessionId; '
+            'falling back to "$wirePermissionMode"',
+          );
+        }
+        final localId = clientLocalId ?? createLocalMessageId();
+        final sentFrom = switch (defaultTargetPlatform) {
+          TargetPlatform.android => 'android',
+          TargetPlatform.iOS => 'ios',
+          TargetPlatform.macOS => 'mac',
+          _ => 'web',
+        };
+        final model = effectiveModelMode != 'default'
+            ? effectiveModelMode
+            : null;
+        final outboundContent = _buildOutboundUserContent(text, images: images);
+        final displayContent = _extractDisplayTextFromUserContent(
+          outboundContent,
+          text,
+        );
+        final rawRecord = <String, dynamic>{
+          'role': 'user',
+          'content': outboundContent,
+          'meta': <String, dynamic>{
+            'sentFrom': sentFrom,
+            'permissionMode': wirePermissionMode,
+            'model': model,
+            'fallbackModel': null,
+            'appendSystemPrompt': Sync._appendSystemPrompt,
+            'displayText': ?displayText,
+          },
+        };
+        return (
+          wirePermissionMode: wirePermissionMode,
+          localId: localId,
+          sentFrom: sentFrom,
+          model: model,
+          displayContent: displayContent,
+          rawRecord: rawRecord,
+        );
       },
-    };
+    );
+    final wirePermissionMode = payload.wirePermissionMode;
+    final localId = payload.localId;
+    final sentFrom = payload.sentFrom;
+    final model = payload.model;
+    final displayContent = payload.displayContent;
+    final rawRecord = payload.rawRecord;
     logger.info(
       '[sendMessage] START session=$targetSessionId '
       'localId=$localId '
@@ -317,69 +456,85 @@ extension SyncMessagingSend on Sync {
           ..setData('permissionMode', wirePermissionMode)
           ..setData('model', model ?? 'default');
 
-    // Everything up to here — encryption recovery, session resolution,
-    // and any auto-restore spawn — happened inside the already-open root
-    // span. Record how much of the send it consumed.
-    prepareStopwatch.stop();
     sendSpan
-      ?..setAttribute('send.prepare_ms', prepareStopwatch.elapsedMilliseconds)
-      ..setAttribute('session.target_id', targetSessionId)
+      ?..setAttribute('session.target_id', targetSessionId)
       ..setAttribute('message.local_id', localId)
       ..setAttribute('message.permission_mode', wirePermissionMode)
       ..setAttribute('message.model', model ?? 'default')
       ..setAttribute('message.sent_from', sentFrom);
 
-    // Ensure catch-up polling is active for this session. Without this,
-    // if sendMessage() is called before onSessionVisible() (e.g. from the
-    // sessions list before the chat screen initialises), _startPostSendCatchUp
-    // silently no-ops and the agent response never appears.
-    if (!messagesSync.containsKey(targetSessionId)) {
-      unawaited(onSessionVisible(targetSessionId));
-    }
+    await _measureSendPreparation<void>(
+      otelService: otelService,
+      parentSpan: sendSpan,
+      phase: 'optimistic_insert',
+      body: () {
+        // Ensure catch-up polling is active for this session. Without this,
+        // sends before onSessionVisible() never start response catch-up.
+        if (!messagesSync.containsKey(targetSessionId)) {
+          unawaited(onSessionVisible(targetSessionId));
+        }
 
-    // Sending a message is definitive local activity for this session.
-    // Reflect that immediately so the sessions list promotes the row
-    // even before the next debounced fetch/update-session round-trip.
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final currentSession = _sessions[targetSessionId];
-    if (currentSession != null) {
-      _sessions[targetSessionId] = currentSession.copyWith(
-        active: true,
-        activeAt: now,
-        updatedAt: now,
-      );
-      _notifyDataChanged({SyncDomain.sessions});
-    }
+        // Sending is definitive local activity. Promote the session before
+        // the next debounced fetch/update-session round-trip.
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final currentSession = _sessions[targetSessionId];
+        if (currentSession != null) {
+          _sessions[targetSessionId] = currentSession.copyWith(
+            active: true,
+            activeAt: now,
+            updatedAt: now,
+          );
+          _notifyDataChanged({SyncDomain.sessions});
+        }
 
-    // Register the minted localId with the invariant monitor so a later ack
-    // can distinguish an unknown id (never sent) from an unmatched one (sent,
-    // but the optimistic row went missing). Pure observation.
-    messageInvariantMonitor.recordOptimisticSent(localId);
-    _upsertSessionMessages(targetSessionId, [
-      {
-        'id': localId,
-        'localId': localId,
-        'seq': 0,
-        'createdAt': now,
-        'role': 'user',
-        'kind': 'text',
-        'content': displayContent,
-        'raw': rawRecord,
-        'sendStatus': 'sending',
+        // Register and insert the same canonical localId that REST, socket,
+        // retry, and merge use downstream.
+        messageInvariantMonitor.recordOptimisticSent(localId);
+        _upsertSessionMessages(targetSessionId, [
+          {
+            'id': localId,
+            'localId': localId,
+            'seq': 0,
+            'createdAt': now,
+            'role': 'user',
+            'kind': 'text',
+            'content': displayContent,
+            'raw': rawRecord,
+            'sendStatus': 'sending',
+          },
+        ]);
+        _notifySessionMessagesChanged(targetSessionId);
       },
-    ]);
-    _notifySessionMessagesChanged(targetSessionId);
+    );
 
     // Encrypt after the optimistic insert so the user sees instant feedback.
     // The encrypted record is only needed for the HTTP POST to the server.
-    final encryptSpan = sendTransaction.startChild(
-      'chat.encrypt',
-      description: 'Encrypt message for session',
+    final encryptedRawRecord = await _measureSendPreparation<String>(
+      otelService: otelService,
+      parentSpan: sendSpan,
+      phase: 'encryption',
+      body: () async {
+        final encryptSpan = sendTransaction.startChild(
+          'chat.encrypt',
+          description: 'Encrypt message for session',
+        );
+        try {
+          return await sessionEncryption.encryptRawRecord(rawRecord);
+        } finally {
+          unawaited(encryptSpan.finish());
+        }
+      },
     );
-    final encryptedRawRecord = await sessionEncryption.encryptRawRecord(
-      rawRecord,
+
+    _recordSendPreparationTotal(
+      otelService,
+      prepareStopwatch,
+      outcome: 'success',
     );
-    unawaited(encryptSpan.finish());
+    sendSpan?.setAttribute(
+      'send.prepare_ms',
+      prepareStopwatch.elapsedMilliseconds,
+    );
 
     // lastCompleteSendFuture is exposed for tests to synchronise on.
     final prepareMs = prepareStopwatch.elapsedMilliseconds;
@@ -1745,7 +1900,7 @@ extension SyncMessagingSend on Sync {
           : null;
       if (stopReason != null) {
         _postSendCatchUpTimers.remove(sessionId)?.cancel();
-        _sessionsNeedingFetchProbe.remove(sessionId);
+        _cancelMessageFetchProbe(sessionId);
         logger.info(
           '[sendMessage] catch-up polling ended '
           'session=$sessionId reason=$stopReason probes=$probeIndex '
@@ -1756,7 +1911,7 @@ extension SyncMessagingSend on Sync {
 
       if (_hasPostSendResponseAfterSeq(sessionId, sentUserSeq)) {
         _postSendCatchUpTimers.remove(sessionId)?.cancel();
-        _sessionsNeedingFetchProbe.remove(sessionId);
+        _cancelMessageFetchProbe(sessionId);
         final currentSeq = _sessionLastSeq[sessionId] ?? 0;
         logger.info(
           '[sendMessage] catch-up polling ended '
@@ -1779,7 +1934,7 @@ extension SyncMessagingSend on Sync {
       // currentSeq >= serverLastSeq does NOT prove the agent has not
       // responded yet.
       probeIndex++;
-      _sessionsNeedingFetchProbe.add(sessionId);
+      _requestMessageFetchProbe(sessionId);
       messagesSync[sessionId]?.invalidate();
       return true;
     }

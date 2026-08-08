@@ -544,6 +544,23 @@ what you have, you must use the options mode.
   /// catch-up polling after a successful user send.
   final Set<String> _sessionsNeedingFetchProbe = <String>{};
 
+  /// Ordered recovery intents waiting for an authoritative message fetch.
+  ///
+  /// The order token avoids millisecond-clock ambiguity: a fetch can satisfy
+  /// an intent only when its HTTP request started strictly after that intent.
+  /// [requiredAfterSeq] pins the oldest cursor floor the fetch must cover, so
+  /// a newer tail request cannot accidentally suppress reconnect gap repair.
+  final Map<String, ({int order, int requiredAfterSeq})>
+  _messageFetchProbeIntents = <String, ({int order, int requiredAfterSeq})>{};
+
+  /// Coverage of the most recent successfully processed HTTP page per
+  /// session. The stored floor is the first page's `after_seq` for the cycle,
+  /// not its final cursor, so multi-page recovery retains its full overlap.
+  final Map<String, ({int requestOrder, int verifiedAfterSeq})>
+  _messageFetchCoverage =
+      <String, ({int requestOrder, int verifiedAfterSeq})>{};
+  int _messageFetchWorkOrder = 0;
+
   /// Per-session serial queue for inline message processing.
   final InlineMessageProcessor _inlineProcessor = InlineMessageProcessor();
 

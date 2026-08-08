@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' show max;
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
     show W3CTraceContextPropagator;
@@ -388,6 +389,80 @@ class ApiClient {
     };
   }
 
+  static Map<String, Object?> _httpMetricAttributes(
+    RequestOptions options, {
+    required String phase,
+    int? statusCode,
+    DioException? error,
+    String? outcomeOverride,
+    String? errorTypeOverride,
+  }) {
+    final errorType = error?.type.name ?? errorTypeOverride;
+    final outcome =
+        outcomeOverride ??
+        (error != null
+            ? 'transport_error'
+            : (statusCode != null && statusCode >= 400
+                  ? 'http_error'
+                  : 'success'));
+    final retryCount = options.extra[RetryInterceptor.retryCountKey] as int?;
+    return <String, Object?>{
+      'http.request.method': options.method,
+      'http.route': normalizePathForTracing(options.path),
+      'phase': phase,
+      'outcome': outcome,
+      'http.cache_hit': options.extra['fromCache'] == true,
+      if (statusCode != null) ...<String, Object?>{
+        'http.response.status_code': statusCode,
+        'http.response.status_class': _httpStatusClass(statusCode),
+      },
+      if (errorType != null) ...<String, Object?>{
+        'error.type': errorType,
+        'failure.phase': _httpFailurePhase(errorType),
+      },
+      if (retryCount != null) 'http.retry_count': retryCount,
+    };
+  }
+
+  static String _httpStatusClass(int statusCode) {
+    if (statusCode < 100 || statusCode > 599) return 'other';
+    return '${statusCode ~/ 100}xx';
+  }
+
+  static String _httpFailurePhase(String errorType) => switch (errorType) {
+    'connectionTimeout' || 'connectionError' => 'connect',
+    'sendTimeout' => 'send',
+    'receiveTimeout' => 'receive',
+    'badCertificate' => 'tls',
+    'badResponse' => 'response',
+    'cancel' => 'cancel',
+    _ => 'unknown',
+  };
+
+  static void _recordHttpDuration(
+    RequestOptions options,
+    Duration duration, {
+    required String phase,
+    int? statusCode,
+    DioException? error,
+    String? outcomeOverride,
+    String? errorTypeOverride,
+  }) {
+    OpenTelemetryService().recordDuration(
+      'app.http.client.duration',
+      duration,
+      attributes: _httpMetricAttributes(
+        options,
+        phase: phase,
+        statusCode: statusCode,
+        error: error,
+        outcomeOverride: outcomeOverride,
+        errorTypeOverride: errorTypeOverride,
+      ),
+      description: 'Client HTTP request duration by attempt and total phase',
+    );
+  }
+
   /// Ends the span of the attempt that just failed, if this request is
   /// being retried.
   ///
@@ -398,30 +473,32 @@ class ApiClient {
   /// Jaeger except for a `http.retry_count` attribute on the last attempt.
   static void _endRetriedAttemptSpan(RequestOptions options) {
     final span = options.extra['_otelSpan'] as OTelSpan?;
-    if (span == null) return;
-    options.extra.remove('_otelSpan');
+    if (span != null) options.extra.remove('_otelSpan');
 
     final startMs = options.extra['_otelStart'] as int?;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final lastStatus = options.extra[RetryInterceptor.lastStatusKey] as int?;
+    final lastErrorType =
+        options.extra[RetryInterceptor.lastErrorTypeKey] as String?;
     if (startMs != null) {
-      span.setAttribute(
-        'http.duration_ms',
-        DateTime.now().millisecondsSinceEpoch - startMs,
+      final durationMs = max(0, nowMs - startMs);
+      _recordHttpDuration(
+        options,
+        Duration(milliseconds: durationMs),
+        phase: 'attempt',
+        statusCode: lastStatus,
+        outcomeOverride: 'retried',
+        errorTypeOverride: lastErrorType,
       );
+      span?.setAttribute('http.duration_ms', durationMs);
     }
     final retryCount = options.extra[RetryInterceptor.retryCountKey] as int?;
     if (retryCount != null) {
-      span.setAttribute('http.attempt', retryCount);
-    }
-    final lastStatus = options.extra[RetryInterceptor.lastStatusKey] as int?;
-    if (lastStatus != null) {
-      span.setAttribute('http.response.status_code', lastStatus);
-    }
-    final lastErrorType =
-        options.extra[RetryInterceptor.lastErrorTypeKey] as String?;
-    if (lastErrorType != null) {
-      span.setAttribute('error.type', lastErrorType);
+      span?.setAttribute('http.attempt', retryCount);
     }
     span
+      ?..setAttribute('http.response.status_code', lastStatus)
+      ..setAttribute('error.type', lastErrorType)
       ..setAttribute('http.attempt.retried', true)
       ..end(ok: false);
   }
@@ -438,38 +515,68 @@ class ApiClient {
     StackTrace? stackTrace,
   }) {
     final span = options.extra['_otelSpan'] as OTelSpan?;
-    if (span == null) return;
     // Drop the reference so a later interceptor pass (or a retry that
     // reuses these options) cannot end the same span twice.
-    options.extra.remove('_otelSpan');
+    if (span != null) options.extra.remove('_otelSpan');
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final startMs = options.extra['_otelStart'] as int?;
     if (startMs != null) {
-      span.setAttribute('http.duration_ms', nowMs - startMs);
+      final durationMs = max(0, nowMs - startMs);
+      span?.setAttribute('http.duration_ms', durationMs);
+      _recordHttpDuration(
+        options,
+        Duration(milliseconds: durationMs),
+        phase: 'attempt',
+        statusCode: statusCode,
+        error: error,
+      );
     }
     // Elapsed time across every attempt plus the backoff waits between
     // them — the number the user actually experienced.
     final firstStartMs = options.extra['_otelFirstStart'] as int?;
     if (firstStartMs != null) {
-      span.setAttribute('http.total_duration_ms', nowMs - firstStartMs);
+      final totalDurationMs = max(0, nowMs - firstStartMs);
+      span?.setAttribute('http.total_duration_ms', totalDurationMs);
+      _recordHttpDuration(
+        options,
+        Duration(milliseconds: totalDurationMs),
+        phase: 'total',
+        statusCode: statusCode,
+        error: error,
+      );
     }
     span
-      ..setAttribute('http.response.status_code', statusCode)
+      ?..setAttribute('http.response.status_code', statusCode)
       ..setAttribute('http.response.body.size', responseBytes)
       ..setAttribute('http.cache_hit', options.extra['fromCache'] == true);
     final retryCount = options.extra[RetryInterceptor.retryCountKey] as int?;
     if (retryCount != null) {
       span
-        ..setAttribute('http.retry_count', retryCount)
+        ?..setAttribute('http.retry_count', retryCount)
         ..setAttribute('http.attempt', retryCount + 1);
     }
     if (error != null) {
       span
-        ..setAttribute('error.type', error.type.name)
+        ?..setAttribute('error.type', error.type.name)
         ..recordError(error, stackTrace);
     }
-    span.end(ok: error == null && (statusCode == null || statusCode < 500));
+    span?.end(ok: error == null && (statusCode == null || statusCode < 500));
+  }
+
+  @visibleForTesting
+  static Map<String, Object?> debugBuildHttpMetricAttributes(
+    RequestOptions options, {
+    required String phase,
+    int? statusCode,
+    DioException? error,
+  }) {
+    return _httpMetricAttributes(
+      options,
+      phase: phase,
+      statusCode: statusCode,
+      error: error,
+    );
   }
 
   /// Injects the W3C trace context from [spanContext] into [options.headers].

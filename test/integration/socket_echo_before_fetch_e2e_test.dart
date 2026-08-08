@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -62,236 +63,359 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'socket echo replaces the placeholder, then a fetch page returning '
-      'the same message with newer siblings does not duplicate',
-      () async {
-        const sessionId = 'echo-before-fetch-1';
-        const canonicalLocalId = 'local-fetch-1';
-
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': canonicalLocalId,
-            'localId': canonicalLocalId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000000000,
-            'content': 'run tests',
-            'sendStatus': 'sending',
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 9);
-        sync.testVisibleSessionId = sessionId;
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
+    Future<(Completer<void>, List<int>)> openWhileSessionsRefresh(
+      String sessionId,
+    ) async {
+      final sessionsGate = Completer<void>();
+      sync.sessionsSync.dispose();
+      sync.sessionsSync = InvalidateSync(() => sessionsGate.future);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 11);
+      sync.testSetSessionLastSeq(sessionId, 10);
+      sync.testSetSessionMessages(sessionId, [
+        {'id': 'cached-10', 'seq': 10, 'role': 'agent'},
+      ]);
+      final requestedAfterSeqs = <int>[];
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        requestedAfterSeqs.add(afterSeq);
+        return _buildMessagesResponse(
+          requestedAfterSeqs.length == 1
+              ? [_makeEncryptedMessage('msg-11', seq: 11, content: 'useful')]
+              : const <Map<String, dynamic>>[],
         );
-        sync.testFetchMessagesOverride = (_, __, ___) async {
-          return _buildMessagesResponse(<Map<String, dynamic>>[]);
-        };
+      };
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
 
-        // 1. Socket echo lands first and carries the localId — the
-        //    optimistic placeholder is replaced by the server record.
+      sync.sessionsSync.invalidate();
+      await sync.onSessionVisible(sessionId);
+      await sync.messagesSync[sessionId]?.awaitQueue();
+      expect(requestedAfterSeqs, [10]);
+      return (sessionsGate, requestedAfterSeqs);
+    }
+
+    Future<void> finishSessionsRefresh(
+      String sessionId,
+      Completer<void> sessionsGate,
+    ) async {
+      sessionsGate.complete();
+      await sync.sessionsSync.awaitQueue();
+      await Future<void>.delayed(Duration.zero);
+      await sync.messagesSync[sessionId]?.awaitQueue();
+    }
+
+    test('socket echo replaces the placeholder, then a fetch page returning '
+        'the same message with newer siblings does not duplicate', () async {
+      const sessionId = 'echo-before-fetch-1';
+      const canonicalLocalId = 'local-fetch-1';
+
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': canonicalLocalId,
+          'localId': canonicalLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'run tests',
+          'sendStatus': 'sending',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 9);
+      sync.testVisibleSessionId = sessionId;
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse(<Map<String, dynamic>>[]);
+      };
+
+      // 1. Socket echo lands first and carries the localId — the
+      //    optimistic placeholder is replaced by the server record.
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': _makeEncryptedMessage(
+          'srv-user-1',
+          seq: 10,
+          content: 'run tests',
+          role: 'user',
+          localId: canonicalLocalId,
+        ),
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      var msgs = sync.testSessionMessages(sessionId)!;
+      expect(
+        msgs.where((m) => m['id'] == canonicalLocalId),
+        isEmpty,
+        reason: 'placeholder must be replaced by the socket echo',
+      );
+
+      // 2. A tail fetch returns the authoritative page: the same user
+      //    message (WITHOUT localId, as a history record) plus a newer
+      //    agent reply. Dedup must key on the server `id`.
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': 'srv-user-1',
+          'seq': 10,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000010000,
+          'content': 'run tests',
+          'sendStatus': 'sent',
+        },
+        {
+          'id': 'srv-reply-1',
+          'seq': 11,
+          'role': 'agent',
+          'kind': 'text',
+          'createdAt': 1700000011000,
+          'content': 'tests passed',
+        },
+      ]);
+
+      msgs = sync.testSessionMessages(sessionId)!;
+      expect(
+        msgs.where((m) => m['id'] == 'srv-user-1'),
+        hasLength(1),
+        reason:
+            'fetch returning the same server id must merge, not '
+            'duplicate, even when it omits the localId',
+      );
+      // After the server ack the canonical identity is the server `id`,
+      // so a history fetch that omits `localId` may drop it — the
+      // invariant is one logical row per server id, not localId survival.
+      expect(msgs.where((m) => m['id'] == 'srv-reply-1'), hasLength(1));
+
+      // Ordering: the user message precedes its reply (seq ascending).
+      final userIdx = msgs.indexWhere((m) => m['id'] == 'srv-user-1');
+      final replyIdx = msgs.indexWhere((m) => m['id'] == 'srv-reply-1');
+      expect(
+        userIdx,
+        lessThan(replyIdx),
+        reason: 'fetch overlap must preserve seq ordering',
+      );
+    });
+
+    test('duplicate socket broadcast of the same message collapses to one '
+        'row and replaces the optimistic placeholder exactly once', () async {
+      const sessionId = 'dup-broadcast-1';
+      const canonicalLocalId = 'local-dup-1';
+
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': canonicalLocalId,
+          'localId': canonicalLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'continue',
+          'sendStatus': 'sending',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 9);
+      sync.testVisibleSessionId = sessionId;
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse(<Map<String, dynamic>>[]);
+      };
+
+      // The server re-broadcasts the identical new-message event three
+      // times (at-least-once delivery / reconnect replay).
+      for (var i = 0; i < 3; i++) {
         sync.handleUpdate({
           't': 'new-message',
           'sid': sessionId,
           'message': _makeEncryptedMessage(
-            'srv-user-1',
+            'srv-dup-1',
             seq: 10,
-            content: 'run tests',
+            content: 'continue',
             role: 'user',
             localId: canonicalLocalId,
           ),
         });
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+      }
 
-        var msgs = sync.testSessionMessages(sessionId)!;
+      final msgs = sync.testSessionMessages(sessionId)!;
+      expect(
+        msgs.where((m) => m['id'] == canonicalLocalId),
+        isEmpty,
+        reason: 'placeholder replaced once, never resurrected',
+      );
+      expect(
+        msgs.where((m) => m['id'] == 'srv-dup-1'),
+        hasLength(1),
+        reason: 'duplicate broadcasts of one id must collapse to one row',
+      );
+      expect(msgs.where((m) => m['localId'] == canonicalLocalId), hasLength(1));
+      expect(msgs, hasLength(1));
+    });
+
+    test('duplicate broadcast followed by a fetch overlap still yields one '
+        'row', () async {
+      const sessionId = 'dup-broadcast-then-fetch-1';
+      const canonicalLocalId = 'local-dupfetch-1';
+
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': canonicalLocalId,
+          'localId': canonicalLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'ship it',
+          'sendStatus': 'sending',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 9);
+      sync.testVisibleSessionId = sessionId;
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse(<Map<String, dynamic>>[]);
+      };
+
+      // Two identical socket echoes.
+      for (var i = 0; i < 2; i++) {
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': _makeEncryptedMessage(
+            'srv-df-1',
+            seq: 10,
+            content: 'ship it',
+            role: 'user',
+            localId: canonicalLocalId,
+          ),
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+      }
+
+      // A later fetch returns the same record once more (history page).
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': 'srv-df-1',
+          'localId': canonicalLocalId,
+          'seq': 10,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000010000,
+          'content': 'ship it',
+          'sendStatus': 'sent',
+        },
+      ]);
+
+      final msgs = sync.testSessionMessages(sessionId)!;
+      expect(
+        msgs.where((m) => m['id'] == 'srv-df-1'),
+        hasLength(1),
+        reason: 'broadcast + fetch overlap must collapse to one row',
+      );
+      expect(msgs, hasLength(1));
+      expect(msgs.single['sendStatus'], 'sent');
+    });
+
+    test(
+      'covering delta fetch satisfies an older catalog-deferred probe',
+      () async {
+        const sessionId = 'probe-covering-fetch';
+        final (sessionsGate, calls) = await openWhileSessionsRefresh(sessionId);
+
+        await finishSessionsRefresh(sessionId, sessionsGate);
+
         expect(
-          msgs.where((m) => m['id'] == canonicalLocalId),
-          isEmpty,
-          reason: 'placeholder must be replaced by the socket echo',
-        );
-
-        // 2. A tail fetch returns the authoritative page: the same user
-        //    message (WITHOUT localId, as a history record) plus a newer
-        //    agent reply. Dedup must key on the server `id`.
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': 'srv-user-1',
-            'seq': 10,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000010000,
-            'content': 'run tests',
-            'sendStatus': 'sent',
-          },
-          {
-            'id': 'srv-reply-1',
-            'seq': 11,
-            'role': 'agent',
-            'kind': 'text',
-            'createdAt': 1700000011000,
-            'content': 'tests passed',
-          },
-        ]);
-
-        msgs = sync.testSessionMessages(sessionId)!;
-        expect(
-          msgs.where((m) => m['id'] == 'srv-user-1'),
-          hasLength(1),
+          calls,
+          [10],
           reason:
-              'fetch returning the same server id must merge, not '
-              'duplicate, even when it omits the localId',
+              'The useful delta started after the deferred recovery intent '
+              'and covered its cursor floor. A second forced empty-page '
+              'request adds no recovery coverage.',
         );
-        // After the server ack the canonical identity is the server `id`,
-        // so a history fetch that omits `localId` may drop it — the
-        // invariant is one logical row per server id, not localId survival.
-        expect(msgs.where((m) => m['id'] == 'srv-reply-1'), hasLength(1));
-
-        // Ordering: the user message precedes its reply (seq ascending).
-        final userIdx = msgs.indexWhere((m) => m['id'] == 'srv-user-1');
-        final replyIdx = msgs.indexWhere((m) => m['id'] == 'srv-reply-1');
-        expect(
-          userIdx,
-          lessThan(replyIdx),
-          reason: 'fetch overlap must preserve seq ordering',
-        );
+        expect(sync.testHasFetchProbe(sessionId), isFalse);
       },
     );
 
     test(
-      'duplicate socket broadcast of the same message collapses to one '
-      'row and replaces the optimistic placeholder exactly once',
+      'new socket evidence bypasses coalescing and preserves gap localId',
       () async {
-        const sessionId = 'dup-broadcast-1';
-        const canonicalLocalId = 'local-dup-1';
+        const sessionId = 'probe-newer-socket-evidence';
+        const canonicalLocalId = 'local-gap-user';
+        final (sessionsGate, calls) = await openWhileSessionsRefresh(sessionId);
+        await finishSessionsRefresh(sessionId, sessionsGate);
+        expect(calls, [10]);
 
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+        // This event is newer than the covering request and has no embedded
+        // message, so the message API remains the only authoritative source.
+        await sync.handleUpdate({'t': 'new-message', 'sid': sessionId});
+        await sync.messagesSync[sessionId]?.awaitQueue();
+        expect(calls, [10, 11]);
+
         sync.testSetSessionMessages(sessionId, [
+          ...sync.testSessionMessages(sessionId)!,
           {
             'id': canonicalLocalId,
             'localId': canonicalLocalId,
             'seq': 0,
             'role': 'user',
             'kind': 'text',
-            'createdAt': 1700000000000,
             'content': 'continue',
             'sendStatus': 'sending',
           },
         ]);
-        sync.testSetSessionLastSeq(sessionId, 9);
-        sync.testVisibleSessionId = sessionId;
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
-        );
-        sync.testFetchMessagesOverride = (_, __, ___) async {
-          return _buildMessagesResponse(<Map<String, dynamic>>[]);
-        };
-
-        // The server re-broadcasts the identical new-message event three
-        // times (at-least-once delivery / reconnect replay).
-        for (var i = 0; i < 3; i++) {
-          sync.handleUpdate({
-            't': 'new-message',
-            'sid': sessionId,
-            'message': _makeEncryptedMessage(
-              'srv-dup-1',
-              seq: 10,
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 11);
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          calls.add(afterSeq);
+          return _buildMessagesResponse([
+            _makeEncryptedMessage('msg-12', seq: 12, content: 'missing'),
+            _makeEncryptedMessage(
+              'srv-user-13',
+              seq: 13,
               content: 'continue',
               role: 'user',
               localId: canonicalLocalId,
             ),
-          });
-          await Future<void>.delayed(const Duration(milliseconds: 120));
-        }
-
-        final msgs = sync.testSessionMessages(sessionId)!;
-        expect(
-          msgs.where((m) => m['id'] == canonicalLocalId),
-          isEmpty,
-          reason: 'placeholder replaced once, never resurrected',
-        );
-        expect(
-          msgs.where((m) => m['id'] == 'srv-dup-1'),
-          hasLength(1),
-          reason: 'duplicate broadcasts of one id must collapse to one row',
-        );
-        expect(
-          msgs.where((m) => m['localId'] == canonicalLocalId),
-          hasLength(1),
-        );
-        expect(msgs, hasLength(1));
-      },
-    );
-
-    test(
-      'duplicate broadcast followed by a fetch overlap still yields one '
-      'row',
-      () async {
-        const sessionId = 'dup-broadcast-then-fetch-1';
-        const canonicalLocalId = 'local-dupfetch-1';
-
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': canonicalLocalId,
-            'localId': canonicalLocalId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000000000,
-            'content': 'ship it',
-            'sendStatus': 'sending',
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 9);
-        sync.testVisibleSessionId = sessionId;
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
-        );
-        sync.testFetchMessagesOverride = (_, __, ___) async {
-          return _buildMessagesResponse(<Map<String, dynamic>>[]);
+          ]);
         };
 
-        // Two identical socket echoes.
-        for (var i = 0; i < 2; i++) {
-          sync.handleUpdate({
-            't': 'new-message',
-            'sid': sessionId,
-            'message': _makeEncryptedMessage(
-              'srv-df-1',
-              seq: 10,
-              content: 'ship it',
-              role: 'user',
-              localId: canonicalLocalId,
-            ),
-          });
-          await Future<void>.delayed(const Duration(milliseconds: 120));
-        }
+        // seq=13 arrives before seq=12. The socket overlap floor must still
+        // force an HTTP fetch from 11, while the echo and fetch copies of the
+        // user message converge on the same canonical localId.
+        await sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': _makeEncryptedMessage(
+            'srv-user-13',
+            seq: 13,
+            content: 'continue',
+            role: 'user',
+            localId: canonicalLocalId,
+          ),
+        });
+        await sync.messagesSync[sessionId]?.awaitQueue();
+        await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        // A later fetch returns the same record once more (history page).
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': 'srv-df-1',
-            'localId': canonicalLocalId,
-            'seq': 10,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000010000,
-            'content': 'ship it',
-            'sendStatus': 'sent',
-          },
-        ]);
-
-        final msgs = sync.testSessionMessages(sessionId)!;
+        expect(calls, [10, 11, 11]);
+        final messages = sync.testSessionMessages(sessionId)!;
+        expect(messages.where((m) => m['id'] == 'msg-12'), hasLength(1));
+        expect(messages.where((m) => m['id'] == 'srv-user-13'), hasLength(1));
+        expect(messages.where((m) => m['id'] == canonicalLocalId), isEmpty);
         expect(
-          msgs.where((m) => m['id'] == 'srv-df-1'),
+          messages.where((m) => m['localId'] == canonicalLocalId),
           hasLength(1),
-          reason: 'broadcast + fetch overlap must collapse to one row',
+          reason:
+              'Gap repair and the overlapping socket echo must converge on '
+              'one logical row with the canonical localId.',
         );
-        expect(msgs, hasLength(1));
-        expect(msgs.single['sendStatus'], 'sent');
       },
     );
   });
@@ -355,10 +479,7 @@ Map<String, dynamic> _makeEncryptedMessage(
       'role': 'agent',
       'content': {
         'type': 'output',
-        'data': {
-          'type': 'assistant',
-          'message': content,
-        },
+        'data': {'type': 'assistant', 'message': content},
       },
     };
   }
@@ -372,10 +493,7 @@ Map<String, dynamic> _makeEncryptedMessage(
     'id': id,
     'seq': seq,
     'role': role,
-    'content': {
-      't': 'encrypted',
-      'c': base64Encode(output),
-    },
+    'content': {'t': 'encrypted', 'c': base64Encode(output)},
     'createdAt': 1700000000000 + seq * 1000,
     if (localId != null) 'localId': localId,
   };
@@ -403,22 +521,20 @@ class _FakeEncryption implements Encryption {
       );
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

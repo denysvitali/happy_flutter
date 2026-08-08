@@ -325,6 +325,68 @@ extension SyncMessaging on Sync {
     }
   }
 
+  int _messageFetchProbeFloor(String sessionId) {
+    var floor = _sessionLastSeq[sessionId] ?? 0;
+    final socketFloor = _sessionSocketCatchUpAfterSeq[sessionId];
+    if (socketFloor != null) {
+      floor = min(floor, socketFloor);
+    }
+    if (sessionId == _visibleSessionId) {
+      final reconnectFloor = _reconnectCursorSnapshot;
+      if (reconnectFloor != null) {
+        floor = min(floor, reconnectFloor);
+      }
+    }
+    return max(0, floor);
+  }
+
+  ({int order, int requiredAfterSeq}) _captureMessageFetchProbeIntent(
+    String sessionId,
+  ) => (
+    order: ++_messageFetchWorkOrder,
+    requiredAfterSeq: _messageFetchProbeFloor(sessionId),
+  );
+
+  /// Queue one authoritative message-API probe for [sessionId].
+  ///
+  /// Callers that defer scheduling behind `sessionsSync.awaitQueue()` capture
+  /// [intent] before the await. If another fetch starts after that capture and
+  /// covers the same (or an older) cursor floor, [fetchMessages] converts the
+  /// queued forced probe into its normal caught-up fast path instead of
+  /// issuing the redundant empty HTTP page.
+  void _requestMessageFetchProbe(
+    String sessionId, {
+    ({int order, int requiredAfterSeq})? intent,
+  }) {
+    final nextIntent = intent ?? _captureMessageFetchProbeIntent(sessionId);
+    final pendingIntent = _messageFetchProbeIntents[sessionId];
+    _messageFetchProbeIntents[sessionId] = pendingIntent == null
+        ? nextIntent
+        : (
+            order: max(pendingIntent.order, nextIntent.order),
+            requiredAfterSeq: min(
+              pendingIntent.requiredAfterSeq,
+              nextIntent.requiredAfterSeq,
+            ),
+          );
+    _sessionsNeedingFetchProbe.add(sessionId);
+  }
+
+  void _cancelMessageFetchProbe(String sessionId) {
+    _sessionsNeedingFetchProbe.remove(sessionId);
+    _messageFetchProbeIntents.remove(sessionId);
+  }
+
+  bool _isMessageFetchProbeCovered(
+    String sessionId,
+    ({int order, int requiredAfterSeq}) intent,
+  ) {
+    final coverage = _messageFetchCoverage[sessionId];
+    return coverage != null &&
+        coverage.requestOrder > intent.order &&
+        coverage.verifiedAfterSeq <= intent.requiredAfterSeq;
+  }
+
   /// Fetch messages for a session.
   ///
   /// On first open (no entry in [_sessionLastSeq]) this uses the session's
@@ -332,7 +394,6 @@ extension SyncMessaging on Sync {
   /// fetching only the most recent [Sync.initialLoad] messages.  Subsequent
   /// calls (incremental delta syncs) continue from [_sessionLastSeq] as before.
   Future<void> fetchMessages(String sessionId) async {
-    logger.debug('Fetching messages for session: $sessionId');
     final fetchStopwatch = Stopwatch()..start();
     var fetchOutcome = 'ok';
 
@@ -424,7 +485,30 @@ extension SyncMessaging on Sync {
             !_sessionMessages.containsKey(sessionId) ||
             (_sessionMessages[sessionId]?.isEmpty ?? true);
         final forceTailRefresh = _sessionsNeedingTailRefresh.remove(sessionId);
-        final forceProbe = _sessionsNeedingFetchProbe.remove(sessionId);
+        final forceProbeRequested = _sessionsNeedingFetchProbe.remove(
+          sessionId,
+        );
+        final probeIntent = _messageFetchProbeIntents.remove(sessionId);
+        final probeCovered =
+            forceProbeRequested &&
+            probeIntent != null &&
+            _isMessageFetchProbeCovered(sessionId, probeIntent);
+        final forceProbe = forceProbeRequested && !probeCovered;
+        if (probeCovered) {
+          OpenTelemetryService().recordCount(
+            'app.fetch_messages.probe_coalesced',
+            attributes: {
+              'visibility': sessionId == _visibleSessionId
+                  ? 'visible'
+                  : 'background',
+            },
+            description: 'Deferred forced probes satisfied by a covering fetch',
+          );
+          if (sessionId == _visibleSessionId &&
+              _reconnectCursorSnapshot != null) {
+            _reconnectCursorSnapshot = null;
+          }
+        }
         int afterSeq;
 
         // On reconnect, use the pre-reconnect cursor snapshot for the
@@ -472,18 +556,6 @@ extension SyncMessaging on Sync {
             cursorSeq <= serverLastSeq &&
             (serverLastSeq - cursorSeq) > Sync.initialLoad;
 
-        logger.debug(
-          '[fetchMessages] $sessionId '
-          'isFirstLoad=$isFirstLoad '
-          'forceTailRefresh=$forceTailRefresh '
-          'forceProbe=$forceProbe '
-          'hasLargeDelta=$hasLargeDelta '
-          'cursorSeq=$cursorSeq '
-          'rawCursorSeq=$rawCursorSeq '
-          'socketCatchUpAfterSeq=$socketCatchUpAfterSeq '
-          'serverLastSeq=$serverLastSeq',
-        );
-
         // Skip the HTTP round-trip when the cursor is at or ahead of the
         // server's known lastSeq — there is nothing to fetch. Cached image
         // rows are the exception: their base64 bytes were deliberately
@@ -510,11 +582,7 @@ extension SyncMessaging on Sync {
             cursorSeq > 0 &&
             serverLastSeq > 0 &&
             cursorSeq == serverLastSeq) {
-          logger.debug(
-            '[fetchMessages] $sessionId already caught up '
-            '(cursor=$cursorSeq server=$serverLastSeq) '
-            '— skipping',
-          );
+          fetchOutcome = probeCovered ? 'probe_coalesced' : 'caught_up';
           // Even when skipping the HTTP fetch, run the sidechain grouper
           // if there are pending orphans — they arrived via socket inline
           // processing but grouping may not have run yet (e.g. the last
@@ -562,10 +630,9 @@ extension SyncMessaging on Sync {
             _notifySessionMessagesChanged(sessionId);
             _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
           } else {
-            logger.debug(
-              '[fetchMessages] $sessionId: caught-up skip '
-              'without regrouping or deltas',
-            );
+            // The duration metric records the caught-up outcome. Avoid a
+            // per-call debug record here: socket/resume bursts can exercise
+            // this no-work path hundreds of times without changing state.
           }
           return;
         }
@@ -632,14 +699,18 @@ extension SyncMessaging on Sync {
           ..setData('budgetMs', _activeMessageFetchBudget.inMilliseconds);
 
         var totalFetchedMessages = 0;
+        var totalProcessedMessages = 0;
         var totalDecryptedMessages = 0;
         var totalSkippedMessages = 0;
+        var totalEmptyPages = 0;
         var totalToolResults = 0;
         var totalUsageUpdates = 0;
         var totalPagesFetched = 0;
         var totalDecryptMs = 0;
         var totalHttpMs = 0;
         var hitBudget = false;
+        int? cycleRequestOrder;
+        int? cycleVerifiedAfterSeq;
         final droppedReasonCounts = <String, int>{};
         // Track every message id we upserted across pages so the final
         // sidechain pass can use the changedIds fast path instead of
@@ -695,6 +766,10 @@ extension SyncMessaging on Sync {
             description: 'Fetch message page',
           );
           final fetchStart = Stopwatch()..start();
+          final pageRequestedAfterSeq = afterSeq;
+          final pageRequestOrder = ++_messageFetchWorkOrder;
+          cycleRequestOrder ??= pageRequestOrder;
+          cycleVerifiedAfterSeq ??= pageRequestedAfterSeq;
           final Response<dynamic> response;
           if (testFetchMessagesOverride != null) {
             final overrideResult = await testFetchMessagesOverride!(
@@ -814,16 +889,11 @@ extension SyncMessaging on Sync {
           final rawMaxSeq = _maxRawMessageSeq(messages);
           totalPagesFetched++;
           totalFetchedMessages += messages.length;
+          if (messages.isEmpty) totalEmptyPages++;
           pageSpan
             ..setData('fetchedMessages', messages.length)
             ..setData('hasMore', hasMore)
             ..setData('rawMaxSeq', rawMaxSeq ?? 0);
-
-          logger.debug(
-            '[fetchMessages] $sessionId page=$page '
-            'msgs=${messages.length} hasMore=$hasMore '
-            'fetchMs=$fetchMs',
-          );
 
           // ── Decrypt + process (isolate for large batches) ──
           // Pre-filter messages already decrypted and stored, so we
@@ -882,6 +952,7 @@ extension SyncMessaging on Sync {
           final skippedCount = messages.length - newMessages.length;
           totalSkippedMessages += skippedCount;
           totalDecryptedMessages += newMessages.length;
+          totalProcessedMessages += processed.messages.length;
           totalToolResults += processed.toolResults.length;
           totalUsageUpdates += processed.usageUpdates.length;
           pageSpan
@@ -938,26 +1009,6 @@ extension SyncMessaging on Sync {
               ..setData('seqJumpFrom', afterSeq + 1)
               ..setData('seqJumpTo', processed.maxSeq);
           }
-          final userCount = pageMessages
-              .where((message) => message['role'] == MessageRole.user)
-              .length;
-          final agentCount = pageMessages
-              .where((message) => message['role'] == MessageRole.agent)
-              .length;
-          final eventCount = pageMessages
-              .where((message) => message['kind'] == 'agent-event')
-              .length;
-          logger.debug(
-            '[fetchMessages] $sessionId page=$page '
-            'fetched=${messages.length} skipped=$skippedCount '
-            'decrypted=${newMessages.length} '
-            'processedMsgs=${pageMessages.length} '
-            'users=$userCount agents=$agentCount events=$eventCount '
-            'toolResults=${processed.toolResults.length} '
-            'usageUpdates=${processed.usageUpdates.length} '
-            'afterSeq=$afterSeq '
-            'maxSeq=${processed.maxSeq}',
-          );
           if (processed.droppedReasons.isNotEmpty) {
             _accumulateDroppedReasons(
               droppedReasonCounts,
@@ -1087,6 +1138,10 @@ extension SyncMessaging on Sync {
           // follow-up cycle replay that same page forever and flash the
           // global "Syncing Messages" banner on each invalidation.
           _checkpointSocketCatchUpCursor(sessionId, afterSeq);
+          _messageFetchCoverage[sessionId] = (
+            requestOrder: cycleRequestOrder!,
+            verifiedAfterSeq: cycleVerifiedAfterSeq!,
+          );
 
           if (processed.maxSeq > 0 &&
               processed.messages.isEmpty &&
@@ -1098,12 +1153,6 @@ extension SyncMessaging on Sync {
             // GlitchTip events (each unique reason string creates a
             // separate issue in GlitchTip, inflating event counts).
           }
-
-          logger.debug(
-            '[fetchMessages] $sessionId page=$page '
-            'decryptMs=$decryptMs '
-            'upsert=${pageMessages.isNotEmpty}',
-          );
 
           // Notify the UI after each page so the chat screen can
           // display partial results immediately instead of waiting
@@ -1262,6 +1311,14 @@ extension SyncMessaging on Sync {
           await finalizeSpan.finish();
         }
         fetchOutcome = hitBudget ? 'budget_deferred' : 'ok';
+        logger.debug(
+          '[fetchMessages] $sessionId outcome=$fetchOutcome '
+          'pages=$totalPagesFetched emptyPages=$totalEmptyPages '
+          'fetched=$totalFetchedMessages processed=$totalProcessedMessages '
+          'decrypted=$totalDecryptedMessages skipped=$totalSkippedMessages '
+          'httpMs=$totalHttpMs decryptMs=$totalDecryptMs '
+          'elapsedMs=${fetchStopwatch.elapsedMilliseconds}',
+        );
         // Finish the fetch span successfully
         _logDroppedReasonSummary(
           '[fetchMessages] $sessionId',
@@ -1905,7 +1962,8 @@ extension SyncMessaging on Sync {
     _sessionSocketCatchUpAfterSeq.remove(sessionId);
     _sessionsRestoredFromMessageCache.remove(sessionId);
     _sessionsNeedingLegacySocketGapRepair.remove(sessionId);
-    _sessionsNeedingFetchProbe.remove(sessionId);
+    _cancelMessageFetchProbe(sessionId);
+    _messageFetchCoverage.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);
     _orphanWalkbackOrphanIds.remove(sessionId);

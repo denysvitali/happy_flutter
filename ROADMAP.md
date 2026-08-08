@@ -99,6 +99,42 @@ collections over 50 sessions. Frame metrics now carry `sessions_view`, while
 frozen frames export separate build and raster histograms; `ui.jank` traces
 carry the same view plus the longest frame's build/raster split.
 
+### Live performance remediation, 2026-08-08
+
+The next live sweep found a localized server incident that dominated perceived
+latency: one `happy-server` instance reached a 26 s WebSocket queue-wait p95,
+about 84% of messages waited over one second, and more than 1,800 messages were
+dropped in five minutes. Loki tied the burst to one connection, while Jaeger
+showed 0.9-2.7 s Postgres COMMIT stalls inside the affected window. The other
+replicas remained below one second, which rules out ordinary fleet capacity and
+points to per-connection head-of-line blocking amplified by database stalls.
+
+The server remediation stores each message and allocates its sequence in one
+ordered SQL statement, so a later committed sequence can no longer hide an
+earlier message from `after_seq` pagination. The WebSocket path uses the same
+store, admits only bounded per-connection work, rejects saturation immediately
+with the canonical `localId`, and reports every rejection instead of silently
+dropping it. Legacy clients and daemon-originated events receive a stable
+transport identity before persistence. Runtime resources now include pod and
+namespace identity so Prometheus, Jaeger, and Loki can identify the exact
+workload without a cluster-side lookup.
+
+On the client, capability probes are coalesced, bounded to four seconds, cached
+with negative TTL/backoff, and short-circuited for definitively offline owners.
+Deferred message probes are suppressed only when a newer successful fetch
+covers the same cursor floor; newer socket evidence and gap repair still force
+an authoritative request. Covered session-list routes detach their broad
+Riverpod watches, preventing streaming chat updates from rebuilding a retained
+200+ session Mission Control tree. Routine fetch and pipeline logs are folded
+into bounded summaries.
+
+The re-baseline now has build/environment identity on every app metric plus
+bounded route-level HTTP latency, chat sync-wait, send-preparation phase, and
+probe-coalescing telemetry. Native CPU, memory, battery, DNS/TLS subphases, and
+a pre-fix mobile build split remain unavailable; the original sample contained
+only four launches and about 84 minutes of data, so improvement claims must wait
+for the new builds to roll out and accumulate a comparable window.
+
 ### Observability audit, 2026-08-03
 
 A 26-agent audit across Loki, Prometheus and Jaeger covering the app,
