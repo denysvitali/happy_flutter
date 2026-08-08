@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_headers.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
@@ -89,6 +90,9 @@ void main() {
   testWidgets(
     'retained hidden sessions tree ignores provider churn until visible',
     (tester) async {
+      final performanceContext = PerformanceContextService()
+        ..setCurrentRoute('sessions');
+      addTearDown(performanceContext.resetForTesting);
       final container = ProviderContainer(
         overrides: [
           settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
