@@ -160,6 +160,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     if (active == _sessionsRouteActive) return;
     _sessionsRouteActive = active;
     if (!mounted) return;
+    if (!_isVisible) {
+      PerformanceContextService().setCurrentSessionsView(null);
+    }
     if (_isVisible) {
       ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     }
@@ -169,6 +172,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   @override
   void didUpdateWidget(covariant SessionsListContent oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.isVisible && !widget.isVisible) {
+      PerformanceContextService().setCurrentSessionsView(null);
+    }
     if (!oldWidget.isVisible && widget.isVisible && _sessionsRouteActive) {
       ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     }
@@ -176,6 +182,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   @override
   void dispose() {
+    if (_isVisible) {
+      PerformanceContextService().setCurrentSessionsView(null);
+    }
     PerformanceContextService().routeListenable.removeListener(_onRouteChanged);
     _sel.removeListener(_onSelectionChanged);
     widget.folderNotifier.removeListener(_onFolderChanged);
@@ -267,6 +276,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
     final sessionsViewStyle = ref.watch(
       settingsNotifierProvider.select((s) => s.sessionsViewStyle),
+    );
+    PerformanceContextService().setCurrentSessionsView(
+      _isVisible
+          ? sessionsViewStyle == 'mission_control' && _selectedFolderKey != null
+                ? 'mission_control_folder'
+                : sessionsViewStyle
+          : null,
     );
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
@@ -533,8 +549,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       inactiveSessions: inactiveSessions,
       machines: machines,
       uiState: uiState,
-      actionCardBuilder: (session, entry, lane) =>
-          _buildMissionActionRow(session, entry, lane),
+      actionCardBuilder: (session, entry, lane, {required animateActivity}) =>
+          _buildMissionActionRow(
+            session,
+            entry,
+            lane,
+            animateActivity: animateActivity,
+          ),
       onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
   }
@@ -542,13 +563,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Widget _buildMissionActionRow(
     Session session,
     SessionUiEntry entry,
-    MissionLane lane,
-  ) {
+    MissionLane lane, {
+    required bool animateActivity,
+  }) {
     final sel = _sel.value;
     final row = MissionActionRow(
       session: session,
       entry: entry,
       lane: lane,
+      animateActivity: animateActivity,
       onTap: sel.isActive
           ? () => _onSessionTapInSelectionMode(session.id)
           : () => _navigateToChat(session.id),

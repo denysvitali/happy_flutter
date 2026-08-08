@@ -24,6 +24,7 @@ class MissionActionRow extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     super.key,
+    this.animateActivity = true,
     this.selected = false,
   });
 
@@ -32,6 +33,7 @@ class MissionActionRow extends StatelessWidget {
   final MissionLane lane;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
+  final bool animateActivity;
   final bool selected;
 
   @override
@@ -115,9 +117,10 @@ class MissionActionRow extends StatelessWidget {
                       lane: lane,
                       color: laneColor,
                       pulse:
-                          lane == MissionLane.blocked ||
-                          lane == MissionLane.live ||
-                          status.isPulsing,
+                          animateActivity &&
+                          (lane == MissionLane.blocked ||
+                              lane == MissionLane.live ||
+                              status.isPulsing),
                       selected: selected,
                     ),
                     const SizedBox(width: AppSpacing.smd),

@@ -26,6 +26,16 @@ export 'mission_control_types.dart'
 /// Max rows shown in either action section before a disclosure control.
 const missionControlActionPreview = 4;
 
+/// Above this collection size, persistent activity pulses are replaced with
+/// static status indicators. A single repeating ticker schedules frames for
+/// the entire screen; large Mission Control collections otherwise render at
+/// the display refresh rate even while the user is idle.
+const missionControlAnimatedSessionLimit = 50;
+
+bool missionControlShouldAnimateActivity(int sessionCount) {
+  return sessionCount <= missionControlAnimatedSessionLimit;
+}
+
 /// A workspace with no hot sessions and no activity inside this window
 /// is quiet — folded behind the quiet drawer by default.
 const missionControlQuietWindow = Duration(hours: 3);
@@ -63,7 +73,12 @@ class MissionControlView extends StatefulWidget {
 
   /// Builds one session tile while preserving parent-owned navigation,
   /// selection, swipe actions, and long-press behavior.
-  final Widget Function(Session session, SessionUiEntry entry, MissionLane lane)
+  final Widget Function(
+    Session session,
+    SessionUiEntry entry,
+    MissionLane lane, {
+    required bool animateActivity,
+  })
   actionCardBuilder;
 
   final void Function(SessionFolderHeader header) onOpenWorkspace;
@@ -97,6 +112,7 @@ class _MissionControlViewState extends State<MissionControlView> {
   }
 
   void _ensureSessionSlots(Map<String, MissionLane> lanes) {
+    _sessionSlots.removeWhere((id, _) => !lanes.containsKey(id));
     // Seed slots by urgency on first sight, then never reshuffle them. Sync
     // can reorder activeSessions on every activity update; treating that
     // transport order as presentation order makes the dashboard jump.
@@ -114,6 +130,10 @@ class _MissionControlViewState extends State<MissionControlView> {
     List<SessionFolderGroup> workspaces,
     Map<String, MissionLane> lanes,
   ) {
+    final currentKeys = {
+      for (final group in workspaces) group.header.folderKey,
+    };
+    _workspaceSlots.removeWhere((key, _) => !currentKeys.contains(key));
     final unseen =
         workspaces
             .where(
@@ -231,78 +251,93 @@ class _MissionControlViewState extends State<MissionControlView> {
       workspaceCount: workspaces.length,
     );
 
-    final items = <Widget>[];
+    final slivers = <Widget>[];
+    final animateActivity = missionControlShouldAnimateActivity(sessionCount);
 
     if (filteredActions.isNotEmpty) {
-      final tone = blocked.any(filteredActions.contains)
-          ? MissionLane.blocked
-          : unread.any(filteredActions.contains)
-          ? MissionLane.unread
-          : MissionLane.live;
-      items.add(
-        _ActionSection(
-          title: l10n.missionControlFocusQueue,
-          count: actions.length,
-          lane: tone,
-          counts: counts,
-          selectedLane: selectedLane,
-          onSelectLane: _selectLane,
-          hiddenCount: filteredActions.length - shownActions.length,
-          expanded: _showAllActions,
-          onToggle: () {
-            setState(() => _showAllActions = !_showAllActions);
-          },
-          children: [
-            for (final session in shownActions)
-              KeyedSubtree(
-                key: ValueKey('mission-action-${session.id}'),
-                child: widget.actionCardBuilder(
-                  session,
-                  _entry(session.id),
-                  lanes[session.id]!,
-                ),
-              ),
-          ],
+      final tone =
+          selectedLane ??
+          (counts[MissionLane.blocked]! > 0
+              ? MissionLane.blocked
+              : counts[MissionLane.unread]! > 0
+              ? MissionLane.unread
+              : MissionLane.live);
+      slivers.add(
+        SliverToBoxAdapter(
+          child: RepaintBoundary(
+            child: _ActionSection(
+              title: l10n.missionControlFocusQueue,
+              count: actions.length,
+              lane: tone,
+              counts: counts,
+              selectedLane: selectedLane,
+              onSelectLane: _selectLane,
+              hiddenCount: filteredActions.length - shownActions.length,
+              expanded: _showAllActions,
+              onToggle: () {
+                setState(() => _showAllActions = !_showAllActions);
+              },
+              children: [
+                for (final session in shownActions)
+                  KeyedSubtree(
+                    key: ValueKey('mission-action-${session.id}'),
+                    child: widget.actionCardBuilder(
+                      session,
+                      _entry(session.id),
+                      lanes[session.id]!,
+                      animateActivity: animateActivity,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       );
     }
 
     if (activeWorkspaces.isNotEmpty || quietWorkspaces.isNotEmpty) {
-      items
+      final visibleWorkspaces = [
+        ...activeWorkspaces,
+        if (_showQuiet) ...quietWorkspaces,
+      ];
+      slivers
         ..add(
-          SectionHeader(
-            title: l10n.missionControlWorkspacePulse,
-            trailing: _CountBadge(
-              count: workspaces.length,
-              color: cs.onSurfaceVariant,
+          SliverToBoxAdapter(
+            child: SectionHeader(
+              title: l10n.missionControlWorkspacePulse,
+              trailing: _CountBadge(
+                count: workspaces.length,
+                color: cs.onSurfaceVariant,
+              ),
             ),
           ),
         )
         ..add(
           MissionWorkspaceList(
-            groups: [...activeWorkspaces, if (_showQuiet) ...quietWorkspaces],
+            groups: visibleWorkspaces,
             lanes: lanes,
             onOpen: widget.onOpenWorkspace,
           ),
         );
       if (quietWorkspaces.isNotEmpty) {
-        items.add(
-          _QuietDrawer(
-            count: quietWorkspaces.length,
-            open: _showQuiet,
-            onTap: () => setState(() => _showQuiet = !_showQuiet),
+        slivers.add(
+          SliverToBoxAdapter(
+            child: _QuietDrawer(
+              count: quietWorkspaces.length,
+              open: _showQuiet,
+              onTap: () => setState(() => _showQuiet = !_showQuiet),
+            ),
           ),
         );
       }
     }
 
-    return ListView.builder(
+    return CustomScrollView(
       controller: widget.scrollController,
-      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-      addAutomaticKeepAlives: false,
-      addRepaintBoundaries: false,
-      itemCount: items.length,
-      itemBuilder: (context, index) => items[index],
+      slivers: [
+        ...slivers,
+        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+      ],
     );
   }
 
@@ -316,6 +351,9 @@ class _MissionControlViewState extends State<MissionControlView> {
       attributes: {
         'session.count': sessionCount,
         'session.count_bucket': collectionSizeBucket(sessionCount),
+        'activity.animation.enabled': missionControlShouldAnimateActivity(
+          sessionCount,
+        ),
       },
     );
   }
@@ -334,6 +372,9 @@ class _MissionControlViewState extends State<MissionControlView> {
       attributes: {
         'session_count_bucket': collectionSizeBucket(sessionCount),
         'workspace_count_bucket': collectionSizeBucket(workspaceCount),
+        'activity_animation': missionControlShouldAnimateActivity(sessionCount)
+            ? 'enabled'
+            : 'disabled',
       },
       description: 'Time to group and prioritize Mission Control sessions',
     );

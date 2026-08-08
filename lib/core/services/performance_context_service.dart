@@ -14,10 +14,11 @@ class PerformanceContextService {
       PerformanceContextService._();
 
   String? _currentRoute;
-  final ValueNotifier<String?> _routeListenable =
-      ValueNotifier<String?>(null);
+  String? _currentSessionsView;
+  final ValueNotifier<String?> _routeListenable = ValueNotifier<String?>(null);
 
   String? get currentRoute => _currentRoute;
+  String? get currentSessionsView => _currentSessionsView;
   ValueListenable<String?> get routeListenable => _routeListenable;
 
   void setCurrentRoute(String? routeName) {
@@ -27,9 +28,27 @@ class PerformanceContextService {
     _routeListenable.value = nextRoute;
   }
 
+  /// Records the bounded sessions presentation currently visible to the user.
+  ///
+  /// Unlike routes, the sessions modes share the `home` route. Keeping this
+  /// separate lets frame telemetry distinguish Mission Control from the
+  /// folder, date, and unread-focus views without introducing an unbounded
+  /// label.
+  void setCurrentSessionsView(String? sessionsView) {
+    _currentSessionsView = switch (sessionsView) {
+      null || '' => null,
+      'mission_control' ||
+      'mission_control_folder' ||
+      'folder' ||
+      'unread_focus' => sessionsView,
+      _ => 'other',
+    };
+  }
+
   @visibleForTesting
   void resetForTesting() {
     _currentRoute = null;
+    _currentSessionsView = null;
     _routeListenable.value = null;
   }
 

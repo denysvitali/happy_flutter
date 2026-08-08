@@ -35,6 +35,20 @@ size, cache hit, trigger, and workspace count. Work over one frame emits a
 rate-limited Loki warning; collections of 11+ sessions get one sampled phase
 trace per 30 seconds.
 
+**Mission Control follow-up.** Build 245500 reproduced the lag after the
+collection-wide compute fix: with 200 sessions across 28 workspaces, five
+sampled `sessions.mission_control.model` spans took only 0.1-1.3 ms, while the
+same launch emitted a `home` `ui.jank` window with five frozen frames (175 ms
+maximum, 642 ms total). The window rendered 2,326 frames in 28.9 seconds even
+while idle. The remaining cost was rendering, not grouping: every workspace
+was an eager child of one large `Column`, hot workspaces owned up to two
+repeating status-dot tickers, and the outer list disabled repaint boundaries.
+Mission Control now uses a lazy sliver workspace list with per-row repaint
+boundaries, static workspace signals, and bounded focus-row pulses for
+collections over 50 sessions. Frame metrics now carry `sessions_view`, while
+frozen frames export separate build and raster histograms; `ui.jank` traces
+carry the same view plus the longest frame's build/raster split.
+
 ### Observability audit, 2026-08-03
 
 A 26-agent audit across Loki, Prometheus and Jaeger covering the app,
@@ -280,7 +294,7 @@ The current test count is not enough if this contract can break without failing 
 | RenderBox was not laid out (release StateError) | Error | 3 | Open — awaiting symbolicated event | New issues 2026-06-09 (HAPPY_FLUTTER-3D4/3D2/3CU): `StateError: Bad state: RenderBox was not laid out: <obfuscated>#…` thrown by Flutter 3.41 `RenderBox.size` in release builds (box.dart:2304). Likely unmasked by 12028a45 (Sentry filtering removed) rather than newly introduced. App-level `.size` readers (`session_cards.dart` Hero shuttle, `tool_view_widgets.dart` CollapsibleOutput) already guard `hasSize`; framework Hero `_boundingBoxFor` is the main unguarded candidate (session-avatar Hero is the only Hero pair). Debug symbols upload to Sentry since 12028a45, so the next occurrence will carry a symbolicated stack — pin the culprit then. |
 | fetchMessages dropped (output filter) | Warning | ~180 | Fix on main, shipped automatically on the next `main` commit | Audit found every unresolved issue in this cohort comes from old builds (`1.0.0+97201` / `+1`) whose parser predated the top-level `dataType=tool-result` handler and the per-page summarizer dedupe. Current parser already routes the production-shape envelope (`callId`+`id`+`output`+`isError`+`parentUuid`+`permissions`+`type`) through `_isToolResultEnvelope`/`_addToolResultEnvelope`; added a contract test pinning the exact production shape and a telemetry split so known-skip categories (`assistant content list is empty`, `unrecognized output content block`, `user content block type=X not handled`, `pi result with no tool rows`) log at info-level while unknown `dataType`s stay at warning. |
 | Orphan walk-back hollows out long sessions | Error (UI) | 1 session (13k seqs) | Fix on main, shipped automatically on the next `main` commit | User report 2026-08-03: chat showed "Beginning of conversation" over only the newest ~200 rows (mostly ungroupable workflow sidechain orphans); 5 days of messages/tool calls hidden. Loki showed a 2.5h orphan walk-back (500-row pages, 16:09–19:22 UTC) paging the session to seq 0 while the newest-N trim (1000 visible / 200 background) discarded pages as fast as they arrived (`upsert before=200` yo-yo). Reaching `startSeq == 0` then wrote `_sessionFirstLoadedSeq = 0` and pinned "history fully loaded" over a tail-only window — `hasOlderMessages` went false and the `firstLoaded <= 1` guard killed scroll-back. Fixed: a trim ledger (`_sessionsHistoryTrimmed`, recorded by `_upsertSessionMessages`) gates the pin; a trimmed walk reaching seq 0 re-arms the boundary to the oldest resident seq and exhausts the orphan-sweep budget (orphans render inline) instead of re-walking. Mid-walk pages keep coverage semantics (walk still advances over empty/parser-dropped ranges). Contract tests in `test/services/history_fully_loaded_pin_test.dart`. Restarting the app already heals a poisoned install (cache restore re-arms from the cache minimum). Follow-up: persist the walk give-up so cold starts don't re-walk ~25 pages before stopping. |
-| Large session collections freeze retained UI | Error (UI) | 69 frozen home-route frames / 7d | Fix on main, shipped automatically on the next `main` commit | Prometheus frozen-frame p95 was 388 ms and a build-244400 trace captured a 262 ms home-route frame. Message ticks recomputed/scanned UI state for every session and rebuilt the sessions collection under chat. Targeted refresh, revision caching, hidden-route suspension, cheaper sorting/grouping, and session-scale telemetry shipped together; re-baseline by `session_count_bucket`. |
+| Large session collections freeze retained UI | Error (UI) | 69 frozen home-route frames / 7d; reproduced on build 245500 | Follow-up fix on main, shipped automatically on the next `main` commit | The first pass removed collection-wide message scans, but build 245500 still showed five frozen `home` frames (175 ms max) with 200 sessions while Mission Control model work stayed below 1.3 ms. The remaining eager workspace `Column` and repeating status tickers scheduled 2,326 frames in 28.9 s. Workspaces are now lazy slivers with per-row repaint boundaries and static signals; activity pulses are bounded above 50 sessions. Re-baseline by `session_count_bucket` + `sessions_view`. |
 
 ### Performance (from GlitchTip)
 
@@ -289,7 +303,7 @@ The current test count is not enough if this contract can break without failing 
 | App cold start (`root /`) | avg 4.6s, p95 9.3s (Sentry); OTel quantiles uncomputable until 2026-07-31 | < 3s avg | `app.cold_start.first_frame` shipped a constant 0s because the top-level `_coldStartStopwatch` was lazily constructed *by* the post-frame callback that read it; `essential_ready` (2.4s) therefore measured from first frame, not process start. Anchored in `main()` (b5858b2f). The 2026-07-31 audit then found each launch overwriting the previous metric stream, so 24h quantiles still could not be computed; per-launch stream identity fixed that. Re-baseline from Prometheus once a few launches have reported on a build after 2026-07-31. |
 | fetchMessages p95 | avg 33–50ms (Prometheus, 2026-07-28) | < 5s | Was "up to 54s"; `app_fetch_messages_seconds` now shows 0.033s visible / 0.050s background. Target met — the 54s figure predates the pagination work. |
 | Deferred init | avg 2.5s | < 1s | `app.deferred_init` histogram (the Sentry `app.deferredInit` transaction agrees). Still the largest startup cost — audit what's loaded eagerly. |
-| Sessions frozen-frame p95 | 388 ms on `home` / 7d (69 frozen frames) | < 100 ms, no growth by session bucket | New `session_count_bucket` labels on frame metrics plus `app.sessions.ui_state_compute`, `app.sessions.sort`, and `app.sessions.mission_control_model` isolate scale cost. Re-baseline after the targeted-refresh/hidden-route/grouping fixes reach production. |
+| Sessions frozen-frame p95 | 388 ms on `home` / 7d (69 frozen frames); build 245500 Mission Control max 175 ms | < 100 ms, no growth by session bucket/view | `session_count_bucket` proved the build-245500 recurrence was at 200 sessions; `sessions.mission_control.model` disproved grouping as the remaining bottleneck. Frame metrics now also label `sessions_view`, and `app.ui.frozen_frame_build` / `app.ui.frozen_frame_raster` split future freezes into UI-build versus GPU-raster cost. Re-baseline after lazy workspaces and bounded activity animation reach production. |
 
 ### Engineering Rule
 

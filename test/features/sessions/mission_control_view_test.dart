@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/app_status_dot.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
@@ -383,6 +384,53 @@ void main() {
     );
   });
 
+  testWidgets('workspace rows are built lazily', (tester) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final sessions = [
+      for (var i = 0; i < 60; i++)
+        _session(id: 'workspace-$i', path: '/home/dev/project-$i'),
+    ];
+    final uiState = SessionUiState(
+      bySessionId: {
+        for (var i = 0; i < 60; i++)
+          'workspace-$i': SessionUiEntry(lastMessageTimestamp: now - i * 1000),
+      },
+    );
+
+    await tester.pumpWidget(_app(activeSessions: sessions, uiState: uiState));
+    await tester.pump();
+
+    expect(find.text('dev/project-0'), findsOneWidget);
+    expect(find.text('dev/project-59'), findsNothing);
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -5000));
+    await tester.pump();
+
+    expect(find.text('dev/project-0'), findsNothing);
+    expect(find.text('dev/project-59'), findsOneWidget);
+  });
+
+  testWidgets('workspace signals do not schedule continuous frames', (
+    tester,
+  ) async {
+    final live = _session(
+      id: 'live-workspace',
+      path: '/home/dev/project',
+      thinking: true,
+    );
+
+    await tester.pumpWidget(_app(activeSessions: [live]));
+    await tester.pump();
+
+    expect(find.byType(AppStatusDot), findsNothing);
+  });
+
+  test('activity animation is bounded for large collections', () {
+    expect(missionControlShouldAnimateActivity(50), isTrue);
+    expect(missionControlShouldAnimateActivity(51), isFalse);
+    expect(missionControlShouldAnimateActivity(200), isFalse);
+  });
+
   testWidgets('action tiles preserve title width and minimum tap target', (
     tester,
   ) async {
@@ -434,7 +482,7 @@ Widget _app({
         inactiveSessions: const [],
         machines: const {},
         uiState: uiState,
-        actionCardBuilder: (session, entry, lane) =>
+        actionCardBuilder: (session, entry, lane, {required animateActivity}) =>
             Text('action-${session.id}'),
         onOpenWorkspace: onOpenWorkspace ?? (_) {},
       ),

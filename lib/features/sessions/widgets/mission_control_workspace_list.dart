@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/components/app_status_dot.dart';
-import '../../../core/models/session.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_types.dart';
 import 'session_headers.dart';
 
-/// Workspace pulse list used by Mission Control.
+/// Lazily built workspace pulse sliver used by Mission Control.
 class MissionWorkspaceList extends StatelessWidget {
   const MissionWorkspaceList({
     required this.groups,
@@ -22,41 +20,64 @@ class MissionWorkspaceList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (groups.isEmpty) return const SizedBox.shrink();
+    if (groups.isEmpty) return const SliverToBoxAdapter();
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.symmetric(
+    final side = BorderSide(color: cs.outlineVariant);
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.xxs,
       ),
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < groups.length; i++) ...[
-            if (i > 0)
-              Divider(
-                height: 1,
-                thickness: 1,
-                indent: 58,
-                color: cs.outlineVariant,
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final group = groups[index];
+            final first = index == 0;
+            final last = index == groups.length - 1;
+            return Container(
+              key: ValueKey('mission-workspace-${group.header.folderKey}'),
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerLow,
+                borderRadius: BorderRadius.vertical(
+                  top: first
+                      ? const Radius.circular(AppRadius.lg)
+                      : Radius.zero,
+                  bottom: last
+                      ? const Radius.circular(AppRadius.lg)
+                      : Radius.zero,
+                ),
+                border: Border(
+                  left: side,
+                  top: first ? side : BorderSide.none,
+                  right: side,
+                  bottom: last ? side : BorderSide.none,
+                ),
               ),
-            _WorkspaceTile(
-              header: groups[i].header,
-              sessions: [
-                ...groups[i].activeSessions,
-                ...groups[i].inactiveSessions,
-              ],
-              lanes: lanes,
-              onTap: () => onOpen(groups[i].header),
-            ),
-          ],
-        ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!first)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: 58,
+                      color: cs.outlineVariant,
+                    ),
+                  _WorkspaceTile(
+                    group: group,
+                    lanes: lanes,
+                    onTap: () => onOpen(group.header),
+                  ),
+                ],
+              ),
+            );
+          },
+          childCount: groups.length,
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: true,
+          addSemanticIndexes: true,
+        ),
       ),
     );
   }
@@ -64,14 +85,12 @@ class MissionWorkspaceList extends StatelessWidget {
 
 class _WorkspaceTile extends StatelessWidget {
   const _WorkspaceTile({
-    required this.header,
-    required this.sessions,
+    required this.group,
     required this.lanes,
     required this.onTap,
   });
 
-  final SessionFolderHeader header;
-  final List<Session> sessions;
+  final SessionFolderGroup group;
   final Map<String, MissionLane> lanes;
   final VoidCallback onTap;
 
@@ -82,10 +101,13 @@ class _WorkspaceTile extends StatelessWidget {
     final counts = <MissionLane, int>{
       for (final lane in MissionLane.values) lane: 0,
     };
-    for (final session in sessions) {
+    for (final session in group.activeSessions.followedBy(
+      group.inactiveSessions,
+    )) {
       final lane = lanes[session.id] ?? MissionLane.quiet;
       counts[lane] = counts[lane]! + 1;
     }
+    final header = group.header;
     final leadingLane = [
       MissionLane.blocked,
       MissionLane.unread,
@@ -146,9 +168,8 @@ class _WorkspaceTile extends StatelessWidget {
                             Positioned(
                               right: AppSpacing.xsm,
                               top: AppSpacing.xsm,
-                              child: AppStatusDot(
+                              child: _WorkspaceStatusDot(
                                 color: missionLaneColor(context, leadingLane),
-                                pulse: leadingLane != MissionLane.unread,
                                 size: 4,
                               ),
                             ),
@@ -230,7 +251,7 @@ class _WorkspaceSignal extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AppStatusDot(color: color, pulse: lane != MissionLane.unread, size: 5),
+        _WorkspaceStatusDot(color: color, size: 5),
         const SizedBox(width: AppSpacing.xxxs),
         Text(
           '$count',
@@ -242,6 +263,27 @@ class _WorkspaceSignal extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A status dot with no ticker, animation controller, blur, or shadow.
+///
+/// Workspace rows can number in the dozens, so using `AppStatusDot` here
+/// would allocate a ticker per dot even when `pulse` is false.
+class _WorkspaceStatusDot extends StatelessWidget {
+  const _WorkspaceStatusDot({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
     );
   }
 }

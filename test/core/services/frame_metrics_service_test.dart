@@ -9,6 +9,7 @@ void main() {
 
   tearDown(() {
     FrameMetricsService.instance.detach();
+    PerformanceContextService().resetForTesting();
   });
 
   group('FrameMetricsService lifecycle', () {
@@ -87,6 +88,34 @@ void main() {
         ..debugFlush();
 
       expect(attributes['app.ui.frame_total']?['session_count_bucket'], '0');
+    });
+
+    test('labels frame metrics with the active sessions view', () {
+      final attributes = <String, Map<String, Object?>>{};
+      OpenTelemetryService.debugDurationSink = (name, _, values) {
+        attributes[name] = values;
+      };
+      addTearDown(() => OpenTelemetryService.debugDurationSink = null);
+      PerformanceContextService().setCurrentSessionsView('mission_control');
+
+      FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 4),
+          raster: const Duration(milliseconds: 4),
+          total: const Duration(milliseconds: 8),
+        )
+        ..debugFlush();
+
+      expect(
+        attributes['app.ui.frame_total']?['sessions_view'],
+        'mission_control',
+      );
+    });
+
+    test('bounds unexpected sessions-view labels', () {
+      PerformanceContextService().setCurrentSessionsView('custom-value');
+
+      expect(PerformanceContextService().currentSessionsView, 'other');
     });
   });
 
@@ -167,6 +196,14 @@ void main() {
         const Duration(milliseconds: 110),
         const Duration(milliseconds: 240),
       ]);
+      expect(recorded['app.ui.frozen_frame_build'], [
+        const Duration(milliseconds: 70),
+        const Duration(milliseconds: 150),
+      ]);
+      expect(recorded['app.ui.frozen_frame_raster'], [
+        const Duration(milliseconds: 40),
+        const Duration(milliseconds: 90),
+      ]);
       // The legacy window metric stays for dashboard continuity, and stays a
       // different quantity: wall time since the first frozen frame.
       expect(recorded['app.ui.jank_window'], hasLength(1));
@@ -182,6 +219,14 @@ void main() {
       expect(
         service.debugLastMaxFrozenFrame,
         const Duration(milliseconds: 240),
+      );
+      expect(
+        service.debugLastMaxFrozenBuild,
+        const Duration(milliseconds: 150),
+      );
+      expect(
+        service.debugLastMaxFrozenRaster,
+        const Duration(milliseconds: 90),
       );
     });
 

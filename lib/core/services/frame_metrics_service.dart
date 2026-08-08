@@ -25,8 +25,8 @@ class FrameMetricsService {
   bool _enableSentryTransactions = false;
   Timer? _flushTimer;
 
-  /// Ring buffer of recent janky frame durations (ms).
-  final _recentJank = <int>[];
+  /// Ring buffer of recent frozen frames, including the build/raster split.
+  final _recentFrozenFrames = <_FrozenFrameSample>[];
   static const int _maxJankBuffer = 50;
   static const int _slowFrameMicros = 16667;
   static const int _frozenFrameMicros = 100000;
@@ -51,6 +51,7 @@ class FrameMetricsService {
   /// Route known when the current jank span was opened, or null when none was
   /// (start-up, mid-transition). Drives the flush-time backfill in [_flush].
   String? _jankSpanRoute;
+  String? _jankSessionsView;
   int? _jankSessionCount;
 
   /// Route the last emitted `ui.jank` span was attributed to.
@@ -66,6 +67,8 @@ class FrameMetricsService {
 
   /// Longest frozen frame observed in the most recent flushed window.
   Duration? _lastMaxFrozenFrame;
+  Duration? _lastMaxFrozenBuild;
+  Duration? _lastMaxFrozenRaster;
 
   @visibleForTesting
   bool get debugIsAttached => _attached;
@@ -83,6 +86,14 @@ class FrameMetricsService {
   /// [debugLastJankWindow], which is only the flush-window span.
   @visibleForTesting
   Duration? get debugLastMaxFrozenFrame => _lastMaxFrozenFrame;
+
+  /// Build time of the longest frozen frame in the last flushed window.
+  @visibleForTesting
+  Duration? get debugLastMaxFrozenBuild => _lastMaxFrozenBuild;
+
+  /// Raster time of the longest frozen frame in the last flushed window.
+  @visibleForTesting
+  Duration? get debugLastMaxFrozenRaster => _lastMaxFrozenRaster;
 
   @visibleForTesting
   void debugFlush() => _flush();
@@ -138,9 +149,13 @@ class FrameMetricsService {
     if (totalMicros >= _slowFrameMicros) _slowFrameCount++;
     if (totalMicros >= _frozenFrameMicros) {
       _frozenFrameCount++;
-      _recentJank.add((totalMicros / 1000).round());
-      if (_recentJank.length > _maxJankBuffer) {
-        _recentJank.removeAt(0);
+      _recentFrozenFrames.add((
+        buildMicros: buildMicros,
+        rasterMicros: rasterMicros,
+        totalMicros: totalMicros,
+      ));
+      if (_recentFrozenFrames.length > _maxJankBuffer) {
+        _recentFrozenFrames.removeAt(0);
       }
       _openJankSpan();
     }
@@ -161,6 +176,7 @@ class FrameMetricsService {
     // whether it was a real route so [_flush] can backfill it.
     final route = PerformanceContextService().currentRoute;
     _jankSpanRoute = route == null || route.isEmpty ? null : route;
+    _jankSessionsView = PerformanceContextService().currentSessionsView;
     _jankSessionCount = sync.sessionCount;
     _jankSpan = OpenTelemetryService().startTrace(
       'ui.jank',
@@ -168,6 +184,7 @@ class FrameMetricsService {
         'current_route': _jankSpanRoute ?? 'unknown',
         'session.count': _jankSessionCount!,
         'session.count_bucket': collectionSizeBucket(_jankSessionCount!),
+        'sessions.view': _jankSessionsView ?? 'none',
       },
     );
   }
@@ -188,19 +205,23 @@ class FrameMetricsService {
   void _flush() {
     if (_frameCount == 0) return;
 
-    final snapshot = List<int>.from(_recentJank);
-    _recentJank.clear();
+    final snapshot = List<_FrozenFrameSample>.from(_recentFrozenFrames);
+    _recentFrozenFrames.clear();
     final jankSpan = _jankSpan;
     final jankStartedAt = _jankSpanStartedAt;
     final routeAtOpen = _jankSpanRoute;
+    final sessionsViewAtOpen = _jankSessionsView;
     final sessionCountAtOpen = _jankSessionCount;
     _jankSpan = null;
     _jankSpanStartedAt = null;
     _jankSpanRoute = null;
+    _jankSessionsView = null;
     _jankSessionCount = null;
     _jankWindowOpen = false;
     _lastJankWindow = null;
     _lastMaxFrozenFrame = null;
+    _lastMaxFrozenBuild = null;
+    _lastMaxFrozenRaster = null;
     final frameCount = _frameCount;
     final slowFrameCount = _slowFrameCount;
     final frozenFrameCount = _frozenFrameCount;
@@ -217,9 +238,11 @@ class FrameMetricsService {
     final route = PerformanceContextService().currentRoute ?? 'unknown';
     final otel = OpenTelemetryService();
     final currentSessionCount = sync.sessionCount;
+    final currentSessionsView = PerformanceContextService().currentSessionsView;
     final attributes = <String, Object?>{
       'current_route': route,
       'session_count_bucket': collectionSizeBucket(currentSessionCount),
+      'sessions_view': currentSessionsView ?? 'none',
     };
     otel
       ..recordDuration('app.ui.frame_build', avgBuild, attributes: attributes)
@@ -248,13 +271,21 @@ class FrameMetricsService {
       return;
     }
 
-    final avgMs = snapshot.reduce((a, b) => a + b) / snapshot.length;
-    final maxMs = snapshot.reduce((a, b) => a > b ? a : b);
+    final totalMillis = [
+      for (final sample in snapshot) (sample.totalMicros / 1000).round(),
+    ];
+    final avgMs = totalMillis.reduce((a, b) => a + b) / totalMillis.length;
+    final maxSample = snapshot.reduce(
+      (a, b) => a.totalMicros >= b.totalMicros ? a : b,
+    );
+    final maxMs = (maxSample.totalMicros / 1000).round();
     final window = jankStartedAt == null
         ? null
         : DateTime.now().difference(jankStartedAt);
     _lastJankWindow = window;
     _lastMaxFrozenFrame = Duration(milliseconds: maxMs);
+    _lastMaxFrozenBuild = Duration(microseconds: maxSample.buildMicros);
+    _lastMaxFrozenRaster = Duration(microseconds: maxSample.rasterMicros);
 
     if (_enableSentryTransactions) {
       final transaction =
@@ -265,7 +296,8 @@ class FrameMetricsService {
             ..setData(
               'currentRoute',
               PerformanceContextService().currentRoute ?? 'unknown',
-            );
+            )
+            ..setData('sessionsView', currentSessionsView ?? 'none');
 
       unawaited(transaction.finish());
     }
@@ -281,14 +313,28 @@ class FrameMetricsService {
       'session_count_bucket': collectionSizeBucket(
         sessionCountAtOpen ?? currentSessionCount,
       ),
+      'sessions_view': sessionsViewAtOpen ?? currentSessionsView ?? 'none',
     };
-    for (final frozenMs in snapshot) {
-      otel.recordDuration(
-        'app.ui.frozen_frame',
-        Duration(milliseconds: frozenMs),
-        attributes: frozenAttributes,
-        description: 'Duration of a single frozen (>=100ms) frame',
-      );
+    for (final sample in snapshot) {
+      otel
+        ..recordDuration(
+          'app.ui.frozen_frame',
+          Duration(microseconds: sample.totalMicros),
+          attributes: frozenAttributes,
+          description: 'Duration of a single frozen (>=100ms) frame',
+        )
+        ..recordDuration(
+          'app.ui.frozen_frame_build',
+          Duration(microseconds: sample.buildMicros),
+          attributes: frozenAttributes,
+          description: 'Build component of a frozen (>=100ms) frame',
+        )
+        ..recordDuration(
+          'app.ui.frozen_frame_raster',
+          Duration(microseconds: sample.rasterMicros),
+          attributes: frozenAttributes,
+          description: 'Raster component of a frozen (>=100ms) frame',
+        );
     }
 
     if (window != null) {
@@ -314,6 +360,9 @@ class FrameMetricsService {
     if (routeAtOpen == null && route != 'unknown') {
       jankSpan?.setAttribute('current_route', route);
     }
+    if (sessionsViewAtOpen == null && currentSessionsView != null) {
+      jankSpan?.setAttribute('sessions.view', currentSessionsView);
+    }
     jankSpan
       ?..setAttribute('frame.count', snapshot.length)
       ..setAttribute('frame.avg_ms', avgMs.round())
@@ -323,8 +372,16 @@ class FrameMetricsService {
       // numbers as attributes so a trace search can filter on them.
       ..setAttribute('frame.frozen_max_ms', maxMs)
       ..setAttribute(
+        'frame.frozen_max_build_ms',
+        (maxSample.buildMicros / 1000).round(),
+      )
+      ..setAttribute(
+        'frame.frozen_max_raster_ms',
+        (maxSample.rasterMicros / 1000).round(),
+      )
+      ..setAttribute(
         'frame.frozen_total_ms',
-        snapshot.fold<int>(0, (sum, ms) => sum + ms),
+        totalMillis.fold<int>(0, (sum, ms) => sum + ms),
       )
       ..setAttribute('jank.window_ms', window?.inMilliseconds ?? 0)
       ..setAttribute('frame.frozen_count', frozenFrameCount)
@@ -347,3 +404,9 @@ class FrameMetricsService {
     }
   }
 }
+
+typedef _FrozenFrameSample = ({
+  int buildMicros,
+  int rasterMicros,
+  int totalMicros,
+});
