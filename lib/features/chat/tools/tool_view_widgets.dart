@@ -173,14 +173,20 @@ class ToolHeader extends StatelessWidget {
       ),
     ];
 
-    List<Widget> stateChildren() => [
-      _ToolStateCue(
-        state: state,
-        label: cueLabel,
-        statusIcon: statusIcon,
-        needsApproval: hasPermissionRequest,
-        showCheckFlash: showCheckFlash,
-      ),
+    Widget stateCue({bool constrainLabel = false}) => _ToolStateCue(
+      state: state,
+      label: cueLabel,
+      statusIcon: statusIcon,
+      needsApproval: hasPermissionRequest,
+      showCheckFlash: showCheckFlash,
+      constrainLabel: constrainLabel,
+    );
+
+    List<Widget> stateChildren({bool constrainCue = false}) => [
+      if (constrainCue)
+        Flexible(child: stateCue(constrainLabel: true))
+      else
+        stateCue(),
       if (state == ToolState.running && createdAt != null) ...[
         const SizedBox(width: AppSpacing.xs),
         ToolDuration(startTime: createdAt!),
@@ -247,7 +253,7 @@ class ToolHeader extends StatelessWidget {
                                 const SizedBox(height: AppSpacing.xs),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
-                                  children: stateChildren(),
+                                  children: stateChildren(constrainCue: true),
                                 ),
                               ],
                             );
@@ -290,6 +296,7 @@ class _ToolStateCue extends StatelessWidget {
     required this.label,
     required this.needsApproval,
     required this.showCheckFlash,
+    this.constrainLabel = false,
     this.statusIcon,
   });
 
@@ -297,6 +304,7 @@ class _ToolStateCue extends StatelessWidget {
   final String label;
   final bool needsApproval;
   final bool showCheckFlash;
+  final bool constrainLabel;
   final Widget? statusIcon;
 
   @override
@@ -332,16 +340,30 @@ class _ToolStateCue extends StatelessWidget {
               Icon(icon, key: ValueKey<IconData>(icon), size: 16, color: color),
         ),
         const SizedBox(width: AppSpacing.xxs),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: AppFontSize.xs,
-            fontWeight: FontWeight.w600,
-            color: color,
+        if (constrainLabel)
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppFontSize.xs,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          )
+        else
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: AppFontSize.xs,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
-        ),
       ],
     );
   }

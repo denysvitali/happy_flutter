@@ -30,6 +30,8 @@ Widget _wrap(Widget child, {bool debug = true}) {
       ),
     ],
     child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: SingleChildScrollView(child: child)),
     ),
   );
