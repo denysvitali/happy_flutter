@@ -278,7 +278,9 @@ void main() {
       expect(find.text('Archived investigation'), findsNothing);
       await tester.enterText(find.byType(TextField), 'Archived investigation');
       await tester.pump(const Duration(milliseconds: 150));
-      expect(find.text('Archived investigation'), findsOneWidget);
+      // The query remains visible in the search field and the matching
+      // command is rendered as a separate result.
+      expect(find.text('Archived investigation'), findsNWidgets(2));
     });
 
     testWidgets('filters commands by subtitle', (tester) async {

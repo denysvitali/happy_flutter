@@ -36,8 +36,7 @@ class _TestTerminalScreen extends ConsumerStatefulWidget {
       _TestTerminalScreenState();
 }
 
-class _TestTerminalScreenState
-    extends ConsumerState<_TestTerminalScreen> {
+class _TestTerminalScreenState extends ConsumerState<_TestTerminalScreen> {
   final List<String> _lines = ['Terminal connected.'];
   final _commandController = TextEditingController();
   final _scrollController = ScrollController();
@@ -128,9 +127,7 @@ class _TestTerminalScreenState
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: Text(_disconnectLabel),
           ),
         ],
@@ -196,10 +193,7 @@ class _TestTerminalScreenState
             decoration: const BoxDecoration(
               color: Color(0xFF2D2D2D),
               border: Border(
-                top: BorderSide(
-                  color: Color(0xFF3C3C3C),
-                  width: 0.5,
-                ),
+                top: BorderSide(color: Color(0xFF3C3C3C), width: 0.5),
               ),
             ),
             padding: const EdgeInsets.all(8),
@@ -228,8 +222,7 @@ class _TestTerminalScreenState
                     ),
                     textInputAction: TextInputAction.send,
                     autocorrect: false,
-                    onSubmitted:
-                        _isSending ? null : _submitCommand,
+                    onSubmitted: _isSending ? null : _submitCommand,
                   ),
                 ),
                 if (_isSending)
@@ -251,9 +244,7 @@ class _TestTerminalScreenState
                       color: Color(0xFF4EC94E),
                       size: 20,
                     ),
-                    onPressed: () => _submitCommand(
-                      _commandController.text,
-                    ),
+                    onPressed: () => _submitCommand(_commandController.text),
                   ),
               ],
             ),
@@ -270,8 +261,7 @@ Widget _buildApp({required Widget child}) {
   return ProviderScope(
     child: MaterialApp(
       home: child,
-      localizationsDelegates:
-          AppLocalizations.localizationsDelegates,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
     ),
   );
@@ -284,81 +274,57 @@ void main() {
 
   group('TerminalScreen', () {
     testWidgets('renders dark background', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const _TestTerminalScreen()),
-      );
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
-      final scaffold = tester.widget<Scaffold>(
-        find.byType(Scaffold),
-      );
+      final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
       expect(scaffold.backgroundColor, const Color(0xFF1E1E1E));
     });
 
-    testWidgets('renders app bar with terminal title',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const _TestTerminalScreen()),
-      );
+    testWidgets('renders app bar with terminal title', (tester) async {
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
       expect(find.text('Terminal'), findsOneWidget);
       expect(find.byIcon(Icons.terminal), findsOneWidget);
     });
 
-    testWidgets('renders disconnect button in app bar',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const _TestTerminalScreen()),
-      );
+    testWidgets('renders disconnect button in app bar', (tester) async {
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
-      expect(
-        find.byIcon(Icons.power_settings_new),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.power_settings_new), findsOneWidget);
     });
 
-    testWidgets('shows initial connected message',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const _TestTerminalScreen()),
-      );
+    testWidgets('shows initial connected message', (tester) async {
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
       expect(find.text('Terminal connected.'), findsOneWidget);
     });
 
-    testWidgets('renders command input field',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const _TestTerminalScreen()),
-      );
+    testWidgets('renders command input field', (tester) async {
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
       expect(find.byType(TextField), findsOneWidget);
     });
 
     testWidgets('renders dollar sign prompt', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const _TestTerminalScreen()),
-      );
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
       expect(find.text(r'$ '), findsOneWidget);
     });
 
     testWidgets('renders send button', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const _TestTerminalScreen()),
-      );
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
       expect(find.byIcon(Icons.send), findsOneWidget);
     });
 
-    testWidgets('typing command and pressing send adds output',
-        (tester) async {
+    testWidgets('typing command and pressing send adds output', (tester) async {
       await tester.pumpWidget(
         _buildApp(
           child: _TestTerminalScreen(
@@ -369,10 +335,7 @@ void main() {
       await tester.pump();
 
       // Type a command.
-      await tester.enterText(
-        find.byType(TextField),
-        'ls -la',
-      );
+      await tester.enterText(find.byType(TextField), 'ls -la');
       await tester.pump();
 
       // Press send button.
@@ -386,21 +349,15 @@ void main() {
       expect(find.text('output for ls -la'), findsOneWidget);
     });
 
-    testWidgets('submitting command clears input field',
-        (tester) async {
+    testWidgets('submitting command clears input field', (tester) async {
       await tester.pumpWidget(
         _buildApp(
-          child: _TestTerminalScreen(
-            onExecuteCommand: (_) async => 'done',
-          ),
+          child: _TestTerminalScreen(onExecuteCommand: (_) async => 'done'),
         ),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'echo hello',
-      );
+      await tester.enterText(find.byType(TextField), 'echo hello');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
@@ -408,17 +365,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Text field should be empty.
-      final textField = tester.widget<TextField>(
-        find.byType(TextField),
-      );
-      expect(
-        textField.controller?.text ?? '',
-        isEmpty,
-      );
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.controller?.text ?? '', isEmpty);
     });
 
-    testWidgets('empty command is not submitted',
-        (tester) async {
+    testWidgets('empty command is not submitted', (tester) async {
       var executed = false;
       await tester.pumpWidget(
         _buildApp(
@@ -439,62 +390,43 @@ void main() {
       expect(executed, isFalse);
     });
 
-    testWidgets('shows no machine message when machineId is null',
-        (tester) async {
+    testWidgets('shows no machine message when machineId is null', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _buildApp(
-          child: const _TestTerminalScreen(
-            machineId: null,
-          ),
-        ),
+        _buildApp(child: const _TestTerminalScreen(machineId: null)),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'test',
-      );
+      await tester.enterText(find.byType(TextField), 'test');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('[No machine connected]'),
-        findsOneWidget,
-      );
+      expect(find.text('[No machine connected]'), findsOneWidget);
     });
 
-    testWidgets('shows no machine message when machineId empty',
-        (tester) async {
+    testWidgets('shows no machine message when machineId empty', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _buildApp(
-          child: const _TestTerminalScreen(
-            machineId: '',
-          ),
-        ),
+        _buildApp(child: const _TestTerminalScreen(machineId: '')),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'test',
-      );
+      await tester.enterText(find.byType(TextField), 'test');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('[No machine connected]'),
-        findsOneWidget,
-      );
+      expect(find.text('[No machine connected]'), findsOneWidget);
     });
 
-    testWidgets('error during command shows error line',
-        (tester) async {
+    testWidgets('error during command shows error line', (tester) async {
       await tester.pumpWidget(
         _buildApp(
           child: _TestTerminalScreen(
@@ -506,49 +438,34 @@ void main() {
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'bad-cmd',
-      );
+      await tester.enterText(find.byType(TextField), 'bad-cmd');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('[Error:'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('[Error:'), findsOneWidget);
     });
 
-    testWidgets('shows loading spinner while command executes',
-        (tester) async {
+    testWidgets('shows loading spinner while command executes', (tester) async {
       final completer = Completer<String>();
 
       await tester.pumpWidget(
         _buildApp(
-          child: _TestTerminalScreen(
-            onExecuteCommand: (_) => completer.future,
-          ),
+          child: _TestTerminalScreen(onExecuteCommand: (_) => completer.future),
         ),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'sleep-cmd',
-      );
+      await tester.enterText(find.byType(TextField), 'sleep-cmd');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
 
       // Spinner should be visible during execution.
-      expect(
-        find.byType(CircularProgressIndicator),
-        findsOneWidget,
-      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       // Send button should be hidden.
       expect(find.byIcon(Icons.send), findsNothing);
@@ -558,83 +475,53 @@ void main() {
       await tester.pumpAndSettle();
 
       // Spinner gone, send button back.
-      expect(
-        find.byType(CircularProgressIndicator),
-        findsNothing,
-      );
+      expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.byIcon(Icons.send), findsOneWidget);
     });
 
-    testWidgets('input disabled while command is sending',
-        (tester) async {
+    testWidgets('input disabled while command is sending', (tester) async {
       final completer = Completer<String>();
 
       await tester.pumpWidget(
         _buildApp(
-          child: _TestTerminalScreen(
-            onExecuteCommand: (_) => completer.future,
-          ),
+          child: _TestTerminalScreen(onExecuteCommand: (_) => completer.future),
         ),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'long-cmd',
-      );
+      await tester.enterText(find.byType(TextField), 'long-cmd');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
 
       // TextField should be disabled.
-      final textField = tester.widget<TextField>(
-        find.byType(TextField),
-      );
+      final textField = tester.widget<TextField>(find.byType(TextField));
       expect(textField.enabled, isFalse);
 
       completer.complete('done');
       await tester.pumpAndSettle();
     });
 
-    testWidgets('tapping disconnect shows confirmation dialog',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(
-          child: const _TestTerminalScreen(),
-        ),
-      );
+    testWidgets('tapping disconnect shows confirmation dialog', (tester) async {
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
       // Tap disconnect button.
-      await tester.tap(
-        find.byIcon(Icons.power_settings_new),
-      );
+      await tester.tap(find.byIcon(Icons.power_settings_new));
       await tester.pumpAndSettle();
 
       // Dialog should appear.
-      expect(find.text('Disconnect'), findsWidgets);
-      expect(
-        find.text(
-          'Are you sure you want to disconnect from the terminal?',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Close'), findsWidgets);
+      expect(find.text('Close the command runner?'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
     });
 
-    testWidgets('cancel dismisses disconnect dialog',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildApp(
-          child: const _TestTerminalScreen(),
-        ),
-      );
+    testWidgets('cancel dismisses disconnect dialog', (tester) async {
+      await tester.pumpWidget(_buildApp(child: const _TestTerminalScreen()));
       await tester.pump();
 
-      await tester.tap(
-        find.byIcon(Icons.power_settings_new),
-      );
+      await tester.tap(find.byIcon(Icons.power_settings_new));
       await tester.pumpAndSettle();
 
       // Tap cancel.
@@ -642,30 +529,20 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog should be gone.
-      expect(
-        find.text(
-          'Are you sure you want to disconnect from the terminal?',
-        ),
-        findsNothing,
-      );
+      expect(find.text('Close the command runner?'), findsNothing);
     });
 
-    testWidgets('multiline output renders all lines',
-        (tester) async {
+    testWidgets('multiline output renders all lines', (tester) async {
       await tester.pumpWidget(
         _buildApp(
           child: _TestTerminalScreen(
-            onExecuteCommand: (_) async =>
-                'line1\nline2\nline3',
+            onExecuteCommand: (_) async => 'line1\nline2\nline3',
           ),
         ),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'multi',
-      );
+      await tester.enterText(find.byType(TextField), 'multi');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
@@ -677,21 +554,15 @@ void main() {
       expect(find.text('line3'), findsOneWidget);
     });
 
-    testWidgets('command lines are styled differently',
-        (tester) async {
+    testWidgets('command lines are styled differently', (tester) async {
       await tester.pumpWidget(
         _buildApp(
-          child: _TestTerminalScreen(
-            onExecuteCommand: (_) async => 'result',
-          ),
+          child: _TestTerminalScreen(onExecuteCommand: (_) async => 'result'),
         ),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'whoami',
-      );
+      await tester.enterText(find.byType(TextField), 'whoami');
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.send));
@@ -699,32 +570,22 @@ void main() {
       await tester.pumpAndSettle();
 
       // Find the command line text widget.
-      final commandText = tester.widget<Text>(
-        find.text('> whoami'),
-      );
+      final commandText = tester.widget<Text>(find.text('> whoami'));
       // Command lines use blue color (0xFF569CD6).
-      expect(
-        commandText.style?.color,
-        const Color(0xFF569CD6),
-      );
+      expect(commandText.style?.color, const Color(0xFF569CD6));
 
       // Output uses the default terminal color.
-      final outputText = tester.widget<Text>(
-        find.text('result'),
-      );
-      expect(
-        outputText.style?.color,
-        const Color(0xFFD4D4D4),
-      );
+      final outputText = tester.widget<Text>(find.text('result'));
+      expect(outputText.style?.color, const Color(0xFFD4D4D4));
     });
 
-    testWidgets('command output appears in terminal output list',
-        (tester) async {
+    testWidgets('command output appears in terminal output list', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _buildApp(
           child: _TestTerminalScreen(
-            onExecuteCommand: (cmd) async =>
-                'output of $cmd',
+            onExecuteCommand: (cmd) async => 'output of $cmd',
           ),
         ),
       );
@@ -734,20 +595,14 @@ void main() {
       expect(find.text('Terminal connected.'), findsOneWidget);
 
       // Send first command.
-      await tester.enterText(
-        find.byType(TextField),
-        'pwd',
-      );
+      await tester.enterText(find.byType(TextField), 'pwd');
       await tester.pump();
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
       await tester.pumpAndSettle();
 
       // Send second command.
-      await tester.enterText(
-        find.byType(TextField),
-        'whoami',
-      );
+      await tester.enterText(find.byType(TextField), 'whoami');
       await tester.pump();
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
@@ -765,17 +620,12 @@ void main() {
     testWidgets('empty output adds blank line', (tester) async {
       await tester.pumpWidget(
         _buildApp(
-          child: _TestTerminalScreen(
-            onExecuteCommand: (_) async => '',
-          ),
+          child: _TestTerminalScreen(onExecuteCommand: (_) async => ''),
         ),
       );
       await tester.pump();
 
-      await tester.enterText(
-        find.byType(TextField),
-        'clear',
-      );
+      await tester.enterText(find.byType(TextField), 'clear');
       await tester.pump();
       await tester.tap(find.byIcon(Icons.send));
       await tester.pump();
@@ -784,9 +634,7 @@ void main() {
       // Command should appear.
       expect(find.text('> clear'), findsOneWidget);
       // Should have 3 items: connected msg, command, blank.
-      final listView = tester.widget<ListView>(
-        find.byType(ListView),
-      );
+      final listView = tester.widget<ListView>(find.byType(ListView));
       expect(listView.semanticChildCount, 3);
     });
   });

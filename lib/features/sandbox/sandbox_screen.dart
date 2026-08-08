@@ -237,6 +237,7 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
           padding: const EdgeInsets.only(bottom: AppSpacing.xxxl * 2),
           children: [
             MachinePicker(
+              key: const ValueKey('sandbox-machine-picker'),
               machines: machines,
               selectedMachineId: _selectedMachineId,
               onChanged: _onMachineChanged,

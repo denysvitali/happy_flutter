@@ -1822,7 +1822,7 @@ void main() {
       },
     );
 
-    test('createSession → sendMessage marks failed when fresh session '
+    test('createSession → sendMessage stays queued when fresh session '
         'never becomes ready', () async {
       final sessionId = 'e2e-startup-timeout';
 
@@ -1848,10 +1848,10 @@ void main() {
       await sync.lastCompleteSendFuture;
 
       final updatedMsgs = sync.testSessionMessages(sessionId)!;
-      final failedMsg = updatedMsgs.firstWhere(
+      final queuedMsg = updatedMsgs.firstWhere(
         (m) => m['content'] == 'Will fail',
       );
-      expect(failedMsg['sendStatus'], 'failed');
+      expect(queuedMsg['sendStatus'], 'sending');
     });
 
     test('createSession → auto-restore → redirected sendMessage', () async {

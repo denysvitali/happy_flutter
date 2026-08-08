@@ -623,13 +623,12 @@ void main() {
         await probeStarted.future;
 
         expect(find.byIcon(Icons.hourglass_top_rounded), findsOneWidget);
+        await tester.pumpWidget(const SizedBox.shrink());
         expect(
           find.byType(CircularProgressIndicator),
           findsNothing,
-          reason: 'an indeterminate ticker can rebuild after dialog disposal',
+          reason: 'an indeterminate ticker cannot outlive dialog disposal',
         );
-
-        await tester.pumpWidget(const SizedBox.shrink());
         finishProbe.complete();
         await tester.pump();
 
@@ -748,9 +747,12 @@ void main() {
           find.widgetWithText(TextButton, 'Cancel'),
         );
         expect(cancel.onPressed, isNull);
+        expect(find.byType(ModalBarrier), findsWidgets);
         expect(
-          tester.widget<ModalBarrier>(find.byType(ModalBarrier)).dismissible,
-          isFalse,
+          tester
+              .widgetList<ModalBarrier>(find.byType(ModalBarrier))
+              .map((barrier) => barrier.dismissible),
+          everyElement(isFalse),
         );
 
         await tester.tapAt(const Offset(4, 4));

@@ -87,11 +87,19 @@ void main() {
       expect(calledMachineIds, everyElement('b-capable'));
 
       final picker = tester.widget<DropdownButtonFormField<String>>(
-        find.byType(DropdownButtonFormField<String>),
+        find.descendant(
+          of: find.byKey(const ValueKey('sandbox-machine-picker')),
+          matching: find.byType(DropdownButtonFormField<String>),
+        ),
       );
       expect(picker.initialValue, 'b-capable');
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('sandbox-machine-picker')),
+          matching: find.byType(DropdownButtonFormField<String>),
+        ),
+      );
       await tester.pumpAndSettle();
       final unsupported = tester
           .widgetList<DropdownMenuItem<String>>(

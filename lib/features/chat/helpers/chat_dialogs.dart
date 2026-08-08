@@ -41,81 +41,86 @@ void showSessionMenu(
         }
 
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: Icon(
-                  Icons.settings_outlined,
-                  color: cs.onSurfaceVariant,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.settings_outlined,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  title: Text(l10n.chatSessionSettings),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(sheetContext);
+                    outerContext.pushNamed(
+                      'session-info',
+                      pathParameters: {'sessionId': sessionId},
+                    );
+                  },
                 ),
-                title: Text(l10n.chatSessionSettings),
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.pop(sheetContext);
-                  outerContext.pushNamed(
-                    'session-info',
-                    pathParameters: {'sessionId': sessionId},
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  Icons.visibility_off_outlined,
-                  color: cs.onSurfaceVariant,
+                ListTile(
+                  leading: Icon(
+                    Icons.visibility_off_outlined,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  title: Text(l10n.settingsHideToolCalls),
+                  subtitle: Text(l10n.settingsHideToolCallsSubtitle),
+                  trailing: Switch.adaptive(
+                    value: hideToolCalls,
+                    onChanged: updateHideToolCalls,
+                  ),
+                  onTap: () => updateHideToolCalls(!hideToolCalls),
                 ),
-                title: Text(l10n.settingsHideToolCalls),
-                subtitle: Text(l10n.settingsHideToolCallsSubtitle),
-                trailing: Switch.adaptive(
-                  value: hideToolCalls,
-                  onChanged: updateHideToolCalls,
+                ListTile(
+                  leading: Icon(Icons.stop_rounded, color: cs.error),
+                  title: Text(
+                    l10n.chatStopCurrentTask,
+                    style: TextStyle(color: cs.error),
+                  ),
+                  onTap: () {
+                    HapticFeedback.heavyImpact();
+                    Navigator.pop(sheetContext);
+                    onAbort();
+                  },
                 ),
-                onTap: () => updateHideToolCalls(!hideToolCalls),
-              ),
-              ListTile(
-                leading: Icon(Icons.stop_rounded, color: cs.error),
-                title: Text(
-                  l10n.chatStopCurrentTask,
-                  style: TextStyle(color: cs.error),
+                ListTile(
+                  leading: Icon(
+                    Icons.power_settings_new_rounded,
+                    color: cs.error,
+                  ),
+                  title: Text(
+                    l10n.chatStopAgentProcess,
+                    style: TextStyle(color: cs.error),
+                  ),
+                  onTap: () {
+                    HapticFeedback.heavyImpact();
+                    Navigator.pop(sheetContext);
+                    unawaited(
+                      _confirmStopAgentProcess(outerContext, ref, sessionId),
+                    );
+                  },
                 ),
-                onTap: () {
-                  HapticFeedback.heavyImpact();
-                  Navigator.pop(sheetContext);
-                  onAbort();
-                },
-              ),
-              ListTile(
-                leading: Icon(
-                  Icons.power_settings_new_rounded,
-                  color: cs.error,
+                ListTile(
+                  leading: Icon(Icons.delete_outline, color: cs.error),
+                  title: Text(
+                    l10n.chatDeleteSession,
+                    style: TextStyle(color: cs.error),
+                  ),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(sheetContext);
+                    unawaited(
+                      showConfirmDeleteDialog(
+                        outerContext,
+                        sessionId: sessionId,
+                      ),
+                    );
+                  },
                 ),
-                title: Text(
-                  l10n.chatStopAgentProcess,
-                  style: TextStyle(color: cs.error),
-                ),
-                onTap: () {
-                  HapticFeedback.heavyImpact();
-                  Navigator.pop(sheetContext);
-                  unawaited(
-                    _confirmStopAgentProcess(outerContext, ref, sessionId),
-                  );
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.delete_outline, color: cs.error),
-                title: Text(
-                  l10n.chatDeleteSession,
-                  style: TextStyle(color: cs.error),
-                ),
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  Navigator.pop(sheetContext);
-                  unawaited(
-                    showConfirmDeleteDialog(outerContext, sessionId: sessionId),
-                  );
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

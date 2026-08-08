@@ -121,20 +121,22 @@ Session _makeSession({
 
 // ignore: type_annotate_public_apis
 _commonOverrides(Map<String, Session> sessions) => [
-      authStateNotifierProvider
-          .overrideWith(() => _StubAuthNotifier(AuthState.authenticated)),
-      settingsNotifierProvider.overrideWith(() => _StubSettingsNotifier()),
-      sessionsNotifierProvider
-          .overrideWith(() => _StubSessionsNotifier(sessions)),
-      machinesNotifierProvider.overrideWith(() => _StubMachinesNotifier()),
-      connectionNotifierProvider.overrideWith(() => _StubConnectionNotifier()),
-      networkNotifierProvider.overrideWith(() => _StubNetworkNotifier()),
-      profileNotifierProvider.overrideWith(() => _StubProfileNotifier()),
-      currentSessionNotifierProvider
-          .overrideWith(() => _StubCurrentSessionNotifier()),
-      sessionGitStatusNotifierProvider
-          .overrideWith(() => _StubSessionGitStatusNotifier()),
-    ];
+  authStateNotifierProvider.overrideWith(
+    () => _StubAuthNotifier(AuthState.authenticated),
+  ),
+  settingsNotifierProvider.overrideWith(() => _StubSettingsNotifier()),
+  sessionsNotifierProvider.overrideWith(() => _StubSessionsNotifier(sessions)),
+  machinesNotifierProvider.overrideWith(() => _StubMachinesNotifier()),
+  connectionNotifierProvider.overrideWith(() => _StubConnectionNotifier()),
+  networkNotifierProvider.overrideWith(() => _StubNetworkNotifier()),
+  profileNotifierProvider.overrideWith(() => _StubProfileNotifier()),
+  currentSessionNotifierProvider.overrideWith(
+    () => _StubCurrentSessionNotifier(),
+  ),
+  sessionGitStatusNotifierProvider.overrideWith(
+    () => _StubSessionGitStatusNotifier(),
+  ),
+];
 
 Widget _buildApp(
   Widget child, {
@@ -326,8 +328,7 @@ class _MockChatView extends StatelessWidget {
                   // Permission mode selector (Claude modes only).
                   PermissionModeSelector(
                     selectedMode: PermissionMode.defaultMode,
-                    availableModes:
-                        PermissionModeExtension.claudeGeminiModes,
+                    availableModes: PermissionModeExtension.claudeGeminiModes,
                   ),
                   const SizedBox(width: AppSpacing.xs + 2),
                   // Model selector pill.
@@ -452,11 +453,7 @@ void main() {
       setPhoneSize(tester);
 
       await tester.pumpWidget(
-        _buildApp(
-          const SessionsScreen(),
-          sessions: _mockSessions,
-          dark: true,
-        ),
+        _buildApp(const SessionsScreen(), sessions: _mockSessions, dark: true),
       );
       for (var i = 0; i < 12; i++) {
         await tester.pump(const Duration(milliseconds: 100));
@@ -552,7 +549,8 @@ void main() {
 
     // One minified payload, exactly as an MCP server answers — the view is
     // responsible for pretty-printing and coloring it.
-    const mcpJsonResult = '{"devices":[{"id":"d2772243110f","device_mode":'
+    const mcpJsonResult =
+        '{"devices":[{"id":"d2772243110f","device_mode":'
         '"normal","firmware_version":"v0.1.0 (d5040ccc)","gps_interval":30,'
         '"coap_failures":0,"error_count":0,"field_notes":null,"online":true}],'
         '"total":1}';
@@ -632,16 +630,13 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        _toolApp(
-          {
-            'name': 'Bash',
-            'input': {'command': 'npm run build'},
-            'result':
-                "npm ERR! Missing script: \"build\"\nnpm ERR! \nnpm ERR! Did you mean one of these?\nnpm ERR!   npm run start",
-            'state': 'error',
-          },
-          dark: true,
-        ),
+        _toolApp({
+          'name': 'Bash',
+          'input': {'command': 'npm run build'},
+          'result':
+              "npm ERR! Missing script: \"build\"\nnpm ERR! \nnpm ERR! Did you mean one of these?\nnpm ERR!   npm run start",
+          'state': 'error',
+        }, dark: true),
       );
       await tester.pump();
       // Tap header to expand (error tools start collapsed).
@@ -658,7 +653,7 @@ void main() {
     testWidgets('permission pending - light', (tester) async {
       // The expanded command body and stable 44px permission actions need
       // enough room to render without clipping in this component showcase.
-      tester.view.physicalSize = const Size(390 * 2, 380 * 2);
+      tester.view.physicalSize = const Size(390 * 2, 480 * 2);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.reset);
 
@@ -723,21 +718,21 @@ void main() {
       'file_path': '/home/user/project/lib/auth.dart',
       'old_string':
           'Future<User> login(String email, String password) async {\n'
-              '  final response = await client.post(\n'
-              "    Uri.parse('\$baseUrl/login'),\n"
-              "    body: {'email': email, 'password': password},\n"
-              '  );\n'
-              '  return User.fromJson(response.body);\n'
-              '}',
+          '  final response = await client.post(\n'
+          "    Uri.parse('\$baseUrl/login'),\n"
+          "    body: {'email': email, 'password': password},\n"
+          '  );\n'
+          '  return User.fromJson(response.body);\n'
+          '}',
       'new_string':
           'Future<User> login(String email, String password) async {\n'
-              '  final response = await client.post(\n'
-              "    Uri.parse('\$baseUrl/v2/login'),\n"
-              "    body: {'email': email, 'password': password},\n"
-              '  );\n'
-              '  _checkStatus(response);\n'
-              '  return User.fromJson(response.body);\n'
-              '}',
+          '  final response = await client.post(\n'
+          "    Uri.parse('\$baseUrl/v2/login'),\n"
+          "    body: {'email': email, 'password': password},\n"
+          '  );\n'
+          '  _checkStatus(response);\n'
+          '  return User.fromJson(response.body);\n'
+          '}',
     };
 
     testWidgets('edit diff - light', (tester) async {
@@ -746,11 +741,7 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        _toolApp({
-          'name': 'Edit',
-          'input': _editInput,
-          'state': 'completed',
-        }),
+        _toolApp({'name': 'Edit', 'input': _editInput, 'state': 'completed'}),
       );
       await tester.pump();
       // Tap header to expand (completed tools start collapsed).
@@ -770,14 +761,11 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(
-        _toolApp(
-          {
-            'name': 'Edit',
-            'input': _editInput,
-            'state': 'completed',
-          },
-          dark: true,
-        ),
+        _toolApp({
+          'name': 'Edit',
+          'input': _editInput,
+          'state': 'completed',
+        }, dark: true),
       );
       await tester.pump();
       await tester.tap(find.byType(ToolView));
