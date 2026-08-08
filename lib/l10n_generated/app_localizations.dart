@@ -2803,6 +2803,90 @@ abstract class AppLocalizations {
   /// **'Tool is running...'**
   String get toolViewRunning;
 
+  /// No description provided for @toolStateApprovalNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Approval needed'**
+  String get toolStateApprovalNeeded;
+
+  /// No description provided for @toolStateRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get toolStateRunning;
+
+  /// No description provided for @toolStateDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get toolStateDone;
+
+  /// No description provided for @toolStateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get toolStateFailed;
+
+  /// No description provided for @toolStateQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get toolStateQueued;
+
+  /// No description provided for @toolStateCanceled.
+  ///
+  /// In en, this message translates to:
+  /// **'Canceled'**
+  String get toolStateCanceled;
+
+  /// No description provided for @toolStateStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get toolStateStopped;
+
+  /// No description provided for @toolOutputExpandHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand tool output'**
+  String get toolOutputExpandHint;
+
+  /// No description provided for @toolOutputCollapseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse tool output'**
+  String get toolOutputCollapseHint;
+
+  /// No description provided for @toolOutputShowMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Show more'**
+  String get toolOutputShowMore;
+
+  /// No description provided for @toolOutputShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get toolOutputShowLess;
+
+  /// No description provided for @toolDetailsOpenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open tool details'**
+  String get toolDetailsOpenHint;
+
+  /// No description provided for @toolDetailsView.
+  ///
+  /// In en, this message translates to:
+  /// **'View tool details'**
+  String get toolDetailsView;
+
+  /// No description provided for @toolDetailsButtonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the details button to view input & output'**
+  String get toolDetailsButtonHint;
+
   /// No description provided for @toolViewRawJsonDevMode.
   ///
   /// In en, this message translates to:
@@ -5766,6 +5850,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Permission action failed'**
   String get permissionActionFailed;
+
+  /// No description provided for @permissionActionInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission action in progress'**
+  String get permissionActionInProgress;
+
+  /// No description provided for @permissionMoreApprovalOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'More approval options'**
+  String get permissionMoreApprovalOptions;
+
+  /// No description provided for @permissionHideApprovalOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide approval options'**
+  String get permissionHideApprovalOptions;
 
   /// No description provided for @permissionModeTitle.
   ///
@@ -9199,6 +9301,54 @@ abstract class AppLocalizations {
   /// **'Usage'**
   String get providersUsageSectionTitle;
 
+  /// No description provided for @providersConnectedAccounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected accounts'**
+  String get providersConnectedAccounts;
+
+  /// No description provided for @providersBuiltInLimits.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in limits'**
+  String get providersBuiltInLimits;
+
+  /// No description provided for @providersAccountSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0 {No connected accounts} =1 {1 connected account} other {{count} connected accounts}}'**
+  String providersAccountSummary(int count);
+
+  /// No description provided for @providersAttentionSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0 {All usage checks are healthy} =1 {1 account needs attention} other {{count} accounts need attention}}'**
+  String providersAttentionSummary(int count);
+
+  /// No description provided for @providersUpdatingUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating usage…'**
+  String get providersUpdatingUsage;
+
+  /// No description provided for @providersUsageStale.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage may be stale'**
+  String get providersUsageStale;
+
+  /// No description provided for @providersHealthy.
+  ///
+  /// In en, this message translates to:
+  /// **'Healthy'**
+  String get providersHealthy;
+
+  /// No description provided for @providersNeedsAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs attention'**
+  String get providersNeedsAttention;
+
   /// No description provided for @providersAddAccount.
   ///
   /// In en, this message translates to:
@@ -9445,11 +9595,23 @@ abstract class AppLocalizations {
   /// **'All loops'**
   String get allLoopsTitle;
 
+  /// No description provided for @allLoopsScheduledTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled'**
+  String get allLoopsScheduledTab;
+
   /// No description provided for @allLoopsCount.
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =0{No active loops} =1{1 active loop} other{{count} active loops}}'**
   String allLoopsCount(int count);
+
+  /// No description provided for @allLoopsPausedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No paused loops} =1{1 paused loop} other{{count} paused loops}}'**
+  String allLoopsPausedCount(int count);
 
   /// No description provided for @allLoopsAcrossSessions.
   ///
@@ -9468,6 +9630,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Type /loop in any session to schedule a recurring prompt.'**
   String get allLoopsEmptyDescription;
+
+  /// No description provided for @allLoopsFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allLoopsFilterAll;
+
+  /// No description provided for @allLoopsNoActiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No active loops'**
+  String get allLoopsNoActiveTitle;
+
+  /// No description provided for @allLoopsNoActiveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused and expired loops are still available under All.'**
+  String get allLoopsNoActiveDescription;
+
+  /// No description provided for @allLoopsNoPausedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No paused loops'**
+  String get allLoopsNoPausedTitle;
+
+  /// No description provided for @allLoopsNoPausedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause an active loop to keep it here without deleting it.'**
+  String get allLoopsNoPausedDescription;
+
+  /// No description provided for @allLoopsShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all loops'**
+  String get allLoopsShowAll;
+
+  /// No description provided for @allLoopsGroupLoopCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 loop} other{{count} loops}}'**
+  String allLoopsGroupLoopCount(int count);
+
+  /// No description provided for @allLoopsGroupLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}, {count, plural, =1{1 loop} other{{count} loops}}'**
+  String allLoopsGroupLabel(String name, int count);
 
   /// No description provided for @allLoopsViewPerSession.
   ///

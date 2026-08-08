@@ -5,12 +5,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/network_avatar_image.dart';
 
-/// Hero-area profile header with gradient backdrop, centered avatar,
-/// name in headlineSmall, and bio/subtitle in bodyMedium.
+/// Compact account summary used at the top of Settings.
 class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({required this.profile, super.key});
+  const ProfileHeader({required this.profile, super.key, this.onTap});
 
   final Profile? profile;
+  final VoidCallback? onTap;
 
   static String _initialForName(String value) {
     if (value.isEmpty) return '?';
@@ -21,71 +21,74 @@ class ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
     final name = profile?.displayName?.trim();
     final avatarUrl = profile?.avatarUrl;
-    final displayName =
-        (name == null || name.isEmpty) ? 'Happy' : name;
-    final bio =
-        profile?.bio ?? 'Secure mobile companion for your sessions';
+    final displayName = (name == null || name.isEmpty) ? 'Happy' : name;
+    final bio = profile?.bio ?? 'Secure mobile companion for your sessions';
 
-    // BackdropFilter(ImageFilter.blur) was removed — it is one of
-    // Flutter's most expensive operations and the translucent
-    // gradient achieves a similar frosted appearance at zero GPU
-    // cost.
-    return Container(
-      clipBehavior: Clip.hardEdge,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            cs.primaryContainer.withValues(
-              alpha: dark ? 0.31 : 0.24,
-            ),
-            cs.surface.withValues(alpha: dark ? 0.80 : 0.85),
-          ],
-        ),
-        border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: AppOpacity.faint)
-              : cs.outline.withValues(alpha: 0.04),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xl,
-      ),
-      child: Column(
-        children: [
-          if (avatarUrl != null)
-            NetworkAvatarImage(
-              url: avatarUrl,
-              size: 80,
-              fallback: _ProfileInitialAvatar(
-                displayName: displayName,
-              ),
-            )
-          else
-            _ProfileInitialAvatar(displayName: displayName),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            displayName,
-            style: theme.textTheme.headlineSmall,
-            textAlign: TextAlign.center,
+    return Semantics(
+      button: onTap != null,
+      label: '$displayName. $bio',
+      excludeSemantics: true,
+      child: Material(
+        color: cs.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.medium),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            bio,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: cs.onSurfaceVariant,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            child: Row(
+              children: [
+                if (avatarUrl != null)
+                  NetworkAvatarImage(
+                    url: avatarUrl,
+                    size: AppTouchTarget.comfortable,
+                    fallback: _ProfileInitialAvatar(displayName: displayName),
+                  )
+                else
+                  _ProfileInitialAvatar(displayName: displayName),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        bio,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (onTap != null) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+                ],
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -101,11 +104,11 @@ class _ProfileInitialAvatar extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return CircleAvatar(
-      radius: 40,
+      radius: AppTouchTarget.comfortable / 2,
       backgroundColor: cs.primaryContainer,
       child: Text(
         ProfileHeader._initialForName(displayName),
-        style: theme.textTheme.headlineSmall?.copyWith(
+        style: theme.textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w700,
           color: cs.onPrimaryContainer,
         ),

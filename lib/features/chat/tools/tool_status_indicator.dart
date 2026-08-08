@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_tokens.dart';
 
 /// Status icons for tool execution states.
 ///
 /// Each state is wrapped in a [Semantics] node with [liveRegion] so screen
 /// readers announce tool-state transitions as they happen.
 class ToolStatusIndicator extends StatelessWidget {
+  const ToolStatusIndicator({required this.state, super.key, this.size = 20});
 
-  const ToolStatusIndicator({
-    required this.state, super.key,
-    this.size = 20,
-  });
   /// The current state of the tool.
   final ToolState state;
 
@@ -25,13 +24,13 @@ class ToolStatusIndicator extends StatelessWidget {
     switch (state) {
       case ToolState.running:
         return Semantics(
-          label: 'Tool running',
+          label: context.l10n.toolStateRunning,
           liveRegion: true,
           child: _PulsingRunningIndicator(size: size),
         );
       case ToolState.completed:
         return Semantics(
-          label: 'Tool completed',
+          label: context.l10n.toolStateDone,
           liveRegion: true,
           child: Icon(
             Icons.check_circle_rounded,
@@ -41,7 +40,7 @@ class ToolStatusIndicator extends StatelessWidget {
         );
       case ToolState.error:
         return Semantics(
-          label: 'Tool failed',
+          label: context.l10n.toolStateFailed,
           liveRegion: true,
           child: Icon(
             Icons.cancel_rounded,
@@ -51,7 +50,7 @@ class ToolStatusIndicator extends StatelessWidget {
         );
       case ToolState.pending:
         return Semantics(
-          label: 'Tool pending',
+          label: context.l10n.toolStateQueued,
           child: Icon(
             Icons.radio_button_unchecked,
             size: size,
@@ -67,7 +66,6 @@ enum ToolState { pending, running, completed, error }
 
 /// A pulsing animated indicator for the running state.
 class _PulsingRunningIndicator extends StatefulWidget {
-
   const _PulsingRunningIndicator({required this.size});
   final double size;
 
@@ -81,6 +79,7 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
   late final AnimationController _controller;
   late final Animation<double> _pulseScale;
   late final Animation<double> _pulseOpacity;
+  bool? _reduceMotion;
 
   @override
   void initState() {
@@ -88,15 +87,32 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat();
-
-    _pulseScale = Tween<double>(begin: 0.7, end: 1.35).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
     );
 
-    _pulseOpacity = Tween<double>(begin: 0.55, end: 0.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _pulseScale = Tween<double>(
+      begin: 0.7,
+      end: 1.35,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    _pulseOpacity = Tween<double>(
+      begin: 0.55,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = AppMotion.reduceMotion(context);
+    if (_reduceMotion == reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    if (reduceMotion) {
+      _controller
+        ..stop()
+        ..value = 0;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -110,6 +126,10 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
     final theme = Theme.of(context);
     final ringColor = theme.colorScheme.primary;
 
+    if (_reduceMotion ?? AppMotion.reduceMotion(context)) {
+      return Icon(Icons.autorenew_rounded, size: widget.size, color: ringColor);
+    }
+
     return RepaintBoundary(
       child: SizedBox(
         width: widget.size,
@@ -121,10 +141,7 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
             AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
-                return Transform.scale(
-                  scale: _pulseScale.value,
-                  child: child,
-                );
+                return Transform.scale(scale: _pulseScale.value, child: child);
               },
               child: FadeTransition(
                 opacity: _pulseOpacity,
@@ -133,10 +150,7 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
                   height: widget.size,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: ringColor,
-                      width: 2,
-                    ),
+                    border: Border.all(color: ringColor, width: 2),
                   ),
                 ),
               ),
@@ -159,12 +173,13 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
 
 /// A simpler status indicator that shows just the appropriate icon.
 class StatusIcon extends StatelessWidget {
-
   const StatusIcon({
-    required this.state, super.key,
+    required this.state,
+    super.key,
     this.size = 22,
     this.color,
   });
+
   /// The tool state to display.
   final ToolState state;
 

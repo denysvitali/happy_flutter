@@ -34,6 +34,11 @@ Widget _wrap({
           body: Center(child: Text('Per-session loops screen')),
         ),
       ),
+      GoRoute(
+        path: '/goal-loops',
+        builder: (context, state) =>
+            const Scaffold(body: Center(child: Text('Goal loops screen'))),
+      ),
     ],
   );
   return ProviderScope(
@@ -124,6 +129,96 @@ void main() {
       expect(find.text('across 2 sessions'), findsOneWidget);
     });
 
+    testWidgets('scheduled and goal modes provide an explicit path', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          loops: {
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Scheduled'), findsOneWidget);
+      expect(find.text('Goal loops'), findsOneWidget);
+
+      await tester.tap(find.text('Goal loops'));
+      await tester.pumpAndSettle();
+      expect(find.text('Goal loops screen'), findsOneWidget);
+    });
+
+    testWidgets('filters all, active, and paused loops without losing groups', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          loops: {
+            's1': [
+              testLoop(
+                id: 'aaa00001',
+                sessionId: 's1',
+                prompt: 'active deployment check',
+              ),
+              testLoop(
+                id: 'aaa00002',
+                sessionId: 's1',
+                prompt: 'paused deployment check',
+                paused: true,
+              ),
+            ],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('active deployment check'), findsOneWidget);
+      expect(find.text('paused deployment check'), findsOneWidget);
+      expect(find.text('1 active loop'), findsOneWidget);
+      expect(find.text('1 paused loop'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('loops-filter-active')));
+      await tester.pumpAndSettle();
+      expect(find.text('Session s1'), findsOneWidget);
+      expect(find.text('active deployment check'), findsOneWidget);
+      expect(find.text('paused deployment check'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('loops-filter-paused')));
+      await tester.pumpAndSettle();
+      expect(find.text('Session s1'), findsOneWidget);
+      expect(find.text('active deployment check'), findsNothing);
+      expect(find.text('paused deployment check'), findsOneWidget);
+    });
+
+    testWidgets('filtered empty state explains the state and resets to all', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          loops: {
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('loops-filter-paused')));
+      await tester.pumpAndSettle();
+      expect(find.text('No paused loops'), findsOneWidget);
+      expect(
+        find.text('Pause an active loop to keep it here without deleting it.'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Show all loops'));
+      await tester.pumpAndSettle();
+      expect(find.text('check the deploy'), findsOneWidget);
+    });
+
     testWidgets('hydrates cached groups before background refresh', (
       tester,
     ) async {
@@ -170,7 +265,37 @@ void main() {
       expect(find.text('No loops scheduled'), findsOneWidget);
     });
 
-    testWidgets('tapping the section header collapses the group', (
+    testWidgets('group disclosure exposes expanded button semantics', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(
+          child: const AllLoopsScreen(),
+          loops: {
+            's1': [testLoop(id: 'aaa00001', sessionId: 's1')],
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final toggleFinder = find.byKey(const ValueKey('loops-group-toggle-s1'));
+      var toggle = tester.widget<Semantics>(toggleFinder);
+      expect(toggle.properties.button, isTrue);
+      expect(toggle.properties.expanded, isTrue);
+      expect(toggle.properties.label, 'Session s1, 1 loop');
+      expect(find.byType(Card), findsOneWidget);
+
+      await tester.tap(toggleFinder);
+      await tester.pumpAndSettle();
+
+      toggle = tester.widget<Semantics>(toggleFinder);
+      expect(toggle.properties.expanded, isFalse);
+      expect(find.byType(Card), findsNothing);
+      semantics.dispose();
+    });
+
+    testWidgets('filters and secondary session action meet touch targets', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -182,14 +307,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      // The loop card is initially visible.
-      expect(find.byType(Card), findsOneWidget);
-      // Tap the header row — first InkWell inside the AllLoopsScreen
-      // is the section collapse toggle.
-      await tester.tap(find.byType(InkWell).first);
-      await tester.pumpAndSettle();
-      // After collapse the card is no longer in the tree.
-      expect(find.byType(Card), findsNothing);
+
+      for (final name in ['all', 'active', 'paused']) {
+        final size = tester.getSize(find.byKey(ValueKey('loops-filter-$name')));
+        expect(size.height, greaterThanOrEqualTo(44));
+      }
+      final sessionAction = tester.getSize(
+        find.byKey(const ValueKey('view-session-loops-s1')),
+      );
+      expect(sessionAction.width, greaterThanOrEqualTo(44));
+      expect(sessionAction.height, greaterThanOrEqualTo(44));
     });
 
     testWidgets(
@@ -234,7 +361,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('View per session'));
+      await tester.tap(find.byKey(const ValueKey('view-session-loops-s1')));
       await tester.pumpAndSettle();
       expect(find.text('Per-session loops screen'), findsOneWidget);
     });

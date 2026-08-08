@@ -1529,6 +1529,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get toolViewRunning => 'Tool is running...';
 
   @override
+  String get toolStateApprovalNeeded => 'Approval needed';
+
+  @override
+  String get toolStateRunning => 'Running';
+
+  @override
+  String get toolStateDone => 'Done';
+
+  @override
+  String get toolStateFailed => 'Failed';
+
+  @override
+  String get toolStateQueued => 'Queued';
+
+  @override
+  String get toolStateCanceled => 'Canceled';
+
+  @override
+  String get toolStateStopped => 'Stopped';
+
+  @override
+  String get toolOutputExpandHint => 'Expand tool output';
+
+  @override
+  String get toolOutputCollapseHint => 'Collapse tool output';
+
+  @override
+  String get toolOutputShowMore => 'Show more';
+
+  @override
+  String get toolOutputShowLess => 'Show less';
+
+  @override
+  String get toolDetailsOpenHint => 'Open tool details';
+
+  @override
+  String get toolDetailsView => 'View tool details';
+
+  @override
+  String get toolDetailsButtonHint =>
+      'Use the details button to view input & output';
+
+  @override
   String get toolViewRawJsonDevMode => 'Raw JSON (Dev Mode)';
 
   @override
@@ -3179,6 +3222,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get permissionActionFailed => 'Permission action failed';
+
+  @override
+  String get permissionActionInProgress => 'Permission action in progress';
+
+  @override
+  String get permissionMoreApprovalOptions => 'More approval options';
+
+  @override
+  String get permissionHideApprovalOptions => 'Hide approval options';
 
   @override
   String get permissionModeTitle => 'Permission Mode';
@@ -5100,6 +5152,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersUsageSectionTitle => 'Usage';
 
   @override
+  String get providersConnectedAccounts => 'Connected accounts';
+
+  @override
+  String get providersBuiltInLimits => 'Built-in limits';
+
+  @override
+  String providersAccountSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count connected accounts',
+      one: '1 connected account',
+      zero: 'No connected accounts',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String providersAttentionSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count accounts need attention',
+      one: '1 account needs attention',
+      zero: 'All usage checks are healthy',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get providersUpdatingUsage => 'Updating usage…';
+
+  @override
+  String get providersUsageStale => 'Usage may be stale';
+
+  @override
+  String get providersHealthy => 'Healthy';
+
+  @override
+  String get providersNeedsAttention => 'Needs attention';
+
+  @override
   String get providersAddAccount => 'Add account';
 
   @override
@@ -5247,6 +5341,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get allLoopsTitle => 'All loops';
 
   @override
+  String get allLoopsScheduledTab => 'Scheduled';
+
+  @override
   String allLoopsCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
@@ -5254,6 +5351,18 @@ class AppLocalizationsEn extends AppLocalizations {
       other: '$count active loops',
       one: '1 active loop',
       zero: 'No active loops',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String allLoopsPausedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count paused loops',
+      one: '1 paused loop',
+      zero: 'No paused loops',
     );
     return '$_temp0';
   }
@@ -5275,6 +5384,48 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get allLoopsEmptyDescription =>
       'Type /loop in any session to schedule a recurring prompt.';
+
+  @override
+  String get allLoopsFilterAll => 'All';
+
+  @override
+  String get allLoopsNoActiveTitle => 'No active loops';
+
+  @override
+  String get allLoopsNoActiveDescription =>
+      'Paused and expired loops are still available under All.';
+
+  @override
+  String get allLoopsNoPausedTitle => 'No paused loops';
+
+  @override
+  String get allLoopsNoPausedDescription =>
+      'Pause an active loop to keep it here without deleting it.';
+
+  @override
+  String get allLoopsShowAll => 'Show all loops';
+
+  @override
+  String allLoopsGroupLoopCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count loops',
+      one: '1 loop',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String allLoopsGroupLabel(String name, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count loops',
+      one: '1 loop',
+    );
+    return '$name, $_temp0';
+  }
 
   @override
   String get allLoopsViewPerSession => 'View per session';

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 
 Widget _wrapToolView({
@@ -82,6 +81,8 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
       await tester.tap(find.text('All edits'));
       await tester.pump();
 
@@ -101,6 +102,8 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
       await tester.tap(find.text('YOLO'));
       await tester.pump();
 
@@ -141,21 +144,21 @@ void main() {
               body: ToolView(
                 tool: <String, dynamic>{
                   'name': 'list_mcp_resources',
-                'state': 'completed',
-                'toolUseId': 'mcp-1',
-                'input': <String, dynamic>{
-                  'server': 'codex',
-                  'arguments': <String, dynamic>{},
-                },
-                'result': <String, dynamic>{
-                  'structuredContent': <String, dynamic>{
-                    'resources': <dynamic>[],
+                  'state': 'completed',
+                  'toolUseId': 'mcp-1',
+                  'input': <String, dynamic>{
+                    'server': 'codex',
+                    'arguments': <String, dynamic>{},
+                  },
+                  'result': <String, dynamic>{
+                    'structuredContent': <String, dynamic>{
+                      'resources': <dynamic>[],
+                    },
                   },
                 },
-              },
-              sessionId: 's1',
-              metadata: <String, dynamic>{'flavor': 'codex'},
-              onPress: () => onPressCalled = true,
+                sessionId: 's1',
+                metadata: <String, dynamic>{'flavor': 'codex'},
+                onPress: () => onPressCalled = true,
               ),
             ),
           ),
@@ -218,10 +221,7 @@ void main() {
       // Status Completed'), so the exact form finds nothing. See the finder
       // gotcha in CLAUDE.md.
       await tester.tap(
-        find.textContaining(
-          'Gh Actions: Get Check Status',
-          findRichText: true,
-        ),
+        find.textContaining('Gh Actions: Get Check Status', findRichText: true),
       );
       await tester.pumpAndSettle();
 
@@ -273,6 +273,8 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
       await tester.tap(find.text('For session'));
       await tester.pump();
 
@@ -320,6 +322,8 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
       await tester.tap(find.text('For session'));
       await tester.pump();
 

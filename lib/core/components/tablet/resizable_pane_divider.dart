@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-
-/// Width of the interactive drag handle area.
-const double _kHandleWidth = 8.0;
 
 /// Absolute width constraints for the master pane on desktop (>= 960 px).
 const double _kDesktopMin = 280.0;
@@ -18,13 +16,13 @@ const double _kMaxViewportFraction = 0.55;
 
 /// Fraction of the viewport used for the initial master-pane width.
 ///
-/// A 35 % master pane truncated project paths in tablet landscape while the
-/// detail pane sat mostly empty, so the default leans wider.
-const double _kDefaultViewportFraction = 0.42;
+/// Keeps the conversation visually dominant while leaving enough room for
+/// workspace names and status in the master pane.
+const double _kDefaultViewportFraction = 0.38;
 
 /// Lower bound for the *default* width (not for dragging) — narrow enough for
 /// small tablets, wide enough that a typical project path still fits.
-const double _kDefaultMin = 340.0;
+const double _kDefaultMin = 300.0;
 
 /// A draggable vertical divider that lets the user resize the master pane
 /// in a two-column layout.
@@ -111,12 +109,18 @@ class ResizablePaneDivider extends StatefulWidget {
   }
 
   @override
-  State<ResizablePaneDivider> createState() =>
-      _ResizablePaneDividerState();
+  State<ResizablePaneDivider> createState() => _ResizablePaneDividerState();
 }
 
 class _ResizablePaneDividerState extends State<ResizablePaneDivider> {
   bool _hovering = false;
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   /// Applies one assistive-technology nudge and immediately ends the
   /// "gesture" so the new width is persisted like a drag would be.
@@ -133,36 +137,53 @@ class _ResizablePaneDividerState extends State<ResizablePaneDivider> {
         ? theme.colorScheme.primary.withValues(alpha: 0.6)
         : theme.dividerColor;
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.resizeLeftRight,
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
-      child: Semantics(
-        label: label,
-        // Only claim to be a slider when the node is also operable:
-        // assistive tech must be able to move it, not just read it.
-        slider: label != null,
-        value: label == null ? null : widget.semanticsValue,
-        increasedValue: label == null ? null : widget.semanticsIncreasedValue,
-        decreasedValue: label == null ? null : widget.semanticsDecreasedValue,
-        onIncrease: label == null
-            ? null
-            : () => _nudge(ResizablePaneDivider.semanticsStep),
-        onDecrease: label == null
-            ? null
-            : () => _nudge(-ResizablePaneDivider.semanticsStep),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onPanUpdate: (details) => widget.onResize(details.delta.dx),
-          onPanEnd: (_) => widget.onResizeEnd?.call(),
-          onPanCancel: () => widget.onResizeEnd?.call(),
-          child: SizedBox(
-            width: _kHandleWidth,
-            child: Center(
-              child: VerticalDivider(
-                width: AppBorder.thin,
-                thickness: AppBorder.thin,
-                color: dividerColor,
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          _nudge(ResizablePaneDivider.semanticsStep);
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+          _nudge(-ResizablePaneDivider.semanticsStep);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeLeftRight,
+        onEnter: (_) => setState(() => _hovering = true),
+        onExit: (_) => setState(() => _hovering = false),
+        child: Semantics(
+          label: label,
+          // Only claim to be a slider when the node is also operable:
+          // assistive tech must be able to move it, not just read it.
+          slider: label != null,
+          value: label == null ? null : widget.semanticsValue,
+          increasedValue: label == null ? null : widget.semanticsIncreasedValue,
+          decreasedValue: label == null ? null : widget.semanticsDecreasedValue,
+          onIncrease: label == null
+              ? null
+              : () => _nudge(ResizablePaneDivider.semanticsStep),
+          onDecrease: label == null
+              ? null
+              : () => _nudge(-ResizablePaneDivider.semanticsStep),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (_) => _focusNode.requestFocus(),
+            onPanStart: (_) => _focusNode.requestFocus(),
+            onPanUpdate: (details) => widget.onResize(details.delta.dx),
+            onPanEnd: (_) => widget.onResizeEnd?.call(),
+            onPanCancel: () => widget.onResizeEnd?.call(),
+            child: SizedBox(
+              width: AppTouchTarget.min,
+              child: Center(
+                child: VerticalDivider(
+                  width: AppBorder.thin,
+                  thickness: AppBorder.thin,
+                  color: dividerColor,
+                ),
               ),
             ),
           ),

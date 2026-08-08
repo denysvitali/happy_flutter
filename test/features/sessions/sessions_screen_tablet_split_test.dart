@@ -15,14 +15,17 @@ import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
 import 'package:happy_flutter/core/components/components.dart'
-    show NoSessionSelectedView, ResizableSplitView;
+    show AppSidebar, NoSessionSelectedView, ResizableSplitView;
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/auth.dart';
+import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/models/machine.dart' show GitStatus, Machine;
 import 'package:happy_flutter/core/models/profile.dart';
+import 'package:happy_flutter/core/models/provider_usage.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/ui/tab_bar/tab_bar.dart' show AppTab;
 import 'package:happy_flutter/features/sessions/sessions_screen.dart';
 import 'package:happy_flutter/features/sessions/widgets/new_session_dialog.dart';
 
@@ -85,13 +88,33 @@ class _StubSessionGitStatusNotifier extends SessionGitStatusNotifier {
   Map<String, GitStatus> build() => const {};
 }
 
+class _StubLoopsNotifier extends LoopsNotifier {
+  @override
+  Map<String, List<Loop>> build() => const <String, List<Loop>>{};
+
+  @override
+  bool hydrateFromCache() => false;
+
+  @override
+  Future<void> refreshFromSync() async {}
+}
+
+class _StubProviderUsageNotifier extends ProviderUsageNotifier {
+  @override
+  ProviderUsageSummary build() => const ProviderUsageSummary();
+
+  @override
+  Future<void> loadAccounts() async {}
+
+  @override
+  Future<void> refreshUsage() async {}
+}
+
 Widget _app() {
   // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
   // so the harness must sit under a router like production does.
   final router = GoRouter(
-    routes: [
-      GoRoute(path: '/', builder: (_, _) => const SessionsScreen()),
-    ],
+    routes: [GoRoute(path: '/', builder: (_, _) => const SessionsScreen())],
   );
   return ProviderScope(
     overrides: [
@@ -107,6 +130,10 @@ Widget _app() {
       ),
       sessionGitStatusNotifierProvider.overrideWith(
         _StubSessionGitStatusNotifier.new,
+      ),
+      loopsNotifierProvider.overrideWith(_StubLoopsNotifier.new),
+      providerUsageNotifierProvider.overrideWith(
+        _StubProviderUsageNotifier.new,
       ),
     ],
     child: MaterialApp.router(
@@ -137,6 +164,12 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
+  void setSize(WidgetTester tester, Size size) {
+    tester.view.physicalSize = size * 2;
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
+  }
+
   Future<void> pumpScreen(WidgetTester tester) async {
     await tester.pumpWidget(_app());
     for (var i = 0; i < 6; i++) {
@@ -155,6 +188,43 @@ void main() {
     );
     expect(splitView.paneId, sessionsPaneId);
     expect(splitView.dividerSemanticsLabel, isNotNull);
+    expect(find.byType(AppSidebar), findsOneWidget);
+  });
+
+  testWidgets('tablet rail keeps every top-level destination reachable', (
+    tester,
+  ) async {
+    setTabletLandscape(tester);
+    await pumpScreen(tester);
+
+    final sidebar = tester.widget<AppSidebar>(find.byType(AppSidebar));
+    expect(sidebar.isCollapsed, isFalse);
+    expect(sidebar.showCollapseToggle, isTrue);
+
+    sidebar.onTabPress(AppTab.loops);
+    await tester.pump();
+    expect(find.text('Loops'), findsWidgets);
+
+    sidebar.onTabPress(AppTab.providers);
+    await tester.pump();
+    expect(find.text('Providers'), findsWidgets);
+
+    sidebar.onTabPress(AppTab.settings);
+    await tester.pump();
+    expect(find.text('Settings'), findsWidgets);
+  });
+
+  testWidgets('compact tablet uses rail with intentional single-pane layout', (
+    tester,
+  ) async {
+    setSize(tester, const Size(620, 900));
+    await pumpScreen(tester);
+
+    final sidebar = tester.widget<AppSidebar>(find.byType(AppSidebar));
+    expect(sidebar.isCollapsed, isTrue);
+    expect(sidebar.showCollapseToggle, isFalse);
+    expect(find.byType(ResizableSplitView), findsNothing);
+    expect(find.text('Sessions'), findsOneWidget);
   });
 
   testWidgets('empty detail pane offers the new-session call to action', (
@@ -196,5 +266,6 @@ void main() {
 
     expect(find.byType(ResizableSplitView), findsNothing);
     expect(find.byType(NoSessionSelectedView), findsNothing);
+    expect(find.byType(AppSidebar), findsNothing);
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'elapsed_time.dart';
@@ -54,6 +55,11 @@ class ToolHeader extends StatelessWidget {
     this.subtitleMonospace = false,
     this.createdAt,
     this.statusIcon,
+    this.statusLabel,
+    this.expanded = false,
+    this.onTap,
+    this.onLongPress,
+    this.onOpenDetails,
   });
 
   /// The leading icon widget for this tool type.
@@ -80,6 +86,9 @@ class ToolHeader extends StatelessWidget {
   /// Optional status icon override (error/denied/cancelled).
   final Widget? statusIcon;
 
+  /// Optional status label paired with [statusIcon].
+  final String? statusLabel;
+
   /// Whether this tool card has expandable content.
   final bool hasContent;
 
@@ -91,6 +100,18 @@ class ToolHeader extends StatelessWidget {
 
   /// Whether a permission request is currently pending.
   final bool hasPermissionRequest;
+
+  /// Whether inline tool output is expanded.
+  final bool expanded;
+
+  /// Primary header action. This normally toggles inline output.
+  final VoidCallback? onTap;
+
+  /// Existing long-press details action.
+  final VoidCallback? onLongPress;
+
+  /// Explicit alternative to [onLongPress] for opening tool details.
+  final VoidCallback? onOpenDetails;
 
   @override
   Widget build(BuildContext context) {
@@ -115,103 +136,220 @@ class ToolHeader extends StatelessWidget {
           : null,
     );
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.smd,
-        vertical: AppSpacing.xsm,
+    final cueLabel = hasPermissionRequest
+        ? context.l10n.toolStateApprovalNeeded
+        : statusLabel ??
+              switch (state) {
+                ToolState.running => context.l10n.toolStateRunning,
+                ToolState.completed => context.l10n.toolStateDone,
+                ToolState.error => context.l10n.toolStateFailed,
+                ToolState.pending => context.l10n.toolStateQueued,
+              };
+    final semanticLabel = <String>[
+      toolTitle,
+      ?status,
+      ?subtitle,
+      cueLabel,
+    ].join(', ');
+
+    List<Widget> titleChildren() => [
+      SizedBox(width: 18, height: 18, child: Center(child: toolIcon)),
+      const SizedBox(width: AppSpacing.smd),
+      Expanded(
+        // One line, one RichText: title, status and subtitle share a baseline.
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: toolTitle, style: titleStyle),
+              if (status != null)
+                TextSpan(text: ' $status', style: statusStyle),
+              if (subtitle != null)
+                TextSpan(text: '  $subtitle', style: subtitleStyle),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
+    ];
+
+    List<Widget> stateChildren() => [
+      _ToolStateCue(
+        state: state,
+        label: cueLabel,
+        statusIcon: statusIcon,
+        needsApproval: hasPermissionRequest,
+        showCheckFlash: showCheckFlash,
+      ),
+      if (state == ToolState.running && createdAt != null) ...[
+        const SizedBox(width: AppSpacing.xs),
+        ToolDuration(startTime: createdAt!),
+      ],
+      if (hasContent) ...[
+        const SizedBox(width: AppSpacing.xs),
+        RotationTransition(
+          turns: chevronAnim,
+          child: Icon(
+            Icons.expand_more,
+            size: AppIconSize.lg,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    ];
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
       child: Row(
         children: [
-          SizedBox(
-            width: 18,
-            height: 18,
-            child: Center(child: toolIcon),
-          ),
-          const SizedBox(width: AppSpacing.smd),
           Expanded(
-            // One line, one RichText: title, status and subtitle share the
-            // same baseline by construction (regression guard: the old
-            // Row-of-Texts layout misaligned "Workflow 1 steps").
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: toolTitle, style: titleStyle),
-                  if (status != null)
-                    TextSpan(text: ' $status', style: statusStyle),
-                  if (subtitle != null)
-                    TextSpan(text: '  $subtitle', style: subtitleStyle),
-                ],
+            child: Semantics(
+              button: onTap != null,
+              enabled: onTap != null,
+              expanded: hasContent ? expanded : null,
+              label: semanticLabel,
+              hint: hasContent
+                  ? (expanded
+                        ? context.l10n.toolOutputCollapseHint
+                        : context.l10n.toolOutputExpandHint)
+                  : onTap != null
+                  ? context.l10n.toolDetailsOpenHint
+                  : null,
+              onTap: onTap,
+              onLongPress: onLongPress,
+              child: ExcludeSemantics(
+                child: InkWell(
+                  key: const ValueKey('tool-header-primary-action'),
+                  onTap: onTap,
+                  onLongPress: onLongPress,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: AppTouchTarget.min,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.smd,
+                        vertical: AppSpacing.xsm,
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final textScale = MediaQuery.textScalerOf(
+                            context,
+                          ).scale(1);
+                          final stackState =
+                              textScale > 1.3 || constraints.maxWidth < 280;
+                          if (stackState) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(children: titleChildren()),
+                                const SizedBox(height: AppSpacing.xs),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: stateChildren(),
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              ...titleChildren(),
+                              const SizedBox(width: AppSpacing.sm),
+                              ...stateChildren(),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Running: quiet spinner + elapsed time.
-          if (state == ToolState.running) ...[
-            const SizedBox(width: AppSpacing.sm),
-            const ToolStatusIndicator(state: ToolState.running, size: 16),
-            if (createdAt != null) ...[
-              const SizedBox(width: AppSpacing.xs),
-              ToolDuration(startTime: createdAt!),
-            ],
-          ]
-          // Error: explicit label so failure never depends on colour alone.
-          else if (state == ToolState.error && !hasPermissionRequest) ...[
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              'Failed',
-              style: TextStyle(
-                fontSize: AppFontSize.xs,
-                fontWeight: FontWeight.w600,
-                color: colorScheme.error,
+          if (onOpenDetails != null)
+            IconButton(
+              key: const ValueKey('tool-header-details-action'),
+              onPressed: onOpenDetails,
+              tooltip: context.l10n.toolDetailsView,
+              constraints: const BoxConstraints(
+                minWidth: AppTouchTarget.min,
+                minHeight: AppTouchTarget.min,
               ),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
             ),
-          ],
-          // Status icon / check flash
-          const SizedBox(width: AppSpacing.xs),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, animation) => ScaleTransition(
-              scale: animation,
-              child: FadeTransition(opacity: animation, child: child),
-            ),
-            child: showCheckFlash
-                ? Icon(
-                    Icons.check_circle,
-                    key: const ValueKey('flash'),
-                    size: 18,
-                    color: AppColors.success,
-                  )
-                : (statusIcon != null
-                      ? SizedBox(
-                          key: const ValueKey('status'),
-                          child: statusIcon,
-                        )
-                      : const SizedBox.shrink(key: ValueKey('empty'))),
-          ),
-          // Expand/collapse chevron
-          if (hasContent) ...[
-            const SizedBox(width: AppSpacing.xs),
-            RotationTransition(
-              turns: chevronAnim,
-              child: Icon(
-                Icons.expand_more,
-                size: 18,
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 }
 
+class _ToolStateCue extends StatelessWidget {
+  const _ToolStateCue({
+    required this.state,
+    required this.label,
+    required this.needsApproval,
+    required this.showCheckFlash,
+    this.statusIcon,
+  });
+
+  final ToolState state;
+  final String label;
+  final bool needsApproval;
+  final bool showCheckFlash;
+  final Widget? statusIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final color = needsApproval
+        ? AppColors.warning
+        : switch (state) {
+            ToolState.running => colorScheme.primary,
+            ToolState.completed => AppColors.success,
+            ToolState.error => colorScheme.error,
+            ToolState.pending => colorScheme.onSurfaceVariant,
+          };
+    final icon = needsApproval
+        ? Icons.security_rounded
+        : switch (state) {
+            ToolState.running => Icons.autorenew_rounded,
+            ToolState.completed =>
+              showCheckFlash
+                  ? Icons.check_circle_rounded
+                  : Icons.check_circle_outline_rounded,
+            ToolState.error => Icons.error_outline_rounded,
+            ToolState.pending => Icons.schedule_rounded,
+          };
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedSwitcher(
+          duration: AppMotion.duration(context, AppDuration.normal),
+          child:
+              statusIcon ??
+              Icon(icon, key: ValueKey<IconData>(icon), size: 16, color: color),
+        ),
+        const SizedBox(width: AppSpacing.xxs),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: AppFontSize.xs,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Compact status pill showing the execution state.
 ///
-/// Exceptional and transitional states include text so they never depend on
-/// colour alone. Completion is the expected state, so it uses a quiet check
-/// rather than repeating "Succeeded" throughout tool-heavy conversations.
+/// Every state includes text and an icon so meaning never depends on colour.
 class ToolStatusBadge extends StatelessWidget {
   const ToolStatusBadge({required this.state, super.key});
 
@@ -229,18 +367,15 @@ class ToolStatusBadge extends StatelessWidget {
       ToolState.pending => Icons.schedule_rounded,
     };
     final label = switch (state) {
-      ToolState.completed => null,
-      ToolState.error => 'Failed',
-      _ => statusBadgeLabel(state),
+      ToolState.completed => context.l10n.toolStateDone,
+      ToolState.error => context.l10n.toolStateFailed,
+      ToolState.running => context.l10n.toolStateRunning,
+      ToolState.pending => context.l10n.toolStateQueued,
     };
-    final isCompleted = state == ToolState.completed;
 
     return Container(
       height: 24,
-      width: isCompleted ? 24 : null,
-      padding: isCompleted
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 7),
       decoration: BoxDecoration(
         color: bg.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -251,18 +386,16 @@ class ToolStatusBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: bg),
-          if (label != null) ...[
-            const SizedBox(width: AppSpacing.xxs),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: bg,
-                letterSpacing: 0.2,
-              ),
+          const SizedBox(width: AppSpacing.xxs),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: bg,
+              letterSpacing: 0.2,
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -323,9 +456,6 @@ class PulsingProgressIndicator extends StatelessWidget {
 /// never expands to the child's intrinsic height; instead it provides
 /// bounded heights and lets the child scroll internally.
 class CollapsibleOutput extends StatefulWidget {
-  /// Default maximum height when expanded in scrollable mode.
-  static const double defaultExpandedMaxHeight = 600;
-
   const CollapsibleOutput({
     required this.toolId,
     required this.child,
@@ -333,6 +463,9 @@ class CollapsibleOutput extends StatefulWidget {
     this.scrollable = false,
     this.expandedMaxHeight = defaultExpandedMaxHeight,
   });
+
+  /// Default maximum height when expanded in scrollable mode.
+  static const double defaultExpandedMaxHeight = 600;
 
   /// Unique identifier used to track expansion state.
   final String toolId;
@@ -445,7 +578,7 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
-          duration: AppDuration.normal,
+          duration: AppMotion.duration(context, AppDuration.normal),
           curve: AppCurve.standard,
           height: targetHeight,
           clipBehavior: Clip.hardEdge,
@@ -473,28 +606,37 @@ class _CollapsibleOutputState extends State<CollapsibleOutput> {
                   child: keyedChild,
                 ),
         ),
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          behavior: HitTestBehavior.opaque,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  _expanded ? 'Show less' : 'Show more',
-                  style: theme.textTheme.labelSmall?.copyWith(
+        Semantics(
+          key: const ValueKey('tool-output-disclosure'),
+          button: true,
+          expanded: _expanded,
+          child: InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minWidth: AppTouchTarget.min,
+                minHeight: AppTouchTarget.min,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: AppIconSize.md,
                     color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
-              ],
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    _expanded
+                        ? context.l10n.toolOutputShowLess
+                        : context.l10n.toolOutputShowMore,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

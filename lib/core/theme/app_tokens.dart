@@ -319,10 +319,9 @@ abstract final class AppShadow {
 /// Theme-aware [BoxShadow] presets that adapt to [Brightness].
 ///
 /// In light mode, shadows are subtle black-tinted overlays — the same
-/// approach used by [AppShadow]. In dark mode, black shadows become
-/// invisible against dark backgrounds, so this class substitutes a
-/// very soft white-tinted glow (low-opacity white spread) that creates
-/// a perceived elevation without harsh contrast.
+/// approach used by [AppShadow]. Dark cards remain flat and rely on tonal
+/// surfaces and outlines; floating and modal surfaces retain restrained
+/// theme-aware elevation where depth is operationally useful.
 ///
 /// Usage:
 /// ```dart
@@ -333,17 +332,10 @@ abstract final class AppElevationShadow {
   /// Gentle card / list-item elevation.
   ///
   /// Light: 4 % + 2 % black drop-shadow.
-  /// Dark:  3 % white ambient glow — no hard drop.
+  /// Dark: flat; use a tonal surface and outline instead of a bright glow.
   static List<BoxShadow> card(Brightness brightness) {
     if (brightness == Brightness.dark) {
-      return const [
-        BoxShadow(
-          color: Color(0x08FFFFFF), // 3 % white
-          blurRadius: 6,
-          spreadRadius: 1,
-          offset: Offset.zero,
-        ),
-      ];
+      return const [];
     }
     return AppShadow.card;
   }
@@ -459,6 +451,12 @@ abstract final class AppBorder {
 abstract final class AppBreakpoint {
   /// 600 px – phone → tablet transition.
   static const double tablet = 600;
+
+  /// 736 px – persistent rail plus usable master/detail panes.
+  static const double masterDetail = 736;
+
+  /// 760 px – readable maximum width for content-heavy single-pane screens.
+  static const double contentMax = 760;
 
   /// 960 px – tablet → desktop transition.
   static const double desktop = 960;
@@ -600,6 +598,27 @@ abstract final class AppMotion {
   static const int draggedAlpha = 41; // 0.16 * 255
 
   // ── Helpers ────────────────────────────────────────────────────────────
+
+  /// Whether motion should be reduced for the current accessibility settings.
+  ///
+  /// [MediaQueryData.disableAnimations] is the platform request to avoid
+  /// non-essential animation. [MediaQueryData.accessibleNavigation] also
+  /// requests simpler transitions so navigation and focus changes remain
+  /// predictable for assistive-technology users.
+  static bool reduceMotion(BuildContext context) {
+    final mediaQuery = MediaQuery.maybeOf(context);
+    return (mediaQuery?.disableAnimations ?? false) ||
+        (mediaQuery?.accessibleNavigation ?? false);
+  }
+
+  /// Resolves [normalDuration] to zero when reduced motion is requested.
+  ///
+  /// Widgets with spatial transforms should also use [reduceMotion] to avoid
+  /// applying the transform itself; a zero-duration scale or slide can still
+  /// be disorienting even though it is not interpolated.
+  static Duration duration(BuildContext context, Duration normalDuration) {
+    return reduceMotion(context) ? Duration.zero : normalDuration;
+  }
 
   /// Returns [base] tinted at the correct M3 state-layer opacity for the
   /// highest-priority active state in [states], or `null` when idle.

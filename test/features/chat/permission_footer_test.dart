@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +21,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('PermissionFooter plan buttons', () {
-    testWidgets('renders Allow, All edits, and Deny for ExitPlanMode', (
+    testWidgets('keeps primary actions visible and scopes behind disclosure', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -31,15 +32,32 @@ void main() {
             toolName: 'ExitPlanMode',
             onAllow: () async {},
             onAllowAllEdits: () async {},
+            onYolo: () async {},
             onDeny: () async {},
           ),
         ),
       );
 
       expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Deny'), findsOneWidget);
+      expect(find.text('All edits'), findsNothing);
+      expect(find.text('YOLO'), findsNothing);
+      expect(find.text('More approval options'), findsOneWidget);
+
+      final collapsed = tester.getSemantics(
+        find.bySemanticsLabel('More approval options'),
+      );
+      expect(collapsed.flagsCollection.isExpanded, Tristate.isFalse);
+
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
+
       expect(find.text('All edits'), findsOneWidget);
       expect(find.text('YOLO'), findsOneWidget);
-      expect(find.text('Deny'), findsOneWidget);
+      final expanded = tester.getSemantics(
+        find.bySemanticsLabel('Hide approval options'),
+      );
+      expect(expanded.flagsCollection.isExpanded, Tristate.isTrue);
     });
 
     testWidgets('YOLO shows loading spinner while callback runs', (
@@ -61,11 +79,21 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
       await tester.tap(find.text('YOLO'));
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Allow'), findsNothing);
+      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Deny'), findsOneWidget);
+      expect(find.text('YOLO'), findsOneWidget);
+      expect(
+        tester
+            .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'YOLO'))
+            .onPressed,
+        isNull,
+      );
 
       completer.complete();
       await tester.pump();
@@ -96,11 +124,22 @@ void main() {
       await tester.tap(find.text('Allow'));
       await tester.pump();
 
-      // Spinner should be visible, buttons hidden
+      // Progress is announced while the stable controls remain disabled.
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Allow'), findsNothing);
-      expect(find.text('All edits'), findsNothing);
-      expect(find.text('Deny'), findsNothing);
+      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('Deny'), findsOneWidget);
+      expect(
+        tester
+            .widget<ElevatedButton>(
+              find.widgetWithText(ElevatedButton, 'Allow'),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(
+        find.bySemanticsLabel('Permission action in progress'),
+        findsOneWidget,
+      );
 
       // Complete the callback
       completer.complete();
@@ -129,11 +168,14 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
       await tester.tap(find.text('All edits'));
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Allow'), findsNothing);
+      expect(find.text('Allow'), findsOneWidget);
+      expect(find.text('All edits'), findsOneWidget);
 
       completer.complete();
       await tester.pump();
@@ -196,8 +238,11 @@ void main() {
       await tester.pump();
       expect(callCount, 1);
 
-      // Buttons are hidden during loading, so second tap
-      // can't hit them. Complete and verify only one call.
+      // Stable disabled controls cannot emit a duplicate action.
+      await tester.tap(find.text('Allow'));
+      await tester.pump();
+      expect(callCount, 1);
+
       completer.complete();
       await tester.pump();
       expect(callCount, 1);
@@ -294,7 +339,7 @@ void main() {
   });
 
   group('PermissionFooter standard buttons', () {
-    testWidgets('renders Allow, All edits, Deny for Edit tool', (tester) async {
+    testWidgets('reveals edit-wide approvals on request', (tester) async {
       await tester.pumpWidget(
         _wrap(
           PermissionFooter(
@@ -310,9 +355,15 @@ void main() {
       );
 
       expect(find.text('Allow'), findsOneWidget);
-      expect(find.text('All edits'), findsOneWidget);
-      expect(find.text('YOLO'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
+      expect(find.text('All edits'), findsNothing);
+      expect(find.text('YOLO'), findsNothing);
+
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
+
+      expect(find.text('All edits'), findsOneWidget);
+      expect(find.text('YOLO'), findsNothing);
     });
 
     testWidgets('renders Allow, For session, Deny for Bash tool', (
@@ -333,8 +384,49 @@ void main() {
       );
 
       expect(find.text('Allow'), findsOneWidget);
-      expect(find.text('For session'), findsOneWidget);
       expect(find.text('Deny'), findsOneWidget);
+      expect(find.text('For session'), findsNothing);
+
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
+      expect(find.text('For session'), findsOneWidget);
+    });
+
+    testWidgets('actions meet touch targets and wrap at large text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          MediaQuery(
+            data: const MediaQueryData(
+              size: Size(280, 700),
+              textScaler: TextScaler.linear(2),
+            ),
+            child: SizedBox(
+              width: 280,
+              child: PermissionFooter(
+                permission: _pending(),
+                sessionId: 's1',
+                toolName: 'Edit',
+                onAllow: () async {},
+                onDeny: () async {},
+                onAllowAllEdits: () async {},
+                onYolo: () async {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      final interactive = <Finder>[
+        find.widgetWithText(ElevatedButton, 'Allow'),
+        find.widgetWithText(OutlinedButton, 'Deny'),
+        find.widgetWithText(TextButton, 'More approval options'),
+      ];
+      for (final finder in interactive) {
+        expect(tester.getSize(finder).height, greaterThanOrEqualTo(44));
+      }
     });
   });
 
@@ -357,8 +449,12 @@ void main() {
       );
 
       expect(find.text('Yes'), findsOneWidget);
-      expect(find.text('For session'), findsOneWidget);
       expect(find.text('Stop'), findsOneWidget);
+      expect(find.text('For session'), findsNothing);
+
+      await tester.tap(find.text('More approval options'));
+      await tester.pump();
+      expect(find.text('For session'), findsOneWidget);
     });
   });
 }

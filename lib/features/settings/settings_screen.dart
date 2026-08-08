@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/components/settings/recent_settings_panel.dart';
 import '../../core/config/app_config.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -109,7 +108,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final body = LayoutBuilder(
       builder: (context, constraints) {
-        const maxContentWidth = 760.0;
+        const maxContentWidth = AppBreakpoint.contentMax;
         final horizontalPadding =
             constraints.maxWidth > maxContentWidth + AppSpacing.xl * 2
             ? (constraints.maxWidth - maxContentWidth) / 2
@@ -131,35 +130,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             AppSpacing.xxxl,
           ),
           children: [
-            ProfileHeader(profile: profile),
-            const SizedBox(height: AppSpacing.lg),
-            RecentSettingsPanel(
-              // TODO(MRU): replace with dynamically tracked list once
-              // MMKV MRU storage is wired up (key `settings_mru`).
-              chips: [
-                RecentSettingChip(
-                  label: l10n.settingsAppearance,
-                  icon: Icons.palette_outlined,
-                  onTap: () => context.pushNamed('theme'),
-                ),
-                RecentSettingChip(
-                  label: l10n.settingsProfiles,
-                  icon: Icons.account_tree,
-                  onTap: () => context.pushNamed('profiles'),
-                ),
-                RecentSettingChip(
-                  label: l10n.settingsVoice,
-                  icon: Icons.record_voice_over,
-                  onTap: () => context.pushNamed('voice'),
-                ),
-                RecentSettingChip(
-                  label: l10n.settingsVoiceLanguage,
-                  icon: Icons.translate_outlined,
-                  onTap: () => context.pushNamed('voice-language'),
-                ),
-              ],
+            ProfileHeader(
+              profile: profile,
+              onTap: () => context.pushNamed('account'),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
             SettingsSearchField(
               controller: _searchController,
               query: _searchQuery,

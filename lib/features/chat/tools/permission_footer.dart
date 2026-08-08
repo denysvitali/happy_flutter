@@ -5,7 +5,6 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/permission_description.dart';
-import '../../../core/wire/wire_parsers.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
@@ -79,6 +78,7 @@ class PermissionFooter extends StatefulWidget {
 
 class _PermissionFooterState extends State<PermissionFooter> {
   bool _loading = false;
+  bool _showAdvanced = false;
 
   @override
   void didUpdateWidget(PermissionFooter oldWidget) {
@@ -112,8 +112,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
       if (mounted) {
         final l10n = AppLocalizations.of(context);
         final String label;
-        if (msg.contains('restarted') ||
-            msg.contains('expired')) {
+        if (msg.contains('restarted') || msg.contains('expired')) {
           label = l10n.permissionExpiredRestarted;
         } else if (msg.contains('no pending permission') ||
             msg.contains('not available') ||
@@ -123,10 +122,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
           label = l10n.permissionActionFailed;
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(label),
-            behavior: SnackBarBehavior.floating,
-          ),
+          SnackBar(content: Text(label), behavior: SnackBarBehavior.floating),
         );
       }
     } finally {
@@ -148,22 +144,9 @@ class _PermissionFooterState extends State<PermissionFooter> {
 
     final isPending = status == 'pending';
     final isApproved = status == 'approved';
-    final isDenied = status == 'denied';
 
     // Don't render anything for auto-approved permissions (e.g. Yolo mode).
     if (isApproved) return const SizedBox.shrink();
-
-    final mode = permission['mode'] as String?;
-    final isApprovedViaAllEdits = isApproved && mode == 'acceptEdits';
-
-    final allowedTools = WireParsers.asStringList(
-      permission['allowedTools'],
-    );
-
-    final isApprovedForSession =
-        isApproved &&
-        allowedTools != null &&
-        allowedTools.any((t) => t == toolName || t.startsWith('$toolName('));
 
     final isPlanTool =
         toolName == 'ExitPlanMode' || toolName == 'exit_plan_mode';
@@ -176,8 +159,6 @@ class _PermissionFooterState extends State<PermissionFooter> {
         isPlanTool;
 
     final isCodex = widget.flavor == 'codex' || toolName.startsWith('Codex');
-    final showClaudeClearContextButton =
-        widget.flavor == 'claude' && isPlanTool;
 
     final isDark = theme.brightness == Brightness.dark;
     // Adaptive warning colours — amber tint in light mode, dimmed in dark.
@@ -263,13 +244,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-              child: _loading
-                  ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : !widget.isSessionOnline
+              child: !widget.isSessionOnline
                   ? Text(
                       l10n.permissionSessionOffline,
                       style: theme.textTheme.labelSmall?.copyWith(
@@ -277,26 +252,55 @@ class _PermissionFooterState extends State<PermissionFooter> {
                       ),
                     )
                   : isCodex
-                  ? _CodexActionButtons(
-                      onCodexApprove: () => _wrap(widget.onCodexApprove),
-                      onCodexApproveForSession: () =>
-                          _wrap(widget.onCodexApproveForSession),
-                      onCodexAbort: () => _wrap(widget.onCodexAbort),
+                  ? _PermissionActionArea(
+                      loading: _loading,
+                      child: _CodexActionButtons(
+                        enabled: !_loading,
+                        showAdvanced: _showAdvanced,
+                        onToggleAdvanced: _loading
+                            ? null
+                            : () => setState(
+                                () => _showAdvanced = !_showAdvanced,
+                              ),
+                        onCodexApprove: widget.onCodexApprove == null
+                            ? null
+                            : () => _wrap(widget.onCodexApprove),
+                        onCodexApproveForSession:
+                            widget.onCodexApproveForSession == null
+                            ? null
+                            : () => _wrap(widget.onCodexApproveForSession),
+                        onCodexAbort: widget.onCodexAbort == null
+                            ? null
+                            : () => _wrap(widget.onCodexAbort),
+                      ),
                     )
-                  : _ActionButtons(
-                      isPending: isPending,
-                      isEditTool: isEditTool,
-                      isApproved: isApproved,
-                      isDenied: isDenied,
-                      isApprovedViaAllEdits: isApprovedViaAllEdits,
-                      isApprovedForSession: isApprovedForSession,
-                      showClaudeClearContextButton:
-                          showClaudeClearContextButton,
-                      onAllow: () => _wrap(widget.onAllow),
-                      onDeny: () => _wrap(widget.onDeny),
-                      onAllowAllEdits: () => _wrap(widget.onAllowAllEdits),
-                      onAllowForSession: () => _wrap(widget.onAllowForSession),
-                      onYolo: () => _wrap(widget.onYolo),
+                  : _PermissionActionArea(
+                      loading: _loading,
+                      child: _ActionButtons(
+                        enabled: !_loading,
+                        isEditTool: isEditTool,
+                        showAdvanced: _showAdvanced,
+                        onToggleAdvanced: _loading
+                            ? null
+                            : () => setState(
+                                () => _showAdvanced = !_showAdvanced,
+                              ),
+                        onAllow: widget.onAllow == null
+                            ? null
+                            : () => _wrap(widget.onAllow),
+                        onDeny: widget.onDeny == null
+                            ? null
+                            : () => _wrap(widget.onDeny),
+                        onAllowAllEdits: widget.onAllowAllEdits == null
+                            ? null
+                            : () => _wrap(widget.onAllowAllEdits),
+                        onAllowForSession: widget.onAllowForSession == null
+                            ? null
+                            : () => _wrap(widget.onAllowForSession),
+                        onYolo: widget.onYolo == null
+                            ? null
+                            : () => _wrap(widget.onYolo),
+                      ),
                     ),
             ),
           ],
@@ -306,33 +310,152 @@ class _PermissionFooterState extends State<PermissionFooter> {
   }
 }
 
+class _PermissionActionArea extends StatelessWidget {
+  const _PermissionActionArea({required this.loading, required this.child});
+
+  final bool loading;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (loading)
+          Semantics(
+            liveRegion: true,
+            label: AppLocalizations.of(context).permissionActionInProgress,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    AppLocalizations.of(context).commonLoading,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        child,
+      ],
+    );
+  }
+}
+
 class _ActionButtons extends StatelessWidget {
   const _ActionButtons({
-    required this.isPending,
+    required this.enabled,
     required this.isEditTool,
-    required this.isApproved,
-    required this.isDenied,
-    required this.isApprovedViaAllEdits,
-    required this.isApprovedForSession,
-    required this.showClaudeClearContextButton,
+    required this.showAdvanced,
+    required this.onToggleAdvanced,
     this.onAllow,
     this.onDeny,
     this.onAllowAllEdits,
     this.onAllowForSession,
     this.onYolo,
   });
-  final bool isPending;
+
+  final bool enabled;
   final bool isEditTool;
-  final bool isApproved;
-  final bool isDenied;
-  final bool isApprovedViaAllEdits;
-  final bool isApprovedForSession;
-  final bool showClaudeClearContextButton;
+  final bool showAdvanced;
+  final VoidCallback? onToggleAdvanced;
   final VoidCallback? onAllow;
   final VoidCallback? onDeny;
   final VoidCallback? onAllowAllEdits;
   final VoidCallback? onAllowForSession;
   final VoidCallback? onYolo;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final hasAdvanced = isEditTool
+        ? onAllowAllEdits != null || onYolo != null
+        : onAllowForSession != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            ElevatedButton.icon(
+              onPressed: enabled ? onAllow : null,
+              icon: const Icon(Icons.check_rounded, size: 15),
+              label: Text(l10n.permissionAllow),
+              style: _primaryButtonStyle(theme),
+            ),
+            OutlinedButton.icon(
+              onPressed: enabled ? onDeny : null,
+              icon: const Icon(Icons.close_rounded, size: 14),
+              label: Text(l10n.permissionDeny),
+              style: _denyButtonStyle(theme),
+            ),
+          ],
+        ),
+        if (hasAdvanced) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          _AdvancedPermissionDisclosure(
+            expanded: showAdvanced,
+            onPressed: onToggleAdvanced,
+          ),
+          if (showAdvanced)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                children: [
+                  if (isEditTool && onAllowAllEdits != null)
+                    _SecondaryButton(
+                      label: l10n.permissionAllEdits,
+                      onPressed: enabled ? onAllowAllEdits : null,
+                    ),
+                  if (isEditTool && onYolo != null)
+                    _SecondaryButton(
+                      label: l10n.permissionYolo,
+                      onPressed: enabled ? onYolo : null,
+                    ),
+                  if (!isEditTool && onAllowForSession != null)
+                    _SecondaryButton(
+                      label: l10n.permissionForSession,
+                      onPressed: enabled ? onAllowForSession : null,
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CodexActionButtons extends StatelessWidget {
+  const _CodexActionButtons({
+    required this.enabled,
+    required this.showAdvanced,
+    required this.onToggleAdvanced,
+    this.onCodexApprove,
+    this.onCodexApproveForSession,
+    this.onCodexAbort,
+  });
+
+  final bool enabled;
+  final bool showAdvanced;
+  final VoidCallback? onToggleAdvanced;
+  final VoidCallback? onCodexApprove;
+  final VoidCallback? onCodexApproveForSession;
+  final VoidCallback? onCodexAbort;
 
   @override
   Widget build(BuildContext context) {
@@ -344,157 +467,125 @@ class _ActionButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: [
-            // Primary allow button
             ElevatedButton.icon(
-              onPressed: isPending ? onAllow : null,
+              onPressed: enabled ? onCodexApprove : null,
               icon: const Icon(Icons.check_rounded, size: 15),
-              label: Text(AppLocalizations.of(context).permissionAllow),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                textStyle: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                elevation: 0,
+              label: Text(l10n.permissionYes),
+              style: _primaryButtonStyle(
+                theme,
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
               ),
             ),
-
-            // Secondary allow (all edits / for session)
-            if (isPending)
-              if (isEditTool) ...[
-                _SecondaryButton(
-                  label: l10n.permissionAllEdits,
-                  onPressed: onAllowAllEdits,
-                ),
-                _SecondaryButton(
-                  label: l10n.permissionYolo,
-                  onPressed: onYolo,
-                ),
-              ] else
-                _SecondaryButton(
-                  label: l10n.permissionForSession,
-                  onPressed: onAllowForSession,
-                ),
-
-            // Deny button
             OutlinedButton.icon(
-              onPressed: isPending ? onDeny : null,
+              onPressed: enabled ? onCodexAbort : null,
               icon: const Icon(Icons.close_rounded, size: 14),
-              label: Text(AppLocalizations.of(context).permissionDeny),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.error,
-                side: BorderSide(
-                  color: theme.colorScheme.error.withValues(alpha: 0.5),
-                  width: 1,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                textStyle: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-              ),
+              label: Text(l10n.permissionStop),
+              style: _denyButtonStyle(theme),
             ),
           ],
         ),
-        // "Accept plan + clear context" requires backend support — omitted
-        // until the feature is implemented rather than showing a permanently
-        // disabled button (Apple HIG: don't show items that do nothing).
+        if (onCodexApproveForSession != null) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          _AdvancedPermissionDisclosure(
+            expanded: showAdvanced,
+            onPressed: onToggleAdvanced,
+          ),
+          if (showAdvanced)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: _SecondaryButton(
+                label: l10n.permissionForSession,
+                onPressed: enabled ? onCodexApproveForSession : null,
+              ),
+            ),
+        ],
       ],
     );
   }
 }
 
-class _CodexActionButtons extends StatelessWidget {
-  const _CodexActionButtons({
-    this.onCodexApprove,
-    this.onCodexApproveForSession,
-    this.onCodexAbort,
+class _AdvancedPermissionDisclosure extends StatelessWidget {
+  const _AdvancedPermissionDisclosure({
+    required this.expanded,
+    required this.onPressed,
   });
 
-  /// Callback for the "Yes" (approve once) button.
-  final VoidCallback? onCodexApprove;
-
-  /// Callback for the "For session" (approve for session) button.
-  final VoidCallback? onCodexApproveForSession;
-
-  /// Callback for the "Stop" (abort) button.
-  final VoidCallback? onCodexAbort;
+  final bool expanded;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Row(
-      children: [
-        // Yes — primary green button
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: onCodexApprove,
-            icon: const Icon(Icons.check_rounded, size: 15),
-            label: Text(AppLocalizations.of(context).permissionYes),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              textStyle: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              elevation: 0,
-            ),
+    final l10n = AppLocalizations.of(context);
+    final label = expanded
+        ? l10n.permissionHideApprovalOptions
+        : l10n.permissionMoreApprovalOptions;
+    return Semantics(
+      button: true,
+      enabled: onPressed != null,
+      expanded: expanded,
+      label: label,
+      onTap: onPressed,
+      child: ExcludeSemantics(
+        child: TextButton.icon(
+          onPressed: onPressed,
+          icon: Icon(
+            expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+            size: 18,
+          ),
+          label: Text(label),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, AppTouchTarget.min),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           ),
         ),
-
-        const SizedBox(width: 6),
-
-        // For session — outlined secondary button
-        _SecondaryButton(
-          label: AppLocalizations.of(context).permissionForSession,
-          onPressed: onCodexApproveForSession,
-        ),
-
-        const SizedBox(width: 6),
-
-        // Stop — outlined error button
-        OutlinedButton.icon(
-          onPressed: onCodexAbort,
-          icon: const Icon(Icons.close_rounded, size: 14),
-          label: Text(AppLocalizations.of(context).permissionStop),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: theme.colorScheme.error,
-            side: BorderSide(
-              color: theme.colorScheme.error.withValues(alpha: 0.5),
-              width: 1,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            textStyle: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
+}
+
+ButtonStyle _primaryButtonStyle(
+  ThemeData theme, {
+  Color? backgroundColor,
+  Color? foregroundColor,
+}) {
+  return ElevatedButton.styleFrom(
+    backgroundColor: backgroundColor ?? theme.colorScheme.primary,
+    foregroundColor: foregroundColor ?? theme.colorScheme.onPrimary,
+    minimumSize: const Size(0, AppTouchTarget.min),
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.smd,
+      vertical: AppSpacing.sm,
+    ),
+    textStyle: theme.textTheme.labelMedium?.copyWith(
+      fontWeight: FontWeight.w600,
+    ),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+    ),
+    elevation: 0,
+  );
+}
+
+ButtonStyle _denyButtonStyle(ThemeData theme) {
+  return OutlinedButton.styleFrom(
+    foregroundColor: theme.colorScheme.error,
+    side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
+    minimumSize: const Size(0, AppTouchTarget.min),
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.smd,
+      vertical: AppSpacing.sm,
+    ),
+    textStyle: theme.textTheme.labelMedium?.copyWith(
+      fontWeight: FontWeight.w500,
+    ),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+    ),
+  );
 }
 
 class _SecondaryButton extends StatelessWidget {
@@ -514,7 +605,11 @@ class _SecondaryButton extends StatelessWidget {
           color: theme.colorScheme.primary.withValues(alpha: 0.4),
           width: 1,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        minimumSize: const Size(0, AppTouchTarget.min),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.smd,
+          vertical: AppSpacing.sm,
+        ),
         textStyle: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w500,
         ),
@@ -550,8 +645,9 @@ class PermissionButtons extends StatelessWidget {
     final theme = Theme.of(context);
     final isPending = status == 'pending';
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
       children: [
         ElevatedButton.icon(
           onPressed: isPending ? onAllow : null,
@@ -561,14 +657,17 @@ class PermissionButtons extends StatelessWidget {
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            minimumSize: const Size(0, AppTouchTarget.min),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
           ),
         ),
-        const SizedBox(width: 8),
         OutlinedButton.icon(
           onPressed: isPending ? onDeny : null,
           icon: const Icon(Icons.close_rounded, size: 14),
@@ -578,7 +677,11 @@ class PermissionButtons extends StatelessWidget {
             side: BorderSide(
               color: theme.colorScheme.error.withValues(alpha: 0.5),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            minimumSize: const Size(0, AppTouchTarget.min),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
             textStyle: theme.textTheme.labelMedium,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.sm),

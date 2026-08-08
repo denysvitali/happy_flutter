@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
 import '../../../core/providers/app_providers.dart';
@@ -205,7 +206,9 @@ class _ToolViewState extends ConsumerState<ToolView>
 
     if (_prevState == newState) return;
 
-    if (_prevState == ToolState.running && newState == ToolState.completed) {
+    if (_prevState == ToolState.running &&
+        newState == ToolState.completed &&
+        !AppMotion.reduceMotion(context)) {
       setState(() => _showCheckFlash = true);
       Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted) setState(() => _showCheckFlash = false);
@@ -213,6 +216,19 @@ class _ToolViewState extends ConsumerState<ToolView>
     }
 
     _prevState = newState;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _chevronController.duration = AppMotion.duration(
+      context,
+      AppDuration.normal,
+    );
+    _staggerController.duration = AppMotion.duration(
+      context,
+      const Duration(milliseconds: _kStaggerTotalMs),
+    );
   }
 
   bool get _isTaskTool {
@@ -227,9 +243,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   /// item is forwarded by happy-cli-go under the same canonical name, and
   /// Grok's `todo_write` aliases to it.
   bool get _isTodoTool {
-    final name = KnownTools.canonicalName(
-      widget.tool['name'] as String? ?? '',
-    );
+    final name = KnownTools.canonicalName(widget.tool['name'] as String? ?? '');
     return name == 'TodoWrite' || name == 'todo_list';
   }
 
@@ -561,9 +575,13 @@ class _ToolViewState extends ConsumerState<ToolView>
 
     // Build status icon
     Widget? statusIcon;
+    String? statusLabel;
     if (permission != null) {
       final permStatus = permission['status'] as String?;
       if (permStatus == 'denied' || permStatus == 'canceled') {
+        statusLabel = permStatus == 'denied'
+            ? context.l10n.permissionDeniedLabel
+            : context.l10n.toolStateCanceled;
         statusIcon = Icon(
           Icons.remove_circle_outline,
           size: 18,
@@ -571,6 +589,7 @@ class _ToolViewState extends ConsumerState<ToolView>
         );
       }
     } else if (isToolUseError && state != ToolState.error) {
+      statusLabel = context.l10n.toolStateStopped;
       statusIcon = Icon(
         Icons.remove_circle_outline,
         size: 18,
@@ -595,6 +614,24 @@ class _ToolViewState extends ConsumerState<ToolView>
         : KnownTools.iconFor(toolName, 18, iconColor);
 
     final hasContent = !minimal;
+    final primaryNavigates =
+        (toolName == 'Task' || toolName == 'Agent' || toolName == 'Workflow') &&
+        widget.onPress != null;
+    final headerHasDisclosure = hasContent && !primaryNavigates;
+    final VoidCallback? headerOnTap;
+    if (primaryNavigates) {
+      headerOnTap = widget.onPress;
+    } else if (hasContent) {
+      headerOnTap = _toggleExpanded;
+    } else {
+      headerOnTap = widget.onPress;
+    }
+    final headerOnLongPress = widget.onPress == null
+        ? null
+        : () {
+            HapticFeedback.mediumImpact();
+            widget.onPress!.call();
+          };
 
     // State emphasis without card chrome: the collapsed row sits directly on
     // the chat background so a run of tool calls reads as a timeline, while
@@ -619,50 +656,32 @@ class _ToolViewState extends ConsumerState<ToolView>
             color: headerTint ?? Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.sm),
             clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () {
-                // Task/Agent/Workflow tools navigate directly on tap — the
-                // full conversation is the primary action. Toggle is
-                // available via long-press.
-                if ((toolName == 'Task' ||
-                        toolName == 'Agent' ||
-                        toolName == 'Workflow') &&
-                    widget.onPress != null) {
-                  widget.onPress!.call();
-                } else if (hasContent) {
-                  _toggleExpanded();
-                } else {
-                  widget.onPress?.call();
-                }
-              },
-              onLongPress: widget.onPress != null
-                  ? () {
-                      HapticFeedback.mediumImpact();
-                      widget.onPress!.call();
-                    }
-                  : null,
-              child: ToolHeader(
-                toolIcon: toolIcon,
-                toolTitle: toolTitle,
-                status: status,
-                subtitle: subtitle,
-                subtitleMonospace: _monoSubtitleToolNames.contains(
-                  KnownTools.canonicalName(toolName).toLowerCase(),
-                ),
-                state: state,
-                createdAt: createdAt,
-                statusIcon: statusIcon,
-                hasContent: hasContent,
-                showCheckFlash: _showCheckFlash,
-                chevronAnim: _chevronAnim,
-                hasPermissionRequest: hasPermissionRequest,
+            child: ToolHeader(
+              toolIcon: toolIcon,
+              toolTitle: toolTitle,
+              status: status,
+              subtitle: subtitle,
+              subtitleMonospace: _monoSubtitleToolNames.contains(
+                KnownTools.canonicalName(toolName).toLowerCase(),
               ),
+              state: state,
+              createdAt: createdAt,
+              statusIcon: statusIcon,
+              statusLabel: statusLabel,
+              hasContent: headerHasDisclosure,
+              expanded: _expanded,
+              showCheckFlash: _showCheckFlash,
+              chevronAnim: _chevronAnim,
+              hasPermissionRequest: hasPermissionRequest,
+              onTap: headerOnTap,
+              onLongPress: headerOnLongPress,
+              onOpenDetails: primaryNavigates ? null : widget.onPress,
             ),
           ),
           // Expanded body: nested panel below the chromeless header.
           if (hasContent)
             AnimatedSize(
-              duration: AppDuration.normal,
+              duration: AppMotion.duration(context, AppDuration.normal),
               curve: AppCurve.standard,
               child: (_expanded || _collapsing)
                   ? Padding(
@@ -845,8 +864,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     // content blocks, which the generic MCP path renders as a JSON blob.
     // Detect that shape and render the same source list as Claude's
     // built-in WebSearch.
-    if (mcpTextResult != null &&
-        WebSearchView.canRenderMcpResult(toolResult)) {
+    if (mcpTextResult != null && WebSearchView.canRenderMcpResult(toolResult)) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm + 2),
         child: Column(
@@ -913,7 +931,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     }
 
     // Non-debug, no specific view, no MCP text: nothing to show inline. The
-    // user can long-press to open the full details.
+    // explicit details action keeps the full input and output discoverable.
     return const _OpenDetailsHint();
   }
 
@@ -1087,7 +1105,7 @@ class _OpenDetailsHint extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       child: Text(
-        'Long-press to view input & output',
+        context.l10n.toolDetailsButtonHint,
         style: theme.textTheme.bodySmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
           fontStyle: FontStyle.italic,

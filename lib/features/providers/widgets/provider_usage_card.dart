@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/provider_usage.dart';
-import '../../../core/providers/settings_notifier.dart' show settingsNotifierProvider;
+import '../../../core/providers/settings_notifier.dart'
+    show settingsNotifierProvider;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/utils.dart' show formatDuration;
@@ -34,77 +35,91 @@ class ProviderUsageCard extends ConsumerWidget {
     final devMode = ref.watch(
       settingsNotifierProvider.select((s) => s.developerModeEnabled),
     );
+    final providerName = ProviderUsageCard._providerDisplayName(usage.type);
+    final accountName = usage.accountName?.trim();
+    final accountLabel = accountName == null || accountName.isEmpty
+        ? providerName
+        : accountName;
+    final healthLabel = usage.error == null
+        ? l10n.providersHealthy
+        : l10n.providersNeedsAttention;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(
-          color: isSelected ? colorScheme.primary : Colors.transparent,
-          width: isSelected ? 2 : 0,
-        ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.xxs2,
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: '$accountLabel, $healthLabel',
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(
+            color: isSelected ? colorScheme.primary : Colors.transparent,
+            width: isSelected ? 2 : 0,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  _ProviderIcon(type: usage.type),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: _ProviderLabelColumn(usage: usage),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.smd,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _ProviderIcon(type: usage.type),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: _ProviderLabelColumn(usage: usage)),
+                    if (!isSelectionMode) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      _AccountHealthLabel(hasError: usage.error != null),
+                    ],
+                    if (isSelectionMode) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Icon(
+                        isSelected
+                            ? Icons.check_circle
+                            : Icons.radio_button_unchecked,
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ] else if (devMode) ...[
+                      const SizedBox(width: AppSpacing.xs),
+                      IconButton(
+                        tooltip: 'View raw response',
+                        icon: const Icon(Icons.bug_report_outlined),
+                        onPressed: () =>
+                            ProviderPayloadDebugSheet.show(context, usage),
+                      ),
+                    ],
+                  ],
+                ),
+                if (usage.error != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  _ErrorBanner(error: usage.error!),
+                ] else if (usage.windows.isEmpty) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    l10n.providersNoUsageData,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  if (isSelectionMode) ...[
-                    const SizedBox(width: AppSpacing.sm),
-                    Icon(
-                      isSelected
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked,
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.onSurfaceVariant,
-                    ),
-                  ] else if (devMode) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    IconButton(
-                      tooltip: 'View raw response',
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.bug_report_outlined),
-                      onPressed: () =>
-                          ProviderPayloadDebugSheet.show(context, usage),
-                    ),
+                ] else ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  for (final window in usage.windows) ...[
+                    _UsageWindowRow(window: window),
+                    if (window != usage.windows.last)
+                      const SizedBox(height: AppSpacing.xs),
                   ],
                 ],
-              ),
-              if (usage.error != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                _ErrorBanner(error: usage.error!),
-              ] else if (usage.windows.isEmpty) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  l10n.providersNoUsageData,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: AppSpacing.xs),
-                for (final window in usage.windows) ...[
-                  _UsageWindowRow(window: window),
-                  if (window != usage.windows.last)
-                    const SizedBox(height: AppSpacing.xs),
-                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -121,6 +136,41 @@ class ProviderUsageCard extends ConsumerWidget {
       ProviderUsageType.claudeCode => 'Claude Code',
       ProviderUsageType.codex => 'Codex',
     };
+  }
+}
+
+class _AccountHealthLabel extends StatelessWidget {
+  const _AccountHealthLabel({required this.hasError});
+
+  final bool hasError;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final color = hasError ? cs.error : cs.primary;
+    final showLabel = MediaQuery.sizeOf(context).width >= 400;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          hasError ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+          size: AppIconSize.md,
+          color: color,
+        ),
+        if (showLabel) ...[
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            hasError
+                ? context.l10n.providersNeedsAttention
+                : context.l10n.providersHealthy,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -198,9 +248,13 @@ class _ProviderIcon extends StatelessWidget {
       ProviderUsageType.codex => AppColors.error,
     };
 
-    return CircleAvatar(
-      radius: AppSpacing.md,
-      backgroundColor: color.withValues(alpha: AppOpacity.faint),
+    return Container(
+      width: AppAvatarSize.small,
+      height: AppAvatarSize.small,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: AppOpacity.faint),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
       child: Icon(
         switch (type) {
           ProviderUsageType.kimi => Icons.auto_awesome,
@@ -212,7 +266,7 @@ class _ProviderIcon extends StatelessWidget {
           ProviderUsageType.codex => Icons.code,
         },
         color: color,
-        size: AppSpacing.sm,
+        size: AppIconSize.xl,
       ),
     );
   }
@@ -232,67 +286,79 @@ class _UsageWindowRow extends StatelessWidget {
     final reset = _resetLabel(context, window.resetsAtMs);
     final hasUsedLimit = window.limit != null && window.used != null;
     final hasMeta = hasUsedLimit || reset != null;
+    final healthLabel = window.utilization >= 75
+        ? context.l10n.providersNeedsAttention
+        : context.l10n.providersHealthy;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Semantics(
+      container: true,
+      label:
+          '${window.label}, $healthLabel, '
+          '${window.utilization.toStringAsFixed(1)}%',
+      value: reset,
+      child: ExcludeSemantics(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                window.label,
-                style: theme.textTheme.bodySmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    window.label,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  '$healthLabel · ${window.utilization.toStringAsFixed(1)}%',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: barColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xxs),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: LinearProgressIndicator(
+                value: window.utilization / 100,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+                valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                minHeight: AppSpacing.xs,
               ),
             ),
-            Text(
-              '${window.utilization.toStringAsFixed(1)}%',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: barColor,
+            if (hasMeta) ...[
+              const SizedBox(height: AppSpacing.xxs),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (hasUsedLimit)
+                    Text(
+                      '${_formatNumber(window.used!)} / ${_formatNumber(window.limit!)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    const SizedBox.shrink(),
+                  if (reset != null)
+                    Text(
+                      reset,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    const SizedBox.shrink(),
+                ],
               ),
-            ),
+            ],
           ],
         ),
-        const SizedBox(height: AppSpacing.xxs),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          child: LinearProgressIndicator(
-            value: window.utilization / 100,
-            backgroundColor: colorScheme.surfaceContainerHighest,
-            valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            minHeight: AppSpacing.xs,
-          ),
-        ),
-        if (hasMeta) ...[
-          const SizedBox(height: AppSpacing.xxs),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (hasUsedLimit)
-                Text(
-                  '${_formatNumber(window.used!)} / ${_formatNumber(window.limit!)}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                )
-              else
-                const SizedBox.shrink(),
-              if (reset != null)
-                Text(
-                  reset,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                )
-              else
-                const SizedBox.shrink(),
-            ],
-          ),
-        ],
-      ],
+      ),
     );
   }
 

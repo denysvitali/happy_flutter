@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RendererBinding;
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/components/components.dart'
     show ResizablePaneDivider, ResizableSplitView;
@@ -71,16 +73,40 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  testWidgets('default master pane is wider than the old 35% split', (
+  testWidgets('default master pane keeps the detail visually dominant', (
     tester,
   ) async {
     setViewport(tester, const Size(1024, 768));
     await tester.pumpWidget(_harness(storage));
 
-    // 42% of 1024 = 430, comfortably above the previous fixed 360 (35%),
-    // and still below the 55% viewport cap.
-    expect(_masterWidth(tester), greaterThan(400));
+    // 38% leaves a stable master pane without giving it equal weight to the
+    // operational detail surface.
+    expect(_masterWidth(tester), closeTo(1024 * 0.38, 1));
     expect(_masterWidth(tester), lessThan(1024 * 0.55));
+  });
+
+  testWidgets('divider has a 44px target and supports arrow keys', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(1024, 768));
+    await tester.pumpWidget(_harness(storage, dividerLabel: 'Resize'));
+
+    final divider = find.byType(ResizablePaneDivider);
+    expect(tester.getSize(divider).width, greaterThanOrEqualTo(44));
+
+    final before = _masterWidth(tester);
+    await tester.tap(divider);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pump();
+    expect(
+      _masterWidth(tester),
+      closeTo(before + ResizablePaneDivider.semanticsStep, 0.5),
+    );
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pump();
+    expect(_masterWidth(tester), closeTo(before, 0.5));
+    await _drainPersistDebounce(tester);
   });
 
   testWidgets('dragging the divider resizes and persists the width', (
@@ -159,16 +185,10 @@ void main() {
     );
     expect(node.label, 'Resize');
     expect(node.value, '${before.round()} pixels wide');
-    expect(
-      node.getSemanticsData().hasAction(SemanticsAction.increase),
-      isTrue,
-    );
-    expect(
-      node.getSemanticsData().hasAction(SemanticsAction.decrease),
-      isTrue,
-    );
+    expect(node.getSemanticsData().hasAction(SemanticsAction.increase), isTrue);
+    expect(node.getSemanticsData().hasAction(SemanticsAction.decrease), isTrue);
 
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+    RendererBinding.instance.rootPipelineOwner.semanticsOwner!.performAction(
       node.id,
       SemanticsAction.increase,
     );
@@ -185,7 +205,7 @@ void main() {
     );
     expect(mmkv.values['pane-layout-widths'], contains('sessions'));
 
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+    RendererBinding.instance.rootPipelineOwner.semanticsOwner!.performAction(
       node.id,
       SemanticsAction.decrease,
     );

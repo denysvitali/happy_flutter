@@ -555,6 +555,20 @@
   "toolViewCompleted": "Tool completed successfully",
   "toolViewNoOutput": "No output was produced",
   "toolViewRunning": "Tool is running...",
+  "toolStateApprovalNeeded": "Approval needed",
+  "toolStateRunning": "Running",
+  "toolStateDone": "Done",
+  "toolStateFailed": "Failed",
+  "toolStateQueued": "Queued",
+  "toolStateCanceled": "Canceled",
+  "toolStateStopped": "Stopped",
+  "toolOutputExpandHint": "Expand tool output",
+  "toolOutputCollapseHint": "Collapse tool output",
+  "toolOutputShowMore": "Show more",
+  "toolOutputShowLess": "Show less",
+  "toolDetailsOpenHint": "Open tool details",
+  "toolDetailsView": "View tool details",
+  "toolDetailsButtonHint": "Use the details button to view input & output",
   "toolViewRawJsonDevMode": "Raw JSON (Dev Mode)",
   "toolNamesTask": "Task",
   "toolNamesTerminal": "Terminal",
@@ -1288,6 +1302,9 @@
   "permissionAllEdits": "All edits",
   "permissionForSession": "For session",
   "permissionActionFailed": "Permission action failed",
+  "permissionActionInProgress": "Permission action in progress",
+  "permissionMoreApprovalOptions": "More approval options",
+  "permissionHideApprovalOptions": "Hide approval options",
   "permissionModeTitle": "Permission Mode",
   "permissionModeDefault": "Default",
   "permissionModeAcceptEdits": "Accept Edits",
@@ -2196,6 +2213,20 @@
   "tabsProviders": "Providers",
   "providersTitle": "Providers",
   "providersUsageSectionTitle": "Usage",
+  "providersConnectedAccounts": "Connected accounts",
+  "providersBuiltInLimits": "Built-in limits",
+  "providersAccountSummary": "{count, plural, =0 {No connected accounts} =1 {1 connected account} other {{count} connected accounts}}",
+  "@providersAccountSummary": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "providersAttentionSummary": "{count, plural, =0 {All usage checks are healthy} =1 {1 account needs attention} other {{count} accounts need attention}}",
+  "@providersAttentionSummary": {
+    "placeholders": {"count": {"type": "int"}}
+  },
+  "providersUpdatingUsage": "Updating usage…",
+  "providersUsageStale": "Usage may be stale",
+  "providersHealthy": "Healthy",
+  "providersNeedsAttention": "Needs attention",
   "providersAddAccount": "Add account",
   "providersAddAccountFailed": "Failed to save account",
   "providersRemoveAccount": "Remove account",
@@ -2265,8 +2296,17 @@
   "loopsEmptyTitle": "No loops scheduled",
   "loopsEmptyDescription": "Type /loop in chat to schedule a recurring prompt.",
   "allLoopsTitle": "All loops",
+  "allLoopsScheduledTab": "Scheduled",
   "allLoopsCount": "{count, plural, =0{No active loops} =1{1 active loop} other{{count} active loops}}",
   "@allLoopsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allLoopsPausedCount": "{count, plural, =0{No paused loops} =1{1 paused loop} other{{count} paused loops}}",
+  "@allLoopsPausedCount": {
     "placeholders": {
       "count": {
         "type": "int"
@@ -2283,6 +2323,31 @@
   },
   "allLoopsEmptyTitle": "No loops scheduled",
   "allLoopsEmptyDescription": "Type /loop in any session to schedule a recurring prompt.",
+  "allLoopsFilterAll": "All",
+  "allLoopsNoActiveTitle": "No active loops",
+  "allLoopsNoActiveDescription": "Paused and expired loops are still available under All.",
+  "allLoopsNoPausedTitle": "No paused loops",
+  "allLoopsNoPausedDescription": "Pause an active loop to keep it here without deleting it.",
+  "allLoopsShowAll": "Show all loops",
+  "allLoopsGroupLoopCount": "{count, plural, =1{1 loop} other{{count} loops}}",
+  "@allLoopsGroupLoopCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allLoopsGroupLabel": "{name}, {count, plural, =1{1 loop} other{{count} loops}}",
+  "@allLoopsGroupLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "allLoopsViewPerSession": "View per session",
   "loopsCreateTitle": "New loop",
   "loopsIntervalLabel": "Cron expression",

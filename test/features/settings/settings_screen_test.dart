@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/models/settings_update.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/settings/settings_screen.dart';
+import 'package:happy_flutter/features/settings/widgets/profile_header.dart';
 
 class _TestSettingsNotifier extends SettingsNotifier {
   _TestSettingsNotifier(this._initial);
@@ -71,6 +72,22 @@ Widget _buildApp(
 }
 
 void main() {
+  testWidgets('uses a compact account row and puts search before settings', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildApp(Settings()));
+    await tester.pumpAndSettle();
+
+    final profileSize = tester.getSize(find.byType(ProfileHeader));
+    expect(profileSize.height, lessThanOrEqualTo(80));
+    expect(profileSize.height, greaterThanOrEqualTo(44));
+    expect(find.text('Quick access'), findsNothing);
+
+    final searchY = tester.getTopLeft(find.byType(TextField)).dy;
+    final statusY = tester.getTopLeft(find.text('STATUS')).dy;
+    expect(searchY, lessThan(statusY));
+  });
+
   testWidgets('search filters settings sections', (tester) async {
     await tester.pumpWidget(_buildApp(Settings()));
     await tester.pumpAndSettle();

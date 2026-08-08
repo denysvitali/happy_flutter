@@ -11,12 +11,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_tokens.dart';
 
 /// Tab type for the app
-enum AppTab {
-  sessions,
-  loops,
-  providers,
-  settings,
-}
+enum AppTab { sessions, loops, providers, settings }
 
 // ─── AppTabInfo ──────────────────────────────────────────────────────────────
 
@@ -43,10 +38,7 @@ class AppTabInfo {
 /// [tabCount] is the total number of tabs; [activeIndex] is the currently
 /// selected one. The pill is drawn behind the active icon+label.
 class _TabIndicator extends StatelessWidget {
-  const _TabIndicator({
-    required this.activeIndex,
-    required this.tabCount,
-  });
+  const _TabIndicator({required this.activeIndex, required this.tabCount});
 
   final int activeIndex;
   final int tabCount;
@@ -58,13 +50,12 @@ class _TabIndicator extends StatelessWidget {
       builder: (context, constraints) {
         final tabWidth = constraints.maxWidth / tabCount;
         final pillWidth = tabWidth * 0.72;
-        final leftOffset =
-            activeIndex * tabWidth + (tabWidth - pillWidth) / 2;
+        final leftOffset = activeIndex * tabWidth + (tabWidth - pillWidth) / 2;
 
         return Stack(
           children: [
             AnimatedPositioned(
-              duration: AppDuration.fast,
+              duration: AppMotion.duration(context, AppDuration.fast),
               curve: AppCurve.standard,
               left: leftOffset,
               top: 0,
@@ -114,8 +105,9 @@ class _TabItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
     final activeColor = colorScheme.primary;
-    final inactiveColor = colorScheme.onSurface
-        .withValues(alpha: AppOpacity.half);
+    final inactiveColor = colorScheme.onSurface.withValues(
+      alpha: AppOpacity.half,
+    );
     final itemColor = isActive ? activeColor : inactiveColor;
 
     // Fold the badge count into a single spoken label — otherwise the
@@ -216,11 +208,7 @@ class _TabIconWithBadge extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Positioned.fill(
-            child: Icon(
-              icon,
-              size: AppIconSize.tab,
-              color: color,
-            ),
+            child: Icon(icon, size: AppIconSize.tab, color: color),
           ),
           if (visible)
             Positioned(
@@ -244,10 +232,7 @@ const double _kTabBadgeSize = 16;
 /// ~20 dp of glyph, which used to clip inside the fixed 16 dp pill.
 double tabBadgeExtent(BuildContext context) {
   final scaled = MediaQuery.textScalerOf(context).scale(AppFontSize.xxs);
-  return math.max(
-    _kTabBadgeSize,
-    scaled * AppLineHeight.tight + AppSpacing.xs,
-  );
+  return math.max(_kTabBadgeSize, scaled * AppLineHeight.tight + AppSpacing.xs);
 }
 
 /// Small pill-shaped badge. Square at a single digit, wider for `9+`, and
@@ -288,10 +273,10 @@ class _TabBadge extends StatelessWidget {
   }
 }
 
-// ─── _kAppTabs ───────────────────────────────────────────────────────────────
+// ─── App destinations ───────────────────────────────────────────────────────
 
-/// Canonical tab definition list shared by [TabBar] and [CompactTabBar].
-const _kAppTabs = <AppTabInfo>[
+/// Canonical destination definitions shared by phone and tablet navigation.
+const appTabs = <AppTabInfo>[
   AppTabInfo(
     key: AppTab.sessions,
     icon: Icons.chat_bubble_outline,
@@ -365,7 +350,8 @@ class TabBar extends StatefulWidget {
       tabBadgeExtent(context) + AppSpacing.xxs,
     );
     // Icon block + gap + one line of label + vertical breathing room.
-    final needed = iconBlock +
+    final needed =
+        iconBlock +
         AppSpacing.xs +
         AppSpacing.xsm +
         scaledLabel * AppLineHeight.normal +
@@ -378,8 +364,7 @@ class TabBar extends StatefulWidget {
 }
 
 class _TabBarState extends State<TabBar> {
-  int get _activeIndex =>
-      _kAppTabs.indexWhere((t) => t.key == widget.activeTab);
+  int get _activeIndex => appTabs.indexWhere((t) => t.key == widget.activeTab);
 
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
@@ -396,8 +381,7 @@ class _TabBarState extends State<TabBar> {
     final l10n = context.l10n;
     final onIOS = !kIsWeb && isIOS;
 
-    final bgColor =
-        widget.backgroundColor ?? colorScheme.surface;
+    final bgColor = widget.backgroundColor ?? colorScheme.surface;
 
     return Container(
       decoration: BoxDecoration(
@@ -405,8 +389,7 @@ class _TabBarState extends State<TabBar> {
         // Subtle top border instead of a hard shadow line
         border: Border(
           top: BorderSide(
-            color: colorScheme.onSurface.withValues(
-                alpha: AppOpacity.faint),
+            color: colorScheme.onSurface.withValues(alpha: AppOpacity.faint),
           ),
         ),
         // Frosted glass elevation on iOS; clean card on Android
@@ -421,18 +404,16 @@ class _TabBarState extends State<TabBar> {
               // Animated pill indicator layer (behind the items)
               Positioned.fill(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm,
-                  ),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                   child: _TabIndicator(
                     activeIndex: _activeIndex,
-                    tabCount: _kAppTabs.length,
+                    tabCount: appTabs.length,
                   ),
                 ),
               ),
               // Tab items row (above indicator)
               Row(
-                children: _kAppTabs.map((tab) {
+                children: appTabs.map((tab) {
                   final isActive = widget.activeTab == tab.key;
                   return _TabItem(
                     tab: tab,
@@ -495,12 +476,12 @@ class CompactTabBar extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = context.l10n;
     final active = selectedColor ?? colorScheme.primary;
-    final inactive = unselectedColor ??
-        colorScheme.onSurface.withValues(alpha: 0.4);
+    final inactive =
+        unselectedColor ?? colorScheme.onSurface.withValues(alpha: 0.4);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: _kAppTabs.map((tab) {
+      children: appTabs.map((tab) {
         final isActive = activeTab == tab.key;
         final count = badgeCounts[tab.key] ?? 0;
         final showBadge = tab.key == AppTab.loops && count > 0;
@@ -543,8 +524,7 @@ class CompactTabBar extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppColors.error,
-                        borderRadius:
-                            BorderRadius.circular(AppRadius.pill),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                         border: Border.all(
                           color: colorScheme.surface,
                           width: AppBorder.thin + 0.5,
@@ -602,16 +582,15 @@ class SegmentTabBar extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest
-            .withValues(alpha: 0.6),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           // Resolve inner padding to calculate usable width
-          final resolvedPadding =
-              padding.resolve(Directionality.of(context));
-          final innerWidth = constraints.maxWidth -
+          final resolvedPadding = padding.resolve(Directionality.of(context));
+          final innerWidth =
+              constraints.maxWidth -
               resolvedPadding.left -
               resolvedPadding.right;
           final segmentWidth = innerWidth / tabs.length;
@@ -620,7 +599,7 @@ class SegmentTabBar extends StatelessWidget {
             children: [
               // Sliding active segment pill
               AnimatedPositioned(
-                duration: AppDuration.fast,
+                duration: AppMotion.duration(context, AppDuration.fast),
                 curve: AppCurve.standard,
                 left: selectedIndex * segmentWidth,
                 top: 0,
@@ -635,8 +614,9 @@ class SegmentTabBar extends StatelessWidget {
                       BoxShadow(
                         // Theme-aware scrim (was hardcoded black at 10% alpha
                         // which produced invisible-on-dark shadows).
-                        color: colorScheme.shadow
-                            .withValues(alpha: AppOpacity.soft),
+                        color: colorScheme.shadow.withValues(
+                          alpha: AppOpacity.soft,
+                        ),
                         blurRadius: AppSpacing.xs + AppSpacing.xs,
                         offset: const Offset(0, 1),
                       ),
@@ -663,20 +643,20 @@ class SegmentTabBar extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: isSelected
                               ? (selectedTextStyle ??
-                                  const TextStyle(
-                                    fontSize: AppFontSize.md,
-                                    fontWeight: FontWeight.w600,
-                                    height: AppLineHeight.tight,
-                                  ))
+                                    const TextStyle(
+                                      fontSize: AppFontSize.md,
+                                      fontWeight: FontWeight.w600,
+                                      height: AppLineHeight.tight,
+                                    ))
                               : (unselectedTextStyle ??
-                                  TextStyle(
-                                    fontSize: AppFontSize.md,
-                                    fontWeight: FontWeight.w500,
-                                    color: colorScheme.onSurface
-                                        .withValues(
-                                            alpha: AppOpacity.high),
-                                    height: AppLineHeight.tight,
-                                  )),
+                                    TextStyle(
+                                      fontSize: AppFontSize.md,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: AppOpacity.high,
+                                      ),
+                                      height: AppLineHeight.tight,
+                                    )),
                         ),
                       ),
                     ),

@@ -24,6 +24,8 @@ class AppSidebar extends StatefulWidget {
     required this.isCollapsed,
     required this.onToggleCollapsed,
     super.key,
+    this.badgeCounts = const <AppTab, int>{},
+    this.showCollapseToggle = true,
   });
 
   /// Currently active navigation tab.
@@ -38,6 +40,12 @@ class AppSidebar extends StatefulWidget {
   /// Called when the user taps the expand/collapse toggle button.
   final VoidCallback onToggleCollapsed;
 
+  /// Optional operational counts surfaced beside destinations.
+  final Map<AppTab, int> badgeCounts;
+
+  /// Whether the pane can expand at the current viewport width.
+  final bool showCollapseToggle;
+
   /// Width when fully expanded.
   static const double expandedWidth = 200;
 
@@ -49,33 +57,6 @@ class AppSidebar extends StatefulWidget {
 }
 
 class _AppSidebarState extends State<AppSidebar> {
-  static const _kTabs = <AppTabInfo>[
-    AppTabInfo(
-      key: AppTab.sessions,
-      icon: Icons.chat_bubble_outline,
-      activeIcon: Icons.chat_bubble,
-      label: 'Sessions',
-    ),
-    AppTabInfo(
-      key: AppTab.loops,
-      icon: Icons.repeat_outlined,
-      activeIcon: Icons.repeat,
-      label: 'Loops',
-    ),
-    AppTabInfo(
-      key: AppTab.providers,
-      icon: Icons.cloud_outlined,
-      activeIcon: Icons.cloud,
-      label: 'Providers',
-    ),
-    AppTabInfo(
-      key: AppTab.settings,
-      icon: Icons.settings_outlined,
-      activeIcon: Icons.settings,
-      label: 'Settings',
-    ),
-  ];
-
   String _labelForTab(AppTab tab, AppLocalizations l10n) {
     return switch (tab) {
       AppTab.sessions => l10n.sessionHistoryTitle,
@@ -93,7 +74,7 @@ class _AppSidebarState extends State<AppSidebar> {
         : AppSidebar.expandedWidth;
 
     return AnimatedContainer(
-      duration: AppDuration.normal,
+      duration: AppMotion.duration(context, AppDuration.normal),
       curve: AppCurve.standard,
       width: targetWidth,
       child: Container(
@@ -112,12 +93,13 @@ class _AppSidebarState extends State<AppSidebar> {
             children: [
               const SizedBox(height: AppSpacing.sm),
               // Navigation items
-              ...(_kTabs.map(
+              ...(appTabs.map(
                 (tab) => _SidebarItem(
                   tab: tab,
                   label: _labelForTab(tab.key, context.l10n),
                   isActive: widget.activeTab == tab.key,
                   isCollapsed: widget.isCollapsed,
+                  badgeCount: widget.badgeCounts[tab.key] ?? 0,
                   onTap: () {
                     HapticFeedback.selectionClick();
                     widget.onTabPress(tab.key);
@@ -126,10 +108,11 @@ class _AppSidebarState extends State<AppSidebar> {
               )),
               const Spacer(),
               // Collapse/expand toggle
-              _CollapseToggle(
-                isCollapsed: widget.isCollapsed,
-                onToggle: widget.onToggleCollapsed,
-              ),
+              if (widget.showCollapseToggle)
+                _CollapseToggle(
+                  isCollapsed: widget.isCollapsed,
+                  onToggle: widget.onToggleCollapsed,
+                ),
               const SizedBox(height: AppSpacing.sm),
             ],
           ),
@@ -149,6 +132,7 @@ class _SidebarItem extends StatelessWidget {
     required this.isActive,
     required this.isCollapsed,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final AppTabInfo tab;
@@ -156,6 +140,7 @@ class _SidebarItem extends StatelessWidget {
   final bool isActive;
   final bool isCollapsed;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -165,23 +150,33 @@ class _SidebarItem extends StatelessWidget {
     final inactiveColor = cs.onSurface.withValues(alpha: AppOpacity.half);
     final itemColor = isActive ? activeColor : inactiveColor;
 
-    final iconWidget = Icon(
-      isActive ? tab.activeIcon : tab.icon,
-      size: AppSpacing.xl,
-      color: itemColor,
+    final hasBadge = tab.key == AppTab.loops && badgeCount > 0;
+    final iconWidget = Badge(
+      isLabelVisible: hasBadge,
+      label: Text(badgeCount > 9 ? '9+' : '$badgeCount'),
+      child: Icon(
+        isActive ? tab.activeIcon : tab.icon,
+        size: AppIconSize.tab,
+        color: itemColor,
+      ),
     );
 
+    final semanticsLabel = hasBadge
+        ? context.l10n.a11yTabWithBadge(label, badgeCount)
+        : label;
+
     return Semantics(
+      excludeSemantics: true,
       selected: isActive,
       button: true,
-      label: label,
+      label: semanticsLabel,
       child: Tooltip(
         message: isCollapsed ? label : '',
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: AnimatedContainer(
-            duration: AppDuration.normal,
+            duration: AppMotion.duration(context, AppDuration.normal),
             curve: AppCurve.standard,
             height: AppTouchTarget.comfortable,
             margin: const EdgeInsets.symmetric(
@@ -189,14 +184,10 @@ class _SidebarItem extends StatelessWidget {
               vertical: AppSpacing.xxs,
             ),
             padding: EdgeInsets.symmetric(
-              horizontal: isCollapsed
-                  ? AppSpacing.sm
-                  : AppSpacing.md,
+              horizontal: isCollapsed ? AppSpacing.sm : AppSpacing.md,
             ),
             decoration: BoxDecoration(
-              color: isActive
-                  ? cs.surfaceContainerHighest
-                  : Colors.transparent,
+              color: isActive ? cs.surfaceContainerHighest : Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: isCollapsed
@@ -230,10 +221,7 @@ class _SidebarItem extends StatelessWidget {
 
 /// Toggle button at the bottom of the sidebar that collapses or expands it.
 class _CollapseToggle extends StatelessWidget {
-  const _CollapseToggle({
-    required this.isCollapsed,
-    required this.onToggle,
-  });
+  const _CollapseToggle({required this.isCollapsed, required this.onToggle});
 
   final bool isCollapsed;
   final VoidCallback onToggle;
@@ -244,8 +232,7 @@ class _CollapseToggle extends StatelessWidget {
     final icon = isCollapsed
         ? Icons.keyboard_arrow_right
         : Icons.keyboard_arrow_left;
-    final shortcut =
-        (!kIsWeb && Platform.isMacOS) ? '⌘B' : 'Ctrl+B';
+    final shortcut = (!kIsWeb && Platform.isMacOS) ? '⌘B' : 'Ctrl+B';
     final label = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
     final tooltip = '$label ($shortcut)';
 
@@ -261,25 +248,14 @@ class _CollapseToggle extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Container(
             height: AppTouchTarget.min,
-            alignment: isCollapsed
-                ? Alignment.center
-                : Alignment.centerLeft,
+            alignment: isCollapsed ? Alignment.center : Alignment.centerLeft,
             padding: EdgeInsets.symmetric(
-              horizontal: isCollapsed
-                  ? AppSpacing.sm
-                  : AppSpacing.md,
+              horizontal: isCollapsed ? AppSpacing.sm : AppSpacing.md,
             ),
-            child: AnimatedRotation(
-              turns: isCollapsed ? 0 : 0,
-              duration: AppDuration.normal,
-              curve: AppCurve.standard,
-              child: Icon(
-                icon,
-                size: AppSpacing.xl,
-                color: cs.onSurface.withValues(
-                  alpha: AppOpacity.medium,
-                ),
-              ),
+            child: Icon(
+              icon,
+              size: AppSpacing.xl,
+              color: cs.onSurface.withValues(alpha: AppOpacity.medium),
             ),
           ),
         ),
@@ -302,6 +278,7 @@ class ResponsiveNavLayout extends StatelessWidget {
     required this.onToggleCollapsed,
     required this.child,
     this.bottomBar,
+    this.badgeCounts = const <AppTab, int>{},
     super.key,
   });
 
@@ -325,6 +302,9 @@ class ResponsiveNavLayout extends StatelessWidget {
   /// via [Scaffold.bottomNavigationBar]).
   final Widget? bottomBar;
 
+  /// Optional operational counts mirrored from the phone tab bar.
+  final Map<AppTab, int> badgeCounts;
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -335,16 +315,33 @@ class ResponsiveNavLayout extends StatelessWidget {
       return child;
     }
 
-    // Tablet/desktop: sidebar layout
+    // Compact tablets always use the 56 px rail. Expanding it would leave
+    // too little usable width for master-detail chat; desktop keeps the
+    // user's persisted preference and exposes the toggle.
+    final canExpand = width >= AppBreakpoint.desktop;
+    final effectiveCollapsed = !canExpand || isCollapsed;
+    final sidebarWidth = effectiveCollapsed
+        ? AppSidebar.collapsedWidth
+        : AppSidebar.expandedWidth;
+    final mediaQuery = MediaQuery.of(context);
     return Row(
       children: [
         AppSidebar(
           activeTab: activeTab,
           onTabPress: onTabPress,
-          isCollapsed: isCollapsed,
+          isCollapsed: effectiveCollapsed,
           onToggleCollapsed: onToggleCollapsed,
+          badgeCounts: badgeCounts,
+          showCollapseToggle: canExpand,
         ),
-        Expanded(child: child),
+        Expanded(
+          child: MediaQuery(
+            data: mediaQuery.copyWith(
+              size: Size(width - sidebarWidth, mediaQuery.size.height),
+            ),
+            child: child,
+          ),
+        ),
       ],
     );
   }

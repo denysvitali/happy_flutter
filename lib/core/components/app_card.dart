@@ -7,8 +7,9 @@ import 'package:happy_flutter/core/theme/app_tokens.dart';
 /// Renders a [Material] surface with:
 /// - [AppRadius.lg] (16 px) border radius
 /// - Subtle border (`onSurface` at 8 % opacity)
-/// - Soft drop-shadow via [AppElevationShadow.card] (theme-aware)
-/// - White / dark-surface background from [ColorScheme.surface]
+/// - Soft light-mode drop-shadow via [AppElevationShadow.card]
+/// - Flat tonal surface and outline in dark mode
+/// - White / dark-surface background from [ColorScheme]
 ///
 /// When [onTap] is provided, the card wraps [child] in an [InkWell]
 /// with matching radius, optional haptic feedback, and a smooth
@@ -57,10 +58,15 @@ class _AppCardState extends State<AppCard> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final brightness = theme.brightness;
+    final isDark = brightness == Brightness.dark;
+    final reduceMotion = AppMotion.reduceMotion(context);
     final effectivePadding =
         widget.padding ?? const EdgeInsets.all(AppSpacing.lg);
 
-    final borderColor = cs.onSurface.withValues(alpha: 0.08);
+    final borderColor = isDark
+        ? cs.outlineVariant.withValues(alpha: 0.72)
+        : cs.onSurface.withValues(alpha: 0.08);
+    final backgroundColor = isDark ? cs.surfaceContainerLow : cs.surface;
 
     final Widget content = Padding(
       padding: effectivePadding,
@@ -75,7 +81,7 @@ class _AppCardState extends State<AppCard> {
       borderRadius: AppCard._radius,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: cs.surface,
+          color: backgroundColor,
           borderRadius: AppCard._radius,
           border: Border.all(color: borderColor),
         ),
@@ -117,8 +123,8 @@ class _AppCardState extends State<AppCard> {
       enabled: true,
       container: true,
       child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1.0,
-        duration: AppDuration.fast,
+        scale: !reduceMotion && _pressed ? 0.98 : 1.0,
+        duration: AppMotion.duration(context, AppDuration.fast),
         curve: AppCurve.standard,
         child: card,
       ),

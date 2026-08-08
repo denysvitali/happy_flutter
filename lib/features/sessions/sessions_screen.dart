@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/sessions_api.dart';
+import '../../core/components/sidebar/app_sidebar.dart';
 import '../../core/components/tablet/no_session_selected_view.dart';
 import '../../core/components/tablet/resizable_split_view.dart';
 import '../../core/dialogs/confirm_dialog.dart';
@@ -194,11 +195,12 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isTablet = screenWidth >= AppBreakpoint.tablet;
     final isSessionsTabOnTablet = isTablet && _activeTab == AppTab.sessions;
-    if (isSessionsTabOnTablet) {
+    final usesMasterDetail =
+        screenWidth >= AppBreakpoint.masterDetail &&
+        _activeTab == AppTab.sessions;
+    if (usesMasterDetail) {
       _ensureTabletSelection();
     }
-    final isTabletDetail = isSessionsTabOnTablet && _selectedSessionId != null;
-
     // Active-loop count surfaced as a tab badge. Paused or expired loops
     // do NOT count — only loops that are still scheduled to fire. The
     // watch is scoped to the count shape so unrelated loop mutations
@@ -221,7 +223,32 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     // pane is `ChatScreen`, which has its own AppBar. The outer Scaffold
     // therefore has no AppBar — otherwise we'd render two stacked headers
     // and selection/folder mode would replace the detail pane's header.
-    final appBar = isSessionsTabOnTablet ? null : _buildAppBar(context, l10n);
+    final appBar = isTablet ? null : _buildAppBar(context, l10n);
+    final sidebarCollapsed = ref.watch(sidebarCollapsedProvider);
+    final badgeCounts = <AppTab, int>{AppTab.loops: totalActiveLoops};
+
+    final tabContent = Column(
+      children: [
+        const OfflineBanner(),
+        Expanded(
+          child: SafeArea(
+            top: appBar == null,
+            bottom: false,
+            child: isSessionsTabOnTablet
+                ? _buildCurrentTabContent(
+                    isTablet: isTablet,
+                    usesMasterDetail: usesMasterDetail,
+                  )
+                : SyncProgressOverlay(
+                    child: _buildCurrentTabContent(
+                      isTablet: isTablet,
+                      usesMasterDetail: usesMasterDetail,
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
 
     return PopScope(
       // Always block if a navigation action is already pending —
@@ -278,26 +305,21 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       },
       child: Scaffold(
         appBar: appBar,
-        body: Column(
-          children: [
-            const OfflineBanner(),
-            Expanded(
-              child: SafeArea(
-                top: appBar == null,
-                bottom: false,
-                child: isSessionsTabOnTablet
-                    ? _buildCurrentTabContent()
-                    : SyncProgressOverlay(child: _buildCurrentTabContent()),
-              ),
-            ),
-          ],
+        body: ResponsiveNavLayout(
+          activeTab: _activeTab,
+          onTabPress: _setActiveTab,
+          isCollapsed: sidebarCollapsed,
+          onToggleCollapsed: () =>
+              ref.read(sidebarCollapsedProvider.notifier).toggle(),
+          badgeCounts: badgeCounts,
+          child: tabContent,
         ),
-        bottomNavigationBar: isTabletDetail
+        bottomNavigationBar: isTablet
             ? null
             : TabBar(
                 activeTab: _activeTab,
                 onTabPress: _setActiveTab,
-                badgeCounts: <AppTab, int>{AppTab.loops: totalActiveLoops},
+                badgeCounts: badgeCounts,
               ),
       ),
     );
@@ -558,19 +580,20 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
   }
 
-  Widget _buildCurrentTabContent() {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isTablet = screenWidth >= AppBreakpoint.tablet;
-
+  Widget _buildCurrentTabContent({
+    required bool isTablet,
+    required bool usesMasterDetail,
+  }) {
     // Tablet: sessions tab uses master-detail layout. Master and detail each
     // own their own AppBar (the outer Scaffold has none), so selection /
     // folder / search modes affect only the master pane and the chat detail
     // keeps `ChatAppBar` visible at all times.
-    if (isTablet && _activeTab == AppTab.sessions) {
+    if (usesMasterDetail && _activeTab == AppTab.sessions) {
       return ResizableSplitView(
         paneId: sessionsPaneId,
         dividerSemanticsLabel: context.l10n.sessionsResizeSidebar,
         master: Scaffold(
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
           appBar: _buildSessionsAppBar(context, context.l10n),
           body: SyncProgressOverlay(
             child: SessionsListContent(
@@ -608,8 +631,24 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       );
     }
 
+    if (isTablet && _activeTab == AppTab.sessions) {
+      return Scaffold(
+        appBar: _buildSessionsAppBar(context, context.l10n),
+        body: SyncProgressOverlay(
+          child: SessionsListContent(
+            selectionNotifier: _selectionNotifier,
+            folderNotifier: _folderNotifier,
+            searchQuery: _searchController.text,
+            onClearSearch: _clearSearch,
+            isVisible: true,
+            scrollController: _scrollController,
+          ),
+        ),
+      );
+    }
+
     return AnimatedSwitcher(
-      duration: AppDuration.fast,
+      duration: AppMotion.duration(context, AppDuration.fast),
       transitionBuilder: (child, animation) {
         final slide = Tween<Offset>(
           begin: const Offset(0, 0.03),
@@ -635,7 +674,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             ),
             _buildLoopsTab(),
             _buildProvidersTab(),
-            _buildSettingsTab(),
+            _buildSettingsTab(isTablet: isTablet),
           ],
         ),
       ),
@@ -672,9 +711,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
   }
 
-  Widget _buildSettingsTab() {
+  Widget _buildSettingsTab({required bool isTablet}) {
     if (_builtTabs.contains(AppTab.settings)) {
-      return const SettingsScreen(embedded: true);
+      return SettingsScreen(embedded: !isTablet);
     }
     return const SizedBox.shrink();
   }

@@ -1,9 +1,21 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart'
-    show ToolState;
+    show ToolState, ToolStatusIndicator;
 import 'package:happy_flutter/features/chat/tools/tool_view_helpers.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view_widgets.dart';
+
+Widget _localizedApp({required Widget home}) {
+  return MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: home,
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -12,7 +24,7 @@ void main() {
     testWidgets('title and status render on one shared line '
         '(regression: Workflow 1 steps misalignment)', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedApp(
           home: Scaffold(
             body: ToolHeader(
               toolIcon: const Icon(Icons.rocket_launch),
@@ -41,7 +53,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedApp(
           home: Scaffold(
             body: ToolHeader(
               toolIcon: const Icon(Icons.terminal),
@@ -78,11 +90,11 @@ void main() {
       expect(leaves.last.style?.fontFamily, 'monospace');
     });
 
-    testWidgets('running shows a quiet spinner and no pill label', (
+    testWidgets('running shows text and icon without relying on color', (
       tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedApp(
           home: Scaffold(
             body: ToolHeader(
               toolIcon: const Icon(Icons.terminal),
@@ -96,15 +108,14 @@ void main() {
           ),
         ),
       );
-      await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Running'), findsNothing);
+      expect(find.byIcon(Icons.autorenew_rounded), findsOneWidget);
+      expect(find.text('Running'), findsOneWidget);
     });
 
     testWidgets('error keeps an explicit Failed label', (tester) async {
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedApp(
           home: Scaffold(
             body: ToolHeader(
               toolIcon: const Icon(Icons.terminal),
@@ -125,13 +136,13 @@ void main() {
     for (final entry in <ToolState, String>{
       ToolState.running: 'Running',
       ToolState.error: 'Failed',
-      ToolState.pending: 'Pending',
+      ToolState.pending: 'Queued',
     }.entries) {
       testWidgets('${entry.key.name} badge includes an explicit label', (
         tester,
       ) async {
         await tester.pumpWidget(
-          MaterialApp(
+          _localizedApp(
             home: Scaffold(body: ToolStatusBadge(state: entry.key)),
           ),
         );
@@ -140,22 +151,22 @@ void main() {
       });
     }
 
-    testWidgets('completed badge is a quiet check without repeated text', (
-      tester,
-    ) async {
+    testWidgets('completed badge includes a text and icon cue', (tester) async {
       await tester.pumpWidget(
-        const MaterialApp(
+        _localizedApp(
           home: Scaffold(body: ToolStatusBadge(state: ToolState.completed)),
         ),
       );
 
       expect(find.byIcon(Icons.check_rounded), findsOneWidget);
-      expect(find.text('Succeeded'), findsNothing);
+      expect(find.text('Done'), findsOneWidget);
     });
 
-    testWidgets('completed header omits the status badge', (tester) async {
+    testWidgets('completed header includes a persistent Done cue', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedApp(
           home: Scaffold(
             body: ToolHeader(
               toolIcon: const Icon(Icons.terminal),
@@ -171,7 +182,119 @@ void main() {
       );
 
       expect(find.byType(ToolStatusBadge), findsNothing);
-      expect(find.text('Succeeded'), findsNothing);
+      expect(find.text('Done'), findsOneWidget);
+    });
+
+    testWidgets('disclosure and details actions meet touch and semantics', (
+      tester,
+    ) async {
+      var expanded = false;
+      var detailCalls = 0;
+
+      await tester.pumpWidget(
+        _localizedApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) => ToolHeader(
+                toolIcon: const Icon(Icons.description_outlined),
+                toolTitle: 'Read file',
+                state: ToolState.completed,
+                hasContent: true,
+                expanded: expanded,
+                showCheckFlash: false,
+                chevronAnim: AlwaysStoppedAnimation<double>(expanded ? 0.5 : 0),
+                hasPermissionRequest: false,
+                onTap: () => setState(() => expanded = !expanded),
+                onOpenDetails: () => detailCalls++,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final primary = find.byKey(const ValueKey('tool-header-primary-action'));
+      final details = find.byKey(const ValueKey('tool-header-details-action'));
+      expect(
+        tester.getSize(primary).height,
+        greaterThanOrEqualTo(AppTouchTarget.min),
+      );
+      expect(
+        tester.getSize(details).height,
+        greaterThanOrEqualTo(AppTouchTarget.min),
+      );
+      expect(
+        tester.getSize(details).width,
+        greaterThanOrEqualTo(AppTouchTarget.min),
+      );
+
+      final collapsedNode = tester.getSemantics(
+        find.bySemanticsLabel('Read file, Done'),
+      );
+      expect(collapsedNode.flagsCollection.isButton, isTrue);
+      expect(collapsedNode.flagsCollection.isExpanded, Tristate.isFalse);
+
+      await tester.tap(primary);
+      await tester.pump();
+      expect(expanded, isTrue);
+      final expandedNode = tester.getSemantics(
+        find.bySemanticsLabel('Read file, Done'),
+      );
+      expect(expandedNode.flagsCollection.isExpanded, Tristate.isTrue);
+
+      await tester.tap(details);
+      expect(detailCalls, 1);
+    });
+
+    testWidgets('running status is static with reduced motion', (tester) async {
+      await tester.pumpWidget(
+        _localizedApp(
+          home: MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: Scaffold(
+              body: ToolStatusIndicator(state: ToolState.running),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.autorenew_rounded), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('large text stacks state without clipping the action', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _localizedApp(
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: Scaffold(
+              body: SizedBox(
+                width: 280,
+                child: ToolHeader(
+                  toolIcon: const Icon(Icons.security_outlined),
+                  toolTitle: 'Permission request with a long title',
+                  state: ToolState.pending,
+                  hasContent: true,
+                  showCheckFlash: false,
+                  chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                  hasPermissionRequest: true,
+                  onTap: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Approval needed'), findsOneWidget);
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('tool-header-primary-action')))
+            .height,
+        greaterThan(AppTouchTarget.min),
+      );
     });
   });
 
@@ -224,7 +347,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        const MaterialApp(
+        _localizedApp(
           home: CollapsibleOutput(toolId: 'tool-1', child: Text('content')),
         ),
       );
@@ -239,7 +362,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        MaterialApp(
+        _localizedApp(
           home: Scaffold(
             body: CollapsibleOutput(
               toolId: 'tool-1',
@@ -257,6 +380,14 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text('Show more'), findsOneWidget);
+      final disclosure = find.byKey(const ValueKey('tool-output-disclosure'));
+      expect(
+        tester.getSize(disclosure).height,
+        greaterThanOrEqualTo(AppTouchTarget.min),
+      );
+      final semantics = tester.widget<Semantics>(disclosure);
+      expect(semantics.properties.button, isTrue);
+      expect(semantics.properties.expanded, isFalse);
     });
 
     // Regression test for tool output "bounces back" bug: when scrollable: true
@@ -288,7 +419,7 @@ void main() {
         );
 
         await tester.pumpWidget(
-          MaterialApp(
+          _localizedApp(
             home: Scaffold(
               // The test wrap mirrors web_search_view_test.dart's pattern:
               // a SingleChildScrollView outer so the ToolView (and any
@@ -343,7 +474,7 @@ void main() {
     ) async {
       _ProbeState.initCount = 0;
 
-      Widget build(double height) => MaterialApp(
+      Widget build(double height) => _localizedApp(
         home: Scaffold(
           body: CollapsibleOutput(
             toolId: 'tool-1',
