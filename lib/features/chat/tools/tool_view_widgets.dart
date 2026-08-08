@@ -285,6 +285,9 @@ class ToolHeader extends StatelessWidget {
                 minWidth: rowHeight,
                 minHeight: rowHeight,
               ),
+              style: IconButton.styleFrom(
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               padding: EdgeInsets.all(compact ? AppSpacing.sm : AppSpacing.md),
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
             ),
