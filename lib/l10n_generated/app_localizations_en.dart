@@ -5362,7 +5362,7 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other: '$count paused loops',
       one: '1 paused loop',
-      zero: 'No paused loops',
+      zero: '0 paused',
     );
     return '$_temp0';
   }

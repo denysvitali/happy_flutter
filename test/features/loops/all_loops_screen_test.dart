@@ -208,6 +208,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('loops-filter-paused')));
       await tester.pumpAndSettle();
+      expect(find.text('0 paused'), findsOneWidget);
       expect(find.text('No paused loops'), findsOneWidget);
       expect(
         find.text('Pause an active loop to keep it here without deleting it.'),

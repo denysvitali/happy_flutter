@@ -106,6 +106,8 @@ void main() {
       tester,
     ) async {
       final completer = Completer<void>();
+      final semantics = tester.ensureSemantics();
+      addTearDown(semantics.dispose);
 
       await tester.pumpWidget(
         _wrap(

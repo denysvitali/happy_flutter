@@ -9610,7 +9610,7 @@ abstract class AppLocalizations {
   /// No description provided for @allLoopsPausedCount.
   ///
   /// In en, this message translates to:
-  /// **'{count, plural, =0{No paused loops} =1{1 paused loop} other{{count} paused loops}}'**
+  /// **'{count, plural, =0{0 paused} =1{1 paused loop} other{{count} paused loops}}'**
   String allLoopsPausedCount(int count);
 
   /// No description provided for @allLoopsAcrossSessions.

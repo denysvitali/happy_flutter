@@ -57,6 +57,13 @@ double _masterWidth(WidgetTester tester) =>
 Future<void> _drainPersistDebounce(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: 600));
 
+Finder _dividerSemantics() => find.descendant(
+  of: find.byType(ResizablePaneDivider),
+  matching: find.byWidgetPredicate(
+    (widget) => widget is Semantics && widget.child is GestureDetector,
+  ),
+);
+
 void main() {
   late _FakeMMKVStorage mmkv;
   late PaneLayoutStorage storage;
@@ -174,15 +181,9 @@ void main() {
     await tester.pumpWidget(_harness(storage, dividerLabel: 'Resize'));
 
     final before = _masterWidth(tester);
-    // Resolve from the Semantics widget itself: getSemantics walks UP from
-    // the finder's render object, and the divider's first render object is
-    // the MouseRegion above the Semantics node.
-    final node = tester.getSemantics(
-      find.descendant(
-        of: find.byType(ResizablePaneDivider),
-        matching: find.byType(Semantics),
-      ),
-    );
+    // Target the operable node directly; descendants also include the
+    // divider line's inherited semantics wrappers.
+    final node = tester.getSemantics(_dividerSemantics());
     expect(node.label, 'Resize');
     expect(node.value, '${before.round()} pixels wide');
     expect(node.getSemanticsData().hasAction(SemanticsAction.increase), isTrue);
@@ -223,12 +224,7 @@ void main() {
     final handle = tester.ensureSemantics();
     await tester.pumpWidget(_harness(storage));
 
-    final node = tester.getSemantics(
-      find.descendant(
-        of: find.byType(ResizablePaneDivider),
-        matching: find.byType(Semantics),
-      ),
-    );
+    final node = tester.getSemantics(_dividerSemantics());
     expect(
       node.getSemanticsData().hasAction(SemanticsAction.increase),
       isFalse,

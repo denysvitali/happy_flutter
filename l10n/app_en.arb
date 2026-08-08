@@ -2305,7 +2305,7 @@
       }
     }
   },
-  "allLoopsPausedCount": "{count, plural, =0{No paused loops} =1{1 paused loop} other{{count} paused loops}}",
+  "allLoopsPausedCount": "{count, plural, =0{0 paused} =1{1 paused loop} other{{count} paused loops}}",
   "@allLoopsPausedCount": {
     "placeholders": {
       "count": {
