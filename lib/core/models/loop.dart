@@ -97,6 +97,8 @@ class Loop {
         machineId: WireParsers.parseString(json['machineId']) ?? '',
         directory: WireParsers.parseString(json['directory']) ?? '',
         agent: WireParsers.parseString(json['agent']) ?? '',
+        permissionMode: WireParsers.parseString(json['permissionMode']) ?? '',
+        model: WireParsers.parseString(json['model']) ?? '',
         lastSessionId: WireParsers.parseString(json['lastSessionId']),
         activeSessionId: WireParsers.parseString(json['activeSessionId']),
         goal: WireParsers.parseString(json['goal']) ?? '',
@@ -110,6 +112,7 @@ class Loop {
       return null;
     }
   }
+
   /// 8-char ID, matches Claude Code convention. Format: `[0-9a-f]{8}`
   /// (lowercase hex).
   final String id;
@@ -159,6 +162,14 @@ class Loop {
   /// default.
   final String agent;
 
+  /// Permission mode passed to each spawned iteration. Empty means the
+  /// daemon's default.
+  final String permissionMode;
+
+  /// Model selection passed to each spawned iteration. The value follows the
+  /// daemon's spawn contract (for example `opus:max` or `gpt-5.5:high`).
+  final String model;
+
   /// Session spawned for the most recent run, if any.
   final String? lastSessionId;
 
@@ -205,6 +216,8 @@ class Loop {
     this.machineId = '',
     this.directory = '',
     this.agent = '',
+    this.permissionMode = '',
+    this.model = '',
     this.lastSessionId,
     this.activeSessionId,
     this.goal = '',
@@ -214,7 +227,6 @@ class Loop {
     this.statusDetail = '',
     this.completedAt,
   });
-
 
   factory Loop.fromJson(Map<String, dynamic> json) {
     return Loop(
@@ -233,6 +245,8 @@ class Loop {
       machineId: json['machineId'] as String? ?? '',
       directory: json['directory'] as String? ?? '',
       agent: json['agent'] as String? ?? '',
+      permissionMode: json['permissionMode'] as String? ?? '',
+      model: json['model'] as String? ?? '',
       lastSessionId: json['lastSessionId'] as String?,
       activeSessionId: json['activeSessionId'] as String?,
       goal: json['goal'] as String? ?? '',
@@ -262,6 +276,8 @@ class Loop {
       if (machineId.isNotEmpty) 'machineId': machineId,
       if (directory.isNotEmpty) 'directory': directory,
       if (agent.isNotEmpty) 'agent': agent,
+      if (permissionMode.isNotEmpty) 'permissionMode': permissionMode,
+      if (model.isNotEmpty) 'model': model,
       if (lastSessionId != null) 'lastSessionId': lastSessionId,
       if (activeSessionId != null) 'activeSessionId': activeSessionId,
       if (goal.isNotEmpty) 'goal': goal,
@@ -288,6 +304,8 @@ class Loop {
     String? machineId,
     String? directory,
     String? agent,
+    String? permissionMode,
+    String? model,
     String? lastSessionId,
     String? activeSessionId,
     bool clearActiveSessionId = false,
@@ -306,13 +324,14 @@ class Loop {
       recurring: recurring ?? this.recurring,
       createdAt: createdAt ?? this.createdAt,
       expiresAt: expiresAt ?? this.expiresAt,
-      lastFiredAt:
-          clearLastFiredAt ? null : (lastFiredAt ?? this.lastFiredAt),
+      lastFiredAt: clearLastFiredAt ? null : (lastFiredAt ?? this.lastFiredAt),
       fireCount: fireCount ?? this.fireCount,
       paused: paused ?? this.paused,
       machineId: machineId ?? this.machineId,
       directory: directory ?? this.directory,
       agent: agent ?? this.agent,
+      permissionMode: permissionMode ?? this.permissionMode,
+      model: model ?? this.model,
       lastSessionId: lastSessionId ?? this.lastSessionId,
       activeSessionId: clearActiveSessionId
           ? null
@@ -377,6 +396,8 @@ class Loop {
           machineId == other.machineId &&
           directory == other.directory &&
           agent == other.agent &&
+          permissionMode == other.permissionMode &&
+          model == other.model &&
           lastSessionId == other.lastSessionId &&
           activeSessionId == other.activeSessionId &&
           goal == other.goal &&
@@ -390,33 +411,35 @@ class Loop {
   // limit and keeps the field list here mechanical.
   @override
   int get hashCode => Object.hashAll(<Object?>[
-        id,
-        sessionId,
-        expression,
-        prompt,
-        recurring,
-        createdAt,
-        expiresAt,
-        lastFiredAt,
-        fireCount,
-        paused,
-        machineId,
-        directory,
-        agent,
-        lastSessionId,
-        activeSessionId,
-        goal,
-        progressFile,
-        maxIterations,
-        status,
-        statusDetail,
-        completedAt,
-      ]);
+    id,
+    sessionId,
+    expression,
+    prompt,
+    recurring,
+    createdAt,
+    expiresAt,
+    lastFiredAt,
+    fireCount,
+    paused,
+    machineId,
+    directory,
+    agent,
+    permissionMode,
+    model,
+    lastSessionId,
+    activeSessionId,
+    goal,
+    progressFile,
+    maxIterations,
+    status,
+    statusDetail,
+    completedAt,
+  ]);
 
   @override
   String toString() => isGoalLoop
       ? 'Loop(id: $id, goal: $goal, status: $status, '
-          'fireCount: $fireCount)'
+            'fireCount: $fireCount)'
       : 'Loop(id: $id, expression: $expression, paused: $paused, '
-          'fireCount: $fireCount)';
+            'fireCount: $fireCount)';
 }

@@ -18,6 +18,8 @@ Map<String, dynamic> _goalLoopJson({
   'machineId': 'machine-1',
   'directory': '/home/user/project',
   'agent': 'claude',
+  'permissionMode': 'bypassPermissions',
+  'model': 'opus:max',
   'lastSessionId': 'run-1-session',
   'activeSessionId': 'run-2-session',
   'goal': 'Get the integration suite passing',
@@ -40,6 +42,8 @@ void main() {
       expect(loop.machineId, 'machine-1');
       expect(loop.directory, '/home/user/project');
       expect(loop.agent, 'claude');
+      expect(loop.permissionMode, 'bypassPermissions');
+      expect(loop.model, 'opus:max');
       expect(loop.maxIterations, 25);
       expect(loop.loopStatus, LoopStatus.running);
       expect(loop.isTerminal, isFalse);
@@ -120,6 +124,8 @@ void main() {
         'machineId',
         'directory',
         'agent',
+        'permissionMode',
+        'model',
         'progressFile',
         'maxIterations',
         'status',
@@ -132,12 +138,15 @@ void main() {
       }
     });
 
-    test('goal loop survives a toJson/tryFromJson round-trip byte-faithfully', () {
-      final original = Loop.tryFromJson(_goalLoopJson())!;
-      final roundTripped = Loop.tryFromJson(original.toJson());
-      expect(roundTripped, isNotNull);
-      expect(roundTripped, equals(original));
-    });
+    test(
+      'goal loop survives a toJson/tryFromJson round-trip byte-faithfully',
+      () {
+        final original = Loop.tryFromJson(_goalLoopJson())!;
+        final roundTripped = Loop.tryFromJson(original.toJson());
+        expect(roundTripped, isNotNull);
+        expect(roundTripped, equals(original));
+      },
+    );
   });
 
   group('LoopStatus.fromWire', () {

@@ -10483,6 +10483,24 @@ abstract class AppLocalizations {
   /// **'Advanced'**
   String get goalLoopsAdvanced;
 
+  /// Label for the goal loop model field
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get goalLoopsModelLabel;
+
+  /// Examples of goal loop model selections
+  ///
+  /// In en, this message translates to:
+  /// **'opus:max or gpt-5.5:high'**
+  String get goalLoopsModelHint;
+
+  /// Helper under the goal loop model field
+  ///
+  /// In en, this message translates to:
+  /// **'Leave blank to use the agent\'s default model. The same model is used for every iteration.'**
+  String get goalLoopsModelHelper;
+
   /// Iteration cap slider label
   ///
   /// In en, this message translates to:

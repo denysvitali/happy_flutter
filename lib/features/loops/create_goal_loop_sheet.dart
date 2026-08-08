@@ -52,6 +52,7 @@ class CreateGoalLoopSheet extends ConsumerStatefulWidget {
 class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
   final _goalController = TextEditingController();
   final _instructionsController = TextEditingController();
+  final _modelController = TextEditingController();
   final _progressFileController = TextEditingController();
 
   String? _machineId;
@@ -62,7 +63,13 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
   bool _submitting = false;
   String? _error;
 
-  static const _agents = <String>['claude', 'codex', 'opencode', 'grok'];
+  static const _agents = <String>[
+    'claude',
+    'codex',
+    'gemini',
+    'opencode',
+    'grok',
+  ];
 
   @override
   void initState() {
@@ -75,6 +82,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
   void dispose() {
     _goalController.dispose();
     _instructionsController.dispose();
+    _modelController.dispose();
     _progressFileController.dispose();
     super.dispose();
   }
@@ -98,6 +106,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
           goal: _goalController.text.trim(),
           directory: _directory.trim(),
           agent: _agent,
+          model: _modelController.text.trim(),
           progressFile: _progressFileController.text.trim(),
           maxIterations: _maxIterations,
           extraInstructions: _instructionsController.text.trim(),
@@ -156,6 +165,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
             const SizedBox(height: AppSpacing.lg),
 
             TextField(
+              key: const ValueKey('goal-loop-goal'),
               controller: _goalController,
               minLines: 3,
               maxLines: 6,
@@ -188,8 +198,9 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         AppStatusDot(
-                          color:
-                              online ? AppColors.success : cs.onSurfaceVariant,
+                          color: online
+                              ? AppColors.success
+                              : cs.onSurfaceVariant,
                           size: 8,
                           semanticLabel: online
                               ? l10n.machineOnline
@@ -261,11 +272,20 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
                     decoration: InputDecoration(labelText: l10n.sessionsAgent),
                     initialValue: _agent,
                     items: _agents
-                        .map(
-                          (a) => DropdownMenuItem(value: a, child: Text(a)),
-                        )
+                        .map((a) => DropdownMenuItem(value: a, child: Text(a)))
                         .toList(),
                     onChanged: (v) => setState(() => _agent = v ?? 'claude'),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextField(
+                    key: const ValueKey('goal-loop-model'),
+                    controller: _modelController,
+                    decoration: InputDecoration(
+                      labelText: l10n.goalLoopsModelLabel,
+                      hintText: l10n.goalLoopsModelHint,
+                      helperText: l10n.goalLoopsModelHelper,
+                      helperMaxLines: 2,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(

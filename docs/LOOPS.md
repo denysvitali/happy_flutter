@@ -322,8 +322,10 @@ the new `loop-resume`.
 
 - `/goal-loops` — Goal Loops screen (flag icon on the All Loops app bar),
   split into Working / Stopped sections.
-- `CreateGoalLoopSheet` — goal, machine, directory; advanced: agent,
-  iteration cap, progress file, per-iteration instructions.
+- `CreateGoalLoopSheet` — goal, machine, directory; advanced: agent, model,
+  iteration cap, progress file, per-iteration instructions. The model uses the
+  daemon spawn format (for example `opus:max` or `gpt-5.5:high`) and is reused
+  for every iteration.
 - `GoalLoopCard` — goal headline, status chip, iteration progress bar
   (against the cap), the reason it stopped, and pause/resume/delete/open-session.
 

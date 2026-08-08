@@ -5886,6 +5886,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get goalLoopsAdvanced => 'Advanced';
 
   @override
+  String get goalLoopsModelLabel => 'Model';
+
+  @override
+  String get goalLoopsModelHint => 'opus:max or gpt-5.5:high';
+
+  @override
+  String get goalLoopsModelHelper =>
+      'Leave blank to use the agent\'s default model. The same model is used for every iteration.';
+
+  @override
   String goalLoopsMaxIterations(int count) {
     return 'Stop after $count iterations';
   }

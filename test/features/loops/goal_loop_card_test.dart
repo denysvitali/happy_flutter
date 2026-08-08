@@ -25,6 +25,8 @@ Loop _goalLoop({
     paused: paused,
     machineId: 'machine-1',
     directory: '/home/user/project',
+    agent: 'claude',
+    model: 'opus:max',
     goal: 'Get the integration suite passing',
     maxIterations: maxIterations,
     status: status,
@@ -52,14 +54,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('GoalLoopCard', () {
-    testWidgets('shows the goal, directory, and iteration progress',
-        (tester) async {
-      await tester.pumpWidget(
-        _wrap(loop: _goalLoop(activeSessionId: 'run-1')),
-      );
+    testWidgets('shows the goal, directory, and iteration progress', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(loop: _goalLoop(activeSessionId: 'run-1')));
 
       expect(find.text('Get the integration suite passing'), findsOneWidget);
       expect(find.text('/home/user/project'), findsOneWidget);
+      expect(find.text('claude · opus:max'), findsOneWidget);
       // Iteration 2 of 2 is in flight → 1 completed of 25.
       expect(find.text('1 of 25 iterations'), findsOneWidget);
       expect(find.text('Working now'), findsOneWidget);
@@ -78,8 +80,9 @@ void main() {
       expect(find.text('Needs you'), findsOneWidget);
     });
 
-    testWidgets('a running loop offers pause, a terminal loop offers resume',
-        (tester) async {
+    testWidgets('a running loop offers pause, a terminal loop offers resume', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(loop: _goalLoop()));
       expect(find.text('Pause'), findsOneWidget);
       expect(find.text('Resume loop'), findsNothing);
@@ -110,22 +113,24 @@ void main() {
       };
       for (final entry in cases.entries) {
         await tester.pumpWidget(_wrap(loop: _goalLoop(status: entry.key)));
-        expect(find.text(entry.value), findsOneWidget,
-            reason: 'status ${entry.key}');
+        expect(
+          find.text(entry.value),
+          findsOneWidget,
+          reason: 'status ${entry.key}',
+        );
       }
       // paused wins over running-but-idle.
       await tester.pumpWidget(_wrap(loop: _goalLoop(paused: true)));
       expect(find.text('Paused'), findsOneWidget);
     });
 
-    testWidgets('open-session action only when a session exists',
-        (tester) async {
+    testWidgets('open-session action only when a session exists', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap(loop: _goalLoop()));
       expect(find.text('Open session'), findsNothing);
 
-      await tester.pumpWidget(
-        _wrap(loop: _goalLoop(activeSessionId: 'run-1')),
-      );
+      await tester.pumpWidget(_wrap(loop: _goalLoop(activeSessionId: 'run-1')));
       expect(find.text('Open session'), findsOneWidget);
     });
   });

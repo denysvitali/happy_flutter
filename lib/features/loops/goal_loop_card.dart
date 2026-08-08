@@ -88,6 +88,31 @@ class GoalLoopCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (loop.agent.isNotEmpty || loop.model.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  Icon(
+                    Icons.smart_toy_outlined,
+                    size: 15,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.xxs),
+                  Expanded(
+                    child: Text(
+                      <String>[
+                        if (loop.agent.isNotEmpty) loop.agent,
+                        if (loop.model.isNotEmpty) loop.model,
+                      ].join(' · '),
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
 
             // Iteration progress. A determinate bar is honest here: the cap
