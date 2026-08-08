@@ -1,5 +1,4 @@
 name: Happy Flutter CI/CD
-# warm-path remeasure seed
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -11,9 +10,6 @@ on:
   push:
     branches: [main, develop]
     tags: ['v*']
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
   pull_request:
     branches: [main]
     paths-ignore:
@@ -93,8 +89,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
-        total_shards: [8]
+        shard:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
+          - 9
+          - 10
+          - 11
+          - 12
+          - 13
+          - 14
+          - 15
+        total_shards: [15]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -104,8 +115,8 @@ jobs:
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
         with:
-          # Shards share the prewarmed SDK; first writer wins.
-          cache-write: 'true'
+          # Analyze is the single trusted host-SDK cache writer.
+          cache-write: 'false'
 
       - name: Cache pub package downloads
         uses: actions/cache@v5
@@ -122,22 +133,15 @@ jobs:
 
       - name: Run tests (shard ${{ matrix.shard }}/${{ matrix.total_shards }})
         run: |
-          mapfile -t all_tests < <(find test -name '*_test.dart' \
-            ! -path 'test/golden/*' | sort)
-          total=${#all_tests[@]}
-          shard=${{ matrix.shard }}
-          num_shards=${{ matrix.total_shards }}
-          shard_tests=()
-          for i in "${!all_tests[@]}"; do
-            if [ $(( i % num_shards )) -eq $(( shard - 1 )) ]; then
-              shard_tests+=("${all_tests[$i]}")
-            fi
-          done
+          mapfile -t shard_tests < <(
+            python3 .github/scripts/select_test_shard.py \
+              --shard ${{ matrix.shard }} \
+              --total-shards ${{ matrix.total_shards }}
+          )
           if [ ${#shard_tests[@]} -eq 0 ]; then
             echo "No tests in this shard, skipping."
             exit 0
           fi
-          echo "Running ${#shard_tests[@]} of $total test files (shard ${{ matrix.shard }}/${{ matrix.total_shards }})"
           set +e
           mise exec -- flutter test --no-pub --coverage --concurrency=1 --reporter=expanded "${shard_tests[@]}" 2>&1 | tee test-output.log
           status=${PIPESTATUS[0]}
@@ -228,7 +232,7 @@ jobs:
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
         with:
-          cache-write: 'true'
+          cache-write: 'false'
 
       - name: Cache pub package downloads
         uses: actions/cache@v5
@@ -318,8 +322,9 @@ jobs:
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
         with:
-          precache-android: 'true'
-          cache-write: 'true'
+          platform: android
+          # Release is the single trusted Android-SDK cache writer.
+          cache-write: 'false'
 
       - name: Setup Android build
         uses: ./.github/actions/setup-android-build
@@ -353,67 +358,19 @@ jobs:
           path: build/app/outputs/flutter-apk/app-${{ steps.build_meta.outputs.FLAVOR }}-debug.apk
           retention-days: 14
 
-  # Decide whether this push actually changes the release APK product.
-  # Free GHA can't make a cold recompile cheap; skipping the job is the free win.
-  release-needed:
-    name: Release needed?
+  build-release:
+    name: Build Release APK
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: >-
       startsWith(github.ref, 'refs/tags/v') ||
       github.ref == 'refs/heads/main' ||
       (github.event_name == 'workflow_dispatch' &&
        (inputs.build_type == 'release' || inputs.build_type == 'both'))
     outputs:
-      needed: ${{ steps.gate.outputs.needed }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          # Need parent for push path diffs. Tags / first push / dispatch
-          # always rebuild.
-          fetch-depth: 0
-
-      - name: Gate on APK-affecting paths
-        id: gate
-        run: |
-          set -euo pipefail
-          # Always build for tags and manual release dispatches.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
-             [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "needed=true" >> "$GITHUB_OUTPUT"
-            echo "Gate: always (tag or workflow_dispatch)"
-            exit 0
-          fi
-
-          BEFORE="${{ github.event.before }}"
-          # New branch / force-push with zero before SHA → rebuild.
-          if [ -z "$BEFORE" ] || \
-             [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            echo "needed=true" >> "$GITHUB_OUTPUT"
-            echo "Gate: always (no before SHA)"
-            exit 0
-          fi
-
-          # Paths that change the signed production APK contents or the
-          # toolchain that produces it. Session UI-only commits skip release.
-          PATTERN='^(lib/|android/|assets/|l10n/|pubspec\.yaml|pubspec\.lock|\.mise\.toml|\.github/actions/setup-android-build/|\.github/actions/setup-flutter/)'
-          if git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -E "$PATTERN" >/dev/null; then
-            echo "needed=true" >> "$GITHUB_OUTPUT"
-            echo "Gate: APK-affecting paths changed"
-            git diff --name-only "$BEFORE" "${{ github.sha }}" | grep -E "$PATTERN" | head -20
-          else
-            echo "needed=false" >> "$GITHUB_OUTPUT"
-            echo "Gate: no APK-affecting paths — skip release APK"
-          fi
-
-  build-release:
-    name: Build Release APK
-    needs: release-needed
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Only ship signed release on main/tags/manual release dispatch when
-    # the gate says the APK product changed (or force paths).
-    if: needs.release-needed.outputs.needed == 'true'
+      build_number: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
+      flavor: ${{ steps.build_meta.outputs.FLAVOR }}
+      release_tag: ${{ steps.build_meta.outputs.RELEASE_TAG }}
     env:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
@@ -432,11 +389,13 @@ jobs:
           if [ -z "$FLAVOR" ]; then FLAVOR="production"; fi
           SEMVER=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d'+' -f1 | tr -d ' ')
           SENTRY_RELEASE="happy_flutter@${SEMVER}+${BUILD_NUMBER}"
+          RELEASE_TAG="v${SEMVER}-${BUILD_NUMBER}"
           {
             echo "BUILD_NUMBER=$BUILD_NUMBER"
             echo "FLAVOR=$FLAVOR"
             echo "SEMVER=$SEMVER"
             echo "SENTRY_RELEASE=$SENTRY_RELEASE"
+            echo "RELEASE_TAG=$RELEASE_TAG"
           } >> $GITHUB_OUTPUT
           {
             echo "SENTRY_RELEASE=$SENTRY_RELEASE"
@@ -471,7 +430,7 @@ jobs:
         if: steps.apk-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup-flutter
         with:
-          precache-android: 'true'
+          platform: android
           cache-write: 'true'
 
       - name: Setup Android build
@@ -605,7 +564,8 @@ jobs:
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
         with:
-          cache-write: 'true'
+          # Analyze is the single trusted host-SDK cache writer.
+          cache-write: 'false'
 
       - name: Cache pub package downloads
         uses: actions/cache@v5
@@ -653,15 +613,10 @@ jobs:
 
   publish-release:
     name: Publish GitHub Release
-    needs: [release-needed, build-release, build-linux]
+    needs: [build-release, build-linux]
     runs-on: ubuntu-latest
-    # Skip when release APK was path-gated off (no APK product change).
-    # build-release is skipped in that case; publishing without it would fail
-    # the artifact download.
     if: |
       always() &&
-      needs.release-needed.result == 'success' &&
-      needs.release-needed.outputs.needed == 'true' &&
       needs.build-release.result == 'success' &&
       needs.build-linux.result == 'success' &&
       (github.event_name == 'workflow_dispatch' ||
@@ -669,47 +624,32 @@ jobs:
        github.ref == 'refs/heads/main')
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - name: Compute build metadata
-        id: build_meta
-        run: |
-          # Must match build-release / build-linux (no run_attempt).
-          BUILD_NUMBER=$(( ${{ github.run_number }} * 100 ))
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-
-      - name: Determine release version
-        id: release_version
-        run: |
-          SEMVER=$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d'+' -f1 | tr -d ' ')
-          RELEASE_TAG="v${SEMVER}-${{ steps.build_meta.outputs.BUILD_NUMBER }}"
-          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_OUTPUT
-
       - name: Download release APK
         uses: actions/download-artifact@v8
         with:
-          name: happy-flutter-release-${{ github.event.inputs.flavor || 'production' }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          name: >-
+            happy-flutter-release-${{ needs.build-release.outputs.flavor
+            }}-b${{ needs.build-release.outputs.build_number }}
           path: release-assets
 
       - name: Download Linux x64 bundle
         uses: actions/download-artifact@v8
         with:
-          name: happy-flutter-linux-x64-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          name: >-
+            happy-flutter-linux-x64-b${{
+            needs.build-release.outputs.build_number }}
           path: release-assets
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.release_version.outputs.RELEASE_TAG }}
-          name: Happy Flutter ${{ steps.release_version.outputs.RELEASE_TAG }}
+          tag_name: ${{ needs.build-release.outputs.release_tag }}
+          name: Happy Flutter ${{ needs.build-release.outputs.release_tag }}
           draft: false
           prerelease: false
           generate_release_notes: false
           files: |
-            release-assets/app-${{ github.event.inputs.flavor || 'production' }}-release.apk
+            release-assets/app-${{ needs.build-release.outputs.flavor }}-release.apk
             release-assets/happy-flutter-linux-x64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -730,6 +670,7 @@ jobs:
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
         with:
+          platform: web
           cache-write: 'true'
 
       - name: Cache pub package downloads

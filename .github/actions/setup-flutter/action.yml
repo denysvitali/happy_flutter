@@ -1,14 +1,12 @@
 name: Setup Flutter (prewarmed)
 description: >
-  Install Flutter via mise, restore a prewarmed SDK (flutter_tools.snapshot
-  already built), and warm on miss before saving. Avoids the mise-action
-  trap of saving the cache before Flutter is first executed.
+  Install Flutter via mise and restore a platform-trimmed, prewarmed SDK.
 
 inputs:
-  precache-android:
-    description: Run `flutter precache --android` after install.
+  platform:
+    description: SDK payload required by this job (host, android, or web).
     required: false
-    default: 'false'
+    default: host
   cache-write:
     description: Whether this job may write the prewarmed SDK cache.
     required: false
@@ -17,8 +15,67 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Restore prewarmed Flutter SDK
-      id: flutter-sdk
+    - name: Restore host Flutter SDK
+      id: flutter-host
+      if: inputs.platform == 'host'
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
+        key: >-
+          mise-flutter-host-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+        restore-keys: |
+          mise-flutter-host-v4-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Restore Android Flutter SDK
+      id: flutter-android
+      if: inputs.platform == 'android'
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/linux-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm-profile/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm-release/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm64-profile/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-x86/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-x64*/**
+        key: >-
+          mise-flutter-android-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+        restore-keys: |
+          mise-flutter-android-v4-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Restore web Flutter SDK
+      id: flutter-web
+      if: inputs.platform == 'web'
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/linux-*/**
+        key: >-
+          mise-flutter-web-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+        restore-keys: |
+          mise-flutter-web-v4-${{ runner.os }}-${{ runner.arch }}-
+
+    # Seed each new trimmed cache from the existing full SDK cache. This only
+    # runs on the first v4 miss, avoiding a cold Flutter download on rollout.
+    - name: Restore legacy full Flutter SDK
+      if: >-
+        ${{ (inputs.platform == 'host' &&
+        steps.flutter-host.outputs.cache-hit != 'true') ||
+        (inputs.platform == 'android' &&
+        steps.flutter-android.outputs.cache-hit != 'true') ||
+        (inputs.platform == 'web' &&
+        steps.flutter-web.outputs.cache-hit != 'true') }}
       uses: actions/cache/restore@v5
       with:
         path: ~/.local/share/mise
@@ -32,8 +89,8 @@ runs:
       uses: jdx/mise-action@v3
       with:
         install: true
-        # Flutter ships its own Dart. Java is required for Android Gradle.
-        # Make is already on the hosted runner PATH for sodium's native build.
+        # Flutter ships Dart. Keep Java installed because mise activates the
+        # complete repository toolset before each `mise exec` command.
         install_args: flutter java
         # Manual restore/save around the warm step so the snapshot lands
         # in the cache. mise-action's internal cache saves before warm.
@@ -44,18 +101,63 @@ runs:
       run: |
         set -euo pipefail
         mise exec -- flutter --version
-        if [ "${{ inputs.precache-android }}" = "true" ]; then
-          mise exec -- flutter precache --android
-        fi
+        case "${{ inputs.platform }}" in
+          host) mise exec -- flutter precache --linux ;;
+          android) mise exec -- flutter precache --android ;;
+          web) mise exec -- flutter precache --web ;;
+          *)
+            echo "Unsupported Flutter platform: ${{ inputs.platform }}"
+            exit 1
+            ;;
+        esac
 
-    - name: Save prewarmed Flutter SDK
+    - name: Save host Flutter SDK
       if: >-
-        ${{ inputs.cache-write == 'true' &&
-        steps.flutter-sdk.outputs.cache-hit != 'true' &&
+        ${{ inputs.platform == 'host' && inputs.cache-write == 'true' &&
+        steps.flutter-host.outputs.cache-hit != 'true' &&
         github.event_name != 'pull_request' }}
       uses: actions/cache/save@v5
       with:
-        path: ~/.local/share/mise
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
         key: >-
-          mise-flutter-prewarmed-v3-${{ runner.os }}-${{ runner.arch }}-${{
+          mise-flutter-host-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+
+    - name: Save Android Flutter SDK
+      if: >-
+        ${{ inputs.platform == 'android' && inputs.cache-write == 'true' &&
+        steps.flutter-android.outputs.cache-hit != 'true' &&
+        github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/linux-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm-profile/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm-release/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-arm64-profile/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-x86/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-x64*/**
+        key: >-
+          mise-flutter-android-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+
+    - name: Save web Flutter SDK
+      if: >-
+        ${{ inputs.platform == 'web' && inputs.cache-write == 'true' &&
+        steps.flutter-web.outputs.cache-hit != 'true' &&
+        github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/linux-*/**
+        key: >-
+          mise-flutter-web-v4-${{ runner.os }}-${{ runner.arch }}-${{
           hashFiles('.mise.toml') }}

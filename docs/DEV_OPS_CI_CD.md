@@ -1,126 +1,72 @@
-# DevOps / CI-CD Report
+# DevOps / CI-CD
 
-**Date:** 2026-03-13
-**Agent:** A8 — DevOps / CI-CD Specialist
-**Overall Score:** 5.5/10
+**Updated:** 2026-08-08
 
----
+## Main workflow
 
-## Current State
+`.github/workflows/ci.yml` defines the `Happy Flutter CI/CD` workflow. It runs
+analysis, tests, release builds, and web deployment in parallel so release
+production is not serialized behind the test suite.
 
-| Category | Score | Notes |
-|----------|-------|-------|
-| Code Analysis | 9/10 | Excellent lint config, strict typing |
-| Android Build | 7/10 | APK builds work, missing AAB |
-| Dependency Mgmt | 6/10 | Caching works, no vulnerability scanning |
-| Testing in CI | 2/10 | **Tests not run in CI** |
-| Release/Deploy | 3/10 | Minimal automation |
-| iOS Support | 0/10 | Not configured |
+| Job | Purpose |
+|-----|---------|
+| Analyze Code | Strict Flutter analysis with dependency resolution skipped |
+| Test | 15 duration-balanced shards for all non-golden tests |
+| Upload Coverage | Merge shard coverage and upload it to Codecov |
+| Golden Screenshots | Verify PR goldens or generate requested replacements |
+| Build Debug APK | Build non-main and manually requested debug artifacts |
+| Build Release APK | Build the signed, obfuscated production APK |
+| Build Linux x64 | Build and archive the Linux desktop bundle |
+| Publish GitHub Release | Publish the APK and Linux archive |
+| Build/Deploy Web | Build the web app and deploy GitHub Pages |
 
----
+## Release invariant
 
-## Critical Gaps (P0)
+Every push to `main`, including documentation-only pushes, starts a release.
+The APK and Linux jobs start immediately and publish a release named
+`v<pubspec-version>-<run-number * 100>`. Main runs are never cancelled by the
+workflow concurrency policy, so a later push cannot suppress an earlier
+release.
 
-### 1. Tests Not Run in CI
+The signed APK remains arm64-only, R8-minified, resource-shrunk, obfuscated,
+and uploaded with its debug information. The Linux archive and web deployment
+remain part of the same workflow.
 
-No `flutter test` job exists. Tests cannot block merges.
+## Test sharding
 
-**Fix — add to `ci.yml`:**
-```yaml
-test:
-  name: Run Tests
-  runs-on: ubuntu-latest
-  steps:
-    - uses: actions/checkout@v4
-    - uses: jdx/mise-action@v3
-      with:
-        install: true
-        cache: true
-    - run: mise exec -- flutter pub get
-    - run: mise exec -- flutter test --coverage
-    - uses: codecov/codecov-action@v3
-      with:
-        files: ./coverage/lcov.info
-```
+Test files are assigned by `.github/scripts/select_test_shard.py`. The planner
+uses timings captured in `.github/test-durations.json` and applies a
+longest-first balancing pass across 15 shards. New tests receive the configured
+default estimate, so they are included automatically even before timing data is
+refreshed. Each shard still runs tests serially to control memory usage.
 
-### 2. No iOS CI/CD Pipeline
+Golden tests are excluded from these shards and run only in the dedicated
+golden job. Full Flutter tests and golden updates must run in CI, not locally.
 
-No macOS runner, no Xcode build, no code signing, no IPA creation.
+## Caching
 
-### 3. No AAB (Android App Bundle) Builds
+`.github/actions/setup-flutter/action.yml` keeps separate SDK caches for host,
+Android, and web jobs. Each cache excludes platform engines that the consumer
+cannot use. The first rollout restores the previous full SDK cache before
+writing the trimmed variants, avoiding a cold toolchain download.
 
-Google Play requires AAB. Only APK is built currently.
+Android builds additionally cache Gradle dependencies, the NDK, CMake, pub
+downloads, and native-hook outputs. Release reruns can restore an exact
+SHA/build-number APK cache without recompiling.
 
-**Fix:** Add `flutter build appbundle --release` to build-release job.
+## Required secrets
 
----
+| Secret | Purpose |
+|--------|---------|
+| `KEYSTORE_BASE64` | Production signing keystore |
+| `KEYSTORE_STORE_PASSWORD` | Keystore password |
+| `KEYSTORE_KEY_PASSWORD` | Signing key password |
+| `KEYSTORE_KEY_ALIAS` | Signing key alias |
+| `SENTRY_AUTH_TOKEN` | Native symbols and web source maps |
+| `CODECOV_TOKEN` | Coverage upload |
 
-## High Priority (P1)
+## Manual operations
 
-### 4. No Play Store Publishing
-
-Manual upload required. Add:
-```yaml
-- uses: r0adkll/upload-google-play@v1
-  with:
-    serviceAccountJson: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
-    packageName: com.example.happy_flutter
-    releaseFiles: build/app/outputs/bundle/*/release/*.aab
-    track: internal
-```
-
-### 5. No Dependency Vulnerability Scanning
-
-Create `.github/dependabot.yml`:
-```yaml
-version: 2
-updates:
-  - package-ecosystem: "pub"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-```
-
-### 6. No Firebase App Distribution
-
-Debug/preview builds have no distribution channel for QA.
-
-### 7. Java Version Alignment
-
-`.mise.toml` pins Java 21. CI should install tools through mise so local and
-CI builds use the same Java, Flutter, and Dart versions.
-
----
-
-## Medium Priority (P2)
-
-| Issue | Fix |
-|-------|-----|
-| Static version (`1.0.0+$BUILD_NUMBER`) | Read from `pubspec.yaml` |
-| No release notes generation | Enable `generate_release_notes: true` |
-| No build matrix for flavors | Add `strategy.matrix.flavor` |
-| No test coverage reporting | Add codecov integration |
-| No artifact size monitoring | Track APK size in CI |
-
----
-
-## What's Working Well
-
-- Concurrency groups with cancel-in-progress
-- Pub cache + Flutter cache in GitHub Actions
-- Conditional build jobs (debug vs release)
-- Gradle optimization (parallel, caching, 6GB heap)
-- Sentry debug symbol uploads
-- Disk space cleanup (~15GB freed)
-- Keystore via secrets (not committed)
-- 30-minute timeout (appropriate)
-
----
-
-## Must-Have Before Production
-
-1. Test execution in CI
-2. iOS CI/CD pipeline
-3. AAB builds for Play Store
-4. Play Store publishing automation
-5. Dependency vulnerability scanning
+The workflow dispatch inputs select debug/release builds and the target flavor.
+Set `update_goldens` to generate and upload refreshed golden PNGs. Releases are
+created by pushes to `main`; do not create tags or GitHub Releases manually.
