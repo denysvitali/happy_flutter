@@ -1048,6 +1048,7 @@ extension SyncLifecycle on Sync {
     _loopListUnsupportedCapabilities.clear();
     _workflowRefreshBackoffUntil.clear();
     _workflowRefreshFailureCount.clear();
+    _clearRpcCapabilityPolicyState();
     // _dataChangeCounter reset in shutdown (monotonic counter must
     // restart at 0 so the next login's providers see a clean
     // baseline and do not compare against stale last-seen values).

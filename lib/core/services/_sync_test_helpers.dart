@@ -24,6 +24,19 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   Map<String, Machine> get testMachines => _machines;
 
+  /// Clears all connection- and daemon-scoped capability policy state.
+  /// Mirrors logout cleanup so singleton-backed tests cannot inherit a
+  /// previous test's manifest, in-flight future, or negative cooldown.
+  @visibleForTesting
+  void testResetRpcCapabilitiesPolicy() {
+    _clearRpcCapabilityPolicyState();
+    testRpcCapabilitiesOverride = null;
+    testRpcCapabilityProbeTimeout = null;
+    testRpcCapabilityLegacyTtl = null;
+    testRpcCapabilityTransientBackoffBase = null;
+    testRpcCapabilityNowMs = null;
+  }
+
   @visibleForTesting
   void testNotifyDataChanged() => _notifyDataChanged();
 

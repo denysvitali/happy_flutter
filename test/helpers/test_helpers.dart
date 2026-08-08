@@ -29,7 +29,8 @@ Sync createTestSync() {
     ..nativeUpdateSync = InvalidateSync(() async {})
     ..artifactsSync = InvalidateSync(() async {})
     ..sessionGitStatusSync = InvalidateSync(() async {})
-    ..messagesSync.clear();
+    ..messagesSync.clear()
+    ..testResetRpcCapabilitiesPolicy();
   return testSync;
 }
 
@@ -53,7 +54,8 @@ Sync createPartialMockSync() {
     ..nativeUpdateSync = InvalidateSync(() async {})
     ..artifactsSync = InvalidateSync(() async {})
     ..sessionGitStatusSync = InvalidateSync(() async {})
-    ..messagesSync.clear();
+    ..messagesSync.clear()
+    ..testResetRpcCapabilitiesPolicy();
   // The test helper getters (testSessions, testSessionSpawnedAt, etc.)
   // expose the real maps, so callers can mutate them directly.
   return testSync;
@@ -96,6 +98,7 @@ void resetTestSync(Sync sync) {
   // in-flight restoration tracking from a previous test cannot deadlock
   // the next test's sendMessage.
   sync.testClearSpawnGuardState();
+  sync.testResetRpcCapabilitiesPolicy();
   // Clear per-session message/regroup/orphan state so residue from a
   // previous test does not survive into the next (matches the
   // per-session fields cleared by Sync.shutdown()).

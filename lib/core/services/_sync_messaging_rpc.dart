@@ -380,8 +380,9 @@ extension SyncMessagingRpc on Sync {
   Future<dynamic> sessionRPC(
     String sessionId,
     String method,
-    Map<String, dynamic> params,
-  ) async {
+    Map<String, dynamic> params, {
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
     final override = testSessionRPCOverride;
     if (override != null) {
       return override(sessionId, method, params);
@@ -422,7 +423,7 @@ extension SyncMessagingRpc on Sync {
       'method': '$sessionId:$method',
       'params': encrypted,
       'requestId': requestId,
-    });
+    }, timeout: timeout);
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;

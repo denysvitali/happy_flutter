@@ -1212,8 +1212,42 @@ what you have, you must use the options mode.
   final Map<String, int> _workflowRefreshFailureCount = <String, int>{};
 
   /// Capability manifests are valid only for a single socket generation.
-  final Map<String, RpcCapabilities?> _rpcCapabilitiesCache =
-      <String, RpcCapabilities?>{};
+  final Map<String, RpcCapabilities> _rpcCapabilitiesCache =
+      <String, RpcCapabilities>{};
+
+  /// Capability discovery is a feature-gating hint, not the feature RPC
+  /// itself. Share one probe per scoped handler/version identity so several
+  /// mounting surfaces cannot each spend a socket ACK timeout discovering the
+  /// same daemon manifest.
+  final Map<String, Future<RpcCapabilities?>> _rpcCapabilityProbesInFlight =
+      <String, Future<RpcCapabilities?>>{};
+
+  /// Cross-generation cooldown for legacy/temporarily unreachable handlers.
+  /// The key includes the advertised daemon version, so an upgrade bypasses
+  /// the old negative entry immediately; expiry still re-probes daemons that
+  /// cannot advertise a version.
+  final Map<String, int> _rpcCapabilityNegativeUntil = <String, int>{};
+  final Map<String, int> _rpcCapabilityFailureCount = <String, int>{};
+  int _rpcCapabilityPolicyEpoch = 0;
+
+  /// Test seam around the encrypted capability transport. Production uses
+  /// [machineRPC]/[sessionRPC]; tests can assert policy without constructing
+  /// encryption or a live Socket.IO connection.
+  @visibleForTesting
+  Future<dynamic> Function(String scope, String id, Duration timeout)?
+  testRpcCapabilitiesOverride;
+
+  @visibleForTesting
+  Duration? testRpcCapabilityProbeTimeout;
+
+  @visibleForTesting
+  Duration? testRpcCapabilityLegacyTtl;
+
+  @visibleForTesting
+  Duration? testRpcCapabilityTransientBackoffBase;
+
+  @visibleForTesting
+  int Function()? testRpcCapabilityNowMs;
 
   /// Test override for the [SyncWorkflows.refreshAllWorkflows] deadline.
   @visibleForTesting

@@ -64,6 +64,7 @@ extension SyncSocketEvents on Sync {
       _workflowListUnsupportedCapabilities.clear();
       _loopListUnsupportedCapabilities.clear();
       _rpcCapabilitiesCache.clear();
+      _rpcCapabilityProbesInFlight.clear();
       // Snapshot the visible session's cursor BEFORE any new socket
       // events are processed.  Inline processing of post-reconnect
       // events can advance the cursor past the disconnect gap,
