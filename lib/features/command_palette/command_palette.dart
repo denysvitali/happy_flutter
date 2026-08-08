@@ -54,9 +54,9 @@ class CommandPaletteController {
   }
 
   /// Builds commands based on current app state
-  List<CommandItem> buildCommands(BuildContext context) {
+  List<CommandItem> buildCommands(BuildContext context, {GoRouter? appRouter}) {
     final sessions = _ref.read(sessionsNotifierProvider);
-    final router = GoRouter.of(context);
+    final router = appRouter ?? GoRouter.of(context);
     final l10n = AppLocalizations.of(context);
 
     final commands = <CommandItem>[];
@@ -94,7 +94,7 @@ class CommandPaletteController {
         category: l10n.commandCategorySessions,
         shortcut: 'Ctrl+N',
         action: () {
-          _showNewSessionDialog(context);
+          _showNewSessionDialog(context, appRouter: router);
         },
       ),
       CommandItem(
@@ -188,20 +188,31 @@ final commandPaletteControllerProvider = Provider<CommandPaletteController>(
   (ref) => CommandPaletteController(ref),
 );
 
-Future<void> _showNewSessionDialog(BuildContext context) async {
-  final sessionId = await showNewSessionDialog(context);
-  if (sessionId != null && context.mounted) {
-    GoRouter.of(
-      context,
-    ).goNamed('chat', pathParameters: {'sessionId': sessionId});
+Future<void> _showNewSessionDialog(
+  BuildContext context, {
+  GoRouter? appRouter,
+}) async {
+  final dialogContext =
+      appRouter?.routerDelegate.navigatorKey.currentContext ?? context;
+  final sessionId = await showNewSessionDialog(dialogContext);
+  if (sessionId != null && dialogContext.mounted) {
+    (appRouter ?? GoRouter.of(context)).goNamed(
+      'chat',
+      pathParameters: {'sessionId': sessionId},
+    );
   }
 }
 
 /// Global keyboard shortcut handler for command palette
 class CommandPaletteKeyboardHandler extends ConsumerStatefulWidget {
-  const CommandPaletteKeyboardHandler({required this.child, super.key});
+  const CommandPaletteKeyboardHandler({
+    required this.child,
+    super.key,
+    this.appRouter,
+  });
 
   final Widget child;
+  final GoRouter? appRouter;
 
   @override
   ConsumerState<CommandPaletteKeyboardHandler> createState() =>
@@ -233,13 +244,13 @@ class _CommandPaletteKeyboardHandlerState
 
     // Check for Ctrl+N or Cmd+N for new session
     if (isCommandPressed && event.logicalKey == LogicalKeyboardKey.keyN) {
-      _showNewSessionDialog(context);
+      _showNewSessionDialog(context, appRouter: widget.appRouter);
       return KeyEventResult.handled;
     }
 
     // Check for Ctrl+, or Cmd+, for settings
     if (isCommandPressed && event.logicalKey == LogicalKeyboardKey.comma) {
-      GoRouter.of(context).go('/settings');
+      (widget.appRouter ?? GoRouter.of(context)).go('/settings');
       return KeyEventResult.handled;
     }
 
@@ -266,9 +277,14 @@ class _CommandPaletteKeyboardHandlerState
 /// Hosts the palette above the router while retaining the app's inherited
 /// theme, localization, navigator, and router context.
 class CommandPaletteAppOverlay extends ConsumerStatefulWidget {
-  const CommandPaletteAppOverlay({required this.child, super.key});
+  const CommandPaletteAppOverlay({
+    required this.child,
+    super.key,
+    this.appRouter,
+  });
 
   final Widget child;
+  final GoRouter? appRouter;
 
   @override
   ConsumerState<CommandPaletteAppOverlay> createState() =>
@@ -305,7 +321,9 @@ class _CommandPaletteAppOverlayState
           child: widget.child,
         ),
         if (isVisible)
-          const BlockSemantics(child: CommandPaletteOverlayWrapper()),
+          BlockSemantics(
+            child: CommandPaletteOverlayWrapper(appRouter: widget.appRouter),
+          ),
       ],
     );
   }
@@ -313,7 +331,9 @@ class _CommandPaletteAppOverlayState
 
 /// Command palette overlay widget that listens to visibility state
 class CommandPaletteOverlayWrapper extends ConsumerWidget {
-  const CommandPaletteOverlayWrapper({super.key});
+  const CommandPaletteOverlayWrapper({super.key, this.appRouter});
+
+  final GoRouter? appRouter;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -325,7 +345,7 @@ class CommandPaletteOverlayWrapper extends ConsumerWidget {
 
     // Build commands dynamically
     final controller = ref.read(commandPaletteControllerProvider);
-    final commands = controller.buildCommands(context);
+    final commands = controller.buildCommands(context, appRouter: appRouter);
 
     // Load persisted recent command IDs.
     final recentIds = RecentCommandsStorage.instance.getRecent();

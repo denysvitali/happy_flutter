@@ -613,7 +613,8 @@ void main() {
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             builder: (context, child) => CommandPaletteKeyboardHandler(
-              child: CommandPaletteAppOverlay(child: child!),
+              appRouter: router,
+              child: CommandPaletteAppOverlay(appRouter: router, child: child!),
             ),
           ),
         ),

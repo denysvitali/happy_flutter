@@ -725,7 +725,9 @@ class _HappyAppState extends ConsumerState<HappyApp>
             routerConfig: _router,
             builder: (context, child) {
               return CommandPaletteKeyboardHandler(
+                appRouter: _router,
                 child: CommandPaletteAppOverlay(
+                  appRouter: _router,
                   child: child ?? const SizedBox.shrink(),
                 ),
               );
