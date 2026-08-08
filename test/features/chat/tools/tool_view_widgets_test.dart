@@ -113,24 +113,44 @@ void main() {
       expect(find.text('Running'), findsOneWidget);
     });
 
-    testWidgets('error keeps an explicit Failed label', (tester) async {
+    testWidgets('terminal states use icon-only visual cues with semantics', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _localizedApp(
           home: Scaffold(
-            body: ToolHeader(
-              toolIcon: const Icon(Icons.terminal),
-              toolTitle: 'Terminal',
-              state: ToolState.error,
-              hasContent: false,
-              showCheckFlash: false,
-              chevronAnim: const AlwaysStoppedAnimation<double>(0),
-              hasPermissionRequest: false,
+            body: Column(
+              children: [
+                ToolHeader(
+                  toolIcon: const Icon(Icons.terminal),
+                  toolTitle: 'Completed tool',
+                  state: ToolState.completed,
+                  hasContent: false,
+                  showCheckFlash: false,
+                  chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                  hasPermissionRequest: false,
+                ),
+                ToolHeader(
+                  toolIcon: const Icon(Icons.terminal),
+                  toolTitle: 'Failed tool',
+                  state: ToolState.error,
+                  hasContent: false,
+                  showCheckFlash: false,
+                  chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                  hasPermissionRequest: false,
+                ),
+              ],
             ),
           ),
         ),
       );
 
-      expect(find.text('Failed'), findsOneWidget);
+      expect(find.text('Done'), findsNothing);
+      expect(find.text('Failed'), findsNothing);
+      expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+      expect(find.bySemanticsLabel('Completed tool, Done'), findsOneWidget);
+      expect(find.bySemanticsLabel('Failed tool, Failed'), findsOneWidget);
     });
 
     for (final entry in <ToolState, String>{
@@ -162,9 +182,7 @@ void main() {
       expect(find.text('Done'), findsOneWidget);
     });
 
-    testWidgets('completed header includes a persistent Done cue', (
-      tester,
-    ) async {
+    testWidgets('completed header keeps a persistent icon cue', (tester) async {
       await tester.pumpWidget(
         _localizedApp(
           home: Scaffold(
@@ -182,7 +200,64 @@ void main() {
       );
 
       expect(find.byType(ToolStatusBadge), findsNothing);
-      expect(find.text('Done'), findsOneWidget);
+      expect(find.text('Done'), findsNothing);
+      expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
+    });
+
+    testWidgets('terminal-state and detail icons align across rows', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _localizedApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                ToolHeader(
+                  toolIcon: const Icon(Icons.build_outlined),
+                  toolTitle: 'Short',
+                  state: ToolState.completed,
+                  hasContent: false,
+                  showCheckFlash: false,
+                  chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                  hasPermissionRequest: false,
+                  onOpenDetails: () {},
+                ),
+                ToolHeader(
+                  toolIcon: const Icon(Icons.build_outlined),
+                  toolTitle: 'A much longer failed tool title',
+                  state: ToolState.error,
+                  hasContent: false,
+                  showCheckFlash: false,
+                  chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                  hasPermissionRequest: false,
+                  onOpenDetails: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final completed = tester.getCenter(
+        find.byIcon(Icons.check_circle_outline_rounded),
+      );
+      final failed = tester.getCenter(find.byIcon(Icons.error_outline_rounded));
+      final toolIcons = find.byIcon(Icons.build_outlined);
+      final detailIcons = find.byIcon(Icons.open_in_new_rounded);
+
+      expect(completed.dx, failed.dx);
+      expect(
+        tester.getCenter(toolIcons.at(0)).dx,
+        tester.getCenter(toolIcons.at(1)).dx,
+      );
+      expect(
+        tester.getCenter(detailIcons.at(0)).dx,
+        tester.getCenter(detailIcons.at(1)).dx,
+      );
+      expect(completed.dy, tester.getCenter(toolIcons.at(0)).dy);
+      expect(completed.dy, tester.getCenter(detailIcons.at(0)).dy);
+      expect(failed.dy, tester.getCenter(toolIcons.at(1)).dy);
+      expect(failed.dy, tester.getCenter(detailIcons.at(1)).dy);
     });
 
     testWidgets('completed collapsed header uses compact timeline height', (

@@ -330,6 +330,10 @@ class _ToolStateCue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final showLabel =
+        needsApproval ||
+        statusIcon != null ||
+        (state != ToolState.completed && state != ToolState.error);
     final color = needsApproval
         ? AppColors.warning
         : switch (state) {
@@ -353,16 +357,40 @@ class _ToolStateCue extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AnimatedSwitcher(
-          duration: AppMotion.duration(context, AppDuration.normal),
-          child:
-              statusIcon ??
-              Icon(icon, key: ValueKey<IconData>(icon), size: 16, color: color),
+        SizedBox.square(
+          key: const ValueKey('tool-state-icon-slot'),
+          dimension: AppIconSize.lg,
+          child: Center(
+            child: AnimatedSwitcher(
+              duration: AppMotion.duration(context, AppDuration.normal),
+              child:
+                  statusIcon ??
+                  Icon(
+                    icon,
+                    key: ValueKey<IconData>(icon),
+                    size: AppIconSize.md,
+                    color: color,
+                  ),
+            ),
+          ),
         ),
-        const SizedBox(width: AppSpacing.xxs),
-        if (constrainLabel)
-          Flexible(
-            child: Text(
+        if (showLabel) ...[
+          const SizedBox(width: AppSpacing.xxs),
+          if (constrainLabel)
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppFontSize.xs,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            )
+          else
+            Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -372,18 +400,7 @@ class _ToolStateCue extends StatelessWidget {
                 color: color,
               ),
             ),
-          )
-        else
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: AppFontSize.xs,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
+        ],
       ],
     );
   }
