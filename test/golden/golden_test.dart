@@ -656,7 +656,9 @@ void main() {
     });
 
     testWidgets('permission pending - light', (tester) async {
-      tester.view.physicalSize = const Size(390 * 2, 230 * 2);
+      // The operational header and stable 44px permission actions need enough
+      // room to render without clipping in this component showcase.
+      tester.view.physicalSize = const Size(390 * 2, 270 * 2);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.reset);
 
