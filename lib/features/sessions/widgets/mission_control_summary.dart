@@ -131,7 +131,6 @@ class MissionControlSummary extends StatelessWidget {
               final columns = constraints.maxWidth < 310 || scale > 1.25
                   ? 2
                   : 4;
-              final width = constraints.maxWidth / columns;
               return Container(
                 clipBehavior: Clip.hardEdge,
                 decoration: BoxDecoration(
@@ -139,27 +138,63 @@ class MissionControlSummary extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppRadius.smd),
                   border: Border.all(color: cs.outlineVariant),
                 ),
-                child: Wrap(
-                  children: [
-                    for (final lane in MissionLane.values)
-                      SizedBox(
-                        width: width,
-                        child: _SummaryMetric(
-                          lane: lane,
-                          count: counts[lane]!,
-                          selected: selectedLane == lane,
-                          onTap: lane != MissionLane.quiet && counts[lane]! > 0
-                              ? () => onSelectLane(lane)
-                              : null,
-                        ),
-                      ),
-                  ],
+                child: _SummaryMetricGrid(
+                  columns: columns,
+                  counts: counts,
+                  selectedLane: selectedLane,
+                  onSelectLane: onSelectLane,
                 ),
               );
             },
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SummaryMetricGrid extends StatelessWidget {
+  const _SummaryMetricGrid({
+    required this.columns,
+    required this.counts,
+    required this.selectedLane,
+    required this.onSelectLane,
+  });
+
+  final int columns;
+  final Map<MissionLane, int> counts;
+  final MissionLane? selectedLane;
+  final ValueChanged<MissionLane> onSelectLane;
+
+  @override
+  Widget build(BuildContext context) {
+    final lanes = MissionLane.values;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var start = 0; start < lanes.length; start += columns)
+          Row(
+            children: [
+              for (var offset = 0; offset < columns; offset++)
+                Expanded(
+                  child: start + offset < lanes.length
+                      ? _metric(lanes[start + offset])
+                      : const SizedBox.shrink(),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _metric(MissionLane lane) {
+    return _SummaryMetric(
+      lane: lane,
+      count: counts[lane]!,
+      selected: selectedLane == lane,
+      onTap: lane != MissionLane.quiet && counts[lane]! > 0
+          ? () => onSelectLane(lane)
+          : null,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
+import 'package:happy_flutter/features/sessions/widgets/mission_control_summary.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 
 /// Mission Control is an action radar, not a session archive.
@@ -225,6 +226,52 @@ void main() {
     expect(find.textContaining('All quiet'), findsOneWidget);
   });
 
+  testWidgets('summary metrics use complete responsive rows', (tester) async {
+    Future<void> pumpSummary(double width) {
+      return tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width,
+                child: MissionControlSummary(
+                  counts: const {
+                    MissionLane.blocked: 0,
+                    MissionLane.unread: 0,
+                    MissionLane.live: 0,
+                    MissionLane.quiet: 0,
+                  },
+                  selectedLane: null,
+                  onSelectLane: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pumpSummary(390);
+    await tester.pump();
+
+    final wideY = tester.getCenter(find.text('blocked')).dy;
+    expect(tester.getCenter(find.text('unread')).dy, wideY);
+    expect(tester.getCenter(find.text('working')).dy, wideY);
+    expect(tester.getCenter(find.text('idle')).dy, wideY);
+
+    await pumpSummary(320);
+    await tester.pump();
+
+    final firstRowY = tester.getCenter(find.text('blocked')).dy;
+    final secondRowY = tester.getCenter(find.text('working')).dy;
+    expect(tester.getCenter(find.text('unread')).dy, firstRowY);
+    expect(tester.getCenter(find.text('idle')).dy, secondRowY);
+    expect(secondRowY, greaterThan(firstRowY));
+  });
+
   testWidgets('status metrics filter and restore the action deck', (
     tester,
   ) async {
@@ -288,7 +335,11 @@ void main() {
   });
 
   testWidgets('focus rows do not move when their lane changes', (tester) async {
-    final first = _session(id: 'first', path: '/home/dev/first');
+    final first = _session(
+      id: 'first',
+      path: '/home/dev/first',
+      thinking: true,
+    );
     final second = _session(
       id: 'second',
       path: '/home/dev/second',
