@@ -4,7 +4,6 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
-import 'package:happy_flutter/features/sessions/widgets/mission_control_summary.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 
 /// Mission Control is an action radar, not a session archive.
@@ -209,9 +208,10 @@ void main() {
     await tester.pump();
 
     expect(find.text('action-live'), findsOneWidget);
+    expect(find.byKey(const ValueKey('mission-filter-all')), findsNothing);
   });
 
-  testWidgets('summary keeps zero lanes visible for fleet awareness', (
+  testWidgets('all-quiet state starts directly with workspace pulse', (
     tester,
   ) async {
     final session = _session(id: 'q', path: '/home/dev/project');
@@ -219,68 +219,12 @@ void main() {
     await tester.pumpWidget(_app(activeSessions: [session]));
     await tester.pump();
 
-    expect(find.text('idle'), findsOneWidget);
-    expect(find.text('blocked'), findsOneWidget);
-    expect(find.text('unread'), findsOneWidget);
-    expect(find.text('working'), findsOneWidget);
-    expect(find.textContaining('All quiet'), findsOneWidget);
+    expect(find.text('Mission Control'), findsNothing);
+    expect(find.text('Focus queue'), findsNothing);
+    expect(find.text('Workspace pulse'), findsOneWidget);
   });
 
-  testWidgets('summary metrics use complete responsive rows', (tester) async {
-    Future<void> pumpSummary(double width) {
-      return tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: width,
-                child: MissionControlSummary(
-                  counts: const {
-                    MissionLane.blocked: 0,
-                    MissionLane.unread: 0,
-                    MissionLane.live: 0,
-                    MissionLane.quiet: 0,
-                  },
-                  selectedLane: null,
-                  onSelectLane: (_) {},
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    await pumpSummary(390);
-    await tester.pump();
-
-    final wideY = tester.getCenter(find.text('blocked')).dy;
-    expect(tester.getCenter(find.text('unread')).dy, wideY);
-    expect(tester.getCenter(find.text('working')).dy, wideY);
-    expect(tester.getCenter(find.text('idle')).dy, wideY);
-    for (final lane in MissionLane.values) {
-      expect(
-        tester
-            .getSize(find.byKey(ValueKey('mission-filter-${lane.name}')))
-            .height,
-        greaterThanOrEqualTo(44),
-      );
-    }
-
-    await pumpSummary(320);
-    await tester.pump();
-
-    final firstRowY = tester.getCenter(find.text('blocked')).dy;
-    final secondRowY = tester.getCenter(find.text('working')).dy;
-    expect(tester.getCenter(find.text('unread')).dy, firstRowY);
-    expect(tester.getCenter(find.text('idle')).dy, secondRowY);
-    expect(secondRowY, greaterThan(firstRowY));
-  });
-
-  testWidgets('status metrics filter and restore the action deck', (
+  testWidgets('compact chips filter and restore the focus queue', (
     tester,
   ) async {
     final unread = _session(id: 'unread');
@@ -298,6 +242,16 @@ void main() {
 
     expect(find.text('action-unread'), findsOneWidget);
     expect(find.text('action-live'), findsOneWidget);
+    expect(find.text('Mission Control'), findsNothing);
+    expect(find.byKey(const ValueKey('mission-filter-all')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mission-filter-blocked')), findsNothing);
+    expect(find.byKey(const ValueKey('mission-filter-quiet')), findsNothing);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('mission-filter-unread')))
+          .height,
+      greaterThanOrEqualTo(44),
+    );
 
     await tester.tap(find.byKey(const ValueKey('mission-filter-unread')));
     await tester.pump();

@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'mission_control_types.dart';
 
-/// At-a-glance status deck for Mission Control.
-class MissionControlSummary extends StatelessWidget {
-  const MissionControlSummary({
+/// Compact filters for the actionable Mission Control queue.
+///
+/// Zero-count lanes and the non-actionable quiet lane stay out of the way.
+/// When only one actionable lane exists, the filters disappear because they
+/// would not change the result set.
+class MissionControlFilters extends StatelessWidget {
+  const MissionControlFilters({
     required this.counts,
     required this.selectedLane,
     required this.onSelectLane,
@@ -16,280 +19,139 @@ class MissionControlSummary extends StatelessWidget {
 
   final Map<MissionLane, int> counts;
   final MissionLane? selectedLane;
-  final ValueChanged<MissionLane> onSelectLane;
+  final ValueChanged<MissionLane?> onSelectLane;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final appColors = theme.extension<AppColorScheme>();
-    final l10n = context.l10n;
-    final blocked = counts[MissionLane.blocked]!;
-    final unread = counts[MissionLane.unread]!;
-    final working = counts[MissionLane.live]!;
-    final attention = blocked + unread;
-    final summary = attention > 0
-        ? l10n.missionControlNeedsYou(attention)
-        : working > 0
-        ? l10n.missionControlWorkingNow(working)
-        : l10n.missionControlAllQuiet;
-    final signalColor = blocked > 0
-        ? missionLaneColor(context, MissionLane.blocked)
-        : unread > 0
-        ? cs.primary
-        : working > 0
-        ? cs.tertiary
-        : appColors?.success ?? cs.primary;
-    final background = Color.alphaBlend(
-      signalColor.withValues(
-        alpha: theme.brightness == Brightness.dark ? 0.1 : 0.06,
-      ),
-      cs.surfaceContainerLow,
-    );
+    final visibleLanes = [
+      MissionLane.blocked,
+      MissionLane.unread,
+      MissionLane.live,
+    ].where((lane) => counts[lane]! > 0).toList();
+    if (visibleLanes.length < 2) return const SizedBox.shrink();
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.sm,
-        AppSpacing.md,
-        AppSpacing.xs,
-      ),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: signalColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.smd),
-                ),
-                child: Icon(
-                  Icons.radar_rounded,
-                  size: AppIconSize.xl,
-                  color: signalColor,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.smd),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.sessionsViewStyleMissionControl,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: cs.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      summary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: AppFontSize.xs,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: signalColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  blocked > 0
-                      ? Icons.lock_clock_rounded
-                      : unread > 0
-                      ? Icons.mark_chat_unread_rounded
-                      : working > 0
-                      ? Icons.auto_awesome_rounded
-                      : Icons.check_rounded,
-                  color: signalColor,
-                  size: AppIconSize.md,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final scale = MediaQuery.textScalerOf(context).scale(1);
-              final columns = constraints.maxWidth < 310 || scale > 1.25
-                  ? 2
-                  : 4;
-              return Container(
-                clipBehavior: Clip.hardEdge,
-                decoration: BoxDecoration(
-                  color: cs.surface.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(AppRadius.smd),
-                  border: Border.all(color: cs.outlineVariant),
-                ),
-                child: _SummaryMetricGrid(
-                  columns: columns,
-                  counts: counts,
-                  selectedLane: selectedLane,
-                  onSelectLane: onSelectLane,
-                ),
-              );
-            },
-          ),
-        ],
+    final total = visibleLanes.fold<int>(0, (sum, lane) => sum + counts[lane]!);
+    return SizedBox(
+      height: AppTouchTarget.min,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        itemCount: visibleLanes.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.xs),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return _FocusFilterChip(
+              key: const ValueKey('mission-filter-all'),
+              label: context.l10n.allLoopsFilterAll,
+              count: total,
+              selected: selectedLane == null,
+              onTap: () => onSelectLane(null),
+            );
+          }
+          final lane = visibleLanes[index - 1];
+          final selected = selectedLane == lane;
+          return _FocusFilterChip(
+            key: ValueKey('mission-filter-${lane.name}'),
+            label: missionLaneLabel(context, lane),
+            count: counts[lane]!,
+            lane: lane,
+            selected: selected,
+            onTap: () => onSelectLane(selected ? null : lane),
+          );
+        },
       ),
     );
   }
 }
 
-class _SummaryMetricGrid extends StatelessWidget {
-  const _SummaryMetricGrid({
-    required this.columns,
-    required this.counts,
-    required this.selectedLane,
-    required this.onSelectLane,
-  });
-
-  final int columns;
-  final Map<MissionLane, int> counts;
-  final MissionLane? selectedLane;
-  final ValueChanged<MissionLane> onSelectLane;
-
-  @override
-  Widget build(BuildContext context) {
-    final lanes = MissionLane.values;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var start = 0; start < lanes.length; start += columns)
-          Row(
-            children: [
-              for (var offset = 0; offset < columns; offset++)
-                Expanded(
-                  child: start + offset < lanes.length
-                      ? _metric(lanes[start + offset])
-                      : const SizedBox.shrink(),
-                ),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _metric(MissionLane lane) {
-    return _SummaryMetric(
-      lane: lane,
-      count: counts[lane]!,
-      selected: selectedLane == lane,
-      onTap: lane != MissionLane.quiet && counts[lane]! > 0
-          ? () => onSelectLane(lane)
-          : null,
-    );
-  }
-}
-
-class _SummaryMetric extends StatelessWidget {
-  const _SummaryMetric({
-    required this.lane,
+class _FocusFilterChip extends StatelessWidget {
+  const _FocusFilterChip({
+    required this.label,
     required this.count,
     required this.selected,
     required this.onTap,
+    super.key,
+    this.lane,
   });
 
-  final MissionLane lane;
+  final String label;
   final int count;
+  final MissionLane? lane;
   final bool selected;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final color = missionLaneColor(context, lane);
-    final label = missionLaneLabel(context, lane);
+    final color = lane == null ? cs.primary : missionLaneColor(context, lane!);
+    final icon = lane == null
+        ? Icons.view_list_rounded
+        : missionLaneIcon(lane!);
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
     return Semantics(
-      button: onTap != null,
+      button: true,
       selected: selected,
-      label: '$count $label',
+      label: '$label, $count',
       child: ExcludeSemantics(
-        child: AnimatedContainer(
-          key: ValueKey('mission-filter-${lane.name}'),
-          duration: AppDuration.fast,
-          constraints: const BoxConstraints(minHeight: 54),
-          decoration: BoxDecoration(
-            color: selected
-                ? missionLaneContainerColor(context, lane)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            border: Border.all(
-              color: selected
-                  ? color.withValues(alpha: 0.45)
-                  : Colors.transparent,
-            ),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(AppRadius.smd),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.xs,
-                  vertical: AppSpacing.xsm,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          selected
-                              ? Icons.check_rounded
-                              : missionLaneIcon(lane),
-                          size: AppIconSize.sm,
-                          color: color,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+              child: Center(
+                child: AnimatedContainer(
+                  duration: reduceMotion ? Duration.zero : AppDuration.fast,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? color.withValues(alpha: 0.12)
+                        : cs.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(
+                      color: selected
+                          ? color.withValues(alpha: 0.45)
+                          : cs.outlineVariant,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        selected ? Icons.check_rounded : icon,
+                        size: AppIconSize.sm,
+                        color: selected ? color : cs.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        label,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: selected ? color : cs.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: AppSpacing.xs),
-                        SizedBox(
-                          width: 24,
-                          child: Text(
-                            '$count',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: count == 0 ? cs.onSurfaceVariant : color,
-                              fontWeight: FontWeight.w800,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      SizedBox(
+                        width: 20,
+                        child: Text(
+                          '$count',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: selected ? color : cs.onSurfaceVariant,
+                            fontWeight: FontWeight.w800,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: AppFontSize.xxs,
-                        color: cs.onSurfaceVariant,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

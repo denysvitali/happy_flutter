@@ -89,9 +89,9 @@ class _MissionControlViewState extends State<MissionControlView> {
   SessionUiEntry _entry(String id) =>
       widget.uiState.bySessionId[id] ?? SessionUiEntry.empty;
 
-  void _selectLane(MissionLane lane) {
+  void _selectLane(MissionLane? lane) {
     setState(() {
-      _selectedLane = _selectedLane == lane ? null : lane;
+      _selectedLane = lane;
       _showAllActions = false;
     });
   }
@@ -231,13 +231,7 @@ class _MissionControlViewState extends State<MissionControlView> {
       workspaceCount: workspaces.length,
     );
 
-    final items = <Widget>[
-      MissionControlSummary(
-        counts: counts,
-        selectedLane: selectedLane,
-        onSelectLane: _selectLane,
-      ),
-    ];
+    final items = <Widget>[];
 
     if (filteredActions.isNotEmpty) {
       final tone = blocked.any(filteredActions.contains)
@@ -248,8 +242,11 @@ class _MissionControlViewState extends State<MissionControlView> {
       items.add(
         _ActionSection(
           title: l10n.missionControlFocusQueue,
-          count: filteredActions.length,
+          count: actions.length,
           lane: tone,
+          counts: counts,
+          selectedLane: selectedLane,
+          onSelectLane: _selectLane,
           hiddenCount: filteredActions.length - shownActions.length,
           expanded: _showAllActions,
           onToggle: () {
@@ -390,6 +387,9 @@ class _ActionSection extends StatelessWidget {
     required this.title,
     required this.count,
     required this.lane,
+    required this.counts,
+    required this.selectedLane,
+    required this.onSelectLane,
     required this.children,
     required this.hiddenCount,
     required this.expanded,
@@ -399,6 +399,9 @@ class _ActionSection extends StatelessWidget {
   final String title;
   final int count;
   final MissionLane lane;
+  final Map<MissionLane, int> counts;
+  final MissionLane? selectedLane;
+  final ValueChanged<MissionLane?> onSelectLane;
   final List<Widget> children;
   final int hiddenCount;
   final bool expanded;
@@ -438,6 +441,11 @@ class _ActionSection extends StatelessWidget {
               _CountBadge(count: count, color: color),
             ],
           ),
+        ),
+        MissionControlFilters(
+          counts: counts,
+          selectedLane: selectedLane,
+          onSelectLane: onSelectLane,
         ),
         AnimatedSize(
           duration: reduceMotion ? Duration.zero : AppDuration.normal,
