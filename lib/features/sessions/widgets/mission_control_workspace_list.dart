@@ -134,12 +134,25 @@ class _WorkspaceTile extends StatelessWidget {
                         color: missionLaneContainerColor(context, leadingLane),
                         borderRadius: BorderRadius.circular(AppRadius.smd),
                       ),
-                      child: Icon(
-                        leadingLane == MissionLane.quiet
-                            ? Icons.folder_outlined
-                            : missionLaneIcon(leadingLane),
-                        size: AppIconSize.lg,
-                        color: missionLaneColor(context, leadingLane),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Icon(
+                            Icons.folder_outlined,
+                            size: AppIconSize.lg,
+                            color: missionLaneColor(context, leadingLane),
+                          ),
+                          if (leadingLane != MissionLane.quiet)
+                            Positioned(
+                              right: AppSpacing.xsm,
+                              top: AppSpacing.xsm,
+                              child: AppStatusDot(
+                                color: missionLaneColor(context, leadingLane),
+                                pulse: leadingLane != MissionLane.unread,
+                                size: 4,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: AppSpacing.smd),
@@ -172,12 +185,23 @@ class _WorkspaceTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    _WorkspaceSignals(counts: counts),
-                    const SizedBox(width: AppSpacing.xs),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: AppIconSize.lg,
-                      color: cs.onSurfaceVariant,
+                    SizedBox(
+                      width: 58,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          _WorkspaceSignal(
+                            lane: leadingLane,
+                            count: counts[leadingLane]!,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: AppIconSize.lg,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -190,39 +214,17 @@ class _WorkspaceTile extends StatelessWidget {
   }
 }
 
-class _WorkspaceSignals extends StatelessWidget {
-  const _WorkspaceSignals({required this.counts});
-
-  final Map<MissionLane, int> counts;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final lane in [
-          MissionLane.blocked,
-          MissionLane.unread,
-          MissionLane.live,
-        ])
-          if (counts[lane]! > 0)
-            Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.xs),
-              child: _SignalCount(lane: lane, count: counts[lane]!),
-            ),
-      ],
-    );
-  }
-}
-
-class _SignalCount extends StatelessWidget {
-  const _SignalCount({required this.lane, required this.count});
+class _WorkspaceSignal extends StatelessWidget {
+  const _WorkspaceSignal({required this.lane, required this.count});
 
   final MissionLane lane;
   final int count;
 
   @override
   Widget build(BuildContext context) {
+    if (lane == MissionLane.quiet) {
+      return const SizedBox(width: 22);
+    }
     final theme = Theme.of(context);
     final color = missionLaneColor(context, lane);
     return Row(

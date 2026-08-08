@@ -83,7 +83,9 @@ class MissionActionRow extends StatelessWidget {
                 ? cs.primary.withValues(alpha: 0.1)
                 : Colors.transparent,
             border: Border(
-              left: BorderSide(color: laneColor, width: 3),
+              left: BorderSide(
+                color: selected ? cs.primary : Colors.transparent,
+              ),
               top: BorderSide(
                 color: selected ? cs.primary : Colors.transparent,
               ),
@@ -231,7 +233,7 @@ class _OutcomePill extends StatelessWidget {
       MissionLane.quiet => Text(missionLaneLabel(context, lane)),
     };
     return Container(
-      constraints: const BoxConstraints(minWidth: 36),
+      width: 72,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,

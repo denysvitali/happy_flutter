@@ -71,10 +71,13 @@ class MissionControlView extends StatefulWidget {
 }
 
 class _MissionControlViewState extends State<MissionControlView> {
-  bool _showAllAttention = false;
-  bool _showAllWorking = false;
+  bool _showAllActions = false;
   bool _showQuiet = false;
   MissionLane? _selectedLane;
+  final Map<String, int> _sessionSlots = {};
+  final Map<String, int> _workspaceSlots = {};
+  int _nextSessionSlot = 0;
+  int _nextWorkspaceSlot = 0;
 
   SessionUiEntry _entry(String id) =>
       widget.uiState.bySessionId[id] ?? SessionUiEntry.empty;
@@ -82,9 +85,48 @@ class _MissionControlViewState extends State<MissionControlView> {
   void _selectLane(MissionLane lane) {
     setState(() {
       _selectedLane = _selectedLane == lane ? null : lane;
-      _showAllAttention = false;
-      _showAllWorking = false;
+      _showAllActions = false;
     });
+  }
+
+  void _ensureSessionSlots(Map<String, MissionLane> lanes) {
+    // Seed slots by urgency on first sight, then never reshuffle them. Sync
+    // can reorder activeSessions on every activity update; treating that
+    // transport order as presentation order makes the dashboard jump.
+    for (final lane in MissionLane.values) {
+      for (final session in widget.activeSessions) {
+        if (lanes[session.id] == lane &&
+            !_sessionSlots.containsKey(session.id)) {
+          _sessionSlots[session.id] = _nextSessionSlot++;
+        }
+      }
+    }
+  }
+
+  void _ensureWorkspaceSlots(
+    List<SessionFolderGroup> workspaces,
+    Map<String, MissionLane> lanes,
+  ) {
+    final unseen =
+        workspaces
+            .where(
+              (group) => !_workspaceSlots.containsKey(group.header.folderKey),
+            )
+            .toList()
+          ..sort((a, b) => _compareWorkspacePriority(a, b, lanes));
+    for (final group in unseen) {
+      _workspaceSlots[group.header.folderKey] = _nextWorkspaceSlot++;
+    }
+  }
+
+  int _compareSessionSlots(Session a, Session b) {
+    return _sessionSlots[a.id]!.compareTo(_sessionSlots[b.id]!);
+  }
+
+  int _compareWorkspaceSlots(SessionFolderGroup a, SessionFolderGroup b) {
+    return _workspaceSlots[a.header.folderKey]!.compareTo(
+      _workspaceSlots[b.header.folderKey]!,
+    );
   }
 
   @override
@@ -116,28 +158,25 @@ class _MissionControlViewState extends State<MissionControlView> {
           break;
       }
     }
+    _ensureSessionSlots(lanes);
+    blocked.sort(_compareSessionSlots);
+    unread.sort(_compareSessionSlots);
+    working.sort(_compareSessionSlots);
 
     final selectedLane = _selectedLane != null && counts[_selectedLane]! > 0
         ? _selectedLane
         : null;
-    final attention = switch (selectedLane) {
-      MissionLane.blocked => blocked,
-      MissionLane.unread => unread,
-      MissionLane.live => const <Session>[],
-      _ => [...blocked, ...unread],
-    };
-    final live = selectedLane == null || selectedLane == MissionLane.live
-        ? working
-        : const <Session>[];
-
-    final attentionShown =
-        !_showAllAttention && attention.length > missionControlActionPreview
-        ? attention.sublist(0, missionControlActionPreview)
-        : attention;
-    final workingShown =
-        !_showAllWorking && live.length > missionControlActionPreview
-        ? live.sublist(0, missionControlActionPreview)
-        : live;
+    final actions = [...blocked, ...unread, ...working]
+      ..sort(_compareSessionSlots);
+    final filteredActions = selectedLane == null
+        ? actions
+        : actions
+              .where((session) => lanes[session.id] == selectedLane)
+              .toList();
+    final shownActions =
+        !_showAllActions && filteredActions.length > missionControlActionPreview
+        ? filteredActions.sublist(0, missionControlActionPreview)
+        : filteredActions;
 
     final unreadLookup = <String, int>{
       for (final entry in widget.uiState.bySessionId.entries)
@@ -154,6 +193,7 @@ class _MissionControlViewState extends State<MissionControlView> {
       getLastMessageTimestamp: (id) => timestampLookup[id],
       getUnreadCount: (id) => unreadLookup[id] ?? 0,
     );
+    _ensureWorkspaceSlots(workspaces, lanes);
 
     final activeWorkspaces = <SessionFolderGroup>[];
     final quietWorkspaces = <SessionFolderGroup>[];
@@ -174,7 +214,8 @@ class _MissionControlViewState extends State<MissionControlView> {
         quietWorkspaces.add(group);
       }
     }
-    activeWorkspaces.sort((a, b) => _compareWorkspacePriority(a, b, lanes));
+    activeWorkspaces.sort(_compareWorkspaceSlots);
+    quietWorkspaces.sort(_compareWorkspaceSlots);
 
     final items = <Widget>[
       MissionControlSummary(
@@ -184,49 +225,31 @@ class _MissionControlViewState extends State<MissionControlView> {
       ),
     ];
 
-    if (attention.isNotEmpty) {
-      final tone = blocked.any(attention.contains)
+    if (filteredActions.isNotEmpty) {
+      final tone = blocked.any(filteredActions.contains)
           ? MissionLane.blocked
-          : MissionLane.unread;
+          : unread.any(filteredActions.contains)
+          ? MissionLane.unread
+          : MissionLane.live;
       items.add(
         _ActionSection(
-          title: l10n.missionControlNeedsAttention,
-          count: attention.length,
+          title: l10n.missionControlFocusQueue,
+          count: filteredActions.length,
           lane: tone,
-          hiddenCount: attention.length - attentionShown.length,
-          expanded: _showAllAttention,
+          hiddenCount: filteredActions.length - shownActions.length,
+          expanded: _showAllActions,
           onToggle: () {
-            setState(() => _showAllAttention = !_showAllAttention);
+            setState(() => _showAllActions = !_showAllActions);
           },
           children: [
-            for (final session in attentionShown)
-              widget.actionCardBuilder(
-                session,
-                _entry(session.id),
-                lanes[session.id]!,
-              ),
-          ],
-        ),
-      );
-    }
-
-    if (live.isNotEmpty) {
-      items.add(
-        _ActionSection(
-          title: l10n.missionControlWorkingSection,
-          count: live.length,
-          lane: MissionLane.live,
-          hiddenCount: live.length - workingShown.length,
-          expanded: _showAllWorking,
-          onToggle: () {
-            setState(() => _showAllWorking = !_showAllWorking);
-          },
-          children: [
-            for (final session in workingShown)
-              widget.actionCardBuilder(
-                session,
-                _entry(session.id),
-                MissionLane.live,
+            for (final session in shownActions)
+              KeyedSubtree(
+                key: ValueKey('mission-action-${session.id}'),
+                child: widget.actionCardBuilder(
+                  session,
+                  _entry(session.id),
+                  lanes[session.id]!,
+                ),
               ),
           ],
         ),
@@ -326,6 +349,8 @@ class _ActionSection extends StatelessWidget {
     final cs = theme.colorScheme;
     final color = missionLaneColor(context, lane);
     final l10n = context.l10n;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -353,38 +378,43 @@ class _ActionSection extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          clipBehavior: Clip.hardEdge,
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < children.length; i++) ...[
-                if (i > 0)
-                  Divider(
-                    height: 1,
-                    thickness: 1,
-                    indent: 58,
-                    color: cs.outlineVariant,
+        AnimatedSize(
+          duration: reduceMotion ? Duration.zero : AppDuration.normal,
+          curve: AppCurve.standard,
+          alignment: Alignment.topCenter,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: cs.outlineVariant),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < children.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: 58,
+                      color: cs.outlineVariant,
+                    ),
+                  children[i],
+                ],
+                if (hiddenCount > 0 || expanded) ...[
+                  Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+                  _DisclosureButton(
+                    label: expanded
+                        ? l10n.machineShowLess
+                        : l10n.missionControlMoreActions(hiddenCount),
+                    expanded: expanded,
+                    onTap: onToggle,
                   ),
-                children[i],
+                ],
               ],
-              if (hiddenCount > 0 || expanded) ...[
-                Divider(height: 1, thickness: 1, color: cs.outlineVariant),
-                _DisclosureButton(
-                  label: expanded
-                      ? l10n.machineShowLess
-                      : l10n.missionControlMoreActions(hiddenCount),
-                  expanded: expanded,
-                  onTap: onToggle,
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ],
@@ -402,7 +432,7 @@ class _CountBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      constraints: const BoxConstraints(minWidth: 24),
+      width: 34,
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xsm,
         vertical: AppSpacing.xxs,

@@ -4417,17 +4417,11 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1 {1 agent working now} other {{count} agents working now}}'**
   String missionControlWorkingNow(int count);
 
-  /// No description provided for @missionControlNeedsAttention.
+  /// No description provided for @missionControlFocusQueue.
   ///
   /// In en, this message translates to:
-  /// **'Needs attention'**
-  String get missionControlNeedsAttention;
-
-  /// No description provided for @missionControlWorkingSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Working now'**
-  String get missionControlWorkingSection;
+  /// **'Focus queue'**
+  String get missionControlFocusQueue;
 
   /// No description provided for @missionControlWorkspacePulse.
   ///

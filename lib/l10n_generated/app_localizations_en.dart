@@ -2470,10 +2470,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get missionControlNeedsAttention => 'Needs attention';
-
-  @override
-  String get missionControlWorkingSection => 'Working now';
+  String get missionControlFocusQueue => 'Focus queue';
 
   @override
   String get missionControlWorkspacePulse => 'Workspace pulse';

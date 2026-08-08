@@ -8,9 +8,8 @@ import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dar
 
 /// Mission Control is an action radar, not a session archive.
 ///
-/// Blocked outranks unread outranks live. Attention and working sessions
-/// render in separate sections, status metrics filter the action deck, and
-/// workspaces always drill into folder detail.
+/// Blocked outranks unread outranks live on first appearance. The focus queue
+/// and workspace pulse then keep stable slots across sync-driven reordering.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -91,7 +90,9 @@ void main() {
     });
   });
 
-  testWidgets('blocked sessions render above live ones', (tester) async {
+  testWidgets('focus queue initially prioritizes blocked sessions', (
+    tester,
+  ) async {
     final blocked = _session(
       id: 'blocked',
       agentState: AgentState(
@@ -107,8 +108,7 @@ void main() {
     final cardY = tester.getTopLeft(find.text('action-blocked')).dy;
     final liveY = tester.getTopLeft(find.text('action-live')).dy;
     expect(cardY, lessThan(liveY));
-    expect(find.text('Needs attention'), findsOneWidget);
-    expect(find.text('Working now'), findsWidgets);
+    expect(find.text('Focus queue'), findsOneWidget);
   });
 
   testWidgets('a workspace never expands sessions inline', (tester) async {
@@ -150,7 +150,7 @@ void main() {
     expect(find.text('action-hot'), findsOneWidget);
   });
 
-  testWidgets('each action section folds past four rows', (tester) async {
+  testWidgets('focus queue folds past four rows', (tester) async {
     final sessions = [
       for (var i = 0; i < 8; i++)
         _session(id: 's$i', thinking: true, path: '/home/dev/p$i'),
@@ -254,6 +254,120 @@ void main() {
     await tester.pump();
 
     expect(find.text('action-live'), findsOneWidget);
+  });
+
+  testWidgets('focus rows keep stable slots when sync input reorders', (
+    tester,
+  ) async {
+    final first = _session(id: 'first', path: '/home/dev/first');
+    final second = _session(id: 'second', path: '/home/dev/second');
+    const uiState = SessionUiState(
+      bySessionId: {
+        'first': SessionUiEntry(unreadCount: 1),
+        'second': SessionUiEntry(unreadCount: 1),
+      },
+    );
+
+    await tester.pumpWidget(
+      _app(activeSessions: [first, second], uiState: uiState),
+    );
+    await tester.pump();
+
+    final firstY = tester.getTopLeft(find.text('action-first')).dy;
+    final secondY = tester.getTopLeft(find.text('action-second')).dy;
+    expect(firstY, lessThan(secondY));
+
+    await tester.pumpWidget(
+      _app(activeSessions: [second, first], uiState: uiState),
+    );
+    await tester.pump();
+
+    final stableFirstY = tester.getTopLeft(find.text('action-first')).dy;
+    final stableSecondY = tester.getTopLeft(find.text('action-second')).dy;
+    expect(stableFirstY, lessThan(stableSecondY));
+  });
+
+  testWidgets('focus rows do not move when their lane changes', (tester) async {
+    final first = _session(id: 'first', path: '/home/dev/first');
+    final second = _session(
+      id: 'second',
+      path: '/home/dev/second',
+      thinking: true,
+    );
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [first, second],
+        uiState: const SessionUiState(
+          bySessionId: {'first': SessionUiEntry(unreadCount: 1)},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getTopLeft(find.text('action-first')).dy,
+      lessThan(tester.getTopLeft(find.text('action-second')).dy),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [first, second],
+        uiState: const SessionUiState(
+          bySessionId: {'second': SessionUiEntry(unreadCount: 1)},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getTopLeft(find.text('action-first')).dy,
+      lessThan(tester.getTopLeft(find.text('action-second')).dy),
+    );
+  });
+
+  testWidgets('workspace rows ignore activity-only reorder churn', (
+    tester,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final first = _session(id: 'wa', path: '/home/dev/alpha');
+    final second = _session(id: 'wb', path: '/home/dev/beta');
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [first, second],
+        uiState: SessionUiState(
+          bySessionId: {
+            'wa': SessionUiEntry(lastMessageTimestamp: now - 1000),
+            'wb': SessionUiEntry(lastMessageTimestamp: now - 2000),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getTopLeft(find.text('dev/alpha')).dy,
+      lessThan(tester.getTopLeft(find.text('dev/beta')).dy),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [second, first],
+        uiState: SessionUiState(
+          bySessionId: {
+            'wa': SessionUiEntry(lastMessageTimestamp: now - 4000),
+            'wb': SessionUiEntry(lastMessageTimestamp: now),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getTopLeft(find.text('dev/alpha')).dy,
+      lessThan(tester.getTopLeft(find.text('dev/beta')).dy),
+    );
   });
 
   testWidgets('action tiles preserve title width and minimum tap target', (

@@ -1008,8 +1008,7 @@
       }
     }
   },
-  "missionControlNeedsAttention": "Needs attention",
-  "missionControlWorkingSection": "Working now",
+  "missionControlFocusQueue": "Focus queue",
   "missionControlWorkspacePulse": "Workspace pulse",
   "missionControlReview": "Review",
   "missionControlNewCount": "{count} new",

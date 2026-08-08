@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -57,13 +56,9 @@ class MissionControlSummary extends StatelessWidget {
       ),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [background, cs.surfaceContainerLow],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: background,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: signalColor.withValues(alpha: 0.28)),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,14 +103,25 @@ class MissionControlSummary extends StatelessWidget {
                   ],
                 ),
               ),
-              if (attention == 0 && working == 0)
-                Icon(
-                  Icons.check_circle_rounded,
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: signalColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  blocked > 0
+                      ? Icons.lock_clock_rounded
+                      : unread > 0
+                      ? Icons.mark_chat_unread_rounded
+                      : working > 0
+                      ? Icons.auto_awesome_rounded
+                      : Icons.check_rounded,
                   color: signalColor,
-                  size: AppIconSize.xxl,
-                )
-              else
-                AppStatusDot(color: signalColor, pulse: true, size: 8),
+                  size: AppIconSize.md,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -125,26 +131,30 @@ class MissionControlSummary extends StatelessWidget {
               final columns = constraints.maxWidth < 310 || scale > 1.25
                   ? 2
                   : 4;
-              final width =
-                  (constraints.maxWidth - AppSpacing.xs * (columns - 1)) /
-                  columns;
-              return Wrap(
-                spacing: AppSpacing.xs,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (final lane in MissionLane.values)
-                    SizedBox(
-                      width: width,
-                      child: _SummaryMetric(
-                        lane: lane,
-                        count: counts[lane]!,
-                        selected: selectedLane == lane,
-                        onTap: lane != MissionLane.quiet && counts[lane]! > 0
-                            ? () => onSelectLane(lane)
-                            : null,
+              final width = constraints.maxWidth / columns;
+              return Container(
+                clipBehavior: Clip.hardEdge,
+                decoration: BoxDecoration(
+                  color: cs.surface.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(AppRadius.smd),
+                  border: Border.all(color: cs.outlineVariant),
+                ),
+                child: Wrap(
+                  children: [
+                    for (final lane in MissionLane.values)
+                      SizedBox(
+                        width: width,
+                        child: _SummaryMetric(
+                          lane: lane,
+                          count: counts[lane]!,
+                          selected: selectedLane == lane,
+                          onTap: lane != MissionLane.quiet && counts[lane]! > 0
+                              ? () => onSelectLane(lane)
+                              : null,
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               );
             },
           ),
@@ -182,16 +192,16 @@ class _SummaryMetric extends StatelessWidget {
         child: AnimatedContainer(
           key: ValueKey('mission-filter-${lane.name}'),
           duration: AppDuration.fast,
-          constraints: const BoxConstraints(minHeight: 58),
+          constraints: const BoxConstraints(minHeight: 54),
           decoration: BoxDecoration(
             color: selected
                 ? missionLaneContainerColor(context, lane)
-                : cs.surface.withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(AppRadius.smd),
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
             border: Border.all(
               color: selected
-                  ? color.withValues(alpha: 0.7)
-                  : cs.outlineVariant,
+                  ? color.withValues(alpha: 0.45)
+                  : Colors.transparent,
             ),
           ),
           child: Material(
@@ -218,12 +228,18 @@ class _SummaryMetric extends StatelessWidget {
                           color: color,
                         ),
                         const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          '$count',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: count == 0 ? cs.onSurfaceVariant : color,
-                            fontWeight: FontWeight.w800,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                        SizedBox(
+                          width: 24,
+                          child: Text(
+                            '$count',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: count == 0 ? cs.onSurfaceVariant : color,
+                              fontWeight: FontWeight.w800,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                           ),
                         ),
                       ],
