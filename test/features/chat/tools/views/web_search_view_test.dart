@@ -156,9 +156,10 @@ void main() {
       find.textContaining('weather today', findRichText: true),
       findsOneWidget,
     );
-    // Running state is a quiet spinner, not a text pill.
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Running'), findsNothing);
+    // Running state stays understandable without colour or motion alone.
+    expect(find.byIcon(Icons.autorenew_rounded), findsOneWidget);
+    expect(find.text('Running'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('web_search_preview'), findsNothing);
     expect(find.text('INPUT'), findsNothing);
   });
