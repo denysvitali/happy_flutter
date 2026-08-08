@@ -232,32 +232,58 @@ void main() {
                   hasPermissionRequest: false,
                   onOpenDetails: () {},
                 ),
+                ToolHeader(
+                  toolIcon: const Icon(Icons.build_outlined),
+                  toolTitle: 'Expandable completed tool',
+                  state: ToolState.completed,
+                  hasContent: true,
+                  showCheckFlash: false,
+                  chevronAnim: const AlwaysStoppedAnimation<double>(0),
+                  hasPermissionRequest: false,
+                  onTap: () {},
+                  onOpenDetails: () {},
+                ),
               ],
             ),
           ),
         ),
       );
 
-      final completed = tester.getCenter(
-        find.byIcon(Icons.check_circle_outline_rounded),
-      );
+      final completedIcons = find.byIcon(Icons.check_circle_outline_rounded);
+      final completed = tester.getCenter(completedIcons.at(0));
+      final expandable = tester.getCenter(completedIcons.at(1));
       final failed = tester.getCenter(find.byIcon(Icons.error_outline_rounded));
       final toolIcons = find.byIcon(Icons.build_outlined);
       final detailIcons = find.byIcon(Icons.open_in_new_rounded);
+      final disclosureSlots = find.byKey(
+        const ValueKey('tool-disclosure-icon-slot'),
+      );
 
       expect(completed.dx, failed.dx);
-      expect(
-        tester.getCenter(toolIcons.at(0)).dx,
-        tester.getCenter(toolIcons.at(1)).dx,
-      );
-      expect(
-        tester.getCenter(detailIcons.at(0)).dx,
-        tester.getCenter(detailIcons.at(1)).dx,
-      );
-      expect(completed.dy, tester.getCenter(toolIcons.at(0)).dy);
-      expect(completed.dy, tester.getCenter(detailIcons.at(0)).dy);
-      expect(failed.dy, tester.getCenter(toolIcons.at(1)).dy);
-      expect(failed.dy, tester.getCenter(detailIcons.at(1)).dy);
+      expect(completed.dx, expandable.dx);
+      expect(disclosureSlots, findsNWidgets(3));
+      for (var index = 0; index < 3; index++) {
+        expect(
+          tester.getCenter(toolIcons.at(index)).dx,
+          tester.getCenter(toolIcons.at(0)).dx,
+        );
+        expect(
+          tester.getCenter(detailIcons.at(index)).dx,
+          tester.getCenter(detailIcons.at(0)).dx,
+        );
+        expect(
+          tester.getCenter(disclosureSlots.at(index)).dx,
+          tester.getCenter(disclosureSlots.at(0)).dx,
+        );
+      }
+      final statusIcons = <Offset>[completed, failed, expandable];
+      for (var index = 0; index < statusIcons.length; index++) {
+        expect(statusIcons[index].dy, tester.getCenter(toolIcons.at(index)).dy);
+        expect(
+          statusIcons[index].dy,
+          tester.getCenter(detailIcons.at(index)).dy,
+        );
+      }
     });
 
     testWidgets('completed collapsed header uses compact timeline height', (

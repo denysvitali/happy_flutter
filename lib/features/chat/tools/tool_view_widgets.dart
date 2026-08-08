@@ -192,6 +192,13 @@ class ToolHeader extends StatelessWidget {
       constrainLabel: constrainLabel,
     );
 
+    final reserveDisclosureSlot =
+        !hasContent &&
+        onOpenDetails != null &&
+        statusIcon == null &&
+        !hasPermissionRequest &&
+        (state == ToolState.completed || state == ToolState.error);
+
     List<Widget> stateChildren({bool constrainCue = false}) => [
       if (constrainCue)
         Flexible(child: stateCue(constrainLabel: true))
@@ -201,15 +208,21 @@ class ToolHeader extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         ToolDuration(startTime: createdAt!),
       ],
-      if (hasContent) ...[
+      if (hasContent || reserveDisclosureSlot) ...[
         const SizedBox(width: AppSpacing.xs),
-        RotationTransition(
-          turns: chevronAnim,
-          child: Icon(
-            Icons.expand_more,
-            size: AppIconSize.lg,
-            color: colorScheme.onSurfaceVariant,
-          ),
+        SizedBox.square(
+          key: const ValueKey('tool-disclosure-icon-slot'),
+          dimension: AppIconSize.lg,
+          child: hasContent
+              ? RotationTransition(
+                  turns: chevronAnim,
+                  child: Icon(
+                    Icons.expand_more,
+                    size: AppIconSize.lg,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                )
+              : null,
         ),
       ],
     ];
