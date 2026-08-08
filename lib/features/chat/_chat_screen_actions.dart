@@ -682,7 +682,11 @@ extension _ChatScreenActions on _ChatScreenState {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
+          SnackBar(
+            content: Text(
+              safeUiFailureMessage(context.l10n, SafeUiFailure.chatSend),
+            ),
+          ),
         );
       }
     }
@@ -690,12 +694,21 @@ extension _ChatScreenActions on _ChatScreenState {
 
   Future<void> _retryMessage(Map<String, dynamic> message) async {
     final localId = message['localId'] as String? ?? message['id'] as String?;
-    if (localId == null) return;
+    if (localId == null) {
+      _showRetryFailure();
+      return;
+    }
 
     try {
-      await ref
+      final result = await ref
           .read(chatActionNotifierProvider.notifier)
           .retryFailedMessage(widget.sessionId, localId);
+      if (!result.isQueued) {
+        _showRetryFailure(
+          attachmentDataUnavailable:
+              result.outcome == MessageRetryOutcome.attachmentDataUnavailable,
+        );
+      }
     } catch (e, st) {
       logger.warning(
         '[ChatScreen] _retryMessage failed: '
@@ -703,12 +716,18 @@ extension _ChatScreenActions on _ChatScreenState {
         e,
         st,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to retry message: $e')));
-      }
+      _showRetryFailure();
     }
+  }
+
+  void _showRetryFailure({bool attachmentDataUnavailable = false}) {
+    if (!mounted) return;
+    final message = attachmentDataUnavailable
+        ? context.l10n.chatImageNotCached
+        : context.l10n.chatFailedToSend;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _sendMessage() async {
@@ -769,7 +788,9 @@ extension _ChatScreenActions on _ChatScreenState {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(context.l10n.chatFailedToClear(e.toString())),
+              content: Text(
+                safeUiFailureMessage(context.l10n, SafeUiFailure.chatClear),
+              ),
             ),
           );
         }
@@ -900,16 +921,10 @@ extension _ChatScreenActions on _ChatScreenState {
       );
       // The failure is already visible; the watchdog has nothing to add.
       stallWatchdog.cancel();
-      // Re-persist the draft REGARDLESS of `mounted`. The draft was
-      // already deleted and the composer cleared before the send; if the
-      // user navigated away during the stall, the guarded restore below
-      // never runs and the typed text is restored NOWHERE.
-      if (text.isNotEmpty) {
-        unawaited(DraftStorage().saveDraft(widget.sessionId, text));
-      }
       if (mounted) {
-        // Mark optimistic message as failed instead of removing it,
-        // so the user can see it and retry.
+        // The failed row remains the single recovery surface and retains
+        // the original localId. Repopulating the composer here would make
+        // its next send mint a second identity for the same intent.
         setState(() {
           final next = markOptimisticMessageFailed(_messages, localId);
           if (identical(next, _messages)) {
@@ -920,19 +935,15 @@ extension _ChatScreenActions on _ChatScreenState {
             unawaited(Sentry.captureMessage(msg, level: SentryLevel.warning));
           }
           _messages = next;
-          _controller.text = text;
-          if (hasImages) {
-            // Restore staged attachments alongside the text so a retry
-            // from the composer resends the same logical message.
-            for (final image in images) {
-              _attachmentController.add(image);
-            }
-          }
           _isSending = false;
           _invalidateNeighborCache();
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.l10n.chatFailedToSend}: $e')),
+          SnackBar(
+            content: Text(
+              safeUiFailureMessage(context.l10n, SafeUiFailure.chatSend),
+            ),
+          ),
         );
       }
     } finally {

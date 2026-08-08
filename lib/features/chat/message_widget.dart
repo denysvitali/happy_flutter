@@ -5,6 +5,7 @@ import '../../core/models/workflow_run.dart';
 import '../../core/theme/app_tokens.dart';
 import 'markdown/markdown.dart';
 import 'message_render_signature.dart';
+import 'send/chat_send_coordinator.dart';
 import 'tools/tools.dart';
 import 'widgets/agent_event_widget.dart';
 import 'widgets/bot_message.dart';
@@ -141,10 +142,10 @@ class _MessageWidgetState extends State<MessageWidget>
     // on every rebuild but the bubble's rendered output depends only on
     // whether a callback is present, not on which closure instance it is.
     final msg = widget.messageData;
-    final messageId =
-        msg['id'] as String? ??
-        msg['localId'] as String? ??
-        msg['key'] as String?;
+    final messageId = canonicalMessageIdentityKey(
+      msg,
+      fallback: msg['key'] as String? ?? '',
+    );
     final rowSignature = messageRenderSignature(msg);
     final relatedMessagesSignature = widget.messages == null
         ? 0

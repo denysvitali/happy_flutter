@@ -24,6 +24,11 @@ String? _asApiStringNullable(dynamic value) {
   return null;
 }
 
+bool? _asApiBoolNullable(dynamic value) {
+  if (value is bool) return value;
+  return null;
+}
+
 List<String>? _stringListOrNull(dynamic value) {
   if (value is List) return value.whereType<String>().toList();
   return null;
@@ -67,6 +72,10 @@ abstract class MachineMetadata with _$MachineMetadata {
     @JsonKey(fromJson: _asApiStringNullable) String? shutdownSource,
     @JsonKey(fromJson: _stringListOrNull) List<String>? spawnBackends,
     @JsonKey(fromJson: _asApiStringNullable) String? defaultSpawnBackend,
+    @JsonKey(fromJson: _asApiStringNullable) String? sandboxBackend,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxAvailable,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxEnabled,
+    @JsonKey(fromJson: _asApiStringNullable) String? sandboxReason,
   }) = _MachineMetadata;
 
   factory MachineMetadata.fromJson(Map<String, dynamic> json) =>

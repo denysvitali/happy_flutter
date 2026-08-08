@@ -58,6 +58,14 @@ class ChatActionNotifier extends Notifier<void> {
     await _messages.abortSession(sessionId, reason: reason);
   }
 
+  /// Stop the daemon-owned process or pod, distinct from aborting one turn.
+  Future<void> stopSessionProcess(String sessionId) async {
+    if (!_messages.isReady) {
+      throw StateError('Sync is not initialized');
+    }
+    await _messages.stopSessionProcess(sessionId);
+  }
+
   /// Mint a new canonical local message ID for optimistic UI.
   String createLocalMessageId() {
     if (!_messages.isReady) {
@@ -67,11 +75,14 @@ class ChatActionNotifier extends Notifier<void> {
   }
 
   /// Retry a failed message, preserving its original localId.
-  Future<void> retryFailedMessage(String sessionId, String localId) async {
+  Future<MessageRetryResult> retryFailedMessage(
+    String sessionId,
+    String localId,
+  ) async {
     if (!_messages.isReady) {
       throw StateError('Sync is not initialized');
     }
-    await _messages.retryFailedMessage(sessionId, localId);
+    return _messages.retryFailedMessage(sessionId, localId);
   }
 
   /// Load available Codex models for a machine.

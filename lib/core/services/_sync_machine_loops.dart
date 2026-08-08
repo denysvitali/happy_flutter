@@ -11,10 +11,12 @@ class MachineLoopResponse {
     this.error,
     this.loop,
     this.loops = const <Loop>[],
+    this.failureKind,
   });
 
   final bool success;
   final String? error;
+  final RemoteFeatureFailureKind? failureKind;
 
   /// The loop the daemon created, for `loop-create`.
   final Loop? loop;
@@ -29,15 +31,16 @@ class MachineLoopResponse {
     return MachineLoopResponse(
       success: ok != false,
       error: json['error']?.toString(),
+      failureKind: ok == false ? RemoteFeatureFailureKind.rejected : null,
       loop: loopJson is Map
           ? Loop.tryFromJson(Map<String, dynamic>.from(loopJson))
           : null,
       loops: loopsJson is List
           ? loopsJson
-              .whereType<Map>()
-              .map((e) => Loop.tryFromJson(Map<String, dynamic>.from(e)))
-              .whereType<Loop>()
-              .toList(growable: false)
+                .whereType<Map>()
+                .map((e) => Loop.tryFromJson(Map<String, dynamic>.from(e)))
+                .whereType<Loop>()
+                .toList(growable: false)
           : const <Loop>[],
     );
   }
@@ -189,14 +192,13 @@ extension SyncMachineLoops on Sync {
   /// Rarely needed — `daemonState` already mirrors it passively — but useful
   /// as an explicit pull-to-refresh, and to tell "no loops" apart from "this
   /// daemon has never published any".
-  Future<MachineLoopResponse> listMachineLoops({
-    required String machineId,
-  }) => _machineLoopRpc(
-    machineId: machineId,
-    method: 'loop-list',
-    label: 'listMachineLoops',
-    params: const <String, dynamic>{},
-  );
+  Future<MachineLoopResponse> listMachineLoops({required String machineId}) =>
+      _machineLoopRpc(
+        machineId: machineId,
+        method: 'loop-list',
+        label: 'listMachineLoops',
+        params: const <String, dynamic>{},
+      );
 
   /// Shared transport + error mapping for the machine loop RPCs.
   Future<MachineLoopResponse> _machineLoopRpc({
@@ -207,6 +209,16 @@ extension SyncMachineLoops on Sync {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     try {
+      final supported = testMachineRPCOverride == null
+          ? await machineSupportsRPC(machineId, method)
+          : null;
+      if (supported == false) {
+        return const MachineLoopResponse(
+          success: false,
+          error: 'Goal loops require a newer machine agent',
+          failureKind: RemoteFeatureFailureKind.unsupported,
+        );
+      }
       return await _typedMachineRPC(
         machineId,
         method,
@@ -220,15 +232,22 @@ extension SyncMachineLoops on Sync {
         return const MachineLoopResponse(
           success: false,
           error: 'machine offline',
+          failureKind: RemoteFeatureFailureKind.offline,
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info('$label: RPC method not available (daemon too old)');
         return const MachineLoopResponse(
           success: false,
           error: 'Goal loops require a newer machine agent',
+          failureKind: RemoteFeatureFailureKind.unsupported,
         );
       } else if (Sync._isTransientRpcError(error)) {
         logger.info('$label: transient RPC failure — $error');
+        return const MachineLoopResponse(
+          success: false,
+          error: 'transient RPC failure',
+          failureKind: RemoteFeatureFailureKind.transient,
+        );
       } else {
         logger.error('$label error', error, stackTrace);
       }
@@ -236,6 +255,7 @@ extension SyncMachineLoops on Sync {
     return const MachineLoopResponse(
       success: false,
       error: 'RPC call failed',
+      failureKind: RemoteFeatureFailureKind.unknown,
     );
   }
 }

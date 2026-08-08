@@ -27,11 +27,13 @@ class _NavRouteSpec extends _SettingsRowSpec {
     required this.title,
     required this.route,
     this.subtitle,
+    this.enabled = true,
   });
   final IconData icon;
   final String title;
   final String route;
   final String? subtitle;
+  final bool enabled;
 }
 
 /// A `SettingsNavRow` that opens a URL on tap.
@@ -50,10 +52,7 @@ class _NavUrlSpec extends _SettingsRowSpec {
 
 /// Declarative spec for a section that can be rendered from data alone.
 class _DataSectionSpec {
-  const _DataSectionSpec({
-    required this.title,
-    required this.rows,
-  });
+  const _DataSectionSpec({required this.title, required this.rows});
   final String title;
   final List<_SettingsRowSpec> rows;
 
@@ -61,9 +60,7 @@ class _DataSectionSpec {
   Widget build(BuildContext context) {
     return SettingsSection(
       title: title,
-      children: [
-        for (final row in rows) _buildRow(context, row),
-      ],
+      children: [for (final row in rows) _buildRow(context, row)],
     );
   }
 
@@ -74,12 +71,13 @@ class _DataSectionSpec {
         :final title,
         :final route,
         :final subtitle,
+        :final enabled,
       ) =>
         SettingsNavRow(
           icon: icon,
           title: title,
           subtitle: subtitle,
-          onTap: () => context.pushNamed(route),
+          onTap: enabled ? () => context.pushNamed(route) : null,
         ),
       _NavUrlSpec(:final icon, :final title, :final url, :final subtitle) =>
         SettingsNavRow(
@@ -175,6 +173,8 @@ _DataSectionSpec _developerSectionSpec(
 _DataSectionSpec _machinesSectionSpec(
   BuildContext context, {
   required String? firstMachineSubtitle,
+  required bool sandboxAvailable,
+  required String? sandboxReason,
 }) {
   final l10n = AppLocalizations.of(context);
   return _DataSectionSpec(
@@ -195,8 +195,11 @@ _DataSectionSpec _machinesSectionSpec(
       _NavRouteSpec(
         icon: Icons.shield_outlined,
         title: l10n.settingsSandbox,
-        subtitle: l10n.settingsSandboxSubtitle,
+        subtitle: sandboxAvailable
+            ? l10n.settingsSandboxSubtitle
+            : sandboxReason ?? l10n.settingsSandboxUnavailable,
         route: 'sandbox',
+        enabled: sandboxAvailable,
       ),
     ],
   );

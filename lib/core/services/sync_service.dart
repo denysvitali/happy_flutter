@@ -39,6 +39,8 @@ import '../models/session.dart';
 import '../models/settings.dart';
 import '../models/workflow_run.dart';
 import '../rpc/rpc_types.dart';
+import '../rpc/rpc_exception.dart';
+import '../rpc/rpc_capabilities.dart';
 import '../sync/artifact_manager.dart';
 import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
@@ -64,7 +66,10 @@ import '../services/workflow_storage.dart';
 // ignore: unused_import
 import '../types/identity_types.dart';
 // ignore: unused_import
+import '../types/message_retry_result.dart';
+// ignore: unused_import
 import '../types/message_state.dart';
+import '../types/remote_feature_failure.dart';
 import '../utils/image_content_blocks.dart';
 import '../sync/invalidate_sync.dart';
 import '../utils/message_invariant_monitor.dart';
@@ -74,6 +79,9 @@ import '../sync/sync_domain.dart';
 export '../sync/sync_exceptions.dart' show IncompatibleProviderAndModelError;
 export '../sync/sync_progress.dart' show SyncProgress;
 export '../sync/sync_domain.dart' show SyncDomain;
+export '../rpc/rpc_exception.dart';
+export '../rpc/rpc_capabilities.dart';
+export '../types/message_retry_result.dart';
 import '../wire/wire_parsers.dart';
 // Canary mode — runtime invariant assertions.  No-ops when kCanary
 // is false, so the part files can call CanaryAssert.* freely without
@@ -91,6 +99,7 @@ import 'stuck_agent_sentinel.dart';
 import 'tool_result_processor.dart';
 
 part '_sync_data.dart';
+part '_sync_capabilities.dart';
 part '_sync_data_artifacts.dart';
 part '_sync_data_machines.dart';
 part '_sync_health.dart';
@@ -1202,6 +1211,10 @@ what you have, you must use the options mode.
   final Map<String, int> _workflowRefreshBackoffUntil = <String, int>{};
   final Map<String, int> _workflowRefreshFailureCount = <String, int>{};
 
+  /// Capability manifests are valid only for a single socket generation.
+  final Map<String, RpcCapabilities?> _rpcCapabilitiesCache =
+      <String, RpcCapabilities?>{};
+
   /// Test override for the [SyncWorkflows.refreshAllWorkflows] deadline.
   @visibleForTesting
   Duration? testRefreshAllWorkflowsDeadline;
@@ -1666,6 +1679,11 @@ what you have, you must use the options mode.
   /// the daemon does not support (e.g. older daemon version).
   /// These are expected and should not be reported to Sentry.
   static bool _isRpcMethodNotAvailable(Object error) {
+    if (error is RpcException) {
+      return error.code == RpcErrorCode.methodUnsupported ||
+          error.code == RpcErrorCode.protocolUnsupported ||
+          error.code == RpcErrorCode.handlerOffline;
+    }
     if (error is! StateError) return false;
     final msg = error.message;
     return msg.contains('not available') ||
@@ -1688,6 +1706,11 @@ what you have, you must use the options mode.
   /// Both are non-actionable from the client and should be downgraded
   /// to info at every call site that uses [_isTransientRpcError].
   static bool _isRpcReplicaTimeout(Object error) {
+    if (error is RpcException) {
+      return error.retryable &&
+          (error.code == RpcErrorCode.handlerOffline ||
+              error.code == RpcErrorCode.forwardingFailed);
+    }
     if (error is! StateError) return false;
     final msg = error.message;
     return (msg.contains('forwarded via Redis') &&

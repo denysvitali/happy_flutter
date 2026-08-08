@@ -20,6 +20,10 @@ void main() {
           'shutdownSource': 'manual',
           'spawnBackends': ['local', 'kubernetes'],
           'defaultSpawnBackend': 'kubernetes',
+          'sandboxBackend': 'boxy',
+          'sandboxAvailable': true,
+          'sandboxEnabled': true,
+          'sandboxReason': null,
         };
 
         final metadata = MachineMetadata.fromJson(json);
@@ -38,6 +42,10 @@ void main() {
         expect(metadata.shutdownSource, 'manual');
         expect(metadata.spawnBackends, ['local', 'kubernetes']);
         expect(metadata.defaultSpawnBackend, 'kubernetes');
+        expect(metadata.sandboxBackend, 'boxy');
+        expect(metadata.sandboxAvailable, isTrue);
+        expect(metadata.sandboxEnabled, isTrue);
+        expect(metadata.sandboxReason, isNull);
       });
 
       test('handles null and missing fields', () {
@@ -57,6 +65,10 @@ void main() {
         expect(metadata.shutdownSource, isNull);
         expect(metadata.spawnBackends, isNull);
         expect(metadata.defaultSpawnBackend, isNull);
+        expect(metadata.sandboxBackend, isNull);
+        expect(metadata.sandboxAvailable, isNull);
+        expect(metadata.sandboxEnabled, isNull);
+        expect(metadata.sandboxReason, isNull);
       });
 
       test('filters non-string spawn backend values', () {
@@ -97,6 +109,10 @@ void main() {
           shutdownSource: 'auto',
           spawnBackends: ['local', 'kubernetes'],
           defaultSpawnBackend: 'local',
+          sandboxBackend: 'boxy',
+          sandboxAvailable: false,
+          sandboxEnabled: false,
+          sandboxReason: 'boxy doctor failed',
         );
 
         final json = metadata.toJson();
@@ -115,6 +131,10 @@ void main() {
         expect(json['shutdownSource'], 'auto');
         expect(json['spawnBackends'], ['local', 'kubernetes']);
         expect(json['defaultSpawnBackend'], 'local');
+        expect(json['sandboxBackend'], 'boxy');
+        expect(json['sandboxAvailable'], isFalse);
+        expect(json['sandboxEnabled'], isFalse);
+        expect(json['sandboxReason'], 'boxy doctor failed');
       });
 
       test('includes null values in output', () {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,12 +9,15 @@ import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/chat_input.dart';
 import 'package:happy_flutter/features/chat/send/chat_attachment_controller.dart';
+import 'package:happy_flutter/features/chat/widgets/autocomplete_overlay.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_input_buttons.dart';
+import 'package:happy_flutter/features/chat/widgets/file_autocomplete.dart';
 
 Widget _buildComposer({
   required TextEditingController controller,
   required VoidCallback onSend,
   ChatAttachmentController? attachmentController,
+  FileSuggestionsLoader? onFileSuggestionsRequested,
   MediaQueryData? mediaQueryData,
 }) {
   final composer = Scaffold(
@@ -23,6 +28,7 @@ Widget _buildComposer({
         controller: controller,
         attachmentController: attachmentController,
         onSend: onSend,
+        onFileSuggestionsRequested: onFileSuggestionsRequested,
       ),
     ),
   );
@@ -160,6 +166,48 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(SendButton), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('shows async file suggestions and inserts the selected path', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    final request = Completer<List<AutocompleteSuggestion>>();
+    final queries = <String>[];
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        onFileSuggestionsRequested: (query) {
+          queries.add(query);
+          return request.future;
+        },
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '@lib/mai');
+    await tester.pump(const Duration(milliseconds: 101));
+    expect(queries, ['lib/mai']);
+    expect(find.byType(FileAutocomplete), findsNothing);
+
+    request.complete([
+      AutocompleteSuggestion(
+        id: 'lib/main.dart',
+        label: 'lib/main.dart',
+        type: SuggestionType.file,
+      ),
+    ]);
+    await tester.pump();
+
+    expect(find.byType(FileAutocomplete), findsOneWidget);
+    expect(find.text('lib/main.dart'), findsOneWidget);
+    await tester.tap(find.text('lib/main.dart'));
+    await tester.pump();
+    expect(controller.text, '@lib/main.dart ');
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

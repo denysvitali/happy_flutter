@@ -34,10 +34,19 @@ class InvalidateSync {
   Timer? _retryTimer;
   Timer? _cooldownTimer;
   DateTime? _lastRunEnd;
+  DateTime? _lastSuccessAt;
+  DateTime? _lastFailureAt;
+  String? _lastFailureKind;
 
   /// When the last operation completed. Used by Sync to evict stale
   /// per-session InvalidateSync entries and prevent unbounded growth.
   int? get lastRunEndMs => _lastRunEnd?.millisecondsSinceEpoch;
+
+  /// Redacted health metadata. Failure detail is reduced to the bounded
+  /// [classifySyncFailureReason] vocabulary; raw exception text never escapes.
+  int? get lastSuccessAtMs => _lastSuccessAt?.millisecondsSinceEpoch;
+  int? get lastFailureAtMs => _lastFailureAt?.millisecondsSinceEpoch;
+  String? get lastFailureKind => _lastFailureKind;
 
   // Exponential backoff configuration
   static const int baseDelayMs = 1000;
@@ -99,6 +108,9 @@ class InvalidateSync {
       _setRunning(false);
       _retryCount = 0;
       _lastRunEnd = null;
+      _lastSuccessAt = null;
+      _lastFailureAt = null;
+      _lastFailureKind = null;
       // Complete any orphaned completer from the disposed run normally so
       // that awaitQueue() callers are silently unblocked.  Using
       // completeError here previously caused unhandled StateError crashes
@@ -230,6 +242,8 @@ class InvalidateSync {
     try {
       await _action();
 
+      _lastSuccessAt = DateTime.now();
+
       await transaction.finish();
 
       if (generation != _runGeneration) return;
@@ -246,6 +260,8 @@ class InvalidateSync {
         ),
       );
     } catch (error) {
+      _lastFailureAt = DateTime.now();
+      _lastFailureKind = classifySyncFailureReason(error);
       await transaction.finish(status: const SpanStatus.internalError());
 
       if (generation != _runGeneration) return;

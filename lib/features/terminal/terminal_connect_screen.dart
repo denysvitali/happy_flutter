@@ -9,8 +9,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 
-/// Terminal connect screen — select a machine and enter a terminal ID
-/// to establish a terminal connection.
+/// Selects the machine and working directory for one-off shell commands.
 class TerminalConnectScreen extends ConsumerStatefulWidget {
   const TerminalConnectScreen({super.key});
 
@@ -21,12 +20,12 @@ class TerminalConnectScreen extends ConsumerStatefulWidget {
 
 class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
   String? _selectedMachineId;
-  final _terminalIdController = TextEditingController();
+  final _cwdController = TextEditingController(text: '/');
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _terminalIdController.dispose();
+    _cwdController.dispose();
     super.dispose();
   }
 
@@ -35,11 +34,12 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
       return;
     }
     final machineId = _selectedMachineId;
-    final terminalId = _terminalIdController.text.trim();
+    final cwd = _cwdController.text.trim();
 
-    context.push(
-      '/terminal',
-      extra: {'machineId': machineId, 'terminalId': terminalId},
+    context.pushNamed(
+      'machine-command',
+      pathParameters: {'machineId': machineId!},
+      queryParameters: {'cwd': cwd},
     );
   }
 
@@ -263,14 +263,14 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
               AppCard(
                 padding: EdgeInsets.zero,
                 child: TextFormField(
-                  controller: _terminalIdController,
+                  controller: _cwdController,
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.lg,
                       vertical: AppSpacing.sm,
                     ),
-                    prefixIcon: const Icon(Icons.tag),
+                    prefixIcon: const Icon(Icons.folder_outlined),
                     prefixIconConstraints: const BoxConstraints(
                       minWidth: AppTouchTarget.min,
                       minHeight: AppTouchTarget.min,

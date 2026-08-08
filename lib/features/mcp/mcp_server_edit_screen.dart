@@ -6,10 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/components/app_card.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/remote_feature_failure_localization.dart';
 import '../../core/models/mcp_server.dart';
+import '../../core/routing/safe_pop.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
-import '../../core/routing/safe_pop.dart';
 import 'mcp_servers_screen.dart' show scopeLabel;
 
 /// Navigation payload for [McpServerEditScreen].
@@ -29,6 +30,42 @@ class McpServerEditArgs {
 
   /// Null for a new server; set when editing an existing declaration.
   final McpServer? server;
+}
+
+/// Presence-only editor state for an MCP secret map.
+///
+/// Existing wire values are deliberately discarded. A null draft value means
+/// "preserve this existing key" and serializes to [mcpRedactedValue].
+class McpSecretMapController {
+  McpSecretMapController._(this._values);
+
+  factory McpSecretMapController.fromWire(Map<String, String> values) {
+    return McpSecretMapController._({
+      for (final key in values.keys.where((key) => key.trim().isNotEmpty))
+        key: null,
+    });
+  }
+
+  factory McpSecretMapController.empty() => McpSecretMapController._({});
+
+  final Map<String, String?> _values;
+
+  List<String> get keys => _values.keys.toList()..sort();
+
+  bool containsKey(String key) => _values.containsKey(key);
+
+  bool hasReplacement(String key) => _values[key] != null;
+
+  void replace(String key, String value) => _values[key] = value;
+
+  void add(String key, String value) => _values[key] = value;
+
+  void remove(String key) => _values.remove(key);
+
+  Map<String, String> toWire() => {
+    for (final entry in _values.entries)
+      entry.key: entry.value ?? mcpRedactedValue,
+  };
 }
 
 /// Form for creating or editing one MCP server on a machine.
@@ -51,9 +88,9 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _commandController;
   late final TextEditingController _argsController;
-  late final TextEditingController _envController;
   late final TextEditingController _urlController;
-  late final TextEditingController _headersController;
+  late final McpSecretMapController _envSecrets;
+  late final McpSecretMapController _headerSecrets;
 
   late McpServerScope _scope;
   late McpTransport _transport;
@@ -72,12 +109,10 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
     _argsController = TextEditingController(
       text: (server?.args ?? const []).join('\n'),
     );
-    _envController = TextEditingController(
-      text: _encodePairs(server?.env ?? const {}),
-    );
+    _envSecrets = McpSecretMapController.fromWire(server?.env ?? const {});
     _urlController = TextEditingController(text: server?.url ?? '');
-    _headersController = TextEditingController(
-      text: _encodePairs(server?.headers ?? const {}),
+    _headerSecrets = McpSecretMapController.fromWire(
+      server?.headers ?? const {},
     );
     _scope = server?.scope ?? McpServerScope.user;
     _transport = server?.transport ?? McpTransport.stdio;
@@ -89,30 +124,8 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
     _nameController.dispose();
     _commandController.dispose();
     _argsController.dispose();
-    _envController.dispose();
     _urlController.dispose();
-    _headersController.dispose();
     super.dispose();
-  }
-
-  static String _encodePairs(Map<String, String> pairs) => pairs.entries
-      .map((entry) => '${entry.key}=${entry.value}')
-      .join('\n');
-
-  /// Parses `KEY=VALUE` lines. Blank lines are ignored; the first `=` splits,
-  /// so values may contain `=` (common in tokens and base64).
-  static Map<String, String> _decodePairs(String raw) {
-    final out = <String, String>{};
-    for (final line in raw.split('\n')) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) continue;
-      final separator = trimmed.indexOf('=');
-      if (separator <= 0) continue;
-      final key = trimmed.substring(0, separator).trim();
-      if (key.isEmpty) continue;
-      out[key] = trimmed.substring(separator + 1).trim();
-    }
-    return out;
   }
 
   static List<String> _decodeLines(String raw) => raw
@@ -142,15 +155,19 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
       projectDir: _scope.isProjectScoped ? _projectDir : null,
       command: _commandController.text.trim(),
       args: _decodeLines(_argsController.text),
-      env: _decodePairs(_envController.text),
+      env: _envSecrets.toWire(),
       url: _urlController.text.trim(),
-      headers: _decodePairs(_headersController.text),
+      headers: _headerSecrets.toWire(),
     );
 
     if (!mounted) return;
     setState(() => _isSaving = false);
     if (!response.success) {
-      setState(() => _error = response.error ?? l10n.mcpSaveFailed);
+      setState(
+        () => _error = response.failureKind == null
+            ? l10n.mcpSaveFailed
+            : response.failureKind.localizedRemoteFeatureFailure(l10n),
+      );
       return;
     }
     safePop<McpConfigResponse>(context, result: response);
@@ -197,8 +214,9 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
                     validator: (value) {
                       final name = (value ?? '').trim();
                       if (name.isEmpty) return l10n.mcpNameRequired;
-                      if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9 ._-]*$')
-                          .hasMatch(name)) {
+                      if (!RegExp(
+                        r'^[A-Za-z0-9][A-Za-z0-9 ._-]*$',
+                      ).hasMatch(name)) {
                         return l10n.mcpNameInvalid;
                       }
                       return null;
@@ -255,11 +273,10 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
                         border: const OutlineInputBorder(),
                       ),
                       items: [
-                        for (final project
-                            in <String>{
-                              ...widget.args.knownProjects,
-                              ?_projectDir,
-                            }.toList()..sort())
+                        for (final project in <String>{
+                          ...widget.args.knownProjects,
+                          ?_projectDir,
+                        }.toList()..sort())
                           DropdownMenuItem<String>(
                             value: project,
                             child: Text(
@@ -289,9 +306,8 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
                         ),
                     ],
                     selected: {_transport},
-                    onSelectionChanged: (selection) => setState(
-                      () => _transport = selection.first,
-                    ),
+                    onSelectionChanged: (selection) =>
+                        setState(() => _transport = selection.first),
                   ),
                 ),
               ],
@@ -336,18 +352,11 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        TextFormField(
-                          controller: _envController,
-                          autocorrect: false,
-                          minLines: 2,
-                          maxLines: 8,
-                          decoration: InputDecoration(
-                            labelText: l10n.mcpFieldEnv,
-                            helperText: l10n.mcpEnvHelper,
-                            helperMaxLines: 3,
-                            border: const OutlineInputBorder(),
-                            alignLabelWithHint: true,
-                          ),
+                        _SecretMapEditor(
+                          title: l10n.mcpFieldEnv,
+                          helper: l10n.mcpEnvHelper,
+                          controller: _envSecrets,
+                          onChanged: () => setState(() {}),
                         ),
                       ],
                     ),
@@ -382,18 +391,11 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
                           },
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        TextFormField(
-                          controller: _headersController,
-                          autocorrect: false,
-                          minLines: 2,
-                          maxLines: 6,
-                          decoration: InputDecoration(
-                            labelText: l10n.mcpFieldHeaders,
-                            helperText: l10n.mcpHeadersHelper,
-                            helperMaxLines: 3,
-                            border: const OutlineInputBorder(),
-                            alignLabelWithHint: true,
-                          ),
+                        _SecretMapEditor(
+                          title: l10n.mcpFieldHeaders,
+                          helper: l10n.mcpHeadersHelper,
+                          controller: _headerSecrets,
+                          onChanged: () => setState(() {}),
                         ),
                       ],
                     ),
@@ -438,6 +440,147 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SecretMapEditor extends StatelessWidget {
+  const _SecretMapEditor({
+    required this.title,
+    required this.helper,
+    required this.controller,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String helper;
+  final McpSecretMapController controller;
+  final VoidCallback onChanged;
+
+  Future<void> _editSecret(BuildContext context, {String? existingKey}) async {
+    final l10n = context.l10n;
+    final keyController = TextEditingController(text: existingKey ?? '');
+    final valueController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    final result = await showDialog<({String key, String value})>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          existingKey == null ? l10n.mcpSecretAdd : l10n.mcpSecretReplace,
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: keyController,
+                readOnly: existingKey != null,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(labelText: l10n.mcpSecretKey),
+                validator: (value) {
+                  final key = (value ?? '').trim();
+                  if (key.isEmpty) return l10n.mcpSecretKeyRequired;
+                  if (existingKey == null && controller.containsKey(key)) {
+                    return l10n.mcpSecretKeyExists;
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextFormField(
+                controller: valueController,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(labelText: l10n.mcpSecretValue),
+                validator: (value) =>
+                    (value ?? '').isEmpty ? l10n.mcpSecretValueRequired : null,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              Navigator.of(context).pop((
+                key: keyController.text.trim(),
+                value: valueController.text,
+              ));
+            },
+            child: Text(l10n.commonSave),
+          ),
+        ],
+      ),
+    );
+    keyController.dispose();
+    valueController.dispose();
+    if (result == null) return;
+    if (existingKey == null) {
+      controller.add(result.key, result.value);
+    } else {
+      controller.replace(existingKey, result.value);
+    }
+    onChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          helper,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        for (final key in controller.keys)
+          SettingsRow(
+            icon: Icons.key_outlined,
+            title: key,
+            subtitle: controller.hasReplacement(key)
+                ? l10n.mcpSecretReplacementReady
+                : l10n.mcpSecretStored,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: l10n.mcpSecretReplace,
+                  onPressed: () => _editSecret(context, existingKey: key),
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+                IconButton(
+                  tooltip: l10n.mcpSecretRemove,
+                  onPressed: () {
+                    controller.remove(key);
+                    onChanged();
+                  },
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
+          ),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: () => _editSecret(context),
+            icon: const Icon(Icons.add),
+            label: Text(l10n.mcpSecretAdd),
+          ),
+        ),
+      ],
     );
   }
 }

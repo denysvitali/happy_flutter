@@ -63,8 +63,12 @@ void main() {
       };
       final run = WorkflowRun.tryFromJson(json);
       expect(run, isNotNull);
-      final roundTripped = WorkflowRun.tryFromJson(run!.toJson());
-      expect(roundTripped, run);
+      expect(run!.script, isNotEmpty);
+      expect(run.scriptPath, isNotEmpty);
+      expect(run.toJson().containsKey('script'), isFalse);
+      expect(run.toJson().containsKey('scriptPath'), isFalse);
+      final roundTripped = WorkflowRun.tryFromJson(run.toJson());
+      expect(roundTripped, run.copyWith(script: '', scriptPath: ''));
     });
 
     test('parses the snake_case workflow_progress container', () {
@@ -894,5 +898,34 @@ void main() {
       expect(groups.single.phase.title, 'probe');
       expect(groups.single.agents, hasLength(1));
     });
+  });
+
+  test('WorkflowTranscriptIndex resolves multiple runs from one tree walk', () {
+    final messages = <Map<String, dynamic>>[
+      for (final runId in <String>['wf_1', 'wf_2'])
+        <String, dynamic>{
+          'kind': 'tool-call',
+          'name': 'Workflow',
+          'workflowRunId': runId,
+          'children': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'workflowRunId': runId,
+              'taskEvent': true,
+              'event': <String, dynamic>{'message': 'step-$runId'},
+            },
+          ],
+        },
+    ];
+
+    final index = WorkflowTranscriptIndex.fromMessages(messages);
+
+    expect(
+      WorkflowRun.stepChildrenForIndex('wf_1', index).single['workflowRunId'],
+      'wf_1',
+    );
+    expect(
+      WorkflowRun.stepChildrenForIndex('wf_2', index).single['workflowRunId'],
+      'wf_2',
+    );
   });
 }

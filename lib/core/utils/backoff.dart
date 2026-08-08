@@ -10,7 +10,6 @@ import 'dart:math';
 import '../services/logger_service.dart';
 
 class ExponentialBackoff {
-
   ExponentialBackoff({
     required this.minDelayMs,
     required this.maxDelayMs,
@@ -18,6 +17,7 @@ class ExponentialBackoff {
     this.factor = 2.0,
     this.jitter = 0.2,
   }) : _currentDelayMs = minDelayMs;
+
   /// Minimum delay in milliseconds
   final int minDelayMs;
 
@@ -68,8 +68,7 @@ class ExponentialBackoff {
       return delay;
     }
     final jitterAmount = (delay * jitter).round();
-    final randomJitter =
-        Random().nextInt(jitterAmount * 2 + 1) - jitterAmount;
+    final randomJitter = Random().nextInt(jitterAmount * 2 + 1) - jitterAmount;
 
     return delay + randomJitter;
   }
@@ -98,9 +97,6 @@ class ExponentialBackoff {
 // React Native-compatible backoff utilities
 // ============================================================================
 
-/// Minimum required CLI version for full compatibility
-const String minimumCliVersion = '0.10.0';
-
 /// Calculate exponential backoff delay with optional jitter.
 ///
 /// [currentFailureCount] - Number of consecutive failures so far
@@ -115,7 +111,8 @@ int exponentialBackoffDelay(
   int maxDelay,
   int maxFailureCount,
 ) {
-  final maxDelayRet = minDelay +
+  final maxDelayRet =
+      minDelay +
       ((maxDelay - minDelay) / maxFailureCount) *
           min(currentFailureCount, maxFailureCount).toDouble();
   return (Random().nextDouble() * maxDelayRet).round();
@@ -126,13 +123,13 @@ typedef BackoffErrorHandler = void Function(dynamic error, int failureCount);
 
 /// Options for creating a backoff function
 class BackoffOptions {
-
   const BackoffOptions({
     this.onError,
     this.minDelay = 250,
     this.maxDelay = 1000,
     this.maxFailureCount = 50,
   });
+
   /// Optional callback called on each error
   final BackoffErrorHandler? onError;
 
@@ -169,9 +166,7 @@ typedef BackoffFunc<T> = Future<T> Function(Future<T> Function() callback);
 ///
 /// final result = await withBackoff(() => apiCall());
 /// ```
-BackoffFunc<T> createBackoff<T>(
-  BackoffOptions options,
-) {
+BackoffFunc<T> createBackoff<T>(BackoffOptions options) {
   return (Future<T> Function() callback) async {
     var currentFailureCount = 0;
     final minDelay = options.minDelay;

@@ -218,7 +218,7 @@ void main() {
   group('newSessionCreateErrorMessage', () {
     final l10n = lookupAppLocalizations(const Locale('en'));
 
-    test('shows daemon StateError messages directly', () {
+    test('does not expose unclassified daemon error prose', () {
       const daemonError =
           'directory /home/workspace/happy_flutter must be within '
           '/workspace';
@@ -228,7 +228,7 @@ void main() {
           l10n: l10n,
           error: StateError(daemonError),
         ),
-        daemonError,
+        l10n.newSessionCouldNotStartSession,
       );
     });
 
@@ -282,39 +282,38 @@ void main() {
   group('resolveAvailableMachineId', () {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    test('replaces a stale registration with the freshest online same host', () {
-      final stale = _machine(
-        id: 'stale',
-        displayName: 'Kubernetes daemon',
-        active: false,
-        activeAtMs: now - 300000,
-      );
-      final olderOnline = _machine(
-        id: 'online-older',
-        displayName: 'Kubernetes daemon',
-        active: true,
-        activeAtMs: now - 2000,
-      );
-      final freshestOnline = _machine(
-        id: 'online-fresh',
-        displayName: 'Kubernetes daemon',
-        active: true,
-        activeAtMs: now - 1000,
-      );
+    test(
+      'replaces a stale registration with the freshest online same host',
+      () {
+        final stale = _machine(
+          id: 'stale',
+          displayName: 'Kubernetes daemon',
+          active: false,
+          activeAtMs: now - 300000,
+        );
+        final olderOnline = _machine(
+          id: 'online-older',
+          displayName: 'Kubernetes daemon',
+          active: true,
+          activeAtMs: now - 2000,
+        );
+        final freshestOnline = _machine(
+          id: 'online-fresh',
+          displayName: 'Kubernetes daemon',
+          active: true,
+          activeAtMs: now - 1000,
+        );
 
-      expect(
-        resolveAvailableMachineId(
-          stale.id,
-          {
+        expect(
+          resolveAvailableMachineId(stale.id, {
             stale.id: stale,
             olderOnline.id: olderOnline,
             freshestOnline.id: freshestOnline,
-          },
-          nowMs: now,
-        ),
-        freshestOnline.id,
-      );
-    });
+          }, nowMs: now),
+          freshestOnline.id,
+        );
+      },
+    );
 
     test('does not replace a stale registration with another host', () {
       final stale = _machine(
@@ -331,11 +330,10 @@ void main() {
       );
 
       expect(
-        resolveAvailableMachineId(
-          stale.id,
-          {stale.id: stale, unrelated.id: unrelated},
-          nowMs: now,
-        ),
+        resolveAvailableMachineId(stale.id, {
+          stale.id: stale,
+          unrelated.id: unrelated,
+        }, nowMs: now),
         stale.id,
       );
     });
@@ -454,6 +452,43 @@ void main() {
             body: NewSessionDialog(
               initialMachineId: initialMachineId,
               initialPath: '/repo',
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget buildDialogRouteHarness({
+      required Map<String, Machine> machines,
+      required String initialMachineId,
+      required Future<String> Function() onCreateSession,
+    }) {
+      return ProviderScope(
+        overrides: [
+          machinesNotifierProvider.overrideWith(
+            () => _StubMachinesNotifier(machines),
+          ),
+          settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
+          sessionsNotifierProvider.overrideWith(
+            () => _StubSessionsNotifier(onCreateSession: onCreateSession),
+          ),
+          connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () => unawaited(
+                  showNewSessionDialog(
+                    context,
+                    initialMachineId: initialMachineId,
+                    initialPath: '/repo',
+                  ),
+                ),
+                child: const Text('Open dialog'),
+              ),
             ),
           ),
         ),
@@ -668,6 +703,75 @@ void main() {
           isEmpty,
           reason: 'ref must not be read after the dialog is gone',
         );
+      },
+    );
+
+    testWidgets(
+      'creation disables cancel, barrier, and system back dismissal',
+      (tester) async {
+        final testSync = createTestSync();
+        testSync.testEnsureMachineReachableOverride = (_) async {};
+        final spawnStarted = Completer<void>();
+        final finishSpawn = Completer<String>();
+        addTearDown(() {
+          testSync.testEnsureMachineReachableOverride = null;
+          LoggerService().clear();
+        });
+
+        final now = DateTime.now().millisecondsSinceEpoch;
+        await pumpDialog(
+          tester,
+          buildDialogRouteHarness(
+            machines: {
+              'm-online': _machine(
+                id: 'm-online',
+                displayName: 'My Laptop',
+                active: true,
+                activeAtMs: now,
+              ),
+            },
+            initialMachineId: 'm-online',
+            onCreateSession: () {
+              if (!spawnStarted.isCompleted) spawnStarted.complete();
+              return finishSpawn.future;
+            },
+          ),
+        );
+
+        await tester.tap(find.text('Open dialog'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.pump();
+        await spawnStarted.future;
+
+        final cancel = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Cancel'),
+        );
+        expect(cancel.onPressed, isNull);
+        expect(
+          tester.widget<ModalBarrier>(find.byType(ModalBarrier)).dismissible,
+          isFalse,
+        );
+
+        await tester.tapAt(const Offset(4, 4));
+        await tester.pump();
+        expect(find.byType(NewSessionDialog), findsOneWidget);
+
+        await tester.binding.handlePopRoute();
+        await tester.pump();
+        expect(find.byType(NewSessionDialog), findsOneWidget);
+
+        finishSpawn.completeError(StateError('spawn failed'));
+        await tester.pump();
+        await tester.pump();
+
+        final enabledCancel = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Cancel'),
+        );
+        expect(enabledCancel.onPressed, isNotNull);
+        await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+        await tester.pumpAndSettle();
+        expect(find.byType(NewSessionDialog), findsNothing);
       },
     );
 

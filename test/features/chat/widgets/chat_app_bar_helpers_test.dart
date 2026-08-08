@@ -254,6 +254,50 @@ void main() {
       },
     );
 
+    testWidgets('keeps Kubernetes startup visible for its five-minute budget', (
+      tester,
+    ) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final session = Session.fromJson(<String, dynamic>{
+        'id': 'kube-starting',
+        'seq': 0,
+        'createdAt': now - 240000,
+        'updatedAt': now,
+        'active': true,
+        'activeAt': now,
+        'metadataVersion': 1,
+        'agentStateVersion': 0,
+        'thinking': false,
+        'presence': 'offline',
+        'metadata': <String, dynamic>{
+          'lifecycleState': 'starting',
+          'lifecycleStateSince': now - 240000,
+          'runtimeType': 'kubernetes',
+        },
+      });
+      final inputs = await _runInHost(
+        tester,
+        (_) => ChatStatusChipsInputs(
+          session: session,
+          isReady: false,
+          hasRequests: false,
+          sendIssue: null,
+          latestUserMessage: null,
+          lastVisibleNonSidechainCreatedAt: 0,
+          debugMaxSeq: -1,
+          modelMode: ChatModelMode.defaultModel,
+        ),
+      );
+      final context = tester.element(find.byType(Text));
+      final chips = buildChatStatusChips(
+        context: context,
+        colorScheme: Theme.of(context).colorScheme,
+        inputs: inputs,
+      );
+
+      expect(chips.single.text, 'Connecting');
+    });
+
     testWidgets('sendIssue overrides online state', (tester) async {
       final inputs = await _runInHost(
         tester,

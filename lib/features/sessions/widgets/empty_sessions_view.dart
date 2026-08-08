@@ -22,21 +22,22 @@ class EmptySessionsView extends ConsumerWidget {
     final isFirstTimeUser = machines.isEmpty;
 
     if (isFirstTimeUser) {
-      return _FirstTimeEmptyState(onNewSession: () {
-        _showNewSessionDialog(context);
-      });
+      return _FirstTimeEmptyState(
+        onNewSession: () {
+          _showNewSessionDialog(context);
+        },
+      );
     }
 
-    return _ReturningUserEmptyState(onNewSession: () {
-      _showNewSessionDialog(context);
-    });
+    return _ReturningUserEmptyState(
+      onNewSession: () {
+        _showNewSessionDialog(context);
+      },
+    );
   }
 
   Future<void> _showNewSessionDialog(BuildContext context) async {
-    await showDialog<String>(
-      context: context,
-      builder: (context) => const NewSessionDialog(),
-    );
+    await showNewSessionDialog(context);
   }
 }
 

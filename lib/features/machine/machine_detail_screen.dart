@@ -18,11 +18,13 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppFontSize, AppSpacing, AppTouchTarget;
+    show AppFontSize, AppRadius, AppSpacing, AppTouchTarget;
 import '../../core/routing/safe_pop.dart';
 import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/snack.dart';
+import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/version_utils.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -130,6 +132,8 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
     final machineName = metadata?.displayName ?? metadata?.host ?? machine.id;
     final isOnline = machine.isOnline;
     final stats = _MachineStats.fromDaemonState(machine.daemonState);
+    final cliVersion = metadata?.happyCliVersion;
+    final cliOutdated = cliVersion != null && !isVersionSupported(cliVersion);
 
     // Sessions for this machine, sorted by most recently updated.
     final machineSessions =
@@ -165,6 +169,69 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
               isOnline: isOnline,
               lastSeen: _formatTimestamp(machine.activeAt),
             ),
+            if (cliOutdated) ...[
+              const SizedBox(height: AppSpacing.md),
+              Card(
+                color: cs.tertiaryContainer,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  onTap: () async {
+                    await setClipboardTextSafely(
+                      'npm install -g happy-coder@latest',
+                    );
+                    if (context.mounted) {
+                      context.showSnack(
+                        context.l10n.machineCompatibilityCopied,
+                      );
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.system_update_alt_rounded,
+                          color: cs.onTertiaryContainer,
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                context.l10n.machineCompatibilityTitle,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: cs.onTertiaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xxs),
+                              Text(
+                                context.l10n.machineCompatibilityMessage(
+                                  cliVersion,
+                                  minimumCliVersion,
+                                ),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: cs.onTertiaryContainer,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                context.l10n.machineCompatibilityAction,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: cs.onTertiaryContainer,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.xxl),
 
             if (stats != null) ...[

@@ -247,7 +247,7 @@ class KnownTools {
     'Bash': ToolDefinition(
       icon: bashIcon,
       title: 'Terminal',
-      minimal: true,
+      minimal: false,
       hideDefaultError: true,
       isMutable: true,
       extractSubtitle: (tool, _) => tool['input']?['command'] as String?,
@@ -299,7 +299,7 @@ class KnownTools {
     'Glob': ToolDefinition(
       icon: searchIcon,
       title: 'Search Files',
-      minimal: true,
+      minimal: false,
       extractDescription: (tool, _) {
         final pattern = tool['input']?['pattern'] as String?;
         return pattern != null ? 'Pattern: $pattern' : null;
@@ -308,7 +308,7 @@ class KnownTools {
     'Grep': ToolDefinition(
       icon: searchIcon,
       title: 'Search Content',
-      minimal: true,
+      minimal: false,
       extractDescription: (tool, _) {
         final pattern = tool['input']?['pattern'] as String?;
         if (pattern == null) return null;
@@ -321,7 +321,7 @@ class KnownTools {
     'LS': ToolDefinition(
       icon: searchIcon,
       title: 'List Files',
-      minimal: true,
+      minimal: false,
       extractDescription: (tool, metadata) {
         final input = WireParsers.asMap(tool['input']) ?? const {};
         final path = extractFilePath(input);

@@ -10,6 +10,7 @@ import '../models/auth.dart';
 import '../models/built_in_profiles.dart';
 import '../models/settings.dart';
 import '../models/settings_update.dart';
+import 'at_rest_encryption_service.dart';
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 import 'server_config_storage.dart';
@@ -240,10 +241,12 @@ class SettingsStorage {
     }
 
     // Ensure base settings are loaded.
-    final cached = _cachedSettings ?? await () async {
-      await getSettings();
-      return _cachedSettings;
-    }();
+    final cached =
+        _cachedSettings ??
+        await () async {
+          await getSettings();
+          return _cachedSettings;
+        }();
     if (cached == null) return null;
 
     AIBackendProfile? target;
@@ -916,6 +919,19 @@ class Storage {
     await Future.wait<void>([
       MMKVStorage.initialize(),
       ServerConfigStorage.initialize(),
+      () async {
+        try {
+          await AtRestEncryptionService().initialize();
+        } catch (error, stack) {
+          // Storage remains usable, but sensitive cache/outbox writers fail
+          // closed until secure storage becomes available on a later retry.
+          logger.warning(
+            '[Storage] At-rest protection key unavailable',
+            error,
+            stack,
+          );
+        }
+      }(),
     ]);
   }
 

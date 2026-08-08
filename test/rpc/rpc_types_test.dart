@@ -35,12 +35,22 @@ void main() {
         'errorMessage': null,
         'directory': '/tmp/project',
         'dataEncryptionKey': 'dek-abc',
+        'sandboxRequested': true,
+        'sandboxRequired': true,
+        'sandboxEnforced': false,
+        'sandboxBackend': 'none',
+        'sandboxReason': 'boxy is unavailable',
       });
 
       expect(response.type, 'success');
       expect(response.sessionId, 'session-123');
       expect(response.directory, '/tmp/project');
       expect(response.dataEncryptionKey, 'dek-abc');
+      expect(response.sandboxRequested, isTrue);
+      expect(response.sandboxRequired, isTrue);
+      expect(response.sandboxEnforced, isFalse);
+      expect(response.sandboxBackend, 'none');
+      expect(response.sandboxReason, 'boxy is unavailable');
     });
 
     test('parses snake_case compatibility fields', () {

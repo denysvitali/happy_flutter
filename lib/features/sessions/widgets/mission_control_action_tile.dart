@@ -75,7 +75,7 @@ class MissionActionRow extends StatelessWidget {
       label: '$name, $laneLabel, $detail, $semanticOutcome',
       child: ExcludeSemantics(
         child: AnimatedContainer(
-          duration: AppDuration.fast,
+          duration: AppMotion.duration(context, AppDuration.fast),
           curve: AppCurve.standard,
           constraints: const BoxConstraints(
             minHeight: AppTouchTarget.comfortable,

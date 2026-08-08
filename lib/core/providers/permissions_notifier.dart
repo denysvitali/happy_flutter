@@ -2,13 +2,14 @@ import 'package:riverpod/riverpod.dart';
 
 import '../services/logger_service.dart' show logger;
 import '../services/sync_service.dart';
+import '../rpc/rpc_types.dart';
 
 /// Encapsulates permission approval/denial so screens don't call sync directly.
 class PermissionsNotifier extends Notifier<void> {
   @override
   void build() {}
 
-  Future<void> allow(
+  Future<PermissionResponse> allow(
     String sessionId,
     String permissionId, {
     String? mode,
@@ -20,7 +21,7 @@ class PermissionsNotifier extends Notifier<void> {
       throw StateError('Sync is not initialized');
     }
     try {
-      await sync.sessionAllow(
+      return await sync.sessionAllow(
         sessionId,
         permissionId,
         mode: mode,
@@ -38,7 +39,7 @@ class PermissionsNotifier extends Notifier<void> {
     }
   }
 
-  Future<void> deny(
+  Future<PermissionResponse> deny(
     String sessionId,
     String permissionId, {
     String? decision,
@@ -47,7 +48,7 @@ class PermissionsNotifier extends Notifier<void> {
       throw StateError('Sync is not initialized');
     }
     try {
-      await sync.sessionDeny(
+      return await sync.sessionDeny(
         sessionId,
         permissionId,
         decision: decision,

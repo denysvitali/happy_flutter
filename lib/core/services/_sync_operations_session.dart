@@ -4,8 +4,33 @@ part of 'sync_service.dart';
 /// persisted. Repository-backed sessions use Kubernetes; the remaining
 /// sessions are daemon-local processes.
 String _spawnBackendForExistingSession(Session session) {
+  final runtimeType = session.metadata?.runtimeKind?.trim().toLowerCase();
+  if (runtimeType == 'kubernetes') return 'kubernetes';
+  if (runtimeType == 'local' || runtimeType == 'process') return 'local';
   final repoUrl = session.metadata?.repoUrl;
   return repoUrl != null && repoUrl.isNotEmpty ? 'kubernetes' : 'local';
+}
+
+Metadata _metadataWithSpawnResult(
+  Metadata metadata,
+  SpawnSessionResponse result,
+) {
+  final hasSandboxState =
+      result.sandboxRequested != null ||
+      result.sandboxRequired != null ||
+      result.sandboxEnforced != null ||
+      result.sandboxBackend != null;
+  if (!hasSandboxState) return metadata;
+  return metadata.copyWith(
+    runtimeKind: result.sandboxBackend == 'kubernetes'
+        ? 'kubernetes'
+        : metadata.runtimeKind,
+    sandboxRequested: result.sandboxRequested ?? metadata.sandboxRequested,
+    sandboxRequired: result.sandboxRequired ?? metadata.sandboxRequired,
+    sandboxEnforced: result.sandboxEnforced ?? metadata.sandboxEnforced,
+    sandboxBackend: result.sandboxBackend ?? metadata.sandboxBackend,
+    sandboxReason: result.sandboxReason,
+  );
 }
 
 extension SyncSessionOperations on Sync {
@@ -274,6 +299,14 @@ extension SyncSessionOperations on Sync {
         path: resolvedPath,
       );
 
+      final hydratedSession = _sessions[sessionId];
+      final hydratedMetadata = hydratedSession?.metadata;
+      if (hydratedSession != null && hydratedMetadata != null) {
+        _sessions[sessionId] = hydratedSession.copyWith(
+          metadata: _metadataWithSpawnResult(hydratedMetadata, result),
+        );
+      }
+
       if (!_sessions.containsKey(sessionId)) {
         final now = DateTime.now().millisecondsSinceEpoch;
         _sessions[sessionId] = Session(
@@ -283,12 +316,17 @@ extension SyncSessionOperations on Sync {
           updatedAt: now,
           active: true,
           activeAt: now,
-          metadata: Metadata(
-            host: '',
-            machineId: machineId,
-            path: resolvedPath,
-            flavor: agent,
-            lifecycleState: 'starting',
+          metadata: _metadataWithSpawnResult(
+            Metadata(
+              host: '',
+              machineId: machineId,
+              path: resolvedPath,
+              flavor: agent,
+              lifecycleState: 'starting',
+              runtimeKind: spawnBackend,
+              repoUrl: repoUrl,
+            ),
+            result,
           ),
           metadataVersion: 0,
           agentStateVersion: 0,
@@ -346,8 +384,10 @@ extension SyncSessionOperations on Sync {
     // The daemon waits 15 s for the agent's startup webhook before returning
     // an error.  The agent often connects to the server ~2 s after that
     // deadline, so the session IS created even though the RPC returned an
-    // error.  Retry once: wait briefly, force a full session refresh, then
-    // look for a recently-created session on this machine + path.
+    // error. Retry once: wait briefly, force a full session refresh, then
+    // recover only the exact client-generated ID sent in the spawn request.
+    // A path is not an identity: another user or concurrent request can
+    // legitimately create a newer session in the same directory.
     if (errorMsg.contains('webhook timeout')) {
       logger.info(
         '[createSession] spawn webhook timeout for '
@@ -357,35 +397,8 @@ extension SyncSessionOperations on Sync {
       _forceFullFetchNext = true;
       await refreshSessions();
 
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final candidates = _sessions.values.where((s) {
-        final ageMs = now - s.createdAt;
-        final matchesMachineId = s.metadata?.machineId == machineId;
-        final matchesPath = s.metadata?.path == resolvedPath;
-        final recent = ageMs < 90000;
-        final isMatch = matchesMachineId && matchesPath && recent;
-        if (matchesPath && ageMs < 120000) {
-          logger.info(
-            '[createSession] checking session ${s.id}: '
-            'machineId=${s.metadata?.machineId} '
-            '(matches=$matchesMachineId) '
-            'path=${s.metadata?.path} '
-            '(matches=$matchesPath) '
-            'age=${(ageMs / 1000).toStringAsFixed(1)}s '
-            '(recent=$recent) '
-            'isMatch=$isMatch',
-          );
-        }
-        return isMatch;
-      }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-      logger.info(
-        '[createSession] found ${candidates.length} candidate sessions '
-        'matching machine=$machineId path=$resolvedPath',
-      );
-
-      if (candidates.isNotEmpty) {
-        final found = candidates.first;
+      final found = _sessions[requestedSessionId];
+      if (found != null) {
         logger.info(
           '[createSession] recovered session ${found.id} '
           'after webhook timeout',
@@ -403,8 +416,9 @@ extension SyncSessionOperations on Sync {
       }
 
       logger.warning(
-        '[createSession] session not found after webhook timeout '
-        'retry machine=$machineId path=$resolvedPath',
+        '[createSession] requested session not found after webhook timeout '
+        'retry session=$requestedSessionId machine=$machineId '
+        'path=$resolvedPath',
       );
     }
 
@@ -457,7 +471,6 @@ extension SyncSessionOperations on Sync {
     // after the optimistic insert without blocking the create flow.
     sessionsSync.invalidate();
   }
-
 
   /// Create a git worktree on a machine under `.dev/worktree/<name>`
   /// relative to [basePath] and return the absolute path to the new
@@ -521,7 +534,6 @@ extension SyncSessionOperations on Sync {
     final noun = nouns[rand.nextInt(nouns.length)];
     return '$adj-$noun';
   }
-
 
   String _spawnedValueChange({
     required bool profileChanged,

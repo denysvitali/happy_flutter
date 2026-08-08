@@ -185,6 +185,10 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiStringNullable) String? repoUrl,
     @JsonKey(fromJson: _asApiStringNullable) String? repoRef,
     @JsonKey(fromJson: _asApiStringNullable) String? repoCommit,
+    @JsonKey(name: 'runtimeType', fromJson: _asApiStringNullable)
+    String? runtimeKind,
+    @JsonKey(fromJson: _asApiStringNullable) String? podName,
+    @JsonKey(fromJson: _asApiStringNullable) String? namespace,
     // sandbox field is stored as {enabled: bool} but we keep bool? in model
     @JsonKey(
       name: 'sandbox',
@@ -192,6 +196,11 @@ abstract class Metadata with _$Metadata {
       toJson: _sandboxEnabledToJson,
     )
     bool? sandboxEnabled,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxRequested,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxRequired,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxEnforced,
+    @JsonKey(fromJson: _asApiStringNullable) String? sandboxBackend,
+    @JsonKey(fromJson: _asApiStringNullable) String? sandboxReason,
   }) = _Metadata;
 
   factory Metadata.fromJson(Map<String, dynamic> json) =>

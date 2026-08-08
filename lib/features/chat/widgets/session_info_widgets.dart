@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/components/app_badge.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/models/session.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -34,10 +36,7 @@ class StatusChip extends StatelessWidget {
           Container(
             width: AppSpacing.sm,
             height: AppSpacing.sm,
-            decoration: BoxDecoration(
-              color: chipColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: chipColor, shape: BoxShape.circle),
           ),
           const SizedBox(width: AppSpacing.xsm),
           Text(
@@ -52,6 +51,58 @@ class StatusChip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Presence-safe status for the isolation actually applied to this session.
+///
+/// Legacy sessions do not publish enforcement fields, so no claim is made for
+/// them. The requested policy alone is never presented as proof of isolation.
+class SessionSandboxBadge extends StatelessWidget {
+  /// Creates a badge from daemon-published session metadata.
+  const SessionSandboxBadge({required this.metadata, super.key});
+
+  /// Session metadata containing the sandbox enforcement result.
+  final Metadata metadata;
+
+  @override
+  Widget build(BuildContext context) {
+    final requested = metadata.sandboxRequested;
+    final enforced = metadata.sandboxEnforced;
+    if (requested == null && enforced == null) {
+      return const SizedBox.shrink();
+    }
+
+    final l10n = context.l10n;
+    final String label;
+    final String tooltip;
+    final AppBadgeTone tone;
+    if (enforced ?? false) {
+      label = l10n.sessionSandboxEnforced;
+      final backend = metadata.sandboxBackend?.trim();
+      tooltip = backend == null || backend.isEmpty
+          ? l10n.sessionSandboxEnforcedTooltip('sandbox')
+          : l10n.sessionSandboxEnforcedTooltip(backend);
+      tone = AppBadgeTone.success;
+    } else if (requested ?? false) {
+      label = l10n.sessionSandboxNotEnforced;
+      final reason = metadata.sandboxReason?.trim();
+      tooltip = reason == null || reason.isEmpty
+          ? l10n.sessionSandboxNotEnforcedTooltip
+          : reason;
+      tone = (metadata.sandboxRequired ?? false)
+          ? AppBadgeTone.danger
+          : AppBadgeTone.warning;
+    } else {
+      label = l10n.sessionSandboxOff;
+      tooltip = l10n.sessionSandboxOffTooltip;
+      tone = AppBadgeTone.neutral;
+    }
+
+    return Tooltip(
+      message: tooltip,
+      child: AppBadge(label: label, tone: tone),
     );
   }
 }
@@ -96,11 +147,7 @@ class InfoRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: iconColor ?? theme.colorScheme.primary,
-            ),
+            Icon(icon, size: 20, color: iconColor ?? theme.colorScheme.primary),
             const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: Column(
@@ -189,18 +236,13 @@ class ActionRow extends StatelessWidget {
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: color,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 2, color: color),
               )
             else
               Icon(
                 Icons.chevron_right,
                 size: AppSpacing.xl,
-                color: color.withValues(
-                  alpha: AppOpacity.high,
-                ),
+                color: color.withValues(alpha: AppOpacity.high),
               ),
           ],
         ),

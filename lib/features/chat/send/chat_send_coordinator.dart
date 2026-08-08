@@ -8,6 +8,23 @@
 /// - fail/retry only match by `localId` (or equal `id` fallback)
 library;
 
+/// Returns the stable identity of a rendered logical message.
+///
+/// A server acknowledgement may replace `id`, while `localId` remains the
+/// canonical identity shared by optimistic UI, retry, and merge.
+String canonicalMessageIdentityKey(
+  Map<String, dynamic> message, {
+  String fallback = '',
+}) {
+  final localId = message['localId'] as String?;
+  if (localId != null && localId.isNotEmpty) return localId;
+  final id = message['id'] as String?;
+  if (id != null && id.isNotEmpty) return id;
+  final toolUseId = message['toolUseId'] as String?;
+  if (toolUseId != null && toolUseId.isNotEmpty) return toolUseId;
+  return fallback;
+}
+
 /// Builds the optimistic user message map for an in-flight send.
 ///
 /// [localId] must already be the canonical client identity that will

@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/models/mcp_server.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/providers/machines_notifier.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/types/remote_feature_failure.dart';
 import 'package:happy_flutter/features/mcp/mcp_servers_screen.dart';
 
 class _StubMachinesNotifier extends MachinesNotifier {
@@ -96,6 +97,15 @@ Future<void> _pumpScreen(
 }
 
 void main() {
+  test('failed daemon snapshots retain a stable failure kind', () {
+    final response = McpConfigResponse.fromJson(const <String, dynamic>{
+      'success': false,
+      'error': 'arbitrary prose',
+    });
+
+    expect(response.failureKind, RemoteFeatureFailureKind.rejected);
+  });
+
   late Sync sync;
   late List<({String method, Map<String, dynamic> params})> calls;
 
@@ -154,15 +164,17 @@ void main() {
       tester,
     ) async {
       stubRpc(
-        (_) => <String, dynamic>{
-          'success': false,
-          'error': 'machine offline',
-        },
+        (_) => <String, dynamic>{'success': false, 'error': 'machine offline'},
       );
 
       await _pumpScreen(tester);
 
-      expect(find.text('machine offline'), findsOneWidget);
+      expect(
+        find.text(
+          'The machine rejected the request. Check the values and try again.',
+        ),
+        findsOneWidget,
+      );
       // The machine picker stays reachable so the user can switch machines.
       expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
     });
@@ -202,6 +214,31 @@ void main() {
       expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
     });
 
+    testWidgets('enabling a server requires reviewing its trust details', (
+      tester,
+    ) async {
+      stubRpc(
+        (call) => _snapshot(
+          servers: [
+            _stdioServer(name: 'search', enabled: call.method == 'mcp-toggle'),
+          ],
+        ),
+      );
+
+      await _pumpScreen(tester);
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Enable search?'), findsOneWidget);
+      expect(calls.where((call) => call.method == 'mcp-toggle'), isEmpty);
+
+      await tester.tap(find.text('Enable server'));
+      await tester.pumpAndSettle();
+
+      expect(calls.last.method, 'mcp-toggle');
+      expect(calls.last.params['enabled'], isTrue);
+    });
+
     testWidgets('renders shadowed, needs-auth, and approval badges', (
       tester,
     ) async {
@@ -238,10 +275,7 @@ void main() {
 
       await _pumpScreen(tester);
 
-      expect(
-        find.textContaining('unexpected end'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('unexpected end'), findsOneWidget);
       expect(find.text('search'), findsOneWidget);
     });
 
@@ -287,7 +321,7 @@ void main() {
       expect(server.scope, McpServerScope.userSettings);
       expect(server.transport, McpTransport.stdio);
       expect(server.target, 'search-mcp serve');
-      expect(server.env['TOKEN'], 'secret');
+      expect(server.env['TOKEN'], mcpRedactedValue);
       expect(server.enabled, isTrue);
     });
 
@@ -302,7 +336,7 @@ void main() {
       });
       expect(server.transport, McpTransport.http);
       expect(server.target, 'https://mcp.example/v1');
-      expect(server.headers['Authorization'], 'Bearer t');
+      expect(server.headers['Authorization'], mcpRedactedValue);
     });
 
     test('treats an unknown scope as user rather than dropping the row', () {

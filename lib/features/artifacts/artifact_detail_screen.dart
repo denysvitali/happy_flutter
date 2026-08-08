@@ -131,11 +131,7 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          headerTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(headerTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: actions,
       ),
       body: body,
@@ -179,14 +175,13 @@ class _ArtifactDetailScreenState extends ConsumerState<ArtifactDetailScreen>
   }
 }
 
-
-class _ArtifactDetailBody extends StatelessWidget {
+class _ArtifactDetailBody extends ConsumerWidget {
   const _ArtifactDetailBody({required this.artifact});
 
   final DecryptedArtifact artifact;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final createdAt = DateTime.fromMillisecondsSinceEpoch(artifact.createdAt);
     final updatedAt = DateTime.fromMillisecondsSinceEpoch(artifact.updatedAt);
 
@@ -220,6 +215,39 @@ class _ArtifactDetailBody extends StatelessWidget {
               ),
           ],
         ),
+        if (artifact.sessions?.isNotEmpty ?? false) ...[
+          const SizedBox(height: AppSpacing.xxl),
+          AppSectionHeader(
+            title: context.l10n.artifactsSourceSessions,
+            padding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            context.l10n.artifactsSourceSessionsSubtitle,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          AppCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                for (final sessionId in artifact.sessions!)
+                  _ArtifactSessionRow(
+                    sessionId: sessionId,
+                    title: _sessionTitle(
+                      ref
+                          .watch(sessionsNotifierProvider)[sessionId]
+                          ?.metadata
+                          ?.name,
+                      sessionId,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xxl),
         AppSectionHeader(
           title: context.l10n.artifactsContentLabel,
@@ -231,6 +259,12 @@ class _ArtifactDetailBody extends StatelessWidget {
     );
   }
 
+  static String _sessionTitle(String? name, String id) {
+    if (name != null && name.trim().isNotEmpty) return name.trim();
+    final preview = id.length > 8 ? id.substring(0, 8) : id;
+    return 'Session $preview';
+  }
+
   static String _formatDateTime(DateTime dt) {
     final y = dt.year;
     final mo = dt.month.toString().padLeft(2, '0');
@@ -239,6 +273,29 @@ class _ArtifactDetailBody extends StatelessWidget {
     final m = dt.minute.toString().padLeft(2, '0');
     return '$y-$mo-$d $h:$m';
   }
+}
+
+class _ArtifactSessionRow extends StatelessWidget {
+  const _ArtifactSessionRow({required this.sessionId, required this.title});
+
+  final String sessionId;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    minTileHeight: AppTouchTarget.comfortable,
+    leading: const Icon(Icons.chat_bubble_outline),
+    title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: Text(
+      sessionId,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontFamily: 'monospace'),
+    ),
+    trailing: const Icon(Icons.chevron_right),
+    onTap: () =>
+        context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
+  );
 }
 
 // ─── Metadata card ───────────────────────────────────────────────────────────

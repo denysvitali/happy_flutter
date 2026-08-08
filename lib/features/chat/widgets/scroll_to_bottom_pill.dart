@@ -11,11 +11,7 @@ import '../../../core/theme/app_tokens.dart';
 /// uses a subtle shadow for depth.
 class ScrollToBottomPill extends StatefulWidget {
   /// Creates a scroll-to-bottom pill.
-  const ScrollToBottomPill({
-    required this.onTap,
-    super.key,
-    this.unreadCount,
-  });
+  const ScrollToBottomPill({required this.onTap, super.key, this.unreadCount});
 
   /// Callback when the pill is tapped.
   final VoidCallback onTap;
@@ -24,12 +20,10 @@ class ScrollToBottomPill extends StatefulWidget {
   final int? unreadCount;
 
   @override
-  State<ScrollToBottomPill> createState() =>
-      _ScrollToBottomPillState();
+  State<ScrollToBottomPill> createState() => _ScrollToBottomPillState();
 }
 
-class _ScrollToBottomPillState
-    extends State<ScrollToBottomPill>
+class _ScrollToBottomPillState extends State<ScrollToBottomPill>
     with TickerProviderStateMixin {
   late final AnimationController _entryCtrl;
 
@@ -46,35 +40,38 @@ class _ScrollToBottomPillState
     // (AppSpring.standard) rather than a fixed-duration curve, so the
     // overshoot and settle follow natural motion.
     _entryCtrl = AnimationController.unbounded(vsync: this);
-    _entryCtrl.animateWith(
-      SpringSimulation(AppSpring.standard, 0.0, 1.0, 0.0),
-    );
+    _entryCtrl.animateWith(SpringSimulation(AppSpring.standard, 0.0, 1.0, 0.0));
 
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: AppDuration.fast,
-    );
+    _pulseCtrl = AnimationController(vsync: this, duration: AppDuration.fast);
     _pulseScale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 1.28)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 1.0,
+          end: 1.28,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 40,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.28, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeInOut)),
+        tween: Tween(
+          begin: 1.28,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 60,
       ),
     ]).animate(_pulseCtrl);
     _pulseGlow = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0.3, end: 0.7)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 0.3,
+          end: 0.7,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 40,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 0.7, end: 0.3)
-            .chain(CurveTween(curve: Curves.easeInOut)),
+        tween: Tween(
+          begin: 0.7,
+          end: 0.3,
+        ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 60,
       ),
     ]).animate(_pulseCtrl);
@@ -106,8 +103,10 @@ class _ScrollToBottomPillState
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final scrollLabel = context.l10n.chatScrollToLatest;
-    final showBadge = widget.unreadCount != null &&
-        widget.unreadCount! > 0;
+    final showBadge = widget.unreadCount != null && widget.unreadCount! > 0;
+    final unreadValue = showBadge
+        ? '${widget.unreadCount} ${context.l10n.missionControlStatUnread}'
+        : null;
 
     return AnimatedBuilder(
       animation: _entryCtrl,
@@ -128,6 +127,7 @@ class _ScrollToBottomPillState
       },
       child: Semantics(
         label: scrollLabel,
+        value: unreadValue,
         button: true,
         child: Tooltip(
           message: scrollLabel,
@@ -136,36 +136,31 @@ class _ScrollToBottomPillState
             children: [
               DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.pill,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   boxShadow: AppShadow.card,
                 ),
                 child: Material(
                   color: cs.surfaceContainer,
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.pill,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   child: InkWell(
                     onTap: () {
                       HapticFeedback.lightImpact();
                       widget.onTap();
                     },
-                    borderRadius: BorderRadius.circular(
-                      AppRadius.pill,
-                    ),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                     child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: AppTouchTarget.min,
+                        minHeight: AppTouchTarget.min,
+                      ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
                         vertical: AppSpacing.sm,
                       ),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(
-                          AppRadius.pill,
-                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                         border: Border.all(
-                          color: cs.outlineVariant
-                              .withValues(alpha: 0.3),
+                          color: cs.outlineVariant.withValues(alpha: 0.3),
                           width: AppBorder.hairline,
                         ),
                       ),
@@ -187,43 +182,31 @@ class _ScrollToBottomPillState
                     duration: AppDuration.fast,
                     curve: Curves.easeOutBack,
                     builder: (context, entryValue, child) =>
-                        Transform.scale(
-                      scale: entryValue,
-                      child: child,
-                    ),
+                        Transform.scale(scale: entryValue, child: child),
                     child: AnimatedBuilder(
                       animation: _pulseCtrl,
-                      builder: (context, child) =>
-                          Transform.scale(
+                      builder: (context, child) => Transform.scale(
                         scale: _pulseScale.value,
                         child: Container(
-                          padding:
-                              const EdgeInsets.symmetric(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 5,
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
                             color: cs.primary,
-                            borderRadius:
-                                BorderRadius.circular(
-                              AppRadius.pill,
-                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
                             boxShadow: [
                               BoxShadow(
-                                color: cs.primary
-                                    .withValues(
-                                  alpha:
-                                      _pulseGlow.value,
+                                color: cs.primary.withValues(
+                                  alpha: _pulseGlow.value,
                                 ),
                                 blurRadius: 8,
                                 spreadRadius: 1,
-                                offset:
-                                    const Offset(0, 1),
+                                offset: const Offset(0, 1),
                               ),
                             ],
                           ),
-                          constraints:
-                              const BoxConstraints(
+                          constraints: const BoxConstraints(
                             minWidth: 18,
                             minHeight: 18,
                           ),

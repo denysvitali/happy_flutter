@@ -577,6 +577,22 @@ extension SyncMessagingSend on Sync {
           PowerDiagnosticsOtelReporter.instance.recordAppError(
             'app.session.spawn_timeout',
           );
+          logger.info(
+            '[sendMessage] recently spawned agent not ready; '
+            'queueing until ready session=$targetSessionId '
+            'localId=$localId',
+          );
+          await _queueMessageRetry(
+            sessionId: targetSessionId,
+            localId: localId,
+            text: text,
+            encryptedRawRecord: encryptedRawRecord,
+            rawRecord: rawRecord,
+          );
+          outcome = 'agent_starting';
+          transaction.setData('queuedForReadiness', true);
+          await transaction.finish(status: const SpanStatus.deadlineExceeded());
+          return;
         }
         logger.info(
           '[sendMessage] agent not ready for '
@@ -1142,8 +1158,8 @@ extension SyncMessagingSend on Sync {
         'rate_limited',
       );
     }
-    final gone = _isPermanentSendStatus(status) ||
-        _sendBodyIndicatesSessionGone(body);
+    final gone =
+        _isPermanentSendStatus(status) || _sendBodyIndicatesSessionGone(body);
     return OutboxDeliveryFailure(
       OutboxFailureClass.permanent,
       gone ? 'session_gone' : 'client_rejected',
@@ -1155,13 +1171,25 @@ extension SyncMessagingSend on Sync {
   /// Returns `null` on success, or an [OutboxDeliveryFailure] whose class
   /// selects the outbox retry budget (transient retries for hours,
   /// permanent dead-letters quickly).
-  Future<OutboxDeliveryFailure?> _deliverOutboxEntry(
-    OutboxEntry entry,
-  ) async {
+  Future<OutboxDeliveryFailure?> _deliverOutboxEntry(OutboxEntry entry) async {
     if (!isInitialized) {
       return const OutboxDeliveryFailure(
         OutboxFailureClass.transient,
         'sync_not_ready',
+      );
+    }
+
+    final session = _sessions[entry.sessionId];
+    final lifecycle = session?.effectiveLifecycleState?.toLowerCase();
+    if (lifecycle == 'starting' || lifecycle == 'connecting') {
+      logger.info(
+        '[MessageOutbox] deferring delivery until agent readiness '
+        'session=${entry.sessionId} localId=${entry.localId} '
+        'lifecycle=$lifecycle',
+      );
+      return const OutboxDeliveryFailure(
+        OutboxFailureClass.transient,
+        'agent_starting',
       );
     }
 
@@ -1192,7 +1220,8 @@ extension SyncMessagingSend on Sync {
           e,
           stack,
         );
-        final isTimeout = e.type == DioExceptionType.connectionTimeout ||
+        final isTimeout =
+            e.type == DioExceptionType.connectionTimeout ||
             e.type == DioExceptionType.sendTimeout ||
             e.type == DioExceptionType.receiveTimeout;
         return OutboxDeliveryFailure(
@@ -1233,10 +1262,7 @@ extension SyncMessagingSend on Sync {
         'status=${response.statusCode} '
         'localId=${entry.localId}',
       );
-      return _classifySendHttpStatus(
-        response.statusCode ?? 0,
-        response.data,
-      );
+      return _classifySendHttpStatus(response.statusCode ?? 0, response.data);
     }
 
     try {
@@ -1467,9 +1493,9 @@ extension SyncMessagingSend on Sync {
   /// Returns `true` when a dead-lettered entry was requeued.
   Future<bool> _retryFromDeadLetter(String sessionId, String localId) async {
     if (messageOutbox.deadEntry(localId) == null) return false;
-    _updateMessageSendStatus(sessionId, localId, 'sending');
     final revived = await messageOutbox.reviveDead(localId);
     if (!revived) return false;
+    _updateMessageSendStatus(sessionId, localId, 'sending');
     logger.info(
       '[retryFailedMessage] requeued from dead-letter bucket: '
       'sessionId=$sessionId localId=$localId',
@@ -1483,12 +1509,17 @@ extension SyncMessagingSend on Sync {
   /// Re-queues the message in the outbox with reset retry count.
   /// The message must have a 'raw' field containing the original
   /// unencrypted message record.
-  Future<void> retryFailedMessage(String sessionId, String localId) async {
+  Future<MessageRetryResult> retryFailedMessage(
+    String sessionId,
+    String localId,
+  ) async {
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) {
-      if (await _retryFromDeadLetter(sessionId, localId)) return;
+      if (await _retryFromDeadLetter(sessionId, localId)) {
+        return const MessageRetryResult(MessageRetryOutcome.queued);
+      }
       logger.warning('[retryFailedMessage] session not found: $sessionId');
-      return;
+      return const MessageRetryResult(MessageRetryOutcome.sessionUnavailable);
     }
 
     Map<String, dynamic>? failedMessage;
@@ -1500,21 +1531,25 @@ extension SyncMessagingSend on Sync {
     }
 
     if (failedMessage == null) {
-      if (await _retryFromDeadLetter(sessionId, localId)) return;
+      if (await _retryFromDeadLetter(sessionId, localId)) {
+        return const MessageRetryResult(MessageRetryOutcome.queued);
+      }
       logger.warning(
         '[retryFailedMessage] message not found: '
         'sessionId=$sessionId localId=$localId',
       );
-      return;
+      return const MessageRetryResult(MessageRetryOutcome.messageNotFound);
     }
 
     final raw = failedMessage['raw'];
     if (raw == null || raw is! Map<String, dynamic>) {
-      if (await _retryFromDeadLetter(sessionId, localId)) return;
+      if (await _retryFromDeadLetter(sessionId, localId)) {
+        return const MessageRetryResult(MessageRetryOutcome.queued);
+      }
       logger.warning(
         '[retryFailedMessage] message missing raw data: localId=$localId',
       );
-      return;
+      return const MessageRetryResult(MessageRetryOutcome.rawDataUnavailable);
     }
 
     // A message whose image bytes were stripped by the offline cache
@@ -1526,7 +1561,9 @@ extension SyncMessagingSend on Sync {
         '[retryFailedMessage] image data stripped by cache, cannot retry: '
         'sessionId=$sessionId localId=$localId',
       );
-      return;
+      return const MessageRetryResult(
+        MessageRetryOutcome.attachmentDataUnavailable,
+      );
     }
 
     // Canary invariant #3: retry MUST reuse the original LocalId.
@@ -1564,17 +1601,42 @@ extension SyncMessagingSend on Sync {
         '[retryFailedMessage] encryption missing for session=$sessionId, '
         'attempting recovery',
       );
-      await fetchSingleSession(sessionId);
+      try {
+        await fetchSingleSession(sessionId);
+      } catch (e, stack) {
+        logger.warning(
+          '[retryFailedMessage] encryption recovery failed for '
+          'session=$sessionId localId=$localId',
+          e,
+          stack,
+        );
+        return const MessageRetryResult(
+          MessageRetryOutcome.encryptionUnavailable,
+        );
+      }
       sessionEncryption = encryption.getSessionEncryption(sessionId);
     }
     if (sessionEncryption == null) {
       logger.warning(
         '[retryFailedMessage] cannot get encryption for session=$sessionId',
       );
-      return;
+      return const MessageRetryResult(
+        MessageRetryOutcome.encryptionUnavailable,
+      );
     }
 
-    final encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
+    late final String encryptedRawRecord;
+    try {
+      encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
+    } catch (e, stack) {
+      logger.warning(
+        '[retryFailedMessage] encryption failed for '
+        'session=$sessionId localId=$localId',
+        e,
+        stack,
+      );
+      return const MessageRetryResult(MessageRetryOutcome.encryptionFailed);
+    }
 
     _updateMessageSendStatus(sessionId, localId, 'sending');
 
@@ -1593,6 +1655,7 @@ extension SyncMessagingSend on Sync {
     );
 
     _notifySessionMessagesChanged(sessionId);
+    return const MessageRetryResult(MessageRetryOutcome.queued);
   }
 
   /// Retry emitting a daemon notification after a brief delay.

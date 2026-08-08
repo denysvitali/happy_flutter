@@ -202,61 +202,62 @@ Future<void> _runApp() async {
     );
   });
 
-  final startupServicesFuture = () async {
-    // Await essentials: storage + API client. NetworkMonitor is deferred
-    // to _deferredInit; its callers (Sync.resume, networkNotifier) all
-    // tolerate a not-yet-initialized service.
-    // Resolve a provisional server URL immediately so API init can begin
-    // while storage warms. Storage may later load a custom URL.
-    final serverUrl = getServerUrl();
+  final startupServicesFuture =
+      () async {
+        // Await essentials: storage + API client. NetworkMonitor is deferred
+        // to _deferredInit; its callers (Sync.resume, networkNotifier) all
+        // tolerate a not-yet-initialized service.
+        // Resolve a provisional server URL immediately so API init can begin
+        // while storage warms. Storage may later load a custom URL.
+        final serverUrl = getServerUrl();
 
-    final storageSpan = startupTransaction.startChild(
-      'app.startup.storage',
-      description: 'Initialize storage',
-    );
-    final apiSpan = startupTransaction.startChild(
-      'app.startup.apiClient',
-      description: 'Initialize API client',
-    );
+        final storageSpan = startupTransaction.startChild(
+          'app.startup.storage',
+          description: 'Initialize storage',
+        );
+        final apiSpan = startupTransaction.startChild(
+          'app.startup.apiClient',
+          description: 'Initialize API client',
+        );
 
-    // Storage is already warming; just await the completer here.
-    final storageInit = storageWarmup;
-    final apiInit = ApiClient().initialize(serverUrl: serverUrl);
-    await Future.wait<void>([storageInit, apiInit]);
-    await storageSpan.finish();
+        // Storage is already warming; just await the completer here.
+        final storageInit = storageWarmup;
+        final apiInit = ApiClient().initialize(serverUrl: serverUrl);
+        await Future.wait<void>([storageInit, apiInit]);
+        await storageSpan.finish();
 
-    final resolvedServerUrl = getServerUrl();
-    if (resolvedServerUrl != serverUrl) {
-      final urlCorrectionSpan = startupTransaction.startChild(
-        'app.startup.apiClient.urlCorrection',
-        description: 'Reconfigure API client for stored server URL',
-      );
-      try {
-        await ApiClient().refreshServerUrl();
-      } finally {
-        await urlCorrectionSpan.finish();
-      }
-    }
-    await apiSpan.finish();
+        final resolvedServerUrl = getServerUrl();
+        if (resolvedServerUrl != serverUrl) {
+          final urlCorrectionSpan = startupTransaction.startChild(
+            'app.startup.apiClient.urlCorrection',
+            description: 'Reconfigure API client for stored server URL',
+          );
+          try {
+            await ApiClient().refreshServerUrl();
+          } finally {
+            await urlCorrectionSpan.finish();
+          }
+        }
+        await apiSpan.finish();
 
-    startupTransaction
-      ..setData(
-        'serverUrlHost',
-        Uri.tryParse(resolvedServerUrl)?.host ?? 'unknown',
-      )
-      ..setData(
-        'currentRoute',
-        PerformanceContextService().currentRoute ?? 'unknown',
-      );
-    await startupTransaction.finish();
-  }().whenComplete(() {
-    _essentialStartupDuration = _coldStartStopwatch.elapsed;
-    // Slow launches: OTel was already initialized by _deferredInit before
-    // this resolved — record now instead of leaving the sample censored.
-    // Fast launches resolved before OTel init; _deferredInit's call to
-    // the same helper records those. The helper guarantees exactly once.
-    _recordEssentialReady();
-  });
+        startupTransaction
+          ..setData(
+            'serverUrlHost',
+            Uri.tryParse(resolvedServerUrl)?.host ?? 'unknown',
+          )
+          ..setData(
+            'currentRoute',
+            PerformanceContextService().currentRoute ?? 'unknown',
+          );
+        await startupTransaction.finish();
+      }().whenComplete(() {
+        _essentialStartupDuration = _coldStartStopwatch.elapsed;
+        // Slow launches: OTel was already initialized by _deferredInit before
+        // this resolved — record now instead of leaving the sample censored.
+        // Fast launches resolved before OTel init; _deferredInit's call to
+        // the same helper records those. The helper guarantees exactly once.
+        _recordEssentialReady();
+      });
 
   // Do NOT block the first frame on storage + API init or the
   // initial deep-link platform channel.  Both futures already run
@@ -710,30 +711,25 @@ class _HappyAppState extends ConsumerState<HappyApp>
 
         return Directionality(
           textDirection: _textDirectionForPlatformLocale(),
-          child: CommandPaletteKeyboardHandler(
-            child: Stack(
-              children: [
-                MaterialApp.router(
-                  title: 'Happy',
-                  debugShowCheckedModeBanner: false,
-                  scrollBehavior: const AppScrollBehavior(),
-                  theme: ThemeHelper.buildLightTheme(),
-                  darkTheme: ThemeHelper.buildDarkTheme(),
-                  themeMode: _getThemeMode(themeMode),
-                  themeAnimationDuration: AppDuration.slow,
-                  themeAnimationCurve: AppCurve.standard,
-                  localizationsDelegates:
-                      AppLocalizations.localizationsDelegates,
-                  supportedLocales: AppLocalizations.supportedLocales,
-                  routerConfig: _router,
-                  builder: (context, child) {
-                    return child ?? const SizedBox.shrink();
-                  },
+          child: MaterialApp.router(
+            title: 'Happy',
+            debugShowCheckedModeBanner: false,
+            scrollBehavior: const AppScrollBehavior(),
+            theme: ThemeHelper.buildLightTheme(),
+            darkTheme: ThemeHelper.buildDarkTheme(),
+            themeMode: _getThemeMode(themeMode),
+            themeAnimationDuration: AppDuration.slow,
+            themeAnimationCurve: AppCurve.standard,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            routerConfig: _router,
+            builder: (context, child) {
+              return CommandPaletteKeyboardHandler(
+                child: CommandPaletteAppOverlay(
+                  child: child ?? const SizedBox.shrink(),
                 ),
-                // Command palette overlay
-                const CommandPaletteOverlayWrapper(),
-              ],
-            ),
+              );
+            },
           ),
         );
       },

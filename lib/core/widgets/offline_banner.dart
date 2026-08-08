@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/socket_io_client.dart' show ConnectionStatus, socketIoClient;
+import '../api/socket_io_client.dart'
+    show ConnectionStatus, DisconnectReason, socketIoClient;
 import '../i18n/app_localizations.dart';
 import '../providers/app_providers.dart';
 import '../services/sync_service.dart';
@@ -28,8 +29,7 @@ class OfflineBanner extends ConsumerWidget {
     final isOnline = ref.watch(networkNotifierProvider);
     final socketStatus = ref.watch(connectionNotifierProvider);
 
-    final isConnected =
-        socketStatus == ConnectionStatus.connected;
+    final isConnected = socketStatus == ConnectionStatus.connected;
 
     // Nothing to show — network is up and socket is connected.
     if (isOnline && isConnected) {
@@ -41,8 +41,7 @@ class OfflineBanner extends ConsumerWidget {
         visible: true,
         child: _BannerContent(
           icon: Icons.wifi_off_rounded,
-          label: AppLocalizations.of(context)
-              .offlineBannerNoConnection,
+          label: AppLocalizations.of(context).offlineBannerNoConnection,
           isError: true,
         ),
       );
@@ -79,9 +78,7 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
   @override
   void initState() {
     super.initState();
-    _delaySub = socketIoClient.nextReconnectDelayStream.listen(
-      _onNextDelay,
-    );
+    _delaySub = socketIoClient.nextReconnectDelayStream.listen(_onNextDelay);
   }
 
   void _onNextDelay(int seconds) {
@@ -130,9 +127,13 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
     final fg = cs.onTertiaryContainer;
 
     final remaining = _secondsRemaining;
+    final disconnectReason = socketIoClient.lastDisconnectReason;
+    final baseLabel = disconnectReason == DisconnectReason.ioServerDisconnect
+        ? l10n.offlineBannerServiceUnavailable
+        : l10n.offlineBannerLiveUpdatesDisconnected;
     final label = remaining != null && remaining > 0
         ? l10n.offlineBannerReconnectingIn(remaining)
-        : l10n.offlineBannerReconnecting;
+        : baseLabel;
 
     return Container(
       width: double.infinity,
@@ -157,11 +158,7 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.sync_rounded,
-                  size: AppIconSize.md,
-                  color: fg,
-                ),
+                Icon(Icons.sync_rounded, size: AppIconSize.md, color: fg),
                 const SizedBox(width: AppSpacing.sm),
                 Flexible(
                   child: Text(
@@ -185,8 +182,7 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
                 horizontal: AppSpacing.sm,
                 vertical: AppSpacing.xxs,
               ),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              minimumSize: const Size(AppTouchTarget.min, AppTouchTarget.min),
               textStyle: const TextStyle(
                 fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w600,
@@ -207,23 +203,23 @@ class _ReconnectingBannerState extends State<_ReconnectingBanner> {
 /// Smoothly animates between visible (banner shown) and hidden
 /// (zero height) using [AnimatedSize] + [AnimatedOpacity].
 class _AnimatedBannerShell extends StatelessWidget {
-  const _AnimatedBannerShell({
-    required this.visible,
-    this.child,
-  });
+  const _AnimatedBannerShell({required this.visible, this.child});
 
   final bool visible;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) {
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : AppDuration.normal;
     return AnimatedSize(
-      duration: AppDuration.normal,
+      duration: duration,
       curve: AppCurve.standard,
       alignment: Alignment.topCenter,
       child: AnimatedOpacity(
         opacity: visible ? 1.0 : 0.0,
-        duration: AppDuration.normal,
+        duration: duration,
         curve: AppCurve.standard,
         child: visible
             ? (child ?? const SizedBox.shrink())
@@ -251,8 +247,7 @@ class _BannerContent extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
     final bg = isError ? cs.errorContainer : cs.tertiaryContainer;
-    final fg =
-        isError ? cs.onErrorContainer : cs.onTertiaryContainer;
+    final fg = isError ? cs.onErrorContainer : cs.onTertiaryContainer;
 
     return Semantics(
       container: true,

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Tiny status label shown below user bubbles for optimistic messages.
 ///
 /// Wraps each state in a [Semantics] node with [liveRegion] so screen readers
 /// announce transitions automatically.  When the [status] prop changes the
-/// widget also calls [SemanticsService.announce] so assistive technology
-/// receives an explicit live-region notification.
+/// widget also calls [SemanticsService.sendAnnouncement] so assistive
+/// technology receives an explicit live-region notification.
 class SendStatusIndicator extends StatefulWidget {
   const SendStatusIndicator({
     required this.status,
@@ -35,27 +36,32 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
   void didUpdateWidget(SendStatusIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.status != widget.status) {
-      final announcement = _announcementFor(widget.status);
+      final announcement = _announcementFor(context, widget.status);
       if (announcement != null) {
-        SemanticsService.announce(announcement, TextDirection.ltr);
+        SemanticsService.sendAnnouncement(
+          View.of(context),
+          announcement,
+          Directionality.of(context),
+        );
       }
     }
   }
 
   /// Returns a human-readable announcement string for the given [status], or
   /// null for states that do not warrant an announcement (e.g. unknown).
-  String? _announcementFor(String status) {
+  String? _announcementFor(BuildContext context, String status) {
+    final l10n = context.l10n;
     switch (status) {
       case 'sending':
-        return 'Message sending';
+        return l10n.chatSendSendingSemantic;
       case 'pending':
-        return 'Message retry queued';
+        return l10n.chatSendRetryQueuedSemantic;
       case 'sent':
         return widget.slow
-            ? 'Message delivered after a slow send'
-            : 'Message delivered';
+            ? l10n.chatSendDeliveredSlowSemantic
+            : l10n.chatSendDeliveredSemantic;
       case 'failed':
-        return 'Message not delivered';
+        return l10n.chatSendNotDeliveredSemantic;
       default:
         return null;
     }
@@ -64,6 +70,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final cs = theme.colorScheme;
     final style = theme.textTheme.labelSmall?.copyWith(
       fontSize: AppFontSize.xxs,
@@ -74,10 +81,10 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
     switch (widget.status) {
       case 'sending':
         return Semantics(
-          label: 'Message sending',
+          label: l10n.chatSendSendingSemantic,
           liveRegion: true,
           child: _StatusLabel(
-            label: 'Sending',
+            label: l10n.chatSendSending,
             color: cs.onSurfaceVariant.withValues(alpha: 0.55),
             indicator: SizedBox(
               width: 8,
@@ -91,10 +98,10 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
         );
       case 'pending':
         return Semantics(
-          label: 'Message retry queued',
+          label: l10n.chatSendRetryQueuedSemantic,
           liveRegion: true,
           child: _StatusLabel(
-            label: 'Retry queued',
+            label: l10n.chatStatusRetryQueued,
             color: cs.secondary,
             indicator: Icon(
               Icons.schedule_rounded,
@@ -106,11 +113,13 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
       case 'sent':
         return Semantics(
           label: widget.slow
-              ? 'Message delivered after a slow send'
-              : 'Message delivered',
+              ? l10n.chatSendDeliveredSlowSemantic
+              : l10n.chatSendDeliveredSemantic,
           liveRegion: true,
           child: _StatusLabel(
-            label: widget.slow ? 'Delivered - slow' : 'Delivered',
+            label: widget.slow
+                ? l10n.chatSendDeliveredSlow
+                : l10n.chatSendDelivered,
             color: cs.primary.withValues(alpha: 0.85),
             indicator: Icon(
               widget.slow ? Icons.schedule_rounded : Icons.check_rounded,
@@ -122,8 +131,8 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
       case 'failed':
         return Semantics(
           label: widget.onRetry != null
-              ? 'Message not delivered — tap to retry'
-              : 'Message not delivered',
+              ? l10n.chatSendNotDeliveredRetrySemantic
+              : l10n.chatSendNotDeliveredSemantic,
           liveRegion: true,
           button: widget.onRetry != null,
           child: Padding(
@@ -153,7 +162,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
                         ),
                         const SizedBox(width: AppSpacing.xxs),
                         Text(
-                          'Failed — tap to retry',
+                          l10n.chatSendFailedRetry,
                           style: style?.copyWith(
                             color: cs.onError,
                             fontWeight: FontWeight.w600,

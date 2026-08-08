@@ -40,7 +40,7 @@ class _CapturingSessionEncryption implements SessionEncryption {
 class _FakeEncryption implements Encryption {
   _FakeEncryption({required this.sessionEncryption, required this.fixedId});
 
-  final SessionEncryption sessionEncryption;
+  final SessionEncryption? sessionEncryption;
   final String fixedId;
 
   @override
@@ -220,6 +220,7 @@ void main() {
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
       instance.testFetchMessagesOverride = null;
+      instance.testFetchSingleSessionOverride = null;
     });
 
     test('sends legacy user payload and sanitizes permission mode', () async {
@@ -260,29 +261,34 @@ void main() {
       expect(content, hasLength(2));
       expect(content[0], isA<Map<String, dynamic>>());
       expect((content[0] as Map<String, dynamic>)['type'], 'text');
-      expect((content[0] as Map<String, dynamic>)['text'],
-          'Check this screenshot: ');
+      expect(
+        (content[0] as Map<String, dynamic>)['text'],
+        'Check this screenshot: ',
+      );
       expect(content[1], isA<Map<String, dynamic>>());
       expect((content[1] as Map<String, dynamic>)['type'], 'image');
-      expect(
-        (content[1] as Map<String, dynamic>)['source'],
-        {'type': 'url', 'url': 'https://example.com/screen.png'},
-      );
+      expect((content[1] as Map<String, dynamic>)['source'], {
+        'type': 'url',
+        'url': 'https://example.com/screen.png',
+      });
 
       final localMessages = instance.testSessionMessages('sess-1')!;
       expect(localMessages.first['content'], 'Check this screenshot: ');
     });
 
-    test('uses image placeholder text when message contains only images', () async {
-      await instance.sendMessage(
-        'sess-1',
-        '![only-image](https://example.com/screen.png)',
-      );
-      await instance.lastCompleteSendFuture;
+    test(
+      'uses image placeholder text when message contains only images',
+      () async {
+        await instance.sendMessage(
+          'sess-1',
+          '![only-image](https://example.com/screen.png)',
+        );
+        await instance.lastCompleteSendFuture;
 
-      final localMessages = instance.testSessionMessages('sess-1')!;
-      expect(localMessages.first['content'], '[image]');
-    });
+        final localMessages = instance.testSessionMessages('sess-1')!;
+        expect(localMessages.first['content'], '[image]');
+      },
+    );
 
     test('sends base64 image attachments as content blocks', () async {
       await instance.sendMessage(
@@ -327,31 +333,34 @@ void main() {
       expect(localMessages.first['content'], 'what is this?');
     });
 
-    test('image-only send emits no text block and [image] display text', () async {
-      await instance.sendMessage(
-        'sess-1',
-        '',
-        clientLocalId: 'img-local-1',
-        images: const [
-          OutgoingImage(mediaType: 'image/png', base64Data: 'aW1n'),
-        ],
-      );
-      await instance.lastCompleteSendFuture;
+    test(
+      'image-only send emits no text block and [image] display text',
+      () async {
+        await instance.sendMessage(
+          'sess-1',
+          '',
+          clientLocalId: 'img-local-1',
+          images: const [
+            OutgoingImage(mediaType: 'image/png', base64Data: 'aW1n'),
+          ],
+        );
+        await instance.lastCompleteSendFuture;
 
-      final raw = sessionEncryption.lastRawRecord!;
-      final content = raw['content'] as List<dynamic>;
-      expect(content, hasLength(1));
-      expect((content.first as Map<String, dynamic>)['type'], 'image');
+        final raw = sessionEncryption.lastRawRecord!;
+        final content = raw['content'] as List<dynamic>;
+        expect(content, hasLength(1));
+        expect((content.first as Map<String, dynamic>)['type'], 'image');
 
-      final requestData = capturedRequestData as Map<String, dynamic>;
-      final message =
-          (requestData['messages'] as List<dynamic>).first
-              as Map<String, dynamic>;
-      expect(message['localId'], 'img-local-1');
+        final requestData = capturedRequestData as Map<String, dynamic>;
+        final message =
+            (requestData['messages'] as List<dynamic>).first
+                as Map<String, dynamic>;
+        expect(message['localId'], 'img-local-1');
 
-      final localMessages = instance.testSessionMessages('sess-1')!;
-      expect(localMessages.first['content'], '[image]');
-    });
+        final localMessages = instance.testSessionMessages('sess-1')!;
+        expect(localMessages.first['content'], '[image]');
+      },
+    );
 
     test('retry refuses when image bytes were stripped by cache', () async {
       // Seed a failed message whose raw carries a stripped (hollow)
@@ -381,12 +390,42 @@ void main() {
         },
       ]);
 
-      await instance.retryFailedMessage('sess-1', 'strip-1');
+      final result = await instance.retryFailedMessage('sess-1', 'strip-1');
 
       // No HTTP attempt, no outbox entry, and the row stays failed.
+      expect(result.outcome, MessageRetryOutcome.attachmentDataUnavailable);
       expect(capturedRequestData, isNull);
       final localMessages = instance.testSessionMessages('sess-1')!;
       expect(localMessages.first['sendStatus'], 'failed');
+    });
+
+    test('retry reports unavailable session encryption', () async {
+      instance.encryption = _FakeEncryption(
+        sessionEncryption: null,
+        fixedId: 'local-1',
+      );
+      instance.testFetchSingleSessionOverride = (_) async => null;
+      instance.testSetSessionMessages('sess-1', [
+        <String, dynamic>{
+          'id': 'no-encryption',
+          'localId': 'no-encryption',
+          'role': 'user',
+          'content': 'continue',
+          'sendStatus': 'failed',
+          'raw': <String, dynamic>{'role': 'user', 'content': 'continue'},
+        },
+      ]);
+
+      final result = await instance.retryFailedMessage(
+        'sess-1',
+        'no-encryption',
+      );
+
+      expect(result.outcome, MessageRetryOutcome.encryptionUnavailable);
+      expect(
+        instance.testSessionMessages('sess-1')!.single['sendStatus'],
+        'failed',
+      );
     });
 
     test('uses caller supplied localId when provided', () async {
@@ -443,52 +482,56 @@ void main() {
       expect(matching.single['sendStatus'], 'pending');
     });
 
-    test('HTTP 409 is permanent — no outbox retry, row marked failed',
-        () async {
-      responseStatus = 409;
-      responseData = <String, dynamic>{'error': 'session is not accepting'};
+    test(
+      'HTTP 409 is permanent — no outbox retry, row marked failed',
+      () async {
+        responseStatus = 409;
+        responseData = <String, dynamic>{'error': 'session is not accepting'};
 
-      await instance.sendMessage(
-        'sess-1',
-        'conflict',
-        clientLocalId: 'client-local-409',
-      );
-      await instance.lastCompleteSendFuture;
+        await instance.sendMessage(
+          'sess-1',
+          'conflict',
+          clientLocalId: 'client-local-409',
+        );
+        await instance.lastCompleteSendFuture;
 
-      expect(messageOutbox.contains('client-local-409'), isFalse);
+        expect(messageOutbox.contains('client-local-409'), isFalse);
 
-      final localMessages = instance.testSessionMessages('sess-1')!;
-      final matching = localMessages.where(
-        (m) => m['localId'] == 'client-local-409',
-      );
-      expect(matching, hasLength(1));
-      expect(matching.single['sendStatus'], 'failed');
-    });
+        final localMessages = instance.testSessionMessages('sess-1')!;
+        final matching = localMessages.where(
+          (m) => m['localId'] == 'client-local-409',
+        );
+        expect(matching, hasLength(1));
+        expect(matching.single['sendStatus'], 'failed');
+      },
+    );
 
-    test('HTTP 500 carrying a not-found body is treated as permanent',
-        () async {
-      // The server collapses NotFound into a bare 500. Trusting the
-      // status code alone burns 4 HTTP + 3 outbox attempts on a session
-      // that no longer exists.
-      responseStatus = 500;
-      responseData = <String, dynamic>{'error': 'session not found'};
+    test(
+      'HTTP 500 carrying a not-found body is treated as permanent',
+      () async {
+        // The server collapses NotFound into a bare 500. Trusting the
+        // status code alone burns 4 HTTP + 3 outbox attempts on a session
+        // that no longer exists.
+        responseStatus = 500;
+        responseData = <String, dynamic>{'error': 'session not found'};
 
-      await instance.sendMessage(
-        'sess-1',
-        'gone',
-        clientLocalId: 'client-local-gone',
-      );
-      await instance.lastCompleteSendFuture;
+        await instance.sendMessage(
+          'sess-1',
+          'gone',
+          clientLocalId: 'client-local-gone',
+        );
+        await instance.lastCompleteSendFuture;
 
-      expect(messageOutbox.contains('client-local-gone'), isFalse);
+        expect(messageOutbox.contains('client-local-gone'), isFalse);
 
-      final localMessages = instance.testSessionMessages('sess-1')!;
-      final matching = localMessages.where(
-        (m) => m['localId'] == 'client-local-gone',
-      );
-      expect(matching, hasLength(1));
-      expect(matching.single['sendStatus'], 'failed');
-    });
+        final localMessages = instance.testSessionMessages('sess-1')!;
+        final matching = localMessages.where(
+          (m) => m['localId'] == 'client-local-gone',
+        );
+        expect(matching, hasLength(1));
+        expect(matching.single['sendStatus'], 'failed');
+      },
+    );
 
     test('explicit retry requeues the same localId and one row', () async {
       final raw = <String, dynamic>{
@@ -755,8 +798,7 @@ void main() {
       expect(failure.reason, 'rate_limited');
     });
 
-    test('outbox delivery classifies 404 as permanent session_gone',
-        () async {
+    test('outbox delivery classifies 404 as permanent session_gone', () async {
       responseStatus = 404;
       responseData = <String, dynamic>{};
       final failure = await deliverClassified('cls-404');
@@ -765,15 +807,17 @@ void main() {
       expect(failure.reason, 'session_gone');
     });
 
-    test('outbox delivery classifies other 4xx as permanent rejection',
-        () async {
-      responseStatus = 400;
-      responseData = <String, dynamic>{'error': 'bad payload'};
-      final failure = await deliverClassified('cls-400');
-      expect(failure, isNotNull);
-      expect(failure!.failureClass, OutboxFailureClass.permanent);
-      expect(failure.reason, 'client_rejected');
-    });
+    test(
+      'outbox delivery classifies other 4xx as permanent rejection',
+      () async {
+        responseStatus = 400;
+        responseData = <String, dynamic>{'error': 'bad payload'};
+        final failure = await deliverClassified('cls-400');
+        expect(failure, isNotNull);
+        expect(failure!.failureClass, OutboxFailureClass.permanent);
+        expect(failure.reason, 'client_rejected');
+      },
+    );
 
     test('session-gone body wins over a 500 status', () async {
       // The server collapses NotFound into a bare 500, so the body must
@@ -787,14 +831,16 @@ void main() {
       expect(failure.reason, 'session_gone');
     });
 
-    test('outbox delivery classifies a connection error as transient',
-        () async {
-      requestException = 'ERR_NAME_NOT_RESOLVED';
-      final failure = await deliverClassified('cls-network');
-      expect(failure, isNotNull);
-      expect(failure!.failureClass, OutboxFailureClass.transient);
-      expect(failure.reason, 'network');
-    });
+    test(
+      'outbox delivery classifies a connection error as transient',
+      () async {
+        requestException = 'ERR_NAME_NOT_RESOLVED';
+        final failure = await deliverClassified('cls-network');
+        expect(failure, isNotNull);
+        expect(failure!.failureClass, OutboxFailureClass.transient);
+        expect(failure.reason, 'network');
+      },
+    );
 
     test('backgrounded send queues retry without touching REST', () async {
       InvalidateSync.isBackgrounded = true;

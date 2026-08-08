@@ -21,6 +21,7 @@ class _ChatScrollToBottomOverlay extends StatelessWidget {
   const _ChatScrollToBottomOverlay({
     required this.autoScrollNotifier,
     required this.isLoading,
+    required this.unreadCount,
     required this.onTap,
   });
 
@@ -32,6 +33,9 @@ class _ChatScrollToBottomOverlay extends StatelessWidget {
   /// in as a plain `bool` because the parent already holds the
   /// loading flag; the overlay does not need its own notifier.
   final bool isLoading;
+
+  /// Number of unread messages to show on the pill badge.
+  final int unreadCount;
 
   /// Called when the user taps the pill. The parent is expected to
   /// (a) bump [autoScrollNotifier] back to `true` and (b) animate
@@ -60,10 +64,11 @@ class _ChatScrollToBottomOverlay extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppSpacing.md,
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: ScrollToBottomPill(
+                        onTap: onTap,
+                        unreadCount: unreadCount,
                       ),
-                      child: ScrollToBottomPill(onTap: onTap),
                     ),
                   ),
                 ),

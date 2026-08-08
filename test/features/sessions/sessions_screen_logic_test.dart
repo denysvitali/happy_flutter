@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 
@@ -275,6 +276,98 @@ void main() {
         expect(identical(second, first), isTrue);
       },
     );
+
+    test('collection projection ignores row-only session changes', () {
+      final session = buildSession(
+        'active-1',
+        path: '/home/dev/app',
+        machineId: 'm1',
+        updatedAt: 100,
+        activeAt: 100,
+        active: true,
+      );
+      final initial = SessionCollectionProjection.fromSessions({
+        session.id: session,
+      });
+      final rowOnlyUpdate = SessionCollectionProjection.fromSessions({
+        session.id: session.copyWith(thinking: true),
+      });
+      final regroupingUpdate = SessionCollectionProjection.fromSessions({
+        session.id: session.copyWith(
+          metadata: session.metadata!.copyWith(path: '/home/dev/other'),
+        ),
+      });
+
+      expect(rowOnlyUpdate, initial);
+      expect(regroupingUpdate, isNot(initial));
+    });
+
+    test('ordering projection ignores previews but tracks timestamps', () {
+      const initialEntry = SessionUiEntry(
+        lastMessageTimestamp: 100,
+        lastMessagePreview: 'first',
+        unreadCount: 1,
+      );
+      final initial = SessionOrderingProjection.fromState(
+        const SessionUiState(bySessionId: {'active-1': initialEntry}),
+      );
+      final previewUpdate = SessionOrderingProjection.fromState(
+        const SessionUiState(
+          bySessionId: {
+            'active-1': SessionUiEntry(
+              lastMessageTimestamp: 100,
+              lastMessagePreview: 'streaming update',
+              unreadCount: 2,
+            ),
+          },
+        ),
+      );
+      final timestampUpdate = SessionOrderingProjection.fromState(
+        const SessionUiState(
+          bySessionId: {
+            'active-1': SessionUiEntry(
+              lastMessageTimestamp: 101,
+              lastMessagePreview: 'streaming update',
+              unreadCount: 2,
+            ),
+          },
+        ),
+      );
+
+      expect(previewUpdate, initial);
+      expect(timestampUpdate, isNot(initial));
+      expect(timestampUpdate.timestampFor('active-1'), 101);
+    });
+
+    test('tablet candidate projection is identity-stable for row updates', () {
+      final newer = buildSession(
+        'newer',
+        path: '/home/dev/app',
+        machineId: 'm1',
+        updatedAt: 200,
+        activeAt: 200,
+        active: true,
+      );
+      final older = buildSession(
+        'older',
+        path: '/home/dev/app',
+        machineId: 'm1',
+        updatedAt: 100,
+        activeAt: 100,
+        active: true,
+      );
+      final initial = TabletSessionSelectionProjection.fromSessions({
+        older.id: older,
+        newer.id: newer,
+      });
+      final rowOnlyUpdate = TabletSessionSelectionProjection.fromSessions({
+        older.id: older.copyWith(thinking: true),
+        newer.id: newer,
+      });
+
+      expect(initial.sessionIds, ['newer', 'older']);
+      expect(rowOnlyUpdate, initial);
+    });
 
     test('disambiguates duplicate visible session names with stable ids', () {
       final sessions = [

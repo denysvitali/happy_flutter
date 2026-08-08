@@ -13,6 +13,7 @@ import '../../core/components/app_section_header.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/remote_feature_failure_localization.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/mcp_server.dart';
 import '../../core/providers/app_providers.dart';
@@ -82,7 +83,9 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
         _config = response;
         _error = null;
       } else {
-        _error = response.error ?? context.l10n.mcpLoadFailed;
+        _error = response.failureKind.localizedRemoteFeatureFailure(
+          context.l10n,
+        );
       }
     });
   }
@@ -116,7 +119,9 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
       });
       return;
     }
-    final message = response.error ?? fallback;
+    final message = response.failureKind == null
+        ? fallback
+        : response.failureKind.localizedRemoteFeatureFailure(context.l10n);
     setState(() => _error = message);
     ScaffoldMessenger.of(
       context,
@@ -126,6 +131,25 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
   Future<void> _toggle(McpServer server, bool enabled) async {
     final machineId = _selectedMachineId;
     if (machineId == null) return;
+    if (enabled) {
+      final l10n = context.l10n;
+      final secretNames = <String>{
+        ...server.env.keys,
+        ...server.headers.keys,
+      }.toList()..sort();
+      final confirmed = await showConfirmDialog(
+        context,
+        title: l10n.mcpEnableTrustTitle(server.name),
+        content: l10n.mcpEnableTrustBody(
+          server.target.isEmpty ? server.transport.wire : server.target,
+          scopeLabel(context, server.scope),
+          server.projectDir ?? l10n.mcpNoProject,
+          secretNames.isEmpty ? l10n.mcpNoSecrets : secretNames.join(', '),
+        ),
+        confirmLabel: l10n.mcpEnableServer,
+      );
+      if (!confirmed || !mounted) return;
+    }
     setState(() => _busyIdentity = server.identity);
     final response = await Sync().machineToggleMcpServer(
       machineId: machineId,
@@ -137,6 +161,17 @@ class _McpServersScreenState extends ConsumerState<McpServersScreen> {
     if (!mounted) return;
     setState(() => _busyIdentity = null);
     _applyResult(response, fallback: context.l10n.mcpToggleFailed(server.name));
+    if (enabled && response.success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(context.l10n.mcpEnabledWithUndo),
+          action: SnackBarAction(
+            label: context.l10n.commonUndo,
+            onPressed: () => unawaited(_toggle(server, false)),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _delete(McpServer server) async {
@@ -471,10 +506,7 @@ class _ServerRow extends StatelessWidget {
                 child: AppLoadingIndicator(size: AppSpacing.lg),
               )
             else
-              Switch(
-                value: server.enabled,
-                onChanged: onToggle,
-              ),
+              Switch(value: server.enabled, onChanged: onToggle),
             PopupMenuButton<String>(
               tooltip: l10n.commonMore,
               onSelected: (value) {

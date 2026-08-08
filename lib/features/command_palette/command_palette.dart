@@ -67,12 +67,13 @@ class CommandPaletteController {
 
     for (final session in pinnedSessions) {
       final sessionName =
-          session.metadata?.name ?? 'Session ${session.id.substring(0, 6)}';
+          session.metadata?.name ??
+          l10n.commandSessionFallback(session.id.substring(0, 6));
       commands.add(
         CommandItem(
           id: 'session-${session.id}',
           title: sessionName,
-          subtitle: session.metadata?.path ?? 'Switch to session',
+          subtitle: session.metadata?.path ?? l10n.commandSwitchToSession,
           icon: Icons.push_pin,
           category: l10n.commandCategoryRecentSessions,
           isPinned: true,
@@ -128,16 +129,6 @@ class CommandPaletteController {
         },
       ),
       CommandItem(
-        id: 'connect-device',
-        title: l10n.commandConnectDeviceTitle,
-        subtitle: l10n.commandConnectDeviceSubtitle,
-        icon: Icons.link_outlined,
-        category: l10n.commandCategoryNavigation,
-        action: () {
-          router.go('/terminal/connect');
-        },
-      ),
-      CommandItem(
         id: 'artifacts',
         title: l10n.commandArtifactsTitle,
         subtitle: l10n.commandArtifactsSubtitle,
@@ -154,33 +145,33 @@ class CommandPaletteController {
         icon: Icons.terminal,
         category: l10n.commandCategoryNavigation,
         action: () {
-          router.go('/terminal');
+          router.go('/terminal/connect');
         },
       ),
     ]);
 
-    // Add recent sessions (up to 5, excluding already-pinned)
+    // Keep five recent sessions in the default shortlist, while every older
+    // session stays indexed for fuzzy search.
     final pinnedIds = pinnedSessions.map((s) => s.id).toSet();
-    final recentSessions = sessions.values
-        .where((s) => !pinnedIds.contains(s.id))
-        .toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final recentSessions =
+        sessions.values.where((s) => !pinnedIds.contains(s.id)).toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-    final recentCount = recentSessions.length > 5 ? 5 : recentSessions.length;
-
-    for (var i = 0; i < recentCount; i++) {
+    for (var i = 0; i < recentSessions.length; i++) {
       final session = recentSessions[i];
       final sessionName =
-          session.metadata?.name ?? 'Session ${session.id.substring(0, 6)}';
+          session.metadata?.name ??
+          l10n.commandSessionFallback(session.id.substring(0, 6));
 
       commands.add(
         CommandItem(
           id: 'session-${session.id}',
           title: sessionName,
-          subtitle: session.metadata?.path ?? 'Switch to session',
+          subtitle: session.metadata?.path ?? l10n.commandSwitchToSession,
           icon: Icons.access_time,
           category: l10n.commandCategoryRecentSessions,
           isPinned: session.pinned,
+          searchOnly: i >= 5,
           action: () {
             router.go('/chat/${session.id}');
           },
@@ -198,16 +189,11 @@ final commandPaletteControllerProvider = Provider<CommandPaletteController>(
 );
 
 Future<void> _showNewSessionDialog(BuildContext context) async {
-  final sessionId = await showDialog<String>(
-    context: context,
-    useRootNavigator: true,
-    builder: (_) => const NewSessionDialog(),
-  );
+  final sessionId = await showNewSessionDialog(context);
   if (sessionId != null && context.mounted) {
-    GoRouter.of(context).goNamed(
-      'chat',
-      pathParameters: {'sessionId': sessionId},
-    );
+    GoRouter.of(
+      context,
+    ).goNamed('chat', pathParameters: {'sessionId': sessionId});
   }
 }
 
@@ -273,6 +259,54 @@ class _CommandPaletteKeyboardHandlerState
       autofocus: true,
       onKeyEvent: _handleKeyEvent,
       child: widget.child,
+    );
+  }
+}
+
+/// Hosts the palette above the router while retaining the app's inherited
+/// theme, localization, navigator, and router context.
+class CommandPaletteAppOverlay extends ConsumerStatefulWidget {
+  const CommandPaletteAppOverlay({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  ConsumerState<CommandPaletteAppOverlay> createState() =>
+      _CommandPaletteAppOverlayState();
+}
+
+class _CommandPaletteAppOverlayState
+    extends ConsumerState<CommandPaletteAppOverlay> {
+  FocusNode? _previousFocus;
+  bool _wasVisible = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isVisible = ref.watch(commandPaletteVisibleProvider);
+    if (isVisible && !_wasVisible) {
+      _previousFocus = FocusManager.instance.primaryFocus;
+    } else if (!isVisible && _wasVisible) {
+      final previousFocus = _previousFocus;
+      _previousFocus = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (previousFocus?.canRequestFocus ?? false) {
+          previousFocus!.requestFocus();
+        }
+      });
+    }
+    _wasVisible = isVisible;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ExcludeFocus(
+          key: const ValueKey('command-palette-background'),
+          excluding: isVisible,
+          child: widget.child,
+        ),
+        if (isVisible)
+          const BlockSemantics(child: CommandPaletteOverlayWrapper()),
+      ],
     );
   }
 }

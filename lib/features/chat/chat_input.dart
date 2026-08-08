@@ -30,6 +30,10 @@ export 'widgets/model_mode.dart' show ChatModelMode;
 part 'chat_input_attachments.dart';
 part 'chat_input_dictation.dart';
 
+/// Loads file paths matching the active `@` query.
+typedef FileSuggestionsLoader =
+    Future<List<AutocompleteSuggestion>> Function(String query);
+
 /// Enhanced chat input with autocomplete, draft
 /// persistence, and polished animations.
 class ChatInput extends ConsumerStatefulWidget {
@@ -48,6 +52,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.availableModels = ChatModelMode.values,
     this.availableSlashCommands = const [],
     this.fileSuggestions = const [],
+    this.onFileSuggestionsRequested,
     this.machineName,
     this.currentPath,
     this.onMachinePressed,
@@ -101,6 +106,9 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// File path suggestions for `@`-autocomplete.
   final List<AutocompleteSuggestion> fileSuggestions;
+
+  /// Optional asynchronous source for `@`-autocomplete suggestions.
+  final FileSuggestionsLoader? onFileSuggestionsRequested;
 
   /// Display name of the connected machine.
   final String? machineName;
@@ -182,6 +190,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
   // filter + setState are deferred so rapid keystrokes don't rebuild
   // the suggestion list on every character.
   Timer? _autocompleteDebounce;
+  int _fileSuggestionRequestId = 0;
+  static final RegExp _autocompleteTrigger = RegExp(r'(@[^\s@]*|/[\w-]*)$');
   static const Duration _autocompleteDebounceDuration = Duration(
     milliseconds: 100,
   );
@@ -244,6 +254,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
         ..saveNow()
         ..sessionId = widget.sessionId;
       _loadDraft();
+    }
+    if (!identical(oldWidget.fileSuggestions, widget.fileSuggestions)) {
+      _scheduleAutocompleteUpdate(widget.controller.text);
     }
   }
 
@@ -319,7 +332,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     }
     final textBeforeCursor = text.substring(0, cursorPosition);
     final hasTrigger =
-        RegExp(r'[@/]([\w-]*)$').firstMatch(textBeforeCursor) != null;
+        _autocompleteTrigger.firstMatch(textBeforeCursor) != null;
     if (!hasTrigger) {
       // No active trigger: close immediately, no debounce.
       _autocompleteDebounce?.cancel();
@@ -341,15 +354,16 @@ class _ChatInputState extends ConsumerState<ChatInput>
     }
 
     final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch = RegExp(r'[@/]([\w-]*)$').firstMatch(textBeforeCursor);
+    final lastWordMatch = _autocompleteTrigger.firstMatch(textBeforeCursor);
 
     if (lastWordMatch == null) {
       _clearAutocomplete();
       return;
     }
 
-    final trigger = lastWordMatch.group(0)!.substring(0, 1);
-    final query = lastWordMatch.group(1) ?? '';
+    final matchedText = lastWordMatch.group(0)!;
+    final trigger = matchedText.substring(0, 1);
+    final query = matchedText.substring(1);
     // Hoist normalization out of the per-element loop.
     final queryLower = query.toLowerCase();
 
@@ -357,9 +371,19 @@ class _ChatInputState extends ConsumerState<ChatInput>
       final suggestions = widget.fileSuggestions
           .where((s) => s.label.toLowerCase().contains(queryLower))
           .toList();
-      _autocompleteController.setSuggestions(suggestions, query);
-      if (_showAutocomplete != suggestions.isNotEmpty) {
-        setState(() => _showAutocomplete = suggestions.isNotEmpty);
+      _setAutocompleteSuggestions(suggestions, query);
+
+      final loader = widget.onFileSuggestionsRequested;
+      if (loader != null && query.isNotEmpty) {
+        final requestId = ++_fileSuggestionRequestId;
+        unawaited(
+          _loadFileSuggestions(
+            loader: loader,
+            query: query,
+            requestId: requestId,
+            localSuggestions: suggestions,
+          ),
+        );
       }
     } else if (trigger == '/') {
       final suggestions = buildSlashCommands(widget.availableSlashCommands)
@@ -374,12 +398,46 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ),
           )
           .toList();
-      _autocompleteController.setSuggestions(suggestions, query);
-      if (_showAutocomplete != suggestions.isNotEmpty) {
-        setState(() => _showAutocomplete = suggestions.isNotEmpty);
-      }
+      _setAutocompleteSuggestions(suggestions, query);
     } else {
       _clearAutocomplete();
+    }
+  }
+
+  Future<void> _loadFileSuggestions({
+    required FileSuggestionsLoader loader,
+    required String query,
+    required int requestId,
+    required List<AutocompleteSuggestion> localSuggestions,
+  }) async {
+    try {
+      final remoteSuggestions = await loader(query);
+      if (!mounted || requestId != _fileSuggestionRequestId) return;
+
+      final cursorPosition = widget.controller.selection.base.offset;
+      if (cursorPosition < 0) return;
+      final activeMatch = _autocompleteTrigger.firstMatch(
+        widget.controller.text.substring(0, cursorPosition),
+      );
+      if (activeMatch == null || activeMatch.group(0) != '@$query') return;
+
+      final merged = <String, AutocompleteSuggestion>{
+        for (final suggestion in localSuggestions) suggestion.id: suggestion,
+        for (final suggestion in remoteSuggestions) suggestion.id: suggestion,
+      }.values.toList();
+      _setAutocompleteSuggestions(merged, query);
+    } catch (error) {
+      logger.info('File autocomplete request failed: $error');
+    }
+  }
+
+  void _setAutocompleteSuggestions(
+    List<AutocompleteSuggestion> suggestions,
+    String query,
+  ) {
+    _autocompleteController.setSuggestions(suggestions, query);
+    if (_showAutocomplete != suggestions.isNotEmpty) {
+      setState(() => _showAutocomplete = suggestions.isNotEmpty);
     }
   }
 
@@ -387,6 +445,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     // Always cancel any pending debounced filter so a close/submit can't
     // be undone by a stale timer firing afterwards.
     _autocompleteDebounce?.cancel();
+    _fileSuggestionRequestId++;
     if (!_showAutocomplete) return;
     _autocompleteController.clear();
     setState(() => _showAutocomplete = false);
@@ -401,7 +460,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.base.offset;
     final textBeforeCursor = text.substring(0, cursorPosition);
-    final lastWordMatch = RegExp(r'[@/]([\w-]*)$').firstMatch(textBeforeCursor);
+    final lastWordMatch = _autocompleteTrigger.firstMatch(textBeforeCursor);
 
     if (lastWordMatch != null) {
       final startIndex = lastWordMatch.start;

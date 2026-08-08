@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_tokens.dart';
+
 /// Milliseconds between each card's stagger delay.
 const kStaggerStep = 30;
 
@@ -50,13 +52,11 @@ class _StaggeredSlideInState extends State<StaggeredSlideIn>
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.10),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: ctrl, curve: Curves.easeOut),
-    );
+    ).animate(CurvedAnimation(parent: ctrl, curve: Curves.easeOut));
 
     final delayMs = (kStaggerStep * widget.index).clamp(0, 300);
     Future<void>.delayed(Duration(milliseconds: delayMs), () {
-      if (mounted) ctrl.forward();
+      if (mounted && !AppMotion.reduceMotion(context)) ctrl.forward();
     });
   }
 
@@ -68,6 +68,9 @@ class _StaggeredSlideInState extends State<StaggeredSlideIn>
 
   @override
   Widget build(BuildContext context) {
+    if (AppMotion.reduceMotion(context)) {
+      return RepaintBoundary(child: widget.child);
+    }
     final opacity = _opacity;
     final slide = _slide;
     if (opacity == null || slide == null) {
@@ -84,11 +87,7 @@ class _StaggeredSlideInState extends State<StaggeredSlideIn>
 
 /// Fade-in for non-card elements (headers).
 class FadeInSection extends StatefulWidget {
-  const FadeInSection({
-    required this.delay,
-    required this.child,
-    super.key,
-  });
+  const FadeInSection({required this.delay, required this.child, super.key});
 
   final Duration delay;
   final Widget child;
@@ -109,12 +108,9 @@ class _FadeInSectionState extends State<FadeInSection>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     Future.delayed(widget.delay, () {
-      if (mounted) _controller.forward();
+      if (mounted && !AppMotion.reduceMotion(context)) _controller.forward();
     });
   }
 
@@ -126,6 +122,9 @@ class _FadeInSectionState extends State<FadeInSection>
 
   @override
   Widget build(BuildContext context) {
+    if (AppMotion.reduceMotion(context)) {
+      return widget.child;
+    }
     return FadeTransition(opacity: _opacity, child: widget.child);
   }
 }

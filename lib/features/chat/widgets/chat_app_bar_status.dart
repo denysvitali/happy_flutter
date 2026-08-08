@@ -32,7 +32,6 @@ class ChatAppBarStatusChip {
   final bool pulse;
 }
 
-
 /// Session to render in the app bar: the one the chat screen has loaded,
 /// or — while that load is still in flight — the one already known to the
 /// sessions store.
@@ -184,14 +183,21 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
   required ChatStatusChipsInputs inputs,
 }) {
   final session = inputs.session;
+  final l10n = context.l10n;
   final chips = <ChatAppBarStatusChip>[];
   final hasRequests = inputs.hasRequests;
   final sendIssue = inputs.sendIssue;
   final lifecycleState = session.effectiveLifecycleState;
   final lifecycleSince = session.metadata?.lifecycleStateSince;
+  final metadata = session.metadata;
+  final kubernetesStartup =
+      metadata?.runtimeKind == 'kubernetes' ||
+      (metadata?.repoUrl?.isNotEmpty ?? false);
+  final lifecycleRecentWindowMs = kubernetesStartup ? 300000 : 120000;
   final lifecycleIsRecent =
       lifecycleSince != null &&
-      DateTime.now().millisecondsSinceEpoch - lifecycleSince < 120000;
+      DateTime.now().millisecondsSinceEpoch - lifecycleSince <
+          lifecycleRecentWindowMs;
   final isConnecting =
       inputs.isReconnecting ||
       !inputs.isReady &&
@@ -201,7 +207,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
   if (inputs.isStopping) {
     chips.add(
       ChatAppBarStatusChip(
-        text: 'Stopping',
+        text: l10n.chatStatusStopping,
         color: colorScheme.primary,
         icon: Icons.stop_circle_outlined,
       ),
@@ -209,7 +215,9 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
   } else if (sendIssue != null) {
     chips.add(
       ChatAppBarStatusChip(
-        text: sendIssue.blocksSend ? 'Agent failed' : 'Will restart',
+        text: sendIssue.blocksSend
+            ? l10n.chatStatusAgentFailed
+            : l10n.chatStatusWillRestart,
         color: sendIssue.blocksSend ? AppColors.error : AppColors.warning,
         icon: sendIssue.blocksSend
             ? Icons.error_outline_rounded
@@ -218,8 +226,8 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
     );
   } else if (inputs.isReady) {
     chips.add(
-      const ChatAppBarStatusChip(
-        text: 'Online',
+      ChatAppBarStatusChip(
+        text: l10n.chatOnline,
         color: AppColors.success,
         showDot: true,
         pulse: true,
@@ -228,7 +236,9 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
   } else if (isConnecting) {
     chips.add(
       ChatAppBarStatusChip(
-        text: inputs.isReconnecting ? 'Reconnecting' : 'Connecting',
+        text: inputs.isReconnecting
+            ? l10n.chatStatusReconnecting
+            : l10n.chatStatusConnecting,
         color: colorScheme.primary,
         icon: Icons.sync_rounded,
       ),
@@ -237,7 +247,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
     chips
       ..add(
         ChatAppBarStatusChip(
-          text: 'Offline',
+          text: l10n.statusOffline,
           color: colorScheme.outline,
           icon: Icons.cloud_off_rounded,
         ),
@@ -253,8 +263,8 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
 
   if (hasRequests) {
     chips.add(
-      const ChatAppBarStatusChip(
-        text: 'Approval needed',
+      ChatAppBarStatusChip(
+        text: l10n.chatStatusApprovalNeeded,
         color: AppColors.warning,
         icon: Icons.shield_outlined,
       ),
@@ -275,7 +285,9 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
     if (session.thinking) {
       chips.add(
         ChatAppBarStatusChip(
-          text: stale ? 'Working on sub-tasks' : 'Thinking',
+          text: stale
+              ? l10n.chatStatusWorkingOnSubtasks
+              : l10n.chatStatusThinking,
           color: colorScheme.primary,
           showDot: !stale,
           icon: Icons.account_tree_outlined,
@@ -297,7 +309,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
       if (hiddenActivity) {
         chips.add(
           ChatAppBarStatusChip(
-            text: 'Working on sub-tasks',
+            text: l10n.chatStatusWorkingOnSubtasks,
             color: colorScheme.primary,
             icon: Icons.account_tree_outlined,
           ),
@@ -329,7 +341,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
       case 'sending':
         chips.add(
           ChatAppBarStatusChip(
-            text: 'Sending',
+            text: l10n.chatSending,
             color: colorScheme.onSurfaceVariant,
             icon: Icons.arrow_upward_rounded,
           ),
@@ -337,8 +349,8 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         break;
       case 'pending':
         chips.add(
-          const ChatAppBarStatusChip(
-            text: 'Retry queued',
+          ChatAppBarStatusChip(
+            text: l10n.chatStatusRetryQueued,
             color: AppColors.warning,
             icon: Icons.schedule_rounded,
           ),
@@ -346,8 +358,8 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         break;
       case 'failed':
         chips.add(
-          const ChatAppBarStatusChip(
-            text: 'Not delivered',
+          ChatAppBarStatusChip(
+            text: l10n.chatStatusNotDelivered,
             color: AppColors.error,
             icon: Icons.error_outline_rounded,
           ),
@@ -360,7 +372,7 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         if (inputs.latestUserMessage?['sendSlow'] == true) {
           chips.add(
             ChatAppBarStatusChip(
-              text: 'Sent (slow)',
+              text: l10n.chatStatusSentSlow,
               color: colorScheme.onSurfaceVariant,
               icon: Icons.schedule_rounded,
             ),

@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
 import '../../../core/providers/app_providers.dart';
+import '../../../core/rpc/rpc_types.dart' show PermissionResponse;
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/utils/grok_acp_normalize.dart';
 import '../../../core/utils/tool_error_parser.dart';
@@ -372,7 +373,6 @@ class _ToolViewState extends ConsumerState<ToolView>
       permission['toolUseId'],
       permission['tool_use_id'],
       widget.tool['toolUseId'],
-      widget.tool['id'],
     ];
     for (final candidate in candidates) {
       final value = candidate?.toString();
@@ -385,13 +385,14 @@ class _ToolViewState extends ConsumerState<ToolView>
 
   Future<void> _performPermissionAction(PermissionAction action) async {
     final notifier = ref.read(permissionsNotifierProvider.notifier);
+    late final PermissionResponse receipt;
     switch (action.kind) {
       case PermissionActionKind.allow:
-        await notifier.allow(action.sessionId, action.permissionId);
+        receipt = await notifier.allow(action.sessionId, action.permissionId);
       case PermissionActionKind.deny:
-        await notifier.deny(action.sessionId, action.permissionId);
+        receipt = await notifier.deny(action.sessionId, action.permissionId);
       case PermissionActionKind.allowAllEdits:
-        await notifier.allow(
+        receipt = await notifier.allow(
           action.sessionId,
           action.permissionId,
           mode: 'acceptEdits',
@@ -404,36 +405,46 @@ class _ToolViewState extends ConsumerState<ToolView>
         } else {
           allowTools = [action.toolName];
         }
-        await notifier.allow(
+        receipt = await notifier.allow(
           action.sessionId,
           action.permissionId,
           allowTools: allowTools,
         );
       case PermissionActionKind.yolo:
-        await notifier.allow(
+        receipt = await notifier.allow(
           action.sessionId,
           action.permissionId,
           mode: 'yolo',
         );
       case PermissionActionKind.codexApprove:
-        await notifier.allow(
+        receipt = await notifier.allow(
           action.sessionId,
           action.permissionId,
           decision: 'approved',
         );
       case PermissionActionKind.codexApproveForSession:
-        await notifier.allow(
+        receipt = await notifier.allow(
           action.sessionId,
           action.permissionId,
           decision: 'approved_for_session',
         );
       case PermissionActionKind.codexAbort:
-        await notifier.deny(
+        receipt = await notifier.deny(
           action.sessionId,
           action.permissionId,
           decision: 'abort',
         );
     }
+    if (!mounted || !receipt.success) return;
+    final l10n = context.l10n;
+    final message = receipt.decision == 'denied' || receipt.decision == 'abort'
+        ? l10n.permissionDenialApplied
+        : receipt.scope == 'session'
+        ? l10n.permissionAppliedForSession
+        : l10n.permissionAppliedOnce;
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

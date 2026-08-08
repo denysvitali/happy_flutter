@@ -97,11 +97,7 @@ void main() {
     });
 
     test('optional fields default to null', () {
-      final item = CommandItem(
-        id: 'minimal',
-        title: 'Minimal',
-        action: () {},
-      );
+      final item = CommandItem(id: 'minimal', title: 'Minimal', action: () {});
 
       expect(item.subtitle, isNull);
       expect(item.icon, isNull);
@@ -120,10 +116,7 @@ void main() {
         action: () {},
       );
 
-      final copied = original.copyWith(
-        title: 'Updated',
-        shortcut: 'Ctrl+B',
-      );
+      final copied = original.copyWith(title: 'Updated', shortcut: 'Ctrl+B');
 
       expect(copied.id, 'orig');
       expect(copied.title, 'Updated');
@@ -171,9 +164,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -191,9 +182,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -207,9 +196,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -221,9 +208,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -259,9 +244,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -275,13 +258,34 @@ void main() {
       expect(find.text('Zen Mode'), findsNothing);
     });
 
+    testWidgets('search-only commands stay indexed without crowding defaults', (
+      tester,
+    ) async {
+      final commands = [
+        ..._sampleCommands(),
+        CommandItem(
+          id: 'older-session',
+          title: 'Archived investigation',
+          action: () {},
+          searchOnly: true,
+        ),
+      ];
+      await tester.pumpWidget(
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Archived investigation'), findsNothing);
+      await tester.enterText(find.byType(TextField), 'Archived investigation');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('Archived investigation'), findsOneWidget);
+    });
+
     testWidgets('filters commands by subtitle', (tester) async {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -292,15 +296,11 @@ void main() {
       expect(find.text('Settings'), findsNothing);
     });
 
-    testWidgets('shows empty state when no commands match', (
-      tester,
-    ) async {
+    testWidgets('shows empty state when no commands match', (tester) async {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -316,9 +316,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -333,9 +331,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -354,9 +350,7 @@ void main() {
 
     // -- Command tap --
 
-    testWidgets('tapping a command fires action and closes', (
-      tester,
-    ) async {
+    testWidgets('tapping a command fires action and closes', (tester) async {
       var actionCalled = false;
       var closeCalled = false;
       final commands = [
@@ -419,9 +413,7 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -437,9 +429,7 @@ void main() {
       final commands = _sampleCommands();
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -453,17 +443,11 @@ void main() {
       tester,
     ) async {
       final commands = [
-        CommandItem(
-          id: 'no-icon',
-          title: 'No Icon Command',
-          action: () {},
-        ),
+        CommandItem(id: 'no-icon', title: 'No Icon Command', action: () {}),
       ];
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -478,17 +462,11 @@ void main() {
       tester,
     ) async {
       final commands = [
-        CommandItem(
-          id: 'uncat',
-          title: 'Uncategorized',
-          action: () {},
-        ),
+        CommandItem(id: 'uncat', title: 'Uncategorized', action: () {}),
       ];
 
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: commands, onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -498,13 +476,9 @@ void main() {
 
     // -- Empty command list --
 
-    testWidgets('renders empty state for empty command list', (
-      tester,
-    ) async {
+    testWidgets('renders empty state for empty command list', (tester) async {
       await tester.pumpWidget(
-        _wrapWithApp(
-          CommandPaletteOverlay(commands: const [], onClose: () {}),
-        ),
+        _wrapWithApp(CommandPaletteOverlay(commands: const [], onClose: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -544,9 +518,7 @@ void main() {
     });
 
     test('toggle() flips state', () {
-      final notifier = container.read(
-        commandPaletteVisibleProvider.notifier,
-      );
+      final notifier = container.read(commandPaletteVisibleProvider.notifier);
 
       expect(container.read(commandPaletteVisibleProvider), isFalse);
 
@@ -566,9 +538,7 @@ void main() {
     testWidgets('renders SizedBox.shrink when not visible', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
-          child: _wrapWithApp(
-            const CommandPaletteOverlayWrapper(),
-          ),
+          child: _wrapWithApp(const CommandPaletteOverlayWrapper()),
         ),
       );
       await tester.pumpAndSettle();
@@ -577,14 +547,10 @@ void main() {
       expect(find.byType(CommandPaletteOverlay), findsNothing);
     });
 
-    testWidgets('renders CommandPaletteOverlay when visible', (
-      tester,
-    ) async {
+    testWidgets('renders CommandPaletteOverlay when visible', (tester) async {
       final container = ProviderContainer(
         overrides: [
-          sessionsNotifierProvider.overrideWith(
-            () => _FakeSessionsNotifier(),
-          ),
+          sessionsNotifierProvider.overrideWith(() => _FakeSessionsNotifier()),
         ],
       );
 
@@ -592,8 +558,7 @@ void main() {
         routes: [
           GoRoute(
             path: '/',
-            builder: (context, state) =>
-                const CommandPaletteOverlayWrapper(),
+            builder: (context, state) => const CommandPaletteOverlayWrapper(),
           ),
         ],
       );
@@ -603,8 +568,7 @@ void main() {
           container: container,
           child: MaterialApp.router(
             routerConfig: router,
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
           ),
         ),
@@ -616,6 +580,73 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CommandPaletteOverlay), findsOneWidget);
+
+      router.dispose();
+      container.dispose();
+    });
+
+    testWidgets('app host provides a modal barrier and isolates focus', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          sessionsNotifierProvider.overrideWith(() => _FakeSessionsNotifier()),
+        ],
+      );
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: TextField(key: ValueKey('route-field'))),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: router,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => CommandPaletteKeyboardHandler(
+              child: CommandPaletteAppOverlay(child: child!),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('route-field')));
+      await tester.pump();
+      final routeEditable = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byKey(const ValueKey('route-field')),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(routeEditable.focusNode.hasFocus, isTrue);
+
+      container.read(commandPaletteVisibleProvider.notifier).show();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CommandPaletteOverlay), findsOneWidget);
+      expect(find.byType(ModalBarrier), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('command-palette-modal')),
+        findsOneWidget,
+      );
+      final focusGate = tester.widget<ExcludeFocus>(
+        find.byKey(const ValueKey('command-palette-background')),
+      );
+      expect(focusGate.excluding, isTrue);
+
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CommandPaletteOverlay), findsNothing);
+      expect(routeEditable.focusNode.hasFocus, isTrue);
 
       router.dispose();
       container.dispose();

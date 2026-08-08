@@ -15,6 +15,7 @@ class CommandPaletteOverlay extends StatefulWidget {
     required this.onClose,
     this.recentCommands = const [],
     this.onCommandExecuted,
+    this.withModalBarrier = true,
     super.key,
   });
 
@@ -31,6 +32,10 @@ class CommandPaletteOverlay extends StatefulWidget {
   /// Called with the executed [CommandItem.id] just before closing.
   final void Function(String commandId)? onCommandExecuted;
 
+  /// Whether this widget supplies its own modal barrier. Dialog routes already
+  /// provide one, while the app-root palette host does not.
+  final bool withModalBarrier;
+
   /// Shows the command palette as an overlay
   static Future<void> show(
     BuildContext context,
@@ -41,12 +46,12 @@ class CommandPaletteOverlay extends StatefulWidget {
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Dismiss',
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       // cs.scrim follows the M3 theme — dark in light mode, light in
       // dark mode. The previous Colors.black.withValues(alpha: 0.4)
       // was always-on-top black regardless of theme.
       barrierColor: Theme.of(context).colorScheme.scrim,
-      transitionDuration: AppDuration.normal,
+      transitionDuration: AppMotion.duration(context, AppDuration.normal),
       transitionBuilder: (context, animation, _, child) {
         final curve = CurvedAnimation(
           parent: animation,
@@ -68,6 +73,7 @@ class CommandPaletteOverlay extends StatefulWidget {
           commands: commands,
           recentCommands: recentCommands,
           onCommandExecuted: onCommandExecuted,
+          withModalBarrier: false,
           onClose: () => Navigator.of(context).pop(),
         );
       },
@@ -91,8 +97,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   // navigation and Enter execution stay synchronous; only the
   // _filterCommands() call triggered by keystrokes is debounced.
   Timer? _filterDebounce;
-  static const Duration _filterDebounceDuration =
-      Duration(milliseconds: 100);
+  static const Duration _filterDebounceDuration = Duration(milliseconds: 100);
 
   List<CommandCategory> _filteredCategories = [];
   List<CommandItem> _allCommands = [];
@@ -103,16 +108,37 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   /// Highlighted character positions per command, keyed by object identity.
   /// Each entry holds bit-sets for title and subtitle matched indices.
   final Map<CommandItem, ({Set<int> title, Set<int> subtitle})>
-      _matchHighlights = {};
+  _matchHighlights = {};
 
   @override
   void initState() {
     super.initState();
-    _filterCommands();
     // Auto-focus the search field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _searchFocusNode.requestFocus();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final recentLabel = context.l10n.commandCategoryRecent;
+    final generalLabel = context.l10n.commandCategoryGeneral;
+    if (_recentCategoryLabel != recentLabel ||
+        _generalCategoryLabel != generalLabel) {
+      _recentCategoryLabel = recentLabel;
+      _generalCategoryLabel = generalLabel;
+      _filterCommands();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant CommandPaletteOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.commands, widget.commands) ||
+        !identical(oldWidget.recentCommands, widget.recentCommands)) {
+      _filterCommands();
+    }
   }
 
   @override
@@ -125,9 +151,9 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     super.dispose();
   }
 
-  // Resolved l10n label for the "Recent" category header.  Set on first
-  // build so _filterCommands can reference it without a BuildContext.
-  String _recentCategoryLabel = 'Recent';
+  // Resolved l10n label for the "Recent" category header.
+  String _recentCategoryLabel = '';
+  String _generalCategoryLabel = '';
 
   /// Expands a list of [start, end] match ranges into a flat set of indices.
   Set<int> _expandMatchIndices(List<dynamic> matchedIndices) {
@@ -173,7 +199,9 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     _matchHighlights.clear();
 
     if (query.isEmpty) {
-      filtered = widget.commands;
+      filtered = widget.commands
+          .where((command) => !command.searchOnly)
+          .toList(growable: false);
     } else {
       // Use fuzzy matching for typo-tolerant search with relevance scoring.
       final fuzzy = Fuzzy<CommandItem>(
@@ -242,7 +270,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     // Append the normal grouped-by-category commands.
     final grouped = <String, List<CommandItem>>{};
     for (final command in filtered) {
-      final category = command.category ?? 'General';
+      final category = command.category ?? _generalCategoryLabel;
       grouped.putIfAbsent(category, () => []).add(command);
     }
     categories.addAll(
@@ -259,20 +287,15 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
 
     // Flat ordered list for keyboard navigation (Recent items first when
     // query is empty, same as the visual order).
-    _allCommands = [
-      for (final cat in _filteredCategories) ...cat.commands,
-    ];
+    _allCommands = [for (final cat in _filteredCategories) ...cat.commands];
 
     // Pre-compute category start indices so itemBuilder is O(1).
     var runningIndex = 0;
-    _categoryStartIndex = List<int>.generate(
-      _filteredCategories.length,
-      (i) {
-        final start = runningIndex;
-        runningIndex += _filteredCategories[i].commands.length;
-        return start;
-      },
-    );
+    _categoryStartIndex = List<int>.generate(_filteredCategories.length, (i) {
+      final start = runningIndex;
+      runningIndex += _filteredCategories[i].commands.length;
+      return start;
+    });
 
     // Reset selection if out of bounds
     if (_selectedIndex >= _allCommands.length) {
@@ -316,13 +339,13 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
       if (targetOffset < currentOffset) {
         _scrollController.animateTo(
           targetOffset,
-          duration: AppDuration.fast,
+          duration: AppMotion.duration(context, AppDuration.fast),
           curve: AppCurve.enter,
         );
       } else if (targetOffset > currentOffset + viewportHeight - itemHeight) {
         _scrollController.animateTo(
           targetOffset - viewportHeight + itemHeight,
-          duration: AppDuration.fast,
+          duration: AppMotion.duration(context, AppDuration.fast),
           curve: AppCurve.enter,
         );
       }
@@ -342,110 +365,133 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
-    // Keep _recentCategoryLabel in sync with the current locale so
-    // _filterCommands() can use it without needing a BuildContext.
-    _recentCategoryLabel = l10n.commandCategoryRecent;
-
-    return KeyboardListener(
-      focusNode: _keyboardFocusNode,
-      onKeyEvent: _handleKeyEvent,
-      child: Center(
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 640, maxHeight: 500),
-            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              boxShadow: AppShadow.modal,
-              border: Border.all(
-                color: colorScheme.outlineVariant,
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Search input
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: colorScheme.outlineVariant,
+    final palette = Semantics(
+      key: const ValueKey('command-palette-modal'),
+      container: true,
+      explicitChildNodes: true,
+      scopesRoute: true,
+      namesRoute: true,
+      label: l10n.commandPaletteSemanticsLabel,
+      child: FocusTraversalGroup(
+        child: KeyboardListener(
+          focusNode: _keyboardFocusNode,
+          onKeyEvent: _handleKeyEvent,
+          child: Center(
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                constraints: const BoxConstraints(
+                  maxWidth: 640,
+                  maxHeight: 500,
+                ),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  boxShadow: AppShadow.modal,
+                  border: Border.all(color: colorScheme.outlineVariant),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Search input
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: colorScheme.outlineVariant),
+                        ),
                       ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.search,
-                        color: colorScheme.onSurfaceVariant,
-                        size: AppSpacing.xl - AppSpacing.sm,
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          focusNode: _searchFocusNode,
-                          decoration: InputDecoration(
-                            hintText: l10n.commandSearchHint,
-                            hintStyle: TextStyle(
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.search,
+                            color: colorScheme.onSurfaceVariant,
+                            size: AppSpacing.xl - AppSpacing.sm,
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _searchFocusNode,
+                              decoration: InputDecoration(
+                                hintText: l10n.commandSearchHint,
+                                hintStyle: TextStyle(
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.38,
+                                  ),
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              style: TextStyle(
+                                fontSize: AppFontSize.lg,
+                                color: colorScheme.onSurface,
+                              ),
+                              onChanged: _onSearchChanged,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xxs,
+                            ),
+                            decoration: BoxDecoration(
                               color: colorScheme.onSurface.withValues(
-                                alpha: 0.38,
+                                alpha: 0.06,
+                              ),
+                              borderRadius: BorderRadius.circular(AppRadius.xs),
+                            ),
+                            child: Text(
+                              'ESC',
+                              style: TextStyle(
+                                fontSize: AppFontSize.xs,
+                                fontWeight: FontWeight.w500,
+                                color: colorScheme.onSurfaceVariant,
+                                fontFamily: 'monospace',
                               ),
                             ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
                           ),
-                          style: TextStyle(
-                            fontSize: AppFontSize.lg,
-                            color: colorScheme.onSurface,
-                          ),
-                          onChanged: _onSearchChanged,
-                        ),
+                        ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xxs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withValues(
-                            alpha: 0.06,
-                          ),
-                          borderRadius: BorderRadius.circular(AppRadius.xs),
-                        ),
-                        child: Text(
-                          'ESC',
-                          style: TextStyle(
-                            fontSize: AppFontSize.xs,
-                            fontWeight: FontWeight.w500,
-                            color: colorScheme.onSurfaceVariant,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Results
-                Flexible(
-                  child: _filteredCategories.isEmpty
-                      ? _buildEmptyState(colorScheme)
-                      : _buildResultsList(colorScheme),
+                    // Results
+                    Flexible(
+                      child: _filteredCategories.isEmpty
+                          ? _buildEmptyState(colorScheme, l10n)
+                          : _buildResultsList(colorScheme),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
+
+    if (!widget.withModalBarrier) return palette;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ModalBarrier(
+          color: colorScheme.scrim.withValues(alpha: 0.54),
+          dismissible: true,
+          onDismiss: widget.onClose,
+          semanticsLabel: MaterialLocalizations.of(
+            context,
+          ).modalBarrierDismissLabel,
+          barrierSemanticsDismissible: true,
+        ),
+        palette,
+      ],
+    );
   }
 
-  Widget _buildEmptyState(ColorScheme colorScheme) {
+  Widget _buildEmptyState(ColorScheme colorScheme, AppLocalizations l10n) {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.xxxl),
       child: Column(
@@ -458,7 +504,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'No commands found',
+            l10n.commandPaletteNoResults,
             style: TextStyle(
               fontSize: AppFontSize.lg,
               color: colorScheme.onSurfaceVariant,
@@ -466,7 +512,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Try a different search term',
+            l10n.commandPaletteTryDifferentSearch,
             style: TextStyle(
               fontSize: AppFontSize.base,
               color: colorScheme.onSurface.withValues(alpha: 0.38),
@@ -663,10 +709,8 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
               // Icon
               if (widget.command.icon != null)
                 Container(
-                  width:
-                      AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
-                  height:
-                      AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+                  width: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
+                  height: AppSpacing.xxxl - AppSpacing.xxl + AppSpacing.lg,
                   margin: const EdgeInsets.only(right: AppSpacing.md),
                   decoration: BoxDecoration(
                     color: colorScheme.onSurface.withValues(alpha: 0.06),

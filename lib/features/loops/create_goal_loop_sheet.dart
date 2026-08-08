@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/app_status_dot.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/remote_feature_failure_localization.dart';
 import '../../core/models/loop.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
@@ -115,7 +116,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
     if (!res.success) {
       setState(() {
         _submitting = false;
-        _error = res.error ?? 'Could not start the loop';
+        _error = res.failureKind.localizedRemoteFeatureFailure(context.l10n);
       });
       return;
     }

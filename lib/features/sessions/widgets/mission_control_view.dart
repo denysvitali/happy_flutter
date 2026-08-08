@@ -608,7 +608,7 @@ class _DisclosureButton extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     AnimatedRotation(
                       turns: expanded ? 0.5 : 0,
-                      duration: AppDuration.normal,
+                      duration: AppMotion.duration(context, AppDuration.normal),
                       child: Icon(
                         Icons.expand_more_rounded,
                         size: AppIconSize.md,
@@ -702,7 +702,10 @@ class _QuietDrawer extends StatelessWidget {
                       ),
                       AnimatedRotation(
                         turns: open ? 0.25 : 0,
-                        duration: AppDuration.normal,
+                        duration: AppMotion.duration(
+                          context,
+                          AppDuration.normal,
+                        ),
                         child: Icon(
                           Icons.chevron_right_rounded,
                           size: AppIconSize.lg,

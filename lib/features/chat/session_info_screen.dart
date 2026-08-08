@@ -10,16 +10,14 @@ import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/routing/safe_pop.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
-import '../../core/routing/safe_pop.dart';
 import '../../core/utils/session_utils.dart';
+import '../../core/utils/version_utils.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
-
-// Minimum CLI version required for full compatibility.
-const _minimumCliVersion = '0.10.0';
 
 // Reusable thin divider used inside the metadata/info cards.
 const _kRowDivider = Divider(
@@ -27,31 +25,6 @@ const _kRowDivider = Divider(
   thickness: AppBorder.hairline,
   indent: 52,
 );
-
-/// Compares two semver strings.
-/// Returns -1, 0, or 1 (like compareTo).
-int _compareVersions(String v1, String v2) {
-  String clean(String v) => v.split('-')[0];
-  final p1 = clean(v1).split('.').map(int.tryParse).toList();
-  final p2 = clean(v2).split('.').map(int.tryParse).toList();
-  final len = p1.length > p2.length ? p1.length : p2.length;
-  for (var i = 0; i < len; i++) {
-    final a = i < p1.length ? (p1[i] ?? 0) : 0;
-    final b = i < p2.length ? (p2[i] ?? 0) : 0;
-    if (a > b) return 1;
-    if (a < b) return -1;
-  }
-  return 0;
-}
-
-/// Returns true if [version] >= [minimum].
-bool _isVersionSupported(String version) {
-  try {
-    return _compareVersions(version, _minimumCliVersion) >= 0;
-  } catch (_) {
-    return false;
-  }
-}
 
 /// Screen that shows detailed info about a specific session.
 class SessionInfoScreen extends ConsumerWidget {
@@ -289,7 +262,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     final hasArchiveAction = isOnline;
     final hasDeleteAction = !session.active;
     final isCliOutdated =
-        meta?.version != null && !_isVersionSupported(meta!.version!);
+        meta?.version != null && !isVersionSupported(meta!.version!);
 
     return ListView(
       padding: AppScreenPadding.standard,
@@ -327,7 +300,15 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                StatusChip(isActive: session.isOnline),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    StatusChip(isActive: session.isOnline),
+                    if (meta != null) SessionSandboxBadge(metadata: meta),
+                  ],
+                ),
               ],
             ),
           ),

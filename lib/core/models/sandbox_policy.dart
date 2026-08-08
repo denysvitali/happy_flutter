@@ -11,6 +11,8 @@
 /// value in it is a path that only means something there.
 library;
 
+import '../types/remote_feature_failure.dart';
+
 /// How one granted directory is exposed inside the sandbox.
 enum SandboxGrantMode {
   /// The session can read and write the directory.
@@ -78,6 +80,7 @@ class SandboxPolicyResponse {
     this.updatedAt,
     this.projects = const [],
     this.error,
+    this.failureKind,
   });
 
   factory SandboxPolicyResponse.fromJson(Map<String, dynamic> json) {
@@ -103,6 +106,9 @@ class SandboxPolicyResponse {
                 .toList()
           : const [],
       error: _nonEmpty(json['error']),
+      failureKind: json['success'] == false
+          ? RemoteFeatureFailureKind.rejected
+          : null,
     );
   }
 
@@ -140,6 +146,7 @@ class SandboxPolicyResponse {
   final List<SandboxProjectSummary> projects;
 
   final String? error;
+  final RemoteFeatureFailureKind? failureKind;
 }
 
 /// One configured project in a `sandbox-list` response.

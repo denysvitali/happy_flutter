@@ -35,8 +35,7 @@ extension ThemeContextExtension on BuildContext {
   /// Get the current app theme mode from settings provider
   AppThemeMode get appThemeMode {
     final container = ProviderScope.containerOf(this);
-    final themeModeString =
-        container.read(settingsNotifierProvider).themeMode;
+    final themeModeString = container.read(settingsNotifierProvider).themeMode;
     return AppThemeMode.fromString(themeModeString);
   }
 
@@ -295,8 +294,9 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
   return AppBarTheme(
     elevation: 0,
     scrolledUnderElevation: 1,
-    backgroundColor:
-        dark ? _kDarkSurface.withAlpha(230) : _kLightSurface.withAlpha(230),
+    backgroundColor: dark
+        ? _kDarkSurface.withAlpha(230)
+        : _kLightSurface.withAlpha(230),
     foregroundColor: dark ? Colors.white : _kLightTextPrimary,
     centerTitle: false,
     titleTextStyle: _inter(
@@ -306,8 +306,7 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
     ),
     systemOverlayStyle: SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness:
-          dark ? Brightness.light : Brightness.dark,
+      statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
       statusBarBrightness: dark ? Brightness.dark : Brightness.light,
     ),
   );
@@ -321,9 +320,7 @@ CardThemeData _buildCardTheme({required bool dark}) {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.lg),
       side: BorderSide(
-        color: dark
-            ? Colors.white.withAlpha(18)
-            : Colors.black.withAlpha(12),
+        color: dark ? Colors.white.withAlpha(18) : Colors.black.withAlpha(12),
       ),
     ),
     color: dark ? _kDarkSurface : _kLightSurface,
@@ -370,10 +367,7 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: radius,
-      borderSide: const BorderSide(
-        color: focusColor,
-        width: AppBorder.thick,
-      ),
+      borderSide: const BorderSide(color: focusColor, width: AppBorder.thick),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: radius,
@@ -420,14 +414,25 @@ ChipThemeData _buildChipTheme({required bool dark}) {
       borderRadius: BorderRadius.circular(AppRadius.sm),
     ),
     side: BorderSide(
-      color: dark
-          ? Colors.white.withAlpha(25)
-          : Colors.black.withAlpha(18),
+      color: dark ? Colors.white.withAlpha(25) : Colors.black.withAlpha(18),
     ),
-    backgroundColor:
-        dark ? _kDarkSurfaceVariant : _kLightSurfaceVariant,
+    backgroundColor: dark ? _kDarkSurfaceVariant : _kLightSurfaceVariant,
   );
 }
+
+IconButtonThemeData _buildIconButtonTheme() => const IconButtonThemeData(
+  style: ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(Size.square(AppTouchTarget.min)),
+  ),
+);
+
+TextButtonThemeData _buildTextButtonTheme() => const TextButtonThemeData(
+  style: ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(
+      Size(AppTouchTarget.min, AppTouchTarget.min),
+    ),
+  ),
+);
 
 ElevatedButtonThemeData _buildElevatedButtonTheme() {
   return ElevatedButtonThemeData(
@@ -435,6 +440,7 @@ ElevatedButtonThemeData _buildElevatedButtonTheme() {
       backgroundColor: _kSeedColor,
       foregroundColor: Colors.white,
       elevation: AppElevation.none,
+      minimumSize: const Size(AppTouchTarget.min, AppTouchTarget.min),
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.xxl,
         vertical: AppSpacing.lg,
@@ -468,8 +474,10 @@ FilledButtonThemeData _buildFilledButtonTheme() {
       // White state-layer at M3 pressed opacity (16 %) over the gradient.
       overlayColor: AppMotion.overlayFor(Colors.white),
       elevation: const WidgetStatePropertyAll(AppElevation.none),
-      shadowColor:
-          const WidgetStatePropertyAll(Colors.transparent),
+      minimumSize: const WidgetStatePropertyAll(
+        Size(AppTouchTarget.min, AppTouchTarget.min),
+      ),
+      shadowColor: const WidgetStatePropertyAll(Colors.transparent),
       padding: WidgetStatePropertyAll(
         EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
@@ -482,11 +490,7 @@ FilledButtonThemeData _buildFilledButtonTheme() {
         ),
       ),
       textStyle: WidgetStatePropertyAll(
-        _inter(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.1,
-        ),
+        _inter(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.1),
       ),
       // Gradient via backgroundBuilder (Flutter ≥ 3.13).
       backgroundBuilder: (context, states, child) {
@@ -501,8 +505,7 @@ FilledButtonThemeData _buildFilledButtonTheme() {
                     colors: [_kFilledButtonTop, _kSeedColor],
                   ),
             color: disabled ? _kDisabledFill : null,
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: child,
         );
@@ -511,15 +514,12 @@ FilledButtonThemeData _buildFilledButtonTheme() {
   );
 }
 
-OutlinedButtonThemeData _buildOutlinedButtonTheme({
-  required bool dark,
-}) {
+OutlinedButtonThemeData _buildOutlinedButtonTheme({required bool dark}) {
   // Ghost style: transparent background with a primary-tinted M3
   // state layer; foreground and border colour are the seed color.
   return OutlinedButtonThemeData(
     style: ButtonStyle(
-      foregroundColor:
-          const WidgetStatePropertyAll(_kSeedColor),
+      foregroundColor: const WidgetStatePropertyAll(_kSeedColor),
       // Background fills with the M3 state-layer colour directly —
       // AppMotion.stateOverlay returns null when idle so the button
       // stays fully transparent at rest.
@@ -529,8 +529,7 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({
       // Ripple overlay uses the canonical M3 seed-color state layer.
       overlayColor: AppMotion.overlayFor(_kSeedColor),
       side: WidgetStateProperty.resolveWith((states) {
-        final alpha =
-            states.contains(WidgetState.focused) ? 255 : 120;
+        final alpha = states.contains(WidgetState.focused) ? 255 : 120;
         return BorderSide(
           color: _kSeedColor.withAlpha(alpha),
           width: states.contains(WidgetState.focused)
@@ -539,6 +538,9 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({
         );
       }),
       elevation: const WidgetStatePropertyAll(AppElevation.none),
+      minimumSize: const WidgetStatePropertyAll(
+        Size(AppTouchTarget.min, AppTouchTarget.min),
+      ),
       padding: WidgetStatePropertyAll(
         EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
@@ -551,11 +553,7 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({
         ),
       ),
       textStyle: WidgetStatePropertyAll(
-        _inter(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.1,
-        ),
+        _inter(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.1),
       ),
     ),
   );
@@ -582,13 +580,10 @@ ListTileThemeData _buildListTileTheme({required bool dark}) {
   );
 }
 
-NavigationBarThemeData _buildNavigationBarTheme({
-  required bool dark,
-}) {
+NavigationBarThemeData _buildNavigationBarTheme({required bool dark}) {
   return NavigationBarThemeData(
     elevation: 0,
-    backgroundColor:
-        dark ? _kDarkSurface : _kLightSurface,
+    backgroundColor: dark ? _kDarkSurface : _kLightSurface,
     surfaceTintColor: Colors.transparent,
     indicatorColor: _kSeedColor.withAlpha(30),
     labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -606,9 +601,7 @@ NavigationBarThemeData _buildNavigationBarTheme({
 
 DividerThemeData _buildDividerTheme({required bool dark}) {
   return DividerThemeData(
-    color: dark
-        ? Colors.white.withAlpha(15)
-        : Colors.black.withAlpha(10),
+    color: dark ? Colors.white.withAlpha(15) : Colors.black.withAlpha(10),
     thickness: AppBorder.hairline,
     space: AppBorder.hairline,
   );
@@ -619,9 +612,7 @@ BottomSheetThemeData _buildBottomSheetTheme({required bool dark}) {
     backgroundColor: dark ? _kDarkSurface : _kLightSurface,
     surfaceTintColor: Colors.transparent,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(
-        top: Radius.circular(AppRadius.xl),
-      ),
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
     ),
     showDragHandle: true,
     dragHandleColor: dark
@@ -652,10 +643,7 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
 SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
   return SnackBarThemeData(
     backgroundColor: dark ? _kSnackBarDark : _kSnackBarLight,
-    contentTextStyle: _inter(
-      fontSize: 14,
-      color: Colors.white,
-    ),
+    contentTextStyle: _inter(fontSize: 14, color: Colors.white),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.md),
     ),
@@ -682,52 +670,50 @@ class ThemeHelper {
     final cached = _lightCache[effectiveSeed];
     if (cached != null) return cached;
 
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: effectiveSeed,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: effectiveSeed,
-      onPrimary: Colors.white,
-      surface: _kLightSurface,
-      surfaceContainerHighest: _kLightSurfaceVariant,
-      onSurface: _kLightTextSecondary,
-      onSurfaceVariant: _kLightTextMuted,
-      outline: Colors.black.withAlpha(20),
-      outlineVariant: Colors.black.withAlpha(12),
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: effectiveSeed,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: effectiveSeed,
+          onPrimary: Colors.white,
+          surface: _kLightSurface,
+          surfaceContainerHighest: _kLightSurfaceVariant,
+          onSurface: _kLightTextSecondary,
+          onSurfaceVariant: _kLightTextMuted,
+          outline: Colors.black.withAlpha(20),
+          outlineVariant: Colors.black.withAlpha(12),
+        );
 
     final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: colorScheme,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+      iconButtonTheme: _buildIconButtonTheme(),
+      textButtonTheme: _buildTextButtonTheme(),
       scaffoldBackgroundColor: _kLightBackground,
       textTheme: _buildTextTheme(dark: false),
       appBarTheme: _buildAppBarTheme(dark: false),
       cardTheme: _buildCardTheme(dark: false),
-      inputDecorationTheme:
-          _buildInputDecorationTheme(dark: false),
+      inputDecorationTheme: _buildInputDecorationTheme(dark: false),
       chipTheme: _buildChipTheme(dark: false),
       elevatedButtonTheme: _buildElevatedButtonTheme(),
       filledButtonTheme: _buildFilledButtonTheme(),
-      outlinedButtonTheme:
-          _buildOutlinedButtonTheme(dark: false),
+      outlinedButtonTheme: _buildOutlinedButtonTheme(dark: false),
       listTileTheme: _buildListTileTheme(dark: false),
-      navigationBarTheme:
-          _buildNavigationBarTheme(dark: false),
+      navigationBarTheme: _buildNavigationBarTheme(dark: false),
       dividerTheme: _buildDividerTheme(dark: false),
-      bottomSheetTheme:
-          _buildBottomSheetTheme(dark: false),
+      bottomSheetTheme: _buildBottomSheetTheme(dark: false),
       dialogTheme: _buildDialogTheme(dark: false),
       snackBarTheme: _buildSnackBarTheme(dark: false),
       splashFactory: InkSparkle.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android:
-              FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.iOS:
-              CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS:
-              CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         },
       ),
       extensions: <ThemeExtension<dynamic>>[
@@ -749,54 +735,52 @@ class ThemeHelper {
     final cached = _darkCache[effectiveSeed];
     if (cached != null) return cached;
 
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: effectiveSeed,
-      brightness: Brightness.dark,
-    ).copyWith(
-      surface: _kDarkSurface,
-      surfaceContainerLowest: _kDarkBackground,
-      surfaceContainerLow: const Color(0xFF161922),
-      surfaceContainer: _kDarkSurface,
-      surfaceContainerHigh: const Color(0xFF1F222E),
-      surfaceContainerHighest: _kDarkSurfaceVariant,
-      onSurface: _kDarkTextSecondary,
-      onSurfaceVariant: _kDarkTextSubtle,
-      outline: Colors.white.withAlpha(25),
-      outlineVariant: Colors.white.withAlpha(15),
-    );
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: effectiveSeed,
+          brightness: Brightness.dark,
+        ).copyWith(
+          surface: _kDarkSurface,
+          surfaceContainerLowest: _kDarkBackground,
+          surfaceContainerLow: const Color(0xFF161922),
+          surfaceContainer: _kDarkSurface,
+          surfaceContainerHigh: const Color(0xFF1F222E),
+          surfaceContainerHighest: _kDarkSurfaceVariant,
+          onSurface: _kDarkTextSecondary,
+          onSurfaceVariant: _kDarkTextSubtle,
+          outline: Colors.white.withAlpha(25),
+          outlineVariant: Colors.white.withAlpha(15),
+        );
 
     final theme = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: colorScheme,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+      iconButtonTheme: _buildIconButtonTheme(),
+      textButtonTheme: _buildTextButtonTheme(),
       scaffoldBackgroundColor: _kDarkBackground,
       textTheme: _buildTextTheme(dark: true),
       appBarTheme: _buildAppBarTheme(dark: true),
       cardTheme: _buildCardTheme(dark: true),
-      inputDecorationTheme:
-          _buildInputDecorationTheme(dark: true),
+      inputDecorationTheme: _buildInputDecorationTheme(dark: true),
       chipTheme: _buildChipTheme(dark: true),
       elevatedButtonTheme: _buildElevatedButtonTheme(),
       filledButtonTheme: _buildFilledButtonTheme(),
-      outlinedButtonTheme:
-          _buildOutlinedButtonTheme(dark: true),
+      outlinedButtonTheme: _buildOutlinedButtonTheme(dark: true),
       listTileTheme: _buildListTileTheme(dark: true),
-      navigationBarTheme:
-          _buildNavigationBarTheme(dark: true),
+      navigationBarTheme: _buildNavigationBarTheme(dark: true),
       dividerTheme: _buildDividerTheme(dark: true),
-      bottomSheetTheme:
-          _buildBottomSheetTheme(dark: true),
+      bottomSheetTheme: _buildBottomSheetTheme(dark: true),
       dialogTheme: _buildDialogTheme(dark: true),
       snackBarTheme: _buildSnackBarTheme(dark: true),
       splashFactory: InkSparkle.splashFactory,
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android:
-              FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.iOS:
-              CupertinoPageTransitionsBuilder(),
-          TargetPlatform.macOS:
-              CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         },
       ),
       extensions: <ThemeExtension<dynamic>>[
@@ -812,16 +796,13 @@ class ThemeHelper {
   }
 
   /// Build theme data based on mode
-  static ThemeData buildTheme(
-    AppThemeMode mode, {
-    Color? seedColor,
-  }) {
+  static ThemeData buildTheme(AppThemeMode mode, {Color? seedColor}) {
     return switch (mode) {
       AppThemeMode.dark => buildDarkTheme(seedColor: seedColor),
       AppThemeMode.light => buildLightTheme(seedColor: seedColor),
       AppThemeMode.adaptive => _buildAdaptiveThemeNoContext(
-          seedColor: seedColor,
-        ),
+        seedColor: seedColor,
+      ),
     };
   }
 

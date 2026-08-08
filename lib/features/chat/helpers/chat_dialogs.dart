@@ -11,6 +11,7 @@ import '../../../core/dialogs/confirm_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
+import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/utils/snack.dart';
 
 /// Shows a modal bottom sheet with session actions (settings, stop,
@@ -73,11 +74,31 @@ void showSessionMenu(
               ),
               ListTile(
                 leading: Icon(Icons.stop_rounded, color: cs.error),
-                title: Text('Stop', style: TextStyle(color: cs.error)),
+                title: Text(
+                  l10n.chatStopCurrentTask,
+                  style: TextStyle(color: cs.error),
+                ),
                 onTap: () {
                   HapticFeedback.heavyImpact();
                   Navigator.pop(sheetContext);
                   onAbort();
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.power_settings_new_rounded,
+                  color: cs.error,
+                ),
+                title: Text(
+                  l10n.chatStopAgentProcess,
+                  style: TextStyle(color: cs.error),
+                ),
+                onTap: () {
+                  HapticFeedback.heavyImpact();
+                  Navigator.pop(sheetContext);
+                  unawaited(
+                    _confirmStopAgentProcess(outerContext, ref, sessionId),
+                  );
                 },
               ),
               ListTile(
@@ -100,6 +121,39 @@ void showSessionMenu(
       },
     ),
   );
+}
+
+Future<void> _confirmStopAgentProcess(
+  BuildContext context,
+  WidgetRef ref,
+  String sessionId,
+) async {
+  final l10n = context.l10n;
+  final confirmed = await showConfirmDialog(
+    context,
+    title: l10n.chatStopAgentProcessConfirmTitle,
+    content: l10n.chatStopAgentProcessConfirmBody,
+    confirmLabel: l10n.chatStopAgentProcess,
+    isDestructive: true,
+  );
+  if (!confirmed || !context.mounted) return;
+  try {
+    await ref
+        .read(chatActionNotifierProvider.notifier)
+        .stopSessionProcess(sessionId);
+    if (context.mounted) {
+      context.showSnack(l10n.chatStopAgentProcessSuccess);
+    }
+  } catch (error, stackTrace) {
+    logger.warning(
+      '[ChatSessionMenu] stop process failed session=$sessionId',
+      error,
+      stackTrace,
+    );
+    if (context.mounted) {
+      context.showSnack(l10n.chatStopAgentProcessFailure);
+    }
+  }
 }
 
 /// Shows a dialog asking the user to confirm leaving with an unsent

@@ -53,10 +53,7 @@ void main() {
       test('encodeKey throws on wrong key length', () {
         final key = Uint8List(16);
 
-        expect(
-          () => BackupKeyUtils.encodeKey(key),
-          throwsArgumentError,
-        );
+        expect(() => BackupKeyUtils.encodeKey(key), throwsArgumentError);
       });
 
       test('encodeKey uses Crockford base32 charset', () {
@@ -261,8 +258,9 @@ void main() {
 
       test('encode-decode roundtrip handles boundary values', () {
         final boundaryKeys = [
-          Uint8List.fromList([0x00, 0x01, 0x7F, 0x80, 0xFF] +
-              List.generate(27, (i) => 0)),
+          Uint8List.fromList(
+            [0x00, 0x01, 0x7F, 0x80, 0xFF] + List.generate(27, (i) => 0),
+          ),
           Uint8List.fromList(List.generate(32, (i) => 0x80)),
         ];
 
@@ -377,6 +375,16 @@ void main() {
         }
         expect(parts.last.length, 2);
       });
+    });
+    test('fingerprint is stable and does not expose the backup key', () {
+      final encoded = BackupKeyUtils.encodeKey(
+        Uint8List.fromList(List<int>.generate(32, (index) => index)),
+      );
+
+      final fingerprint = BackupKeyUtils.fingerprint(encoded);
+
+      expect(fingerprint, matches(RegExp(r'^[A-F0-9]{4}(-[A-F0-9]{4}){2}$')));
+      expect(encoded.contains(fingerprint), isFalse);
     });
   });
 }

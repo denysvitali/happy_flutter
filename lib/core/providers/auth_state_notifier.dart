@@ -7,7 +7,6 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../api/api_client.dart';
 import '../api/socket_io_client.dart' as socket_io;
 import '../models/auth.dart';
-import '../providers/profile_notifier.dart';
 import '../services/app_lifecycle_service.dart';
 import '../services/auth_service.dart';
 import '../services/logger_service.dart' show logger;
@@ -15,6 +14,8 @@ import '../services/opentelemetry_service.dart';
 import '../services/storage_service.dart';
 import '../services/sync_service.dart';
 import '../services/token_refresh_manager.dart';
+import 'auth_transition_epoch.dart';
+import 'profile_notifier.dart';
 
 final authStateNotifierProvider =
     NotifierProvider<AuthStateNotifier, AuthState>(() {
@@ -27,6 +28,8 @@ class AuthStateNotifier extends Notifier<AuthState> {
   String? _activeDeepLink;
   OnTokenRefreshFailed? _tokenRefreshFailedListener;
   bool _reauthCheckInFlight = false;
+  final _transitionEpoch = AuthTransitionEpoch();
+  Future<void> _transitionTail = Future<void>.value();
 
   @override
   AuthState build() {
@@ -67,9 +70,17 @@ class AuthStateNotifier extends Notifier<AuthState> {
   /// "checking sign-in" view for that state, which unmounts the chat
   /// screen and throws away the composer's staged input. The state only
   /// changes once the verification has a verdict.
-  Future<void> _verifyAfterRejection() async {
+  Future<void> _verifyAfterRejection() {
+    final transition = _transitionEpoch.begin();
+    return _enqueueAuthTransition(
+      () => _runVerificationAfterRejection(transition),
+    );
+  }
+
+  Future<void> _runVerificationAfterRejection(int transition) async {
     try {
       final verdict = await _authService.getAuthState();
+      if (!_transitionEpoch.isCurrent(transition)) return;
       if (verdict == AuthState.unauthenticated) {
         // getAuthState() already cleared the credentials; tear down the
         // synced state the same way an explicit signOut() would.
@@ -78,6 +89,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
           'signing out',
         );
         await syncShutdown();
+        if (!_transitionEpoch.isCurrent(transition)) return;
         AppLifecycleService.clearAll(ref);
         Sentry.configureScope((scope) => scope.setUser(null));
         state = AuthState.unauthenticated;
@@ -89,6 +101,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
       // (network failure). Keep the current state and let the next 401 or
       // the next foreground check retry.
     } catch (e, stack) {
+      if (!_transitionEpoch.isCurrent(transition)) return;
       logger.error('AuthStateNotifier: re-auth verification failed', e, stack);
       unawaited(Sentry.captureException(e, stackTrace: stack));
     } finally {
@@ -111,22 +124,38 @@ class AuthStateNotifier extends Notifier<AuthState> {
   /// the whole app subtree with the "checking sign-in" view, unmounting
   /// whatever screen the user is on. The state then only changes once the
   /// check has a verdict.
-  Future<void> checkAuth({bool showProgress = true}) async {
+  Future<void> checkAuth({bool showProgress = true}) {
+    final transition = _transitionEpoch.begin();
     if (showProgress) {
       state = AuthState.authenticating;
     }
+    return _enqueueAuthTransition(() => _runCheckAuth(transition));
+  }
+
+  Future<void> _runCheckAuth(int transition) async {
+    if (!_transitionEpoch.isCurrent(transition)) return;
     try {
       logger.info('AuthStateNotifier: checking stored credentials');
       final credentials = await TokenStorage().getCredentials();
+      if (!_transitionEpoch.isCurrent(transition)) return;
       final isAuth = credentials != null;
       state = isAuth ? AuthState.authenticated : AuthState.unauthenticated;
       if (credentials != null) {
         logger.info('AuthStateNotifier: restoring authenticated sync state');
+        if (sync.isInitialized && sync.credentials.token != credentials.token) {
+          await syncShutdown();
+          if (!_transitionEpoch.isCurrent(transition)) return;
+        }
         ApiClient().updateToken(credentials.token);
         // Keep the WebSocket token in sync with the HTTP token.
         socket_io.socketIoClient.updateToken(credentials.token);
         await OpenTelemetryService().waitUntilReady();
+        if (!_transitionEpoch.isCurrent(transition)) return;
         await syncRestore(credentials);
+        if (!_transitionEpoch.isCurrent(transition)) {
+          await syncShutdown();
+          return;
+        }
 
         // Kick off the list-heavy invalidations in the background so
         // the network fetch overlaps with the SessionsScreen mount.
@@ -149,6 +178,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
         // Defer non-critical syncs to a post-frame callback so they don't
         // compete with the first paint for the main-thread event loop.
         WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!_transitionEpoch.isCurrent(transition)) return;
           sync.artifactsSync.invalidate();
           sync.sessionGitStatusSync.invalidate();
         });
@@ -159,6 +189,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
             sync.settingsSync.awaitQueue(),
             sync.profileSync.awaitQueue(),
           ], eagerError: false).then((_) {
+            if (!_transitionEpoch.isCurrent(transition)) return;
             AppLifecycleService.loadAll(ref);
             final profile = ref.read(profileNotifierProvider);
             if (profile != null) {
@@ -170,14 +201,31 @@ class AuthStateNotifier extends Notifier<AuthState> {
         );
         if (_pendingDeepLink != null) {
           await _handleDeepLink(_pendingDeepLink!);
+          if (!_transitionEpoch.isCurrent(transition)) return;
           _pendingDeepLink = null;
         }
       }
     } catch (e, stack) {
+      if (!_transitionEpoch.isCurrent(transition)) return;
       logger.error('AuthStateNotifier: auth check failed', e, stack);
       unawaited(Sentry.captureException(e, stackTrace: stack));
       state = AuthState.error;
     }
+  }
+
+  Future<void> _enqueueAuthTransition(Future<void> Function() transition) {
+    final previous = _transitionTail;
+    final next = () async {
+      try {
+        await previous;
+      } catch (_) {
+        // Each transition reports its own failure. A rejected predecessor
+        // must not prevent a newer auth intent from running.
+      }
+      await transition();
+    }();
+    _transitionTail = next;
+    return next;
   }
 
   void handleDeepLink(String url) {
@@ -252,11 +300,14 @@ class AuthStateNotifier extends Notifier<AuthState> {
     };
   }
 
-  Future<void> signOut() async {
-    await syncShutdown();
-    await _authService.signOut();
-    AppLifecycleService.clearAll(ref);
-    state = AuthState.unauthenticated;
-    Sentry.configureScope((scope) => scope.setUser(null));
+  Future<void> signOut() {
+    _transitionEpoch.invalidate();
+    return _enqueueAuthTransition(() async {
+      await syncShutdown();
+      await _authService.signOut();
+      AppLifecycleService.clearAll(ref);
+      state = AuthState.unauthenticated;
+      Sentry.configureScope((scope) => scope.setUser(null));
+    });
   }
 }

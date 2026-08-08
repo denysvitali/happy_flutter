@@ -1,32 +1,53 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 import '../../core/models/session.dart';
 import '../../core/services/logger_service.dart' show LogEntry, logger;
 import '../../core/services/sync_service.dart' show SyncDomain, sync;
 
 const sessionDebugExportClipboardMaxBytes = 512 * 1024;
 
-String buildSessionDebugExportText(Session session) {
-  const encoder = JsonEncoder.withIndent('  ');
-  return encoder.convert(_buildSessionDebugExport(session));
+/// Privacy-sensitive sections must be opted into by a caller that has already
+/// explained their contents to the user. The session-info clipboard action
+/// intentionally uses the metadata-only default.
+class SessionDebugExportOptions {
+  const SessionDebugExportOptions({
+    this.includeTranscript = false,
+    this.includeLogs = false,
+  });
+
+  final bool includeTranscript;
+  final bool includeLogs;
 }
 
-Map<String, dynamic> _buildSessionDebugExport(Session session) {
+String buildSessionDebugExportText(
+  Session session, {
+  SessionDebugExportOptions options = const SessionDebugExportOptions(),
+}) {
+  const encoder = JsonEncoder.withIndent('  ');
+  return encoder.convert(_buildSessionDebugExport(session, options));
+}
+
+Map<String, dynamic> _buildSessionDebugExport(
+  Session session,
+  SessionDebugExportOptions options,
+) {
   final sessionId = session.id;
   final messages = sync.messagesForSession(sessionId);
-  final logs = logger.getLogs();
-  final matchingLogs = _takeLastLogs(
-    logs.where((entry) => _logMatchesSession(entry, session)),
-    300,
-  );
-  final recentLogs = logger.getRecentLogs(150);
 
   return {
-    'schemaVersion': 1,
+    'schemaVersion': 2,
     'source': 'happy_flutter.session_info',
     'exportedAt': DateTime.now().toUtc().toIso8601String(),
-    'sessionId': sessionId,
-    'session': _jsonSafe(session.toJson()),
+    'privacy': {
+      'metadataOnly': !options.includeTranscript && !options.includeLogs,
+      'transcriptIncluded': options.includeTranscript,
+      'logsIncluded': options.includeLogs,
+      'sensitiveSessionFields': 'presence-only',
+    },
+    'sessionFingerprint': _identifierFingerprint(sessionId),
+    'session': _redactedSessionMetadata(session),
     'sync': {
       'isInitialized': sync.isInitialized,
       'isReady': sync.isReady,
@@ -39,7 +60,7 @@ Map<String, dynamic> _buildSessionDebugExport(Session session) {
         SyncDomain.messages,
       ),
       'messagesRevision': sync.messagesRevision(sessionId),
-      'messageCursor': sync.sessionMessageCursors[sessionId],
+      'hasMessageCursor': sync.sessionMessageCursors[sessionId] != null,
       'serverLastSeq': session.lastSeq,
       'hasOlderMessages': sync.hasOlderMessages(sessionId),
       'isLoadingOlderMessages': sync.isLoadingOlderMessages(sessionId),
@@ -48,15 +69,98 @@ Map<String, dynamic> _buildSessionDebugExport(Session session) {
       'sessionUsage': _jsonSafe(sync.sessionUsage[sessionId]),
     },
     'messageSummary': _messageSummary(messages),
-    'messageSignatures': _messageSignatures(messages),
-    'logs': {
-      'bufferedCount': logger.count,
-      'matchingCount': matchingLogs.length,
-      'recentCount': recentLogs.length,
-      'matchingEntries': matchingLogs.map(_logEntryToJson).toList(),
-      'recentEntries': recentLogs.map(_logEntryToJson).toList(),
+    if (options.includeTranscript) ...{
+      'messageSignatures': _messageSignatures(messages),
+      'messages': _jsonSafe(messages),
     },
-    'messages': _jsonSafe(messages),
+    if (options.includeLogs) 'logs': _buildLogExport(session),
+  };
+}
+
+Map<String, dynamic> _redactedSessionMetadata(Session session) {
+  final metadata = session.metadata;
+  final agentState = session.agentState;
+  return {
+    'fingerprint': _identifierFingerprint(session.id),
+    'seq': session.seq,
+    'createdAt': session.createdAt,
+    'updatedAt': session.updatedAt,
+    'active': session.active,
+    'activeAt': session.activeAt,
+    'metadataVersion': session.metadataVersion,
+    'agentStateVersion': session.agentStateVersion,
+    'thinking': session.thinking,
+    'thinkingAt': session.thinkingAt,
+    'archived': session.archived,
+    'presence': session.presence,
+    'permissionMode': session.permissionMode,
+    'modelMode': session.modelMode,
+    'lifecycleStateCleartext': session.lifecycleStateCleartext,
+    'lastSeq': session.lastSeq,
+    'lastMessageAt': session.lastMessageAt,
+    'pinned': session.pinned,
+    'hasFolder': _isPresent(session.folder),
+    'todoCount': session.todos?.length ?? 0,
+    'hasDraft': _isPresent(session.draft),
+    'metadata': metadata == null
+        ? null
+        : {
+            'hasPath': _isPresent(metadata.path),
+            'hasHost': _isPresent(metadata.host),
+            'version': metadata.version,
+            'hasName': _isPresent(metadata.name),
+            'os': metadata.os,
+            'hasSummary': _isPresent(metadata.summary?.text),
+            'hasMachineId': _isPresent(metadata.machineId),
+            'hasClaudeSessionId': _isPresent(metadata.claudeSessionId),
+            'toolCount': metadata.tools?.length ?? 0,
+            'slashCommandCount': metadata.slashCommands?.length ?? 0,
+            'hasHomeDir': _isPresent(metadata.homeDir),
+            'hasHappyHomeDir': _isPresent(metadata.happyHomeDir),
+            'hasHostPid': metadata.hostPid != null,
+            'flavor': metadata.flavor,
+            'lifecycleState': metadata.lifecycleState,
+            'hasLifecycleStateError': _isPresent(metadata.lifecycleStateError),
+            'lifecycleStateSince': metadata.lifecycleStateSince,
+            'hasRepoUrl': _isPresent(metadata.repoUrl),
+            'hasRepoRef': _isPresent(metadata.repoRef),
+            'hasRepoCommit': _isPresent(metadata.repoCommit),
+            'sandboxRequested': metadata.sandboxRequested,
+            'sandboxRequired': metadata.sandboxRequired,
+            'sandboxEnforced': metadata.sandboxEnforced,
+            'sandboxBackend': metadata.sandboxBackend,
+            'hasSandboxReason': _isPresent(metadata.sandboxReason),
+            'legacySandboxRequested': metadata.sandboxEnabled,
+          },
+    'agentState': agentState == null
+        ? null
+        : {
+            'controlledByUser': agentState.controlledByUser,
+            'pendingRequestCount': agentState.requests?.length ?? 0,
+            'completedRequestCount': agentState.completedRequests?.length ?? 0,
+            'hasGoal': agentState.goal?.isVisible ?? false,
+          },
+  };
+}
+
+bool _isPresent(String? value) => value?.trim().isNotEmpty ?? false;
+
+String _identifierFingerprint(String value) =>
+    sha256.convert(utf8.encode(value)).toString().substring(0, 16);
+
+Map<String, dynamic> _buildLogExport(Session session) {
+  final logs = logger.getLogs();
+  final matchingLogs = _takeLastLogs(
+    logs.where((entry) => _logMatchesSession(entry, session)),
+    300,
+  );
+  final recentLogs = logger.getRecentLogs(150);
+  return {
+    'bufferedCount': logger.count,
+    'matchingCount': matchingLogs.length,
+    'recentCount': recentLogs.length,
+    'matchingEntries': matchingLogs.map(_logEntryToJson).toList(),
+    'recentEntries': recentLogs.map(_logEntryToJson).toList(),
   };
 }
 

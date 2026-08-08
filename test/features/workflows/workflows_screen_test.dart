@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/workflow_run.dart';
 import 'package:happy_flutter/core/providers/workflows_notifier.dart';
 import 'package:happy_flutter/core/repositories/workflows_repository.dart';
@@ -47,16 +48,23 @@ class _FakeRepo implements WorkflowsRepository {
 
 Widget _harness(Map<String, List<WorkflowRun>> initial) => ProviderScope(
   overrides: [
-    workflowsNotifierProvider.overrideWith(() => _FakeWorkflowsNotifier(initial)),
+    workflowsNotifierProvider.overrideWith(
+      () => _FakeWorkflowsNotifier(initial),
+    ),
     workflowsRepositoryProvider.overrideWithValue(_FakeRepo()),
   ],
-  child: const MaterialApp(home: WorkflowsScreen(sessionId: _sid)),
+  child: const MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: WorkflowsScreen(sessionId: _sid),
+  ),
 );
 
 Future<_FakeWorkflowsNotifier> _notifierOf(WidgetTester tester) async =>
     ProviderScope.containerOf(
-      tester.element(find.byType(WorkflowsScreen)),
-    ).read(workflowsNotifierProvider.notifier) as _FakeWorkflowsNotifier;
+          tester.element(find.byType(WorkflowsScreen)),
+        ).read(workflowsNotifierProvider.notifier)
+        as _FakeWorkflowsNotifier;
 
 void main() {
   final run = WorkflowRun(
@@ -77,7 +85,11 @@ void main() {
   });
 
   testWidgets('renders the runs from the notifier', (tester) async {
-    await tester.pumpWidget(_harness({_sid: [run]}));
+    await tester.pumpWidget(
+      _harness({
+        _sid: [run],
+      }),
+    );
     await tester.pump();
 
     expect(find.text('sweep'), findsOneWidget);
@@ -91,7 +103,11 @@ void main() {
   testWidgets('a message change debounces a refetch of this session', (
     tester,
   ) async {
-    await tester.pumpWidget(_harness({_sid: [run]}));
+    await tester.pumpWidget(
+      _harness({
+        _sid: [run],
+      }),
+    );
     await tester.pump();
     final n = await _notifierOf(tester);
     expect(n.refreshSessionCalls, 1);
@@ -114,7 +130,11 @@ void main() {
   });
 
   testWidgets('dispose cancels the pending debounced refetch', (tester) async {
-    await tester.pumpWidget(_harness({_sid: [run]}));
+    await tester.pumpWidget(
+      _harness({
+        _sid: [run],
+      }),
+    );
     await tester.pump();
     final n = await _notifierOf(tester);
     expect(n.refreshSessionCalls, 1);

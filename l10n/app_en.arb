@@ -8,6 +8,7 @@
     "description": "App title"
   },
   "commonCancel": "Cancel",
+  "commonUndo": "Undo",
   "commonAdd": "Add",
   "commonOk": "OK",
   "commonYes": "Yes",
@@ -53,7 +54,10 @@
   "statusPermissionRequired": "Permission required",
   "statusLastSeen": "Last seen {time}",
   "@statusConnected": {
-    "description": "Connection status",
+    "description": "Connection status"
+  },
+  "@statusLastSeen": {
+    "description": "Last-seen timestamp",
     "placeholders": {
       "time": {
         "type": "String"
@@ -105,8 +109,20 @@
   "sessionInitialMessage": "Initial message",
   "sessionInitialMessageHint": "What would you like to work on?",
   "sessionInputPlaceholder": "Type a message ...",
+  "chatStopCurrentTask": "Stop current task",
+  "chatStopAgentProcess": "Stop agent process",
+  "chatStopAgentProcessConfirmTitle": "Stop agent process?",
+  "chatStopAgentProcessConfirmBody": "This terminates the session's process or pod. The conversation is kept and can be restarted by sending another message.",
+  "chatStopAgentProcessSuccess": "Agent process stopped",
+  "chatStopAgentProcessFailure": "Could not stop the agent process. It may still be running.",
   "sessionStartSession": "Start Session",
   "sessionStarting": "Starting session...",
+  "newSessionPhaseCheckingMachine": "Checking machine…",
+  "newSessionPhaseSavingPreferences": "Saving preferences…",
+  "newSessionPhasePreparingWorktree": "Creating worktree…",
+  "newSessionPhaseSchedulingContainer": "Scheduling container and preparing repository…",
+  "newSessionPhaseStartingAgent": "Starting agent…",
+  "newSessionPhaseFinalizing": "Finalizing session…",
   "sessionStarted": "Session Started",
   "sessionStartedMessage": "The session has been started successfully.",
   "sessionFailedToStart": "Failed to start session. Make sure the daemon is running on the target machine.",
@@ -197,6 +213,11 @@
   "machineLastKnownHttpPort": "Last Known HTTP Port",
   "machineStartedAt": "Started At",
   "machineCliVersion": "CLI Version",
+  "machineCompatibilityTitle": "Happy update recommended",
+  "machineCompatibilityMessage": "Version {currentVersion} is installed. Update to {requiredVersion} or later for the latest remote features.",
+  "@machineCompatibilityMessage": {"placeholders": {"currentVersion": {"type": "String"}, "requiredVersion": {"type": "String"}}},
+  "machineCompatibilityAction": "Copy update command",
+  "machineCompatibilityCopied": "Update command copied",
   "machineDaemonStateVersion": "Daemon State Version",
   "machineActiveSessions": "Active Sessions ({count})",
   "machineMachineGroup": "Machine",
@@ -547,6 +568,9 @@
   "sidebarStatusDisconnected": "Disconnected",
   "sidebarStatusError": "Error",
   "commandPalettePlaceholder": "Type a command or search...",
+  "commandPaletteSemanticsLabel": "Command palette",
+  "commandPaletteNoResults": "No commands found",
+  "commandPaletteTryDifferentSearch": "Try a different search term",
   "toolViewInput": "Input",
   "toolViewOutput": "Output",
   "toolViewDescription": "Description",
@@ -815,6 +839,8 @@
   "usageNoData": "No usage data available",
   "offlineBannerNoConnection": "No internet connection",
   "offlineBannerReconnecting": "Reconnecting...",
+  "offlineBannerLiveUpdatesDisconnected": "Live updates disconnected",
+  "offlineBannerServiceUnavailable": "Service connection unavailable",
   "offlineBannerReconnectingIn": "Reconnecting in {seconds}s…",
   "@offlineBannerReconnectingIn": {
     "placeholders": {
@@ -1290,6 +1316,9 @@
   "permissionAllow": "Allow",
   "permissionDeny": "Deny",
   "permissionStop": "Stop",
+  "permissionAppliedOnce": "Permission approved for this request",
+  "permissionAppliedForSession": "Permission approved for this session",
+  "permissionDenialApplied": "Permission denied",
   "permissionYes": "Yes",
   "permissionDefault": "Default",
   "permissionAcceptEdits": "Accept Edits",
@@ -1411,6 +1440,31 @@
   "settingsUserCaCertificates": "User CA Certificates",
   "settingsNoUserCertificates": "No user certificates installed",
   "chatOnline": "Online",
+  "chatStatusStopping": "Stopping",
+  "chatStatusAgentFailed": "Agent failed",
+  "chatStatusWillRestart": "Will restart",
+  "chatStatusReconnecting": "Reconnecting",
+  "chatStatusConnecting": "Connecting",
+  "chatStatusApprovalNeeded": "Approval needed",
+  "chatStatusWorkingOnSubtasks": "Working on sub-tasks",
+  "chatStatusThinking": "Thinking",
+  "chatStatusRetryQueued": "Retry queued",
+  "chatStatusNotDelivered": "Not delivered",
+  "chatStatusSentSlow": "Sent (slow)",
+  "chatSendSending": "Sending",
+  "chatSendSendingSemantic": "Message sending",
+  "chatSendRetryQueuedSemantic": "Message retry queued",
+  "chatSendDelivered": "Delivered",
+  "chatSendDeliveredSlow": "Delivered — slow",
+  "chatSendDeliveredSemantic": "Message delivered",
+  "chatSendDeliveredSlowSemantic": "Message delivered after a slow send",
+  "chatSendNotDeliveredSemantic": "Message not delivered",
+  "chatSendNotDeliveredRetrySemantic": "Message not delivered — tap to retry",
+  "chatSendFailedRetry": "Failed — tap to retry",
+  "chatClearFailedSafe": "Could not clear the conversation. Try again.",
+  "chatLifecycleFailedTitle": "Session agent stopped",
+  "chatLifecycleRecoverableMessage": "The agent process stopped. Sending a message will try to restart it before delivery.",
+  "chatLifecycleBlockedMessage": "The agent process stopped and cannot be restored. Start a new session to continue.",
   "chatConversationCleared": "Conversation cleared",
   "chatModelChanged": "Model changed: {from} → {to}",
   "@chatModelChanged": {
@@ -1620,6 +1674,35 @@
   "sessionInfoSectionTools": "Tools",
   "sessionInfoActive": "Active",
   "sessionInfoInactive": "Inactive",
+  "sessionSandboxEnforced": "Sandboxed",
+  "@sessionSandboxEnforced": {
+    "description": "Badge shown when the daemon verified sandbox enforcement"
+  },
+  "sessionSandboxNotEnforced": "Not sandboxed",
+  "@sessionSandboxNotEnforced": {
+    "description": "Badge shown when sandboxing was requested but not enforced"
+  },
+  "sessionSandboxOff": "Sandbox off",
+  "@sessionSandboxOff": {
+    "description": "Badge shown when sandboxing was not requested"
+  },
+  "sessionSandboxEnforcedTooltip": "Isolation enforced by {backend}",
+  "@sessionSandboxEnforcedTooltip": {
+    "description": "Tooltip for a verified sandbox badge",
+    "placeholders": {
+      "backend": {
+        "type": "String"
+      }
+    }
+  },
+  "sessionSandboxNotEnforcedTooltip": "Sandboxing was requested but not enforced",
+  "@sessionSandboxNotEnforcedTooltip": {
+    "description": "Fallback tooltip when a sandbox failure reason is unavailable"
+  },
+  "sessionSandboxOffTooltip": "Sandboxing was not requested for this session",
+  "@sessionSandboxOffTooltip": {
+    "description": "Tooltip for a session whose sandbox policy was off"
+  },
   "commonId": "ID",
   "commonCreated": "Created",
   "commonUpdated": "Updated",
@@ -1659,10 +1742,10 @@
   },
   "terminalSelectMachineHint": "Select machine",
   "terminalSelectMachineError": "Please select a machine",
-  "terminalIdLabel": "TERMINAL / SESSION ID",
-  "terminalIdHint": "e.g. main, dev, 1234",
-  "terminalDisconnect": "Disconnect",
-  "terminalTitle": "Terminal",
+  "terminalIdLabel": "WORKING DIRECTORY",
+  "terminalIdHint": "/path/to/project",
+  "terminalDisconnect": "Close",
+  "terminalTitle": "Run command",
   "terminalSendCommand": "Send command",
   "commonClear": "Clear",
   "sessionsClearSearch": "Clear search",
@@ -1680,6 +1763,7 @@
   "commandCategorySessions": "Sessions",
   "commandCategoryNavigation": "Navigation",
   "commandCategoryRecent": "Recent",
+  "commandCategoryGeneral": "General",
   "commandNewSessionTitle": "New Session",
   "commandNewSessionSubtitle": "Start a new chat session",
   "commandViewSessionsTitle": "View All Sessions",
@@ -1692,8 +1776,8 @@
   "commandConnectDeviceSubtitle": "Connect a new device via web",
   "commandArtifactsTitle": "Artifacts",
   "commandArtifactsSubtitle": "Browse your artifacts",
-  "commandTerminalTitle": "Terminal",
-  "commandTerminalSubtitle": "Access terminal sessions",
+  "commandTerminalTitle": "Run command",
+  "commandTerminalSubtitle": "Run a command on a connected machine",
   "networkInspectorTitle": "Network Inspector ({count})",
   "@networkInspectorTitle": {
     "placeholders": {
@@ -1868,6 +1952,9 @@
   },
   "userFallbackName": "this user",
   "commandCategoryRecentSessions": "Recent Sessions",
+  "commandSessionFallback": "Session {id}",
+  "@commandSessionFallback": {"placeholders": {"id": {"type": "String"}}},
+  "commandSwitchToSession": "Switch to session",
   "featuresSectionExperiments": "Experiments",
   "featuresSectionDisplay": "Display",
   "featuresCompactMode": "Compact Mode",
@@ -2000,13 +2087,24 @@
   "settingsTextToSpeechSubtitle": "Read assistant messages aloud",
   "settingsUserCertificatesInstalled": "User certificates are installed",
   "settingsVoiceSettings": "Voice Settings",
-  "terminalConnect": "Connect Terminal",
-  "terminalConnected": "Terminal connected.",
-  "terminalConnectInfo": "Connect to a terminal session running on one of your machines.",
-  "terminalDisconnectConfirm": "Are you sure you want to disconnect from the terminal?",
-  "terminalIdError": "Please enter a terminal or session ID",
+  "terminalConnect": "Run command",
+  "terminalConnected": "Commands run independently. Shell state is not preserved.",
+  "terminalConnectInfo": "Run one-off shell commands on a linked machine. This is not an interactive terminal.",
+  "terminalCommandFailed": "Command failed. Check the machine connection and try again.",
+  "terminalDisconnectConfirm": "Close the command runner?",
+  "terminalIdError": "Please enter a working directory",
   "terminalNoMachines": "No machines connected. Start the Happy CLI on a machine first.",
   "terminalOutputPending": "[output pending]",
+  "terminalNoMachineConnected": "No machine is connected.",
+  "terminalOutputTruncated": "Output was truncated by the machine.",
+  "terminalOutputTruncatedBytes": "Output was truncated by the machine ({size} total).",
+  "@terminalOutputTruncatedBytes": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "voiceSelectLanguageHint": "Select the language for voice output.",
   "featuresMarkdownCopyV2": "Markdown Copy V2",
   "featuresMarkdownCopyV2Desc": "Use improved markdown copying",
@@ -2560,6 +2658,14 @@
     "description": "Title of the MCP server management screen"
   },
   "mcpAddServer": "Add server",
+  "mcpEnableTrustTitle": "Enable {name}?",
+  "@mcpEnableTrustTitle": {"placeholders": {"name": {"type": "String"}}},
+  "mcpEnableTrustBody": "Review this server before allowing it to provide tools to the agent.\n\nTarget: {target}\nScope: {scope}\nProject: {project}\nSecret names: {secrets}",
+  "@mcpEnableTrustBody": {"placeholders": {"target": {"type": "String"}, "scope": {"type": "String"}, "project": {"type": "String"}, "secrets": {"type": "String"}}},
+  "mcpEnableServer": "Enable server",
+  "mcpEnabledWithUndo": "MCP server enabled",
+  "mcpNoProject": "All projects in this scope",
+  "mcpNoSecrets": "None",
   "@mcpAddServer": {
     "description": "Action that opens the new-MCP-server form"
   },
@@ -2761,13 +2867,53 @@
   "@mcpArgsHelper": {
     "description": "Helper text for the stdio arguments field"
   },
-  "mcpEnvHelper": "One KEY=VALUE per line.",
+  "mcpEnvHelper": "Values stay masked. Add, replace, or remove environment variables.",
   "@mcpEnvHelper": {
     "description": "Helper text for the stdio environment field"
   },
-  "mcpHeadersHelper": "One Header-Name=value per line.",
+  "mcpHeadersHelper": "Values stay masked. Add, replace, or remove request headers.",
   "@mcpHeadersHelper": {
     "description": "Helper text for the headers field"
+  },
+  "mcpSecretAdd": "Add secret",
+  "@mcpSecretAdd": {
+    "description": "Button to add a masked MCP environment variable or header"
+  },
+  "mcpSecretReplace": "Replace secret",
+  "@mcpSecretReplace": {
+    "description": "Button to replace a stored MCP secret value"
+  },
+  "mcpSecretKey": "Name",
+  "@mcpSecretKey": {
+    "description": "Field label for an MCP environment variable or header name"
+  },
+  "mcpSecretKeyRequired": "Enter a name",
+  "@mcpSecretKeyRequired": {
+    "description": "Validation error for an empty MCP secret key"
+  },
+  "mcpSecretKeyExists": "That name already exists",
+  "@mcpSecretKeyExists": {
+    "description": "Validation error for a duplicate MCP secret key"
+  },
+  "mcpSecretValue": "New value",
+  "@mcpSecretValue": {
+    "description": "Masked value field for an MCP environment variable or header"
+  },
+  "mcpSecretValueRequired": "Enter a value",
+  "@mcpSecretValueRequired": {
+    "description": "Validation error for an empty MCP secret value"
+  },
+  "mcpSecretReplacementReady": "Replacement ready",
+  "@mcpSecretReplacementReady": {
+    "description": "Status for an MCP secret that will be replaced on save"
+  },
+  "mcpSecretStored": "Stored securely",
+  "@mcpSecretStored": {
+    "description": "Presence-only status for a stored MCP secret"
+  },
+  "mcpSecretRemove": "Remove secret",
+  "@mcpSecretRemove": {
+    "description": "Button to delete an MCP environment variable or header"
   },
   "mcpUrlRequired": "Enter a URL",
   "@mcpUrlRequired": {
@@ -2885,6 +3031,10 @@
   "settingsSandboxSubtitle": "Choose what a project's sessions can reach on your machines",
   "@settingsSandboxSubtitle": {
     "description": "Subtitle for the sandbox settings row"
+  },
+  "settingsSandboxUnavailable": "Connect or update a machine daemon that supports sandboxing",
+  "@settingsSandboxUnavailable": {
+    "description": "Fallback reason shown when no online machine reports sandbox support"
   },
   "sessionActivityRunningTool": "Running {tool}",
   "@sessionActivityRunningTool": {
@@ -3022,6 +3172,170 @@
   "tasksMarkIncomplete": "Mark incomplete",
   "@tasksMarkIncomplete": {
     "description": "Tooltip for the checkbox that marks a task incomplete"
+  },
+  "tasksTitle": "Tasks",
+  "@tasksTitle": {"description": "Title of the cross-session tasks screen"},
+  "tasksEmptyTitle": "No active tasks",
+  "@tasksEmptyTitle": {"description": "Empty-state title on the tasks screen"},
+  "tasksEmptySubtitle": "Tasks from your sessions will appear here, grouped by priority.",
+  "@tasksEmptySubtitle": {"description": "Empty-state explanation on the tasks screen"},
+  "tasksPriorityCritical": "Critical",
+  "@tasksPriorityCritical": {"description": "Critical task priority label"},
+  "tasksPriorityHigh": "High",
+  "@tasksPriorityHigh": {"description": "High task priority label"},
+  "tasksPriorityMedium": "Medium",
+  "@tasksPriorityMedium": {"description": "Medium task priority label"},
+  "tasksPriorityLow": "Low",
+  "artifactsSourceSessions": "Source sessions",
+  "artifactsSourceSessionsSubtitle": "Open the conversations that produced or updated this artifact.",
+  "workflowRefreshWarning": "Could not refresh. Showing saved progress.",
+  "workflowsTitle": "Workflows",
+  "workflowsCount": "{count, plural, =1{1 workflow} other{{count} workflows}}",
+  "@workflowsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "workflowsUnavailableTitle": "Workflows unavailable",
+  "workflowsUnavailableSubtitle": "This machine does not support workflow history yet. Update the Happy CLI to use it.",
+  "workflowsEmptyTitle": "No workflows yet",
+  "workflowsEmptySubtitle": "Workflow runs will appear here when an agent starts one.",
+  "workflowsLoadFailedTitle": "Could not load workflows",
+  "workflowLoadFailedSafe": "Workflow data is unavailable right now. Try again.",
+  "workflowNotFoundSafe": "This workflow run is unavailable.",
+  "workflowRunFailedSafe": "This workflow run failed unexpectedly.",
+  "workflowAgentFailedSafe": "This agent step failed unexpectedly.",
+  "workflowErrorTitle": "Error",
+  "workflowTitle": "Workflow",
+  "connectionDiagnosticsTitle": "Connection diagnostics",
+  "connectionDiagnosticsNetwork": "Network",
+  "connectionDiagnosticsLiveUpdates": "Live updates",
+  "connectionDiagnosticsLastDisconnect": "Last disconnect",
+  "connectionDiagnosticsNoDisconnect": "No disconnect recorded",
+  "connectionDiagnosticsDisconnectedFor": "Disconnected for",
+  "connectionDiagnosticsReconnectAttempt": "Reconnect attempt",
+  "connectionDiagnosticsService": "Service",
+  "connectionDiagnosticsCheckingService": "Checking…",
+  "connectionDiagnosticsServiceDegraded": "Degraded: {components}",
+  "connectionDiagnosticsServiceDegradedSafe": "Some services are degraded",
+  "@connectionDiagnosticsServiceDegraded": {"placeholders": {"components": {"type": "String"}}},
+  "connectionDiagnosticsServiceUnavailable": "Service unavailable",
+  "connectionDiagnosticsAuthenticationRequired": "Authentication required",
+  "connectionDiagnosticsTimedOut": "Connection timed out",
+  "connectionDiagnosticsConnectionClosed": "Connection closed",
+  "connectionDiagnosticsElapsedSeconds": "{count, plural, =1 {1 second} other {{count} seconds}}",
+  "@connectionDiagnosticsElapsedSeconds": {"placeholders": {"count": {"type": "int"}}},
+  "connectionDiagnosticsElapsedMinutes": "{count, plural, =1 {1 minute} other {{count} minutes}}",
+  "@connectionDiagnosticsElapsedMinutes": {"placeholders": {"count": {"type": "int"}}},
+  "connectionDiagnosticsElapsedHoursMinutes": "{hours, plural, =1 {1 hour} other {{hours} hours}} {minutes, plural, =0 {} =1 {1 minute} other {{minutes} minutes}}",
+  "@connectionDiagnosticsElapsedHoursMinutes": {"placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
+  "settingsHealthStatus": "Status",
+  "settingsHealthSyncReady": "Sync ready",
+  "settingsHealthSyncAttention": "Sync needs attention",
+  "settingsHealthApplyingUpdates": "Connected and applying the latest updates",
+  "settingsHealthReady": "Ready for sessions, messages, and settings updates",
+  "settingsHealthOffline": "Offline. Updates will resume when the network returns",
+  "settingsHealthLoading": "Connected, waiting for initial data to finish loading",
+  "settingsHealthReconnecting": "Reconnecting to live updates",
+  "settingsHealthNoMachines": "No machines linked yet",
+  "settingsHealthMachinesOnline": "{online} online of {total} linked",
+  "@settingsHealthMachinesOnline": {"placeholders": {"online": {"type": "int"}, "total": {"type": "int"}}},
+  "settingsHealthSessionsOnline": "{online} online of {total} total",
+  "@settingsHealthSessionsOnline": {"placeholders": {"online": {"type": "int"}, "total": {"type": "int"}}},
+  "settingsHealthAccountRecovery": "Account and recovery",
+  "settingsHealthAccountRecoverySubtitle": "Backup key, linked devices, restore, and services",
+  "settingsHealthSocketGeneration": "Socket generation",
+  "settingsHealthLastSocketEvent": "Last socket event age",
+  "settingsHealthNoSocketEvent": "No event recorded",
+  "settingsHealthOutbox": "Message outbox",
+  "settingsHealthOutboxCounts": "{pending} pending, {failed} failed",
+  "@settingsHealthOutboxCounts": {
+    "placeholders": {
+      "pending": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsHealthSyncDomains": "Sync domains",
+  "settingsHealthCopyDiagnostics": "Copy diagnostics",
+  "settingsHealthDomainSessions": "Sessions",
+  "settingsHealthDomainMessages": "Messages",
+  "settingsHealthDomainMachines": "Machines",
+  "settingsHealthDomainSettings": "Settings",
+  "settingsHealthDomainProfile": "Profile",
+  "settingsHealthDomainArtifacts": "Artifacts",
+  "settingsHealthDomainGitStatus": "Git status",
+  "settingsHealthDomainFriendRequests": "Friend requests",
+  "settingsHealthDomainLoops": "Loops",
+  "settingsHealthDomainWorkflows": "Workflows",
+  "settingsHealthDomainSyncing": "Syncing now",
+  "settingsHealthDomainQueued": "Update queued",
+  "settingsHealthDomainNoFreshness": "No completed refresh recorded",
+  "settingsHealthDomainFailed": "Failed: {reason}",
+  "@settingsHealthDomainFailed": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHealthDomainUpdated": "Updated {elapsed} ago",
+  "@settingsHealthDomainUpdated": {
+    "placeholders": {
+      "elapsed": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsHealthDomainState": "{state} · revision {revision}",
+  "@settingsHealthDomainState": {
+    "placeholders": {
+      "state": {
+        "type": "String"
+      },
+      "revision": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsHealthFailureDecrypt": "Encrypted data could not be read",
+  "settingsHealthFailureInterrupted": "Refresh was interrupted",
+  "settingsHealthFailureInvalidData": "Invalid response data",
+  "remoteFeatureErrorOffline": "The selected machine is offline.",
+  "remoteFeatureErrorUnsupported": "This feature requires a newer Happy daemon.",
+  "remoteFeatureErrorTemporary": "The machine could not complete the request. Try again.",
+  "remoteFeatureErrorRejected": "The machine rejected the request. Check the values and try again.",
+  "remoteFeatureErrorUnknown": "The request could not be completed.",
+  "accountRevealBackupKeyTitle": "Reveal backup key?",
+  "accountRevealBackupKeyWarning": "Anyone who sees this key can access your account. Make sure nobody can see your screen.",
+  "accountRevealAction": "Reveal",
+  "accountCopyBackupKeyTitle": "Copy backup key?",
+  "accountCopyBackupKeyWarning": "The key grants full account access. It will be cleared from the clipboard after 60 seconds.",
+  "accountCopyKeyAction": "Copy key",
+  "accountClipboardExpiry": "Clipboard clears in 60s.",
+  "accountSwitchTitle": "Switch account?",
+  "accountSwitchWarning": "This will replace the account on this device with account {fingerprint}. Unsaved drafts and pending sends may not carry over.",
+  "@accountSwitchWarning": {"placeholders": {"fingerprint": {"type": "String"}}},
+  "accountSwitchAction": "Switch account",
+  "accountShowBackupKeyAction": "Show backup key",
+  "accountHideBackupKeyAction": "Hide backup key",
+  "accountRestoreServiceError": "The restore service could not complete the request.",
+  "accountRestoreRejectedCode": "The restore service rejected the key (code {code}).",
+  "@accountRestoreRejectedCode": {"placeholders": {"code": {"type": "int"}}},
+  "accountRestoreGenericError": "Could not restore the account. Check your connection and try again.",
+  "@tasksPriorityLow": {"description": "Low task priority label"},
+  "tasksOpenSession": "{task}, from {session}. Open session",
+  "@tasksOpenSession": {
+    "description": "Accessibility label for opening the session that owns a task",
+    "placeholders": {
+      "task": {"type": "String"},
+      "session": {"type": "String"}
+    }
   },
   "goalLoopsTitle": "Goal loops",
   "@goalLoopsTitle": {"description": "Title of the goal loops screen"},

@@ -189,6 +189,8 @@ class SocketIoClient {
   int _connectionGeneration = 0;
   int? _lastConnectStartedAtMs;
   int? _lastDisconnectAtMs;
+  int? _lastEventAtMs;
+  String? _lastDisconnectReason;
   Stopwatch? _connectStopwatch;
   int? _connectSpanGeneration;
   String? _connectSpanReason;
@@ -324,6 +326,7 @@ class SocketIoClient {
     _connectStopwatch = Stopwatch()..start();
     _dialAttempt++;
     final generation = ++_connectionGeneration;
+    _lastEventAtMs = null;
     _updateStatus(ConnectionStatus.connecting);
     _startConnectionSpans(generation, reason: reason);
 
@@ -565,6 +568,7 @@ class SocketIoClient {
 
     _socket!.onAny((event, data) {
       if (!_isCurrentGeneration(generation)) return;
+      _lastEventAtMs = DateTime.now().millisecondsSinceEpoch;
       String? updateType;
       if (data is Map<String, dynamic>) {
         updateType = data['t'] as String?;
@@ -628,18 +632,19 @@ class SocketIoClient {
     );
     powerDiagnostics.recordSocketStatus(ConnectionStatus.disconnected);
     _lastDisconnectAtMs = DateTime.now().millisecondsSinceEpoch;
+    _lastDisconnectReason = reason;
     _updateStatus(ConnectionStatus.disconnected);
 
     final route = PerformanceContextService().currentRoute ?? 'unknown';
     // Track disconnection as a transaction
     final transaction =
         Sentry.startTransaction(
-          'websocket.disconnect',
-          'connection',
-          bindToScope: false,
-        )
-        ..setData('currentRoute', route)
-        ..setData('reason', reason);
+            'websocket.disconnect',
+            'connection',
+            bindToScope: false,
+          )
+          ..setData('currentRoute', route)
+          ..setData('reason', reason);
     unawaited(transaction.finish());
     OpenTelemetryService()
         .startTrace(
@@ -714,10 +719,7 @@ class SocketIoClient {
   /// [_notifyReconnected] instead of treating the reconnection as a
   /// first-ever connection.  Without this, [disconnect] resets the
   /// flag and the Sync reconnected handler never fires on app resume.
-  void reconnect({
-    String reason = DialReason.unspecified,
-    bool force = false,
-  }) {
+  void reconnect({String reason = DialReason.unspecified, bool force = false}) {
     _reconnectRequests++;
     final url = _serverUrl;
     final token = _authToken;
@@ -1083,6 +1085,22 @@ class SocketIoClient {
 
   @visibleForTesting
   int get testConnectionGeneration => _connectionGeneration;
+
+  /// Monotonic socket generation used to scope connection-bound caches.
+  int get connectionGeneration => _connectionGeneration;
+
+  /// Latest bounded disconnect reason for user-facing diagnostics.
+  String? get lastDisconnectReason => _lastDisconnectReason;
+
+  /// Epoch milliseconds of the most recent disconnect.
+  int? get lastDisconnectAtMs => _lastDisconnectAtMs;
+
+  /// Epoch milliseconds of the latest event accepted by the current socket
+  /// generation. Payloads and event names are intentionally not retained.
+  int? get lastEventAtMs => _lastEventAtMs;
+
+  /// Current dial attempt within this connection generation.
+  int get dialAttempt => _dialAttempt;
 
   /// Test-only hook to fire the reconnection listeners without a live
   /// server round-trip.

@@ -489,58 +489,53 @@ void main() {
       expect(find.text('Last seen 5m ago'), findsOneWidget);
     });
 
-    testWidgets(
-      'shows stopped-process feedback and disables sends '
-      'without restore target',
-      (tester) async {
-        final semantics = tester.ensureSemantics();
-        sync.isInitialized = true;
-        sync.messagesSync['session_1'] = InvalidateSync(() async {});
-        sync.testSetSessionMessages('session_1', const []);
-        sync.testSessions['session_1'] = _makeSession().copyWith(
-          metadata: const Metadata(
-            host: 'workspace',
-            lifecycleState: 'errored',
-            lifecycleStateError:
-                'daemon started without a live local process for this '
-                'running session',
-          ),
-        );
+    testWidgets('shows stopped-process feedback and disables sends '
+        'without restore target', (tester) async {
+      final semantics = tester.ensureSemantics();
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession().copyWith(
+        metadata: const Metadata(
+          host: 'workspace',
+          lifecycleState: 'errored',
+          lifecycleStateError:
+              'daemon started without a live local process for this '
+              'running session',
+        ),
+      );
 
-        await tester.pumpWidget(
-          _buildApp(child: const ChatScreen(sessionId: 'session_1')),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-        expect(find.text('Agent failed'), findsOneWidget);
-        expect(find.text('Session agent failed'), findsOneWidget);
-        expect(
-          find.textContaining('No live local process is attached'),
-          findsOneWidget,
-        );
+      expect(find.text('Agent failed'), findsOneWidget);
+      expect(find.text('Session agent stopped'), findsOneWidget);
+      expect(find.textContaining('live local process'), findsNothing);
+      expect(find.textContaining('cannot be restored'), findsOneWidget);
 
-        await tester.enterText(find.byType(TextField), 'continue');
-        await tester.pump();
+      await tester.enterText(find.byType(TextField), 'continue');
+      await tester.pump();
 
-        expect(
-          tester.getSemantics(find.byType(SendButton)),
-          isSemantics(
-            label: 'Send',
-            isButton: true,
-            hasEnabledState: true,
-            isEnabled: false,
-            hasTapAction: false,
-          ),
-        );
-        await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-        await tester.pump();
+      expect(
+        tester.getSemantics(find.byType(SendButton)),
+        isSemantics(
+          label: 'Send',
+          isButton: true,
+          hasEnabledState: true,
+          isEnabled: false,
+          hasTapAction: false,
+        ),
+      );
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.pump();
 
-        expect(sync.messagesForSession('session_1'), isEmpty);
-        expect(find.text('continue'), findsOneWidget);
-        semantics.dispose();
-      },
-    );
+      expect(sync.messagesForSession('session_1'), isEmpty);
+      expect(find.text('continue'), findsOneWidget);
+      semantics.dispose();
+    });
 
     testWidgets('shows restart-on-send feedback when session is restorable', (
       tester,
@@ -567,7 +562,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Will restart'), findsOneWidget);
-      expect(find.text('Session agent failed'), findsOneWidget);
+      expect(find.text('Session agent stopped'), findsOneWidget);
       expect(
         find.textContaining('Sending a message will try to restart'),
         findsOneWidget,

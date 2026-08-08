@@ -4,6 +4,56 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-08
 
+### Cross-platform trust and interaction audit, 2026-08-08
+
+A 15-pass review of the Flutter client and `happy-cli-go` covered messaging,
+session lifecycle, RPC compatibility, security, accessibility, desktop UX,
+performance, and diagnostics. The resulting implementation preserves one
+canonical `localId` through failure and retry, makes no-payload retries
+actionable, wires file autocomplete/unread/history recovery, renders the rich
+shell/search tool views, and moves workflow/session/sub-agent projections off
+whole-transcript or whole-collection rebuild paths. Message-cache preparation
+now runs in its worker pipeline and auth restoration is protected from stale
+post-logout continuations.
+
+The app and daemon now negotiate scoped RPC capabilities, use typed error
+envelopes, and share additive generated schema for permission and workflow
+contracts. Unsupported optional features are disabled before use, negative
+capability results are connection-generation scoped, malformed refreshes keep
+last-known-good data, machine version skew is visible, and reconnect/status
+surfaces expose safe localized diagnostics. RPC timing covers every call and
+frame telemetry retains bounded tail buckets instead of averaging away jank.
+
+Security-sensitive flows now fail closed for explicitly requested sandboxing,
+show the actual per-session enforcement state, require exact permission
+identities and acknowledge the applied scope, redact MCP secrets at the daemon
+boundary, and use presence-only secret editing in Flutter. Account backup and
+restore add guarded reveal/copy, destination confirmation, and clipboard
+cleanup; support exports default to metadata-only redaction. Message-cache and
+outbox payloads are sealed at rest with a device-protected AES-256-GCM key and
+domain-bound associated data, including one-way migration of legacy plaintext.
+Session stop and abort acknowledgements now reflect confirmed process or Pod
+state, runtime identity is preserved during restore, timeout recovery never
+adopts a same-path session, duplicate spawn requests share one result, creation
+cannot be dismissed mid-flight, and queued initial messages retain their
+identity until the agent is ready.
+
+The command palette now lives under Router/Theme/Localizations with modal
+semantics and focus restoration, indexes every session, and respects reduced
+motion. Disabled settings rows publish disabled semantics; touch targets are
+at least 44 px; pagination, connection, terminal-command, task, sandbox, and
+status copy is localized. Unreachable SFTP/Friends prototypes were removed
+from routing, the non-PTY terminal is accurately named **Run command**, and
+session creation reports honest local/Kubernetes startup phases. Command output
+is bounded on both sides of the wire, workflow snapshots omit unused source
+paths, and session logs require an explicit support-bundle opt-in.
+
+Operational follow-up outside these two repositories remains tracked below:
+deploy the version-controlled alert/SLO rules in the monitoring configuration,
+add native process-start anchors on Android and iOS, and only reintroduce a
+Terminal or SFTP surface after the daemon has reconnectable PTY/file-stream
+protocols. Those features are deliberately not simulated by the client.
+
 ### Session-scale performance audit, 2026-08-08
 
 Prometheus confirms that the sessions collection (`current_route="home"`)

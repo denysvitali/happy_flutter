@@ -19,6 +19,56 @@ Widget _wrap(Widget child) {
 }
 
 void main() {
+  group('SubAgentBannerProjectionCache', () {
+    const emptyProjection = AgentSessionProjection(
+      agents: <Map<String, dynamic>>[],
+      progress: TaskProgress(total: 0, running: 0, completed: 0, error: 0),
+    );
+
+    test('reuses the projection for the same session revision', () {
+      final cache = SubAgentBannerProjectionCache();
+      var scans = 0;
+
+      final first = cache.resolve(
+        sessionId: 'session-a',
+        revision: 7,
+        load: () {
+          scans++;
+          return emptyProjection;
+        },
+      );
+      final second = cache.resolve(
+        sessionId: 'session-a',
+        revision: 7,
+        load: () {
+          scans++;
+          return emptyProjection;
+        },
+      );
+
+      expect(identical(first, second), isTrue);
+      expect(scans, 1);
+    });
+
+    test('refreshes only when the session or its revision changes', () {
+      final cache = SubAgentBannerProjectionCache();
+      var scans = 0;
+
+      AgentSessionProjection load() {
+        scans++;
+        return emptyProjection;
+      }
+
+      cache
+        ..resolve(sessionId: 'session-a', revision: 1, load: load)
+        ..resolve(sessionId: 'session-a', revision: 2, load: load)
+        ..resolve(sessionId: 'session-b', revision: 2, load: load)
+        ..resolve(sessionId: 'session-b', revision: 2, load: load);
+
+      expect(scans, 3);
+    });
+  });
+
   group('SubAgentStatusBanner', () {
     late Sync sync;
 
@@ -30,8 +80,9 @@ void main() {
       sync.testClearSessionMessageState('test-session');
     });
 
-    testWidgets('hides itself when no sub-agents in the session',
-        (tester) async {
+    testWidgets('hides itself when no sub-agents in the session', (
+      tester,
+    ) async {
       // Empty session: no Task/Agent tool calls.
       sync.testSetSessionMessages('test-session', <Map<String, dynamic>>[]);
 
@@ -44,8 +95,9 @@ void main() {
       expect(find.textContaining('sub-agent'), findsNothing);
     });
 
-    testWidgets('shows the running label when sub-agents are running',
-        (tester) async {
+    testWidgets('shows the running label when sub-agents are running', (
+      tester,
+    ) async {
       // 3 sub-agents, 2 still running, 1 completed.
       sync.testSetSessionMessages('test-session', [
         <String, dynamic>{
@@ -86,8 +138,59 @@ void main() {
       expect(find.textContaining('sub-agent'), findsOneWidget);
     });
 
-    testWidgets('shows the complete label when all sub-agents are done',
-        (tester) async {
+    testWidgets('refreshes only for its session message events', (
+      tester,
+    ) async {
+      final notifyMessagesChanged = sync.testNotifySessionMessagesChanged;
+      sync.testSetSessionMessages('test-session', [
+        <String, dynamic>{
+          'id': 'task-1',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'isSidechain': false,
+          'seq': 1,
+        },
+      ]);
+
+      await tester.pumpWidget(
+        _wrap(const SubAgentStatusBanner(sessionId: 'test-session')),
+      );
+      await tester.pump();
+      expect(find.text('1 of 1 sub-agents running'), findsOneWidget);
+
+      sync.testSetSessionMessages('test-session', [
+        <String, dynamic>{
+          'id': 'task-1',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'isSidechain': false,
+          'seq': 1,
+        },
+        <String, dynamic>{
+          'id': 'task-2',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'isSidechain': false,
+          'seq': 2,
+        },
+      ]);
+
+      notifyMessagesChanged('other-session');
+      await tester.pump();
+      expect(find.text('1 of 1 sub-agents running'), findsOneWidget);
+      expect(find.text('2 of 2 sub-agents running'), findsNothing);
+
+      notifyMessagesChanged('test-session');
+      await tester.pump();
+      expect(find.text('2 of 2 sub-agents running'), findsOneWidget);
+    });
+
+    testWidgets('shows the complete label when all sub-agents are done', (
+      tester,
+    ) async {
       sync.testSetSessionMessages('test-session', [
         <String, dynamic>{
           'id': 'task-1',
@@ -148,8 +251,9 @@ void main() {
       expect(find.text('Agents'), findsOneWidget);
     });
 
-    testWidgets('does not open the sheet when there are no sub-agents',
-        (tester) async {
+    testWidgets('does not open the sheet when there are no sub-agents', (
+      tester,
+    ) async {
       sync.testSetSessionMessages('test-session', <Map<String, dynamic>>[]);
 
       await tester.pumpWidget(

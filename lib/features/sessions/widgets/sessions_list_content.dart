@@ -96,7 +96,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   ArchivedGrouping _archivedGrouping = ArchivedGrouping.date;
   SortedSessions? _sortedCache;
   Map<String, Session>? _lastSessionsMap;
-  SessionUiState? _lastUiState;
+  SessionOrderingProjection? _lastOrderingProjection;
   Set<String>? _lastOptimisticallyArchivedIds;
   String? _lastSearchQuery;
   List<ListItem>? _listItemsCache;
@@ -267,16 +267,32 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   @override
   Widget build(BuildContext context) {
-    final sessions = ref.watch(sessionsNotifierProvider);
-    final machines = _archivedGrouping == ArchivedGrouping.folder
-        ? ref.watch(machinesNotifierProvider)
-        : ref.read(machinesNotifierProvider);
     final hideInactive = ref.watch(
       settingsNotifierProvider.select((s) => s.hideInactiveSessions),
     );
     final sessionsViewStyle = ref.watch(
       settingsNotifierProvider.select((s) => s.sessionsViewStyle),
     );
+    final usesAggregateRows =
+        sessionsViewStyle == 'folder' ||
+        sessionsViewStyle == 'mission_control' ||
+        sessionsViewStyle == 'unread_focus';
+    final sessions = usesAggregateRows
+        ? ref.watch(sessionsNotifierProvider)
+        : ref
+              .watch(
+                sessionsNotifierProvider.select(
+                  SessionCollectionProjection.fromSessions,
+                ),
+              )
+              .sessions;
+    final needsMachineProjection =
+        sessionsViewStyle == 'folder' ||
+        sessionsViewStyle == 'mission_control' ||
+        _archivedGrouping == ArchivedGrouping.folder;
+    final machines = needsMachineProjection
+        ? ref.watch(machinesNotifierProvider)
+        : ref.read(machinesNotifierProvider);
     PerformanceContextService().setCurrentSessionsView(
       _isVisible
           ? sessionsViewStyle == 'mission_control' && _selectedFolderKey != null
@@ -292,33 +308,34 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     );
 
     final searchQuery = widget.searchQuery;
-    final optimisticallyArchivedIds = ref.watch(
-      optimisticallyArchivedIdsProvider,
+    final orderingProjection = ref.watch(
+      sessionUiStateNotifierProvider.select(
+        SessionOrderingProjection.fromState,
+      ),
     );
-    // Local timestamp lookup table — replaces the
-    // `sync.getLastMessageTimestamp` callback that used to be called
-    // from inside the sort comparators and the signature helper.
-    final uiState = _isVisible
-        ? ref.watch(sessionUiStateNotifierProvider)
-        : ref.read(sessionUiStateNotifierProvider);
-    int? getTs(String id) => uiState.bySessionId[id]?.lastMessageTimestamp;
+    final aggregateUiState = usesAggregateRows
+        ? (_isVisible
+              ? ref.watch(sessionUiStateNotifierProvider)
+              : ref.read(sessionUiStateNotifierProvider))
+        : null;
 
     final sorted = computeSortedSessions(
       sessions,
       previous: _sortedCache,
       lastSessions: _lastSessionsMap,
       lastSearchQuery: _lastSearchQuery,
-      optimisticallyArchivedIds: optimisticallyArchivedIds,
-      getLastMessageTimestamp: getTs,
+      optimisticallyArchivedIds: orderingProjection.optimisticallyArchivedIds,
+      getLastMessageTimestamp: orderingProjection.timestampFor,
       searchQuery: searchQuery,
       lastOptimisticallyArchivedIds: _lastOptimisticallyArchivedIds,
-      timestampRevision: uiState,
-      lastTimestampRevision: _lastUiState,
+      timestampRevision: orderingProjection,
+      lastTimestampRevision: _lastOrderingProjection,
     );
     _sortedCache = sorted;
     _lastSessionsMap = sessions;
-    _lastUiState = uiState;
-    _lastOptimisticallyArchivedIds = optimisticallyArchivedIds;
+    _lastOrderingProjection = orderingProjection;
+    _lastOptimisticallyArchivedIds =
+        orderingProjection.optimisticallyArchivedIds;
     _lastSearchQuery = searchQuery;
 
     final activeSessions = sorted.active;
@@ -327,12 +344,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
     if (!_hasLoaded && (sessionListCount > 0 || sync.isInitialized)) {
       _hasLoaded = true;
-    }
-
-    // Eagerly load derived UI state on first successful build so the
-    // card widgets have data before the first domain-change event.
-    if (_hasLoaded) {
-      ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     }
 
     if (sessionListCount == 0 && !_hasLoaded) {
@@ -362,7 +373,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         activeSessions,
         inactiveSessions,
         machines,
-        uiState,
+        orderingProjection,
+        aggregateUiState,
         sessionsViewStyle: sessionsViewStyle,
         triggerStagger: triggerStagger,
         hideInactive: hideInactive,
@@ -427,7 +439,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     List<Session> activeSessions,
     List<Session> inactiveSessions,
     Map<String, Machine> machines,
-    SessionUiState uiState, {
+    SessionOrderingProjection orderingProjection,
+    SessionUiState? aggregateUiState, {
     required String sessionsViewStyle,
     required bool triggerStagger,
     required bool hideInactive,
@@ -440,7 +453,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         activeSessions,
         inactiveSessions,
         machines,
-        uiState,
+        aggregateUiState!,
         triggerStagger: triggerStagger,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
@@ -456,7 +469,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           activeSessions,
           inactiveSessions,
           machines,
-          uiState,
+          aggregateUiState!,
           triggerStagger: triggerStagger,
           showFlavorIcons: showFlavorIcons,
           avatarStyle: avatarStyle,
@@ -467,7 +480,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         activeSessions,
         inactiveSessions,
         machines,
-        uiState,
+        aggregateUiState!,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       );
@@ -478,7 +491,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         context,
         activeSessions,
         inactiveSessions,
-        uiState,
+        aggregateUiState!,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       );
@@ -489,7 +502,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       activeSessions,
       inactiveSessions,
       machines,
-      uiState,
+      orderingProjection,
       sessionsViewStyle: sessionsViewStyle,
       hideInactive: hideInactive,
     );
@@ -508,10 +521,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         final child = _buildItemWidget(
           context,
           item,
-          uiState: uiState,
           showFlavorIcons: showFlavorIcons,
           avatarStyle: avatarStyle,
-          triggerStagger: triggerStagger,
         );
         return StaggeredSlideIn(
           key: _keyForItem(item),
@@ -1013,14 +1024,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     List<Session> activeSessions,
     List<Session> inactiveSessions,
     Map<String, Machine> machines,
-    SessionUiState uiState, {
+    SessionOrderingProjection orderingProjection, {
     required String sessionsViewStyle,
     required bool hideInactive,
   }) {
-    final tsLookup = <String, int?>{
-      for (final entry in uiState.bySessionId.entries)
-        entry.key: entry.value.lastMessageTimestamp,
-    };
     final signature = Object.hashAll(<Object?>[
       sessionsViewStyle,
       activeSessions.length,
@@ -1041,10 +1048,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             entry.value.metadata?.displayName,
             entry.value.metadata?.host,
           ),
-      // Invalidate the list-items cache when any per-session UI state
-      // (last message timestamp) changes, otherwise the cached order
-      // becomes stale.
-      for (final entry in tsLookup.entries) Object.hash(entry.key, entry.value),
+      // Invalidate only when a timestamp changes. Preview/unread updates are
+      // selected by the affected row and do not rebuild collection groups.
+      orderingProjection.revision,
     ]);
 
     final cachedItems = _listItemsCache;
@@ -1146,12 +1152,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           ? _buildFolderGroupedItems(
               inactiveSessions,
               machines,
-              uiState,
+              orderingProjection,
               startIndex: staggerIndex,
             )
           : _buildDateGroupedItems(
               inactiveSessions,
-              uiState,
+              orderingProjection,
               startIndex: staggerIndex,
             );
       items.addAll(archivedItems);
@@ -1168,13 +1174,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Widget _buildArchivedCard(
     BuildContext context,
     ListItem item, {
+    required Session session,
     required SessionUiEntry entry,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
     final sel = _sel.value;
-    final session = item.session!;
-
     void handleTap() {
       if (sel.isActive) {
         _onSessionTapInSelectionMode(session.id);
@@ -1221,10 +1226,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Widget _buildItemWidget(
     BuildContext context,
     ListItem item, {
-    required SessionUiState uiState,
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
-    required bool triggerStagger,
   }) {
     switch (item.type) {
       case ListItemType.sectionHeader:
@@ -1267,10 +1270,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         );
 
       case ListItemType.activeSession:
-        final session = item.session!;
-        return _buildActiveSessionCard(
-          session,
-          entry: uiState.bySessionId[session.id] ?? SessionUiEntry.empty,
+        return _buildPerSessionItem(
+          item,
           showFlavorIcons: showFlavorIcons,
           avatarStyle: avatarStyle,
         );
@@ -1303,10 +1304,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
       case ListItemType.archivedSession:
       case ListItemType.folderEntry:
-        return _buildArchivedCard(
-          context,
+        return _buildPerSessionItem(
           item,
-          entry: uiState.bySessionId[item.session!.id] ?? SessionUiEntry.empty,
           showFlavorIcons: showFlavorIcons,
           avatarStyle: avatarStyle,
         );
@@ -1327,6 +1326,44 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           }),
         );
     }
+  }
+
+  Widget _buildPerSessionItem(
+    ListItem item, {
+    required bool showFlavorIcons,
+    required AvatarStyle? avatarStyle,
+  }) {
+    final sessionId = item.session!.id;
+    return Consumer(
+      builder: (context, ref, _) {
+        final session = ref.watch(
+          sessionsNotifierProvider.select((sessions) => sessions[sessionId]),
+        );
+        if (session == null) return const SizedBox.shrink();
+        final entry = ref.watch(
+          sessionUiStateNotifierProvider.select(
+            (state) => state.bySessionId[sessionId] ?? SessionUiEntry.empty,
+          ),
+        );
+
+        if (item.type == ListItemType.activeSession) {
+          return _buildActiveSessionCard(
+            session,
+            entry: entry,
+            showFlavorIcons: showFlavorIcons,
+            avatarStyle: avatarStyle,
+          );
+        }
+        return _buildArchivedCard(
+          context,
+          item,
+          session: session,
+          entry: entry,
+          showFlavorIcons: showFlavorIcons,
+          avatarStyle: avatarStyle,
+        );
+      },
+    );
   }
 
   Widget _buildActiveSessionCard(
@@ -1393,13 +1430,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   List<ListItem> _buildDateGroupedItems(
     List<Session> sessions,
-    SessionUiState uiState, {
+    SessionOrderingProjection orderingProjection, {
     required int startIndex,
   }) {
     final grouped = groupSessionsByDateCategory(
       sessions,
-      getLastMessageTimestamp: (id) =>
-          uiState.bySessionId[id]?.lastMessageTimestamp,
+      getLastMessageTimestamp: orderingProjection.timestampFor,
     );
 
     var itemIndex = startIndex;
@@ -1461,14 +1497,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   List<ListItem> _buildFolderGroupedItems(
     List<Session> sessions,
     Map<String, Machine> machines,
-    SessionUiState uiState, {
+    SessionOrderingProjection orderingProjection, {
     required int startIndex,
   }) {
     final folderItems = groupSessionsByFolder(
       sessions,
       machines,
-      getLastMessageTimestamp: (id) =>
-          uiState.bySessionId[id]?.lastMessageTimestamp,
+      getLastMessageTimestamp: orderingProjection.timestampFor,
     );
 
     var itemIndex = startIndex;

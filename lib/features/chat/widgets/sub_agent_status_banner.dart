@@ -36,22 +36,42 @@ class SubAgentStatusBanner extends StatelessWidget {
 
   final String sessionId;
 
-  /// Listens to [sync.sessionMessages] for the given session and computes
-  /// the live [TaskProgress]. Riverpod's [ref.listen] is not used because
-  /// the banner reads directly off the singleton; rebuilding on every
-  /// 100ms-debounced [Sync.onDataChanged] tick is correct here.
-  static TaskProgress _progress(String sessionId) {
-    // Avoid touching sync at construction time (e.g. when the session is
-    // not yet loaded). Returns an empty progress that hides the banner.
-    if (sessionId.isEmpty) {
-      return const TaskProgress(total: 0, running: 0, completed: 0, error: 0);
-    }
-    return AgentsListSheet.computeTaskProgress(sessionId);
-  }
-
   @override
   Widget build(BuildContext context) {
     return _SubAgentStatusBannerStateful(sessionId: sessionId);
+  }
+}
+
+const _emptyAgentProjection = AgentSessionProjection(
+  agents: <Map<String, dynamic>>[],
+  progress: TaskProgress(total: 0, running: 0, completed: 0, error: 0),
+);
+
+/// Retains the transcript-derived banner state until that session changes.
+///
+/// Public for a small contract test; production owns one cache per mounted
+/// banner, so projections cannot leak between sessions or chat screens.
+@visibleForTesting
+class SubAgentBannerProjectionCache {
+  String? _sessionId;
+  int? _revision;
+  AgentSessionProjection? _projection;
+
+  AgentSessionProjection resolve({
+    required String sessionId,
+    required int revision,
+    required AgentSessionProjection Function() load,
+  }) {
+    final cached = _projection;
+    if (cached != null && _sessionId == sessionId && _revision == revision) {
+      return cached;
+    }
+
+    final projection = load();
+    _sessionId = sessionId;
+    _revision = revision;
+    _projection = projection;
+    return projection;
   }
 }
 
@@ -67,7 +87,10 @@ class _SubAgentStatusBannerStateful extends StatefulWidget {
 
 class _SubAgentStatusBannerStatefulState
     extends State<_SubAgentStatusBannerStateful> {
-  StreamSubscription<void>? _dataSubscription;
+  final SubAgentBannerProjectionCache _projectionCache =
+      SubAgentBannerProjectionCache();
+  StreamSubscription<String>? _messageSubscription;
+  late AgentSessionProjection _projection;
   TaskProgress? _lastSeenProgress;
   int _lastSeenTotal = 0;
 
@@ -81,25 +104,17 @@ class _SubAgentStatusBannerStatefulState
   @override
   void initState() {
     super.initState();
-    _dataSubscription = sync.onDataChanged.listen((_) {
-      if (!mounted) return;
-      setState(() {});
-      // Reconcile per-sub-agent OTel spans after the rebuild so the
-      // diff sees the latest state. New Task/Agent tool-call messages
-      // open spans; transitions from running→completed/error close them.
-      _reconcileSubAgentSpans();
+    _projection = _resolveProjection();
+    _messageSubscription = sync.onSessionMessagesChanged.listen((sessionId) {
+      if (!mounted || sessionId != widget.sessionId) return;
+      _refreshProjection();
     });
-    // Record a one-time session-load breadcrumb so we can measure how
-    // often a session with sub-agents is opened and how often the user
-    // reaches the chat screen vs. the dedicated agents-list sheet.
-    _emitTelemetryIfNeeded(
-      const TaskProgress(total: 0, running: 0, completed: 0, error: 0),
-    );
+    _reconcileSubAgentSpans(_projection.agents);
   }
 
   @override
   void dispose() {
-    _dataSubscription?.cancel();
+    _messageSubscription?.cancel();
     // Close any in-flight sub-agent spans so a session switch doesn't
     // leave dangling traces. We mark them ok because we observed the
     // session is going away — closing them with error would create
@@ -121,16 +136,31 @@ class _SubAgentStatusBannerStatefulState
         span.end(ok: true);
       }
       _inflightSubAgentSpans.clear();
+      _projection = _resolveProjection();
+      _reconcileSubAgentSpans(_projection.agents);
     }
   }
 
-  /// Diffs the current Task/Agent tool-call list against the previous
-  /// tick and emits OTel spans for new sub-agents, closing spans for
-  /// ones that have reached a terminal state. Runs on every
-  /// [sync.onDataChanged] tick so the spans track the real lifecycle
-  /// of each spawned sub-agent.
-  void _reconcileSubAgentSpans() {
-    final agents = AgentsListSheet.extractAgents(widget.sessionId);
+  AgentSessionProjection _resolveProjection() {
+    if (widget.sessionId.isEmpty) return _emptyAgentProjection;
+    return _projectionCache.resolve(
+      sessionId: widget.sessionId,
+      revision: sync.messagesRevision(widget.sessionId),
+      load: () => AgentsListSheet.computeProjection(widget.sessionId),
+    );
+  }
+
+  void _refreshProjection() {
+    final next = _resolveProjection();
+    if (identical(next, _projection)) return;
+
+    _projection = next;
+    _reconcileSubAgentSpans(next.agents);
+    setState(() {});
+  }
+
+  /// Diffs a cached Task/Agent projection against the tracked OTel spans.
+  void _reconcileSubAgentSpans(List<Map<String, dynamic>> agents) {
     final currentIds = <String>{};
     for (final agent in agents) {
       final id = agent['toolUseId'] as String?;
@@ -202,7 +232,7 @@ class _SubAgentStatusBannerStatefulState
 
   @override
   Widget build(BuildContext context) {
-    final progress = SubAgentStatusBanner._progress(widget.sessionId);
+    final progress = _projection.progress;
     if (!progress.hasTasks) {
       _lastSeenProgress = progress;
       _lastSeenTotal = progress.total;

@@ -6,6 +6,15 @@
 /// it is part of the identity of a server alongside its name.
 library;
 
+import '../types/remote_feature_failure.dart';
+
+/// Exact preservation token used by happy-cli-go for MCP secret values.
+///
+/// Returning config always uses this value for environment variables and
+/// headers. Sending it back for an existing key preserves the stored secret;
+/// omitting the key deletes it.
+const String mcpRedactedValue = '<redacted>';
+
 /// Which Claude Code file a server declaration lives in.
 ///
 /// Ordered from highest to lowest resolution priority — a duplicate name in a
@@ -97,9 +106,9 @@ class McpServer {
     transport: McpTransport.fromWire(json['transport'] as String?),
     command: _nonEmpty(json['command']),
     args: _stringList(json['args']),
-    env: _stringMap(json['env']),
+    env: _secretPresenceMap(json['env']),
     url: _nonEmpty(json['url']),
-    headers: _stringMap(json['headers']),
+    headers: _secretPresenceMap(json['headers']),
     enabled: json['enabled'] as bool? ?? false,
     disabled: json['disabled'] as bool? ?? false,
     disabledReason: _nonEmpty(json['disabledReason']),
@@ -194,6 +203,7 @@ class McpConfigResponse {
     this.enableAllProjectMcpServers = false,
     this.warnings = const [],
     this.error,
+    this.failureKind,
   });
 
   factory McpConfigResponse.fromJson(Map<String, dynamic> json) {
@@ -201,6 +211,9 @@ class McpConfigResponse {
     return McpConfigResponse(
       success: json['success'] as bool? ?? false,
       error: _nonEmpty(json['error']),
+      failureKind: json['success'] == false
+          ? RemoteFeatureFailureKind.rejected
+          : null,
       servers: rawServers is List
           ? rawServers
                 .whereType<Map>()
@@ -229,6 +242,7 @@ class McpConfigResponse {
   final bool enableAllProjectMcpServers;
   final List<String> warnings;
   final String? error;
+  final RemoteFeatureFailureKind? failureKind;
 }
 
 String? _nonEmpty(dynamic value) {
@@ -241,11 +255,15 @@ List<String> _stringList(dynamic value) {
   return value.whereType<String>().toList();
 }
 
-Map<String, String> _stringMap(dynamic value) {
+Map<String, String> _secretPresenceMap(dynamic value) {
   if (value is! Map) return const {};
   final out = <String, String>{};
   value.forEach((key, item) {
-    if (key is String && item is String) out[key] = item;
+    // Normalize even legacy plaintext responses immediately. UI consumers
+    // can know that a key exists but can never retrieve its value.
+    if (key is String && key.isNotEmpty && item is String) {
+      out[key] = mcpRedactedValue;
+    }
   });
   return out;
 }

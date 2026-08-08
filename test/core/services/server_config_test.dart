@@ -74,8 +74,7 @@ void main() {
     });
 
     test('validates URL with subdomain', () {
-      final result =
-          validateServerUrl('https://api.staging.example.com');
+      final result = validateServerUrl('https://api.staging.example.com');
 
       expect(result.valid, isTrue);
     });
@@ -96,10 +95,7 @@ void main() {
     });
 
     test('invalid result has error message', () {
-      const validation = ServerUrlValidation(
-        valid: false,
-        error: 'Bad URL',
-      );
+      const validation = ServerUrlValidation(valid: false, error: 'Bad URL');
 
       expect(validation.valid, isFalse);
       expect(validation.error, equals('Bad URL'));
@@ -113,6 +109,19 @@ void main() {
       expect(result.isValid, isTrue);
       expect(result.errorMessage, isNull);
       expect(result.errorType, isNull);
+      expect(result.serviceStatus, 'ok');
+      expect(result.degraded, isEmpty);
+    });
+
+    test('success preserves a degraded readiness report', () {
+      const result = ServerUrlVerificationResult.success(
+        status: 'degraded',
+        degraded: <String>['redis'],
+      );
+
+      expect(result.isValid, isTrue);
+      expect(result.serviceStatus, 'degraded');
+      expect(result.degraded, <String>['redis']);
     });
 
     test('failed factory creates invalid result', () {

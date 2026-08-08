@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/remote_feature_failure_localization.dart';
 import '../../core/models/loop.dart';
 import '../../core/providers/goal_loops_notifier.dart';
 import '../../core/services/sync_service.dart';
@@ -68,7 +69,8 @@ class GoalLoopsScreen extends ConsumerWidget {
     // Captured before the async mutations below so the callbacks never reach
     // for a context across an async gap.
     final messenger = ScaffoldMessenger.of(context);
-    final fallbackError = context.l10n.commonError;
+    final l10n = context.l10n;
+    final fallbackError = l10n.commonError;
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
       child: GoalLoopCard(
@@ -79,13 +81,13 @@ class GoalLoopsScreen extends ConsumerWidget {
               loopId: loop.id,
               paused: paused,
             )
-            .then((res) => _report(messenger, fallbackError, res)),
+            .then((res) => _report(messenger, l10n, fallbackError, res)),
         onResume: () => notifier
             .resume(machineId: loop.machineId, loopId: loop.id)
-            .then((res) => _report(messenger, fallbackError, res)),
+            .then((res) => _report(messenger, l10n, fallbackError, res)),
         onDelete: () => notifier
             .delete(machineId: loop.machineId, loopId: loop.id)
-            .then((res) => _report(messenger, fallbackError, res)),
+            .then((res) => _report(messenger, l10n, fallbackError, res)),
         onOpenSession: (sessionId) => context.push('/chat/$sessionId'),
       ),
     );
@@ -95,11 +97,15 @@ class GoalLoopsScreen extends ConsumerWidget {
   /// only errors are worth a snackbar.
   void _report(
     ScaffoldMessengerState messenger,
+    AppLocalizations l10n,
     String fallbackError,
     MachineLoopResponse res,
   ) {
     if (res.success) return;
-    messenger.showSnackBar(SnackBar(content: Text(res.error ?? fallbackError)));
+    final message = res.failureKind == null
+        ? fallbackError
+        : res.failureKind.localizedRemoteFeatureFailure(l10n);
+    messenger.showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

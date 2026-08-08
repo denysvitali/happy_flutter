@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
+import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/safe_ui_messages.dart';
 import '../../core/models/workflow_run.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/repositories/workflows_repository.dart';
@@ -33,6 +35,10 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
   bool _initialLoading = true;
   String? _error;
   bool _hasRetriedOnEmptyEvent = false;
+  List<WorkflowRun>? _projectedSourceRuns;
+  int _projectedMessageRevision = -1;
+  List<_WorkflowCardProjection> _projectedRuns =
+      const <_WorkflowCardProjection>[];
 
   @override
   void initState() {
@@ -88,7 +94,14 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
       unawaited(notifier.refreshFromSync());
     } catch (e, st) {
       logger.warning('WorkflowsScreen refresh failed: $e', e, st);
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(
+          () => _error = safeUiFailureMessage(
+            context.l10n,
+            SafeUiFailure.workflowLoad,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _initialLoading = false);
     }
@@ -114,6 +127,49 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     );
   }
 
+  List<_WorkflowCardProjection> _projectionsFor(List<WorkflowRun> runs) {
+    final revision = sync.messagesRevision(widget.sessionId);
+    if (identical(_projectedSourceRuns, runs) &&
+        revision == _projectedMessageRevision) {
+      return _projectedRuns;
+    }
+    final messages = sync.messagesForSession(widget.sessionId);
+    final index = WorkflowTranscriptIndex.fromMessages(messages);
+    final projected = <_WorkflowCardProjection>[];
+    for (final source in runs) {
+      final run = WorkflowRun.enrichFromIndex(source, index);
+      int? stepCount;
+      String? stepPreview;
+      final hasStructured =
+          (run.summary != null && run.summary!.isNotEmpty) ||
+          run.phases.isNotEmpty ||
+          (run.agentCount != null && run.agentCount! > 0) ||
+          (run.totalTokens != null && run.totalTokens! > 0) ||
+          (run.totalToolCalls != null && run.totalToolCalls! > 0);
+      if (!hasStructured) {
+        final steps = WorkflowRun.stepChildrenForIndex(run.runId, index);
+        if (steps.isNotEmpty) {
+          stepCount = steps.length;
+          final collapsed = WorkflowRun.collapseSteps(steps);
+          stepPreview = collapsed.isEmpty
+              ? null
+              : WorkflowRun.stepLabel(collapsed.last);
+        }
+      }
+      projected.add(
+        _WorkflowCardProjection(
+          run: run,
+          stepCount: stepCount,
+          stepPreview: stepPreview,
+        ),
+      );
+    }
+    _projectedSourceRuns = runs;
+    _projectedMessageRevision = revision;
+    _projectedRuns = List<_WorkflowCardProjection>.unmodifiable(projected);
+    return _projectedRuns;
+  }
+
   @override
   Widget build(BuildContext context) {
     final runs = ref.watch(
@@ -124,10 +180,10 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     final isUnsupported = ref
         .read(workflowsRepositoryProvider)
         .isWorkflowListUnsupportedForSession(widget.sessionId);
-    final messages = sync.messagesForSession(widget.sessionId);
+    final projections = _projectionsFor(runs);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Workflows')),
+      appBar: AppBar(title: Text(context.l10n.workflowsTitle)),
       body: _initialLoading
           ? const AppLoadingIndicator()
           : _error != null
@@ -151,47 +207,20 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                       child: Text(
-                        '${runs.length} '
-                        'workflow${runs.length == 1 ? '' : 's'}',
+                        context.l10n.workflowsCount(runs.length),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     );
                   }
-                  final run = WorkflowRun.enrichFromMessages(
-                    runs[index - 1],
-                    messages,
-                  );
-                  // Only walk the transcript for runs that have no structured
-                  // details to show — rich daemon snapshots need no fallback.
-                  int? stepCount;
-                  String? stepPreview;
-                  final hasStructured = (run.summary != null &&
-                          run.summary!.isNotEmpty) ||
-                      run.phases.isNotEmpty ||
-                      (run.agentCount != null && run.agentCount! > 0) ||
-                      (run.totalTokens != null && run.totalTokens! > 0) ||
-                      (run.totalToolCalls != null &&
-                          run.totalToolCalls! > 0);
-                  if (!hasStructured) {
-                    final steps = WorkflowRun.stepChildrenForRun(
-                      run.runId,
-                      messages,
-                    );
-                    if (steps.isNotEmpty) {
-                      stepCount = steps.length;
-                      final collapsed = WorkflowRun.collapseSteps(steps);
-                      stepPreview = collapsed.isEmpty
-                          ? null
-                          : WorkflowRun.stepLabel(collapsed.last);
-                    }
-                  }
+                  final projection = projections[index - 1];
+                  final run = projection.run;
                   return WorkflowCard(
                     key: ValueKey('workflow-${run.runId}'),
                     run: run,
-                    stepCount: stepCount,
-                    stepPreview: stepPreview,
+                    stepCount: projection.stepCount,
+                    stepPreview: projection.stepPreview,
                     onTap: () => _openRun(run),
                   );
                 },
@@ -199,6 +228,18 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
             ),
     );
   }
+}
+
+class _WorkflowCardProjection {
+  const _WorkflowCardProjection({
+    required this.run,
+    this.stepCount,
+    this.stepPreview,
+  });
+
+  final WorkflowRun run;
+  final int? stepCount;
+  final String? stepPreview;
 }
 
 class _EmptyState extends StatelessWidget {
@@ -212,21 +253,19 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isUnsupported) {
-      return const Center(
+      return Center(
         child: AppEmptyState(
           icon: Icons.update_disabled,
-          title: 'Workflows unavailable',
-          subtitle:
-              'This machine is running a CLI version that does not '
-              'support workflows. Update the Claude Code CLI to see them here.',
+          title: context.l10n.workflowsUnavailableTitle,
+          subtitle: context.l10n.workflowsUnavailableSubtitle,
         ),
       );
     }
-    return const Center(
+    return Center(
       child: AppEmptyState(
         icon: Icons.account_tree_outlined,
-        title: 'No workflows yet',
-        subtitle: 'Workflow runs will appear here when Claude starts one.',
+        title: context.l10n.workflowsEmptyTitle,
+        subtitle: context.l10n.workflowsEmptySubtitle,
       ),
     );
   }
@@ -243,12 +282,12 @@ class _ErrorState extends StatelessWidget {
     return Center(
       child: AppEmptyState(
         icon: Icons.error_outline,
-        title: 'Failed to load workflows',
+        title: context.l10n.workflowsLoadFailedTitle,
         subtitle: error,
         action: FilledButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh),
-          label: const Text('Retry'),
+          label: Text(context.l10n.commonRetry),
         ),
       ),
     );

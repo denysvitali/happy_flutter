@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/settings_section.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/settings.dart';
@@ -36,6 +37,8 @@ Machine _machine({
   required String id,
   required bool active,
   required int activeAt,
+  bool? sandboxAvailable,
+  String? sandboxReason,
 }) {
   return Machine(
     id: id,
@@ -46,7 +49,11 @@ Machine _machine({
     activeAt: activeAt,
     metadataVersion: 1,
     daemonStateVersion: 1,
-    metadata: MachineMetadata(displayName: id),
+    metadata: MachineMetadata(
+      displayName: id,
+      sandboxAvailable: sandboxAvailable,
+      sandboxReason: sandboxReason,
+    ),
   );
 }
 
@@ -142,5 +149,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1 online of 2 linked'), findsOneWidget);
+  });
+
+  testWidgets('sandbox settings are disabled with the daemon reason', (
+    tester,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await tester.pumpWidget(
+      _buildApp(
+        Settings(),
+        machines: {
+          'machine': _machine(
+            id: 'machine',
+            active: true,
+            activeAt: now,
+            sandboxAvailable: false,
+            sandboxReason: 'boxy doctor failed',
+          ),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Sandbox'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.textContaining('boxy doctor failed'), findsOneWidget);
+    final sandboxRow = tester.widget<SettingsRow>(
+      find.ancestor(
+        of: find.text('Sandbox'),
+        matching: find.byType(SettingsRow),
+      ),
+    );
+    expect(sandboxRow.onTap, isNull);
   });
 }

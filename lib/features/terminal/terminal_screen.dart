@@ -1,30 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/routing/safe_pop.dart';
+import '../../core/services/logger_service.dart' show logger;
 import '../../core/theme/app_terminal_colors.dart';
 import '../../core/theme/app_tokens.dart'
-    show AppFontSize, AppIconSize, AppSpacing, AppBorder, AppDuration,
-        AppCurve, AppTouchTarget;
+    show
+        AppFontSize,
+        AppIconSize,
+        AppSpacing,
+        AppBorder,
+        AppDuration,
+        AppCurve,
+        AppMotion,
+        AppTouchTarget;
 import '../../core/utils/ansi_parser.dart';
-import '../../core/routing/safe_pop.dart';
+import '../../core/utils/utils.dart' show formatBytes;
+import 'terminal_output_buffer.dart';
 
-/// Terminal emulator screen — displays terminal output with a dark
-/// background and allows entering commands.
+/// One-off machine command runner.
 ///
-/// Expects `GoRouterState.extra` to be a `Map<String, dynamic>` with
-/// `machineId` (String) and `terminalId` (String) keys, provided by
-/// [TerminalConnectScreen].
 class TerminalScreen extends ConsumerStatefulWidget {
-  const TerminalScreen({super.key});
+  const TerminalScreen({required this.machineId, required this.cwd, super.key});
+
+  final String machineId;
+  final String cwd;
 
   @override
   ConsumerState<TerminalScreen> createState() => _TerminalScreenState();
 }
 
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
-  late final List<String> lines;
+  final TerminalOutputBuffer _output = TerminalOutputBuffer();
   final _commandController = TextEditingController();
   final _scrollController = ScrollController();
   String? _machineId;
@@ -34,10 +43,16 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   @override
   void initState() {
     super.initState();
-    lines = [context.l10n.terminalConnected];
-    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
-    _machineId = extra?['machineId'] as String?;
-    _cwd = extra?['cwd'] as String? ?? '/';
+    _machineId = widget.machineId;
+    _cwd = widget.cwd;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_output.lines.isEmpty) {
+      _output.appendLine(context.l10n.terminalConnected);
+    }
   }
 
   static final _terminalTextStyle = TextStyle(
@@ -60,7 +75,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: AppDuration.fast,
+          duration: AppMotion.duration(context, AppDuration.fast),
           curve: AppCurve.enter,
         );
       }
@@ -72,7 +87,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     if (trimmed.isEmpty || _isSending) return;
 
     setState(() {
-      lines.add('> $trimmed');
+      _output.appendLine('> $trimmed');
       _isSending = true;
     });
     _commandController.clear();
@@ -81,7 +96,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     final machineId = _machineId;
     if (machineId == null || machineId.isEmpty) {
       setState(() {
-        lines.add('[No machine connected]');
+        _output.appendLine(context.l10n.terminalNoMachineConnected);
         _isSending = false;
       });
       _scrollToBottom();
@@ -91,51 +106,29 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     try {
       final result = await ref
           .read(machinesNotifierProvider.notifier)
-          .bash(
-            machineId: machineId,
-            command: trimmed,
-            cwd: _cwd ?? '/',
-          );
-      final stdout = result.stdout.trim();
-      final stderr = result.stderr.trim();
+          .bash(machineId: machineId, command: trimmed, cwd: _cwd ?? '/');
       setState(() {
-        if (stdout.isNotEmpty) lines.addAll(stdout.split('\n'));
-        if (stderr.isNotEmpty) lines.addAll(stderr.split('\n'));
-        if (stdout.isEmpty && stderr.isEmpty) lines.add('');
+        final originalBytes = result.totalOriginalOutputBytes;
+        final notice = originalBytes == null
+            ? context.l10n.terminalOutputTruncated
+            : context.l10n.terminalOutputTruncatedBytes(
+                formatBytes(originalBytes, adaptivePrecision: true),
+              );
+        _output.appendResult(result, truncationNotice: notice);
       });
-    } catch (e) {
-      setState(() => lines.add('[Error: $e]'));
+    } catch (error, stackTrace) {
+      logger.warning(
+        '[RunCommand] command failed machine=$_machineId',
+        error,
+        stackTrace,
+      );
+      if (mounted) {
+        setState(() => _output.appendLine(context.l10n.terminalCommandFailed));
+      }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
     _scrollToBottom();
-  }
-
-  void _confirmDisconnect() {
-    showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(context.l10n.terminalDisconnect),
-        content: Text(context.l10n.terminalDisconnectConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(context.l10n.commonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(context.l10n.terminalDisconnect),
-          ),
-        ],
-      ),
-    ).then((confirmed) {
-      if ((confirmed ?? false) && mounted) {
-        safePop<void>(context);
-      }
-    });
   }
 
   @override
@@ -164,7 +157,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             child: IconButton(
               icon: const Icon(Icons.power_settings_new),
               tooltip: context.l10n.terminalDisconnect,
-              onPressed: _confirmDisconnect,
+              onPressed: () => safePop<void>(context),
             ),
           ),
         ],
@@ -181,9 +174,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 AppSpacing.md,
                 AppSpacing.sm,
               ),
-              itemCount: lines.length,
+              itemCount: _output.lines.length,
               itemBuilder: (context, index) {
-                final line = lines[index];
+                final line = _output.lines[index];
                 final isCommand = line.startsWith('> ');
                 return RepaintBoundary(
                   key: ValueKey(index),
@@ -217,10 +210,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             decoration: BoxDecoration(
               color: term.surface,
               border: Border(
-                top: BorderSide(
-                  color: term.border,
-                  width: AppBorder.hairline,
-                ),
+                top: BorderSide(color: term.border, width: AppBorder.hairline),
               ),
             ),
             padding: EdgeInsets.only(

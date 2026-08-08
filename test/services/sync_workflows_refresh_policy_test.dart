@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/models/workflow_run.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 
 import '../helpers/test_helpers.dart';
@@ -140,6 +141,25 @@ void main() {
 
       expect(calls, 1);
       expect(sync.testIsWorkflowRefreshCapabilityBlocked('s1'), isTrue);
+    },
+  );
+
+  test(
+    'schema-skewed workflow response preserves last-known-good runs',
+    () async {
+      sync.testSessions['s1'] = _session(id: 's1', activeAt: 1);
+      const cached = WorkflowRun(
+        runId: 'run-1',
+        workflowName: 'Audit',
+        status: WorkflowStatus.running,
+      );
+      sync.testSetWorkflows('s1', const <WorkflowRun>[cached]);
+      sync.testSessionRPCOverride = (sessionId, method, params) async =>
+          <String, dynamic>{'ok': true, 'renamedRuns': <dynamic>[]};
+
+      await sync.refreshWorkflowsForSession('s1');
+
+      expect(sync.workflowsForSession('s1'), const <WorkflowRun>[cached]);
     },
   );
 }

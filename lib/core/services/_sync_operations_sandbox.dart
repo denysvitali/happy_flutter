@@ -68,6 +68,16 @@ extension SyncSandboxOperations on Sync {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     try {
+      final supported = testMachineRPCOverride == null
+          ? await machineSupportsRPC(machineId, method)
+          : null;
+      if (supported == false) {
+        return const SandboxPolicyResponse(
+          success: false,
+          error: 'Sandbox management requires a newer machine agent',
+          failureKind: RemoteFeatureFailureKind.unsupported,
+        );
+      }
       return await _typedMachineRPC(
         machineId,
         method,
@@ -81,15 +91,22 @@ extension SyncSandboxOperations on Sync {
         return const SandboxPolicyResponse(
           success: false,
           error: 'machine offline',
+          failureKind: RemoteFeatureFailureKind.offline,
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info('$label: RPC method not available (daemon too old)');
         return const SandboxPolicyResponse(
           success: false,
           error: 'Sandbox management requires a newer machine agent',
+          failureKind: RemoteFeatureFailureKind.unsupported,
         );
       } else if (Sync._isTransientRpcError(error)) {
         logger.info('$label: transient RPC failure — $error');
+        return const SandboxPolicyResponse(
+          success: false,
+          error: 'transient RPC failure',
+          failureKind: RemoteFeatureFailureKind.transient,
+        );
       } else {
         logger.error('$label error', error, stackTrace);
       }
@@ -97,6 +114,7 @@ extension SyncSandboxOperations on Sync {
     return const SandboxPolicyResponse(
       success: false,
       error: 'RPC call failed',
+      failureKind: RemoteFeatureFailureKind.unknown,
     );
   }
 }

@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/services/at_rest_encryption_service.dart';
 import 'package:happy_flutter/core/services/message_cache_service.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 
@@ -68,10 +70,27 @@ class _InMemoryMMKVStorage extends MMKVStorage {
 
   /// Direct test-only inspection: what is actually persisted for a
   /// session, without going through MessageCacheService.
-  List<Map<String, dynamic>> rawStored(String sessionId) => [
-    for (final m in _sessions[sessionId] ?? const <Map<String, dynamic>>[])
-      Map<String, dynamic>.from(m),
-  ];
+  List<Map<String, dynamic>> rawStored(String sessionId) {
+    final stored = _sessions[sessionId] ?? const <Map<String, dynamic>>[];
+    if (stored.length == 1 &&
+        stored.single['_happyAtRestCiphertext'] is String) {
+      final protection = AtRestEncryptionService.memoryOnly(
+        Uint8List.fromList(List<int>.generate(32, (index) => index + 1)),
+      );
+      final plaintext = protection.unprotectString(
+        stored.single['_happyAtRestCiphertext']! as String,
+        associatedData: 'message-cache:v1:$sessionId',
+      );
+      return (jsonDecode(plaintext!) as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+    }
+    return [for (final m in stored) Map<String, dynamic>.from(m)];
+  }
+
+  String? rawEncoded(String sessionId) {
+    final stored = _sessions[sessionId];
+    return stored == null ? null : jsonEncode(stored);
+  }
 
   /// Direct test-only seed: simulates legacy MMKV state without
   /// touching MessageCacheService.
@@ -164,6 +183,71 @@ void main() {
       expect(storage.writeCount, 2);
       expect(storage.rawStored('session-1')[1]['content'], 'edited content');
     });
+
+    test('persisted cache is encrypted and restores canonical localId', () {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      final messages = <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'local-p0',
+          'localId': 'local-p0',
+          'seq': 1,
+          'content': 'private cache text',
+        },
+      ];
+
+      MessageCacheService().saveMessages('protected-cache', messages);
+
+      final raw = storage.rawEncoded('protected-cache')!;
+      expect(raw, contains(AtRestEncryptionService.envelopePrefix));
+      expect(raw, isNot(contains('private cache text')));
+      expect(raw, isNot(contains('local-p0')));
+      final restored = MessageCacheService().getMessages('protected-cache');
+      expect(restored.single['localId'], 'local-p0');
+      expect(restored.single['content'], 'private cache text');
+    });
+
+    test('async cache worker persists only an encrypted marker', () async {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+
+      await MessageCacheService().saveMessagesAsync('protected-async', [
+        <String, dynamic>{
+          'id': 'async-local',
+          'localId': 'async-local',
+          'seq': 1,
+          'content': 'async private text',
+        },
+      ]);
+
+      final raw = storage.rawEncoded('protected-async')!;
+      expect(raw, contains(AtRestEncryptionService.envelopePrefix));
+      expect(raw, isNot(contains('async-local')));
+      expect(raw, isNot(contains('async private text')));
+    });
+
+    test('legacy plaintext cache is returned once and rewritten encrypted', () {
+      final storage = _InMemoryMMKVStorage()
+        ..rawSeed('legacy-cache', [
+          <String, dynamic>{
+            'id': 'legacy-local',
+            'localId': 'legacy-local',
+            'seq': 1,
+            'content': 'legacy plaintext',
+          },
+        ]);
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+
+      final restored = MessageCacheService().getMessages('legacy-cache');
+
+      expect(restored.single['localId'], 'legacy-local');
+      final migrated = storage.rawEncoded('legacy-cache')!;
+      expect(migrated, contains(AtRestEncryptionService.envelopePrefix));
+      expect(migrated, isNot(contains('legacy plaintext')));
+    });
   });
 
   group('MessageCacheService — async write queue', () {
@@ -203,8 +287,7 @@ void main() {
       });
     });
 
-    test('an unchanged window after a committed save writes nothing',
-        () async {
+    test('an unchanged window after a committed save writes nothing', () async {
       final storage = _InMemoryMMKVStorage();
       MessageCacheService().debugSetStorage = storage;
       addTearDown(MessageCacheService().debugResetStorage);
@@ -222,29 +305,101 @@ void main() {
       );
     });
 
-    test('a cache read seeds dirty tracking so cold start does not rewrite',
-        () async {
-      final storage = _InMemoryMMKVStorage()
-        ..rawSeed('queue-5', [
-          <String, dynamic>{'id': 'm-1', 'seq': 1, 'content': 'restored'},
-        ]);
-      MessageCacheService().debugSetStorage = storage;
-      addTearDown(MessageCacheService().debugResetStorage);
-      addTearDown(() => MessageCacheService().clearMessages('queue-5'));
+    test(
+      'worker trims and strips inline image bytes before persistence',
+      () async {
+        final storage = _InMemoryMMKVStorage();
+        MessageCacheService().debugSetStorage = storage;
+        addTearDown(MessageCacheService().debugResetStorage);
+        addTearDown(() => MessageCacheService().clearMessages('queue-worker'));
+        final messages = List<Map<String, dynamic>>.generate(
+          205,
+          (index) => <String, dynamic>{
+            'id': 'm-$index',
+            'seq': index + 1,
+            if (index == 204)
+              'raw': <String, dynamic>{
+                'content': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'type': 'image',
+                    'source': <String, dynamic>{
+                      'type': 'base64',
+                      'media_type': 'image/png',
+                      'data': 'large-inline-payload',
+                    },
+                  },
+                ],
+              },
+          },
+        );
 
-      final restored = MessageCacheService().getMessages('queue-5');
-      final writesAfterRead = storage.writeCount;
+        await MessageCacheService().saveMessagesAsync('queue-worker', messages);
 
-      await MessageCacheService().saveMessagesAsync('queue-5', restored);
+        final stored = storage.rawStored('queue-worker');
+        expect(stored, hasLength(200));
+        expect(stored.first['id'], 'm-5');
+        final raw = stored.last['raw'] as Map<String, dynamic>;
+        final content = raw['content'] as List<dynamic>;
+        final image = content.single as Map<String, dynamic>;
+        final source = image['source'] as Map<String, dynamic>;
+        expect(source['data'], isEmpty);
+        expect(source['omitted'], isTrue);
+      },
+    );
 
-      expect(
-        storage.writeCount,
-        writesAfterRead,
-        reason:
-            'restoring N sessions on cold start must not immediately '
-            'rewrite N identical cache windows',
-      );
-    });
+    test(
+      'suspend flush persists service-owned queued work synchronously',
+      () async {
+        final storage = _InMemoryMMKVStorage();
+        MessageCacheService().debugSetStorage = storage;
+        addTearDown(MessageCacheService().debugResetStorage);
+        addTearDown(() => MessageCacheService().clearMessages('queue-flush'));
+        final messages = window('queued');
+        final pending = MessageCacheService().saveMessagesAsync(
+          'queue-flush',
+          messages,
+        );
+
+        MessageCacheService().flushPendingMessages(
+          <String, List<Map<String, dynamic>>>{'queue-flush': messages},
+        );
+
+        expect(storage.rawStored('queue-flush').single['content'], 'queued');
+        await pending;
+        expect(storage.rawStored('queue-flush').single['content'], 'queued');
+        expect(
+          storage.writeCount,
+          1,
+          reason: 'the fenced async worker must not repeat the suspend write',
+        );
+      },
+    );
+
+    test(
+      'a cache read seeds dirty tracking so cold start does not rewrite',
+      () async {
+        final storage = _InMemoryMMKVStorage()
+          ..rawSeed('queue-5', [
+            <String, dynamic>{'id': 'm-1', 'seq': 1, 'content': 'restored'},
+          ]);
+        MessageCacheService().debugSetStorage = storage;
+        addTearDown(MessageCacheService().debugResetStorage);
+        addTearDown(() => MessageCacheService().clearMessages('queue-5'));
+
+        final restored = MessageCacheService().getMessages('queue-5');
+        final writesAfterRead = storage.writeCount;
+
+        await MessageCacheService().saveMessagesAsync('queue-5', restored);
+
+        expect(
+          storage.writeCount,
+          writesAfterRead,
+          reason:
+              'restoring N sessions on cold start must not immediately '
+              'rewrite N identical cache windows',
+        );
+      },
+    );
 
     test('clearMessages fences an in-flight async save', () async {
       final storage = _InMemoryMMKVStorage();
@@ -263,8 +418,7 @@ void main() {
       expect(storage.rawStored('queue-3'), isEmpty);
     });
 
-    test('synchronous flush wins over an older in-flight async save',
-        () async {
+    test('synchronous flush wins over an older in-flight async save', () async {
       final storage = _InMemoryMMKVStorage();
       MessageCacheService().debugSetStorage = storage;
       addTearDown(MessageCacheService().debugResetStorage);
@@ -480,7 +634,7 @@ void main() {
       },
     );
 
-    test('is a no-op for caches with no synthetics (no extra write)', () {
+    test('synthetic-free legacy cache only gets the encryption rewrite', () {
       storage.rawSeed('session-3', [
         <String, dynamic>{'id': 'a', 'kind': 'text', 'seq': 1},
         <String, dynamic>{'id': 'b', 'kind': 'text', 'seq': 2},
@@ -492,8 +646,8 @@ void main() {
       expect(messages.map((m) => m['id']).toList(), ['a', 'b']);
       expect(
         storage.writeCount,
-        writesBefore,
-        reason: 'a synthetic-free cache must not trigger a rewrite',
+        writesBefore + 1,
+        reason: 'legacy plaintext must migrate exactly once',
       );
     });
 
@@ -720,7 +874,7 @@ void main() {
       },
     );
 
-    test('is a no-op for caches with no synthetics (no extra write)', () {
+    test('synthetic-free legacy cache only gets the encryption rewrite', () {
       storage.rawSeed('session-3', [
         <String, dynamic>{'id': 'a', 'kind': 'text', 'seq': 1},
         <String, dynamic>{'id': 'b', 'kind': 'text', 'seq': 2},
@@ -732,8 +886,8 @@ void main() {
       expect(messages.map((m) => m['id']).toList(), ['a', 'b']);
       expect(
         storage.writeCount,
-        writesBefore,
-        reason: 'a synthetic-free cache must not trigger a rewrite',
+        writesBefore + 1,
+        reason: 'legacy plaintext must migrate exactly once',
       );
     });
 

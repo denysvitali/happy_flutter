@@ -297,6 +297,24 @@ void main() {
       );
       expect(msg['sendStatus'], 'sent');
     });
+
+    test('outbox defers delivery while a spawned agent is starting', () async {
+      sync.testSessions['sess-2'] = _coldStartingSession('sess-2');
+      final failure = await sync.testDeliverOutboxEntryClassified(
+        const OutboxEntry(
+          localId: 'starting-local-id',
+          sessionId: 'sess-2',
+          text: 'wait for readiness',
+          encryptedContent: 'encrypted',
+          rawRecord: <String, dynamic>{'role': 'user'},
+          queuedAt: 1,
+        ),
+      );
+
+      expect(failure?.failureClass, OutboxFailureClass.transient);
+      expect(failure?.reason, 'agent_starting');
+      expect(interceptor.callCount, 0);
+    });
   });
 
   group('retry after failure', () {
@@ -415,10 +433,8 @@ void main() {
       );
     });
 
-    test(
-      'manual retry keeps the canonical localId and does not create a '
-      'second logical message',
-    () async {
+    test('manual retry keeps the canonical localId and does not create a '
+        'second logical message', () async {
       await sync.sendMessage('sess-3', 'Retry me');
       await sync.lastCompleteSendFuture;
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -441,7 +457,11 @@ void main() {
         },
       );
 
-      await sync.retryFailedMessage('sess-3', originalLocalId);
+      final retryResult = await sync.retryFailedMessage(
+        'sess-3',
+        originalLocalId,
+      );
+      expect(retryResult.outcome, MessageRetryOutcome.queued);
       await Future<void>.delayed(const Duration(milliseconds: 1400));
 
       final msgsAfterRetry = sync.testSessionMessages('sess-3');
@@ -472,9 +492,69 @@ void main() {
     });
 
     test(
-      'a fresh resend after failure creates a new localId and preserves '
-      'the original failed message',
-    () async {
+      'retry returns actionable typed outcomes for unavailable payloads',
+      () async {
+        sync.testSetSessionMessages('sess-3', [
+          <String, dynamic>{
+            'id': 'missing-raw',
+            'localId': 'missing-raw',
+            'role': 'user',
+            'content': 'continue',
+            'sendStatus': 'failed',
+          },
+          <String, dynamic>{
+            'id': 'stripped-image',
+            'localId': 'stripped-image',
+            'role': 'user',
+            'content': '[image]',
+            'sendStatus': 'failed',
+            'raw': <String, dynamic>{
+              'role': 'user',
+              'content': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'type': 'image',
+                  'source': <String, dynamic>{
+                    'type': 'base64',
+                    'data': '',
+                    'omitted': true,
+                  },
+                },
+              ],
+            },
+          },
+        ]);
+
+        final missingMessage = await sync.retryFailedMessage(
+          'sess-3',
+          'does-not-exist',
+        );
+        final missingRaw = await sync.retryFailedMessage(
+          'sess-3',
+          'missing-raw',
+        );
+        final strippedImage = await sync.retryFailedMessage(
+          'sess-3',
+          'stripped-image',
+        );
+
+        expect(missingMessage.outcome, MessageRetryOutcome.messageNotFound);
+        expect(missingRaw.outcome, MessageRetryOutcome.rawDataUnavailable);
+        expect(
+          strippedImage.outcome,
+          MessageRetryOutcome.attachmentDataUnavailable,
+        );
+        expect(
+          sync
+              .testSessionMessages('sess-3')!
+              .where((m) => m['localId'] == 'stripped-image')
+              .single['sendStatus'],
+          'failed',
+        );
+      },
+    );
+
+    test('a fresh resend after failure creates a new localId and preserves '
+        'the original failed message', () async {
       await sync.sendMessage('sess-3', 'continue');
       await sync.lastCompleteSendFuture;
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -557,6 +637,21 @@ Session _onlineSession(String id) => Session(
   presence: 'online',
 );
 
+Session _coldStartingSession(String id) => Session(
+  id: id,
+  seq: 0,
+  createdAt: 1700000000000,
+  updatedAt: 1700000000000,
+  active: true,
+  activeAt: 1700000000000,
+  metadataVersion: 1,
+  agentStateVersion: 1,
+  thinking: false,
+  presence: 'offline',
+  lifecycleStateCleartext: 'starting',
+  metadata: const Metadata(lifecycleState: 'starting'),
+);
+
 /// Apply an outbox status change directly into sync's in-memory messages.
 ///
 /// Mirrors what [messageOutbox.configure(onStatusChanged: ...)] does in
@@ -609,6 +704,8 @@ class _AlwaysFailInterceptor extends Interceptor {
 /// Always resolves POST to the messages endpoint with a 200 OK.
 class _AlwaysSucceedInterceptor extends Interceptor {
   int _callCount = 0;
+
+  int get callCount => _callCount;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {

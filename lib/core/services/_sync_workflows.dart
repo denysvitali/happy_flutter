@@ -85,6 +85,19 @@ extension SyncWorkflows on Sync {
   Future<void> _runWorkflowRefresh(String sessionId) async {
     dynamic raw;
     try {
+      final supported = testSessionRPCOverride == null
+          ? await sessionSupportsRPC(sessionId, 'workflow-list')
+          : null;
+      if (supported == false) {
+        _workflowListUnsupportedCapabilities[_workflowCapabilityKey(
+              sessionId,
+            )] =
+            DateTime.now().millisecondsSinceEpoch +
+            (testWorkflowUnsupportedCapabilityTtl?.inMilliseconds ??
+                _workflowUnsupportedCapabilityTtlMs);
+        _notifyWorkflowsChanged(sessionId);
+        return;
+      }
       raw = await sessionRPC(
         sessionId,
         'workflow-list',
@@ -100,9 +113,10 @@ extension SyncWorkflows on Sync {
         return;
       }
       if (_isWorkflowListUnsupported(e)) {
-        _workflowListUnsupportedCapabilities[
-          _workflowCapabilityKey(sessionId)
-        ] = DateTime.now().millisecondsSinceEpoch +
+        _workflowListUnsupportedCapabilities[_workflowCapabilityKey(
+              sessionId,
+            )] =
+            DateTime.now().millisecondsSinceEpoch +
             (testWorkflowUnsupportedCapabilityTtl?.inMilliseconds ??
                 _workflowUnsupportedCapabilityTtlMs);
         logger.debug(
@@ -147,12 +161,7 @@ extension SyncWorkflows on Sync {
       logger.warning(
         '[workflows] refreshWorkflowsForSession($sessionId) returned '
         'non-list "workflows" payload (${workflowsJson.runtimeType}); '
-        'treating as empty',
-      );
-      _publishWorkflowsForSession(
-        sessionId,
-        const <WorkflowRun>[],
-        notifyDataChanged: true,
+        'preserving last-known-good runs',
       );
       return;
     }
@@ -176,6 +185,9 @@ extension SyncWorkflows on Sync {
     if (!isInitialized) return null;
     dynamic raw;
     try {
+      if (testSessionRPCOverride == null) {
+        await ensureSessionRPCSupported(sessionId, 'workflow-read');
+      }
       raw = await sessionRPC(sessionId, 'workflow-read', <String, dynamic>{
         'runId': runId,
       });
@@ -338,6 +350,10 @@ extension SyncWorkflows on Sync {
   }
 
   bool _isWorkflowListUnsupported(Object error) {
+    if (error is RpcException) {
+      return error.code == RpcErrorCode.methodUnsupported &&
+          (error.method == null || error.method == 'workflow-list');
+    }
     if (error is! StateError) return false;
     final message = error.message.toLowerCase();
     return message.contains('workflow-list not available') ||

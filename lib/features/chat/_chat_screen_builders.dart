@@ -32,6 +32,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final showHeader =
         hasLocalMore ||
         isLoadingFromServer ||
+        (_paginationLoadFailed && hasServerMore) ||
         (!hasServerMore && allLocalVisible && totalCount > 0);
 
     final metadataJson = _metadataJson;
@@ -72,8 +73,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
       for (var i = 0; i < items.length; i++) {
         final m = items[i];
         if (m == null) continue;
-        final k = m['id'] as String? ?? m['toolUseId'] as String?;
-        if (k != null) {
+        final k = canonicalMessageIdentityKey(m);
+        if (k.isNotEmpty) {
           keyToListIndex[k] = items.length - 1 - i;
         }
       }
@@ -130,9 +131,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: false,
       itemCount:
-          items.length +
-          (showHeader ? 1 : 0) +
-          (showTypingIndicator ? 1 : 0),
+          items.length + (showHeader ? 1 : 0) + (showTypingIndicator ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
         final idx = keyToListIndex[key.value];
@@ -144,12 +143,9 @@ extension _ChatScreenBuilders on _ChatScreenState {
         // Index 0 in a reversed list is the bottom — the typing
         // indicator lives here so it appears below the newest message.
         if (showTypingIndicator && index == 0) {
-          return const TypingIndicator(
-            key: ValueKey('typing-indicator'),
-          );
+          return const TypingIndicator(key: ValueKey('typing-indicator'));
         }
-        final adjustedIndex =
-            showTypingIndicator ? index - 1 : index;
+        final adjustedIndex = showTypingIndicator ? index - 1 : index;
         try {
           return _buildMessageItem(
             context: context,
@@ -158,6 +154,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
             showHeader: showHeader,
             hasLocalMore: hasLocalMore,
             isLoadingFromServer: isLoadingFromServer,
+            paginationLoadFailed: _paginationLoadFailed && hasServerMore,
             metadataJson: metadataJson,
           );
         } catch (e, st) {
@@ -204,10 +201,14 @@ extension _ChatScreenBuilders on _ChatScreenState {
     required bool showHeader,
     required bool hasLocalMore,
     required bool isLoadingFromServer,
+    required bool paginationLoadFailed,
     required Map<String, dynamic>? metadataJson,
   }) {
     final adjusted = index;
     if (showHeader && adjusted == items.length) {
+      if (paginationLoadFailed) {
+        return PaginationFailureRetry(onRetry: _retryHistoryLoad);
+      }
       if (hasLocalMore || isLoadingFromServer) {
         return Center(
           key: ValueKey(
@@ -289,10 +290,10 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // otherwise feel "far apart" due to standard bubble padding.
     final isCompact = !isToolLike && prevIsToolLike && nextIsToolLike;
 
-    final messageKey =
-        message['id'] as String? ??
-        message['toolUseId'] as String? ??
-        'msg-$reversedIndex';
+    final messageKey = canonicalMessageIdentityKey(
+      message,
+      fallback: 'msg-$reversedIndex',
+    );
     // Only pass the full messages list to tool-call items that need it
     // (Task / Agent sub-conversation rendering). Regular text messages
     // don't use it and passing _messages to every item causes every

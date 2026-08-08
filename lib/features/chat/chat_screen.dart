@@ -12,6 +12,7 @@ import 'package:sentry_flutter/sentry_flutter.dart'
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/safe_ui_messages.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/loop.dart';
 import '../../core/models/outgoing_image.dart';
@@ -31,9 +32,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/clipboard_utils.dart';
-import '../../core/wire/wire_parsers.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
+import '../../core/wire/wire_parsers.dart';
 import '../loops/create_loop_sheet.dart';
 import '../loops/loop_actions.dart';
 import '../sessions/session_avatar.dart' show AvatarStyle;
@@ -54,11 +55,13 @@ import 'send/image_attachment_service.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
+import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_messages_body.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
 import 'widgets/model_change_divider.dart';
+import 'widgets/pagination_failure_retry.dart';
 import 'widgets/pending_permission_bar.dart';
 import 'widgets/permission_mode_selector.dart';
 import 'widgets/scroll_to_bottom_pill.dart';
@@ -197,6 +200,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _codexModelModesMachineId;
   bool _isLoadingCodexModelModes = false;
   Session? _session;
+  String? _lastLoggedLifecycleError;
   List<Map<String, dynamic>> _messages = const [];
   Map<String, dynamic>? _metadataJson;
 
@@ -216,6 +220,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   static const int _pageSize = 50;
   int _visibleCount = _pageSize;
   bool _isLoadingMore = false;
+  bool _paginationLoadFailed = false;
   int _lastLoadMoreMs = 0;
   bool _canTriggerHistoryLoad = true;
   bool _isAdjustingHistoryScroll = false;
@@ -460,6 +465,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((id) => id == widget.sessionId)
         .listen((_) {
           if (mounted) {
+            _isLoadingMore = false;
+            _paginationLoadFailed = true;
+            _continueHistoryLoadAfterServerPage = false;
+            _canTriggerHistoryLoad = true;
+            _bumpMessagePaneRevision();
             // Defer until after the first frame so context is available.
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
@@ -467,6 +477,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 SnackBar(
                   content: Text(context.l10n.chatFailedToLoadMessages),
                   duration: const Duration(seconds: 4),
+                  action: SnackBarAction(
+                    label: context.l10n.commonRetry,
+                    onPressed: _retryHistoryLoad,
+                  ),
                 ),
               );
             });
@@ -793,8 +807,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _messagePaneRevision.value++;
   }
 
-  String _messageKey(Map<String, dynamic> m) =>
-      m['id'] as String? ?? m['toolUseId'] as String? ?? '';
+  String _messageKey(Map<String, dynamic> m) => canonicalMessageIdentityKey(m);
 
   int _computeMessageFingerprint(List<Map<String, dynamic>> messages) {
     // Hash length + first message + last N messages. This is O(1) instead
@@ -974,6 +987,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (sync.hasOlderMessages(widget.sessionId) &&
         !sync.isLoadingOlderMessages(widget.sessionId)) {
       _isLoadingMore = true;
+      _paginationLoadFailed = false;
+      _bumpMessagePaneRevision();
       final revisionBeforeLoad = sync.messagesRevision(widget.sessionId);
       _continueHistoryLoadAfterServerPage = true;
       sync.fetchOlderMessages(widget.sessionId).whenComplete(() {
@@ -985,6 +1000,80 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           }
         }
       });
+    }
+  }
+
+  void _retryHistoryLoad() {
+    if (_isLoadingMore) return;
+    _paginationLoadFailed = false;
+    _canTriggerHistoryLoad = true;
+    _bumpMessagePaneRevision();
+    _loadMore();
+  }
+
+  Future<List<AutocompleteSuggestion>> _loadFileSuggestions(
+    String rawQuery,
+  ) async {
+    final query = rawQuery.trim().replaceAll(r'\', '/');
+    final workingDirectory = _session?.metadata?.path;
+    if (query.isEmpty ||
+        workingDirectory == null ||
+        workingDirectory.isEmpty ||
+        !(_session?.isPresenceOnline ?? false)) {
+      return const <AutocompleteSuggestion>[];
+    }
+
+    try {
+      final supported = await sync
+          .sessionSupportsRPC(widget.sessionId, 'ripgrep')
+          .timeout(const Duration(seconds: 2), onTimeout: () => null);
+      if (supported == false) return const <AutocompleteSuggestion>[];
+
+      final fileGlob = query.contains('/') ? '**/*$query*' : '*$query*';
+      final raw = await sync
+          .sessionRPC(widget.sessionId, 'ripgrep', {
+            'args': <String>[
+              '--files',
+              '--hidden',
+              '--iglob',
+              fileGlob,
+              '--glob',
+              '!.git/**',
+              '--glob',
+              '!.dart_tool/**',
+              '--glob',
+              '!build/**',
+            ],
+            'cwd': workingDirectory,
+          })
+          .timeout(const Duration(seconds: 5));
+      final response = WireParsers.asMap(raw);
+      if (response?['success'] != true) {
+        return const <AutocompleteSuggestion>[];
+      }
+
+      final stdout = response?['stdout'] as String? ?? '';
+      final paths =
+          stdout
+              .split('\n')
+              .map((path) => path.trim())
+              .where((path) => path.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      return paths
+          .take(40)
+          .map(
+            (path) => AutocompleteSuggestion(
+              id: path,
+              label: path,
+              type: SuggestionType.file,
+            ),
+          )
+          .toList(growable: false);
+    } catch (error) {
+      logger.info('File autocomplete unavailable: $error');
+      return const <AutocompleteSuggestion>[];
     }
   }
 
@@ -1003,35 +1092,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   _SessionSendIssue? get _sessionSendIssue {
     final session = _session;
     if (session == null || !session.hasLifecycleError) return null;
-    final detail = _formatLifecycleError(session.metadata?.lifecycleStateError);
     final canRestore = session.canAttemptLifecycleRestore;
-    final detailText = detail == null ? '' : ' $detail';
-    final message = canRestore
-        ? 'The agent process failed or stopped for this session.$detailText '
-              'Sending a message will try to restart it before delivery.'
-        : 'The agent process failed or stopped for this session.$detailText '
-              'No restore target is available, so new messages cannot '
-              'be delivered.';
+    final rawError = session.metadata?.lifecycleStateError?.trim();
+    if (rawError != null &&
+        rawError.isNotEmpty &&
+        rawError != _lastLoggedLifecycleError) {
+      _lastLoggedLifecycleError = rawError;
+      logger.warning(
+        '[ChatScreen] session lifecycle failure '
+        'sessionId=${widget.sessionId}',
+        rawError,
+      );
+    }
+    final copy = safeLifecycleIssueCopy(context.l10n);
     return _SessionSendIssue(
-      title: 'Session agent failed',
-      message: message,
-      snackBarText:
-          'This session cannot respond because its '
-          'agent process failed or stopped and no restore target is available. '
-          'Start a new session to continue.',
+      title: copy.title,
+      message: canRestore ? copy.message : copy.blockedMessage,
+      snackBarText: copy.blockedMessage,
       blocksSend: !canRestore,
     );
-  }
-
-  String? _formatLifecycleError(String? error) {
-    final trimmed = error?.trim();
-    if (trimmed == null || trimmed.isEmpty) return null;
-    if (trimmed.contains('without a live local process')) {
-      return 'No live local process is attached to it.';
-    }
-    const maxLength = 140;
-    if (trimmed.length <= maxLength) return 'Reason: $trimmed';
-    return 'Reason: ${trimmed.substring(0, maxLength)}...';
   }
 
   void _showSendBlockedSnackBar(_SessionSendIssue issue) {
@@ -1384,6 +1463,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   _ChatScrollToBottomOverlay(
                     autoScrollNotifier: _autoScrollNotifier,
                     isLoading: _isLoadingMessages,
+                    unreadCount: sessionUiEntry.unreadCount,
                     onTap: () {
                       HapticFeedback.lightImpact();
                       _autoScroll = true;
@@ -1420,6 +1500,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             availableModels: availableModels,
             availableSlashCommands:
                 _session?.metadata?.slashCommands ?? const [],
+            onFileSuggestionsRequested: _loadFileSuggestions,
             onModelModeChanged: _onModelModeChanged,
             selectedProfile: _selectedProfile,
             availableProfiles: _availableProfiles,

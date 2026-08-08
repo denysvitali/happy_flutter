@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
+
 import '../services/logger_service.dart';
 
 /// Utility for backing up and restoring secret keys using base32 with dashes
@@ -59,6 +61,17 @@ class BackupKeyUtils {
       logger.error('Failed to validate backup key', e, stack);
       return false;
     }
+  }
+
+  /// Short, non-secret identifier used to confirm an account switch.
+  static String fingerprint(String formattedKey) {
+    final digest = sha256.convert(decodeKey(formattedKey)).toString();
+    final short = digest.substring(0, 12).toUpperCase();
+    return <String>[
+      short.substring(0, 4),
+      short.substring(4, 8),
+      short.substring(8, 12),
+    ].join('-');
   }
 
   /// Convert bytes to RFC 4648 base32

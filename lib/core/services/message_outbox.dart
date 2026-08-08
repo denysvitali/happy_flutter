@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../wire/wire_parsers.dart';
+import 'at_rest_encryption_service.dart';
 import 'logger_service.dart';
 import 'mmkv_storage.dart';
 import 'power_diagnostics_service.dart';
@@ -38,10 +39,8 @@ class OutboxDeliveryFailure {
   /// would explode metric cardinality).
   final String? reason;
 
-  static const transient =
-      OutboxDeliveryFailure(OutboxFailureClass.transient);
-  static const permanent =
-      OutboxDeliveryFailure(OutboxFailureClass.permanent);
+  static const transient = OutboxDeliveryFailure(OutboxFailureClass.transient);
+  static const permanent = OutboxDeliveryFailure(OutboxFailureClass.permanent);
 }
 
 /// A single queued message awaiting delivery.
@@ -163,16 +162,12 @@ class OutboxEntry {
 /// failures (timeouts, network, 5xx) keep retrying for hours with capped
 /// backoff; permanent failures (4xx, session gone) dead-letter after a
 /// small budget.
-typedef OutboxDeliverFn = Future<OutboxDeliveryFailure?> Function(
-  OutboxEntry entry,
-);
+typedef OutboxDeliverFn =
+    Future<OutboxDeliveryFailure?> Function(OutboxEntry entry);
 
 /// Callback invoked after delivery status changes so the UI can update.
-typedef OutboxStatusChangedFn = void Function(
-  String sessionId,
-  String localId,
-  String status,
-);
+typedef OutboxStatusChangedFn =
+    void Function(String sessionId, String localId, String status);
 
 /// Offline message outbox with exponential-backoff retry.
 ///
@@ -196,8 +191,14 @@ class MessageOutbox {
   MessageOutbox({
     MMKVStorage? storage,
     @visibleForTesting OutboxDeliverFn? deliverOverride,
-  })  : _storage = storage ?? MMKVStorage(),
-        _deliverOverride = deliverOverride;
+    @visibleForTesting AtRestEncryptionService? protection,
+  }) : _storage = storage ?? MMKVStorage(),
+       _protection =
+           protection ??
+           (storage == null
+               ? AtRestEncryptionService()
+               : AtRestEncryptionService.memoryOnly(_testProtectionKey)),
+       _deliverOverride = deliverOverride;
 
   static const int _maxRetries = 3;
 
@@ -212,14 +213,23 @@ class MessageOutbox {
   /// long-running permanent failure (e.g. a deleted session) cannot grow
   /// the MMKV blob without limit. Oldest entries are dropped first.
   static const int maxDeadEntries = 50;
+  static const String _outboxAssociatedData = 'message-outbox:v1';
+  static final Uint8List _testProtectionKey = Uint8List.fromList(
+    List<int>.generate(32, (index) => 32 - index),
+  );
 
   MMKVStorage _storage;
+  AtRestEncryptionService _protection;
 
   /// Override the storage backend for testing. Avoids MMKV
   /// initialization failures in CI where the native plugin is
   /// unavailable.
   @visibleForTesting
-  set testStorage(MMKVStorage value) => _storage = value;
+  set testStorage(MMKVStorage value) {
+    _storage = value;
+    _protection = AtRestEncryptionService.memoryOnly(_testProtectionKey);
+  }
+
   final OutboxDeliverFn? _deliverOverride;
 
   OutboxDeliverFn? _deliver;
@@ -253,10 +263,51 @@ class MessageOutbox {
   Future<void> restoreAndFlush() async {
     if (_initialized) return;
     _initialized = true;
+    String? raw;
     try {
-      final raw = await _storage.getOutboxEntries();
+      raw = await _storage.getOutboxEntries();
+    } catch (error) {
+      // A transient MMKV read failure is not evidence that the persisted
+      // payload is corrupt. Leave it untouched and allow a later retry.
+      _initialized = false;
+      logger.warning(
+        '[MessageOutbox] failed to read persisted entries: $error',
+      );
+      return;
+    }
+    try {
       if (raw == null) return;
-      final list = jsonDecode(raw) as List<dynamic>;
+      final wasLegacyPlaintext = !_protection.isProtected(raw);
+      if (!_protection.isReady) {
+        try {
+          await _protection.initialize();
+        } catch (error) {
+          if (wasLegacyPlaintext) {
+            // Fail closed: legacy data must never remain plaintext merely
+            // because the secure key is temporarily unavailable.
+            await _storage.saveOutboxEntries('');
+          }
+          // Keep an already-encrypted blob byte-for-byte intact so recovery
+          // can be retried when platform secure storage is available again.
+          _initialized = false;
+          logger.warning(
+            '[MessageOutbox] protection key unavailable during restore: '
+            '$error',
+          );
+          return;
+        }
+      }
+      final plaintext = wasLegacyPlaintext
+          ? raw
+          : _protection.unprotectString(
+              raw,
+              associatedData: _outboxAssociatedData,
+            );
+      if (plaintext == null) {
+        await _replacePersistedOutboxWithEmpty();
+        return;
+      }
+      final list = jsonDecode(plaintext) as List<dynamic>;
       for (final item in list) {
         if (item is Map<String, dynamic>) {
           final entry = OutboxEntry.fromJson(item);
@@ -272,6 +323,20 @@ class MessageOutbox {
             'retryCount=${entry.retryCount} '
             'dead=${entry.dead}',
           );
+        }
+      }
+      if (wasLegacyPlaintext) {
+        // Complete the one-way migration before scheduling any retries. The
+        // same localId/rawRecord values are encrypted as one atomic blob.
+        final migrated = await _persistCurrentSnapshot();
+        if (!migrated) {
+          // Normal debounced writes are loss-averse and retain their previous
+          // ciphertext on failure. Migration is stricter: if sealing failed,
+          // remove the legacy plaintext before any retry is scheduled.
+          await _storage.saveOutboxEntries('');
+          _entries.clear();
+          _dead.clear();
+          return;
         }
       }
       // Republish the terminal state of every dead-lettered entry so the
@@ -294,6 +359,9 @@ class MessageOutbox {
       }
     } catch (e) {
       logger.warning('[MessageOutbox] failed to restore entries: $e');
+      _entries.clear();
+      _dead.clear();
+      await _replacePersistedOutboxWithEmpty();
     }
   }
 
@@ -454,18 +522,12 @@ class MessageOutbox {
   // ── Private helpers ────────────────────────────────────────────────────────
 
   Duration _backoffDuration(int retryCount) {
-    final delayMs = min(
-      _baseDelayMs * pow(2, retryCount).toInt(),
-      _maxDelayMs,
-    );
+    final delayMs = min(_baseDelayMs * pow(2, retryCount).toInt(), _maxDelayMs);
     final jitter = _rng.nextInt(251); // 0–250 ms
     return Duration(milliseconds: delayMs + jitter);
   }
 
-  void _scheduleRetry(
-    OutboxEntry entry, {
-    Duration? initialDelay,
-  }) {
+  void _scheduleRetry(OutboxEntry entry, {Duration? initialDelay}) {
     _retryTimers.remove(entry.localId)?.cancel();
     final delay = initialDelay ?? _backoffDuration(entry.retryCount);
     logger.info(
@@ -522,9 +584,7 @@ class MessageOutbox {
     }
 
     if (failure == null) {
-      logger.info(
-        '[MessageOutbox] delivered localId=$localId',
-      );
+      logger.info('[MessageOutbox] delivered localId=$localId');
       _entries.remove(localId);
       _schedulePersist();
       _onStatusChanged?.call(entry.sessionId, localId, 'sent');
@@ -610,14 +670,52 @@ class MessageOutbox {
   }
 
   Future<void> _persist() async {
+    await _persistCurrentSnapshot();
+  }
+
+  Future<bool> _persistCurrentSnapshot() async {
     try {
+      if (!_protection.isReady) {
+        await _protection.initialize();
+      }
       final list = [
         ..._entries.values.map((e) => e.toJson()),
         ..._dead.values.map((e) => e.toJson()),
       ];
-      await _storage.saveOutboxEntries(jsonEncode(list));
+      final protected = _protection.protectString(
+        jsonEncode(list),
+        associatedData: _outboxAssociatedData,
+      );
+      if (protected == null) {
+        logger.warning(
+          '[MessageOutbox] device protection key unavailable; '
+          'skipping persist',
+        );
+        return false;
+      }
+      await _storage.saveOutboxEntries(protected);
+      return true;
     } catch (e) {
       logger.warning('[MessageOutbox] failed to persist: $e');
+      return false;
+    }
+  }
+
+  Future<void> _replacePersistedOutboxWithEmpty() async {
+    try {
+      if (!_protection.isReady) {
+        await _protection.initialize();
+      }
+      final protected = _protection.protectString(
+        '[]',
+        associatedData: _outboxAssociatedData,
+      );
+      await _storage.saveOutboxEntries(protected ?? '');
+    } catch (error) {
+      // An empty string carries no user data and prevents legacy plaintext
+      // from surviving when secure storage is unavailable.
+      await _storage.saveOutboxEntries('');
+      logger.warning('[MessageOutbox] failed to seal empty outbox: $error');
     }
   }
 }

@@ -1,49 +1,100 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart'
     show compute, kIsWeb, visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../utils/image_content_blocks.dart';
+import 'at_rest_encryption_service.dart';
 import 'logger_service.dart' show logger;
 import 'mmkv_storage.dart';
 import 'opentelemetry_service.dart';
 
-/// Top-level isolate worker: encodes a prepared cache window to JSON.
-///
-/// Must stay top-level and take only sendable POD arguments — a closure
-/// capturing `this` here reintroduces the "Isolate unsendable Future"
-/// production bug (ROADMAP, 7b69d1b).
-String _encodeMessageCacheJson(List<Map<String, dynamic>> messages) {
-  return jsonEncode(messages);
-}
+const String _cacheCiphertextMarker = '_happyAtRestCiphertext';
 
-/// A cache window prepared on the main isolate and queued for
-/// background encoding + persistence.
-///
-/// Queuing (rather than firing one `compute()` per save) means at most
-/// one encode isolate is alive at a time and a session that changes
-/// again while its previous snapshot is still encoding supersedes it
-/// instead of racing a second isolate.
-class _PendingCacheSave {
-  _PendingCacheSave({
+/// Cache window prepared for persistence.
+class _PreparedCacheWindow {
+  const _PreparedCacheWindow({
     required this.messages,
     required this.originalCount,
     required this.hash,
-    required this.seq,
     required this.prepareMs,
   });
 
   final List<Map<String, dynamic>> messages;
   final int originalCount;
   final int hash;
+  final int prepareMs;
+}
+
+_PreparedCacheWindow _prepareMessageCacheWindow(
+  List<Map<String, dynamic>> messages,
+) {
+  final prepareWatch = Stopwatch()..start();
+  final withoutSynthetics = MessageCacheService.stripOrphanSynthetics(messages);
+  final trimmed = MessageCacheService._trimToCacheWindow(withoutSynthetics);
+  final sanitized = trimmed.map(stripInlineImageData).toList();
+  return _PreparedCacheWindow(
+    messages: sanitized,
+    originalCount: messages.length,
+    hash: MessageCacheService._computeCacheWindowHash(sanitized),
+    prepareMs: prepareWatch.elapsedMilliseconds,
+  );
+}
+
+/// Top-level isolate worker: prepares, encodes, and protects a cache window.
+///
+/// Must stay top-level and take only sendable POD arguments — a closure
+/// capturing `this` here reintroduces the "Isolate unsendable Future"
+/// production bug (ROADMAP, 7b69d1b).
+Map<String, dynamic> _prepareAndProtectMessageCacheJson(
+  Map<String, dynamic> request,
+) {
+  final protectionKey = request['protectionKey'] as Uint8List;
+  try {
+    final messages = (request['messages'] as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final associatedData = request['associatedData'] as String;
+    final prepared = _prepareMessageCacheWindow(messages);
+    final protected = protectAtRestPayloadForWorker(
+      jsonEncode(prepared.messages),
+      associatedData: associatedData,
+      key: protectionKey,
+    );
+    return <String, dynamic>{
+      'encodedMarker': protected == null
+          ? null
+          : jsonEncode(<Map<String, dynamic>>[
+              <String, dynamic>{_cacheCiphertextMarker: protected},
+            ]),
+      'originalCount': prepared.originalCount,
+      'savedCount': prepared.messages.length,
+      'hash': prepared.hash,
+      'prepareMs': prepared.prepareMs,
+    };
+  } finally {
+    // Also covers failures before the encryption helper is reached.
+    protectionKey.fillRange(0, protectionKey.length, 0);
+  }
+}
+
+/// A raw cache snapshot queued for background preparation + persistence.
+///
+/// Queuing (rather than firing one `compute()` per save) means at most
+/// one encode isolate is alive at a time and a session that changes
+/// again while its previous snapshot is still encoding supersedes it
+/// instead of racing a second isolate.
+class _PendingCacheSave {
+  _PendingCacheSave({required this.messages, required this.seq});
+
+  final List<Map<String, dynamic>> messages;
 
   /// Monotonic write order. A write whose [seq] is older than the last
   /// committed write for the session is dropped instead of clobbering
   /// fresher data (e.g. the synchronous suspend flush).
   final int seq;
-  final int prepareMs;
   final Completer<void> completer = Completer<void>();
   final Stopwatch queueWatch = Stopwatch()..start();
 
@@ -72,13 +123,24 @@ class MessageCacheService {
   /// round-trip behavior (e.g. cleaned-cache rewrites) can be observed
   /// without booting the native MMKV plugin.
   MMKVStorage _storage = MMKVStorage();
+  AtRestEncryptionService _protection = AtRestEncryptionService();
+
+  static final Uint8List _testProtectionKey = Uint8List.fromList(
+    List<int>.generate(32, (index) => index + 1),
+  );
 
   @visibleForTesting
   // ignore: avoid_setters_without_getters
-  set debugSetStorage(MMKVStorage storage) => _storage = storage;
+  set debugSetStorage(MMKVStorage storage) {
+    _storage = storage;
+    _protection = AtRestEncryptionService.memoryOnly(_testProtectionKey);
+  }
 
   @visibleForTesting
-  void debugResetStorage() => _storage = MMKVStorage();
+  void debugResetStorage() {
+    _storage = MMKVStorage();
+    _protection = AtRestEncryptionService();
+  }
 
   /// Maximum number of messages to cache per session.
   /// Keep the persisted copy bounded to the recent window used by the
@@ -118,6 +180,9 @@ class MessageCacheService {
   /// Latest queued snapshot per session, awaiting background encode.
   final Map<String, _PendingCacheSave> _pendingSaves = {};
 
+  /// Snapshot currently being prepared by the single worker.
+  final Map<String, _PendingCacheSave> _inFlightSaves = {};
+
   /// Whether the queue drain loop is currently running. Guarantees a
   /// single in-flight encode isolate across all sessions.
   bool _draining = false;
@@ -138,6 +203,7 @@ class MessageCacheService {
     return _processCachedMessages(
       sessionId,
       cached,
+      storedWasProtected: _isProtectedCacheMarker(cached),
       elapsedMs: stopwatch.elapsedMilliseconds,
     );
   }
@@ -154,6 +220,7 @@ class MessageCacheService {
     return _processCachedMessages(
       sessionId,
       cached,
+      storedWasProtected: _isProtectedCacheMarker(cached),
       elapsedMs: stopwatch.elapsedMilliseconds,
     );
   }
@@ -161,12 +228,15 @@ class MessageCacheService {
   List<Map<String, dynamic>> _processCachedMessages(
     String sessionId,
     List<Map<String, dynamic>> cached, {
+    required bool storedWasProtected,
     required int elapsedMs,
   }) {
-    var messages = _trimToCacheWindow(cached);
+    final decoded = _decodeStoredCache(sessionId, cached);
+    if (decoded == null) return <Map<String, dynamic>>[];
+    var messages = _trimToCacheWindow(decoded);
 
-    if (messages.length != cached.length) {
-      _rewriteTrimmedCache(sessionId, messages, originalCount: cached.length);
+    if (storedWasProtected && messages.length != decoded.length) {
+      _rewriteTrimmedCache(sessionId, messages, originalCount: decoded.length);
     }
 
     // Scrub legacy `_orphanRecovery: true` synthetic Task tiles that
@@ -177,7 +247,9 @@ class MessageCacheService {
     // read is free.
     final scrubbed = stripOrphanSynthetics(messages);
     if (!identical(scrubbed, messages)) {
-      _rewriteScrubbedCache(sessionId, scrubbed);
+      if (storedWasProtected) {
+        _rewriteScrubbedCache(sessionId, scrubbed);
+      }
       messages = scrubbed;
     }
 
@@ -190,6 +262,14 @@ class MessageCacheService {
     // all N cache windows with byte-identical content.
     if (messages.isNotEmpty && !_lastSavedHash.containsKey(sessionId)) {
       _lastSavedHash[sessionId] = _computeCacheWindowHash(messages);
+    }
+
+    if (!storedWasProtected && cached.isNotEmpty) {
+      _rewriteProtectedCache(
+        sessionId,
+        messages,
+        reason: 'legacy plaintext migration',
+      );
     }
 
     // Emit the read span for EVERY read, hit or miss. Emitting it only on
@@ -232,6 +312,62 @@ class MessageCacheService {
     }
     return messages;
   }
+
+  bool _isProtectedCacheMarker(List<Map<String, dynamic>> cached) =>
+      cached.length == 1 && cached.single[_cacheCiphertextMarker] is String;
+
+  List<Map<String, dynamic>>? _decodeStoredCache(
+    String sessionId,
+    List<Map<String, dynamic>> cached,
+  ) {
+    if (!_isProtectedCacheMarker(cached)) {
+      if (!_protection.isReady && cached.isNotEmpty) {
+        // Never retain legacy sensitive plaintext when the device key is
+        // unavailable. The server remains the source of truth.
+        _storage.clearSessionMessages(sessionId);
+        return null;
+      }
+      return cached;
+    }
+    final protected = cached.single[_cacheCiphertextMarker]! as String;
+    if (!_protection.isReady) {
+      // A temporary secure-storage failure is not corruption. Keep the
+      // ciphertext so a later read can recover it after key initialization.
+      return null;
+    }
+    final plaintext = _protection.unprotectString(
+      protected,
+      associatedData: _cacheAssociatedData(sessionId),
+    );
+    if (plaintext == null) {
+      // Authentication failure, missing key, or corrupt envelope. Delete the
+      // cache rather than treating ciphertext as a message row.
+      _storage.clearSessionMessages(sessionId);
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(plaintext);
+      if (decoded is! List<dynamic>) {
+        throw const FormatException('cache root is not a list');
+      }
+      return <Map<String, dynamic>>[
+        for (final item in decoded)
+          if (item is Map<String, dynamic>)
+            Map<String, dynamic>.from(item)
+          else
+            throw const FormatException('cache row is not an object'),
+      ];
+    } catch (error) {
+      logger.warning(
+        '[MessageCache] Decrypted cache was malformed for $sessionId: $error',
+      );
+      _storage.clearSessionMessages(sessionId);
+      return null;
+    }
+  }
+
+  String _cacheAssociatedData(String sessionId) =>
+      'message-cache:v1:$sessionId';
 
   /// Updates the LRU list for web, evicting the oldest session(s) if
   /// the number of cached sessions exceeds [_maxWebSessions].
@@ -279,17 +415,25 @@ class MessageCacheService {
     // flush): it supersedes any queued snapshot for the session, which
     // may never get its encode isolate before the process is killed.
     _pendingSaves.remove(sessionId)?.complete();
-
-    final prepared = _prepareSave(sessionId, messages);
-    if (prepared == null) return;
+    final seq = ++_saveSeq;
+    final prepared = _prepareMessageCacheWindow(messages);
+    if (_lastSavedHash[sessionId] == prepared.hash) {
+      _committedSeq[sessionId] = seq;
+      return;
+    }
+    if (kIsWeb) {
+      _touchWebLru(sessionId);
+    }
 
     final writeWatch = Stopwatch()..start();
     try {
-      _storage.saveSessionMessages(sessionId, prepared.messages);
-      _commitWrite(sessionId, prepared);
+      if (!_writeProtectedCache(sessionId, prepared.messages)) return;
+      _commitWrite(sessionId, hash: prepared.hash, seq: seq);
       _recordWrite(
         sessionId,
-        prepared,
+        savedCount: prepared.messages.length,
+        originalCount: prepared.originalCount,
+        prepareMs: prepared.prepareMs,
         queueMs: 0,
         encodeMs: 0,
         writeMs: writeWatch.elapsedMilliseconds,
@@ -303,60 +447,34 @@ class MessageCacheService {
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {
-    final prepared = _prepareSave(sessionId, messages);
-    if (prepared == null) return Future<void>.value();
+    final save = _PendingCacheSave(messages: messages, seq: ++_saveSeq);
 
     // Latest snapshot wins: the superseded one is resolved immediately
     // because the newer write subsumes its content.
     _pendingSaves.remove(sessionId)?.complete();
-    _pendingSaves[sessionId] = prepared;
-    _kickDrain();
-    return prepared.completer.future;
-  }
-
-  /// Build the persisted cache window on the main isolate, or return
-  /// `null` when the write can be skipped because nothing changed.
-  _PendingCacheSave? _prepareSave(
-    String sessionId,
-    List<Map<String, dynamic>> messages,
-  ) {
-    final prepareWatch = Stopwatch()..start();
-    final trimmed = _trimToCacheWindow(messages);
-    // Strip inline base64 image bytes before persisting: a chat with a
-    // few screenshots would otherwise put multi-MB strings into MMKV
-    // (and into the cache-window hash) for every save. Stripped blocks
-    // keep their shape so restored rows render a placeholder, and the
-    // retry path refuses to resend them (the pixels are gone).
-    final toSave = trimmed.map(stripInlineImageData).toList();
-
-    // Skip write when the cache-window hash is unchanged — avoids
-    // repeated MMKV serialization of the same message list. The queued
-    // snapshot's hash wins over the last committed one so a rapid
-    // change/revert while an encode is queued still reconciles.
-    final hash = _computeCacheWindowHash(toSave);
-    final prevHash =
-        _pendingSaves[sessionId]?.hash ?? _lastSavedHash[sessionId];
-    if (prevHash == hash && prevHash != null) {
-      logger.debug(
-        '[MessageCache] Skipping save for session $sessionId '
-        '(hash unchanged: $hash)',
-      );
-      return null;
-    }
-
-    // On web, evict stale sessions before writing so we never exceed
-    // the quota guard.
+    _pendingSaves[sessionId] = save;
     if (kIsWeb) {
       _touchWebLru(sessionId);
     }
+    _kickDrain();
+    return save.completer.future;
+  }
 
-    return _PendingCacheSave(
-      messages: toSave,
-      originalCount: messages.length,
-      hash: hash,
-      seq: ++_saveSeq,
-      prepareMs: prepareWatch.elapsedMilliseconds,
-    );
+  /// Synchronously persist every cache save owned by this service, plus
+  /// sessions whose Sync debounce timer has not fired yet.
+  void flushPendingMessages(
+    Map<String, List<Map<String, dynamic>>> latestMessages, {
+    Iterable<String> additionalSessionIds = const <String>[],
+  }) {
+    final sessionIds = <String>{
+      ..._pendingSaves.keys,
+      ..._inFlightSaves.keys,
+      ...additionalSessionIds,
+    };
+    for (final sessionId in sessionIds) {
+      final messages = latestMessages[sessionId];
+      if (messages != null) saveMessages(sessionId, messages);
+    }
   }
 
   void _kickDrain() {
@@ -375,22 +493,52 @@ class MessageCacheService {
       while (_pendingSaves.isNotEmpty) {
         final sessionId = _pendingSaves.keys.first;
         final save = _pendingSaves.remove(sessionId)!;
+        _inFlightSaves[sessionId] = save;
         await _runQueuedSave(sessionId, save);
+        if (identical(_inFlightSaves[sessionId], save)) {
+          _inFlightSaves.remove(sessionId);
+        }
       }
     } finally {
       _draining = false;
     }
   }
 
-  Future<void> _runQueuedSave(
-    String sessionId,
-    _PendingCacheSave save,
-  ) async {
+  Future<void> _runQueuedSave(String sessionId, _PendingCacheSave save) async {
     final queueMs = save.queueWatch.elapsedMilliseconds;
-    final encodeWatch = Stopwatch()..start();
+    final workerWatch = Stopwatch()..start();
     try {
-      final encoded = await compute(_encodeMessageCacheJson, save.messages);
-      final encodeMs = encodeWatch.elapsedMilliseconds;
+      if (!_protection.isReady) {
+        try {
+          await _protection.initialize();
+        } catch (error) {
+          logger.warning(
+            '[MessageCache] Device protection key unavailable; '
+            'skipping async cache write for $sessionId: $error',
+          );
+          return;
+        }
+      }
+      final protectionKey = _protection.copyKeyForWorker();
+      if (protectionKey == null) {
+        logger.warning(
+          '[MessageCache] Device protection key unavailable; '
+          'skipping async cache write for $sessionId',
+        );
+        return;
+      }
+      late Map<String, dynamic> result;
+      try {
+        result = await compute(_prepareAndProtectMessageCacheJson, {
+          'messages': save.messages,
+          'associatedData': _cacheAssociatedData(sessionId),
+          'protectionKey': protectionKey,
+        });
+      } finally {
+        // Native compute copies this buffer; web compute may share it.
+        protectionKey.fillRange(0, protectionKey.length, 0);
+      }
+      final workerMs = workerWatch.elapsedMilliseconds;
       // A newer snapshot arrived, or a synchronous flush / clear already
       // wrote fresher state while we were encoding — drop the stale
       // write instead of clobbering it.
@@ -398,44 +546,63 @@ class MessageCacheService {
           (_committedSeq[sessionId] ?? 0) > save.seq) {
         return;
       }
+      final hash = result['hash'] as int;
+      final prepareMs = result['prepareMs'] as int;
+      final encodeMs = workerMs > prepareMs ? workerMs - prepareMs : 0;
+      if (_lastSavedHash[sessionId] == hash) {
+        _commitWrite(sessionId, hash: hash, seq: save.seq);
+        return;
+      }
       final writeWatch = Stopwatch()..start();
-      _storage.saveSessionMessagesEncoded(sessionId, encoded);
-      _commitWrite(sessionId, save);
+      final marker = result['encodedMarker'] as String?;
+      if (marker == null) {
+        logger.warning(
+          '[MessageCache] Worker failed to protect payload; '
+          'skipping async cache write for $sessionId',
+        );
+        return;
+      }
+      _storage.saveSessionMessagesEncoded(sessionId, marker);
+      _commitWrite(sessionId, hash: hash, seq: save.seq);
       _recordWrite(
         sessionId,
-        save,
+        savedCount: result['savedCount'] as int,
+        originalCount: result['originalCount'] as int,
+        prepareMs: prepareMs,
         queueMs: queueMs,
         encodeMs: encodeMs,
         writeMs: writeWatch.elapsedMilliseconds,
       );
     } catch (e) {
-      _recordWriteFailure(sessionId, e, encodeWatch.elapsedMilliseconds);
+      _recordWriteFailure(sessionId, e, workerWatch.elapsedMilliseconds);
     } finally {
       save.complete();
     }
   }
 
-  void _commitWrite(String sessionId, _PendingCacheSave save) {
-    _lastSavedHash[sessionId] = save.hash;
-    _committedSeq[sessionId] = save.seq;
+  void _commitWrite(String sessionId, {required int hash, required int seq}) {
+    _lastSavedHash[sessionId] = hash;
+    _committedSeq[sessionId] = seq;
   }
 
   void _recordWrite(
-    String sessionId,
-    _PendingCacheSave save, {
+    String sessionId, {
+    required int savedCount,
+    required int originalCount,
+    required int prepareMs,
     required int queueMs,
     required int encodeMs,
     required int writeMs,
   }) {
-    final elapsedMs = save.prepareMs + queueMs + encodeMs + writeMs;
+    final elapsedMs = prepareMs + queueMs + encodeMs + writeMs;
     if (elapsedMs < _slowCacheWriteMs) return;
     logger.debug(
       '[MessageCache] Slow save for session $sessionId: '
-      '${save.messages.length}/${save.originalCount} messages in '
-      '${elapsedMs}ms (prepare ${save.prepareMs}ms, queue ${queueMs}ms, '
+      '$savedCount/$originalCount messages in '
+      '${elapsedMs}ms (prepare ${prepareMs}ms, queue ${queueMs}ms, '
       'encode ${encodeMs}ms, write ${writeMs}ms)',
     );
-    final truncated = save.originalCount > _maxCachedMessages;
+    final truncated = originalCount > _maxCachedMessages;
     unawaited(
       Sentry.addBreadcrumb(
         Breadcrumb(
@@ -444,11 +611,11 @@ class MessageCacheService {
           level: SentryLevel.info,
           data: {
             'sessionId': sessionId,
-            'savedCount': save.messages.length,
-            'originalCount': save.originalCount,
+            'savedCount': savedCount,
+            'originalCount': originalCount,
             'truncated': truncated,
             'elapsedMs': elapsedMs,
-            'prepareMs': save.prepareMs,
+            'prepareMs': prepareMs,
             'queueMs': queueMs,
             'encodeMs': encodeMs,
             'writeMs': writeMs,
@@ -461,13 +628,13 @@ class MessageCacheService {
           'cache.messages.write',
           attributes: {
             'session.id': sessionId,
-            'message.saved_count': save.messages.length,
-            'message.original_count': save.originalCount,
+            'message.saved_count': savedCount,
+            'message.original_count': originalCount,
             'cache.truncated': truncated,
             'cache.elapsed_ms': elapsedMs,
-            // Split so the dashboard can tell UI-isolate cost
-            // (prepare + write) from background encode + queue wait.
-            'cache.prepare_ms': save.prepareMs,
+            // Async saves prepare + encode in the worker; synchronous
+            // suspend saves prepare + write on the UI isolate.
+            'cache.prepare_ms': prepareMs,
             'cache.queue_ms': queueMs,
             'cache.encode_ms': encodeMs,
             'cache.write_ms': writeMs,
@@ -515,7 +682,7 @@ class MessageCacheService {
     required int originalCount,
   }) {
     try {
-      _storage.saveSessionMessages(sessionId, messages);
+      if (!_writeProtectedCache(sessionId, messages)) return;
       _markPersisted(sessionId, messages);
       logger.debug(
         '[MessageCache] Trimmed legacy cache for session $sessionId '
@@ -536,7 +703,7 @@ class MessageCacheService {
     List<Map<String, dynamic>> cleaned,
   ) {
     try {
-      _storage.saveSessionMessages(sessionId, cleaned);
+      if (!_writeProtectedCache(sessionId, cleaned)) return;
       _markPersisted(sessionId, cleaned);
       logger.debug(
         '[MessageCache] Scrubbed stale orphan synthetics for session '
@@ -547,6 +714,50 @@ class MessageCacheService {
         '[MessageCache] Failed to scrub legacy synthetics for $sessionId: $e',
       );
     }
+  }
+
+  void _rewriteProtectedCache(
+    String sessionId,
+    List<Map<String, dynamic>> messages, {
+    required String reason,
+  }) {
+    try {
+      if (!_writeProtectedCache(sessionId, messages)) {
+        _storage.clearSessionMessages(sessionId);
+        return;
+      }
+      logger.info('[MessageCache] Completed $reason for $sessionId');
+    } catch (error) {
+      logger.warning('[MessageCache] Failed $reason for $sessionId: $error');
+      _storage.clearSessionMessages(sessionId);
+    }
+  }
+
+  bool _writeProtectedCache(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    final marker = _protectedCacheMarker(sessionId, jsonEncode(messages));
+    if (marker == null) {
+      logger.warning(
+        '[MessageCache] Device protection key unavailable; '
+        'skipping cache write for $sessionId',
+      );
+      return false;
+    }
+    _storage.saveSessionMessagesEncoded(sessionId, marker);
+    return true;
+  }
+
+  String? _protectedCacheMarker(String sessionId, String plaintextJson) {
+    final protected = _protection.protectString(
+      plaintextJson,
+      associatedData: _cacheAssociatedData(sessionId),
+    );
+    if (protected == null) return null;
+    return jsonEncode(<Map<String, dynamic>>[
+      <String, dynamic>{_cacheCiphertextMarker: protected},
+    ]);
   }
 
   /// Record that [messages] is exactly what storage now holds for
@@ -569,7 +780,11 @@ class MessageCacheService {
       final sendStatus = m['sendStatus'];
       final content = m['content'];
       final contentHash = _contentFingerprint(content);
-      hash = Object.hash(hash, id, seq, state, sendStatus, contentHash);
+      hash = _combineHash(hash, _contentFingerprint(id));
+      hash = _combineHash(hash, _contentFingerprint(seq));
+      hash = _combineHash(hash, _contentFingerprint(state));
+      hash = _combineHash(hash, _contentFingerprint(sendStatus));
+      hash = _combineHash(hash, contentHash);
     }
     return hash;
   }
@@ -580,23 +795,64 @@ class MessageCacheService {
   /// the full value on every save would dominate the CPU budget.
   static int _contentFingerprint(Object? content) {
     return switch (content) {
-      final String text => text.length <= _cacheContentThreshold
-          ? Object.hash(text.length, text.hashCode)
-          : Object.hash(
-              text.length,
-              text.substring(0, _cacheContentSample).hashCode,
-              text.substring(text.length - _cacheContentSample).hashCode,
-            ),
-      final List<dynamic> list => list.length > _cacheCollectionThreshold
-          ? Object.hash(
-              list.length,
-              _contentFingerprint(list.firstOrNull),
-              _contentFingerprint(list.lastOrNull),
-            )
-          : Object.hash(list.length, list.map(_contentFingerprint).join()),
-      _ => content?.hashCode ?? 0,
+      final String text =>
+        text.length <= _cacheContentThreshold
+            ? _hashString(text)
+            : _combineHashes(<int>[
+                text.length,
+                _hashString(text.substring(0, _cacheContentSample)),
+                _hashString(text.substring(text.length - _cacheContentSample)),
+              ]),
+      final List<dynamic> list =>
+        list.length > _cacheCollectionThreshold
+            ? _combineHashes(<int>[
+                list.length,
+                _contentFingerprint(list.firstOrNull),
+                _contentFingerprint(list.lastOrNull),
+              ])
+            : _combineHashes(<int>[
+                list.length,
+                ...list.map(_contentFingerprint),
+              ]),
+      final Map<dynamic, dynamic> map => _fingerprintMap(map),
+      final num number => number.hashCode,
+      final bool value => value ? 1 : 2,
+      null => 0,
+      _ => _hashString(content.toString()),
     };
   }
+
+  static int _fingerprintMap(Map<dynamic, dynamic> map) {
+    var hash = map.length;
+    var visited = 0;
+    for (final entry in map.entries) {
+      if (visited >= _cacheCollectionThreshold) break;
+      hash = _combineHash(hash, _contentFingerprint(entry.key));
+      hash = _combineHash(hash, _contentFingerprint(entry.value));
+      visited++;
+    }
+    return hash;
+  }
+
+  static int _hashString(String value) {
+    var hash = value.length;
+    for (final codeUnit in value.codeUnits) {
+      hash = _combineHash(hash, codeUnit);
+    }
+    return hash;
+  }
+
+  static int _combineHashes(Iterable<int> values) {
+    var hash = 0;
+    for (final value in values) {
+      hash = _combineHash(hash, value);
+    }
+    return hash;
+  }
+
+  // Stay within 29 bits so the result is identical on native Dart and web.
+  static int _combineHash(int hash, int value) =>
+      0x1fffffff & (hash * 31 + value);
 
   static const int _cacheContentThreshold = 256;
   static const int _cacheContentSample = 128;

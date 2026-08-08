@@ -2,6 +2,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/features/chat/send/chat_send_coordinator.dart';
 
 void main() {
+  group('canonicalMessageIdentityKey', () {
+    test('prefers localId after the server replaces the optimistic id', () {
+      final message = <String, dynamic>{
+        'id': 'server-42',
+        'localId': 'local-42',
+        'role': 'user',
+        'content': 'continue',
+      };
+
+      expect(canonicalMessageIdentityKey(message), 'local-42');
+    });
+
+    test('falls back to id and never uses repeated text as identity', () {
+      final first = <String, dynamic>{
+        'id': 'server-1',
+        'role': 'user',
+        'content': 'continue',
+      };
+      final second = <String, dynamic>{
+        'id': 'server-2',
+        'role': 'user',
+        'content': 'continue',
+      };
+
+      expect(canonicalMessageIdentityKey(first), 'server-1');
+      expect(canonicalMessageIdentityKey(second), 'server-2');
+      expect(
+        canonicalMessageIdentityKey(first),
+        isNot(canonicalMessageIdentityKey(second)),
+      );
+    });
+  });
+
   group('buildOptimisticUserMessage', () {
     test('sets id and localId to the same canonical value', () {
       final msg = buildOptimisticUserMessage(
@@ -38,6 +71,8 @@ void main() {
       expect(next[0]['sendStatus'], 'sending');
       expect(next[1]['sendStatus'], 'failed');
       expect(next[1]['localId'], 'b');
+      expect(next[1]['content'], 'two');
+      expect(next.where((m) => m['localId'] == 'b'), hasLength(1));
     });
 
     test('matches by id when localId field missing', () {
@@ -49,9 +84,7 @@ void main() {
     });
 
     test('returns original list when no match', () {
-      final list = [
-        buildOptimisticUserMessage(localId: 'a', text: 'one'),
-      ];
+      final list = [buildOptimisticUserMessage(localId: 'a', text: 'one')];
       final next = markOptimisticMessageFailed(list, 'missing');
       expect(identical(next, list), isTrue);
     });

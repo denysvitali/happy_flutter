@@ -17,10 +17,12 @@ class _TestScrollToBottomOverlay extends StatelessWidget {
     required this.autoScrollNotifier,
     required this.isLoading,
     required this.onTap,
+    this.unreadCount = 0,
   });
   final ValueListenable<bool> autoScrollNotifier;
   final bool isLoading;
   final VoidCallback onTap;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +49,11 @@ class _TestScrollToBottomOverlay extends StatelessWidget {
                   child: Align(
                     alignment: Alignment.bottomCenter,
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppSpacing.md,
+                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: ScrollToBottomPill(
+                        onTap: onTap,
+                        unreadCount: unreadCount,
                       ),
-                      child: ScrollToBottomPill(onTap: onTap),
                     ),
                   ),
                 ),
@@ -69,11 +72,7 @@ Widget _wrap(Widget child) {
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
-      body: SizedBox(
-        height: 400,
-        width: 400,
-        child: Stack(children: [child]),
-      ),
+      body: SizedBox(height: 400, width: 400, child: Stack(children: [child])),
     ),
   );
 }
@@ -84,11 +83,15 @@ void main() {
   group('scroll-to-bottom overlay', () {
     testWidgets('hides the pill when autoScroll is true', (tester) async {
       final notifier = ValueNotifier<bool>(true);
-      await tester.pumpWidget(_wrap(_TestScrollToBottomOverlay(
-        autoScrollNotifier: notifier,
-        isLoading: false,
-        onTap: () {},
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          _TestScrollToBottomOverlay(
+            autoScrollNotifier: notifier,
+            isLoading: false,
+            onTap: () {},
+          ),
+        ),
+      );
       // Find the outer IgnorePointer (the one inside the overlay,
       // ancestor of ExcludeSemantics). The IgnorePointer widget in
       // some other widget (e.g. Stack) can be ignored via .first.
@@ -96,9 +99,8 @@ void main() {
           .widgetList<IgnorePointer>(find.byType(IgnorePointer))
           .firstWhere(
             (w) => w.ignoring,
-            orElse: () => tester.widget<IgnorePointer>(
-              find.byType(IgnorePointer).first,
-            ),
+            orElse: () =>
+                tester.widget<IgnorePointer>(find.byType(IgnorePointer).first),
           );
       expect(ignorePointer.ignoring, isTrue);
       // ExcludeSemantics also flips when hidden — the overlay owns
@@ -109,31 +111,43 @@ void main() {
       expect(excludeSemantics.excluding, isTrue);
     });
 
-    testWidgets('shows the pill when autoScroll is false and not loading',
-        (tester) async {
+    testWidgets('shows the pill when autoScroll is false and not loading', (
+      tester,
+    ) async {
       final notifier = ValueNotifier<bool>(false);
-      await tester.pumpWidget(_wrap(_TestScrollToBottomOverlay(
-        autoScrollNotifier: notifier,
-        isLoading: false,
-        onTap: () {},
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          _TestScrollToBottomOverlay(
+            autoScrollNotifier: notifier,
+            isLoading: false,
+            onTap: () {},
+          ),
+        ),
+      );
       // ScrollToBottomPill is present and tappable.
       expect(find.byType(ScrollToBottomPill), findsOneWidget);
       // All IgnorePointers in the tree are non-ignoring.
-      for (final w in tester.widgetList<IgnorePointer>(find.byType(IgnorePointer))) {
+      for (final w in tester.widgetList<IgnorePointer>(
+        find.byType(IgnorePointer),
+      )) {
         expect(w.ignoring, isFalse);
       }
     });
 
-    testWidgets('hides the pill when isLoading is true even if not at bottom',
-        (tester) async {
+    testWidgets('hides the pill when isLoading is true even if not at bottom', (
+      tester,
+    ) async {
       // The overlay should not fight in-flight pagination.
       final notifier = ValueNotifier<bool>(false);
-      await tester.pumpWidget(_wrap(_TestScrollToBottomOverlay(
-        autoScrollNotifier: notifier,
-        isLoading: true,
-        onTap: () {},
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          _TestScrollToBottomOverlay(
+            autoScrollNotifier: notifier,
+            isLoading: true,
+            onTap: () {},
+          ),
+        ),
+      );
       // At least one IgnorePointer is ignoring.
       final anyIgnoring = tester
           .widgetList<IgnorePointer>(find.byType(IgnorePointer))
@@ -144,11 +158,15 @@ void main() {
     testWidgets('invokes onTap when the pill is tapped', (tester) async {
       final notifier = ValueNotifier<bool>(false);
       var tapped = 0;
-      await tester.pumpWidget(_wrap(_TestScrollToBottomOverlay(
-        autoScrollNotifier: notifier,
-        isLoading: false,
-        onTap: () => tapped++,
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          _TestScrollToBottomOverlay(
+            autoScrollNotifier: notifier,
+            isLoading: false,
+            onTap: () => tapped++,
+          ),
+        ),
+      );
       // The pill uses an InkWell inside a Material. The Material
       // is the hit target. Tap it directly.
       final material = find.descendant(
@@ -161,34 +179,44 @@ void main() {
       expect(tapped, 1);
     });
 
-    testWidgets('does not invoke onTap when hidden (autoScroll=true)',
-        (tester) async {
+    testWidgets('does not invoke onTap when hidden (autoScroll=true)', (
+      tester,
+    ) async {
       final notifier = ValueNotifier<bool>(true);
       var tapped = 0;
-      await tester.pumpWidget(_wrap(_TestScrollToBottomOverlay(
-        autoScrollNotifier: notifier,
-        isLoading: false,
-        onTap: () => tapped++,
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          _TestScrollToBottomOverlay(
+            autoScrollNotifier: notifier,
+            isLoading: false,
+            onTap: () => tapped++,
+          ),
+        ),
+      );
       // When hidden, IgnorePointer wraps the pill — taps are
       // swallowed before they reach the callback.
       await tester.tap(find.byType(ScrollToBottomPill), warnIfMissed: false);
       expect(tapped, 0);
     });
 
-    testWidgets('reacts to notifier changes without rebuilding the parent',
-        (tester) async {
+    testWidgets('reacts to notifier changes without rebuilding the parent', (
+      tester,
+    ) async {
       // The whole point of routing the pill through a ValueListenable
       // is so that scroll events don't trigger a full ChatScreen
       // rebuild. This test asserts the contract: flipping the
       // notifier value should cause the IgnorePointer/ExcludeSemantics
       // `ignoring`/`excluding` flags to flip.
       final notifier = ValueNotifier<bool>(true);
-      await tester.pumpWidget(_wrap(_TestScrollToBottomOverlay(
-        autoScrollNotifier: notifier,
-        isLoading: false,
-        onTap: () {},
-      )));
+      await tester.pumpWidget(
+        _wrap(
+          _TestScrollToBottomOverlay(
+            autoScrollNotifier: notifier,
+            isLoading: false,
+            onTap: () {},
+          ),
+        ),
+      );
       // Any IgnorePointer ignoring=true signals "hidden".
       final hiddenBefore = tester
           .widgetList<IgnorePointer>(find.byType(IgnorePointer))
@@ -200,6 +228,31 @@ void main() {
           .widgetList<IgnorePointer>(find.byType(IgnorePointer))
           .any((w) => w.ignoring);
       expect(hiddenAfter, isFalse);
+    });
+
+    testWidgets('passes unread count through to the visible pill', (
+      tester,
+    ) async {
+      final notifier = ValueNotifier<bool>(false);
+      await tester.pumpWidget(
+        _wrap(
+          _TestScrollToBottomOverlay(
+            autoScrollNotifier: notifier,
+            isLoading: false,
+            unreadCount: 7,
+            onTap: () {},
+          ),
+        ),
+      );
+
+      final pill = tester.widget<ScrollToBottomPill>(
+        find.byType(ScrollToBottomPill),
+      );
+      expect(pill.unreadCount, 7);
+      expect(find.text('7'), findsOneWidget);
+      final size = tester.getSize(find.byType(ScrollToBottomPill));
+      expect(size.width, greaterThanOrEqualTo(AppTouchTarget.min));
+      expect(size.height, greaterThanOrEqualTo(AppTouchTarget.min));
     });
   });
 }

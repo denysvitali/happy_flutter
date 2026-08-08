@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonCancel => 'Cancel';
 
   @override
+  String get commonUndo => 'Undo';
+
+  @override
   String get commonAdd => 'Add';
 
   @override
@@ -121,9 +124,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabsLoops => 'Loops';
 
   @override
-  String statusConnected(String time) {
-    return 'Connected';
-  }
+  String get statusConnected => 'Connected';
 
   @override
   String get statusConnecting => 'Connecting';
@@ -150,7 +151,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusPermissionRequired => 'Permission required';
 
   @override
-  String statusLastSeen(Object time) {
+  String statusLastSeen(String time) {
     return 'Last seen $time';
   }
 
@@ -279,10 +280,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInputPlaceholder => 'Type a message ...';
 
   @override
+  String get chatStopCurrentTask => 'Stop current task';
+
+  @override
+  String get chatStopAgentProcess => 'Stop agent process';
+
+  @override
+  String get chatStopAgentProcessConfirmTitle => 'Stop agent process?';
+
+  @override
+  String get chatStopAgentProcessConfirmBody =>
+      'This terminates the session\'s process or pod. The conversation is kept and can be restarted by sending another message.';
+
+  @override
+  String get chatStopAgentProcessSuccess => 'Agent process stopped';
+
+  @override
+  String get chatStopAgentProcessFailure =>
+      'Could not stop the agent process. It may still be running.';
+
+  @override
   String get sessionStartSession => 'Start Session';
 
   @override
   String get sessionStarting => 'Starting session...';
+
+  @override
+  String get newSessionPhaseCheckingMachine => 'Checking machine…';
+
+  @override
+  String get newSessionPhaseSavingPreferences => 'Saving preferences…';
+
+  @override
+  String get newSessionPhasePreparingWorktree => 'Creating worktree…';
+
+  @override
+  String get newSessionPhaseSchedulingContainer =>
+      'Scheduling container and preparing repository…';
+
+  @override
+  String get newSessionPhaseStartingAgent => 'Starting agent…';
+
+  @override
+  String get newSessionPhaseFinalizing => 'Finalizing session…';
 
   @override
   String get sessionStarted => 'Session Started';
@@ -574,6 +614,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get machineCliVersion => 'CLI Version';
+
+  @override
+  String get machineCompatibilityTitle => 'Happy update recommended';
+
+  @override
+  String machineCompatibilityMessage(
+    String currentVersion,
+    String requiredVersion,
+  ) {
+    return 'Version $currentVersion is installed. Update to $requiredVersion or later for the latest remote features.';
+  }
+
+  @override
+  String get machineCompatibilityAction => 'Copy update command';
+
+  @override
+  String get machineCompatibilityCopied => 'Update command copied';
 
   @override
   String get machineDaemonStateVersion => 'Daemon State Version';
@@ -1505,6 +1562,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandPalettePlaceholder => 'Type a command or search...';
 
   @override
+  String get commandPaletteSemanticsLabel => 'Command palette';
+
+  @override
+  String get commandPaletteNoResults => 'No commands found';
+
+  @override
+  String get commandPaletteTryDifferentSearch => 'Try a different search term';
+
+  @override
   String get toolViewInput => 'Input';
 
   @override
@@ -2189,6 +2255,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offlineBannerReconnecting => 'Reconnecting...';
+
+  @override
+  String get offlineBannerLiveUpdatesDisconnected =>
+      'Live updates disconnected';
+
+  @override
+  String get offlineBannerServiceUnavailable =>
+      'Service connection unavailable';
 
   @override
   String offlineBannerReconnectingIn(int seconds) {
@@ -3188,6 +3262,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionStop => 'Stop';
 
   @override
+  String get permissionAppliedOnce => 'Permission approved for this request';
+
+  @override
+  String get permissionAppliedForSession =>
+      'Permission approved for this session';
+
+  @override
+  String get permissionDenialApplied => 'Permission denied';
+
+  @override
   String get permissionYes => 'Yes';
 
   @override
@@ -3531,6 +3615,86 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatOnline => 'Online';
+
+  @override
+  String get chatStatusStopping => 'Stopping';
+
+  @override
+  String get chatStatusAgentFailed => 'Agent failed';
+
+  @override
+  String get chatStatusWillRestart => 'Will restart';
+
+  @override
+  String get chatStatusReconnecting => 'Reconnecting';
+
+  @override
+  String get chatStatusConnecting => 'Connecting';
+
+  @override
+  String get chatStatusApprovalNeeded => 'Approval needed';
+
+  @override
+  String get chatStatusWorkingOnSubtasks => 'Working on sub-tasks';
+
+  @override
+  String get chatStatusThinking => 'Thinking';
+
+  @override
+  String get chatStatusRetryQueued => 'Retry queued';
+
+  @override
+  String get chatStatusNotDelivered => 'Not delivered';
+
+  @override
+  String get chatStatusSentSlow => 'Sent (slow)';
+
+  @override
+  String get chatSendSending => 'Sending';
+
+  @override
+  String get chatSendSendingSemantic => 'Message sending';
+
+  @override
+  String get chatSendRetryQueuedSemantic => 'Message retry queued';
+
+  @override
+  String get chatSendDelivered => 'Delivered';
+
+  @override
+  String get chatSendDeliveredSlow => 'Delivered — slow';
+
+  @override
+  String get chatSendDeliveredSemantic => 'Message delivered';
+
+  @override
+  String get chatSendDeliveredSlowSemantic =>
+      'Message delivered after a slow send';
+
+  @override
+  String get chatSendNotDeliveredSemantic => 'Message not delivered';
+
+  @override
+  String get chatSendNotDeliveredRetrySemantic =>
+      'Message not delivered — tap to retry';
+
+  @override
+  String get chatSendFailedRetry => 'Failed — tap to retry';
+
+  @override
+  String get chatClearFailedSafe =>
+      'Could not clear the conversation. Try again.';
+
+  @override
+  String get chatLifecycleFailedTitle => 'Session agent stopped';
+
+  @override
+  String get chatLifecycleRecoverableMessage =>
+      'The agent process stopped. Sending a message will try to restart it before delivery.';
+
+  @override
+  String get chatLifecycleBlockedMessage =>
+      'The agent process stopped and cannot be restored. Start a new session to continue.';
 
   @override
   String get chatConversationCleared => 'Conversation cleared';
@@ -4070,6 +4234,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInfoInactive => 'Inactive';
 
   @override
+  String get sessionSandboxEnforced => 'Sandboxed';
+
+  @override
+  String get sessionSandboxNotEnforced => 'Not sandboxed';
+
+  @override
+  String get sessionSandboxOff => 'Sandbox off';
+
+  @override
+  String sessionSandboxEnforcedTooltip(String backend) {
+    return 'Isolation enforced by $backend';
+  }
+
+  @override
+  String get sessionSandboxNotEnforcedTooltip =>
+      'Sandboxing was requested but not enforced';
+
+  @override
+  String get sessionSandboxOffTooltip =>
+      'Sandboxing was not requested for this session';
+
+  @override
   String get commonId => 'ID';
 
   @override
@@ -4149,16 +4335,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get terminalSelectMachineError => 'Please select a machine';
 
   @override
-  String get terminalIdLabel => 'TERMINAL / SESSION ID';
+  String get terminalIdLabel => 'WORKING DIRECTORY';
 
   @override
-  String get terminalIdHint => 'e.g. main, dev, 1234';
+  String get terminalIdHint => '/path/to/project';
 
   @override
-  String get terminalDisconnect => 'Disconnect';
+  String get terminalDisconnect => 'Close';
 
   @override
-  String get terminalTitle => 'Terminal';
+  String get terminalTitle => 'Run command';
 
   @override
   String get terminalSendCommand => 'Send command';
@@ -4212,6 +4398,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandCategoryRecent => 'Recent';
 
   @override
+  String get commandCategoryGeneral => 'General';
+
+  @override
   String get commandNewSessionTitle => 'New Session';
 
   @override
@@ -4248,10 +4437,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commandArtifactsSubtitle => 'Browse your artifacts';
 
   @override
-  String get commandTerminalTitle => 'Terminal';
+  String get commandTerminalTitle => 'Run command';
 
   @override
-  String get commandTerminalSubtitle => 'Access terminal sessions';
+  String get commandTerminalSubtitle => 'Run a command on a connected machine';
 
   @override
   String networkInspectorTitle(int count) {
@@ -4434,6 +4623,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commandCategoryRecentSessions => 'Recent Sessions';
+
+  @override
+  String commandSessionFallback(String id) {
+    return 'Session $id';
+  }
+
+  @override
+  String get commandSwitchToSession => 'Switch to session';
 
   @override
   String get featuresSectionExperiments => 'Experiments';
@@ -4896,21 +5093,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsVoiceSettings => 'Voice Settings';
 
   @override
-  String get terminalConnect => 'Connect Terminal';
+  String get terminalConnect => 'Run command';
 
   @override
-  String get terminalConnected => 'Terminal connected.';
+  String get terminalConnected =>
+      'Commands run independently. Shell state is not preserved.';
 
   @override
   String get terminalConnectInfo =>
-      'Connect to a terminal session running on one of your machines.';
+      'Run one-off shell commands on a linked machine. This is not an interactive terminal.';
 
   @override
-  String get terminalDisconnectConfirm =>
-      'Are you sure you want to disconnect from the terminal?';
+  String get terminalCommandFailed =>
+      'Command failed. Check the machine connection and try again.';
 
   @override
-  String get terminalIdError => 'Please enter a terminal or session ID';
+  String get terminalDisconnectConfirm => 'Close the command runner?';
+
+  @override
+  String get terminalIdError => 'Please enter a working directory';
 
   @override
   String get terminalNoMachines =>
@@ -4918,6 +5119,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get terminalOutputPending => '[output pending]';
+
+  @override
+  String get terminalNoMachineConnected => 'No machine is connected.';
+
+  @override
+  String get terminalOutputTruncated => 'Output was truncated by the machine.';
+
+  @override
+  String terminalOutputTruncatedBytes(String size) {
+    return 'Output was truncated by the machine ($size total).';
+  }
 
   @override
   String get voiceSelectLanguageHint => 'Select the language for voice output.';
@@ -5660,6 +5872,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpAddServer => 'Add server';
 
   @override
+  String mcpEnableTrustTitle(String name) {
+    return 'Enable $name?';
+  }
+
+  @override
+  String mcpEnableTrustBody(
+    String target,
+    String scope,
+    String project,
+    String secrets,
+  ) {
+    return 'Review this server before allowing it to provide tools to the agent.\n\nTarget: $target\nScope: $scope\nProject: $project\nSecret names: $secrets';
+  }
+
+  @override
+  String get mcpEnableServer => 'Enable server';
+
+  @override
+  String get mcpEnabledWithUndo => 'MCP server enabled';
+
+  @override
+  String get mcpNoProject => 'All projects in this scope';
+
+  @override
+  String get mcpNoSecrets => 'None';
+
+  @override
   String get mcpEditTitle => 'Edit MCP server';
 
   @override
@@ -5812,10 +6051,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mcpArgsHelper => 'One argument per line.';
 
   @override
-  String get mcpEnvHelper => 'One KEY=VALUE per line.';
+  String get mcpEnvHelper =>
+      'Values stay masked. Add, replace, or remove environment variables.';
 
   @override
-  String get mcpHeadersHelper => 'One Header-Name=value per line.';
+  String get mcpHeadersHelper =>
+      'Values stay masked. Add, replace, or remove request headers.';
+
+  @override
+  String get mcpSecretAdd => 'Add secret';
+
+  @override
+  String get mcpSecretReplace => 'Replace secret';
+
+  @override
+  String get mcpSecretKey => 'Name';
+
+  @override
+  String get mcpSecretKeyRequired => 'Enter a name';
+
+  @override
+  String get mcpSecretKeyExists => 'That name already exists';
+
+  @override
+  String get mcpSecretValue => 'New value';
+
+  @override
+  String get mcpSecretValueRequired => 'Enter a value';
+
+  @override
+  String get mcpSecretReplacementReady => 'Replacement ready';
+
+  @override
+  String get mcpSecretStored => 'Stored securely';
+
+  @override
+  String get mcpSecretRemove => 'Remove secret';
 
   @override
   String get mcpUrlRequired => 'Enter a URL';
@@ -5908,6 +6179,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsSandboxSubtitle =>
       'Choose what a project\'s sessions can reach on your machines';
+
+  @override
+  String get settingsSandboxUnavailable =>
+      'Connect or update a machine daemon that supports sandboxing';
 
   @override
   String sessionActivityRunningTool(String tool) {
@@ -6010,6 +6285,388 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tasksMarkIncomplete => 'Mark incomplete';
+
+  @override
+  String get tasksTitle => 'Tasks';
+
+  @override
+  String get tasksEmptyTitle => 'No active tasks';
+
+  @override
+  String get tasksEmptySubtitle =>
+      'Tasks from your sessions will appear here, grouped by priority.';
+
+  @override
+  String get tasksPriorityCritical => 'Critical';
+
+  @override
+  String get tasksPriorityHigh => 'High';
+
+  @override
+  String get tasksPriorityMedium => 'Medium';
+
+  @override
+  String get tasksPriorityLow => 'Low';
+
+  @override
+  String get artifactsSourceSessions => 'Source sessions';
+
+  @override
+  String get artifactsSourceSessionsSubtitle =>
+      'Open the conversations that produced or updated this artifact.';
+
+  @override
+  String get workflowRefreshWarning =>
+      'Could not refresh. Showing saved progress.';
+
+  @override
+  String get workflowsTitle => 'Workflows';
+
+  @override
+  String workflowsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count workflows',
+      one: '1 workflow',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get workflowsUnavailableTitle => 'Workflows unavailable';
+
+  @override
+  String get workflowsUnavailableSubtitle =>
+      'This machine does not support workflow history yet. Update the Happy CLI to use it.';
+
+  @override
+  String get workflowsEmptyTitle => 'No workflows yet';
+
+  @override
+  String get workflowsEmptySubtitle =>
+      'Workflow runs will appear here when an agent starts one.';
+
+  @override
+  String get workflowsLoadFailedTitle => 'Could not load workflows';
+
+  @override
+  String get workflowLoadFailedSafe =>
+      'Workflow data is unavailable right now. Try again.';
+
+  @override
+  String get workflowNotFoundSafe => 'This workflow run is unavailable.';
+
+  @override
+  String get workflowRunFailedSafe => 'This workflow run failed unexpectedly.';
+
+  @override
+  String get workflowAgentFailedSafe => 'This agent step failed unexpectedly.';
+
+  @override
+  String get workflowErrorTitle => 'Error';
+
+  @override
+  String get workflowTitle => 'Workflow';
+
+  @override
+  String get connectionDiagnosticsTitle => 'Connection diagnostics';
+
+  @override
+  String get connectionDiagnosticsNetwork => 'Network';
+
+  @override
+  String get connectionDiagnosticsLiveUpdates => 'Live updates';
+
+  @override
+  String get connectionDiagnosticsLastDisconnect => 'Last disconnect';
+
+  @override
+  String get connectionDiagnosticsNoDisconnect => 'No disconnect recorded';
+
+  @override
+  String get connectionDiagnosticsDisconnectedFor => 'Disconnected for';
+
+  @override
+  String get connectionDiagnosticsReconnectAttempt => 'Reconnect attempt';
+
+  @override
+  String get connectionDiagnosticsService => 'Service';
+
+  @override
+  String get connectionDiagnosticsCheckingService => 'Checking…';
+
+  @override
+  String connectionDiagnosticsServiceDegraded(String components) {
+    return 'Degraded: $components';
+  }
+
+  @override
+  String get connectionDiagnosticsServiceDegradedSafe =>
+      'Some services are degraded';
+
+  @override
+  String get connectionDiagnosticsServiceUnavailable => 'Service unavailable';
+
+  @override
+  String get connectionDiagnosticsAuthenticationRequired =>
+      'Authentication required';
+
+  @override
+  String get connectionDiagnosticsTimedOut => 'Connection timed out';
+
+  @override
+  String get connectionDiagnosticsConnectionClosed => 'Connection closed';
+
+  @override
+  String connectionDiagnosticsElapsedSeconds(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seconds',
+      one: '1 second',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String connectionDiagnosticsElapsedMinutes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count minutes',
+      one: '1 minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String connectionDiagnosticsElapsedHoursMinutes(int hours, int minutes) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hours,
+      locale: localeName,
+      other: '$hours hours',
+      one: '1 hour',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      minutes,
+      locale: localeName,
+      other: '$minutes minutes',
+      one: '1 minute',
+      zero: '',
+    );
+    return '$_temp0 $_temp1';
+  }
+
+  @override
+  String get settingsHealthStatus => 'Status';
+
+  @override
+  String get settingsHealthSyncReady => 'Sync ready';
+
+  @override
+  String get settingsHealthSyncAttention => 'Sync needs attention';
+
+  @override
+  String get settingsHealthApplyingUpdates =>
+      'Connected and applying the latest updates';
+
+  @override
+  String get settingsHealthReady =>
+      'Ready for sessions, messages, and settings updates';
+
+  @override
+  String get settingsHealthOffline =>
+      'Offline. Updates will resume when the network returns';
+
+  @override
+  String get settingsHealthLoading =>
+      'Connected, waiting for initial data to finish loading';
+
+  @override
+  String get settingsHealthReconnecting => 'Reconnecting to live updates';
+
+  @override
+  String get settingsHealthNoMachines => 'No machines linked yet';
+
+  @override
+  String settingsHealthMachinesOnline(int online, int total) {
+    return '$online online of $total linked';
+  }
+
+  @override
+  String settingsHealthSessionsOnline(int online, int total) {
+    return '$online online of $total total';
+  }
+
+  @override
+  String get settingsHealthAccountRecovery => 'Account and recovery';
+
+  @override
+  String get settingsHealthAccountRecoverySubtitle =>
+      'Backup key, linked devices, restore, and services';
+
+  @override
+  String get settingsHealthSocketGeneration => 'Socket generation';
+
+  @override
+  String get settingsHealthLastSocketEvent => 'Last socket event age';
+
+  @override
+  String get settingsHealthNoSocketEvent => 'No event recorded';
+
+  @override
+  String get settingsHealthOutbox => 'Message outbox';
+
+  @override
+  String settingsHealthOutboxCounts(int pending, int failed) {
+    return '$pending pending, $failed failed';
+  }
+
+  @override
+  String get settingsHealthSyncDomains => 'Sync domains';
+
+  @override
+  String get settingsHealthCopyDiagnostics => 'Copy diagnostics';
+
+  @override
+  String get settingsHealthDomainSessions => 'Sessions';
+
+  @override
+  String get settingsHealthDomainMessages => 'Messages';
+
+  @override
+  String get settingsHealthDomainMachines => 'Machines';
+
+  @override
+  String get settingsHealthDomainSettings => 'Settings';
+
+  @override
+  String get settingsHealthDomainProfile => 'Profile';
+
+  @override
+  String get settingsHealthDomainArtifacts => 'Artifacts';
+
+  @override
+  String get settingsHealthDomainGitStatus => 'Git status';
+
+  @override
+  String get settingsHealthDomainFriendRequests => 'Friend requests';
+
+  @override
+  String get settingsHealthDomainLoops => 'Loops';
+
+  @override
+  String get settingsHealthDomainWorkflows => 'Workflows';
+
+  @override
+  String get settingsHealthDomainSyncing => 'Syncing now';
+
+  @override
+  String get settingsHealthDomainQueued => 'Update queued';
+
+  @override
+  String get settingsHealthDomainNoFreshness => 'No completed refresh recorded';
+
+  @override
+  String settingsHealthDomainFailed(String reason) {
+    return 'Failed: $reason';
+  }
+
+  @override
+  String settingsHealthDomainUpdated(String elapsed) {
+    return 'Updated $elapsed ago';
+  }
+
+  @override
+  String settingsHealthDomainState(String state, int revision) {
+    return '$state · revision $revision';
+  }
+
+  @override
+  String get settingsHealthFailureDecrypt => 'Encrypted data could not be read';
+
+  @override
+  String get settingsHealthFailureInterrupted => 'Refresh was interrupted';
+
+  @override
+  String get settingsHealthFailureInvalidData => 'Invalid response data';
+
+  @override
+  String get remoteFeatureErrorOffline => 'The selected machine is offline.';
+
+  @override
+  String get remoteFeatureErrorUnsupported =>
+      'This feature requires a newer Happy daemon.';
+
+  @override
+  String get remoteFeatureErrorTemporary =>
+      'The machine could not complete the request. Try again.';
+
+  @override
+  String get remoteFeatureErrorRejected =>
+      'The machine rejected the request. Check the values and try again.';
+
+  @override
+  String get remoteFeatureErrorUnknown => 'The request could not be completed.';
+
+  @override
+  String get accountRevealBackupKeyTitle => 'Reveal backup key?';
+
+  @override
+  String get accountRevealBackupKeyWarning =>
+      'Anyone who sees this key can access your account. Make sure nobody can see your screen.';
+
+  @override
+  String get accountRevealAction => 'Reveal';
+
+  @override
+  String get accountCopyBackupKeyTitle => 'Copy backup key?';
+
+  @override
+  String get accountCopyBackupKeyWarning =>
+      'The key grants full account access. It will be cleared from the clipboard after 60 seconds.';
+
+  @override
+  String get accountCopyKeyAction => 'Copy key';
+
+  @override
+  String get accountClipboardExpiry => 'Clipboard clears in 60s.';
+
+  @override
+  String get accountSwitchTitle => 'Switch account?';
+
+  @override
+  String accountSwitchWarning(String fingerprint) {
+    return 'This will replace the account on this device with account $fingerprint. Unsaved drafts and pending sends may not carry over.';
+  }
+
+  @override
+  String get accountSwitchAction => 'Switch account';
+
+  @override
+  String get accountShowBackupKeyAction => 'Show backup key';
+
+  @override
+  String get accountHideBackupKeyAction => 'Hide backup key';
+
+  @override
+  String get accountRestoreServiceError =>
+      'The restore service could not complete the request.';
+
+  @override
+  String accountRestoreRejectedCode(int code) {
+    return 'The restore service rejected the key (code $code).';
+  }
+
+  @override
+  String get accountRestoreGenericError =>
+      'Could not restore the account. Check your connection and try again.';
+
+  @override
+  String tasksOpenSession(String task, String session) {
+    return '$task, from $session. Open session';
+  }
 
   @override
   String get goalLoopsTitle => 'Goal loops';

@@ -56,11 +56,21 @@ class ServerUrlVerificationResult {
     required this.isValid,
     this.errorMessage,
     this.errorType,
+    this.serviceStatus,
+    this.degraded = const <String>[],
   });
 
   /// Create a successful result
-  const ServerUrlVerificationResult.success()
-    : this(isValid: true, errorMessage: null, errorType: null);
+  const ServerUrlVerificationResult.success({
+    String status = 'ok',
+    List<String> degraded = const <String>[],
+  }) : this(
+         isValid: true,
+         errorMessage: null,
+         errorType: null,
+         serviceStatus: status,
+         degraded: degraded,
+       );
 
   /// Create a failed result with details
   factory ServerUrlVerificationResult.failed(String message, [String? type]) {
@@ -68,11 +78,14 @@ class ServerUrlVerificationResult {
       isValid: false,
       errorMessage: message,
       errorType: type ?? 'Unknown',
+      serviceStatus: 'error',
     );
   }
   final bool isValid;
   final String? errorMessage;
   final String? errorType;
+  final String? serviceStatus;
+  final List<String> degraded;
 }
 
 /// Server URL validation result
@@ -144,7 +157,16 @@ Future<ServerUrlVerificationResult> verifyServerUrl(String url) async {
     if (response.statusCode != null &&
         response.statusCode! >= 200 &&
         response.statusCode! < 500) {
-      return const ServerUrlVerificationResult.success();
+      final body = response.data;
+      final status = body is Map ? body['status']?.toString() : null;
+      final degradedRaw = body is Map ? body['degraded'] : null;
+      final degraded = degradedRaw is List
+          ? degradedRaw.whereType<String>().toList(growable: false)
+          : const <String>[];
+      return ServerUrlVerificationResult.success(
+        status: status ?? 'ok',
+        degraded: degraded,
+      );
     } else {
       final errorMsg = 'Server returned error: HTTP ${response.statusCode}';
       logger.warning('Server verification failed: $errorMsg');

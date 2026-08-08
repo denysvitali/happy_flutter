@@ -64,6 +64,8 @@ class SettingsRow extends StatelessWidget {
     this.iconColor,
     this.trailing,
     this.onTap,
+    this.semanticsButton,
+    this.semanticsEnabled,
   });
 
   final IconData icon;
@@ -72,6 +74,8 @@ class SettingsRow extends StatelessWidget {
   final Color? iconColor;
   final Widget? trailing;
   final VoidCallback? onTap;
+  final bool? semanticsButton;
+  final bool? semanticsEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -165,8 +169,8 @@ class SettingsRow extends StatelessWidget {
     // would swallow them into this node — unreachable for a screen reader,
     // with their tap actions overwritten by the row's own.
     return Semantics(
-      button: onTap != null,
-      enabled: onTap != null ? true : null,
+      button: semanticsButton ?? onTap != null,
+      enabled: semanticsEnabled ?? (onTap != null ? true : null),
       container: true,
       label: semanticsLabel,
       onTap: onTap == null ? null : handleTap,
@@ -290,21 +294,26 @@ class SettingsNavRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return SettingsRow(
-      icon: icon,
-      title: title,
-      subtitle: subtitle,
-      onTap: onTap,
-      trailing: Icon(
-        Icons.chevron_right,
-        size: AppSpacing.xl,
-        textDirection: Directionality.of(context),
-        color: cs.onSurface.withValues(alpha: AppOpacity.medium),
+    return Opacity(
+      opacity: onTap == null ? AppMotion.disabledContentOpacity : 1,
+      child: SettingsRow(
+        icon: icon,
+        title: title,
+        subtitle: subtitle,
+        onTap: onTap,
+        semanticsButton: true,
+        semanticsEnabled: onTap != null,
+        trailing: Icon(
+          onTap == null ? Icons.block_outlined : Icons.chevron_right,
+          size: AppSpacing.xl,
+          textDirection: Directionality.of(context),
+          color: cs.onSurface.withValues(alpha: AppOpacity.medium),
+        ),
       ),
     );
   }

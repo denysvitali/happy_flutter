@@ -55,10 +55,7 @@ extension SyncMcpOperations on Sync {
         'command': command ?? '',
         'args': args,
         'env': env,
-      } else ...<String, dynamic>{
-        'url': url ?? '',
-        'headers': headers,
-      },
+      } else ...<String, dynamic>{'url': url ?? '', 'headers': headers},
     },
     label: 'machineSetMcpServer',
     // Config writes are quick, but they read-modify-write ~/.claude.json,
@@ -117,6 +114,16 @@ extension SyncMcpOperations on Sync {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     try {
+      final supported = testMachineRPCOverride == null
+          ? await machineSupportsRPC(machineId, method)
+          : null;
+      if (supported == false) {
+        return const McpConfigResponse(
+          success: false,
+          error: 'MCP management requires a newer machine agent',
+          failureKind: RemoteFeatureFailureKind.unsupported,
+        );
+      }
       return await _typedMachineRPC(
         machineId,
         method,
@@ -130,19 +137,30 @@ extension SyncMcpOperations on Sync {
         return const McpConfigResponse(
           success: false,
           error: 'machine offline',
+          failureKind: RemoteFeatureFailureKind.offline,
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info('$label: RPC method not available (daemon too old)');
         return const McpConfigResponse(
           success: false,
           error: 'MCP management requires a newer machine agent',
+          failureKind: RemoteFeatureFailureKind.unsupported,
         );
       } else if (Sync._isTransientRpcError(error)) {
         logger.info('$label: transient RPC failure — $error');
+        return const McpConfigResponse(
+          success: false,
+          error: 'transient RPC failure',
+          failureKind: RemoteFeatureFailureKind.transient,
+        );
       } else {
         logger.error('$label error', error, stackTrace);
       }
     }
-    return const McpConfigResponse(success: false, error: 'RPC call failed');
+    return const McpConfigResponse(
+      success: false,
+      error: 'RPC call failed',
+      failureKind: RemoteFeatureFailureKind.unknown,
+    );
   }
 }

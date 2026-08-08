@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
+
 import '../../../core/models/session.dart';
+import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/utils/performance_buckets.dart';
@@ -41,6 +44,155 @@ class SelectionState {
 /// received its first callback.
 bool isSessionsCollectionRoute(String? route) {
   return route == null || route == 'home' || route == 'sessions';
+}
+
+// ─── Provider projections ─────────────────────────────
+
+/// Session fields that can change collection membership, filtering, grouping,
+/// or ordering in the standard sessions list.
+///
+/// Row-only changes such as streaming activity, permission details, and draft
+/// content intentionally compare equal. Those are selected by session ID at
+/// the row boundary instead of rebuilding the whole collection.
+@immutable
+class SessionCollectionProjection {
+  const SessionCollectionProjection._({
+    required this.sessions,
+    required this.revision,
+  });
+
+  factory SessionCollectionProjection.fromSessions(
+    Map<String, Session> sessions,
+  ) {
+    final revision = Object.hash(
+      sessions.length,
+      Object.hashAllUnordered(
+        sessions.entries.map((entry) {
+          final session = entry.value;
+          final metadata = session.metadata;
+          return Object.hashAll([
+            entry.key,
+            session.archived,
+            session.active,
+            session.presence,
+            session.activeAt,
+            session.updatedAt,
+            session.lastMessageAt,
+            session.folder,
+            session.lifecycleStateCleartext,
+            metadata?.name,
+            metadata?.path,
+            metadata?.machineId,
+            metadata?.host,
+            metadata?.homeDir,
+            metadata?.summary?.text,
+            metadata?.lifecycleState,
+            metadata?.lifecycleStateSince,
+            isSessionIdle(session),
+          ]);
+        }),
+      ),
+    );
+    return SessionCollectionProjection._(
+      sessions: sessions,
+      revision: revision,
+    );
+  }
+
+  final Map<String, Session> sessions;
+  final int revision;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SessionCollectionProjection && other.revision == revision;
+
+  @override
+  int get hashCode => revision;
+}
+
+/// Per-session fields that affect list order and archived date/folder groups.
+/// Preview, role, unread, and loading changes do not invalidate this
+/// projection.
+@immutable
+class SessionOrderingProjection {
+  const SessionOrderingProjection._({
+    required this.timestamps,
+    required this.optimisticallyArchivedIds,
+    required this.revision,
+  });
+
+  factory SessionOrderingProjection.fromState(SessionUiState state) {
+    final timestamps = <String, int?>{
+      for (final entry in state.bySessionId.entries)
+        entry.key: entry.value.lastMessageTimestamp,
+    };
+    final revision = Object.hash(
+      timestamps.length,
+      Object.hashAllUnordered(
+        timestamps.entries.map((entry) => Object.hash(entry.key, entry.value)),
+      ),
+      Object.hashAllUnordered(state.optimisticallyArchivedIds),
+    );
+    return SessionOrderingProjection._(
+      timestamps: Map<String, int?>.unmodifiable(timestamps),
+      optimisticallyArchivedIds: state.optimisticallyArchivedIds,
+      revision: revision,
+    );
+  }
+
+  final Map<String, int?> timestamps;
+  final Set<String> optimisticallyArchivedIds;
+  final int revision;
+
+  int? timestampFor(String sessionId) => timestamps[sessionId];
+
+  @override
+  bool operator ==(Object other) =>
+      other is SessionOrderingProjection && other.revision == revision;
+
+  @override
+  int get hashCode => revision;
+}
+
+/// Ordered tablet auto-selection candidates.
+///
+/// Equality is based on the resulting ID order, so row-only session updates do
+/// not rerun tablet-selection logic or schedule another post-frame callback.
+@immutable
+class TabletSessionSelectionProjection {
+  const TabletSessionSelectionProjection._({
+    required this.sessionIds,
+    required this.revision,
+  });
+
+  factory TabletSessionSelectionProjection.fromSessions(
+    Map<String, Session> sessions,
+  ) {
+    final candidates =
+        sessions.values
+            .where((session) => !session.archived)
+            .toList(growable: false)
+          ..sort((a, b) => b.activeAt.compareTo(a.activeAt));
+    final sessionIds = candidates
+        .map((session) => session.id)
+        .toList(growable: false);
+    return TabletSessionSelectionProjection._(
+      sessionIds: List<String>.unmodifiable(sessionIds),
+      revision: Object.hashAll(sessionIds),
+    );
+  }
+
+  final List<String> sessionIds;
+  final int revision;
+
+  @override
+  bool operator ==(Object other) =>
+      other is TabletSessionSelectionProjection &&
+      other.revision == revision &&
+      listEquals(other.sessionIds, sessionIds);
+
+  @override
+  int get hashCode => revision;
 }
 
 // ─── Sorted session cache ─────────────────────────────

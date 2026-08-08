@@ -29,7 +29,15 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   repoUrl: _asApiStringNullable(json['repoUrl']),
   repoRef: _asApiStringNullable(json['repoRef']),
   repoCommit: _asApiStringNullable(json['repoCommit']),
+  runtimeKind: _asApiStringNullable(json['runtimeType']),
+  podName: _asApiStringNullable(json['podName']),
+  namespace: _asApiStringNullable(json['namespace']),
   sandboxEnabled: _sandboxEnabledFromJson(json['sandbox']),
+  sandboxRequested: _asApiBoolNullable(json['sandboxRequested']),
+  sandboxRequired: _asApiBoolNullable(json['sandboxRequired']),
+  sandboxEnforced: _asApiBoolNullable(json['sandboxEnforced']),
+  sandboxBackend: _asApiStringNullable(json['sandboxBackend']),
+  sandboxReason: _asApiStringNullable(json['sandboxReason']),
 );
 
 Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
@@ -53,7 +61,15 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'repoUrl': instance.repoUrl,
   'repoRef': instance.repoRef,
   'repoCommit': instance.repoCommit,
+  'runtimeType': instance.runtimeKind,
+  'podName': instance.podName,
+  'namespace': instance.namespace,
   'sandbox': _sandboxEnabledToJson(instance.sandboxEnabled),
+  'sandboxRequested': instance.sandboxRequested,
+  'sandboxRequired': instance.sandboxRequired,
+  'sandboxEnforced': instance.sandboxEnforced,
+  'sandboxBackend': instance.sandboxBackend,
+  'sandboxReason': instance.sandboxReason,
 };
 
 _Summary _$SummaryFromJson(Map<String, dynamic> json) => _Summary(

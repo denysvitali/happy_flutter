@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/workflows/workflow_run_screen.dart';
 
@@ -56,6 +57,8 @@ List<Map<String, dynamic>> _messagesWithProgress() => <Map<String, dynamic>>[
 
 Widget _harness() => ProviderScope(
   child: MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: WorkflowRunScreen(
       sessionId: _sessionId,
       runId: _runId,
@@ -111,6 +114,35 @@ void main() {
     expect(find.text('Read'), findsNothing);
     expect(find.text('reporter'), findsNothing);
     expect(find.text('all done'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('does not render raw daemon failure detail', (tester) async {
+    Sync().testSetSessionMessages(_sessionId, const <Map<String, dynamic>>[]);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: WorkflowRunScreen(
+            sessionId: _sessionId,
+            runId: _runId,
+            taskData: const <String, dynamic>{
+              'runId': _runId,
+              'workflowName': 'audit',
+              'status': 'failed',
+              'error': 'rpc: secret-host.internal refused bearer abc123',
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('secret-host.internal'), findsNothing);
+    expect(find.text('This workflow run failed unexpectedly.'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

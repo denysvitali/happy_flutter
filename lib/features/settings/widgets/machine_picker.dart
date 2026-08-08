@@ -20,6 +20,8 @@ class MachinePicker extends StatelessWidget {
     required this.sectionTitle,
     super.key,
     this.onlyOnlineSelectable = true,
+    this.isMachineSelectable,
+    this.unavailableReason,
   });
 
   final Map<String, Machine> machines;
@@ -29,6 +31,13 @@ class MachinePicker extends StatelessWidget {
 
   /// When true (default), offline machines cannot be selected.
   final bool onlyOnlineSelectable;
+
+  /// Optional feature-specific eligibility in addition to online state.
+  final bool Function(Machine machine)? isMachineSelectable;
+
+  /// Explains why an otherwise-online machine is unavailable for this
+  /// feature. The text is rendered on the disabled dropdown row.
+  final String? Function(Machine machine)? unavailableReason;
 
   @override
   Widget build(BuildContext context) {
@@ -66,9 +75,16 @@ class MachinePicker extends StatelessWidget {
             ),
             items: machineList.map((machine) {
               final online = machine.isOnline;
+              final featureSelectable =
+                  isMachineSelectable?.call(machine) ?? true;
+              final selectable =
+                  (!onlyOnlineSelectable || online) && featureSelectable;
+              final reason = online
+                  ? unavailableReason?.call(machine)
+                  : l10n.machineOffline;
               return DropdownMenuItem<String>(
                 value: machine.id,
-                enabled: !onlyOnlineSelectable || online,
+                enabled: selectable,
                 child: Row(
                   children: [
                     Icon(
@@ -81,19 +97,22 @@ class MachinePicker extends StatelessWidget {
                       child: Text(
                         machine.displayLabel,
                         overflow: TextOverflow.ellipsis,
-                        style: online
+                        style: selectable
                             ? null
                             : theme.textTheme.bodyMedium?.copyWith(
                                 color: cs.onSurfaceVariant,
                               ),
                       ),
                     ),
-                    if (!online) ...[
+                    if (reason != null && reason.isNotEmpty) ...[
                       const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        l10n.machineOffline,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
+                      Flexible(
+                        child: Text(
+                          reason,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ],
@@ -106,8 +125,12 @@ class MachinePicker extends StatelessWidget {
                 onChanged(null);
                 return;
               }
-              if (onlyOnlineSelectable &&
-                  !(machines[id]?.isOnline ?? false)) {
+              if (onlyOnlineSelectable && !(machines[id]?.isOnline ?? false)) {
+                return;
+              }
+              final machine = machines[id];
+              if (machine == null ||
+                  !(isMachineSelectable?.call(machine) ?? true)) {
                 return;
               }
               onChanged(id);

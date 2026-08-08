@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/sandbox_policy.dart';
+import 'package:happy_flutter/core/types/remote_feature_failure.dart';
 
 void main() {
   group('SandboxPolicyResponse.fromJson', () {
@@ -84,6 +85,7 @@ void main() {
       });
 
       expect(response.success, isFalse);
+      expect(response.failureKind, RemoteFeatureFailureKind.rejected);
       expect(response.error, 'machine offline');
       expect(response.grants, isEmpty);
       expect(response.projects, isEmpty);

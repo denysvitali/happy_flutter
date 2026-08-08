@@ -599,9 +599,10 @@ void main() {
       );
     });
 
-    test('webhook timeout recovery finds recently created session', () async {
+    test('webhook timeout recovery finds the requested session ID', () async {
+      const requestedSessionId = 'requested-after-timeout';
       final existingSession = _makeSession(
-        'existing-after-timeout',
+        requestedSessionId,
         machineId: 'machine-1',
         path: '/home/user/project',
         createdAt: DateTime.now().millisecondsSinceEpoch - 5000,
@@ -621,7 +622,7 @@ void main() {
             sync.testForceFullFetchNext = false;
           }
           // After the 5s wait, session appears
-          sync.testSessions['existing-after-timeout'] = existingSession;
+          sync.testSessions[requestedSessionId] = existingSession;
         },
       );
 
@@ -629,13 +630,52 @@ void main() {
         agent: 'claude',
         machineId: 'machine-1',
         path: '/home/user/project',
+        sessionId: requestedSessionId,
       );
 
-      expect(result, 'existing-after-timeout');
+      expect(result, requestedSessionId);
       expect(
-        sync.testSessionSpawnedAt.containsKey('existing-after-timeout'),
+        sync.testSessionSpawnedAt.containsKey(requestedSessionId),
         isTrue,
         reason: 'Webhook timeout recovery must register spawn timestamp',
+      );
+    });
+
+    test('webhook timeout never adopts a same-path session', () async {
+      const requestedSessionId = 'requested-but-missing';
+      final unrelatedSession = _makeSession(
+        'newest-same-path',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        createdAt: DateTime.now().millisecondsSinceEpoch,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        return <String, dynamic>{
+          'type': 'error',
+          'errorMessage': 'webhook timeout waiting for session',
+        };
+      };
+      _stubAllSyncs(
+        sync,
+        sessionsFn: () async {
+          sync.testForceFullFetchNext = false;
+          sync.testSessions[unrelatedSession.id] = unrelatedSession;
+        },
+      );
+
+      await expectLater(
+        sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          sessionId: requestedSessionId,
+        ),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        sync.testSessionSpawnedAt.containsKey(unrelatedSession.id),
+        isFalse,
       );
     });
 
@@ -946,98 +986,93 @@ void main() {
       expect(sync.testSessionSpawnedAt.containsKey(restoredId), isTrue);
     });
 
-    test(
-      'auto-restore drops incompatible Claude model override for '
-      'third-party Anthropic base URL',
-      () async {
-        final sessionId = 'auto-restore-incompatible-model';
-        final now = DateTime.now().millisecondsSinceEpoch;
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now - 200000,
-          updatedAt: now,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'offline',
-          modelMode: 'opus:max',
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/project',
-            flavor: 'claude',
-            lifecycleState: 'stopped',
-          ),
-        );
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: now,
-          metadataVersion: 0,
-          daemonStateVersion: 0,
-        );
-        sync.testSetSessionSpawnedAt(sessionId, now - 200000);
+    test('auto-restore drops incompatible Claude model override for '
+        'third-party Anthropic base URL', () async {
+      final sessionId = 'auto-restore-incompatible-model';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now - 200000,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+        modelMode: 'opus:max',
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/project',
+          flavor: 'claude',
+          lifecycleState: 'stopped',
+        ),
+      );
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: now,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+      sync.testSetSessionSpawnedAt(sessionId, now - 200000);
 
-        final deepseek = getBuiltInProfile('deepseek')!;
-        sync.testGetSpawnEnvVarsOverride = (_) async => (
-          envVars: {
-            for (final v in deepseek.environmentVariables) v.name: v.value,
-          },
-          profile: deepseek,
-        );
+      final deepseek = getBuiltInProfile('deepseek')!;
+      sync.testGetSpawnEnvVarsOverride = (_) async => (
+        envVars: {
+          for (final v in deepseek.environmentVariables) v.name: v.value,
+        },
+        profile: deepseek,
+      );
 
-        Map<String, dynamic>? capturedSpawnParams;
-        sync.testMachineRPCOverride = (machineId, method, params) async {
-          if (method == 'spawn-happy-session') {
-            capturedSpawnParams = params;
-            return <String, dynamic>{
-              'type': 'success',
-              'sessionId': sessionId,
-              'dataEncryptionKey': null,
-            };
-          }
-          return <String, dynamic>{'type': 'error'};
-        };
-        sync.testFetchSingleSessionOverride = (_) async => null;
-
-        try {
-          await sync.sendMessage(sessionId, 'hello');
-        } catch (_) {
-          // REST POST is not mocked in this contract test; the spawn RPC is
-          // the behavior we care about.
+      Map<String, dynamic>? capturedSpawnParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
         }
+        return <String, dynamic>{'type': 'error'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
 
-        expect(
-          capturedSpawnParams,
-          isNotNull,
-          reason: 'Offline session must trigger auto-restore spawn RPC',
-        );
-        expect(
-          capturedSpawnParams!['model'],
-          'default',
-          reason:
-              'Claude model override must be dropped when profile sets a '
-              'third-party Anthropic-compatible base URL, and replaced with '
-              'an explicit default so the daemon clears sticky metadata',
-        );
-        final envVars =
-            capturedSpawnParams!['environmentVariables']
-                as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        expect(
-          envVars!['ANTHROPIC_BASE_URL'],
-          contains('deepseek'),
-          reason:
-              'Third-party Anthropic-compatible base URL must still be sent',
-        );
-      },
-    );
+      try {
+        await sync.sendMessage(sessionId, 'hello');
+      } catch (_) {
+        // REST POST is not mocked in this contract test; the spawn RPC is
+        // the behavior we care about.
+      }
+
+      expect(
+        capturedSpawnParams,
+        isNotNull,
+        reason: 'Offline session must trigger auto-restore spawn RPC',
+      );
+      expect(
+        capturedSpawnParams!['model'],
+        'default',
+        reason:
+            'Claude model override must be dropped when profile sets a '
+            'third-party Anthropic-compatible base URL, and replaced with '
+            'an explicit default so the daemon clears sticky metadata',
+      );
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(
+        envVars!['ANTHROPIC_BASE_URL'],
+        contains('deepseek'),
+        reason: 'Third-party Anthropic-compatible base URL must still be sent',
+      );
+    });
 
     test(
       'auto-restore creates placeholder if restored session not in map',
@@ -1988,6 +2023,11 @@ void main() {
           sessionId: 'restored-2',
           directory: '/project/new',
           dataEncryptionKey: null,
+          sandboxRequested: true,
+          sandboxRequired: true,
+          sandboxEnforced: false,
+          sandboxBackend: 'none',
+          sandboxReason: 'boxy is unavailable',
         ),
       );
 
@@ -1996,6 +2036,11 @@ void main() {
       expect(session!.metadata?.machineId, 'machine-1');
       // Directory from result takes precedence
       expect(session.metadata?.path, '/project/new');
+      expect(session.metadata?.sandboxRequested, isTrue);
+      expect(session.metadata?.sandboxRequired, isTrue);
+      expect(session.metadata?.sandboxEnforced, isFalse);
+      expect(session.metadata?.sandboxBackend, 'none');
+      expect(session.metadata?.sandboxReason, 'boxy is unavailable');
     });
 
     test('skips placeholder if session already exists', () async {

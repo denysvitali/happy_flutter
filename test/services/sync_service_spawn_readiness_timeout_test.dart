@@ -3,7 +3,7 @@
 // Production once observed this single Loki WARN over 24h:
 //
 //   [sendMessage] recently spawned session did not become ready within
-//   timeout, sending anyway session=<id>
+//   timeout, queueing until ready session=<id>
 //
 // The fix promotes the warn to a structured Sentry capture (with
 // sessionId / spawnedAt / waitMs / recentlySpawned fields), bumps an
@@ -89,19 +89,19 @@ void _stubAllSyncs(Sync instance) {
 /// `waitForAgentReady` will therefore run out its budget and return
 /// `false`.
 Session _coldRecentlySpawnedSession(String id) => Session(
-      id: id,
-      seq: 0,
-      createdAt: 0,
-      updatedAt: 0,
-      active: true,
-      activeAt: 0,
-      metadataVersion: 0,
-      agentStateVersion: 0,
-      thinking: false,
-      presence: 'offline',
-      lifecycleStateCleartext: 'starting',
-      metadata: const Metadata(lifecycleState: 'starting'),
-    );
+  id: id,
+  seq: 0,
+  createdAt: 0,
+  updatedAt: 0,
+  active: true,
+  activeAt: 0,
+  metadataVersion: 0,
+  agentStateVersion: 0,
+  thinking: false,
+  presence: 'offline',
+  lifecycleStateCleartext: 'starting',
+  metadata: const Metadata(lifecycleState: 'starting'),
+);
 
 void main() {
   group('Sync.recentlySpawned constants', () {
@@ -115,44 +115,35 @@ void main() {
   });
 
   group('Sync._registerSpawn funnel', () {
-    test(
-      'defaults at to DateTime.now() when not provided',
-      () {
-        final sync = Sync();
-        _stubAllSyncs(sync);
-        sync.testClearSessionSpawnedAt();
+    test('defaults at to DateTime.now() when not provided', () {
+      final sync = Sync();
+      _stubAllSyncs(sync);
+      sync.testClearSessionSpawnedAt();
 
-        final before = DateTime.now().millisecondsSinceEpoch;
-        sync.testRegisterSpawn('sess-now');
-        final after = DateTime.now().millisecondsSinceEpoch;
+      final before = DateTime.now().millisecondsSinceEpoch;
+      sync.testRegisterSpawn('sess-now');
+      final after = DateTime.now().millisecondsSinceEpoch;
 
-        final stored = sync.testSessionSpawnedAt['sess-now']!;
-        expect(stored, greaterThanOrEqualTo(before));
-        expect(stored, lessThanOrEqualTo(after));
-        resetTestSync(sync);
-      },
-    );
+      final stored = sync.testSessionSpawnedAt['sess-now']!;
+      expect(stored, greaterThanOrEqualTo(before));
+      expect(stored, lessThanOrEqualTo(after));
+      resetTestSync(sync);
+    });
 
-    test(
-      'honours caller-supplied at (recovered found.createdAt path)',
-      () {
-        final sync = Sync();
-        _stubAllSyncs(sync);
-        sync.testClearSessionSpawnedAt();
+    test('honours caller-supplied at (recovered found.createdAt path)', () {
+      final sync = Sync();
+      _stubAllSyncs(sync);
+      sync.testClearSessionSpawnedAt();
 
-        final anchor = DateTime.fromMillisecondsSinceEpoch(1700000000000);
-        sync.testRegisterSpawn(
-          'sess-anchor',
-          at: anchor,
-        );
+      final anchor = DateTime.fromMillisecondsSinceEpoch(1700000000000);
+      sync.testRegisterSpawn('sess-anchor', at: anchor);
 
-        expect(
-          sync.testSessionSpawnedAt['sess-anchor'],
-          anchor.millisecondsSinceEpoch,
-        );
-        resetTestSync(sync);
-      },
-    );
+      expect(
+        sync.testSessionSpawnedAt['sess-anchor'],
+        anchor.millisecondsSinceEpoch,
+      );
+      resetTestSync(sync);
+    });
 
     test('writes all four spawn maps when fields are supplied', () {
       final sync = Sync();
@@ -260,98 +251,79 @@ void main() {
       instance.testSocketSendOverride = null;
     });
 
+    test('records exactly one Sentry-style spawn-timeout capture '
+        'when waitForAgentReady runs out', () async {
+      await instance.sendMessage('sess-spawn', 'capture me');
+      await instance.lastCompleteSendFuture;
+
+      final captures = instance.testSpawnReadinessTimeoutCaptures;
+      expect(captures, hasLength(1));
+      final capture = captures.single;
+      expect(capture['sessionId'], 'sess-spawn');
+      expect(capture['waitMs'], Sync.recentlySpawnedWaitMs);
+      expect(capture['recentlySpawned'], isTrue);
+      expect(capture['spawnedAt'], isA<int>());
+    });
+
     test(
-      'records exactly one Sentry-style spawn-timeout capture '
-      'when waitForAgentReady runs out',
+      'queues with the same localId instead of POSTing before readiness',
       () async {
-        await instance.sendMessage('sess-spawn', 'capture me');
+        await instance.sendMessage('sess-spawn', 'queue until ready');
         await instance.lastCompleteSendFuture;
 
-        final captures = instance.testSpawnReadinessTimeoutCaptures;
-        expect(captures, hasLength(1));
-        final capture = captures.single;
-        expect(capture['sessionId'], 'sess-spawn');
-        expect(capture['waitMs'], Sync.recentlySpawnedWaitMs);
-        expect(capture['recentlySpawned'], isTrue);
-        expect(capture['spawnedAt'], isA<int>());
+        expect(capturedRequestData, isNull);
+        expect(messageOutbox.contains('local-spawn-timeout'), isTrue);
+        final queued = messageOutbox.entries.single;
+        expect(queued.localId, 'local-spawn-timeout');
+        expect(queued.sessionId, 'sess-spawn');
+        expect(queued.encryptedContent, 'encrypted-content');
       },
     );
 
-    test(
-      'still POSTs the message despite the spawn-readiness timeout',
-      () async {
-        await instance.sendMessage('sess-spawn', 'send anyway');
-        await instance.lastCompleteSendFuture;
+    test('gives a recently-spawned session its full recentlySpawnedWaitMs '
+        'instead of clamping it into the ordinary send deadline', () async {
+      final stopwatch = Stopwatch()..start();
+      await instance.sendMessage('sess-spawn', 'wait for me');
+      await instance.lastCompleteSendFuture;
+      stopwatch.stop();
 
-        expect(
-          capturedRequestData,
-          isNotNull,
-          reason:
-              'sendMessage must keep delivering the user message even when '
-              'waitForAgentReady returns false on a freshly-spawned session.',
+      // The ordinary 12 s send deadline reserves 6 s for the POST, so
+      // clamping the readiness wait into it caps the wait at 6 s — a
+      // pod that needs >10 s to come up could never be waited for, and
+      // every spawn-then-send raised a bogus spawn-timeout alarm.
+      expect(
+        stopwatch.elapsedMilliseconds,
+        greaterThanOrEqualTo(Sync.recentlySpawnedWaitMs - 1500),
+        reason:
+            'the readiness wait must not be clamped below '
+            'Sync.recentlySpawnedWaitMs for a freshly-spawned session',
+      );
+
+      // And the telemetry must report what was actually waited.
+      final capture = instance.testSpawnReadinessTimeoutCaptures.single;
+      expect(capture['waitMs'], Sync.recentlySpawnedWaitMs);
+      expect(capture['requestedWaitMs'], Sync.recentlySpawnedWaitMs);
+    }, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('does NOT emit a spawn-timeout capture when the session becomes '
+        'ready during the wait', () async {
+      // Flip the session to online mid-wait so _isSessionReady
+      // returns true. Use a small budget so the test stays fast.
+      Future<void>.delayed(const Duration(milliseconds: 50), () {
+        final s = instance.testSessions['sess-spawn']!;
+        instance.testSessions['sess-spawn'] = s.copyWith(presence: 'online');
+        instance.testSetLastEphemeralAt(
+          'sess-spawn',
+          DateTime.now().millisecondsSinceEpoch,
         );
-        final request = capturedRequestData as Map<String, dynamic>;
-        final messages = request['messages'] as List<dynamic>;
-        expect(messages, hasLength(1));
-        final message = messages.first as Map<String, dynamic>;
-        expect(message['localId'], 'local-spawn-timeout');
-        expect(message['content'], 'encrypted-content');
-      },
-    );
+        instance.testNotifyDataChanged();
+      });
 
-    test(
-      'gives a recently-spawned session its full recentlySpawnedWaitMs '
-      'instead of clamping it into the ordinary send deadline',
-      () async {
-        final stopwatch = Stopwatch()..start();
-        await instance.sendMessage('sess-spawn', 'wait for me');
-        await instance.lastCompleteSendFuture;
-        stopwatch.stop();
+      await instance.sendMessage('sess-spawn', 'comes online');
+      await instance.lastCompleteSendFuture;
 
-        // The ordinary 12 s send deadline reserves 6 s for the POST, so
-        // clamping the readiness wait into it caps the wait at 6 s — a
-        // pod that needs >10 s to come up could never be waited for, and
-        // every spawn-then-send raised a bogus spawn-timeout alarm.
-        expect(
-          stopwatch.elapsedMilliseconds,
-          greaterThanOrEqualTo(Sync.recentlySpawnedWaitMs - 1500),
-          reason:
-              'the readiness wait must not be clamped below '
-              'Sync.recentlySpawnedWaitMs for a freshly-spawned session',
-        );
-
-        // And the telemetry must report what was actually waited.
-        final capture = instance.testSpawnReadinessTimeoutCaptures.single;
-        expect(capture['waitMs'], Sync.recentlySpawnedWaitMs);
-        expect(capture['requestedWaitMs'], Sync.recentlySpawnedWaitMs);
-      },
-      timeout: const Timeout(Duration(seconds: 90)),
-    );
-
-    test(
-      'does NOT emit a spawn-timeout capture when the session becomes '
-      'ready during the wait',
-      () async {
-        // Flip the session to online mid-wait so _isSessionReady
-        // returns true. Use a small budget so the test stays fast.
-        Future<void>.delayed(const Duration(milliseconds: 50), () {
-          final s = instance.testSessions['sess-spawn']!;
-          instance.testSessions['sess-spawn'] = s.copyWith(
-            presence: 'online',
-          );
-          instance.testSetLastEphemeralAt(
-            'sess-spawn',
-            DateTime.now().millisecondsSinceEpoch,
-          );
-          instance.testNotifyDataChanged();
-        });
-
-        await instance.sendMessage('sess-spawn', 'comes online');
-        await instance.lastCompleteSendFuture;
-
-        expect(instance.testSpawnReadinessTimeoutCaptures, isEmpty);
-      },
-    );
+      expect(instance.testSpawnReadinessTimeoutCaptures, isEmpty);
+    });
   });
 }
 

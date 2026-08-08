@@ -49,10 +49,7 @@ class WorkflowStatus {
 
 /// A single phase of a Claude Code workflow run.
 class WorkflowPhase {
-  const WorkflowPhase({
-    required this.title,
-    this.detail,
-  });
+  const WorkflowPhase({required this.title, this.detail});
 
   factory WorkflowPhase.fromJson(Map<String, dynamic> json) {
     return WorkflowPhase(
@@ -94,9 +91,7 @@ class WorkflowPhase {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is WorkflowPhase &&
-          title == other.title &&
-          detail == other.detail;
+      other is WorkflowPhase && title == other.title && detail == other.detail;
 
   @override
   int get hashCode => Object.hash(title, detail);
@@ -292,8 +287,9 @@ class WorkflowAgent implements WorkflowProgressEvent {
           ? null
           : (resultPreview ?? this.resultPreview),
       error: clearError ? null : (error ?? this.error),
-      lastToolName:
-          clearLastToolName ? null : (lastToolName ?? this.lastToolName),
+      lastToolName: clearLastToolName
+          ? null
+          : (lastToolName ?? this.lastToolName),
       lastToolSummary: clearLastToolSummary
           ? null
           : (lastToolSummary ?? this.lastToolSummary),
@@ -321,21 +317,21 @@ class WorkflowAgent implements WorkflowProgressEvent {
 
   @override
   int get hashCode => Object.hash(
-        agentId,
-        label,
-        phaseIndex,
-        phaseTitle,
-        model,
-        state,
-        tokens,
-        toolCalls,
-        durationMs,
-        promptPreview,
-        resultPreview,
-        error,
-        lastToolName,
-        lastToolSummary,
-      );
+    agentId,
+    label,
+    phaseIndex,
+    phaseTitle,
+    model,
+    state,
+    tokens,
+    toolCalls,
+    durationMs,
+    promptPreview,
+    resultPreview,
+    error,
+    lastToolName,
+    lastToolSummary,
+  );
 
   @override
   String toString() =>
@@ -386,11 +382,7 @@ class WorkflowPhaseEvent implements WorkflowProgressEvent {
     };
   }
 
-  WorkflowPhaseEvent copyWith({
-    int? index,
-    String? title,
-    String? kind,
-  }) {
+  WorkflowPhaseEvent copyWith({int? index, String? title, String? kind}) {
     return WorkflowPhaseEvent(
       index: index ?? this.index,
       title: title ?? this.title,
@@ -434,10 +426,7 @@ class WorkflowLog implements WorkflowProgressEvent {
 
   @override
   Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'type': type,
-      'message': message,
-    };
+    return <String, dynamic>{'type': type, 'message': message};
   }
 
   WorkflowLog copyWith({String? message}) {
@@ -500,6 +489,73 @@ class _PhaseSlot {
   final WorkflowPhaseEvent? event;
 }
 
+/// One-pass index of workflow owners and step events in a transcript.
+///
+/// A workflows list can contain many runs. Building this once avoids walking
+/// the same recursively nested message tree once (or twice) per visible card.
+class WorkflowTranscriptIndex {
+  WorkflowTranscriptIndex._({
+    required Map<String, List<dynamic>> childrenByRun,
+    required Map<String, List<Map<String, dynamic>>> taggedStepsByRun,
+    required this.soleStepOwnerChildren,
+  }) : _childrenByRun = childrenByRun,
+       _taggedStepsByRun = taggedStepsByRun;
+
+  factory WorkflowTranscriptIndex.fromMessages(
+    List<Map<String, dynamic>> messages,
+  ) {
+    final childrenByRun = <String, List<dynamic>>{};
+    final taggedStepsByRun = <String, List<Map<String, dynamic>>>{};
+    List<dynamic>? soleStepOwnerChildren;
+    var stepOwnerCount = 0;
+
+    void walk(List<dynamic> list) {
+      for (final entry in list) {
+        if (entry is! Map<String, dynamic>) continue;
+        final children = WireParsers.asList(entry['children']);
+        final isWorkflow =
+            entry['kind'] == 'tool-call' && entry['name'] == 'Workflow';
+        if (isWorkflow) {
+          final tag =
+              WorkflowRun._workflowRunTag(entry) ??
+              WorkflowRun._firstWorkflowRunTag(children) ??
+              WorkflowRun.runIdFromToolResult(entry['result']);
+          if (tag != null && children != null) {
+            childrenByRun.putIfAbsent(tag, () => children);
+          }
+          if (WorkflowRun._anyStepEvent(children)) {
+            stepOwnerCount += 1;
+            soleStepOwnerChildren = children;
+          }
+        }
+        final tag = WorkflowRun._workflowRunTag(entry);
+        if (tag != null && WorkflowRun._isStepEvent(entry)) {
+          taggedStepsByRun
+              .putIfAbsent(tag, () => <Map<String, dynamic>>[])
+              .add(entry);
+        }
+        if (children != null) walk(children);
+      }
+    }
+
+    walk(messages);
+    return WorkflowTranscriptIndex._(
+      childrenByRun: childrenByRun,
+      taggedStepsByRun: taggedStepsByRun,
+      soleStepOwnerChildren: stepOwnerCount == 1 ? soleStepOwnerChildren : null,
+    );
+  }
+
+  final Map<String, List<dynamic>> _childrenByRun;
+  final Map<String, List<Map<String, dynamic>>> _taggedStepsByRun;
+  final List<dynamic>? soleStepOwnerChildren;
+
+  List<dynamic>? childrenForRun(String runId) =>
+      _childrenByRun[runId] ??
+      soleStepOwnerChildren ??
+      _taggedStepsByRun[runId];
+}
+
 /// A Claude Code workflow run mirrored from the daemon.
 class WorkflowRun {
   const WorkflowRun({
@@ -539,9 +595,9 @@ class WorkflowRun {
       phases: phasesJson == null
           ? const <WorkflowPhase>[]
           : phasesJson
-              .whereType<Map<String, dynamic>>()
-              .map(WorkflowPhase.fromJson)
-              .toList(growable: false),
+                .whereType<Map<String, dynamic>>()
+                .map(WorkflowPhase.fromJson)
+                .toList(growable: false),
       defaultModel: json['defaultModel'] as String?,
       startTime: (json['startTime'] as num?)?.toInt(),
       durationMs: (json['durationMs'] as num?)?.toInt(),
@@ -554,9 +610,9 @@ class WorkflowRun {
       workflowProgress: progressJson == null
           ? const <WorkflowProgressEvent>[]
           : progressJson
-              .whereType<Map<String, dynamic>>()
-              .map(WorkflowProgressEvent.fromJson)
-              .toList(growable: false),
+                .whereType<Map<String, dynamic>>()
+                .map(WorkflowProgressEvent.fromJson)
+                .toList(growable: false),
     );
   }
 
@@ -586,18 +642,13 @@ class WorkflowRun {
   /// use (`workflow_progress`). Centralised so the casing rule lives in one
   /// place — every reader (RPC parse, message overlay, inline view) agrees.
   static List<dynamic>? rawWorkflowProgress(Map<String, dynamic> json) =>
-      WireParsers.asList(
-        json['workflowProgress'] ?? json['workflow_progress'],
-      );
+      WireParsers.asList(json['workflowProgress'] ?? json['workflow_progress']);
 
   /// Returns [next], but when it is a sparse snapshot (no progress and no
   /// phases — e.g. a running run whose on-disk snapshot is not written yet)
   /// the progress/phases/counts already held in [prev] are kept, so a thin
   /// poll result never blanks a live overlay. Pure + static for testability.
-  static WorkflowRun withFallbackProgress(
-    WorkflowRun next,
-    WorkflowRun? prev,
-  ) {
+  static WorkflowRun withFallbackProgress(WorkflowRun next, WorkflowRun? prev) {
     if (prev == null) return next;
     if (next.workflowProgress.isNotEmpty || next.phases.isNotEmpty) {
       return next;
@@ -636,10 +687,10 @@ class WorkflowRun {
       phases: phasesJson == null
           ? const <WorkflowPhase>[]
           : phasesJson
-              .whereType<Map<String, dynamic>>()
-              .map(WorkflowPhase.tryFromJson)
-              .whereType<WorkflowPhase>()
-              .toList(growable: false),
+                .whereType<Map<String, dynamic>>()
+                .map(WorkflowPhase.tryFromJson)
+                .whereType<WorkflowPhase>()
+                .toList(growable: false),
       defaultModel: WireParsers.parseString(json['defaultModel']),
       startTime: WireParsers.parseInt(json['startTime']),
       durationMs: WireParsers.parseInt(json['durationMs']),
@@ -652,10 +703,10 @@ class WorkflowRun {
       workflowProgress: progressJson == null
           ? const <WorkflowProgressEvent>[]
           : progressJson
-              .whereType<Map<String, dynamic>>()
-              .map(WorkflowProgressEvent.tryFromJson)
-              .whereType<WorkflowProgressEvent>()
-              .toList(growable: false),
+                .whereType<Map<String, dynamic>>()
+                .map(WorkflowProgressEvent.tryFromJson)
+                .whereType<WorkflowProgressEvent>()
+                .toList(growable: false),
     );
   }
 
@@ -734,7 +785,10 @@ class WorkflowRun {
   /// carries no `durationMs`/`resultPreview`), so unset fields must fall back
   /// to the retained value instead of blanking the row. Out-of-order delivery
   /// must also not resurrect a finished agent, hence the terminal-state guard.
-  static WorkflowAgent mergeAgentEvent(WorkflowAgent? prev, WorkflowAgent next) {
+  static WorkflowAgent mergeAgentEvent(
+    WorkflowAgent? prev,
+    WorkflowAgent next,
+  ) {
     if (prev == null) return next;
     final keepPrevState =
         isTerminalAgentState(prev.state) && !isTerminalAgentState(next.state);
@@ -788,8 +842,14 @@ class WorkflowRun {
   static WorkflowRun enrichFromMessages(
     WorkflowRun run,
     List<Map<String, dynamic>> messages,
+  ) => enrichFromIndex(run, WorkflowTranscriptIndex.fromMessages(messages));
+
+  /// Overlays progress using an already-indexed transcript.
+  static WorkflowRun enrichFromIndex(
+    WorkflowRun run,
+    WorkflowTranscriptIndex index,
   ) {
-    final children = childrenForRun(run.runId, messages);
+    final children = index.childrenForRun(run.runId);
     if (children == null) return run;
     final progress = accumulateProgressFromChildren(children);
     if (progress.isEmpty) return run;
@@ -800,8 +860,7 @@ class WorkflowRun {
     WorkflowRun run,
     List<WorkflowProgressEvent> progress,
   ) {
-    final agents =
-        progress.whereType<WorkflowAgent>().toList(growable: false);
+    final agents = progress.whereType<WorkflowAgent>().toList(growable: false);
     // Merge, never replace: the declared phases carry `detail` and include
     // phases the run has not announced yet, which is the roadmap the user
     // needs while the run is still early.
@@ -836,10 +895,10 @@ class WorkflowRun {
   static List<WorkflowPhase> mergePhases(
     List<WorkflowPhase> declared,
     List<WorkflowProgressEvent> progress,
-  ) =>
-      _phaseSlots(declared, progress)
-          .map((slot) => slot.phase)
-          .toList(growable: false);
+  ) => _phaseSlots(
+    declared,
+    progress,
+  ).map((slot) => slot.phase).toList(growable: false);
 
   /// Phases with their agents attached, in run order — the single derivation
   /// the inline view, the list card, and the run detail screen share so a run
@@ -850,12 +909,11 @@ class WorkflowRun {
   static List<WorkflowPhaseGroup> phaseGroups(
     WorkflowRun run, {
     String? fallbackTitle,
-  }) =>
-      phaseGroupsFrom(
-        declared: run.phases,
-        progress: run.workflowProgress,
-        fallbackTitle: fallbackTitle ?? run.workflowName,
-      );
+  }) => phaseGroupsFrom(
+    declared: run.phases,
+    progress: run.workflowProgress,
+    fallbackTitle: fallbackTitle ?? run.workflowName,
+  );
 
   /// [phaseGroups] for callers that hold a raw progress stream rather than a
   /// [WorkflowRun] — the chat inline view reads sidechain children directly.
@@ -1013,7 +1071,9 @@ class WorkflowRun {
           break;
         }
       }
-      if (match == null && i < events.length && !used.contains(events[i].index)) {
+      if (match == null &&
+          i < events.length &&
+          !used.contains(events[i].index)) {
         match = events[i];
       }
       if (match != null) used.add(match.index);
@@ -1022,7 +1082,10 @@ class WorkflowRun {
     for (final event in events) {
       if (used.contains(event.index)) continue;
       slots.add(
-        _PhaseSlot(phase: WorkflowPhase(title: event.title), event: event),
+        _PhaseSlot(
+          phase: WorkflowPhase(title: event.title),
+          event: event,
+        ),
       );
     }
     return slots;
@@ -1046,46 +1109,7 @@ class WorkflowRun {
   static List<dynamic>? childrenForRun(
     String runId,
     List<Map<String, dynamic>> messages,
-  ) {
-    List<dynamic>? ownerChildren;
-    Map<String, dynamic>? soleStepOwner;
-    var stepOwnerCount = 0;
-    final tagged = <Map<String, dynamic>>[];
-
-    void walk(List<dynamic> list) {
-      for (final entry in list) {
-        if (entry is! Map<String, dynamic>) continue;
-        final children = WireParsers.asList(entry['children']);
-        final isWorkflow =
-            entry['kind'] == 'tool-call' && entry['name'] == 'Workflow';
-        if (isWorkflow) {
-          final ownTag = _workflowRunTag(entry) ??
-              _firstWorkflowRunTag(children) ??
-              runIdFromToolResult(entry['result']);
-          if (ownTag == runId && ownerChildren == null) {
-            ownerChildren = children;
-          }
-          if (_anyStepEvent(children)) {
-            stepOwnerCount += 1;
-            soleStepOwner = entry;
-          }
-        }
-        if (_workflowRunTag(entry) == runId && _isStepEvent(entry)) {
-          tagged.add(entry);
-        }
-        if (children != null) walk(children);
-      }
-    }
-
-    walk(messages);
-
-    if (ownerChildren != null) return ownerChildren;
-    if (stepOwnerCount == 1) {
-      return WireParsers.asList(soleStepOwner!['children']);
-    }
-    if (tagged.isNotEmpty) return tagged;
-    return null;
-  }
+  ) => WorkflowTranscriptIndex.fromMessages(messages).childrenForRun(runId);
 
   /// The step events (task_* progress chips / sidechain records) for [runId]
   /// as a flat list of maps, for rendering a step timeline when the
@@ -1096,6 +1120,16 @@ class WorkflowRun {
     List<Map<String, dynamic>> messages,
   ) {
     final raw = childrenForRun(runId, messages);
+    if (raw == null || raw.isEmpty) return const <Map<String, dynamic>>[];
+    return raw.whereType<Map<String, dynamic>>().toList(growable: false);
+  }
+
+  /// Indexed variant for callers projecting multiple runs at once.
+  static List<Map<String, dynamic>> stepChildrenForIndex(
+    String runId,
+    WorkflowTranscriptIndex index,
+  ) {
+    final raw = index.childrenForRun(runId);
     if (raw == null || raw.isEmpty) return const <Map<String, dynamic>>[];
     return raw.whereType<Map<String, dynamic>>().toList(growable: false);
   }
@@ -1151,7 +1185,8 @@ class WorkflowRun {
   /// tag for a freshly-completed run.
   static String? runIdFromToolResult(dynamic result) {
     if (result is Map<String, dynamic>) {
-      final direct = WireParsers.parseString(result['runId']) ??
+      final direct =
+          WireParsers.parseString(result['runId']) ??
           WireParsers.parseString(result['run_id']);
       if (direct != null) return direct;
       return runIdFromToolResult(
@@ -1185,7 +1220,8 @@ class WorkflowRun {
       final ev = WireParsers.asMap(step['event']);
       final fromEvent = WireParsers.parseString(ev?['message']);
       if (fromEvent != null && fromEvent.isNotEmpty) return fromEvent;
-      final content = WireParsers.parseString(step['content']) ??
+      final content =
+          WireParsers.parseString(step['content']) ??
           WireParsers.parseString(step['text']);
       if (content != null && content.isNotEmpty) return content;
     }
@@ -1196,8 +1232,8 @@ class WorkflowRun {
       final desc = input == null
           ? null
           : (WireParsers.parseString(input['description']) ??
-              WireParsers.parseString(input['command']) ??
-              WireParsers.parseString(input['prompt']));
+                WireParsers.parseString(input['command']) ??
+                WireParsers.parseString(input['prompt']));
       if (desc != null && desc.isNotEmpty) {
         final first = desc.split('\n').first;
         return '$name: $first';
@@ -1245,8 +1281,8 @@ class WorkflowRun {
       'workflowName': workflowName,
       if (summary != null) 'summary': summary,
       'status': status,
-      'script': script,
-      'scriptPath': scriptPath,
+      // Script source and absolute paths are accepted above for legacy cache
+      // compatibility, but deliberately never re-exported to routes/storage.
       if (args != null) 'args': args,
       'phases': phases.map((p) => p.toJson()).toList(growable: false),
       if (defaultModel != null) 'defaultModel': defaultModel,
@@ -1313,9 +1349,7 @@ class WorkflowRun {
       startTime: clearStartTime ? null : (startTime ?? this.startTime),
       durationMs: clearDurationMs ? null : (durationMs ?? this.durationMs),
       agentCount: clearAgentCount ? null : (agentCount ?? this.agentCount),
-      totalTokens: clearTotalTokens
-          ? null
-          : (totalTokens ?? this.totalTokens),
+      totalTokens: clearTotalTokens ? null : (totalTokens ?? this.totalTokens),
       totalToolCalls: clearTotalToolCalls
           ? null
           : (totalToolCalls ?? this.totalToolCalls),
@@ -1335,10 +1369,7 @@ class WorkflowRun {
     return true;
   }
 
-  static bool _mapsEqual(
-    Map<String, dynamic>? a,
-    Map<String, dynamic>? b,
-  ) {
+  static bool _mapsEqual(Map<String, dynamic>? a, Map<String, dynamic>? b) {
     if (a == null) return b == null;
     if (b == null || a.length != b.length) return false;
     for (final entry in a.entries) {
@@ -1374,26 +1405,26 @@ class WorkflowRun {
 
   @override
   int get hashCode => Object.hash(
-        runId,
-        taskId,
-        workflowName,
-        summary,
-        status,
-        script,
-        scriptPath,
-        args,
-        Object.hashAll(phases),
-        defaultModel,
-        startTime,
-        durationMs,
-        agentCount,
-        totalTokens,
-        totalToolCalls,
-        error,
-        result,
-        logs,
-        Object.hashAll(workflowProgress),
-      );
+    runId,
+    taskId,
+    workflowName,
+    summary,
+    status,
+    script,
+    scriptPath,
+    args,
+    Object.hashAll(phases),
+    defaultModel,
+    startTime,
+    durationMs,
+    agentCount,
+    totalTokens,
+    totalToolCalls,
+    error,
+    result,
+    logs,
+    Object.hashAll(workflowProgress),
+  );
 
   @override
   String toString() =>

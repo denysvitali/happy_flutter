@@ -28,6 +28,14 @@ class TaskProgress {
   bool get isComplete => total > 0 && running == 0;
 }
 
+/// Agent rows and progress counters derived from one transcript traversal.
+class AgentSessionProjection {
+  const AgentSessionProjection({required this.agents, required this.progress});
+
+  final List<Map<String, dynamic>> agents;
+  final TaskProgress progress;
+}
+
 String? _taskEventDescription(Map<String, dynamic> msg) {
   final event = WireParsers.asMap(msg['event']);
   final eventMessage = event?['message'] as String?;
@@ -117,34 +125,6 @@ class AgentsListSheet extends StatelessWidget {
   static bool _isAgentToolName(String? name) =>
       name == 'Task' || name == 'Agent' || name == 'Workflow';
 
-  static List<String> _collectSubagentsCatalog(List<dynamic> messages) {
-    final seen = <String>{};
-    final agents = <String>[];
-
-    void collect(List<dynamic> msgs) {
-      for (final msg in msgs) {
-        if (msg is! Map<String, dynamic>) continue;
-
-        final catalog = WireParsers.asList(msg['subagentsCatalog']);
-        if (catalog != null) {
-          for (final entry in catalog) {
-            if (entry is String && entry.isNotEmpty && seen.add(entry)) {
-              agents.add(entry);
-            }
-          }
-        }
-
-        final children = msg['children'] as List<dynamic>?;
-        if (children != null && children.isNotEmpty) {
-          collect(children);
-        }
-      }
-    }
-
-    collect(messages);
-    return agents;
-  }
-
   static List<Map<String, dynamic>> _catalogToAgentMaps(List<String> catalog) {
     return [
       for (final agent in catalog)
@@ -162,42 +142,139 @@ class AgentsListSheet extends StatelessWidget {
     ];
   }
 
-  static Map<String, _TaskEventAgent> _collectTaskEventAgents(
-    List<dynamic> messages,
-  ) {
+  /// Computes the rows and counters together, visiting each transcript entry
+  /// once. This is the canonical projection used by both the sheet and the
+  /// sticky banner.
+  static AgentSessionProjection computeProjection(String sessionId) {
+    final messages = sync.sessionMessages[sessionId] ?? [];
     final taskStates = <String, _TaskEventAgent>{};
     final backgroundShellTaskIds = <String>{};
+    final catalogSeen = <String>{};
+    final catalog = <String>[];
+    final agentIds = <String>{};
+    final agents = <Map<String, dynamic>>[];
+    var total = 0;
+    var running = 0;
+    var completed = 0;
+    var error = 0;
 
-    void collect(List<dynamic> msgs) {
+    void collect(
+      List<dynamic> msgs, {
+      required bool isTopLevel,
+      required bool collectAgentTree,
+      required bool countProgressTree,
+      required bool collectTaskEventTree,
+    }) {
       for (final msg in msgs) {
         if (msg is! Map<String, dynamic>) continue;
-        if (msg['_orphanRecovery'] == true) continue;
 
-        if (msg['taskEvent'] == true) {
+        final messageCatalog = WireParsers.asList(msg['subagentsCatalog']);
+        if (messageCatalog != null) {
+          for (final entry in messageCatalog) {
+            if (entry is String && entry.isNotEmpty && catalogSeen.add(entry)) {
+              catalog.add(entry);
+            }
+          }
+        }
+
+        final isOrphan = msg['_orphanRecovery'] == true;
+        final isTopLevelSidechain = isTopLevel && msg['isSidechain'] == true;
+        var collectTaskEventChildren = collectTaskEventTree && !isOrphan;
+
+        if (collectTaskEventTree && !isOrphan && msg['taskEvent'] == true) {
           final agentId = msg['agentId'] as String?;
           if (agentId != null && agentId.isNotEmpty) {
             final taskType = msg['taskType'] as String?;
             if (taskType == 'local_bash') {
               backgroundShellTaskIds.add(agentId);
               taskStates.remove(agentId);
-              continue;
+              collectTaskEventChildren = false;
+            } else if (!backgroundShellTaskIds.contains(agentId)) {
+              taskStates
+                  .putIfAbsent(agentId, () => _TaskEventAgent(agentId: agentId))
+                  .merge(msg);
+            } else {
+              collectTaskEventChildren = false;
             }
-            if (backgroundShellTaskIds.contains(agentId)) continue;
-            taskStates
-                .putIfAbsent(agentId, () => _TaskEventAgent(agentId: agentId))
-                .merge(msg);
+          }
+        }
+
+        if (collectAgentTree && !isOrphan && msg['kind'] == 'tool-call') {
+          final name = msg['name'] as String?;
+          final id = msg['id'] as String?;
+          if (_isAgentToolName(name) && id != null && agentIds.add(id)) {
+            agents.add(msg);
+          }
+        }
+
+        if (countProgressTree &&
+            !isOrphan &&
+            !isTopLevelSidechain &&
+            msg['kind'] == 'tool-call' &&
+            _isAgentToolName(msg['name'] as String?)) {
+          total++;
+          switch (msg['state'] as String?) {
+            case 'running':
+              running++;
+            case 'completed':
+              completed++;
+            case 'error':
+              error++;
           }
         }
 
         final children = msg['children'] as List<dynamic>?;
         if (children != null && children.isNotEmpty) {
-          collect(children);
+          collect(
+            children,
+            isTopLevel: false,
+            collectAgentTree: collectAgentTree && !isOrphan,
+            countProgressTree:
+                countProgressTree && !isOrphan && !isTopLevelSidechain,
+            collectTaskEventTree: collectTaskEventChildren,
+          );
         }
       }
     }
 
-    collect(messages);
-    return taskStates;
+    collect(
+      messages,
+      isTopLevel: true,
+      collectAgentTree: true,
+      countProgressTree: true,
+      collectTaskEventTree: true,
+    );
+
+    if (taskStates.isNotEmpty) {
+      final eventAgents = taskStates.values
+          .map((agent) => agent.toAgentMap())
+          .toList();
+      final eventCompleted = taskStates.values
+          .where((state) => state.state == 'completed')
+          .length;
+      final eventError = taskStates.values
+          .where((state) => state.state == 'error')
+          .length;
+      return AgentSessionProjection(
+        agents: eventAgents,
+        progress: TaskProgress(
+          total: taskStates.length,
+          running: taskStates.length - eventCompleted - eventError,
+          completed: eventCompleted,
+          error: eventError,
+        ),
+      );
+    }
+
+    return AgentSessionProjection(
+      agents: agents.isNotEmpty ? agents : _catalogToAgentMaps(catalog),
+      progress: TaskProgress(
+        total: total,
+        running: running,
+        completed: completed,
+        error: error,
+      ),
+    );
   }
 
   /// Counts how many Task/Agent tools are currently running.
@@ -206,38 +283,7 @@ class AgentsListSheet extends StatelessWidget {
   /// Sidechain entries in the flat list are skipped (orphans);
   /// nested children under a parent Task/Agent are included.
   static int countActiveAgents(String sessionId) {
-    final messages = sync.sessionMessages[sessionId] ?? [];
-    final progress = computeTaskProgress(sessionId);
-    if (progress.hasTasks) return progress.running;
-
-    var count = 0;
-
-    void countIn(List<dynamic> msgs, {required bool isTopLevel}) {
-      for (final msg in msgs) {
-        if (msg is! Map<String, dynamic>) continue;
-        // At top level, skip sidechain entries.
-        if (isTopLevel && msg['isSidechain'] == true) continue;
-        // Orphan-recovery synthetics are placeholders at any level.
-        if (msg['_orphanRecovery'] == true) continue;
-        final kind = msg['kind'] as String?;
-        if (kind == 'tool-call') {
-          final name = msg['name'] as String?;
-          if (_isAgentToolName(name)) {
-            final state = msg['state'] as String?;
-            if (state == 'running') {
-              count++;
-            }
-          }
-        }
-        final children = msg['children'] as List<dynamic>?;
-        if (children != null && children.isNotEmpty) {
-          countIn(children, isTopLevel: false);
-        }
-      }
-    }
-
-    countIn(messages, isTopLevel: true);
-    return count;
+    return computeProjection(sessionId).progress.running;
   }
 
   /// Progress stats for Task/Agent tools in a session.
@@ -247,69 +293,7 @@ class AgentsListSheet extends StatelessWidget {
   /// states otherwise.  Both paths recurse into `children` arrays
   /// so nested sub-agents are counted.
   static TaskProgress computeTaskProgress(String sessionId) {
-    final messages = sync.sessionMessages[sessionId] ?? [];
-
-    // First pass: look for Claude Code task lifecycle events.
-    // agentId (task_id) -> latest known state. These may be top-level
-    // or nested/sidechain records when spawned by Workflow/local_workflow.
-    final taskStates = _collectTaskEventAgents(messages);
-
-    if (taskStates.isNotEmpty) {
-      final total = taskStates.length;
-      final completed = taskStates.values
-          .where((s) => s.state == 'completed')
-          .length;
-      final error = taskStates.values.where((s) => s.state == 'error').length;
-      return TaskProgress(
-        total: total,
-        running: total - completed - error,
-        completed: completed,
-        error: error,
-      );
-    }
-
-    // Fallback: count Task/Agent tool-call states, recursing into
-    // children so nested sub-agents are included.
-    var total = 0;
-    var running = 0;
-    var completed = 0;
-    var error = 0;
-
-    void countIn(List<dynamic> msgs, {required bool isTopLevel}) {
-      for (final msg in msgs) {
-        if (msg is! Map<String, dynamic>) continue;
-        if (isTopLevel && msg['isSidechain'] == true) continue;
-        if (msg['_orphanRecovery'] == true) continue;
-        final kind = msg['kind'] as String?;
-        if (kind == 'tool-call') {
-          final name = msg['name'] as String?;
-          if (_isAgentToolName(name)) {
-            total++;
-            final state = msg['state'] as String?;
-            switch (state) {
-              case 'running':
-                running++;
-              case 'completed':
-                completed++;
-              case 'error':
-                error++;
-            }
-          }
-        }
-        final children = msg['children'] as List<dynamic>?;
-        if (children != null && children.isNotEmpty) {
-          countIn(children, isTopLevel: false);
-        }
-      }
-    }
-
-    countIn(messages, isTopLevel: true);
-    return TaskProgress(
-      total: total,
-      running: running,
-      completed: completed,
-      error: error,
-    );
+    return computeProjection(sessionId).progress;
   }
 
   /// Extracts all Task/Agent tools from the session messages.
@@ -319,55 +303,11 @@ class AgentsListSheet extends StatelessWidget {
   /// are included.  Deduplicates by `id` to avoid double-counting
   /// when the sidechain grouper has already attached a child.
   static List<Map<String, dynamic>> _extractAgents(String sessionId) {
-    final messages = sync.sessionMessages[sessionId] ?? [];
-    final eventAgents = _collectTaskEventAgents(messages);
-    if (eventAgents.isNotEmpty) {
-      return eventAgents.values.map((agent) => agent.toAgentMap()).toList();
-    }
-
-    final seen = <String>{};
-    final agents = <Map<String, dynamic>>[];
-
-    void collect(List<dynamic> msgs) {
-      for (final msg in msgs) {
-        if (msg is! Map<String, dynamic>) continue;
-        // Skip orphan-recovery synthetic Tasks — legacy placeholders
-        // that may still exist in older caches. They are not real
-        // subagent invocations and should not appear in the agents
-        // list. The live code path no longer creates these
-        // (orphans are rendered inline in the chat instead).
-        if (msg['_orphanRecovery'] == true) continue;
-
-        final kind = msg['kind'] as String?;
-        if (kind == 'tool-call') {
-          final name = msg['name'] as String?;
-          if (_isAgentToolName(name)) {
-            final id = msg['id'] as String?;
-            if (id != null && seen.add(id)) {
-              agents.add(msg);
-            }
-          }
-        }
-
-        // Recurse into children (nested sub-agents).
-        final children = msg['children'] as List<dynamic>?;
-        if (children != null && children.isNotEmpty) {
-          collect(children);
-        }
-      }
-    }
-
-    collect(messages);
-    if (agents.isNotEmpty) return agents;
-
-    return _catalogToAgentMaps(_collectSubagentsCatalog(messages));
+    return computeProjection(sessionId).agents;
   }
 
-  /// Public alias for [_extractAgents]. The SubAgentStatusBanner uses
-  /// this to diff the current Task/Agent list across sync ticks so it
-  /// can open per-sub-agent OTel spans on spawn and close them on
-  /// terminal state. Public because both classes live in the same
-  /// package and the original underscore was a v1 oversight.
+  /// Public alias retained for callers that only need agent rows. Callers that
+  /// also need progress should use [computeProjection] to avoid a second scan.
   static List<Map<String, dynamic>> extractAgents(String sessionId) =>
       _extractAgents(sessionId);
 
@@ -377,8 +317,9 @@ class AgentsListSheet extends StatelessWidget {
     final cs = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
 
-    final agents = _extractAgents(sessionId);
-    final progress = computeTaskProgress(sessionId);
+    final projection = computeProjection(sessionId);
+    final agents = projection.agents;
+    final progress = projection.progress;
 
     return DraggableScrollableSheet(
       initialChildSize: agents.isEmpty ? 0.3 : 0.5,

@@ -24,9 +24,14 @@ abstract interface class MessagesRepository {
 
   Future<void> abortSession(String sessionId, {String reason = ''});
 
+  Future<void> stopSessionProcess(String sessionId);
+
   String createLocalMessageId();
 
-  Future<void> retryFailedMessage(String sessionId, String localId);
+  Future<MessageRetryResult> retryFailedMessage(
+    String sessionId,
+    String localId,
+  );
 }
 
 class SyncMessagesRepository implements MessagesRepository {
@@ -63,11 +68,18 @@ class SyncMessagesRepository implements MessagesRepository {
       _sync.abortSession(sessionId, reason: reason);
 
   @override
+  Future<void> stopSessionProcess(String sessionId) async {
+    await _sync.stopSessionProcess(sessionId);
+  }
+
+  @override
   String createLocalMessageId() => _sync.createLocalMessageId();
 
   @override
-  Future<void> retryFailedMessage(String sessionId, String localId) =>
-      _sync.retryFailedMessage(sessionId, localId);
+  Future<MessageRetryResult> retryFailedMessage(
+    String sessionId,
+    String localId,
+  ) => _sync.retryFailedMessage(sessionId, localId);
 }
 
 final messagesRepositoryProvider = Provider<MessagesRepository>(

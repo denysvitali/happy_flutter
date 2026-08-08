@@ -37,6 +37,13 @@ class FrameMetricsService {
   int _buildMicros = 0;
   int _rasterMicros = 0;
   int _totalMicros = 0;
+  final Map<String, int> _frameBuckets = <String, int>{
+    'under_16ms': 0,
+    '16_32ms': 0,
+    '32_50ms': 0,
+    '50_100ms': 0,
+    '100ms_plus': 0,
+  };
 
   /// The `ui.jank` span for the current window, opened by the first frozen
   /// frame and closed at the next flush.
@@ -110,6 +117,9 @@ class FrameMetricsService {
   @visibleForTesting
   int get debugFrozenFrameCount => _frozenFrameCount;
 
+  @visibleForTesting
+  Map<String, int> get debugFrameBuckets => Map.unmodifiable(_frameBuckets);
+
   /// Attach to [SchedulerBinding] frame timing callbacks.
   void attach({bool enableSentryTransactions = false}) {
     _enableSentryTransactions = enableSentryTransactions;
@@ -146,6 +156,14 @@ class FrameMetricsService {
     _buildMicros += buildMicros;
     _rasterMicros += rasterMicros;
     _totalMicros += totalMicros;
+    final bucket = switch (totalMicros) {
+      < 16000 => 'under_16ms',
+      < 32000 => '16_32ms',
+      < 50000 => '32_50ms',
+      < 100000 => '50_100ms',
+      _ => '100ms_plus',
+    };
+    _frameBuckets[bucket] = _frameBuckets[bucket]! + 1;
     if (totalMicros >= _slowFrameMicros) _slowFrameCount++;
     if (totalMicros >= _frozenFrameMicros) {
       _frozenFrameCount++;
@@ -225,6 +243,7 @@ class FrameMetricsService {
     final frameCount = _frameCount;
     final slowFrameCount = _slowFrameCount;
     final frozenFrameCount = _frozenFrameCount;
+    final frameBuckets = Map<String, int>.from(_frameBuckets);
     final avgBuild = Duration(microseconds: _buildMicros ~/ frameCount);
     final avgRaster = Duration(microseconds: _rasterMicros ~/ frameCount);
     final avgTotal = Duration(microseconds: _totalMicros ~/ frameCount);
@@ -234,6 +253,9 @@ class FrameMetricsService {
     _buildMicros = 0;
     _rasterMicros = 0;
     _totalMicros = 0;
+    for (final bucket in _frameBuckets.keys) {
+      _frameBuckets[bucket] = 0;
+    }
 
     final route = PerformanceContextService().currentRoute ?? 'unknown';
     final otel = OpenTelemetryService();
@@ -263,6 +285,13 @@ class FrameMetricsService {
         value: frozenFrameCount,
         attributes: {...attributes, 'classification': 'frozen'},
       );
+    for (final entry in frameBuckets.entries) {
+      otel.recordCount(
+        'app.ui.frame_latency_bucket',
+        value: entry.value,
+        attributes: {...attributes, 'bucket': entry.key},
+      );
+    }
 
     if (snapshot.isEmpty) {
       // Defensive: the span is only opened alongside a jank sample, but never

@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get commonCancel;
 
+  /// No description provided for @commonUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get commonUndo;
+
   /// No description provided for @commonAdd.
   ///
   /// In en, this message translates to:
@@ -320,7 +326,7 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'Connected'**
-  String statusConnected(String time);
+  String get statusConnected;
 
   /// No description provided for @statusConnecting.
   ///
@@ -370,11 +376,11 @@ abstract class AppLocalizations {
   /// **'Permission required'**
   String get statusPermissionRequired;
 
-  /// No description provided for @statusLastSeen.
+  /// Last-seen timestamp
   ///
   /// In en, this message translates to:
   /// **'Last seen {time}'**
-  String statusLastSeen(Object time);
+  String statusLastSeen(String time);
 
   /// No description provided for @timeJustNow.
   ///
@@ -580,6 +586,42 @@ abstract class AppLocalizations {
   /// **'Type a message ...'**
   String get sessionInputPlaceholder;
 
+  /// No description provided for @chatStopCurrentTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop current task'**
+  String get chatStopCurrentTask;
+
+  /// No description provided for @chatStopAgentProcess.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop agent process'**
+  String get chatStopAgentProcess;
+
+  /// No description provided for @chatStopAgentProcessConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop agent process?'**
+  String get chatStopAgentProcessConfirmTitle;
+
+  /// No description provided for @chatStopAgentProcessConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This terminates the session\'s process or pod. The conversation is kept and can be restarted by sending another message.'**
+  String get chatStopAgentProcessConfirmBody;
+
+  /// No description provided for @chatStopAgentProcessSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent process stopped'**
+  String get chatStopAgentProcessSuccess;
+
+  /// No description provided for @chatStopAgentProcessFailure.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not stop the agent process. It may still be running.'**
+  String get chatStopAgentProcessFailure;
+
   /// No description provided for @sessionStartSession.
   ///
   /// In en, this message translates to:
@@ -591,6 +633,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Starting session...'**
   String get sessionStarting;
+
+  /// No description provided for @newSessionPhaseCheckingMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking machine…'**
+  String get newSessionPhaseCheckingMachine;
+
+  /// No description provided for @newSessionPhaseSavingPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving preferences…'**
+  String get newSessionPhaseSavingPreferences;
+
+  /// No description provided for @newSessionPhasePreparingWorktree.
+  ///
+  /// In en, this message translates to:
+  /// **'Creating worktree…'**
+  String get newSessionPhasePreparingWorktree;
+
+  /// No description provided for @newSessionPhaseSchedulingContainer.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduling container and preparing repository…'**
+  String get newSessionPhaseSchedulingContainer;
+
+  /// No description provided for @newSessionPhaseStartingAgent.
+  ///
+  /// In en, this message translates to:
+  /// **'Starting agent…'**
+  String get newSessionPhaseStartingAgent;
+
+  /// No description provided for @newSessionPhaseFinalizing.
+  ///
+  /// In en, this message translates to:
+  /// **'Finalizing session…'**
+  String get newSessionPhaseFinalizing;
 
   /// No description provided for @sessionStarted.
   ///
@@ -1098,6 +1176,33 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CLI Version'**
   String get machineCliVersion;
+
+  /// No description provided for @machineCompatibilityTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Happy update recommended'**
+  String get machineCompatibilityTitle;
+
+  /// No description provided for @machineCompatibilityMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {currentVersion} is installed. Update to {requiredVersion} or later for the latest remote features.'**
+  String machineCompatibilityMessage(
+    String currentVersion,
+    String requiredVersion,
+  );
+
+  /// No description provided for @machineCompatibilityAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy update command'**
+  String get machineCompatibilityAction;
+
+  /// No description provided for @machineCompatibilityCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Update command copied'**
+  String get machineCompatibilityCopied;
 
   /// No description provided for @machineDaemonStateVersion.
   ///
@@ -2755,6 +2860,24 @@ abstract class AppLocalizations {
   /// **'Type a command or search...'**
   String get commandPalettePlaceholder;
 
+  /// No description provided for @commandPaletteSemanticsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Command palette'**
+  String get commandPaletteSemanticsLabel;
+
+  /// No description provided for @commandPaletteNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No commands found'**
+  String get commandPaletteNoResults;
+
+  /// No description provided for @commandPaletteTryDifferentSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Try a different search term'**
+  String get commandPaletteTryDifferentSearch;
+
   /// No description provided for @toolViewInput.
   ///
   /// In en, this message translates to:
@@ -3978,6 +4101,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reconnecting...'**
   String get offlineBannerReconnecting;
+
+  /// No description provided for @offlineBannerLiveUpdatesDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Live updates disconnected'**
+  String get offlineBannerLiveUpdatesDisconnected;
+
+  /// No description provided for @offlineBannerServiceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Service connection unavailable'**
+  String get offlineBannerServiceUnavailable;
 
   /// No description provided for @offlineBannerReconnectingIn.
   ///
@@ -5779,6 +5914,24 @@ abstract class AppLocalizations {
   /// **'Stop'**
   String get permissionStop;
 
+  /// No description provided for @permissionAppliedOnce.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission approved for this request'**
+  String get permissionAppliedOnce;
+
+  /// No description provided for @permissionAppliedForSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission approved for this session'**
+  String get permissionAppliedForSession;
+
+  /// No description provided for @permissionDenialApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied'**
+  String get permissionDenialApplied;
+
   /// No description provided for @permissionYes.
   ///
   /// In en, this message translates to:
@@ -6462,6 +6615,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Online'**
   String get chatOnline;
+
+  /// No description provided for @chatStatusStopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping'**
+  String get chatStatusStopping;
+
+  /// No description provided for @chatStatusAgentFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Agent failed'**
+  String get chatStatusAgentFailed;
+
+  /// No description provided for @chatStatusWillRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Will restart'**
+  String get chatStatusWillRestart;
+
+  /// No description provided for @chatStatusReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting'**
+  String get chatStatusReconnecting;
+
+  /// No description provided for @chatStatusConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting'**
+  String get chatStatusConnecting;
+
+  /// No description provided for @chatStatusApprovalNeeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Approval needed'**
+  String get chatStatusApprovalNeeded;
+
+  /// No description provided for @chatStatusWorkingOnSubtasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Working on sub-tasks'**
+  String get chatStatusWorkingOnSubtasks;
+
+  /// No description provided for @chatStatusThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get chatStatusThinking;
+
+  /// No description provided for @chatStatusRetryQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry queued'**
+  String get chatStatusRetryQueued;
+
+  /// No description provided for @chatStatusNotDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Not delivered'**
+  String get chatStatusNotDelivered;
+
+  /// No description provided for @chatStatusSentSlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent (slow)'**
+  String get chatStatusSentSlow;
+
+  /// No description provided for @chatSendSending.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending'**
+  String get chatSendSending;
+
+  /// No description provided for @chatSendSendingSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Message sending'**
+  String get chatSendSendingSemantic;
+
+  /// No description provided for @chatSendRetryQueuedSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Message retry queued'**
+  String get chatSendRetryQueuedSemantic;
+
+  /// No description provided for @chatSendDelivered.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered'**
+  String get chatSendDelivered;
+
+  /// No description provided for @chatSendDeliveredSlow.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivered — slow'**
+  String get chatSendDeliveredSlow;
+
+  /// No description provided for @chatSendDeliveredSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Message delivered'**
+  String get chatSendDeliveredSemantic;
+
+  /// No description provided for @chatSendDeliveredSlowSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Message delivered after a slow send'**
+  String get chatSendDeliveredSlowSemantic;
+
+  /// No description provided for @chatSendNotDeliveredSemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Message not delivered'**
+  String get chatSendNotDeliveredSemantic;
+
+  /// No description provided for @chatSendNotDeliveredRetrySemantic.
+  ///
+  /// In en, this message translates to:
+  /// **'Message not delivered — tap to retry'**
+  String get chatSendNotDeliveredRetrySemantic;
+
+  /// No description provided for @chatSendFailedRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed — tap to retry'**
+  String get chatSendFailedRetry;
+
+  /// No description provided for @chatClearFailedSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not clear the conversation. Try again.'**
+  String get chatClearFailedSafe;
+
+  /// No description provided for @chatLifecycleFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Session agent stopped'**
+  String get chatLifecycleFailedTitle;
+
+  /// No description provided for @chatLifecycleRecoverableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent process stopped. Sending a message will try to restart it before delivery.'**
+  String get chatLifecycleRecoverableMessage;
+
+  /// No description provided for @chatLifecycleBlockedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The agent process stopped and cannot be restored. Start a new session to continue.'**
+  String get chatLifecycleBlockedMessage;
 
   /// No description provided for @chatConversationCleared.
   ///
@@ -7513,6 +7816,42 @@ abstract class AppLocalizations {
   /// **'Inactive'**
   String get sessionInfoInactive;
 
+  /// Badge shown when the daemon verified sandbox enforcement
+  ///
+  /// In en, this message translates to:
+  /// **'Sandboxed'**
+  String get sessionSandboxEnforced;
+
+  /// Badge shown when sandboxing was requested but not enforced
+  ///
+  /// In en, this message translates to:
+  /// **'Not sandboxed'**
+  String get sessionSandboxNotEnforced;
+
+  /// Badge shown when sandboxing was not requested
+  ///
+  /// In en, this message translates to:
+  /// **'Sandbox off'**
+  String get sessionSandboxOff;
+
+  /// Tooltip for a verified sandbox badge
+  ///
+  /// In en, this message translates to:
+  /// **'Isolation enforced by {backend}'**
+  String sessionSandboxEnforcedTooltip(String backend);
+
+  /// Fallback tooltip when a sandbox failure reason is unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Sandboxing was requested but not enforced'**
+  String get sessionSandboxNotEnforcedTooltip;
+
+  /// Tooltip for a session whose sandbox policy was off
+  ///
+  /// In en, this message translates to:
+  /// **'Sandboxing was not requested for this session'**
+  String get sessionSandboxOffTooltip;
+
   /// No description provided for @commonId.
   ///
   /// In en, this message translates to:
@@ -7666,25 +8005,25 @@ abstract class AppLocalizations {
   /// No description provided for @terminalIdLabel.
   ///
   /// In en, this message translates to:
-  /// **'TERMINAL / SESSION ID'**
+  /// **'WORKING DIRECTORY'**
   String get terminalIdLabel;
 
   /// No description provided for @terminalIdHint.
   ///
   /// In en, this message translates to:
-  /// **'e.g. main, dev, 1234'**
+  /// **'/path/to/project'**
   String get terminalIdHint;
 
   /// No description provided for @terminalDisconnect.
   ///
   /// In en, this message translates to:
-  /// **'Disconnect'**
+  /// **'Close'**
   String get terminalDisconnect;
 
   /// No description provided for @terminalTitle.
   ///
   /// In en, this message translates to:
-  /// **'Terminal'**
+  /// **'Run command'**
   String get terminalTitle;
 
   /// No description provided for @terminalSendCommand.
@@ -7789,6 +8128,12 @@ abstract class AppLocalizations {
   /// **'Recent'**
   String get commandCategoryRecent;
 
+  /// No description provided for @commandCategoryGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get commandCategoryGeneral;
+
   /// No description provided for @commandNewSessionTitle.
   ///
   /// In en, this message translates to:
@@ -7864,13 +8209,13 @@ abstract class AppLocalizations {
   /// No description provided for @commandTerminalTitle.
   ///
   /// In en, this message translates to:
-  /// **'Terminal'**
+  /// **'Run command'**
   String get commandTerminalTitle;
 
   /// No description provided for @commandTerminalSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Access terminal sessions'**
+  /// **'Run a command on a connected machine'**
   String get commandTerminalSubtitle;
 
   /// No description provided for @networkInspectorTitle.
@@ -8172,6 +8517,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recent Sessions'**
   String get commandCategoryRecentSessions;
+
+  /// No description provided for @commandSessionFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Session {id}'**
+  String commandSessionFallback(String id);
+
+  /// No description provided for @commandSwitchToSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to session'**
+  String get commandSwitchToSession;
 
   /// No description provided for @featuresSectionExperiments.
   ///
@@ -8968,31 +9325,37 @@ abstract class AppLocalizations {
   /// No description provided for @terminalConnect.
   ///
   /// In en, this message translates to:
-  /// **'Connect Terminal'**
+  /// **'Run command'**
   String get terminalConnect;
 
   /// No description provided for @terminalConnected.
   ///
   /// In en, this message translates to:
-  /// **'Terminal connected.'**
+  /// **'Commands run independently. Shell state is not preserved.'**
   String get terminalConnected;
 
   /// No description provided for @terminalConnectInfo.
   ///
   /// In en, this message translates to:
-  /// **'Connect to a terminal session running on one of your machines.'**
+  /// **'Run one-off shell commands on a linked machine. This is not an interactive terminal.'**
   String get terminalConnectInfo;
+
+  /// No description provided for @terminalCommandFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Command failed. Check the machine connection and try again.'**
+  String get terminalCommandFailed;
 
   /// No description provided for @terminalDisconnectConfirm.
   ///
   /// In en, this message translates to:
-  /// **'Are you sure you want to disconnect from the terminal?'**
+  /// **'Close the command runner?'**
   String get terminalDisconnectConfirm;
 
   /// No description provided for @terminalIdError.
   ///
   /// In en, this message translates to:
-  /// **'Please enter a terminal or session ID'**
+  /// **'Please enter a working directory'**
   String get terminalIdError;
 
   /// No description provided for @terminalNoMachines.
@@ -9006,6 +9369,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'[output pending]'**
   String get terminalOutputPending;
+
+  /// No description provided for @terminalNoMachineConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'No machine is connected.'**
+  String get terminalNoMachineConnected;
+
+  /// No description provided for @terminalOutputTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Output was truncated by the machine.'**
+  String get terminalOutputTruncated;
+
+  /// No description provided for @terminalOutputTruncatedBytes.
+  ///
+  /// In en, this message translates to:
+  /// **'Output was truncated by the machine ({size} total).'**
+  String terminalOutputTruncatedBytes(String size);
 
   /// No description provided for @voiceSelectLanguageHint.
   ///
@@ -10045,6 +10426,47 @@ abstract class AppLocalizations {
   /// **'Add server'**
   String get mcpAddServer;
 
+  /// No description provided for @mcpEnableTrustTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable {name}?'**
+  String mcpEnableTrustTitle(String name);
+
+  /// No description provided for @mcpEnableTrustBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Review this server before allowing it to provide tools to the agent.\n\nTarget: {target}\nScope: {scope}\nProject: {project}\nSecret names: {secrets}'**
+  String mcpEnableTrustBody(
+    String target,
+    String scope,
+    String project,
+    String secrets,
+  );
+
+  /// No description provided for @mcpEnableServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable server'**
+  String get mcpEnableServer;
+
+  /// No description provided for @mcpEnabledWithUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'MCP server enabled'**
+  String get mcpEnabledWithUndo;
+
+  /// No description provided for @mcpNoProject.
+  ///
+  /// In en, this message translates to:
+  /// **'All projects in this scope'**
+  String get mcpNoProject;
+
+  /// No description provided for @mcpNoSecrets.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get mcpNoSecrets;
+
   /// Title of the MCP server edit form
   ///
   /// In en, this message translates to:
@@ -10318,14 +10740,74 @@ abstract class AppLocalizations {
   /// Helper text for the stdio environment field
   ///
   /// In en, this message translates to:
-  /// **'One KEY=VALUE per line.'**
+  /// **'Values stay masked. Add, replace, or remove environment variables.'**
   String get mcpEnvHelper;
 
   /// Helper text for the headers field
   ///
   /// In en, this message translates to:
-  /// **'One Header-Name=value per line.'**
+  /// **'Values stay masked. Add, replace, or remove request headers.'**
   String get mcpHeadersHelper;
+
+  /// Button to add a masked MCP environment variable or header
+  ///
+  /// In en, this message translates to:
+  /// **'Add secret'**
+  String get mcpSecretAdd;
+
+  /// Button to replace a stored MCP secret value
+  ///
+  /// In en, this message translates to:
+  /// **'Replace secret'**
+  String get mcpSecretReplace;
+
+  /// Field label for an MCP environment variable or header name
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get mcpSecretKey;
+
+  /// Validation error for an empty MCP secret key
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a name'**
+  String get mcpSecretKeyRequired;
+
+  /// Validation error for a duplicate MCP secret key
+  ///
+  /// In en, this message translates to:
+  /// **'That name already exists'**
+  String get mcpSecretKeyExists;
+
+  /// Masked value field for an MCP environment variable or header
+  ///
+  /// In en, this message translates to:
+  /// **'New value'**
+  String get mcpSecretValue;
+
+  /// Validation error for an empty MCP secret value
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a value'**
+  String get mcpSecretValueRequired;
+
+  /// Status for an MCP secret that will be replaced on save
+  ///
+  /// In en, this message translates to:
+  /// **'Replacement ready'**
+  String get mcpSecretReplacementReady;
+
+  /// Presence-only status for a stored MCP secret
+  ///
+  /// In en, this message translates to:
+  /// **'Stored securely'**
+  String get mcpSecretStored;
+
+  /// Button to delete an MCP environment variable or header
+  ///
+  /// In en, this message translates to:
+  /// **'Remove secret'**
+  String get mcpSecretRemove;
 
   /// Validation error for an empty endpoint URL
   ///
@@ -10495,6 +10977,12 @@ abstract class AppLocalizations {
   /// **'Choose what a project\'s sessions can reach on your machines'**
   String get settingsSandboxSubtitle;
 
+  /// Fallback reason shown when no online machine reports sandbox support
+  ///
+  /// In en, this message translates to:
+  /// **'Connect or update a machine daemon that supports sandboxing'**
+  String get settingsSandboxUnavailable;
+
   /// Session card activity line while a tool is executing
   ///
   /// In en, this message translates to:
@@ -10650,6 +11138,612 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mark incomplete'**
   String get tasksMarkIncomplete;
+
+  /// Title of the cross-session tasks screen
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get tasksTitle;
+
+  /// Empty-state title on the tasks screen
+  ///
+  /// In en, this message translates to:
+  /// **'No active tasks'**
+  String get tasksEmptyTitle;
+
+  /// Empty-state explanation on the tasks screen
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks from your sessions will appear here, grouped by priority.'**
+  String get tasksEmptySubtitle;
+
+  /// Critical task priority label
+  ///
+  /// In en, this message translates to:
+  /// **'Critical'**
+  String get tasksPriorityCritical;
+
+  /// High task priority label
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get tasksPriorityHigh;
+
+  /// Medium task priority label
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get tasksPriorityMedium;
+
+  /// Low task priority label
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get tasksPriorityLow;
+
+  /// No description provided for @artifactsSourceSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Source sessions'**
+  String get artifactsSourceSessions;
+
+  /// No description provided for @artifactsSourceSessionsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the conversations that produced or updated this artifact.'**
+  String get artifactsSourceSessionsSubtitle;
+
+  /// No description provided for @workflowRefreshWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not refresh. Showing saved progress.'**
+  String get workflowRefreshWarning;
+
+  /// No description provided for @workflowsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflows'**
+  String get workflowsTitle;
+
+  /// No description provided for @workflowsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 workflow} other{{count} workflows}}'**
+  String workflowsCount(int count);
+
+  /// No description provided for @workflowsUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflows unavailable'**
+  String get workflowsUnavailableTitle;
+
+  /// No description provided for @workflowsUnavailableSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This machine does not support workflow history yet. Update the Happy CLI to use it.'**
+  String get workflowsUnavailableSubtitle;
+
+  /// No description provided for @workflowsEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No workflows yet'**
+  String get workflowsEmptyTitle;
+
+  /// No description provided for @workflowsEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflow runs will appear here when an agent starts one.'**
+  String get workflowsEmptySubtitle;
+
+  /// No description provided for @workflowsLoadFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load workflows'**
+  String get workflowsLoadFailedTitle;
+
+  /// No description provided for @workflowLoadFailedSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflow data is unavailable right now. Try again.'**
+  String get workflowLoadFailedSafe;
+
+  /// No description provided for @workflowNotFoundSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'This workflow run is unavailable.'**
+  String get workflowNotFoundSafe;
+
+  /// No description provided for @workflowRunFailedSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'This workflow run failed unexpectedly.'**
+  String get workflowRunFailedSafe;
+
+  /// No description provided for @workflowAgentFailedSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'This agent step failed unexpectedly.'**
+  String get workflowAgentFailedSafe;
+
+  /// No description provided for @workflowErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get workflowErrorTitle;
+
+  /// No description provided for @workflowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflow'**
+  String get workflowTitle;
+
+  /// No description provided for @connectionDiagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection diagnostics'**
+  String get connectionDiagnosticsTitle;
+
+  /// No description provided for @connectionDiagnosticsNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network'**
+  String get connectionDiagnosticsNetwork;
+
+  /// No description provided for @connectionDiagnosticsLiveUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Live updates'**
+  String get connectionDiagnosticsLiveUpdates;
+
+  /// No description provided for @connectionDiagnosticsLastDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Last disconnect'**
+  String get connectionDiagnosticsLastDisconnect;
+
+  /// No description provided for @connectionDiagnosticsNoDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'No disconnect recorded'**
+  String get connectionDiagnosticsNoDisconnect;
+
+  /// No description provided for @connectionDiagnosticsDisconnectedFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnected for'**
+  String get connectionDiagnosticsDisconnectedFor;
+
+  /// No description provided for @connectionDiagnosticsReconnectAttempt.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect attempt'**
+  String get connectionDiagnosticsReconnectAttempt;
+
+  /// No description provided for @connectionDiagnosticsService.
+  ///
+  /// In en, this message translates to:
+  /// **'Service'**
+  String get connectionDiagnosticsService;
+
+  /// No description provided for @connectionDiagnosticsCheckingService.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get connectionDiagnosticsCheckingService;
+
+  /// No description provided for @connectionDiagnosticsServiceDegraded.
+  ///
+  /// In en, this message translates to:
+  /// **'Degraded: {components}'**
+  String connectionDiagnosticsServiceDegraded(String components);
+
+  /// No description provided for @connectionDiagnosticsServiceDegradedSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Some services are degraded'**
+  String get connectionDiagnosticsServiceDegradedSafe;
+
+  /// No description provided for @connectionDiagnosticsServiceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Service unavailable'**
+  String get connectionDiagnosticsServiceUnavailable;
+
+  /// No description provided for @connectionDiagnosticsAuthenticationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Authentication required'**
+  String get connectionDiagnosticsAuthenticationRequired;
+
+  /// No description provided for @connectionDiagnosticsTimedOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection timed out'**
+  String get connectionDiagnosticsTimedOut;
+
+  /// No description provided for @connectionDiagnosticsConnectionClosed.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection closed'**
+  String get connectionDiagnosticsConnectionClosed;
+
+  /// No description provided for @connectionDiagnosticsElapsedSeconds.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 second} other {{count} seconds}}'**
+  String connectionDiagnosticsElapsedSeconds(int count);
+
+  /// No description provided for @connectionDiagnosticsElapsedMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 minute} other {{count} minutes}}'**
+  String connectionDiagnosticsElapsedMinutes(int count);
+
+  /// No description provided for @connectionDiagnosticsElapsedHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours, plural, =1 {1 hour} other {{hours} hours}} {minutes, plural, =0 {} =1 {1 minute} other {{minutes} minutes}}'**
+  String connectionDiagnosticsElapsedHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @settingsHealthStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get settingsHealthStatus;
+
+  /// No description provided for @settingsHealthSyncReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync ready'**
+  String get settingsHealthSyncReady;
+
+  /// No description provided for @settingsHealthSyncAttention.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync needs attention'**
+  String get settingsHealthSyncAttention;
+
+  /// No description provided for @settingsHealthApplyingUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected and applying the latest updates'**
+  String get settingsHealthApplyingUpdates;
+
+  /// No description provided for @settingsHealthReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for sessions, messages, and settings updates'**
+  String get settingsHealthReady;
+
+  /// No description provided for @settingsHealthOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline. Updates will resume when the network returns'**
+  String get settingsHealthOffline;
+
+  /// No description provided for @settingsHealthLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected, waiting for initial data to finish loading'**
+  String get settingsHealthLoading;
+
+  /// No description provided for @settingsHealthReconnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnecting to live updates'**
+  String get settingsHealthReconnecting;
+
+  /// No description provided for @settingsHealthNoMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'No machines linked yet'**
+  String get settingsHealthNoMachines;
+
+  /// No description provided for @settingsHealthMachinesOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'{online} online of {total} linked'**
+  String settingsHealthMachinesOnline(int online, int total);
+
+  /// No description provided for @settingsHealthSessionsOnline.
+  ///
+  /// In en, this message translates to:
+  /// **'{online} online of {total} total'**
+  String settingsHealthSessionsOnline(int online, int total);
+
+  /// No description provided for @settingsHealthAccountRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Account and recovery'**
+  String get settingsHealthAccountRecovery;
+
+  /// No description provided for @settingsHealthAccountRecoverySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup key, linked devices, restore, and services'**
+  String get settingsHealthAccountRecoverySubtitle;
+
+  /// No description provided for @settingsHealthSocketGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Socket generation'**
+  String get settingsHealthSocketGeneration;
+
+  /// No description provided for @settingsHealthLastSocketEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Last socket event age'**
+  String get settingsHealthLastSocketEvent;
+
+  /// No description provided for @settingsHealthNoSocketEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'No event recorded'**
+  String get settingsHealthNoSocketEvent;
+
+  /// No description provided for @settingsHealthOutbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Message outbox'**
+  String get settingsHealthOutbox;
+
+  /// No description provided for @settingsHealthOutboxCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{pending} pending, {failed} failed'**
+  String settingsHealthOutboxCounts(int pending, int failed);
+
+  /// No description provided for @settingsHealthSyncDomains.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync domains'**
+  String get settingsHealthSyncDomains;
+
+  /// No description provided for @settingsHealthCopyDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy diagnostics'**
+  String get settingsHealthCopyDiagnostics;
+
+  /// No description provided for @settingsHealthDomainSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Sessions'**
+  String get settingsHealthDomainSessions;
+
+  /// No description provided for @settingsHealthDomainMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Messages'**
+  String get settingsHealthDomainMessages;
+
+  /// No description provided for @settingsHealthDomainMachines.
+  ///
+  /// In en, this message translates to:
+  /// **'Machines'**
+  String get settingsHealthDomainMachines;
+
+  /// No description provided for @settingsHealthDomainSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsHealthDomainSettings;
+
+  /// No description provided for @settingsHealthDomainProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get settingsHealthDomainProfile;
+
+  /// No description provided for @settingsHealthDomainArtifacts.
+  ///
+  /// In en, this message translates to:
+  /// **'Artifacts'**
+  String get settingsHealthDomainArtifacts;
+
+  /// No description provided for @settingsHealthDomainGitStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Git status'**
+  String get settingsHealthDomainGitStatus;
+
+  /// No description provided for @settingsHealthDomainFriendRequests.
+  ///
+  /// In en, this message translates to:
+  /// **'Friend requests'**
+  String get settingsHealthDomainFriendRequests;
+
+  /// No description provided for @settingsHealthDomainLoops.
+  ///
+  /// In en, this message translates to:
+  /// **'Loops'**
+  String get settingsHealthDomainLoops;
+
+  /// No description provided for @settingsHealthDomainWorkflows.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflows'**
+  String get settingsHealthDomainWorkflows;
+
+  /// No description provided for @settingsHealthDomainSyncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing now'**
+  String get settingsHealthDomainSyncing;
+
+  /// No description provided for @settingsHealthDomainQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Update queued'**
+  String get settingsHealthDomainQueued;
+
+  /// No description provided for @settingsHealthDomainNoFreshness.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed refresh recorded'**
+  String get settingsHealthDomainNoFreshness;
+
+  /// No description provided for @settingsHealthDomainFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {reason}'**
+  String settingsHealthDomainFailed(String reason);
+
+  /// No description provided for @settingsHealthDomainUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {elapsed} ago'**
+  String settingsHealthDomainUpdated(String elapsed);
+
+  /// No description provided for @settingsHealthDomainState.
+  ///
+  /// In en, this message translates to:
+  /// **'{state} · revision {revision}'**
+  String settingsHealthDomainState(String state, int revision);
+
+  /// No description provided for @settingsHealthFailureDecrypt.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypted data could not be read'**
+  String get settingsHealthFailureDecrypt;
+
+  /// No description provided for @settingsHealthFailureInterrupted.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh was interrupted'**
+  String get settingsHealthFailureInterrupted;
+
+  /// No description provided for @settingsHealthFailureInvalidData.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid response data'**
+  String get settingsHealthFailureInvalidData;
+
+  /// No description provided for @remoteFeatureErrorOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected machine is offline.'**
+  String get remoteFeatureErrorOffline;
+
+  /// No description provided for @remoteFeatureErrorUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'This feature requires a newer Happy daemon.'**
+  String get remoteFeatureErrorUnsupported;
+
+  /// No description provided for @remoteFeatureErrorTemporary.
+  ///
+  /// In en, this message translates to:
+  /// **'The machine could not complete the request. Try again.'**
+  String get remoteFeatureErrorTemporary;
+
+  /// No description provided for @remoteFeatureErrorRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The machine rejected the request. Check the values and try again.'**
+  String get remoteFeatureErrorRejected;
+
+  /// No description provided for @remoteFeatureErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The request could not be completed.'**
+  String get remoteFeatureErrorUnknown;
+
+  /// No description provided for @accountRevealBackupKeyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal backup key?'**
+  String get accountRevealBackupKeyTitle;
+
+  /// No description provided for @accountRevealBackupKeyWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone who sees this key can access your account. Make sure nobody can see your screen.'**
+  String get accountRevealBackupKeyWarning;
+
+  /// No description provided for @accountRevealAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal'**
+  String get accountRevealAction;
+
+  /// No description provided for @accountCopyBackupKeyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy backup key?'**
+  String get accountCopyBackupKeyTitle;
+
+  /// No description provided for @accountCopyBackupKeyWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'The key grants full account access. It will be cleared from the clipboard after 60 seconds.'**
+  String get accountCopyBackupKeyWarning;
+
+  /// No description provided for @accountCopyKeyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy key'**
+  String get accountCopyKeyAction;
+
+  /// No description provided for @accountClipboardExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Clipboard clears in 60s.'**
+  String get accountClipboardExpiry;
+
+  /// No description provided for @accountSwitchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch account?'**
+  String get accountSwitchTitle;
+
+  /// No description provided for @accountSwitchWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This will replace the account on this device with account {fingerprint}. Unsaved drafts and pending sends may not carry over.'**
+  String accountSwitchWarning(String fingerprint);
+
+  /// No description provided for @accountSwitchAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch account'**
+  String get accountSwitchAction;
+
+  /// No description provided for @accountShowBackupKeyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Show backup key'**
+  String get accountShowBackupKeyAction;
+
+  /// No description provided for @accountHideBackupKeyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide backup key'**
+  String get accountHideBackupKeyAction;
+
+  /// No description provided for @accountRestoreServiceError.
+  ///
+  /// In en, this message translates to:
+  /// **'The restore service could not complete the request.'**
+  String get accountRestoreServiceError;
+
+  /// No description provided for @accountRestoreRejectedCode.
+  ///
+  /// In en, this message translates to:
+  /// **'The restore service rejected the key (code {code}).'**
+  String accountRestoreRejectedCode(int code);
+
+  /// No description provided for @accountRestoreGenericError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not restore the account. Check your connection and try again.'**
+  String get accountRestoreGenericError;
+
+  /// Accessibility label for opening the session that owns a task
+  ///
+  /// In en, this message translates to:
+  /// **'{task}, from {session}. Open session'**
+  String tasksOpenSession(String task, String session);
 
   /// Title of the goal loops screen
   ///

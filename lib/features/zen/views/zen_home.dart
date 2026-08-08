@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/components/app_empty_state.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/services/sync_service.dart';
+import '../../../core/sync/sync_domain.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
@@ -32,16 +34,16 @@ enum _Priority {
     }
   }
 
-  String get label {
+  String label(AppLocalizations l10n) {
     switch (this) {
       case critical:
-        return 'Critical';
+        return l10n.tasksPriorityCritical;
       case high:
-        return 'High';
+        return l10n.tasksPriorityHigh;
       case medium:
-        return 'Medium';
+        return l10n.tasksPriorityMedium;
       case low:
-        return 'Low';
+        return l10n.tasksPriorityLow;
     }
   }
 
@@ -112,10 +114,9 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     Future<void>.microtask(() async {
       await ref.read(sessionsNotifierProvider.notifier).refreshFromSync();
     });
-    subscribeToDomains(
-      {SyncDomain.sessions},
-      () => ref.read(sessionsNotifierProvider.notifier).loadFromSync(),
-    );
+    subscribeToDomains({
+      SyncDomain.sessions,
+    }, () => ref.read(sessionsNotifierProvider.notifier).loadFromSync());
   }
 
   // ─── Data helpers ─────────────────────────────────────────────────────────
@@ -176,10 +177,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     final grouped = _groupByPriority(todos);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Zen'),
-        centerTitle: false,
-      ),
+      appBar: AppBar(title: Text(context.l10n.tasksTitle), centerTitle: false),
       body: todos.isEmpty
           ? _EmptyState()
           : ListView(
@@ -206,7 +204,10 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
                         crossFadeState: _collapsed.contains(p)
                             ? CrossFadeState.showSecond
                             : CrossFadeState.showFirst,
-                        duration: const Duration(milliseconds: 200),
+                        duration: AppMotion.duration(
+                          context,
+                          const Duration(milliseconds: 200),
+                        ),
                         sizeCurve: Curves.easeInOut,
                       ),
                       const SizedBox(height: AppSpacing.sm),
@@ -244,9 +245,7 @@ class _PrioritySectionHeader extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.xs),
         decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: borderColor, width: 3),
-          ),
+          border: Border(left: BorderSide(color: borderColor, width: 3)),
           color: borderColor.withValues(alpha: 0.06),
           borderRadius: const BorderRadius.horizontal(
             right: Radius.circular(AppRadius.sm),
@@ -258,15 +257,11 @@ class _PrioritySectionHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              priority.icon,
-              size: 16,
-              color: borderColor,
-            ),
+            Icon(priority.icon, size: 16, color: borderColor),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
-                priority.label,
+                priority.label(context.l10n),
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: borderColor,
                   fontWeight: FontWeight.w700,
@@ -294,7 +289,10 @@ class _PrioritySectionHeader extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             AnimatedRotation(
               turns: collapsed ? -0.25 : 0,
-              duration: const Duration(milliseconds: 200),
+              duration: AppMotion.duration(
+                context,
+                const Duration(milliseconds: 200),
+              ),
               curve: Curves.easeInOut,
               child: Icon(
                 Icons.expand_more_rounded,
@@ -312,10 +310,7 @@ class _PrioritySectionHeader extends StatelessWidget {
 // ─── Section body ─────────────────────────────────────────────────────────────
 
 class _PrioritySectionBody extends StatelessWidget {
-  const _PrioritySectionBody({
-    required this.priority,
-    required this.todos,
-  });
+  const _PrioritySectionBody({required this.priority, required this.todos});
 
   final _Priority priority;
   final List<_SessionTodo> todos;
@@ -362,48 +357,67 @@ class _TodoRow extends StatelessWidget {
       statusColor = theme.colorScheme.primary;
       statusIcon = Icons.radio_button_checked_rounded;
     } else {
-      statusColor =
-          theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55);
+      statusColor = theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.55);
       statusIcon = Icons.check_box_outline_blank_rounded;
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+    return Semantics(
+      button: true,
+      label: context.l10n.tasksOpenSession(
+        item.content,
+        sessionTodo.sessionTitle,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(statusIcon, size: 16, color: statusColor),
+      child: InkWell(
+        onTap: () => context.pushNamed(
+          'chat',
+          pathParameters: {'sessionId': sessionTodo.sessionId},
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.content,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface,
-                  ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(statusIcon, size: 16, color: statusColor),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.content,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      sessionTodo.sessionTitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.65,
+                        ),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  sessionTodo.sessionTitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant
-                        .withValues(alpha: 0.65),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -414,11 +428,10 @@ class _TodoRow extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const AppEmptyState(
+    return AppEmptyState(
       icon: Icons.checklist_rounded,
-      title: 'No active tasks',
-      subtitle:
-          'Tasks from your sessions will appear here, grouped by priority.',
+      title: context.l10n.tasksEmptyTitle,
+      subtitle: context.l10n.tasksEmptySubtitle,
     );
   }
 }

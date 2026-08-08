@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/api/socket_io_client.dart'
-    show ConnectionStatus;
+import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -13,17 +12,13 @@ import '../../../core/theme/app_tokens.dart';
 /// perceivable for colourblind users — and carries a localized
 /// [Semantics] label for screen readers.
 class ConnectionStatusBadge extends StatefulWidget {
-  const ConnectionStatusBadge({
-    required this.status,
-    super.key,
-  });
+  const ConnectionStatusBadge({required this.status, super.key});
 
   /// The current connection status.
   final ConnectionStatus status;
 
   @override
-  State<ConnectionStatusBadge> createState() =>
-      _ConnectionStatusBadgeState();
+  State<ConnectionStatusBadge> createState() => _ConnectionStatusBadgeState();
 }
 
 class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
@@ -49,6 +44,18 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
   void didUpdateWidget(ConnectionStatusBadge oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.status != widget.status) {
+      _updateAnimation();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduceMotion(context)) {
+      _pulseController
+        ..stop()
+        ..value = 1;
+    } else {
       _updateAnimation();
     }
   }
@@ -96,24 +103,20 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
       ConnectionStatus.disconnected => l10n.statusDisconnected,
     };
 
-    final isConnecting =
-        widget.status == ConnectionStatus.connecting;
+    final isConnecting = widget.status == ConnectionStatus.connecting;
+    final animate = isConnecting && !AppMotion.reduceMotion(context);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: Center(
         child: Semantics(
           label: label,
-          child: isConnecting
+          child: animate
               ? AnimatedBuilder(
                   animation: _pulseAnimation,
                   builder: (context, child) {
-                    final opacity =
-                        0.35 + 0.65 * _pulseAnimation.value;
-                    final scale =
-                        0.75 + 0.5 * _pulseAnimation.value;
+                    final opacity = 0.35 + 0.65 * _pulseAnimation.value;
+                    final scale = 0.75 + 0.5 * _pulseAnimation.value;
                     return Transform.scale(
                       scale: scale,
                       child: Icon(

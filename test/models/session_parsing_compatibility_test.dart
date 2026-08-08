@@ -51,6 +51,36 @@ void main() {
       expect(metadata.sandboxEnabled, isTrue);
     });
 
+    test('parses explicit sandbox enforcement metadata', () {
+      final metadata = Metadata.fromJson(<String, dynamic>{
+        'host': 'devbox',
+        'sandboxRequested': true,
+        'sandboxRequired': false,
+        'sandboxEnforced': false,
+        'sandboxBackend': 'none',
+        'sandboxReason': 'boxy doctor failed',
+      });
+
+      expect(metadata.sandboxRequested, isTrue);
+      expect(metadata.sandboxRequired, isFalse);
+      expect(metadata.sandboxEnforced, isFalse);
+      expect(metadata.sandboxBackend, 'none');
+      expect(metadata.sandboxReason, 'boxy doctor failed');
+    });
+
+    test('preserves authoritative runtime identity for restore', () {
+      final metadata = Metadata.fromJson(<String, dynamic>{
+        'host': 'worker',
+        'runtimeType': 'kubernetes',
+        'podName': 'happy-session-123',
+        'namespace': 'agents',
+      });
+
+      expect(metadata.runtimeKind, 'kubernetes');
+      expect(metadata.podName, 'happy-session-123');
+      expect(metadata.namespace, 'agents');
+    });
+
     test('accepts legacy string summary from restored Claude sessions', () {
       final metadata = Metadata.fromJson(<String, dynamic>{
         'host': 'devbox',

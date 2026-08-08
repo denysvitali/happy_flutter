@@ -24,6 +24,10 @@ _MachineMetadata _$MachineMetadataFromJson(Map<String, dynamic> json) =>
       shutdownSource: _asApiStringNullable(json['shutdownSource']),
       spawnBackends: _stringListOrNull(json['spawnBackends']),
       defaultSpawnBackend: _asApiStringNullable(json['defaultSpawnBackend']),
+      sandboxBackend: _asApiStringNullable(json['sandboxBackend']),
+      sandboxAvailable: _asApiBoolNullable(json['sandboxAvailable']),
+      sandboxEnabled: _asApiBoolNullable(json['sandboxEnabled']),
+      sandboxReason: _asApiStringNullable(json['sandboxReason']),
     );
 
 Map<String, dynamic> _$MachineMetadataToJson(_MachineMetadata instance) =>
@@ -42,6 +46,10 @@ Map<String, dynamic> _$MachineMetadataToJson(_MachineMetadata instance) =>
       'shutdownSource': instance.shutdownSource,
       'spawnBackends': instance.spawnBackends,
       'defaultSpawnBackend': instance.defaultSpawnBackend,
+      'sandboxBackend': instance.sandboxBackend,
+      'sandboxAvailable': instance.sandboxAvailable,
+      'sandboxEnabled': instance.sandboxEnabled,
+      'sandboxReason': instance.sandboxReason,
     };
 
 _Machine _$MachineFromJson(Map<String, dynamic> json) => _Machine(

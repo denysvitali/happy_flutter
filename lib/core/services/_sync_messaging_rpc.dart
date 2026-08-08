@@ -15,7 +15,9 @@ extension SyncMessagingRpc on Sync {
     Duration timeout = const Duration(seconds: 30),
   }) async {
     final stopwatch = Stopwatch()..start();
-    final requestId = _createMachineRpcRequestId();
+    final rpcMetrics = OpenTelemetryService();
+    var stageStartedMs = 0;
+    final requestId = _createRpcRequestId('mrpc');
     var machineEncryption = encryption.getMachineEncryption(machineId);
     if (machineEncryption == null) {
       unawaited(
@@ -42,6 +44,12 @@ extension SyncMessagingRpc on Sync {
     }
 
     final encrypted = await machineEncryption.encryptRaw(params);
+    rpcMetrics.recordDuration(
+      'app.machine_rpc.stage',
+      Duration(milliseconds: stopwatch.elapsedMilliseconds - stageStartedMs),
+      attributes: {'method': method, 'stage': 'encryption'},
+    );
+    stageStartedMs = stopwatch.elapsedMilliseconds;
     final rpcElapsedBeforeSend = stopwatch.elapsedMilliseconds;
     // emitWithAck now throws SocketNotConnectedException (socket not connected)
     // or SocketAckTimeoutException (ACK timeout) instead of returning null.
@@ -54,7 +62,22 @@ extension SyncMessagingRpc on Sync {
         'params': encrypted,
         'requestId': requestId,
       }, timeout: timeout);
+      rpcMetrics.recordDuration(
+        'app.machine_rpc.stage',
+        Duration(milliseconds: stopwatch.elapsedMilliseconds - stageStartedMs),
+        attributes: {'method': method, 'stage': 'socket_ack'},
+      );
+      stageStartedMs = stopwatch.elapsedMilliseconds;
     } catch (error) {
+      rpcMetrics.recordDuration(
+        'app.machine_rpc',
+        stopwatch.elapsed,
+        attributes: {
+          'method': method,
+          'outcome': 'transport_error',
+          'error_class': error.runtimeType.toString(),
+        },
+      );
       // Keep the full-fidelity line locally (info-level so it does NOT
       // forward to Sentry — the interpolated elapsedMs defeats grouping
       // and a wedged daemon mints a fresh issue per retry). The Sentry
@@ -97,6 +120,25 @@ extension SyncMessagingRpc on Sync {
         throw StateError('Machine RPC $method returned null result');
       }
       final decrypted = await machineEncryption.decryptRaw(encryptedResult);
+      rpcMetrics.recordDuration(
+        'app.machine_rpc.stage',
+        Duration(milliseconds: stopwatch.elapsedMilliseconds - stageStartedMs),
+        attributes: {'method': method, 'stage': 'decrypt_decode'},
+      );
+      try {
+        _throwIfRpcError(decrypted, fallbackMethod: method);
+      } on RpcException catch (error) {
+        rpcMetrics.recordDuration(
+          'app.machine_rpc',
+          stopwatch.elapsed,
+          attributes: {
+            'method': method,
+            'outcome': 'rpc_error',
+            'error_class': error.code.wireValue,
+          },
+        );
+        rethrow;
+      }
       final elapsedMs = stopwatch.elapsedMilliseconds;
       if (elapsedMs >= 2000) {
         // Pre-flight pings over 2s usually mean a wedged daemon or a
@@ -160,17 +202,34 @@ extension SyncMessagingRpc on Sync {
           ),
         );
       }
+      rpcMetrics.recordDuration(
+        'app.machine_rpc',
+        stopwatch.elapsed,
+        attributes: {'method': method, 'outcome': 'ok'},
+      );
       return decrypted;
     }
     // Log the failure reason if available
-    final errorMsg = result is Map ? result['error'] : result;
-    throw StateError('Machine RPC $method failed: $errorMsg');
+    final rpcError = RpcException.fromWire(
+      result is Map ? result : <String, dynamic>{'error': result},
+      fallbackMethod: method,
+    );
+    rpcMetrics.recordDuration(
+      'app.machine_rpc',
+      stopwatch.elapsed,
+      attributes: {
+        'method': method,
+        'outcome': 'rpc_error',
+        'error_class': rpcError.code.wireValue,
+      },
+    );
+    throw rpcError;
   }
 
-  String _createMachineRpcRequestId() {
+  String _createRpcRequestId(String prefix) {
     final random = Random.secure();
     const alphabet = '0123456789abcdef';
-    final chars = StringBuffer('mrpc_');
+    final chars = StringBuffer('${prefix}_');
     for (var i = 0; i < 24; i++) {
       chars.write(alphabet[random.nextInt(alphabet.length)]);
     }
@@ -210,7 +269,9 @@ extension SyncMessagingRpc on Sync {
       final error = raw['error'];
       if (error != null) {
         if (raw['ok'] == false &&
-            error.toString().contains('not registered on any reachable server replica')) {
+            error.toString().contains(
+              'not registered on any reachable server replica',
+            )) {
           throw _ServerRPCNoHandlerError('Machine is unreachable');
         }
         throw StateError('Machine RPC $method failed: $error');
@@ -227,7 +288,9 @@ extension SyncMessagingRpc on Sync {
       // If the server returned an explicit "not registered" error, the
       // machine/socket is gone on all replicas. Promote it to a server-level
       // failure so ensureMachineReachable does not treat it as daemon liveness.
-      if (e.message.contains('not registered on any reachable server replica')) {
+      if (e.message.contains(
+        'not registered on any reachable server replica',
+      )) {
         throw _ServerRPCNoHandlerError('Machine is unreachable');
       }
       rethrow;
@@ -351,23 +414,37 @@ extension SyncMessagingRpc on Sync {
       }
     }
 
+    final requestId = _createRpcRequestId('srpc');
     final encrypted = await sessionEncryption.encryptRaw(params);
     // emitWithAck now throws SocketNotConnectedException or
     // SocketAckTimeoutException instead of returning null.
     final result = await socketIoClient.emitWithAck('rpc-call', {
       'method': '$sessionId:$method',
       'params': encrypted,
+      'requestId': requestId,
     });
 
     if (result is Map && result['ok'] == true) {
       final encryptedResult = result['result'] as String?;
       if (encryptedResult == null) return null;
       final decrypted = await sessionEncryption.decryptRaw(encryptedResult);
+      _throwIfRpcError(decrypted, fallbackMethod: method);
       return decrypted;
     }
     // Log the failure reason if available
-    final errorMsg = result is Map ? result['error'] : result;
-    throw StateError('Session RPC $method failed: $errorMsg');
+    throw RpcException.fromWire(
+      result is Map ? result : <String, dynamic>{'error': result},
+      fallbackMethod: method,
+    );
+  }
+
+  void _throwIfRpcError(dynamic value, {required String fallbackMethod}) {
+    if (value is! Map || value['error'] == null) return;
+    final isTyped = value['code'] != null;
+    final isExplicitFailure = value['ok'] == false;
+    final isLegacyEnvelope = value.length == 1;
+    if (!isTyped && !isExplicitFailure && !isLegacyEnvelope) return;
+    throw RpcException.fromWire(value, fallbackMethod: fallbackMethod);
   }
 
   /// Typed wrapper around [machineRPC] that deserialises the response.
@@ -379,6 +456,9 @@ extension SyncMessagingRpc on Sync {
     Duration timeout = const Duration(seconds: 30),
   }) async {
     final override = testMachineRPCOverride;
+    if (override == null) {
+      await ensureMachineRPCSupported(machineId, method);
+    }
     final raw = override != null
         ? await override(machineId, method, params)
         : await machineRPC(machineId, method, params, timeout: timeout);
@@ -414,6 +494,9 @@ extension SyncMessagingRpc on Sync {
     Map<String, dynamic> params,
     Resp Function(Map<String, dynamic>) fromJson,
   ) async {
+    if (testSessionRPCOverride == null) {
+      await ensureSessionRPCSupported(sessionId, method);
+    }
     final raw = await sessionRPC(sessionId, method, params);
     // Handle null or non-Map responses gracefully
     if (raw == null) {
@@ -462,7 +545,8 @@ extension SyncMessagingRpc on Sync {
     // Grace period for recently-spawned sessions — same threshold as
     // _resolveSendTargetSession. Prevents premature auto-restore for
     // permission actions while the daemon is still booting the agent.
-    final recentlySpawned = _sessionSpawnedAt[sessionId] != null &&
+    final recentlySpawned =
+        _sessionSpawnedAt[sessionId] != null &&
         DateTime.now().millisecondsSinceEpoch - _sessionSpawnedAt[sessionId]! <
             120000;
 
@@ -533,6 +617,13 @@ extension SyncMessagingRpc on Sync {
         timeout: const Duration(seconds: 60),
       );
       if (result.type == 'success') {
+        final restoredSession = _sessions[sessionId];
+        final restoredMetadata = restoredSession?.metadata;
+        if (restoredSession != null && restoredMetadata != null) {
+          _sessions[sessionId] = restoredSession.copyWith(
+            metadata: _metadataWithSpawnResult(restoredMetadata, result),
+          );
+        }
         _registerSpawn(
           result.sessionId ?? sessionId,
           profileId: spawnResult.profile?.id,
@@ -677,7 +768,7 @@ extension SyncMessagingRpc on Sync {
   /// The server acknowledges with `ok: true` but the response
   /// payload shape varies — the RN app ignores it entirely, so
   /// we just fire-and-forget the RPC without deserialising.
-  Future<void> sessionAllow(
+  Future<PermissionResponse> sessionAllow(
     String sessionId,
     String permissionId, {
     String? mode,
@@ -696,6 +787,9 @@ extension SyncMessagingRpc on Sync {
       );
     }
     try {
+      if (testSessionRPCOverride == null) {
+        await ensureSessionRPCSupported(sessionId, 'permission');
+      }
       final response = await sessionRPC(
         sessionId,
         'permission',
@@ -709,6 +803,9 @@ extension SyncMessagingRpc on Sync {
         ).toJson(),
       );
       _throwIfPermissionRpcFailed(response, 'allow');
+      return response is Map
+          ? PermissionResponse.fromJson(Map<String, dynamic>.from(response))
+          : const PermissionResponse(success: true);
     } on StateError {
       // Permission was rejected by the server — clear stale local
       // state so the UI unlocks.
@@ -723,7 +820,7 @@ extension SyncMessagingRpc on Sync {
   /// Deny a permission request for a session.
   ///
   /// See [sessionAllow] — response payload is ignored.
-  Future<void> sessionDeny(
+  Future<PermissionResponse> sessionDeny(
     String sessionId,
     String permissionId, {
     String? decision,
@@ -739,6 +836,9 @@ extension SyncMessagingRpc on Sync {
       );
     }
     try {
+      if (testSessionRPCOverride == null) {
+        await ensureSessionRPCSupported(sessionId, 'permission');
+      }
       final response = await sessionRPC(
         sessionId,
         'permission',
@@ -749,6 +849,9 @@ extension SyncMessagingRpc on Sync {
         ).toJson(),
       );
       _throwIfPermissionRpcFailed(response, 'deny');
+      return response is Map
+          ? PermissionResponse.fromJson(Map<String, dynamic>.from(response))
+          : const PermissionResponse(success: true);
     } on StateError {
       _clearStalePermissionRequests(sessionId);
       rethrow;
@@ -778,6 +881,19 @@ extension SyncMessagingRpc on Sync {
       const {},
       KillSessionResponse.fromJson,
     );
+  }
+
+  /// Stops the daemon-owned process or pod for a session and waits for the
+  /// daemon to confirm that the runtime has disappeared.
+  Future<StopSessionResponse> stopSessionProcess(String sessionId) async {
+    final session = _sessions[sessionId];
+    final machineId = session?.metadata?.machineId;
+    if (machineId == null || machineId.isEmpty) {
+      throw StateError('Session has no owning machine');
+    }
+    return _typedMachineRPC(machineId, 'stop-session', <String, dynamic>{
+      'sessionId': sessionId,
+    }, StopSessionResponse.fromJson);
   }
 
   /// Abort the current agent turn without killing the session.

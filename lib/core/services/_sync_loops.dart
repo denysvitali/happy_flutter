@@ -169,10 +169,8 @@ extension SyncLoops on Sync {
     _replaceLoopInSession(
       sessionId: sessionId,
       loopId: loopId,
-      update: (loop) => loop.copyWith(
-        lastFiredAt: firedAt,
-        fireCount: fireCount,
-      ),
+      update: (loop) =>
+          loop.copyWith(lastFiredAt: firedAt, fireCount: fireCount),
     );
   }
 
@@ -210,11 +208,10 @@ extension SyncLoops on Sync {
     final existing = _loopsBySession[sessionId] ?? const <Loop>[];
     final duplicateIdx = existing.indexWhere((l) => l.id == loop.id);
     if (duplicateIdx >= 0) return;
-    _publishLoopsForSession(
-      sessionId,
-      <Loop>[...existing, loop],
-      notifyDataChanged: true,
-    );
+    _publishLoopsForSession(sessionId, <Loop>[
+      ...existing,
+      loop,
+    ], notifyDataChanged: true);
   }
 
   List<Loop> _parseLoopList({
@@ -325,15 +322,14 @@ extension SyncLoops on Sync {
     required String prompt,
     required bool recurring,
   }) async {
-    final raw = await sessionRPC(
-      sessionId,
-      'loop-create',
-      <String, dynamic>{
-        'expression': expression,
-        'prompt': prompt,
-        'recurring': recurring,
-      },
-    );
+    if (testSessionRPCOverride == null) {
+      await ensureSessionRPCSupported(sessionId, 'loop-create');
+    }
+    final raw = await sessionRPC(sessionId, 'loop-create', <String, dynamic>{
+      'expression': expression,
+      'prompt': prompt,
+      'recurring': recurring,
+    });
     if (raw is! Map) {
       throw StateError(
         'loop-create returned unexpected type: ${raw.runtimeType}',
@@ -368,6 +364,9 @@ extension SyncLoops on Sync {
     required String sessionId,
     required String loopId,
   }) async {
+    if (testSessionRPCOverride == null) {
+      await ensureSessionRPCSupported(sessionId, 'loop-delete');
+    }
     // Optimistic: remove from local state immediately so the UI updates
     // without waiting for the RPC round-trip.
     _applyLoopDeleted(sessionId, loopId);
@@ -422,6 +421,9 @@ extension SyncLoops on Sync {
     required String loopId,
     required bool paused,
   }) async {
+    if (testSessionRPCOverride == null) {
+      await ensureSessionRPCSupported(sessionId, 'loop-pause');
+    }
     // Optimistic: toggle the paused flag locally so the UI updates
     // immediately without waiting for the RPC round-trip.
     _replaceLoopInSession(
@@ -474,6 +476,9 @@ extension SyncLoops on Sync {
   /// `loops-updated` event in response; callers that want fresh state
   /// should also subscribe to [onLoopsChanged].
   Future<List<Loop>> listLoops({required String sessionId}) async {
+    if (testSessionRPCOverride == null) {
+      await ensureSessionRPCSupported(sessionId, 'loop-list');
+    }
     final raw = await sessionRPC(
       sessionId,
       'loop-list',
@@ -592,8 +597,7 @@ extension SyncLoops on Sync {
       return bb.compareTo(aa); // most-recent-first
     });
 
-    final deadline =
-        testRefreshAllLoopsDeadline ?? _refreshAllLoopsDeadline;
+    final deadline = testRefreshAllLoopsDeadline ?? _refreshAllLoopsDeadline;
     final startedAt = DateTime.now();
     for (final sessionId in sessionIds) {
       if (_isLoopListCapabilityBlocked(sessionId)) {
@@ -663,30 +667,19 @@ extension SyncLoops on Sync {
           // — every remaining session would fail the same way, and the
           // `loops-updated` socket events will refresh us once the
           // forwarding path recovers.
-          logger.debug(
-            '[loops] listLoops($sessionId) skipped — transient: $e',
-          );
+          logger.debug('[loops] listLoops($sessionId) skipped — transient: $e');
           break;
         }
-        logger.warning(
-          '[loops] listLoops($sessionId) failed: $e',
-          e,
-        );
+        logger.warning('[loops] listLoops($sessionId) failed: $e', e);
       } catch (e, st) {
         if (Sync._isTransientConnectionError(e)) {
           // Local socket dropped mid-iteration. Stop the loop so we don't
           // issue N more doomed emits (each one waits for emitWithAck
           // to time out).
-          logger.debug(
-            '[loops] listLoops($sessionId) skipped — transient: $e',
-          );
+          logger.debug('[loops] listLoops($sessionId) skipped — transient: $e');
           break;
         }
-        logger.warning(
-          '[loops] listLoops($sessionId) failed: $e',
-          e,
-          st,
-        );
+        logger.warning('[loops] listLoops($sessionId) failed: $e', e, st);
       }
     }
   }

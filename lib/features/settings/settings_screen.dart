@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../core/config/app_config.dart';
 import '../../core/components/settings_section.dart';
+import '../../core/config/app_config.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/machine.dart';
@@ -93,16 +93,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Select only the machine count and first machine's display name/host to
     // avoid rebuilding this screen when unrelated machine fields change.
     final machineStats = ref.watch(
-      machinesNotifierProvider.select(
-        (machines) => (
-          total: machines.length,
-          online: machines.values.where((machine) => machine.isOnline).length,
-          firstSubtitle: machines.isEmpty
+      machinesNotifierProvider.select((machines) {
+        final values = machines.values.toList(growable: false);
+        final online = values.where((machine) => machine.isOnline).toList();
+        final sandboxAvailable = online.any(
+          (machine) => machine.metadata?.sandboxAvailable ?? false,
+        );
+        final reasonSources = online.isEmpty ? values : online;
+        final sandboxReason = reasonSources
+            .map((machine) => machine.metadata?.sandboxReason)
+            .whereType<String>()
+            .where((reason) => reason.trim().isNotEmpty)
+            .firstOrNull;
+        return (
+          total: values.length,
+          online: online.length,
+          firstSubtitle: values.isEmpty
               ? null
-              : machines.values.first.metadata?.displayName ??
-                    machines.values.first.metadata?.host,
-        ),
-      ),
+              : values.first.metadata?.displayName ??
+                    values.first.metadata?.host,
+          sandboxAvailable: sandboxAvailable,
+          sandboxReason: sandboxReason,
+        );
+      }),
     );
     final l10n = AppLocalizations.of(context);
 
@@ -418,11 +431,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     BuildContext context, {
     required int machineCount,
     required String? firstMachineSubtitle,
+    required bool sandboxAvailable,
+    required String? sandboxReason,
   }) {
     if (machineCount == 0) return const SizedBox.shrink();
     return _machinesSectionSpec(
       context,
       firstMachineSubtitle: firstMachineSubtitle,
+      sandboxAvailable: sandboxAvailable,
+      sandboxReason: sandboxReason,
     ).build(context);
   }
 

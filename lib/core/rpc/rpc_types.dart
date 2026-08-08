@@ -69,6 +69,11 @@ class SpawnSessionResponse {
     this.errorMessage,
     this.directory,
     this.dataEncryptionKey,
+    this.sandboxRequested,
+    this.sandboxRequired,
+    this.sandboxEnforced,
+    this.sandboxBackend,
+    this.sandboxReason,
   });
 
   factory SpawnSessionResponse.fromJson(
@@ -86,12 +91,22 @@ class SpawnSessionResponse {
     directory: json['directory'] as String?,
     dataEncryptionKey:
         (json['dataEncryptionKey'] ?? json['data_encryption_key']) as String?,
+    sandboxRequested: json['sandboxRequested'] as bool?,
+    sandboxRequired: json['sandboxRequired'] as bool?,
+    sandboxEnforced: json['sandboxEnforced'] as bool?,
+    sandboxBackend: json['sandboxBackend'] as String?,
+    sandboxReason: json['sandboxReason'] as String?,
   );
   final String? type;
   final String? sessionId;
   final String? errorMessage;
   final String? directory;
   final String? dataEncryptionKey;
+  final bool? sandboxRequested;
+  final bool? sandboxRequired;
+  final bool? sandboxEnforced;
+  final String? sandboxBackend;
+  final String? sandboxReason;
 }
 
 // ---------------------------------------------------------------------------
@@ -189,6 +204,10 @@ class BashResponse {
     this.stderr = '',
     this.exitCode = -1,
     this.error,
+    this.stdoutTruncated = false,
+    this.stderrTruncated = false,
+    this.stdoutBytes,
+    this.stderrBytes,
   });
 
   factory BashResponse.fromJson(Map<String, dynamic> json) => BashResponse(
@@ -197,12 +216,38 @@ class BashResponse {
     stderr: json['stderr'] as String? ?? '',
     exitCode: json['exitCode'] as int? ?? -1,
     error: json['error'] as String?,
+    stdoutTruncated: json['stdoutTruncated'] == true,
+    stderrTruncated: json['stderrTruncated'] == true,
+    stdoutBytes: _parseInt64(json['stdoutBytes']),
+    stderrBytes: _parseInt64(json['stderrBytes']),
   );
   final bool success;
   final String stdout;
   final String stderr;
   final int exitCode;
   final String? error;
+
+  /// Whether the machine retained only the bounded tail of stdout/stderr.
+  final bool stdoutTruncated;
+  final bool stderrTruncated;
+
+  /// Pre-truncation byte totals reported by the machine, when available.
+  final int? stdoutBytes;
+  final int? stderrBytes;
+
+  bool get outputTruncated => stdoutTruncated || stderrTruncated;
+
+  int? get totalOriginalOutputBytes {
+    final values = <int>[?stdoutBytes, ?stderrBytes];
+    if (values.isEmpty) return null;
+    return values.fold<int>(0, (total, value) => total + value);
+  }
+}
+
+int? _parseInt64(dynamic value) {
+  if (value is int) return value;
+  if (value is String) return int.tryParse(value.trim());
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,15 +281,35 @@ class PermissionRequest {
 }
 
 class PermissionResponse {
-  const PermissionResponse({required this.success, this.error});
+  const PermissionResponse({
+    required this.success,
+    this.error,
+    this.requestId,
+    this.decision,
+    this.scope,
+    this.allowTools = const <String>[],
+    this.mode,
+  });
 
   factory PermissionResponse.fromJson(Map<String, dynamic> json) =>
       PermissionResponse(
         success: json['success'] as bool? ?? false,
         error: json['error'] as String?,
+        requestId: json['requestId']?.toString(),
+        decision: json['decision']?.toString(),
+        scope: json['scope']?.toString(),
+        allowTools: (json['allowTools'] as List<dynamic>? ?? const [])
+            .whereType<String>()
+            .toList(growable: false),
+        mode: json['mode']?.toString(),
       );
   final bool success;
   final String? error;
+  final String? requestId;
+  final String? decision;
+  final String? scope;
+  final List<String> allowTools;
+  final String? mode;
 }
 
 // ---------------------------------------------------------------------------
@@ -261,6 +326,19 @@ class KillSessionResponse {
       );
   final bool success;
   final String? message;
+}
+
+// ---------------------------------------------------------------------------
+// stop-session (machine-scoped, process/pod termination)
+// ---------------------------------------------------------------------------
+
+class StopSessionResponse {
+  const StopSessionResponse({required this.message});
+
+  factory StopSessionResponse.fromJson(Map<String, dynamic> json) =>
+      StopSessionResponse(message: json['message']?.toString() ?? '');
+
+  final String message;
 }
 
 // ---------------------------------------------------------------------------

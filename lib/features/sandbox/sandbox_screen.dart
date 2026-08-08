@@ -10,6 +10,7 @@ import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/remote_feature_failure_localization.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/sandbox_policy.dart';
 import '../../core/providers/app_providers.dart';
@@ -61,7 +62,12 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
     final now = DateTime.now().millisecondsSinceEpoch;
     final machines = ref.read(machinesNotifierProvider).values.toList()
       ..sort((a, b) => compareMachinesByAvailabilityAt(now, a, b));
-    final online = machines.where((machine) => machine.isOnline).toList();
+    final online = machines
+        .where(
+          (machine) =>
+              machine.isOnline && (machine.metadata?.sandboxAvailable ?? false),
+        )
+        .toList();
     if (online.isEmpty) return;
     setState(() => _selectedMachineId = online.first.id);
     unawaited(_load());
@@ -79,7 +85,7 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
     if (!list.success) {
       setState(() {
         _isLoading = false;
-        _error = list.error ?? context.l10n.sandboxLoadFailed;
+        _error = list.failureKind.localizedRemoteFeatureFailure(context.l10n);
       });
       return;
     }
@@ -103,7 +109,7 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
       _selectedDirectory = directory;
       _project = project != null && project.success ? project : null;
       _error = project != null && !project.success
-          ? (project.error ?? context.l10n.sandboxLoadFailed)
+          ? project.failureKind.localizedRemoteFeatureFailure(context.l10n)
           : null;
     });
   }
@@ -161,7 +167,9 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
         _project = response;
         _error = null;
       } else {
-        _error = response.error ?? context.l10n.sandboxSaveFailed;
+        _error = response.failureKind == null
+            ? context.l10n.sandboxSaveFailed
+            : response.failureKind.localizedRemoteFeatureFailure(context.l10n);
       }
     });
   }
@@ -174,10 +182,8 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
     if (grant == null) return;
     final current = _project;
     if (current == null) return;
-    final grants = [
-      ...current.grants.where((g) => g.path != grant.path),
-      grant,
-    ]..sort((a, b) => a.path.compareTo(b.path));
+    final grants = [...current.grants.where((g) => g.path != grant.path), grant]
+      ..sort((a, b) => a.path.compareTo(b.path));
     await _save(grants: grants);
   }
 
@@ -235,7 +241,18 @@ class _SandboxScreenState extends ConsumerState<SandboxScreen> {
               selectedMachineId: _selectedMachineId,
               onChanged: _onMachineChanged,
               sectionTitle: l10n.sandboxMachineSection,
+              isMachineSelectable: (machine) =>
+                  machine.metadata?.sandboxAvailable ?? false,
+              unavailableReason: (machine) =>
+                  machine.metadata?.sandboxReason ??
+                  l10n.settingsSandboxUnavailable,
             ),
+            if (_selectedMachineId == null && !_isLoading)
+              AppEmptyState(
+                icon: Icons.shield_outlined,
+                title: l10n.sandboxUnavailableTitle,
+                subtitle: l10n.settingsSandboxUnavailable,
+              ),
             if (machine != null) ...[
               _StatusCard(machine: machine),
               _DirectoryPicker(
@@ -555,7 +572,8 @@ class _AddFolderDialogState extends State<_AddFolderDialog> {
               // saves a round trip and names the rule where it is broken.
               validator: (value) {
                 final path = (value ?? '').trim();
-                if (!path.startsWith('/')) return l10n.sandboxFolderPathRequired;
+                if (!path.startsWith('/'))
+                  return l10n.sandboxFolderPathRequired;
                 return null;
               },
             ),
@@ -586,9 +604,9 @@ class _AddFolderDialogState extends State<_AddFolderDialog> {
         FilledButton(
           onPressed: () {
             if (!(_formKey.currentState?.validate() ?? false)) return;
-            Navigator.of(context).pop(
-              SandboxGrant(path: _controller.text.trim(), mode: _mode),
-            );
+            Navigator.of(
+              context,
+            ).pop(SandboxGrant(path: _controller.text.trim(), mode: _mode));
           },
           child: Text(l10n.commonSave),
         ),

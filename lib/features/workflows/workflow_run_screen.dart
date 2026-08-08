@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/i18n/app_localizations.dart';
+import '../../core/i18n/safe_ui_messages.dart';
 import '../../core/models/workflow_run.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
@@ -53,7 +55,8 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   bool _loading = true;
   String? _error;
   Timer? _pollTimer;
-  Timer? _tickTimer;
+  bool _refreshing = false;
+  final Set<String> _loggedFailureDetails = <String>{};
 
   @override
   void initState() {
@@ -62,6 +65,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
       _run = WorkflowRun.tryFromJson(
         Map<String, dynamic>.from(widget.taskData!),
       );
+      _logFailureDetails(_run);
     }
     // Show an already-cached run on first paint instead of waiting for the
     // poll/fetch to resolve — matters when embedded, where the parent view
@@ -71,21 +75,13 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     _sub = sync.onWorkflowsChanged
         .where((sid) => sid == widget.sessionId)
         .listen((_) => _loadFromSync());
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
-    // Elapsed time ticks on its own so it counts up smoothly instead of
-    // jumping in 3s steps whenever the poll lands.
-    _tickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final run = _run;
-      if (!mounted || run == null || !WorkflowStatus.isLive(run.status)) return;
-      setState(() {});
-    });
+    _updatePolling();
   }
 
   @override
   void dispose() {
     _sub?.cancel();
     _pollTimer?.cancel();
-    _tickTimer?.cancel();
     super.dispose();
   }
 
@@ -94,29 +90,79 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final runs = sync.workflowsForSession(widget.sessionId);
     final found = runs.where((r) => r.runId == widget.runId).firstOrNull;
     if (found != null) {
-      setState(
-        () => _run = WorkflowRun.withFallbackProgress(found, _run),
-      );
+      _logFailureDetails(found);
+      setState(() => _run = WorkflowRun.withFallbackProgress(found, _run));
+      _updatePolling();
     }
   }
 
+  void _updatePolling() {
+    final run = _run;
+    final shouldPoll = run == null || WorkflowStatus.isLive(run.status);
+    if (!shouldPoll) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      return;
+    }
+    _pollTimer ??= Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => unawaited(_refresh()),
+    );
+  }
+
   Future<void> _refresh() async {
-    if (!sync.isInitialized) return;
+    if (!sync.isInitialized || _refreshing) return;
+    _refreshing = true;
     setState(() => _error = null);
     try {
       final run = await ref
           .read(workflowsNotifierProvider.notifier)
           .fetchWorkflowSnapshot(widget.sessionId, widget.runId);
       if (run != null && mounted) {
-        setState(
-          () => _run = WorkflowRun.withFallbackProgress(run, _run),
-        );
+        _logFailureDetails(run);
+        setState(() => _run = WorkflowRun.withFallbackProgress(run, _run));
+        _updatePolling();
       }
     } catch (e, st) {
       logger.warning('WorkflowRunScreen refresh failed: $e', e, st);
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(
+          () => _error = safeUiFailureMessage(
+            context.l10n,
+            SafeUiFailure.workflowLoad,
+          ),
+        );
+      }
     } finally {
+      _refreshing = false;
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _logFailureDetails(WorkflowRun? run) {
+    if (run == null) return;
+    final runError = run.error?.trim();
+    if (runError != null &&
+        runError.isNotEmpty &&
+        _loggedFailureDetails.add('run:$runError')) {
+      logger.warning(
+        'WorkflowRunScreen daemon-reported run failure '
+        'runId=${widget.runId}',
+        runError,
+      );
+    }
+    for (final agent in run.workflowProgress.whereType<WorkflowAgent>()) {
+      final error = agent.error?.trim();
+      if (error == null ||
+          error.isEmpty ||
+          !_loggedFailureDetails.add('agent:${agent.agentId}:$error')) {
+        continue;
+      }
+      logger.warning(
+        'WorkflowRunScreen daemon-reported agent failure '
+        'runId=${widget.runId} agentId=${agent.agentId}',
+        error,
+      );
     }
   }
 
@@ -126,15 +172,13 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final cs = theme.colorScheme;
     final rawRun = _run;
     final messages = sync.messagesForSession(widget.sessionId);
+    final transcriptIndex = WorkflowTranscriptIndex.fromMessages(messages);
     final run = rawRun == null
         ? null
-        : WorkflowRun.enrichFromMessages(rawRun, messages);
+        : WorkflowRun.enrichFromIndex(rawRun, transcriptIndex);
     final groups = run == null
         ? const <WorkflowPhaseGroup>[]
-        : WorkflowRun.phaseGroups(
-            run,
-            fallbackTitle: workflowDisplayName(run),
-          );
+        : WorkflowRun.phaseGroups(run, fallbackTitle: workflowDisplayName(run));
     final logs = run == null
         ? const <WorkflowLog>[]
         : run.workflowProgress.whereType<WorkflowLog>().toList(growable: false);
@@ -144,7 +188,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final stepChildren = (run == null || groups.isNotEmpty)
         ? const <Map<String, dynamic>>[]
         : WorkflowRun.collapseSteps(
-            WorkflowRun.stepChildrenForRun(widget.runId, messages),
+            WorkflowRun.stepChildrenForIndex(widget.runId, transcriptIndex),
           );
     // When every agent runs the same model, repeating it on each row is
     // noise — show it once in the stat row instead.
@@ -154,107 +198,97 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
           if (agent.model.isNotEmpty) agent.model,
     };
     final commonModel = models.length == 1 ? models.first : null;
-    final elapsedMs = run == null ? null : _elapsedMs(run);
-
     final body = _loading && run == null
         ? const Center(child: CircularProgressIndicator())
         : run == null
         ? _ErrorState(
-            error: _error ?? 'Workflow not found',
+            error: _error ?? context.l10n.workflowNotFoundSafe,
             onRetry: _refresh,
           )
         : CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            WorkflowStatusBadge(status: run.status),
-                            const SizedBox(width: AppSpacing.sm),
-                            if (elapsedMs != null)
-                              Text(
-                                formatDuration(
-                                  Duration(milliseconds: elapsedMs),
-                                ),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ),
-                          ],
-                        ),
-                        if (run.summary != null && run.summary!.isNotEmpty) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(run.summary!, style: theme.textTheme.bodyMedium),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          WorkflowStatusBadge(status: run.status),
+                          const SizedBox(width: AppSpacing.sm),
+                          _WorkflowElapsedTime(run: run),
                         ],
-                        const SizedBox(height: AppSpacing.md),
-                        _StatRow(run: run, modelFallback: commonModel),
-                        if (groups.length > 1) ...[
-                          const SizedBox(height: AppSpacing.md),
-                          _PhaseProgress(groups: groups),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (groups.isNotEmpty)
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, idx) => _PhaseSection(
-                        group: groups[idx],
-                        hideModel: commonModel != null,
-                        runIsLive: WorkflowStatus.isLive(run.status),
                       ),
-                      childCount: groups.length,
-                    ),
+                      if (_error != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        _WorkflowRefreshWarning(onRetry: _refresh),
+                      ],
+                      if (run.summary != null && run.summary!.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(run.summary!, style: theme.textTheme.bodyMedium),
+                      ],
+                      const SizedBox(height: AppSpacing.md),
+                      _StatRow(run: run, modelFallback: commonModel),
+                      if (groups.length > 1) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        _PhaseProgress(groups: groups),
+                      ],
+                    ],
                   ),
-                if (stepChildren.isNotEmpty)
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, idx) => _StepRow(step: stepChildren[idx]),
-                      childCount: stepChildren.length,
-                    ),
-                  ),
-                if (run.error != null && run.error!.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: _RunTextSection(
-                      title: 'Error',
-                      body: run.error!,
-                      color: cs.error,
-                    ),
-                  ),
-                if (run.result != null && run.result!.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: _RunTextSection(
-                      title: 'Result',
-                      body: run.result!,
-                    ),
-                  ),
-                if (logs.isNotEmpty)
-                  SliverToBoxAdapter(
-                    child: _RunTextSection(
-                      title: 'Logs',
-                      body: logs
-                          .map((log) => log.message)
-                          .join('\n'),
-                      monospace: true,
-                    ),
-                  ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppSpacing.xl),
                 ),
-              ],
-            );
+              ),
+              if (groups.isNotEmpty)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, idx) => _PhaseSection(
+                      group: groups[idx],
+                      hideModel: commonModel != null,
+                      runIsLive: WorkflowStatus.isLive(run.status),
+                    ),
+                    childCount: groups.length,
+                  ),
+                ),
+              if (stepChildren.isNotEmpty)
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, idx) => _StepRow(step: stepChildren[idx]),
+                    childCount: stepChildren.length,
+                  ),
+                ),
+              if (run.error != null && run.error!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _RunTextSection(
+                    title: context.l10n.workflowErrorTitle,
+                    body: safeUiFailureMessage(
+                      context.l10n,
+                      SafeUiFailure.workflowRun,
+                    ),
+                    color: cs.error,
+                  ),
+                ),
+              if (run.result != null && run.result!.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _RunTextSection(title: 'Result', body: run.result!),
+                ),
+              if (logs.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: _RunTextSection(
+                    title: 'Logs',
+                    body: logs.map((log) => log.message).join('\n'),
+                    monospace: true,
+                  ),
+                ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
+            ],
+          );
 
     if (widget.embedded) return body;
 
     return Scaffold(
       appBar: AppBar(
         title: run == null
-            ? const Text('Workflow')
+            ? Text(context.l10n.workflowTitle)
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -278,22 +312,123 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
       body: body,
     );
   }
+}
 
-  /// Live elapsed time while the run is still going; the daemon only sets
-  /// `durationMs` once the run finishes.
+/// Keeps the one-second elapsed-time invalidation local to the timestamp.
+///
+/// Workflow projections can be large, so the parent screen only rebuilds
+/// when workflow data changes or a refresh completes.
+class _WorkflowElapsedTime extends StatefulWidget {
+  const _WorkflowElapsedTime({required this.run});
+
+  final WorkflowRun run;
+
+  @override
+  State<_WorkflowElapsedTime> createState() => _WorkflowElapsedTimeState();
+}
+
+class _WorkflowElapsedTimeState extends State<_WorkflowElapsedTime> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorkflowElapsedTime oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.run.status != widget.run.status ||
+        oldWidget.run.startTime != widget.run.startTime ||
+        oldWidget.run.durationMs != widget.run.durationMs) {
+      _updateTimer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _updateTimer() {
+    _timer?.cancel();
+    _timer = null;
+    if (_isTicking(widget.run)) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  bool _isTicking(WorkflowRun run) =>
+      WorkflowStatus.isLive(run.status) &&
+      run.status != WorkflowStatus.paused &&
+      run.startTime != null &&
+      run.durationMs == null;
+
   int? _elapsedMs(WorkflowRun run) {
     if (run.durationMs != null) return run.durationMs;
     final start = run.startTime;
-    if (!WorkflowStatus.isLive(run.status) ||
-        run.status == WorkflowStatus.paused ||
-        start == null) {
-      return null;
-    }
+    if (!_isTicking(run) || start == null) return null;
     final now = DateTime.now().millisecondsSinceEpoch;
     return now > start ? now - start : 0;
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final elapsedMs = _elapsedMs(widget.run);
+    if (elapsedMs == null) return const SizedBox.shrink();
+    return Text(
+      formatDuration(Duration(milliseconds: elapsedMs)),
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
+    );
+  }
+}
 
+class _WorkflowRefreshWarning extends StatelessWidget {
+  const _WorkflowRefreshWarning({required this.onRetry});
+
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: cs.errorContainer,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.cloud_off_outlined, color: cs.onErrorContainer),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  context.l10n.workflowRefreshWarning,
+                  style: TextStyle(color: cs.onErrorContainer),
+                ),
+              ),
+              TextButton(
+                onPressed: onRetry,
+                child: Text(context.l10n.commonRetry),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _StatRow extends StatelessWidget {
@@ -315,7 +450,8 @@ class _StatRow extends StatelessWidget {
         if (run.agentCount != null)
           _StatChip(
             icon: Icons.smart_toy_outlined,
-            label: '${run.agentCount} '
+            label:
+                '${run.agentCount} '
                 '${run.agentCount == 1 ? 'agent' : 'agents'}',
           ),
         if (run.totalTokens != null)
@@ -370,9 +506,7 @@ class _PhaseProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final done = groups
-        .where((g) => g.state == WorkflowPhaseState.done)
-        .length;
+    final done = groups.where((g) => g.state == WorkflowPhaseState.done).length;
     final activeIdx = groups.indexWhere(
       (g) => g.state == WorkflowPhaseState.active,
     );
@@ -557,11 +691,7 @@ class _PhaseStateIcon extends StatelessWidget {
           ),
         );
       default:
-        return Icon(
-          Icons.radio_button_unchecked,
-          size: 16,
-          color: cs.outline,
-        );
+        return Icon(Icons.radio_button_unchecked, size: 16, color: cs.outline);
     }
   }
 }
@@ -666,8 +796,11 @@ class _AgentRow extends StatelessWidget {
             _AgentDetailBlock(label: 'Result', text: agent.resultPreview!),
           if (agent.error != null)
             _AgentDetailBlock(
-              label: 'Error',
-              text: agent.error!,
+              label: context.l10n.workflowErrorTitle,
+              text: safeUiFailureMessage(
+                context.l10n,
+                SafeUiFailure.workflowAgent,
+              ),
               color: cs.error,
             ),
         ],
@@ -688,7 +821,6 @@ class _AgentRow extends StatelessWidget {
     }
     return parts.join(' · ');
   }
-
 }
 
 /// Agent subtitle: the run stats plus, while the agent is live, the tool it is
@@ -839,12 +971,13 @@ class _RunTextSection extends StatelessWidget {
             ),
             child: SelectableText(
               body.trim(),
-              style: (monospace
-                      ? theme.textTheme.bodySmall?.copyWith(
-                          fontFamily: 'RobotoMono',
-                        )
-                      : theme.textTheme.bodySmall)
-                  ?.copyWith(color: color ?? cs.onSurface, height: 1.35),
+              style:
+                  (monospace
+                          ? theme.textTheme.bodySmall?.copyWith(
+                              fontFamily: 'RobotoMono',
+                            )
+                          : theme.textTheme.bodySmall)
+                      ?.copyWith(color: color ?? cs.onSurface, height: 1.35),
             ),
           ),
         ],
@@ -872,14 +1005,13 @@ class _ErrorState extends StatelessWidget {
           FilledButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(context.l10n.commonRetry),
           ),
         ],
       ),
     );
   }
 }
-
 
 /// A single step row in the fallback step timeline — used when a workflow run
 /// carries no structured `workflowProgress` snapshot but does carry the raw
@@ -937,5 +1069,4 @@ class _StepRow extends StatelessWidget {
       ),
     );
   }
-
 }

@@ -69,6 +69,13 @@ void main() {
       expect(service.debugFrameCount, 3);
       expect(service.debugSlowFrameCount, 2);
       expect(service.debugFrozenFrameCount, 1);
+      expect(service.debugFrameBuckets, <String, int>{
+        'under_16ms': 1,
+        '16_32ms': 1,
+        '32_50ms': 0,
+        '50_100ms': 0,
+        '100ms_plus': 1,
+      });
     });
 
     test('labels frame metrics with a bounded session-count bucket', () {

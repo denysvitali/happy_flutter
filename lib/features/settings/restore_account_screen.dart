@@ -27,6 +27,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
   bool _isLoading = false;
+  bool _obscureKey = true;
   String? _error;
 
   @override
@@ -66,11 +67,27 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
                   labelText: context.l10n.accountBackupKeyLabel,
                   hintText: context.l10n.accountBackupKeyHint,
                   prefixIcon: const Icon(Icons.key),
+                  suffixIcon: IconButton(
+                    tooltip: _obscureKey
+                        ? context.l10n.accountShowBackupKeyAction
+                        : context.l10n.accountHideBackupKeyAction,
+                    onPressed: _isLoading
+                        ? null
+                        : () => setState(() => _obscureKey = !_obscureKey),
+                    icon: Icon(
+                      _obscureKey
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                  ),
                   border: const OutlineInputBorder(),
                 ),
+                obscureText: _obscureKey,
+                enableSuggestions: false,
+                autocorrect: false,
                 validator: _validateKey,
                 enabled: !_isLoading,
-                maxLength: 35,
+                maxLength: 62,
               ),
             ),
             if (_error != null) ...[
@@ -155,14 +172,40 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
   Future<void> _restoreAccount() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final key = _controller.text.trim();
+    final fingerprint = BackupKeyUtils.fingerprint(key);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.accountSwitchTitle),
+        content: Text(context.l10n.accountSwitchWarning(fingerprint)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.accountSwitchAction),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      await AuthService().restoreAccount(_controller.text.trim());
+      await AuthService().restoreAccount(key);
       if (mounted) {
+        _controller.clear();
+        final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
+        if (clipboard?.text?.trim() == key) {
+          await Clipboard.setData(const ClipboardData(text: ''));
+        }
         unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         if (mounted) {
           safePop<void>(context);
@@ -188,8 +231,10 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
     if (e is AuthForbiddenError) {
       return 'Access denied. Please try again.';
     } else if (e is AuthRequestError) {
-      return e.message;
+      return e.statusCode == null
+          ? context.l10n.accountRestoreServiceError
+          : context.l10n.accountRestoreRejectedCode(e.statusCode!);
     }
-    return 'Failed to restore account: $e';
+    return context.l10n.accountRestoreGenericError;
   }
 }

@@ -530,12 +530,7 @@ extension SyncSocket on Sync {
           // (_restoreAllCachedMessages) so children are correctly
           // re-parented.  Previously we stripped isSidechain messages
           // here, which permanently lost them on cold-start.
-          unawaited(
-            MessageCacheService().saveMessagesAsync(
-              sessionId,
-              MessageCacheService.stripOrphanSynthetics(msgs),
-            ),
-          );
+          unawaited(MessageCacheService().saveMessagesAsync(sessionId, msgs));
         }
       },
     );
@@ -557,20 +552,14 @@ extension SyncSocket on Sync {
   /// Immediately flush all pending debounced message saves so the MMKV
   /// cache is not stale when the app is backgrounded or killed.
   void _flushPendingMessageSaves() {
-    if (_saveMsgsDebounceTimers.isEmpty) {
-      _saveMsgsFirstScheduledAtMs.clear();
-      return;
-    }
+    final timerSessionIds = _saveMsgsDebounceTimers.keys.toList();
     for (final entry in _saveMsgsDebounceTimers.entries) {
       entry.value.cancel();
-      final msgs = _sessionMessages[entry.key];
-      if (msgs != null) {
-        MessageCacheService().saveMessages(
-          entry.key,
-          MessageCacheService.stripOrphanSynthetics(msgs),
-        );
-      }
     }
+    MessageCacheService().flushPendingMessages(
+      _sessionMessages,
+      additionalSessionIds: timerSessionIds,
+    );
     _saveMsgsDebounceTimers.clear();
     _saveMsgsFirstScheduledAtMs.clear();
   }
@@ -1125,12 +1114,19 @@ extension SyncSocket on Sync {
       updatedAt: now,
       active: true,
       activeAt: now,
-      metadata: Metadata(
-        host: seedSession.metadata?.host ?? '',
-        machineId: seedSession.metadata?.machineId,
-        path: result.directory ?? seedSession.metadata?.path,
-        flavor: seedSession.metadata?.flavor,
-        lifecycleState: 'starting',
+      metadata: _metadataWithSpawnResult(
+        Metadata(
+          host: seedSession.metadata?.host ?? '',
+          machineId: seedSession.metadata?.machineId,
+          path: result.directory ?? seedSession.metadata?.path,
+          flavor: seedSession.metadata?.flavor,
+          lifecycleState: 'starting',
+          runtimeKind: seedSession.metadata?.runtimeKind,
+          podName: seedSession.metadata?.podName,
+          namespace: seedSession.metadata?.namespace,
+          repoUrl: seedSession.metadata?.repoUrl,
+        ),
+        result,
       ),
       metadataVersion: 0,
       agentStateVersion: 0,

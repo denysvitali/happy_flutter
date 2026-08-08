@@ -11,6 +11,7 @@ class CommandItem {
     this.shortcut,
     this.category,
     this.isPinned = false,
+    this.searchOnly = false,
   });
 
   /// Unique identifier for the command
@@ -37,6 +38,9 @@ class CommandItem {
   /// Whether this command is a pinned session.
   final bool isPinned;
 
+  /// Indexed by fuzzy search but omitted from the empty-query shortlist.
+  final bool searchOnly;
+
   /// Creates a copy with optional field overrides
   CommandItem copyWith({
     String? id,
@@ -47,6 +51,7 @@ class CommandItem {
     String? category,
     VoidCallback? action,
     bool? isPinned,
+    bool? searchOnly,
   }) {
     return CommandItem(
       id: id ?? this.id,
@@ -57,6 +62,7 @@ class CommandItem {
       category: category ?? this.category,
       action: action ?? this.action,
       isPinned: isPinned ?? this.isPinned,
+      searchOnly: searchOnly ?? this.searchOnly,
     );
   }
 }

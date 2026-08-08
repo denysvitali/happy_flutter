@@ -682,23 +682,19 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }
 
   void _ensureTabletSelection() {
-    final sessions = ref.watch(
+    final candidates = ref.watch(
       sessionsNotifierProvider.select(
-        (state) =>
-            state.values
-                .where((session) => !session.archived)
-                .toList(growable: false)
-              ..sort((a, b) => b.activeAt.compareTo(a.activeAt)),
+        TabletSessionSelectionProjection.fromSessions,
       ),
     );
-    if (sessions.isEmpty) return;
+    if (candidates.sessionIds.isEmpty) return;
     final current = _selectedSessionId;
     final currentStillExists =
-        current != null && sessions.any((session) => session.id == current);
+        current != null && candidates.sessionIds.contains(current);
     if (currentStillExists || (current == null && _tabletSelectionDismissed)) {
       return;
     }
-    final next = sessions.first.id;
+    final next = candidates.sessionIds.first;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _selectedSessionId == next) return;
       setState(() => _selectedSessionId = next);
@@ -899,12 +895,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }) async {
     final isTablet = MediaQuery.sizeOf(context).width >= AppBreakpoint.tablet;
     final router = GoRouter.of(context);
-    final sessionId = await showDialog<String>(
-      context: context,
-      builder: (_) => NewSessionDialog(
-        initialMachineId: initialMachineId,
-        initialPath: initialPath,
-      ),
+    final sessionId = await showNewSessionDialog(
+      context,
+      initialMachineId: initialMachineId,
+      initialPath: initialPath,
     );
     if (sessionId == null || !mounted) return;
     if (isTablet) {
