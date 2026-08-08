@@ -42,7 +42,7 @@ class MissionControlFilters extends StatelessWidget {
           if (index == 0) {
             return _FocusFilterChip(
               key: const ValueKey('mission-filter-all'),
-              label: context.l10n.allLoopsFilterAll,
+              label: context.l10n.missionControlFilterAll,
               count: total,
               selected: selectedLane == null,
               onTap: () => onSelectLane(null),

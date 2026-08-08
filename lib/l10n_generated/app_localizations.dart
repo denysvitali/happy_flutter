@@ -4423,6 +4423,12 @@ abstract class AppLocalizations {
   /// **'Focus queue'**
   String get missionControlFocusQueue;
 
+  /// No description provided for @missionControlFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get missionControlFilterAll;
+
   /// No description provided for @missionControlWorkspacePulse.
   ///
   /// In en, this message translates to:

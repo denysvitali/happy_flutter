@@ -1009,6 +1009,7 @@
     }
   },
   "missionControlFocusQueue": "Focus queue",
+  "missionControlFilterAll": "All",
   "missionControlWorkspacePulse": "Workspace pulse",
   "missionControlReview": "Review",
   "missionControlNewCount": "{count} new",
