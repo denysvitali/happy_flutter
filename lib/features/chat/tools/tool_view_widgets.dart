@@ -281,10 +281,12 @@ class ToolHeader extends StatelessWidget {
               key: const ValueKey('tool-header-details-action'),
               onPressed: onOpenDetails,
               tooltip: context.l10n.toolDetailsView,
-              constraints: BoxConstraints(
-                minWidth: rowHeight,
-                minHeight: rowHeight,
-              ),
+              constraints: compact
+                  ? BoxConstraints.tight(Size.square(rowHeight))
+                  : BoxConstraints(
+                      minWidth: rowHeight,
+                      minHeight: rowHeight,
+                    ),
               style: IconButton.styleFrom(
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
