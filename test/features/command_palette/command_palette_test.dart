@@ -635,7 +635,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CommandPaletteOverlay), findsOneWidget);
-      expect(find.byType(ModalBarrier), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('command-palette-barrier')),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('command-palette-modal')),
         findsOneWidget,

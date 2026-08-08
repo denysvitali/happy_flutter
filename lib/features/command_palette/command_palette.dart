@@ -312,19 +312,21 @@ class _CommandPaletteAppOverlayState
     }
     _wasVisible = isVisible;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        ExcludeFocus(
-          key: const ValueKey('command-palette-background'),
-          excluding: isVisible,
-          child: widget.child,
-        ),
-        if (isVisible)
-          BlockSemantics(
-            child: CommandPaletteOverlayWrapper(appRouter: widget.appRouter),
+    return Overlay.wrap(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ExcludeFocus(
+            key: const ValueKey('command-palette-background'),
+            excluding: isVisible,
+            child: widget.child,
           ),
-      ],
+          if (isVisible)
+            BlockSemantics(
+              child: CommandPaletteOverlayWrapper(appRouter: widget.appRouter),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -478,6 +478,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
       fit: StackFit.expand,
       children: [
         ModalBarrier(
+          key: const ValueKey('command-palette-barrier'),
           color: colorScheme.scrim.withValues(alpha: 0.54),
           dismissible: true,
           onDismiss: widget.onClose,
