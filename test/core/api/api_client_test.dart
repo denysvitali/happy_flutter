@@ -8,6 +8,7 @@ import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     show BatchSpanProcessor, ConsoleExporter, OTel;
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/api/retry_interceptor.dart';
+import 'package:happy_flutter/core/services/opentelemetry_service.dart';
 
 void main() {
   group('ApiClient Retry Logic', () {

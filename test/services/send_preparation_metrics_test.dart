@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/opentelemetry_service.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
 
 import '../helpers/test_helpers.dart';
 

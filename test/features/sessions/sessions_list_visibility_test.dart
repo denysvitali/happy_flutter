@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_headers.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 import 'package:happy_flutter/features/sessions/widgets/sessions_list_content.dart';
