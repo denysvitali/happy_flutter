@@ -3,18 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 
 // Animation duration constants.
-const kBorderAnimDuration = Duration(milliseconds: 200);
-const kSendAnimDuration = Duration(milliseconds: 120);
-const kSwitchAnimDuration = Duration(milliseconds: 180);
+const kBorderAnimDuration = AppDuration.fast;
+const kSendAnimDuration = AppDuration.fast;
+const kSwitchAnimDuration = AppDuration.fast;
 
 // Checkmark morph duration — scale + fade in/out.
-const kCheckMorphDuration = Duration(milliseconds: 300);
+const kCheckMorphDuration = AppDuration.normal;
 
 // How long the checkmark stays visible before reverting.
-const kCheckHoldDuration = Duration(milliseconds: 900);
+const kCheckHoldDuration = AppDuration.slower;
 
 /// Send button — circular, matches iMessage's arrow-up design.
 ///
@@ -61,13 +62,17 @@ class _SendButtonState extends State<SendButton>
     // Scale sequence: 0.7 → 1.2 → 1.0 (elastic overshoot feel).
     _morphScale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.7, end: 1.2)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween<double>(
+          begin: 0.7,
+          end: 1.2,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 60,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 1.2, end: 1.0)
-            .chain(CurveTween(curve: Curves.elasticOut)),
+        tween: Tween<double>(
+          begin: 1.2,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.elasticOut)),
         weight: 40,
       ),
     ]).animate(_morphCtrl);
@@ -76,13 +81,17 @@ class _SendButtonState extends State<SendButton>
   @override
   void didUpdateWidget(SendButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final wasDelivered =
-        oldWidget.lastDeliveryStatus == 'sent';
-    final isDelivered =
-        widget.lastDeliveryStatus == 'sent';
+    final wasDelivered = oldWidget.lastDeliveryStatus == 'sent';
+    final isDelivered = widget.lastDeliveryStatus == 'sent';
     if (!wasDelivered && isDelivered && !_justSent) {
       _triggerMorph();
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _morphCtrl.duration = AppMotion.duration(context, kCheckMorphDuration);
   }
 
   void _triggerMorph() {
@@ -90,15 +99,16 @@ class _SendButtonState extends State<SendButton>
     // Confirm delivery with a tactile tick alongside the checkmark.
     HapticFeedback.lightImpact();
     setState(() => _justSent = true);
-    _morphCtrl.forward(from: 0);
-    _revertTimer = Timer(
-      kCheckMorphDuration + kCheckHoldDuration,
-      () {
-        if (mounted) {
-          setState(() => _justSent = false);
-        }
-      },
-    );
+    if (AppMotion.reduceMotion(context)) {
+      _morphCtrl.value = 1;
+    } else {
+      _morphCtrl.forward(from: 0);
+    }
+    _revertTimer = Timer(kCheckMorphDuration + kCheckHoldDuration, () {
+      if (mounted) {
+        setState(() => _justSent = false);
+      }
+    });
   }
 
   @override
@@ -110,119 +120,97 @@ class _SendButtonState extends State<SendButton>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final canSend =
-        !widget.isSendDisabled && !widget.isSending;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final canSend = !widget.isSendDisabled && !widget.isSending;
 
-    // While morphed, keep button in an "active" appearance.
-    final showCheck = _justSent;
-    final effectiveCanSend = canSend || showCheck;
+    // A newly typed draft takes precedence over the transient confirmation.
+    final showCheck = _justSent && !canSend;
+    final isActive = canSend || showCheck || widget.isSending;
+    final semanticLabel = widget.isSending
+        ? l10n.chatSending
+        : showCheck
+        ? l10n.chatSent
+        : l10n.chatSend;
 
     return Semantics(
-      label: 'Send',
+      container: true,
+      label: semanticLabel,
       button: true,
-      child: Tooltip(
-        message: 'Send',
-        child: GestureDetector(
-          onTap: () {
-            if (canSend) HapticFeedback.lightImpact();
-            widget.onTap();
-          },
-          behavior: HitTestBehavior.opaque,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: AppTouchTarget.min,
-              minHeight: AppTouchTarget.min,
+      enabled: canSend,
+      liveRegion: widget.isSending || showCheck,
+      onTap: canSend ? widget.onTap : null,
+      excludeSemantics: true,
+      child: IconButton(
+        tooltip: semanticLabel,
+        onPressed: canSend ? widget.onTap : null,
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(AppTouchTarget.min),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: ScaleTransition(
+          scale: widget.scaleAnimation,
+          child: AnimatedContainer(
+            duration: AppMotion.duration(context, kBorderAnimDuration),
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isActive
+                  ? cs.primary
+                  : cs.onSurface.withValues(
+                      alpha: AppMotion.disabledContainerOpacity,
+                    ),
+              boxShadow: isActive
+                  ? AppElevationShadow.interactive(theme.brightness)
+                  : null,
             ),
-            child: Center(
-              child: ScaleTransition(
-                scale: widget.scaleAnimation,
-                child: AnimatedContainer(
-                  duration: kBorderAnimDuration,
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: effectiveCanSend
-                        ? cs.primary
-                        : cs.onSurface
-                            .withValues(alpha: 0.08),
-                    boxShadow: effectiveCanSend
-                        ? [
-                            BoxShadow(
-                              color: cs.primary
-                                  .withValues(
-                                alpha: 0.3,
-                              ),
-                              blurRadius: 8,
-                              offset:
-                                  const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
+            child: AnimatedSwitcher(
+              duration: AppMotion.duration(context, kSwitchAnimDuration),
+              switchInCurve: AppCurve.enter,
+              switchOutCurve: AppCurve.exit,
+              transitionBuilder: (child, animation) {
+                if (AppMotion.reduceMotion(context)) {
+                  return child;
+                }
+                return FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(
+                    scale: showCheck
+                        ? _morphScale
+                        : animation.drive(Tween<double>(begin: 0.7, end: 1)),
+                    child: child,
                   ),
-                  child: AnimatedSwitcher(
-                    duration: kCheckMorphDuration,
-                    switchInCurve: Curves.easeIn,
-                    switchOutCurve: Curves.easeOut,
-                    transitionBuilder: (child, anim) {
-                      return FadeTransition(
-                        opacity: anim,
-                        child: ScaleTransition(
-                          scale: showCheck
-                              ? _morphScale
-                              : anim.drive(
-                                  Tween<double>(
-                                    begin: 0.7,
-                                    end: 1.0,
-                                  ),
-                                ),
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: showCheck
-                        ? Icon(
-                            key: const ValueKey(
-                              'check',
+                );
+              },
+              child: showCheck
+                  ? Icon(
+                      key: const ValueKey('check'),
+                      Icons.check_rounded,
+                      size: AppIconSize.lg,
+                      color: cs.onPrimary,
+                    )
+                  : widget.isSending
+                  ? Padding(
+                      key: const ValueKey('spinner'),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      child: CircularProgressIndicator(
+                        strokeWidth: AppBorder.thin,
+                        color: cs.onPrimary,
+                      ),
+                    )
+                  : Icon(
+                      key: const ValueKey('send'),
+                      Icons.arrow_upward_rounded,
+                      size: AppIconSize.lg,
+                      color: canSend
+                          ? cs.onPrimary
+                          : cs.onSurface.withValues(
+                              alpha: AppMotion.disabledContentOpacity,
                             ),
-                            Icons.check_rounded,
-                            size: 18,
-                            color: cs.onPrimary,
-                          )
-                        : widget.isSending
-                        ? Padding(
-                            key: const ValueKey(
-                              'spinner',
-                            ),
-                            padding:
-                                const EdgeInsets.all(
-                              AppSpacing.sm,
-                            ),
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color:
-                                  cs.onSurfaceVariant,
-                            ),
-                          )
-                        : Icon(
-                            key: const ValueKey(
-                              'send',
-                            ),
-                            Icons
-                                .arrow_upward_rounded,
-                            size: 18,
-                            color: canSend
-                                ? cs.onPrimary
-                                : cs.onSurface
-                                    .withValues(
-                                    alpha: 0.25,
-                                  ),
-                          ),
-                  ),
-                ),
-              ),
+                    ),
             ),
           ),
         ),

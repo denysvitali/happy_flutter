@@ -1124,6 +1124,8 @@
   "chatInputProfileDefaultSubtitle": "Server-configured defaults",
   "chatEmpty": "Start a conversation",
   "chatSend": "Send",
+  "chatSending": "Sending",
+  "chatSent": "Sent",
   "chatCopyMessage": "Copy",
   "chatDeleteMessage": "Delete",
   "chatClearSession": "Clear Session",

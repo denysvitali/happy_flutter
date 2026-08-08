@@ -2762,6 +2762,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSend => 'Send';
 
   @override
+  String get chatSending => 'Sending';
+
+  @override
+  String get chatSent => 'Sent';
+
+  @override
   String get chatCopyMessage => 'Copy';
 
   @override

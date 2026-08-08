@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +13,7 @@ import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/snack.dart';
 import 'send/chat_attachment_controller.dart';
 import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
@@ -24,9 +24,11 @@ import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
 import 'widgets/picker_sheets.dart';
 import 'widgets/slash_commands.dart';
-import '../../core/utils/snack.dart';
 
 export 'widgets/model_mode.dart' show ChatModelMode;
+
+part 'chat_input_attachments.dart';
+part 'chat_input_dictation.dart';
 
 /// Enhanced chat input with autocomplete, draft
 /// persistence, and polished animations.
@@ -159,12 +161,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
       _draftStorage = DraftStorage();
 
   final DraftStorage _draftStorage;
+  final ImageAttachmentService _attachmentService = ImageAttachmentService();
   static final _containerRadius = BorderRadius.circular(AppRadius.xl);
-  // AppShadow.card has brightness-aware variants — dark in light
-  // mode (subtle black 4% + 2%), light in dark mode (subtle white).
-  // The previous Colors.black.withValues(alpha: 0.04) was always
-  // on-top black regardless of theme.
-  static final _cardBoxShadow = AppShadow.card;
 
   final FocusNode _focusNode = FocusNode();
   final AutocompleteController _autocompleteController =
@@ -194,6 +192,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
   DateTime? _dictationStartedAt;
   DateTime? _dictationSilenceStartedAt;
   Timer? _dictationMaxTimer;
+  // Cancelled by _stopDictationWatchers in chat_input_dictation.dart.
+  // ignore: cancel_subscriptions
   StreamSubscription<double>? _dictationLevelSub;
   int? _dictationPreviewStart;
   int? _dictationPreviewEnd;
@@ -203,6 +203,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   late final AnimationController _sendScaleController;
   late final Animation<double> _sendScale;
+
+  bool get _hasSendableContent {
+    return widget.controller.text.trim().isNotEmpty ||
+        (widget.attachmentController?.isNotEmpty ?? false);
+  }
+
+  void _setComposerState(VoidCallback update) => setState(update);
 
   @override
   void initState() {
@@ -466,7 +473,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   void _onSendTap() {
-    if (widget.isSendDisabled || widget.isSending) {
+    if (widget.isSendDisabled || widget.isSending || !_hasSendableContent) {
       return;
     }
     // Cancel any pending debounced autocomplete filter — submit is a
@@ -475,270 +482,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
     _autocompleteDebounce?.cancel();
     _cancelDictationForSend();
     HapticFeedback.mediumImpact();
-    _sendScaleController
-      ..value = 0.0
-      ..forward();
+    if (AppMotion.reduceMotion(context)) {
+      _sendScaleController.value = 1.0;
+    } else {
+      _sendScaleController
+        ..value = 0.0
+        ..forward();
+    }
     widget.onSend();
-  }
-
-  Future<void> _onDictationTap() async {
-    if (_isTranscribing || _isDownloadingModel || _isStoppingDictation) {
-      return;
-    }
-
-    if (_isRecording) {
-      await _stopAndTranscribe();
-      return;
-    }
-
-    await _startDictation();
-  }
-
-  Future<void> _startDictation() async {
-    final sessionId = ++_dictationSessionId;
-    // If the selected model is not on disk yet, surface a clear
-    // "Downloading model…" state before the mic opens so the user
-    // is not left staring at a silent spinner mid-transcribe.
-    final selected = _dictationService.selectedModel;
-    final needsDownload =
-        _dictationService.statusFor(selected.id) != OfflineSttStatus.ready;
-    if (needsDownload && mounted) {
-      setState(() => _isDownloadingModel = true);
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger?.showSnackBar(
-        SnackBar(
-          content: Text(
-            'Downloading ${selected.displayName}'
-            '${selected.sizeLabel.isEmpty ? '' : ' (${selected.sizeLabel})'}…',
-          ),
-          duration: const Duration(seconds: 8),
-        ),
-      );
-    }
-    try {
-      _prepareDictationPreview();
-      await _dictationService.start(
-        onTranscript: (text) {
-          if (_dictationSessionId == sessionId) {
-            _replaceDictationPreview(text);
-          }
-        },
-      );
-      if (_dictationSessionId != sessionId) {
-        await _dictationService.cancel();
-        return;
-      }
-      if (!mounted) return;
-      unawaited(HapticFeedback.mediumImpact());
-      setState(() {
-        _isDownloadingModel = false;
-        _isRecording = true;
-        _dictationStartedAt = DateTime.now();
-        _dictationSilenceStartedAt = null;
-      });
-      _startDictationWatchers();
-    } on OfflineDictationException catch (error) {
-      if (_dictationSessionId != sessionId) return;
-      _dictationSessionId++;
-      if (mounted) {
-        setState(() => _isDownloadingModel = false);
-      }
-      _showDictationError(error.message);
-    } catch (error) {
-      if (_dictationSessionId != sessionId) return;
-      _dictationSessionId++;
-      if (mounted) {
-        setState(() => _isDownloadingModel = false);
-      }
-      _showDictationError(
-        needsDownload
-            ? 'Failed to download dictation model'
-            : 'Failed to start dictation',
-      );
-    }
-  }
-
-  Future<void> _stopAndTranscribe() async {
-    if (_isStoppingDictation) {
-      return;
-    }
-    _isStoppingDictation = true;
-    final sessionId = _dictationSessionId;
-    _stopDictationWatchers();
-    if (!mounted) {
-      _isStoppingDictation = false;
-      return;
-    }
-    setState(() {
-      _isRecording = false;
-      _isTranscribing = true;
-    });
-
-    try {
-      final text = await _dictationService.stopAndTranscribe();
-      if (!mounted || _dictationSessionId != sessionId) return;
-      _replaceDictationPreview(text);
-      unawaited(HapticFeedback.lightImpact());
-      _focusNode.requestFocus();
-    } on OfflineDictationException catch (error) {
-      _showDictationError(error.message);
-    } catch (error) {
-      _showDictationError('Transcription failed');
-    } finally {
-      _isStoppingDictation = false;
-      if (mounted) {
-        setState(() => _isTranscribing = false);
-      }
-    }
-  }
-
-  void _cancelDictationForSend() {
-    _dictationSessionId++;
-    if (!_isRecording &&
-        !_isTranscribing &&
-        !_isDownloadingModel &&
-        !_isStoppingDictation) {
-      return;
-    }
-
-    _stopDictationWatchers();
-    _dictationPreviewStart = null;
-    _dictationPreviewEnd = null;
-    _dictationPreviewText = '';
-    unawaited(
-      _dictationService.cancel().catchError((Object error, StackTrace stack) {
-        logger.warning('Failed to cancel dictation after send', error, stack);
-      }),
-    );
-    if (mounted) {
-      setState(() {
-        _isRecording = false;
-        _isTranscribing = false;
-        _isDownloadingModel = false;
-      });
-    }
-    _isStoppingDictation = false;
-  }
-
-  void _insertDictatedText(String dictatedText) {
-    final trimmed = dictatedText.trim();
-    if (trimmed.isEmpty) return;
-
-    final value = widget.controller.value;
-    final text = value.text;
-    final selection = value.selection;
-    final start = selection.isValid ? selection.start : text.length;
-    final end = selection.isValid ? selection.end : text.length;
-    final beforeCursor = text.substring(0, start);
-    final afterCursor = text.substring(end);
-    final prefix = start > 0 && !RegExp(r'\s$').hasMatch(beforeCursor)
-        ? ' '
-        : '';
-    final suffix = end < text.length && !afterCursor.startsWith(' ') ? ' ' : '';
-    final replacement = '$prefix$trimmed$suffix';
-
-    widget.controller.value = TextEditingValue(
-      text: text.replaceRange(start, end, replacement),
-      selection: TextSelection.collapsed(offset: start + replacement.length),
-    );
-  }
-
-  void _prepareDictationPreview() {
-    final value = widget.controller.value;
-    final text = value.text;
-    final selection = value.selection;
-    final start = selection.isValid ? selection.start : text.length;
-    final end = selection.isValid ? selection.end : text.length;
-    _dictationPreviewStart = start;
-    _dictationPreviewEnd = end;
-    _dictationPreviewText = '';
-  }
-
-  void _replaceDictationPreview(String dictatedText) {
-    if (!mounted) return;
-    final trimmed = dictatedText.trim();
-    if (trimmed.isEmpty) return;
-
-    final start = _dictationPreviewStart;
-    final end = _dictationPreviewEnd;
-    final value = widget.controller.value;
-    final text = value.text;
-    if (start == null ||
-        end == null ||
-        start < 0 ||
-        end < start ||
-        end > text.length) {
-      _insertDictatedText(trimmed);
-      return;
-    }
-
-    final currentPreview = text.substring(start, end);
-    if (currentPreview != _dictationPreviewText) {
-      _insertDictatedText(trimmed);
-      return;
-    }
-
-    final before = text.substring(0, start);
-    final after = text.substring(end);
-    final prefix = start > 0 && !RegExp(r'\s$').hasMatch(before) ? ' ' : '';
-    final suffix = after.isNotEmpty && !after.startsWith(' ') ? ' ' : '';
-    final replacement = '$prefix$trimmed$suffix';
-
-    widget.controller.value = TextEditingValue(
-      text: text.replaceRange(start, end, replacement),
-      selection: TextSelection.collapsed(offset: start + replacement.length),
-    );
-    _dictationPreviewEnd = start + replacement.length;
-    _dictationPreviewText = replacement;
-  }
-
-  void _showDictationError(String message) {
-    if (!mounted) return;
-    context.showSnack(message);
-  }
-
-  void _startDictationWatchers() {
-    _stopDictationWatchers();
-    _dictationMaxTimer = Timer(
-      _dictationMaxDuration,
-      () => unawaited(_stopAndTranscribe()),
-    );
-    _dictationLevelSub = _dictationService.levels().listen(
-      _handleDictationLevel,
-      onError: (_) {},
-    );
-  }
-
-  void _stopDictationWatchers() {
-    _dictationMaxTimer?.cancel();
-    _dictationMaxTimer = null;
-    unawaited(_dictationLevelSub?.cancel());
-    _dictationLevelSub = null;
-    _dictationSilenceStartedAt = null;
-  }
-
-  void _handleDictationLevel(double levelDb) {
-    if (!_isRecording || _isStoppingDictation) {
-      return;
-    }
-
-    final now = DateTime.now();
-    final startedAt = _dictationStartedAt;
-    if (startedAt == null ||
-        now.difference(startedAt) < _dictationInitialGrace) {
-      return;
-    }
-
-    if (levelDb > _dictationSilenceThresholdDb) {
-      _dictationSilenceStartedAt = null;
-      return;
-    }
-
-    final silenceStartedAt = _dictationSilenceStartedAt ?? now;
-    _dictationSilenceStartedAt = silenceStartedAt;
-    if (now.difference(silenceStartedAt) >= _dictationSilenceDuration) {
-      unawaited(_stopAndTranscribe());
-    }
   }
 
   // -----------------------------------------------------------
@@ -774,61 +525,54 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Widget _buildInputContainer(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // Slightly lower opacity so the blur shows through.
-    final surfaceAlpha = isDark ? 0.82 : 0.88;
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return ClipRRect(
-      borderRadius: _containerRadius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                cs.surface.withValues(alpha: surfaceAlpha),
-                cs.surface.withValues(alpha: surfaceAlpha + 0.06),
-              ],
-            ),
-            borderRadius: _containerRadius,
-            border: Border(
-              top: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.2),
-                width: 0.5,
-              ),
-            ),
-            boxShadow: _cardBoxShadow,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+            width: AppBorder.hairline,
           ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md,
-                AppSpacing.xs,
-                AppSpacing.md,
-                AppSpacing.xs,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildCardInputArea(context),
-                  const SizedBox(height: AppSpacing.xs),
-                  InputToolbar(
-                    permissionMode: widget.permissionMode,
-                    onPermissionModeChanged: widget.onPermissionModeChanged,
-                    modelMode: widget.modelMode,
-                    availableModels: widget.availableModels,
-                    onShowModelPicker: () => widget.onModelModeChanged != null
-                        ? _showModelPicker(context)
-                        : null,
-                    selectedProfile: widget.selectedProfile,
-                    onShowProfilePicker: () => _showProfilePicker(context),
-                    contextSize: widget.contextSize,
-                  ),
-                ],
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            key: const ValueKey<String>('chat-composer-content'),
+            constraints: const BoxConstraints(
+              maxWidth: AppBreakpoint.contentMax,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.xs,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildCardInputArea(context),
+                    const SizedBox(height: AppSpacing.xs),
+                    InputToolbar(
+                      permissionMode: widget.permissionMode,
+                      onPermissionModeChanged: widget.onPermissionModeChanged,
+                      modelMode: widget.modelMode,
+                      availableModels: widget.availableModels,
+                      onShowModelPicker: () => widget.onModelModeChanged != null
+                          ? _showModelPicker(context)
+                          : null,
+                      selectedProfile: widget.selectedProfile,
+                      onShowProfilePicker: () => _showProfilePicker(context),
+                      contextSize: widget.contextSize,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -851,14 +595,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
             ? cs.primary.withValues(alpha: 0.4)
             : cs.outlineVariant.withValues(alpha: 0.4);
         return AnimatedContainer(
-          duration: kBorderAnimDuration,
+          duration: AppMotion.duration(context, kBorderAnimDuration),
           curve: AppCurve.standard,
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: cardColor,
             borderRadius: _containerRadius,
             border: Border.all(color: borderColor, width: 0.5),
-            boxShadow: _cardBoxShadow,
+            boxShadow: AppElevationShadow.card(Theme.of(context).brightness),
           ),
           child: child,
         );
@@ -921,115 +665,28 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   left: AppSpacing.xs,
                   right: AppSpacing.xsm,
                 ),
-                child: SendButton(
-                  isSending: widget.isSending,
-                  isSendDisabled: widget.isSendDisabled,
-                  onTap: _onSendTap,
-                  scaleAnimation: _sendScale,
-                  lastDeliveryStatus: widget.lastDeliveryStatus,
+                child: ListenableBuilder(
+                  listenable: Listenable.merge([
+                    widget.controller,
+                    if (widget.attachmentController != null)
+                      widget.attachmentController!,
+                  ]),
+                  builder: (context, _) {
+                    return SendButton(
+                      isSending: widget.isSending,
+                      isSendDisabled:
+                          widget.isSendDisabled || !_hasSendableContent,
+                      onTap: _onSendTap,
+                      scaleAnimation: _sendScale,
+                      lastDeliveryStatus: widget.lastDeliveryStatus,
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  // -----------------------------------------------------------
-  // Image attachments
-  // -----------------------------------------------------------
-
-  final ImageAttachmentService _attachmentService = ImageAttachmentService();
-
-  Future<void> _onAttachTap() async {
-    final controller = widget.attachmentController;
-    // Ignore attach while a send is in flight — the controller may be
-    // cleared underneath us, which would silently re-stage the image
-    // onto the next message's composer.
-    if (controller == null || widget.isSending) return;
-    final l10n = AppLocalizations.of(context);
-
-    final source = await showModalBottomSheet<_AttachSource>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) {
-        final sheetL10n = AppLocalizations.of(sheetContext);
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: Text(sheetL10n.chatAttachFromGallery),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_AttachSource.gallery),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: Text(sheetL10n.chatAttachFromCamera),
-                onTap: () =>
-                    Navigator.of(sheetContext).pop(_AttachSource.camera),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    if (source == null || !mounted) return;
-
-    final result = source == _AttachSource.camera
-        ? await _attachmentService.pickFromCameraResult()
-        : await _attachmentService.pickFromGalleryResult();
-    // Re-check after the async picker gap: a send that started while the
-    // picker was open must not have this image staged behind its back.
-    final image = result.image;
-    if (!mounted || widget.isSending) return;
-    if (image == null) {
-      if (!result.cancelled) {
-        context.showSnack(l10n.chatImageAddFailed);
-      }
-      return;
-    }
-
-    if (!controller.add(image) && mounted) {
-      context.showSnack(
-        l10n.chatAttachmentLimit(ChatAttachmentController.maxAttachments),
-      );
-    }
-  }
-
-  Widget _buildAttachmentStrip(BuildContext context) {
-    final controller = widget.attachmentController!;
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final images = controller.images;
-        if (images.isEmpty) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.xs,
-            AppSpacing.md,
-            0,
-          ),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (var i = 0; i < images.length; i++)
-                    _AttachmentThumb(
-                      image: images[i],
-                      onRemove: () => controller.remove(images[i]),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 
@@ -1108,170 +765,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
       widget.selectedProfile,
       widget.availableProfiles,
       (profile) => widget.onProfileChanged?.call(profile),
-    );
-  }
-}
-
-enum _AttachSource { gallery, camera }
-
-class _AttachButton extends StatelessWidget {
-  const _AttachButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final label = AppLocalizations.of(context).chatAttachImage;
-    // Keep a full 44px tap target but draw the glyph in a smaller box so
-    // it doesn't leave a wide band of dead air before the text field.
-    return Semantics(
-      button: true,
-      label: label,
-      child: Tooltip(
-        message: label,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: SizedBox.square(
-            dimension: AppTouchTarget.min,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SizedBox.square(
-                // 44px tap target minus the 8px of dead air we reclaim.
-                dimension: 36,
-                child: Center(
-                  child: Icon(
-                    Icons.add_rounded,
-                    color: cs.onSurfaceVariant,
-                    size: 22,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AttachmentThumb extends StatelessWidget {
-  const _AttachmentThumb({required this.image, required this.onRemove});
-
-  final OutgoingImage image;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(right: AppSpacing.xs),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Image.memory(
-              base64Decode(image.base64Data),
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-            ),
-          ),
-          Positioned(
-            top: -6,
-            right: -6,
-            child: Semantics(
-              button: true,
-              label: l10n.chatRemoveAttachment,
-              child: InkResponse(
-                onTap: onRemove,
-                radius: 14,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: cs.inverseSurface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.close,
-                    size: 14,
-                    color: cs.onInverseSurface,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DictationButton extends StatelessWidget {
-  const _DictationButton({
-    required this.isRecording,
-    required this.isTranscribing,
-    required this.isDownloadingModel,
-    required this.onTap,
-    this.downloadProgress,
-  });
-
-  final bool isRecording;
-  final bool isTranscribing;
-  final bool isDownloadingModel;
-  final OfflineSttDownloadProgress? downloadProgress;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final color = isRecording ? cs.error : cs.onSurfaceVariant;
-    final busy = isTranscribing || isDownloadingModel;
-    final progressLabel = downloadProgress?.label;
-    final label = isRecording
-        ? 'Stop dictation'
-        : isDownloadingModel
-        ? (progressLabel ?? 'Downloading model')
-        : isTranscribing
-        ? 'Transcribing'
-        : 'Start dictation';
-
-    return Semantics(
-      button: true,
-      label: label,
-      child: Tooltip(
-        message: label,
-        child: InkResponse(
-          onTap: busy ? null : onTap,
-          radius: AppTouchTarget.min / 2,
-          child: SizedBox.square(
-            dimension: AppTouchTarget.min,
-            child: Center(
-              child: busy
-                  ? SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: cs.primary,
-                        value: isDownloadingModel
-                            ? downloadProgress?.fraction
-                            : null,
-                      ),
-                    )
-                  : Icon(
-                      isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
-                      color: color,
-                      size: 22,
-                    ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
