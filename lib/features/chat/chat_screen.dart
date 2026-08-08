@@ -423,7 +423,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           if (!_isChatRouteActive) return;
           _lastMessageStreamActivityAt = DateTime.now().millisecondsSinceEpoch;
           _updateScreenAwake();
-          ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+          ref
+              .read(sessionUiStateNotifierProvider.notifier)
+              .loadSessionFromSync(widget.sessionId);
           // Debounce: streaming agents emit many message-changed events per
           // second. Immediate setState each time janks the UI; 50ms is under
           // one frame at 60fps and still feels real-time.
@@ -441,7 +443,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final counter = sync.domainChangeCounter(SyncDomain.sessions);
           if (counter == _lastDataChangeCounter) return;
           _lastDataChangeCounter = counter;
-          ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+          ref
+              .read(sessionUiStateNotifierProvider.notifier)
+              .loadSessionFromSync(widget.sessionId);
           if (!_didStartInitialLoad && sync.isInitialized) {
             _doInitialLoad();
           } else {
@@ -494,7 +498,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _handleRouteChanged() {
     _updateScreenAwake();
     if (!mounted || !_isChatRouteActive) return;
-    ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+    ref
+        .read(sessionUiStateNotifierProvider.notifier)
+        .loadSessionFromSync(widget.sessionId);
     _refreshFromSync();
   }
 
@@ -1497,8 +1503,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           canGoPrev: _ttsCanGoPrev(),
           canGoNext: _ttsCanGoNext(),
         ),
-        if (isThinking && !_isAborting)
-          ThinkingStopBar(onStop: _abortSession),
+        if (isThinking && !_isAborting) ThinkingStopBar(onStop: _abortSession),
         if (_isAborting)
           const Padding(
             padding: EdgeInsets.symmetric(

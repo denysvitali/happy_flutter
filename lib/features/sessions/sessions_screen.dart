@@ -11,11 +11,12 @@ import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/services/performance_context_service.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/tab_bar/tab_bar.dart';
 import '../../core/utils/session_utils.dart';
-import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../chat/chat_screen.dart';
@@ -76,6 +77,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   /// On phone, navigation is handled via pushed routes (no in-place selection).
   String? _selectedSessionId;
   bool _tabletSelectionDismissed = false;
+  late bool _sessionsRouteActive;
 
   void _onScroll() {
     final scrolled = _scrollController.offset > 0;
@@ -92,6 +94,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     _selectionNotifier.addListener(_onSelectionChanged);
     _folderNotifier.addListener(_onFolderChanged);
     _scrollController.addListener(_onScroll);
+    _sessionsRouteActive = isSessionsCollectionRoute(
+      PerformanceContextService().currentRoute,
+    );
+    PerformanceContextService().routeListenable.addListener(_onRouteChanged);
     Future<void>.microtask(() {
       final sessionsNotifier = ref.read(sessionsNotifierProvider.notifier);
       sessionsNotifier.loadFromSync();
@@ -105,9 +111,21 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       });
     });
     subscribeToDomains({SyncDomain.sessions, SyncDomain.machines}, () {
+      if (!_sessionsRouteActive || _activeTab != AppTab.sessions) return;
       ref.read(sessionsNotifierProvider.notifier).loadFromSync();
       ref.read(machinesNotifierProvider.notifier).loadFromSync();
     });
+  }
+
+  void _onRouteChanged() {
+    final active = isSessionsCollectionRoute(
+      PerformanceContextService().currentRoute,
+    );
+    if (active == _sessionsRouteActive) return;
+    _sessionsRouteActive = active;
+    if (!active || !mounted || _activeTab != AppTab.sessions) return;
+    ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+    ref.read(machinesNotifierProvider.notifier).loadFromSync();
   }
 
   void _onSelectionChanged() {
@@ -152,6 +170,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
   @override
   void dispose() {
+    PerformanceContextService().routeListenable.removeListener(_onRouteChanged);
     _selectionNotifier
       ..removeListener(_onSelectionChanged)
       ..dispose();
@@ -611,6 +630,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               folderNotifier: _folderNotifier,
               searchQuery: _searchController.text,
               onClearSearch: _clearSearch,
+              isVisible: _activeTab == AppTab.sessions,
               scrollController: _scrollController,
             ),
             _buildLoopsTab(),
@@ -678,6 +698,10 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       _activeTab = tab;
       _builtTabs.add(tab);
     });
+    if (tab == AppTab.sessions && _sessionsRouteActive) {
+      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+      ref.read(machinesNotifierProvider.notifier).loadFromSync();
+    }
     _updateUrlTab(tab);
   }
 

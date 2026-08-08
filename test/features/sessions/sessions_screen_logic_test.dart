@@ -5,6 +5,19 @@ import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 
 void main() {
+  group('isSessionsCollectionRoute', () {
+    test('recognizes both sessions routes and startup', () {
+      expect(isSessionsCollectionRoute(null), isTrue);
+      expect(isSessionsCollectionRoute('home'), isTrue);
+      expect(isSessionsCollectionRoute('sessions'), isTrue);
+    });
+
+    test('rejects routes that cover the sessions collection', () {
+      expect(isSessionsCollectionRoute('chat'), isFalse);
+      expect(isSessionsCollectionRoute('settings'), isFalse);
+    });
+  });
+
   group('shouldShowInactiveSessionsSection', () {
     test('returns false when there are no inactive sessions', () {
       expect(
@@ -175,12 +188,93 @@ void main() {
           ),
         ],
         machines,
-        getUnreadCount: (sessionId) =>
-            sessionId == 'active-1' ? 4 : 47,
+        getUnreadCount: (sessionId) => sessionId == 'active-1' ? 4 : 47,
       );
 
       expect(groups.single.header.unreadCount, 4);
     });
+
+    test('resolves each session activity timestamp only once', () {
+      final sessions = [
+        buildSession(
+          'active-1',
+          path: '/home/dev/app',
+          machineId: 'm1',
+          updatedAt: 100,
+          activeAt: 100,
+          active: true,
+        ),
+        buildSession(
+          'active-2',
+          path: '/home/dev/app',
+          machineId: 'm1',
+          updatedAt: 90,
+          activeAt: 90,
+          active: true,
+        ),
+        buildSession(
+          'active-3',
+          path: '/home/dev/other',
+          machineId: 'm1',
+          updatedAt: 80,
+          activeAt: 80,
+          active: true,
+        ),
+      ];
+      var lookups = 0;
+
+      groupAllSessionsByFolder(
+        sessions,
+        const [],
+        machines,
+        getLastMessageTimestamp: (_) {
+          lookups++;
+          return null;
+        },
+      );
+
+      expect(lookups, sessions.length);
+    });
+
+    test(
+      'sorted-session cache skips all collection work when inputs match',
+      () {
+        final session = buildSession(
+          'active-1',
+          path: '/home/dev/app',
+          machineId: 'm1',
+          updatedAt: 100,
+          activeAt: 100,
+          active: true,
+        );
+        final sessions = <String, Session>{session.id: session};
+        final archived = <String>{};
+        final timestampRevision = Object();
+        final first = computeSortedSessions(
+          sessions,
+          previous: null,
+          lastSessions: null,
+          lastSearchQuery: null,
+          optimisticallyArchivedIds: archived,
+          getLastMessageTimestamp: (_) => 100,
+        );
+
+        final second = computeSortedSessions(
+          sessions,
+          previous: first,
+          lastSessions: sessions,
+          lastSearchQuery: '',
+          optimisticallyArchivedIds: archived,
+          lastOptimisticallyArchivedIds: archived,
+          timestampRevision: timestampRevision,
+          lastTimestampRevision: timestampRevision,
+          getLastMessageTimestamp: (_) =>
+              throw StateError('cache hit must not read timestamps'),
+        );
+
+        expect(identical(second, first), isTrue);
+      },
+    );
 
     test('disambiguates duplicate visible session names with stable ids', () {
       final sessions = [

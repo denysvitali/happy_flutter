@@ -60,7 +60,8 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
     // card. Falling back to session.updatedAt alone caused sessions to
     // land in the wrong group when the local message cache or
     // server-provided lastMessage was newer.
-    final effectiveTs = getLastMessageTimestamp?.call(session.id) ??
+    final effectiveTs =
+        getLastMessageTimestamp?.call(session.id) ??
         session.lastMessageAt ??
         session.updatedAt;
     final sessionDate = DateTime.fromMillisecondsSinceEpoch(effectiveTs);
@@ -678,30 +679,41 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
 
   final groupedActive = <String, List<Session>>{};
   final groupedInactive = <String, List<Session>>{};
+  final latestActivityByKey = <String, int>{};
+  final activityBySessionId = <String, int>{};
+
+  int activityTs(Session session) {
+    return activityBySessionId.putIfAbsent(
+      session.id,
+      () => getLastMessageTimestamp != null
+          ? getLastMessageTimestamp(session.id) ??
+                session.lastMessageAt ??
+                session.updatedAt
+          : session.lastMessageAt ?? session.updatedAt,
+    );
+  }
+
+  void addSession(Map<String, List<Session>> target, Session session) {
+    final key = sessionFolderKey(session);
+    target.putIfAbsent(key, () => []).add(session);
+    final timestamp = activityTs(session);
+    final previous = latestActivityByKey[key];
+    if (previous == null || timestamp > previous) {
+      latestActivityByKey[key] = timestamp;
+    }
+  }
 
   for (final session in activeSessions) {
-    groupedActive.putIfAbsent(sessionFolderKey(session), () => []).add(session);
+    addSession(groupedActive, session);
   }
   for (final session in inactiveSessions) {
-    groupedInactive
-        .putIfAbsent(sessionFolderKey(session), () => [])
-        .add(session);
+    addSession(groupedInactive, session);
   }
 
-  int activityTs(Session session) => getLastMessageTimestamp != null
-      ? getLastMessageTimestamp(session.id) ??
-            session.lastMessageAt ??
-            session.updatedAt
-      : session.lastMessageAt ?? session.updatedAt;
-
   final keys = {...groupedActive.keys, ...groupedInactive.keys}.toList()
-    ..sort((a, b) {
-      final aSessions = [...?groupedActive[a], ...?groupedInactive[a]];
-      final bSessions = [...?groupedActive[b], ...?groupedInactive[b]];
-      final aLatest = aSessions.map(activityTs).reduce(math.max);
-      final bLatest = bSessions.map(activityTs).reduce(math.max);
-      return bLatest.compareTo(aLatest);
-    });
+    ..sort(
+      (a, b) => latestActivityByKey[b]!.compareTo(latestActivityByKey[a]!),
+    );
 
   List<Session> sortActive(List<Session> sessions) {
     final sorted = List<Session>.from(sessions)
@@ -727,7 +739,7 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
       () {
         final active = sortActive(groupedActive[key] ?? const []);
         final inactive = sortInactive(groupedInactive[key] ?? const []);
-        final first = [...active, ...inactive].first;
+        final first = active.isNotEmpty ? active.first : inactive.first;
         final machineId = first.metadata?.machineId ?? '';
         final machine = machines[machineId];
         final machineName =
@@ -740,11 +752,12 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
         final displayPath = rawPath.isEmpty
             ? 'Unknown'
             : formatPathRelativeToHome(rawPath, homeDir: homeDir);
-        final unread = getUnreadCount == null
-            ? 0
-            : active
-                  .map((session) => getUnreadCount(session.id))
-                  .fold<int>(0, (sum, count) => sum + count);
+        var unread = 0;
+        if (getUnreadCount != null) {
+          for (final session in active) {
+            unread += getUnreadCount(session.id);
+          }
+        }
 
         return SessionFolderGroup(
           header: SessionFolderHeader(
@@ -752,10 +765,7 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
             machineName: machineName,
             sessionCount: active.length + inactive.length,
             folderKey: key,
-            latestActivityAt: [
-              ...active,
-              ...inactive,
-            ].map(activityTs).reduce(math.max),
+            latestActivityAt: latestActivityByKey[key]!,
             activeSessionCount: active.length,
             inactiveSessionCount: inactive.length,
             unreadCount: unread,

@@ -984,6 +984,12 @@ what you have, you must use the options mode.
   Purchases get purchases => settingsManager?.purchases ?? Purchases.defaults;
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
 
+  /// Number of sessions held in memory without allocating a map view.
+  ///
+  /// Performance telemetry reads this on every frame-metrics flush, so it
+  /// should not call [sessions] merely to ask for its length.
+  int get sessionCount => _sessions.length;
+
   /// Per-session message seq cursors. Exposed for debug UI.
   Map<String, int> get sessionMessageCursors =>
       Map.unmodifiable(_sessionLastSeq);

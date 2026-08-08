@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/opentelemetry_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 import 'package:riverpod/riverpod.dart';
@@ -9,10 +10,7 @@ void main() {
   group('SessionUiStateNotifier', () {
     late ProviderContainer container;
 
-    Session makeSession({
-      required String id,
-      String presence = 'online',
-    }) {
+    Session makeSession({required String id, String presence = 'online'}) {
       final now = DateTime.now().millisecondsSinceEpoch;
       return Session(
         id: id,
@@ -49,6 +47,7 @@ void main() {
     });
 
     tearDown(() {
+      OpenTelemetryService.debugDurationSink = null;
       sync
         ..testSessions.clear()
         ..testClearSessionMessageState('session-1')
@@ -99,9 +98,7 @@ void main() {
         ..testSessions['session-1'] = makeSession(id: 'session-1')
         ..testSetSessionMessages('session-1', const []);
 
-      final notifier = container.read(
-        sessionUiStateNotifierProvider.notifier,
-      );
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
       notifier.loadFromSync();
 
       expect(
@@ -124,9 +121,7 @@ void main() {
         ..testSessions['session-1'] = makeSession(id: 'session-1')
         ..testSetSessionMessages('session-1', const []);
 
-      final notifier = container.read(
-        sessionUiStateNotifierProvider.notifier,
-      );
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
       notifier.loadFromSync();
       final first = container.read(sessionUiStateNotifierProvider);
 
@@ -136,14 +131,64 @@ void main() {
       expect(identical(first, second), isTrue);
     });
 
+    test('targeted load preserves unrelated session entry identity', () {
+      sync
+        ..testSessions['session-1'] = makeSession(id: 'session-1')
+        ..testSessions['session-2'] = makeSession(id: 'session-2')
+        ..testSetSessionMessages('session-1', const [])
+        ..testSetSessionMessages('session-2', const []);
+
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      notifier.loadFromSync();
+      final before = container.read(sessionUiStateNotifierProvider);
+      final unrelated = before.bySessionId['session-2'];
+
+      sync
+        ..testSetSessionMessages('session-1', const [
+          {
+            'id': 'msg-1',
+            'localId': 'local-1',
+            'role': 'user',
+            'content': 'Changed',
+            'createdAt': 2000,
+          },
+        ])
+        ..testNotifySessionMessagesChanged('session-1');
+      notifier.loadSessionFromSync('session-1');
+
+      final after = container.read(sessionUiStateNotifierProvider);
+      expect(after.bySessionId['session-1']!.lastMessagePreview, 'Changed');
+      expect(identical(after.bySessionId['session-2'], unrelated), isTrue);
+    });
+
+    test('targeted load records scale-aware compute telemetry', () {
+      sync
+        ..testSessions['session-1'] = makeSession(id: 'session-1')
+        ..testSetSessionMessages('session-1', const []);
+      final recorded =
+          <
+            ({String name, Duration duration, Map<String, Object?> attributes})
+          >[];
+      OpenTelemetryService.debugDurationSink = (name, duration, attributes) {
+        recorded.add((name: name, duration: duration, attributes: attributes));
+      };
+
+      container
+          .read(sessionUiStateNotifierProvider.notifier)
+          .loadSessionFromSync('session-1');
+
+      final metric = recorded.last;
+      expect(metric.name, 'app.sessions.ui_state_compute');
+      expect(metric.attributes['compute_trigger'], 'single');
+      expect(metric.attributes['session_count_bucket'], '1-10');
+    });
+
     test('clear resets state and counters', () {
       sync
         ..testSessions['session-1'] = makeSession(id: 'session-1')
         ..testSetSessionMessages('session-1', const []);
 
-      final notifier = container.read(
-        sessionUiStateNotifierProvider.notifier,
-      );
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
       notifier.loadFromSync();
       expect(
         container.read(sessionUiStateNotifierProvider).bySessionId,
@@ -157,15 +202,10 @@ void main() {
       expect(state.optimisticallyArchivedIds, isEmpty);
     });
 
-    test(
-      'sessionUiEntryProvider returns empty entry for unknown session',
-      () {
-        final entry = container.read(
-          sessionUiEntryProvider('unknown-session'),
-        );
-        expect(entry, same(SessionUiEntry.empty));
-      },
-    );
+    test('sessionUiEntryProvider returns empty entry for unknown session', () {
+      final entry = container.read(sessionUiEntryProvider('unknown-session'));
+      expect(entry, same(SessionUiEntry.empty));
+    });
 
     test('optimisticallyArchivedIdsProvider exposes archived set', () {
       sync

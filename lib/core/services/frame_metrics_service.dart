@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../utils/performance_buckets.dart';
 import 'logger_service.dart';
 import 'opentelemetry_service.dart';
 import 'performance_context_service.dart';
+import 'sync_service.dart';
 
 /// Reports janky Flutter frames to Sentry/GlitchTip as performance
 /// transactions so that UI lag is visible in the dashboard alongside
@@ -49,6 +51,7 @@ class FrameMetricsService {
   /// Route known when the current jank span was opened, or null when none was
   /// (start-up, mid-transition). Drives the flush-time backfill in [_flush].
   String? _jankSpanRoute;
+  int? _jankSessionCount;
 
   /// Route the last emitted `ui.jank` span was attributed to.
   String? _lastJankRoute;
@@ -158,9 +161,14 @@ class FrameMetricsService {
     // whether it was a real route so [_flush] can backfill it.
     final route = PerformanceContextService().currentRoute;
     _jankSpanRoute = route == null || route.isEmpty ? null : route;
+    _jankSessionCount = sync.sessionCount;
     _jankSpan = OpenTelemetryService().startTrace(
       'ui.jank',
-      attributes: {'current_route': _jankSpanRoute ?? 'unknown'},
+      attributes: {
+        'current_route': _jankSpanRoute ?? 'unknown',
+        'session.count': _jankSessionCount!,
+        'session.count_bucket': collectionSizeBucket(_jankSessionCount!),
+      },
     );
   }
 
@@ -185,9 +193,11 @@ class FrameMetricsService {
     final jankSpan = _jankSpan;
     final jankStartedAt = _jankSpanStartedAt;
     final routeAtOpen = _jankSpanRoute;
+    final sessionCountAtOpen = _jankSessionCount;
     _jankSpan = null;
     _jankSpanStartedAt = null;
     _jankSpanRoute = null;
+    _jankSessionCount = null;
     _jankWindowOpen = false;
     _lastJankWindow = null;
     _lastMaxFrozenFrame = null;
@@ -206,7 +216,11 @@ class FrameMetricsService {
 
     final route = PerformanceContextService().currentRoute ?? 'unknown';
     final otel = OpenTelemetryService();
-    final attributes = <String, Object?>{'current_route': route};
+    final currentSessionCount = sync.sessionCount;
+    final attributes = <String, Object?>{
+      'current_route': route,
+      'session_count_bucket': collectionSizeBucket(currentSessionCount),
+    };
     otel
       ..recordDuration('app.ui.frame_build', avgBuild, attributes: attributes)
       ..recordDuration('app.ui.frame_raster', avgRaster, attributes: attributes)
@@ -262,11 +276,17 @@ class FrameMetricsService {
     // ~15 s median says nothing about how long the UI actually froze. The
     // window metric is kept for dashboard continuity, with a description
     // that no longer invites the wrong reading.
+    final frozenAttributes = <String, Object?>{
+      'current_route': routeAtOpen ?? route,
+      'session_count_bucket': collectionSizeBucket(
+        sessionCountAtOpen ?? currentSessionCount,
+      ),
+    };
     for (final frozenMs in snapshot) {
       otel.recordDuration(
         'app.ui.frozen_frame',
         Duration(milliseconds: frozenMs),
-        attributes: attributes,
+        attributes: frozenAttributes,
         description: 'Duration of a single frozen (>=100ms) frame',
       );
     }
@@ -275,7 +295,7 @@ class FrameMetricsService {
       otel.recordDuration(
         'app.ui.jank_window',
         window,
-        attributes: attributes,
+        attributes: frozenAttributes,
         description:
             'Wall time from the first frozen frame of a window to the '
             'metrics flush that closed it — NOT the freeze duration; see '

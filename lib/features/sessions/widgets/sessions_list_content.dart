@@ -10,12 +10,13 @@ import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/auto_archive_service.dart';
+import '../../../core/services/performance_context_service.dart';
 import '../../../core/services/sync_service.dart';
+import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
-import '../../../core/sync/sync_subscription_mixin.dart';
 import '../session_avatar.dart';
 import 'empty_sessions_view.dart';
 import 'folder_view_cards.dart';
@@ -44,6 +45,7 @@ class SessionsListContent extends ConsumerStatefulWidget {
     /// (for example, tablet master-detail).
     this.onSessionTap,
     this.scrollController,
+    this.isVisible = true,
     super.key,
   });
 
@@ -72,6 +74,9 @@ class SessionsListContent extends ConsumerStatefulWidget {
   /// border after the first item scrolls out of view).
   final ScrollController? scrollController;
 
+  /// False while another inline tab covers this retained IndexedStack child.
+  final bool isVisible;
+
   @override
   ConsumerState<SessionsListContent> createState() =>
       _SessionsListContentState();
@@ -91,9 +96,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   ArchivedGrouping _archivedGrouping = ArchivedGrouping.date;
   SortedSessions? _sortedCache;
   Map<String, Session>? _lastSessionsMap;
+  SessionUiState? _lastUiState;
+  Set<String>? _lastOptimisticallyArchivedIds;
   String? _lastSearchQuery;
   List<ListItem>? _listItemsCache;
   int? _listItemsCacheSignature;
+  late bool _sessionsRouteActive;
 
   /// Gate rapid taps on session cards.  Without this, 4 taps within
   /// ~50ms each call pushNamed('chat') and create 4 ChatScreen
@@ -127,6 +135,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     super.initState();
     _sel.addListener(_onSelectionChanged);
     widget.folderNotifier.addListener(_onFolderChanged);
+    _sessionsRouteActive = isSessionsCollectionRoute(
+      PerformanceContextService().currentRoute,
+    );
+    PerformanceContextService().routeListenable.addListener(_onRouteChanged);
     // Hoisted Phase 2: the build method now reads previews/timestamps/
     // unread counts/optimistic-archive state from the
     // [SessionUiStateNotifier] via `ref.watch`, which only rebuilds
@@ -134,13 +146,37 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     // need to nudge the notifier whenever sessions or messages change
     // so the derived state stays fresh.
     subscribeToDomains(const {SyncDomain.sessions, SyncDomain.messages}, () {
-      if (!mounted) return;
+      if (!mounted || !_isVisible) return;
       ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     });
   }
 
+  bool get _isVisible => widget.isVisible && _sessionsRouteActive;
+
+  void _onRouteChanged() {
+    final active = isSessionsCollectionRoute(
+      PerformanceContextService().currentRoute,
+    );
+    if (active == _sessionsRouteActive) return;
+    _sessionsRouteActive = active;
+    if (!mounted) return;
+    if (_isVisible) {
+      ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+    }
+    setState(() {});
+  }
+
+  @override
+  void didUpdateWidget(covariant SessionsListContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.isVisible && widget.isVisible && _sessionsRouteActive) {
+      ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+    }
+  }
+
   @override
   void dispose() {
+    PerformanceContextService().routeListenable.removeListener(_onRouteChanged);
     _sel.removeListener(_onSelectionChanged);
     widget.folderNotifier.removeListener(_onFolderChanged);
     super.dispose();
@@ -246,12 +282,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     // Local timestamp lookup table — replaces the
     // `sync.getLastMessageTimestamp` callback that used to be called
     // from inside the sort comparators and the signature helper.
-    final uiState = ref.watch(sessionUiStateNotifierProvider);
-    final tsLookup = <String, int?>{
-      for (final entry in uiState.bySessionId.entries)
-        entry.key: entry.value.lastMessageTimestamp,
-    };
-    int? getTs(String id) => tsLookup[id];
+    final uiState = _isVisible
+        ? ref.watch(sessionUiStateNotifierProvider)
+        : ref.read(sessionUiStateNotifierProvider);
+    int? getTs(String id) => uiState.bySessionId[id]?.lastMessageTimestamp;
 
     final sorted = computeSortedSessions(
       sessions,
@@ -261,9 +295,14 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       optimisticallyArchivedIds: optimisticallyArchivedIds,
       getLastMessageTimestamp: getTs,
       searchQuery: searchQuery,
+      lastOptimisticallyArchivedIds: _lastOptimisticallyArchivedIds,
+      timestampRevision: uiState,
+      lastTimestampRevision: _lastUiState,
     );
     _sortedCache = sorted;
     _lastSessionsMap = sessions;
+    _lastUiState = uiState;
+    _lastOptimisticallyArchivedIds = optimisticallyArchivedIds;
     _lastSearchQuery = searchQuery;
 
     final activeSessions = sorted.active;
@@ -1334,13 +1373,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     SessionUiState uiState, {
     required int startIndex,
   }) {
-    final tsLookup = <String, int?>{
-      for (final entry in uiState.bySessionId.entries)
-        entry.key: entry.value.lastMessageTimestamp,
-    };
     final grouped = groupSessionsByDateCategory(
       sessions,
-      getLastMessageTimestamp: (id) => tsLookup[id],
+      getLastMessageTimestamp: (id) =>
+          uiState.bySessionId[id]?.lastMessageTimestamp,
     );
 
     var itemIndex = startIndex;
@@ -1405,14 +1441,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     SessionUiState uiState, {
     required int startIndex,
   }) {
-    final tsLookup = <String, int?>{
-      for (final entry in uiState.bySessionId.entries)
-        entry.key: entry.value.lastMessageTimestamp,
-    };
     final folderItems = groupSessionsByFolder(
       sessions,
       machines,
-      getLastMessageTimestamp: (id) => tsLookup[id],
+      getLastMessageTimestamp: (id) =>
+          uiState.bySessionId[id]?.lastMessageTimestamp,
     );
 
     var itemIndex = startIndex;

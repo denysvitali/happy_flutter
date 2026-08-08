@@ -4,7 +4,10 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
+import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/performance_buckets.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_summary.dart';
 import 'mission_control_types.dart';
@@ -78,6 +81,10 @@ class _MissionControlViewState extends State<MissionControlView> {
   final Map<String, int> _workspaceSlots = {};
   int _nextSessionSlot = 0;
   int _nextWorkspaceSlot = 0;
+  int _lastModelTraceAtMs = 0;
+  int _lastSlowModelLogAtMs = 0;
+
+  static const int _telemetryThrottleMs = 30000;
 
   SessionUiEntry _entry(String id) =>
       widget.uiState.bySessionId[id] ?? SessionUiEntry.empty;
@@ -131,6 +138,10 @@ class _MissionControlViewState extends State<MissionControlView> {
 
   @override
   Widget build(BuildContext context) {
+    final modelStopwatch = Stopwatch()..start();
+    final sessionCount =
+        widget.activeSessions.length + widget.inactiveSessions.length;
+    final modelSpan = _startModelTrace(sessionCount);
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -178,36 +189,33 @@ class _MissionControlViewState extends State<MissionControlView> {
         ? filteredActions.sublist(0, missionControlActionPreview)
         : filteredActions;
 
-    final unreadLookup = <String, int>{
-      for (final entry in widget.uiState.bySessionId.entries)
-        entry.key: entry.value.unreadCount,
-    };
-    final timestampLookup = <String, int?>{
-      for (final entry in widget.uiState.bySessionId.entries)
-        entry.key: entry.value.lastMessageTimestamp,
-    };
     final workspaces = groupAllSessionsByFolder(
       widget.activeSessions,
       widget.inactiveSessions,
       widget.machines,
-      getLastMessageTimestamp: (id) => timestampLookup[id],
-      getUnreadCount: (id) => unreadLookup[id] ?? 0,
+      getLastMessageTimestamp: (id) =>
+          widget.uiState.bySessionId[id]?.lastMessageTimestamp,
+      getUnreadCount: (id) => widget.uiState.bySessionId[id]?.unreadCount ?? 0,
     );
     _ensureWorkspaceSlots(workspaces, lanes);
 
     final activeWorkspaces = <SessionFolderGroup>[];
     final quietWorkspaces = <SessionFolderGroup>[];
     for (final group in workspaces) {
-      final sessions = [...group.activeSessions, ...group.inactiveSessions];
-      final hot = sessions.any(
-        (session) =>
-            (lanes[session.id] ?? MissionLane.quiet) != MissionLane.quiet,
-      );
-      final recent = sessions.any(
-        (session) =>
+      var hot = false;
+      var recent = false;
+      for (final session in group.activeSessions.followedBy(
+        group.inactiveSessions,
+      )) {
+        if ((lanes[session.id] ?? MissionLane.quiet) != MissionLane.quiet) {
+          hot = true;
+        }
+        if (!recent &&
             now - missionLastActivityAt(session, _entry(session.id)) <=
-            missionControlQuietWindow.inMilliseconds,
-      );
+                missionControlQuietWindow.inMilliseconds) {
+          recent = true;
+        }
+      }
       if (hot || recent) {
         activeWorkspaces.add(group);
       } else {
@@ -216,6 +224,12 @@ class _MissionControlViewState extends State<MissionControlView> {
     }
     activeWorkspaces.sort(_compareWorkspaceSlots);
     quietWorkspaces.sort(_compareWorkspaceSlots);
+    _recordModelBuild(
+      stopwatch: modelStopwatch,
+      span: modelSpan,
+      sessionCount: sessionCount,
+      workspaceCount: workspaces.length,
+    );
 
     final items = <Widget>[
       MissionControlSummary(
@@ -294,6 +308,54 @@ class _MissionControlViewState extends State<MissionControlView> {
       itemBuilder: (context, index) => items[index],
     );
   }
+
+  OTelSpan? _startModelTrace(int sessionCount) {
+    if (sessionCount < 11) return null;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastModelTraceAtMs < _telemetryThrottleMs) return null;
+    _lastModelTraceAtMs = now;
+    return OpenTelemetryService().startTrace(
+      'sessions.mission_control.model',
+      attributes: {
+        'session.count': sessionCount,
+        'session.count_bucket': collectionSizeBucket(sessionCount),
+      },
+    );
+  }
+
+  void _recordModelBuild({
+    required Stopwatch stopwatch,
+    required OTelSpan? span,
+    required int sessionCount,
+    required int workspaceCount,
+  }) {
+    stopwatch.stop();
+    final duration = stopwatch.elapsed;
+    OpenTelemetryService().recordDuration(
+      'app.sessions.mission_control_model',
+      duration,
+      attributes: {
+        'session_count_bucket': collectionSizeBucket(sessionCount),
+        'workspace_count_bucket': collectionSizeBucket(workspaceCount),
+      },
+      description: 'Time to group and prioritize Mission Control sessions',
+    );
+    span
+      ?..setAttribute('workspace.count', workspaceCount)
+      ..setAttribute('work.duration_us', duration.inMicroseconds)
+      ..end();
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (duration.inMilliseconds >= 16 &&
+        now - _lastSlowModelLogAtMs >= _telemetryThrottleMs) {
+      _lastSlowModelLogAtMs = now;
+      logger.warning(
+        '[Perf] Mission Control model '
+        'sessions=$sessionCount workspaces=$workspaceCount '
+        'elapsedMs=${duration.inMilliseconds}',
+      );
+    }
+  }
 }
 
 int _compareWorkspacePriority(
@@ -303,10 +365,9 @@ int _compareWorkspacePriority(
 ) {
   int rank(SessionFolderGroup group) {
     var result = MissionLane.values.length;
-    for (final session in [
-      ...group.activeSessions,
-      ...group.inactiveSessions,
-    ]) {
+    for (final session in group.activeSessions.followedBy(
+      group.inactiveSessions,
+    )) {
       final lane = lanes[session.id] ?? MissionLane.quiet;
       final laneRank = switch (lane) {
         MissionLane.blocked => 0,

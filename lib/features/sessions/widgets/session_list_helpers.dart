@@ -1,5 +1,7 @@
 import '../../../core/models/session.dart';
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/services/opentelemetry_service.dart';
+import '../../../core/utils/performance_buckets.dart';
 import '../../../core/utils/session_utils.dart';
 import 'session_headers.dart';
 
@@ -30,6 +32,15 @@ class SelectionState {
       isBatchDeleting: isBatchDeleting ?? this.isBatchDeleting,
     );
   }
+}
+
+/// Whether the sessions collection is the visible route.
+///
+/// The root route is named `home`; `/sessions` is named `sessions`. A null
+/// route is treated as visible during startup, before the route observer has
+/// received its first callback.
+bool isSessionsCollectionRoute(String? route) {
+  return route == null || route == 'home' || route == 'sessions';
 }
 
 // ─── Sorted session cache ─────────────────────────────
@@ -65,8 +76,25 @@ SortedSessions computeSortedSessions(
   required Set<String> optimisticallyArchivedIds,
   required int? Function(String sessionId) getLastMessageTimestamp,
   String searchQuery = '',
+  Set<String>? lastOptimisticallyArchivedIds,
+  Object? timestampRevision,
+  Object? lastTimestampRevision,
 }) {
   final stopwatch = Stopwatch()..start();
+  if (previous != null &&
+      identical(sessions, lastSessions) &&
+      searchQuery == lastSearchQuery &&
+      identical(optimisticallyArchivedIds, lastOptimisticallyArchivedIds) &&
+      identical(timestampRevision, lastTimestampRevision)) {
+    stopwatch.stop();
+    _recordSortedSessionsDuration(
+      stopwatch.elapsed,
+      sessionCount: sessions.length,
+      cacheHit: true,
+      hasQuery: searchQuery.trim().isNotEmpty,
+    );
+    return previous;
+  }
   final signature = _computeSortedSessionsSignature(
     sessions,
     optimisticallyArchivedIds: optimisticallyArchivedIds,
@@ -74,10 +102,14 @@ SortedSessions computeSortedSessions(
     searchQuery: searchQuery,
   );
 
-  if (previous != null &&
-      (identical(sessions, lastSessions) && searchQuery == lastSearchQuery ||
-          previous.signature == signature)) {
+  if (previous != null && previous.signature == signature) {
     stopwatch.stop();
+    _recordSortedSessionsDuration(
+      stopwatch.elapsed,
+      sessionCount: sessions.length,
+      cacheHit: true,
+      hasQuery: searchQuery.trim().isNotEmpty,
+    );
     return previous;
   }
 
@@ -110,17 +142,13 @@ SortedSessions computeSortedSessions(
     final aOnline = a.presence == 'online' ? 0 : 1;
     final bOnline = b.presence == 'online' ? 0 : 1;
     if (aOnline != bOnline) return aOnline.compareTo(bOnline);
-    final aTs =
-        getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.activeAt;
-    final bTs =
-        getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.activeAt;
+    final aTs = getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.activeAt;
+    final bTs = getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.activeAt;
     return bTs.compareTo(aTs);
   });
   inactive.sort((a, b) {
-    final aTs =
-        getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.updatedAt;
-    final bTs =
-        getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt;
+    final aTs = getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.updatedAt;
+    final bTs = getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt;
     return bTs.compareTo(aTs);
   });
   final result = SortedSessions(
@@ -129,8 +157,17 @@ SortedSessions computeSortedSessions(
     signature: signature,
   );
   stopwatch.stop();
-  if (stopwatch.elapsedMilliseconds >= 8) {
-    logger.debug(
+  _recordSortedSessionsDuration(
+    stopwatch.elapsed,
+    sessionCount: sessions.length,
+    cacheHit: false,
+    hasQuery: query.isNotEmpty,
+  );
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  if (stopwatch.elapsedMilliseconds >= 16 &&
+      nowMs - _lastSlowSortLogAtMs >= 30000) {
+    _lastSlowSortLogAtMs = nowMs;
+    logger.warning(
       '[Perf] computeSortedSessions '
       'count=${sessions.length} '
       'query="${searchQuery.trim()}" '
@@ -138,6 +175,26 @@ SortedSessions computeSortedSessions(
     );
   }
   return result;
+}
+
+int _lastSlowSortLogAtMs = 0;
+
+void _recordSortedSessionsDuration(
+  Duration duration, {
+  required int sessionCount,
+  required bool cacheHit,
+  required bool hasQuery,
+}) {
+  OpenTelemetryService().recordDuration(
+    'app.sessions.sort',
+    duration,
+    attributes: {
+      'session_count_bucket': collectionSizeBucket(sessionCount),
+      'cache_hit': cacheHit,
+      'query_active': hasQuery,
+    },
+    description: 'Time to filter and sort the sessions collection',
+  );
 }
 
 int _computeSortedSessionsSignature(

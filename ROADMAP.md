@@ -2,7 +2,38 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-03
+**Last Updated**: 2026-08-08
+
+### Session-scale performance audit, 2026-08-08
+
+Prometheus confirms that the sessions collection (`current_route="home"`)
+has a real frozen-frame tail: about 69 frozen frames over seven days and a
+frozen-frame p95 of 388 ms, versus 250 ms in chat. A build-244400 Jaeger
+`ui.jank` trace captured five frozen home-route frames in one window (262 ms
+maximum, 767 ms total). This is not primarily server list-query time: the
+inspected 18.9 s `GET /v2/sessions` client trace retried while happy-server
+handled its 22-row request in 3.9 ms.
+
+The client multiplied every message tick by the full session collection:
+`SessionUiStateNotifier` rebuilt every entry and scanned up to 200 cached
+messages per session; the retained sessions route kept refreshing underneath
+opaque chat routes; list builds allocated repeated timestamp/unread maps; and
+folder ordering rescanned and reallocated whole groups inside sort
+comparators. Fixed by adding a targeted per-session notifier path for chat,
+preserving unchanged entry identity and caching the unsettled-send scan by
+message revision, suspending retained-list provider refreshes while covered,
+adding an identity-complete sort fast path, removing lookup-map allocations,
+and computing folder latest activity once per session.
+
+The previous metrics could not correlate jank with collection size, and the
+only slow-sort log was DEBUG-only (therefore absent from production Loki).
+Frame/frozen-frame metrics and `ui.jank` traces now carry a bounded
+`session_count_bucket` (traces also carry exact `session.count`), while
+`app.sessions.ui_state_compute`, `app.sessions.sort`, and
+`app.sessions.mission_control_model` measure the hot phases by collection
+size, cache hit, trigger, and workspace count. Work over one frame emits a
+rate-limited Loki warning; collections of 11+ sessions get one sampled phase
+trace per 30 seconds.
 
 ### Observability audit, 2026-08-03
 
@@ -249,6 +280,7 @@ The current test count is not enough if this contract can break without failing 
 | RenderBox was not laid out (release StateError) | Error | 3 | Open — awaiting symbolicated event | New issues 2026-06-09 (HAPPY_FLUTTER-3D4/3D2/3CU): `StateError: Bad state: RenderBox was not laid out: <obfuscated>#…` thrown by Flutter 3.41 `RenderBox.size` in release builds (box.dart:2304). Likely unmasked by 12028a45 (Sentry filtering removed) rather than newly introduced. App-level `.size` readers (`session_cards.dart` Hero shuttle, `tool_view_widgets.dart` CollapsibleOutput) already guard `hasSize`; framework Hero `_boundingBoxFor` is the main unguarded candidate (session-avatar Hero is the only Hero pair). Debug symbols upload to Sentry since 12028a45, so the next occurrence will carry a symbolicated stack — pin the culprit then. |
 | fetchMessages dropped (output filter) | Warning | ~180 | Fix on main, shipped automatically on the next `main` commit | Audit found every unresolved issue in this cohort comes from old builds (`1.0.0+97201` / `+1`) whose parser predated the top-level `dataType=tool-result` handler and the per-page summarizer dedupe. Current parser already routes the production-shape envelope (`callId`+`id`+`output`+`isError`+`parentUuid`+`permissions`+`type`) through `_isToolResultEnvelope`/`_addToolResultEnvelope`; added a contract test pinning the exact production shape and a telemetry split so known-skip categories (`assistant content list is empty`, `unrecognized output content block`, `user content block type=X not handled`, `pi result with no tool rows`) log at info-level while unknown `dataType`s stay at warning. |
 | Orphan walk-back hollows out long sessions | Error (UI) | 1 session (13k seqs) | Fix on main, shipped automatically on the next `main` commit | User report 2026-08-03: chat showed "Beginning of conversation" over only the newest ~200 rows (mostly ungroupable workflow sidechain orphans); 5 days of messages/tool calls hidden. Loki showed a 2.5h orphan walk-back (500-row pages, 16:09–19:22 UTC) paging the session to seq 0 while the newest-N trim (1000 visible / 200 background) discarded pages as fast as they arrived (`upsert before=200` yo-yo). Reaching `startSeq == 0` then wrote `_sessionFirstLoadedSeq = 0` and pinned "history fully loaded" over a tail-only window — `hasOlderMessages` went false and the `firstLoaded <= 1` guard killed scroll-back. Fixed: a trim ledger (`_sessionsHistoryTrimmed`, recorded by `_upsertSessionMessages`) gates the pin; a trimmed walk reaching seq 0 re-arms the boundary to the oldest resident seq and exhausts the orphan-sweep budget (orphans render inline) instead of re-walking. Mid-walk pages keep coverage semantics (walk still advances over empty/parser-dropped ranges). Contract tests in `test/services/history_fully_loaded_pin_test.dart`. Restarting the app already heals a poisoned install (cache restore re-arms from the cache minimum). Follow-up: persist the walk give-up so cold starts don't re-walk ~25 pages before stopping. |
+| Large session collections freeze retained UI | Error (UI) | 69 frozen home-route frames / 7d | Fix on main, shipped automatically on the next `main` commit | Prometheus frozen-frame p95 was 388 ms and a build-244400 trace captured a 262 ms home-route frame. Message ticks recomputed/scanned UI state for every session and rebuilt the sessions collection under chat. Targeted refresh, revision caching, hidden-route suspension, cheaper sorting/grouping, and session-scale telemetry shipped together; re-baseline by `session_count_bucket`. |
 
 ### Performance (from GlitchTip)
 
@@ -257,6 +289,7 @@ The current test count is not enough if this contract can break without failing 
 | App cold start (`root /`) | avg 4.6s, p95 9.3s (Sentry); OTel quantiles uncomputable until 2026-07-31 | < 3s avg | `app.cold_start.first_frame` shipped a constant 0s because the top-level `_coldStartStopwatch` was lazily constructed *by* the post-frame callback that read it; `essential_ready` (2.4s) therefore measured from first frame, not process start. Anchored in `main()` (b5858b2f). The 2026-07-31 audit then found each launch overwriting the previous metric stream, so 24h quantiles still could not be computed; per-launch stream identity fixed that. Re-baseline from Prometheus once a few launches have reported on a build after 2026-07-31. |
 | fetchMessages p95 | avg 33–50ms (Prometheus, 2026-07-28) | < 5s | Was "up to 54s"; `app_fetch_messages_seconds` now shows 0.033s visible / 0.050s background. Target met — the 54s figure predates the pagination work. |
 | Deferred init | avg 2.5s | < 1s | `app.deferred_init` histogram (the Sentry `app.deferredInit` transaction agrees). Still the largest startup cost — audit what's loaded eagerly. |
+| Sessions frozen-frame p95 | 388 ms on `home` / 7d (69 frozen frames) | < 100 ms, no growth by session bucket | New `session_count_bucket` labels on frame metrics plus `app.sessions.ui_state_compute`, `app.sessions.sort`, and `app.sessions.mission_control_model` isolate scale cost. Re-baseline after the targeted-refresh/hidden-route/grouping fixes reach production. |
 
 ### Engineering Rule
 
