@@ -553,6 +553,10 @@ extension SyncSocket on Sync {
   static const int _saveMsgsDebounceMs = 2000;
 
   /// Hard ceiling on how long sustained streaming can defer a write.
+  ///
+  /// Fifteen seconds avoids the five-second cross-session snapshot storms
+  /// observed in production while suspend still provides a synchronous
+  /// durability fence before the OS can kill the app.
   static const int _saveMsgsMaxDelayMs = 15000;
 
   /// Immediately flush all pending debounced message saves so the MMKV

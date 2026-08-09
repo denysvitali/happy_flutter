@@ -196,7 +196,7 @@ void main() {
       instance.testScheduleSaveMessages(sessionId);
       expect(instance.testHasPendingSaveTimer(sessionId), isTrue);
 
-      for (var i = 0; i < 65; i++) {
+      for (var i = 0; i < 165; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 100));
         // Append a message each tick to simulate streaming tokens.
         instance.testSetSessionMessages(sessionId, [
@@ -206,8 +206,8 @@ void main() {
         instance.testScheduleSaveMessages(sessionId);
       }
 
-      // After ~6.5s of constant rescheduling the cache MUST have been
-      // flushed at least once because of the 5s ceiling.
+      // After ~16.5s of constant rescheduling the cache MUST have been
+      // flushed at least once because of the 15s ceiling.
       expect(
         storage.saveCount,
         greaterThanOrEqualTo(1),
@@ -216,7 +216,7 @@ void main() {
             'thanks to the max-delay ceiling; otherwise the MMKV cache '
             'would never persist during long agent runs',
       );
-    }, timeout: const Timeout(Duration(seconds: 25)));
+    }, timeout: const Timeout(Duration(seconds: 30)));
 
     test(
       '_flushPendingMessageSaves clears pending state for backgrounding',

@@ -959,6 +959,14 @@ extension SyncMessagingRpc on Sync {
       messagesSync.remove(previousVisibleSessionId);
     }
 
+    // Keep this lightweight registration synchronous. Session creation and
+    // optimistic send rely on the queue existing as soon as visibility is
+    // requested; only the expensive cache/regroup/network work belongs after
+    // the first-frame yield below.
+    if (isInitialized && !messagesSync.containsKey(sessionId)) {
+      messagesSync[sessionId] = _createMessagesSync(sessionId);
+    }
+
     // Opening a route must be allowed to paint before deferred transcript
     // regrouping, cache I/O, capability setup, or network invalidation runs.
     // The selected session and previous timer teardown above stay synchronous
