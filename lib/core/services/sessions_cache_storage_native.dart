@@ -24,5 +24,8 @@ class SessionsCacheStorage {
     MMKVStorage().saveSessionsCache(cache);
   }
 
+  Future<void> saveSessionsCacheAsync(Map<String, dynamic> cache) =>
+      MMKVStorage().saveSessionsCacheAsync(cache);
+
   void clearSessionsCache() => MMKVStorage().clearSessionsCache();
 }

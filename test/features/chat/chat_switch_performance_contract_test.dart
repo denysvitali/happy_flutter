@@ -41,14 +41,38 @@ void main() {
       reason: 'chat init must use the in-memory Sync projection only',
     );
     expect(
-      syncVisibility,
-      contains('await Future<void>.delayed(Duration.zero);'),
+      chat,
+      contains('await WidgetsBinding.instance.endOfFrame;'),
       reason: 'deferred regroup/cache/network work must follow first paint',
     );
+    expect(syncVisibility, contains('void prepareSessionVisibility('));
     expect(
       cache,
       contains('compute(_writeMessageCacheJson'),
       reason: 'routine native MMKV writes must not run on the UI isolate',
+    );
+  });
+
+  test('foreground cursor and sessions-cache saves serialize off-isolate', () {
+    final socketSync = File(
+      'lib/core/services/_sync_socket.dart',
+    ).readAsStringSync();
+    final nativeStorage = File(
+      'lib/core/services/mmkv_storage_native.dart',
+    ).readAsStringSync();
+    final sessionsCache = File(
+      'lib/core/services/sessions_cache_storage_native.dart',
+    ).readAsStringSync();
+
+    expect(socketSync, contains('saveSessionLastSeqAsync'));
+    expect(socketSync, contains('saveSessionFirstLoadedSeqAsync'));
+    expect(sessionsCache, contains('saveSessionsCacheAsync'));
+    expect(
+      nativeStorage,
+      contains('compute(_encodeJsonForStorage'),
+      reason:
+          'full cursor/cache maps must not be JSON encoded on the UI '
+          'isolate during chat navigation or pagination',
     );
   });
 }

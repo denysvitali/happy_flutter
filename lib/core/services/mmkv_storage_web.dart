@@ -491,6 +491,10 @@ class MMKVStorage {
     _persistIntMap(_Keys.sessionLastSeq, seqs);
   }
 
+  Future<void> saveSessionLastSeqAsync(Map<String, int> seqs) async {
+    saveSessionLastSeq(seqs);
+  }
+
   void clearSessionLastSeq() {
     _sessionLastSeq = {};
     _persistIntMap(_Keys.sessionLastSeq, {});
@@ -502,6 +506,10 @@ class MMKVStorage {
   void saveSessionFirstLoadedSeq(Map<String, int> seqs) {
     _sessionFirstLoadedSeq = Map.of(seqs);
     _persistIntMap(_Keys.sessionFirstLoadedSeq, seqs);
+  }
+
+  Future<void> saveSessionFirstLoadedSeqAsync(Map<String, int> seqs) async {
+    saveSessionFirstLoadedSeq(seqs);
   }
 
   void clearSessionFirstLoadedSeq() {
@@ -526,6 +534,10 @@ class MMKVStorage {
   void saveSessionsCache(Map<String, dynamic> cache) {
     if (!_initialized) return;
     _persist(_Keys.sessionsCache, jsonEncode(cache));
+  }
+
+  Future<void> saveSessionsCacheAsync(Map<String, dynamic> cache) async {
+    saveSessionsCache(cache);
   }
 
   void clearSessionsCache() {

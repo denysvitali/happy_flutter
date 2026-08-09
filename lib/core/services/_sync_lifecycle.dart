@@ -127,6 +127,7 @@ extension SyncLifecycle on Sync {
     _sessionsRefreshDebounceTimer?.cancel();
     _artifactsSyncDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
+    _saveFirstLoadedSeqDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
       timer.cancel();
@@ -174,7 +175,10 @@ extension SyncLifecycle on Sync {
     _flushPendingMessageSaves();
     _flushSessionMessageNotifications();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
-    _persistSessionsCache();
+    MMKVStorage().saveSessionFirstLoadedSeq(
+      Map.unmodifiable(_sessionFirstLoadedSeq),
+    );
+    _persistSessionsCache(durable: true);
 
     // Disconnect the socket only after a short grace period. Android can emit
     // hidden/inactive/resumed lifecycle bounces in tens of milliseconds; an
@@ -958,8 +962,13 @@ extension SyncLifecycle on Sync {
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;
+    _saveFirstLoadedSeqDebounceTimer?.cancel();
+    _saveFirstLoadedSeqDebounceTimer = null;
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
-    _persistSessionsCache();
+    MMKVStorage().saveSessionFirstLoadedSeq(
+      Map.unmodifiable(_sessionFirstLoadedSeq),
+    );
+    _persistSessionsCache(durable: true);
 
     // Do NOT close these broadcast controllers — the Sync singleton is
     // reused after logout+login, and closing a final StreamController is

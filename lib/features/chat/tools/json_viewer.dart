@@ -5,6 +5,9 @@ import '../../../core/theme/app_tokens.dart';
 import 'json_syntax.dart';
 
 const double _jsonIndent = 8;
+const int _jsonAutoExpandLimit = 50;
+const int _jsonStringPageSize = 2048;
+const int _nestedJsonDecodeLimit = 16 * 1024;
 
 TextStyle _mono(BuildContext context) {
   return TextStyle(
@@ -289,7 +292,7 @@ class JsonTreeViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _JsonNode(
-      value: _decodeNestedJsonStrings(value),
+      value: value,
       depth: 0,
       trailingComma: false,
       prefixSpans: const [],
@@ -297,27 +300,15 @@ class JsonTreeViewer extends StatelessWidget {
   }
 }
 
-dynamic _decodeNestedJsonStrings(dynamic value) {
-  if (value is Map) {
-    return Map<String, dynamic>.fromEntries(
-      value.entries.map(
-        (entry) => MapEntry(
-          entry.key.toString(),
-          _decodeNestedJsonStrings(entry.value),
-        ),
-      ),
-    );
-  }
-  if (value is List) {
-    return value.map(_decodeNestedJsonStrings).toList();
-  }
+dynamic _decodeNestedJsonString(dynamic value) {
   if (value is String) {
+    if (value.length > _nestedJsonDecodeLimit) return value;
     final trimmed = value.trim();
     if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return value;
     try {
       final decoded = jsonDecode(value);
       if (decoded is Map || decoded is List) {
-        return _decodeNestedJsonStrings(decoded);
+        return decoded;
       }
     } catch (_) {
       // Keep non-JSON strings as strings.
@@ -348,17 +339,38 @@ class _JsonNode extends StatefulWidget {
 }
 
 class _JsonNodeState extends State<_JsonNode> {
+  late dynamic _resolvedValue;
   late bool _expanded;
+  int _stringPage = 0;
 
   @override
   void initState() {
     super.initState();
+    _resolveValue(resetExpansion: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _JsonNode oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.value, widget.value)) {
+      _stringPage = 0;
+      _resolveValue(resetExpansion: true);
+    }
+  }
+
+  void _resolveValue({required bool resetExpansion}) {
+    _resolvedValue = _decodeNestedJsonString(widget.value);
+    if (!resetExpansion) return;
     // Auto-collapse past depth 1 for large containers.
-    final v = widget.value;
+    final v = _resolvedValue;
     if (v is Map) {
-      _expanded = widget.depth < 2 || v.length <= 3;
+      _expanded =
+          v.length <= _jsonAutoExpandLimit &&
+          (widget.depth < 2 || v.length <= 3);
     } else if (v is List) {
-      _expanded = widget.depth < 2 || v.length <= 3;
+      _expanded =
+          v.length <= _jsonAutoExpandLimit &&
+          (widget.depth < 2 || v.length <= 3);
     } else {
       _expanded = true;
     }
@@ -366,7 +378,7 @@ class _JsonNodeState extends State<_JsonNode> {
 
   @override
   Widget build(BuildContext context) {
-    final v = widget.value;
+    final v = _resolvedValue;
     if (v is Map) {
       final map = Map<String, dynamic>.from(v);
       return _buildObject(context, map);
@@ -596,17 +608,23 @@ class _JsonNodeState extends State<_JsonNode> {
       text = value.toString();
       color = colors.number;
     } else if (value is String) {
-      text = '"${_escapeString(value)}"';
+      final start = _stringPage * _jsonStringPageSize;
+      final end = (start + _jsonStringPageSize).clamp(0, value.length).toInt();
+      final slice = value.substring(start, end);
+      final prefix = start == 0 ? '' : '…';
+      final suffix = end == value.length ? '' : '…';
+      text = '"$prefix${_escapeString(slice)}$suffix"';
       color = colors.string;
     } else {
       text = value.toString();
       color = colors.string;
     }
 
-    return RichText(
+    final textWidget = RichText(
       text: TextSpan(
         style: mono,
         children: [
+          ...widget.prefixSpans,
           TextSpan(
             text: text,
             style: TextStyle(color: color),
@@ -618,6 +636,24 @@ class _JsonNodeState extends State<_JsonNode> {
             ),
         ],
       ),
+    );
+    if (value is! String || value.length <= _jsonStringPageSize) {
+      return textWidget;
+    }
+    final pageCount = (value.length / _jsonStringPageSize).ceil();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(child: textWidget),
+        IconButton(
+          tooltip: 'Next string page',
+          visualDensity: VisualDensity.compact,
+          onPressed: () => setState(() {
+            _stringPage = (_stringPage + 1) % pageCount;
+          }),
+          icon: const Icon(Icons.chevron_right, size: 16),
+        ),
+      ],
     );
   }
 }
@@ -657,41 +693,11 @@ class _ObjectEntryRow extends StatelessWidget {
     // For primitive values render inline with the key.
     final isPrimitive = value is! Map && value is! List;
     if (isPrimitive) {
-      final String valueText;
-      final Color valueColor;
-
-      if (value == null) {
-        valueText = 'null';
-        valueColor = colors.nullValue;
-      } else if (value is bool) {
-        valueText = value.toString();
-        valueColor = colors.boolean;
-      } else if (value is num) {
-        valueText = value.toString();
-        valueColor = colors.number;
-      } else {
-        valueText = '"${_escapeString(value.toString())}"';
-        valueColor = colors.string;
-      }
-
-      final trail = trailingComma ? ',' : '';
-      return RichText(
-        text: TextSpan(
-          style: mono,
-          children: [
-            keySpan,
-            colonSpan,
-            TextSpan(
-              text: valueText,
-              style: TextStyle(color: valueColor),
-            ),
-            if (trail.isNotEmpty)
-              TextSpan(
-                text: trail,
-                style: TextStyle(color: colors.punctuation),
-              ),
-          ],
-        ),
+      return _JsonNode(
+        value: value,
+        depth: depth,
+        trailingComma: trailingComma,
+        prefixSpans: [keySpan, colonSpan],
       );
     }
 

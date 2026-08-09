@@ -1,6 +1,14 @@
 part of 'sync_service.dart';
 
 extension SyncTestHelpers on Sync {
+  /// Clears the read-only Codex catalog cache between singleton-backed tests.
+  @visibleForTesting
+  void testClearCodexModelsCache() {
+    _codexModelsCache.clear();
+    _codexModelsCacheAtMs.clear();
+    _codexModelsInFlight.clear();
+  }
+
   @visibleForTesting
   Map<String, Session> get testSessions => _sessions;
 

@@ -128,6 +128,21 @@ tap-to-first-frame, tap-to-painted-content, complete cache reads, and every
 write phase; trace-only session IDs preserve per-launch diagnosis without
 metric-cardinality growth.
 
+The same audit also separated two independent tails. Message-detail navigation
+was eagerly walking, JSON-decoding, ANSI-parsing, and laying out entire tool
+payloads; large results and sub-agent child lists are now collapsed and paged,
+JSON nodes decode lazily, and clipboard serialization runs in a worker. Chat
+visibility transfers message-queue ownership synchronously but starts cache,
+regroup, and network convergence only after the seeded transcript's first
+frame. Foreground session/cursor snapshots and settings maps serialize outside
+the UI isolate, while suspend keeps the synchronous durability fence.
+
+The unrelated socket tail came from repeated model-catalog RPCs and external
+redials replacing Socket.IO's own active retry Manager. Codex catalogs now
+coalesce per machine and use bounded positive/failure TTLs. Lifecycle,
+connectivity, and watchdog reconnect requests preserve an opening/reconnecting
+Manager instead of discarding its generation and stranding ACK callers.
+
 ### Live performance remediation, 2026-08-08
 
 The next live sweep found a localized server incident that dominated perceived
@@ -451,7 +466,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Persist messages to MMKV | Done | `MessageCacheService` caches last 200 messages per session in MMKV. Loaded on app start via `_restoreAllCachedMessages()`. Debounced writes (2s, 5s ceiling) via `_scheduleSaveMessages()`, flushed synchronously on suspend. |
+| Persist messages to MMKV | Done | `MessageCacheService` caches the last 200 messages per session in MMKV. Warm in-memory rows paint first; native cache read/decrypt/JSON and routine save preparation run in workers. Writes debounce for 2s with a 15s ceiling, skip unchanged revisions, and flush synchronously on suspend. |
 | Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s). Restored on startup via `restoreAndFlush()`. Audit 2026-08-03 found the flat ~40s budget dead-lettered sends during brownouts longer than a minute (4 messages permanently lost, zero signal); shipped in d8dba9ac: failure-class-aware budgets (transient retries ~4h, permanent dead-letters after 3), reconnect/foreground/cold-start re-arm of transient dead letters, and a `dead_lettered` counter + Sentry capture (see the audit section). |
 
 ### 4. Optimistic Mutations

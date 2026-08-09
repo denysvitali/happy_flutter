@@ -677,9 +677,7 @@ extension SyncMessaging on Sync {
         }
         if (window.firstLoadedSeq case final firstLoaded?) {
           _sessionFirstLoadedSeq[sessionId] = firstLoaded;
-          MMKVStorage().saveSessionFirstLoadedSeq(
-            Map.unmodifiable(_sessionFirstLoadedSeq),
-          );
+          _scheduleSaveFirstLoadedSeq();
         }
 
         var page = 0;
@@ -1842,9 +1840,7 @@ extension SyncMessaging on Sync {
       } else {
         _sessionFirstLoadedSeq[sessionId] = startSeq + 1;
       }
-      MMKVStorage().saveSessionFirstLoadedSeq(
-        Map.unmodifiable(_sessionFirstLoadedSeq),
-      );
+      _scheduleSaveFirstLoadedSeq();
 
       _notifySessionMessagesChanged(sessionId);
       _notifyDataChanged({SyncDomain.messages});
@@ -1931,9 +1927,7 @@ extension SyncMessaging on Sync {
     final minSeq = _minLoadedSeq(sessionId);
     if (minSeq != null && minSeq > 1) {
       _sessionFirstLoadedSeq[sessionId] = minSeq;
-      MMKVStorage().saveSessionFirstLoadedSeq(
-        Map.unmodifiable(_sessionFirstLoadedSeq),
-      );
+      _scheduleSaveFirstLoadedSeq();
     }
   }
 
@@ -1977,11 +1971,9 @@ extension SyncMessaging on Sync {
     _pendingToolResults.remove(sessionId);
     if (isInitialized) {
       _sessionLastSeq.remove(sessionId);
-      MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+      _scheduleSaveSeq();
       _sessionFirstLoadedSeq.remove(sessionId);
-      MMKVStorage().saveSessionFirstLoadedSeq(
-        Map.unmodifiable(_sessionFirstLoadedSeq),
-      );
+      _scheduleSaveFirstLoadedSeq();
       _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
       _saveMsgsFirstScheduledAtMs.remove(sessionId);
       MessageCacheService().clearMessages(sessionId);

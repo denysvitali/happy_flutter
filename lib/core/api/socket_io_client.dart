@@ -274,7 +274,7 @@ class SocketIoClient {
   /// half-open socket and immediately starts another, so the server sees
   /// overlapping connections and counts the abandoned ones as involuntary
   /// disconnects.
-  static const int _dialInFlightWindowMs = 5000;
+  static const int _dialInFlightWindowMs = _connectTimeoutMs;
 
   /// Compute the backoff delay (ms) for the given attempt index (0-based).
   static int _backoffDelayMs(int attempt) {
@@ -540,6 +540,12 @@ class SocketIoClient {
     // to 0-based for our backoff formula.
     _socket!.onReconnectAttempt((attempt) {
       if (!_isCurrentGeneration(generation)) return;
+      // The Manager owns this retry cycle. Keep the public state aligned
+      // with it so lifecycle/network/watchdog callers do not interpret the
+      // preceding connect_error as permission to dispose this Manager and
+      // start an overlapping generation.
+      _lastConnectStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+      _updateStatus(ConnectionStatus.connecting);
       final attemptIndex = attempt is int
           ? attempt
           : int.tryParse('$attempt') ?? 1;
@@ -707,13 +713,12 @@ class SocketIoClient {
   ///
   /// No-op if [connect] was never called (no credentials stored).
   ///
-  /// Also a no-op when a dial started less than [_dialInFlightWindowMs]
-  /// ago and is still negotiating: five independent callers can request a
-  /// reconnect within the same second, and each one used to tear down the
-  /// half-open socket and dial again, so the server saw overlapping
-  /// connections and booked the abandoned ones as involuntary
-  /// disconnects.  Pass [force] to bypass the guard when the current
-  /// dial is known to be useless (e.g. it is using a rotated token).
+  /// Also a no-op while the Socket.IO Manager is opening/retrying, or while
+  /// a fresh dial remains inside the connection-timeout window. Independent
+  /// callers used to tear down that Manager and start another generation, so
+  /// the server saw overlapping connections and ACK callers were stranded on
+  /// an abandoned socket. Pass [force] only when the current dial is known to
+  /// be useless (for example, it is using a rotated token).
   ///
   /// Preserves [_hasConnectedOnce] so the [onConnect] handler fires
   /// [_notifyReconnected] instead of treating the reconnection as a
@@ -727,12 +732,31 @@ class SocketIoClient {
     if (url == null || token == null || clientType == null) return;
     if (!force && _isDialInFlight()) {
       _reconnectSkipped++;
+      OpenTelemetryService().recordCount(
+        'app.socket.reconnect_requests',
+        attributes: <String, Object?>{
+          'outcome': 'active_dial_preserved',
+          'reason': reason,
+          'current_route':
+              PerformanceContextService().currentRoute ?? 'unknown',
+        },
+        description: 'External socket reconnect request policy',
+      );
       logger.info(
         'Socket.IO reconnect($reason) skipped — a dial started '
         '${_elapsedSince(_lastConnectStartedAtMs)}ms ago is still in flight',
       );
       return;
     }
+    OpenTelemetryService().recordCount(
+      'app.socket.reconnect_requests',
+      attributes: <String, Object?>{
+        'outcome': force ? 'forced' : 'started',
+        'reason': reason,
+        'current_route': PerformanceContextService().currentRoute ?? 'unknown',
+      },
+      description: 'External socket reconnect request policy',
+    );
     final hadConnectedOnce = _hasConnectedOnce;
     disconnect(
       preserveConnectionHistory: true,
@@ -749,6 +773,13 @@ class SocketIoClient {
 
   /// True while a dial is still negotiating inside the in-flight window.
   bool _isDialInFlight() {
+    final socket = _socket;
+    if (socket != null) {
+      final manager = socket.io;
+      if (manager.reconnecting || manager.readyState == 'opening') {
+        return true;
+      }
+    }
     if (_status != ConnectionStatus.connecting) return false;
     final startedAt = _lastConnectStartedAtMs;
     if (startedAt == null) return false;
@@ -1082,6 +1113,12 @@ class SocketIoClient {
 
   @visibleForTesting
   set testHasConnectedOnce(bool value) => _hasConnectedOnce = value;
+
+  /// Test-only control for the Socket.IO Manager's internal retry ownership.
+  @visibleForTesting
+  set testManagerReconnecting(bool value) {
+    _socket?.io.reconnecting = value;
+  }
 
   @visibleForTesting
   int get testConnectionGeneration => _connectionGeneration;

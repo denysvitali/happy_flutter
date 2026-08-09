@@ -8,6 +8,9 @@ part of 'sync_service.dart';
 /// is why they live apart from the session spawn logic in
 /// `_sync_operations_session.dart`.
 extension SyncMachineRpcOperations on Sync {
+  static const int _codexModelsSuccessTtlMs = 60 * 60 * 1000;
+  static const int _codexModelsFailureTtlMs = 30 * 1000;
+
   /// Execute a bash command on a machine.
   Future<BashResponse> machineBash({
     required String machineId,
@@ -169,7 +172,55 @@ extension SyncMachineRpcOperations on Sync {
   /// Fetch the Codex model catalog from the machine's installed Codex CLI.
   Future<CodexModelsResponse> machineGetCodexModels({
     required String machineId,
-  }) async {
+  }) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final cached = _codexModelsCache[machineId];
+    final cachedAtMs = _codexModelsCacheAtMs[machineId];
+    if (cached != null && cachedAtMs != null) {
+      final ttlMs = cached.success
+          ? _codexModelsSuccessTtlMs
+          : _codexModelsFailureTtlMs;
+      if (nowMs - cachedAtMs < ttlMs) {
+        _recordCodexModelsPolicy(
+          cached.success ? 'cache_hit' : 'failure_backoff',
+        );
+        return Future<CodexModelsResponse>.value(cached);
+      }
+    }
+
+    final inFlight = _codexModelsInFlight[machineId];
+    if (inFlight != null) {
+      _recordCodexModelsPolicy('shared_in_flight');
+      return inFlight;
+    }
+
+    _recordCodexModelsPolicy('transport_started');
+    late final Future<CodexModelsResponse> request;
+    request = _fetchCodexModels(machineId)
+        .then((response) {
+          _codexModelsCache[machineId] = response;
+          _codexModelsCacheAtMs[machineId] =
+              DateTime.now().millisecondsSinceEpoch;
+          return response;
+        })
+        .whenComplete(() {
+          if (identical(_codexModelsInFlight[machineId], request)) {
+            _codexModelsInFlight.remove(machineId);
+          }
+        });
+    _codexModelsInFlight[machineId] = request;
+    return request;
+  }
+
+  void _recordCodexModelsPolicy(String outcome) {
+    OpenTelemetryService().recordCount(
+      'app.codex_models.policy',
+      attributes: <String, Object?>{'outcome': outcome},
+      description: 'Codex model catalog cache/coalescing policy',
+    );
+  }
+
+  Future<CodexModelsResponse> _fetchCodexModels(String machineId) async {
     try {
       return await _typedMachineRPC(
         machineId,
@@ -467,11 +518,7 @@ PY
           : map;
       return CodexRateLimitResetCredits.fromJson(data);
     } catch (error, stackTrace) {
-      logger.warning(
-        'machineGetCodexResetCredits failed',
-        error,
-        stackTrace,
-      );
+      logger.warning('machineGetCodexResetCredits failed', error, stackTrace);
       return null;
     }
   }

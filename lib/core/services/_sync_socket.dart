@@ -490,8 +490,31 @@ extension SyncSocket on Sync {
   void _scheduleSaveSeq() {
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+      _saveSeqDebounceTimer = null;
+      unawaited(
+        MMKVStorage().saveSessionLastSeqAsync(
+          Map.unmodifiable(_sessionLastSeq),
+        ),
+      );
     });
+  }
+
+  /// Debounced background serialization for the oldest loaded cursor map.
+  /// Pagination can advance this value once per page; encoding the whole map
+  /// synchronously made history loading contend with route frames.
+  void _scheduleSaveFirstLoadedSeq() {
+    _saveFirstLoadedSeqDebounceTimer?.cancel();
+    _saveFirstLoadedSeqDebounceTimer = Timer(
+      const Duration(milliseconds: 500),
+      () {
+        _saveFirstLoadedSeqDebounceTimer = null;
+        unawaited(
+          MMKVStorage().saveSessionFirstLoadedSeqAsync(
+            Map.unmodifiable(_sessionFirstLoadedSeq),
+          ),
+        );
+      },
+    );
   }
 
   /// Debounced MMKV persist for a single session's message list.
@@ -864,7 +887,7 @@ extension SyncSocket on Sync {
   /// (~5–10 MB limit shared across all keys).
   static const int _maxCachedSessions = 200;
 
-  void _persistSessionsCache() {
+  void _persistSessionsCache({bool durable = false}) {
     _saveSessionsCacheDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer = null;
 
@@ -892,11 +915,16 @@ extension SyncSocket on Sync {
       }
     }
 
-    SessionsCacheStorage.instance.saveSessionsCache({
+    final snapshot = <String, dynamic>{
       'lastFetchedAt': _lastSessionsFetchedAt,
       'sessions': [for (final e in _sessionJsonCache.values) e.$2],
       'encryptedDataKeys': Map<String, String>.from(_sessionEncryptedDataKeys),
-    });
+    };
+    if (durable) {
+      SessionsCacheStorage.instance.saveSessionsCache(snapshot);
+    } else {
+      unawaited(SessionsCacheStorage.instance.saveSessionsCacheAsync(snapshot));
+    }
   }
 
   /// Sessions warmed per batch when restoring cached messages on cold
@@ -1078,9 +1106,7 @@ extension SyncSocket on Sync {
     if (restored == 0) return;
     _sessionMessagesCache = null;
     if (firstLoadedChanged) {
-      MMKVStorage().saveSessionFirstLoadedSeq(
-        Map.unmodifiable(_sessionFirstLoadedSeq),
-      );
+      _scheduleSaveFirstLoadedSeq();
     }
     _notifyDataChanged({SyncDomain.messages, SyncDomain.sessions});
   }

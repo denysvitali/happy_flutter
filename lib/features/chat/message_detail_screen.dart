@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,6 +19,13 @@ import 'tools/tool_view.dart' show parseToolState;
 import 'tools/views/codex_mcp_view.dart';
 import 'tools/views/mcp_exec_view.dart';
 import 'tools/views/web_search_view.dart';
+
+const int _largePayloadThreshold = 16 * 1024;
+const int _payloadPageSize = 12 * 1024;
+
+String _encodeJsonForClipboard(dynamic value) => jsonEncode(value);
+
+String _stripAnsiForClipboard(String value) => AnsiParser.strip(value);
 
 /// Screen showing full details of a tool-call message.
 ///
@@ -99,8 +107,8 @@ class _TextDetailView extends StatelessWidget {
         _DetailCard(
           title: context.l10n.messageDetailContent,
           icon: Icons.message_outlined,
-          child: SelectableText(
-            text,
+          child: _PagedSelectableText(
+            content: text,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ),
@@ -153,7 +161,14 @@ class _ToolDetailView extends StatelessWidget {
         toolName == 'web_search' ||
         toolName == 'web_search_preview';
     final isRunning = state == ToolState.running;
-    final execResult = toolName.startsWith('mcp__') && !isRunning
+    final hasLargePayload =
+        _isLargePayload(input, null) ||
+        _isLargePayload(
+          result is Map || result is List ? result : null,
+          result is String ? result : null,
+        );
+    final execResult =
+        toolName.startsWith('mcp__') && !isRunning && !hasLargePayload
         ? McpExecResult.tryParse(result)
         : null;
 
@@ -198,7 +213,7 @@ class _ToolDetailView extends StatelessWidget {
         // the detail screen is informative even when the daemon's
         // result envelope is empty (Codex web_search items carry no
         // result pages on the wire).
-        if (isWebSearch) ...[
+        if (isWebSearch && !hasLargePayload) ...[
           WebSearchView(tool: data),
           if (input != null || result != null) ...[
             const SizedBox(height: AppSpacing.md),
@@ -213,7 +228,8 @@ class _ToolDetailView extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           _RawPayloadDisclosure(input: input, result: result, state: state),
           const SizedBox(height: AppSpacing.md),
-        ] else if (KnownTools.codexMcpToolNames.contains(toolName)) ...[
+        ] else if (KnownTools.codexMcpToolNames.contains(toolName) &&
+            !hasLargePayload) ...[
           CodexMcpView(tool: data),
           if (input != null || result != null) ...[
             const SizedBox(height: AppSpacing.md),
@@ -266,16 +282,54 @@ class _ToolDetailView extends StatelessWidget {
               ),
             ),
           ),
-          ...messages
-              .whereType<Map<String, dynamic>>()
-              .where((m) => m['kind'] == 'tool-call')
-              .map(
-                (m) => _ChildToolItem(
-                  tool: WireParsers.asMap(m['tool']) ?? m,
-                  message: m,
-                ),
-              ),
+          _TaskChildToolList(messages: messages),
         ],
+      ],
+    );
+  }
+}
+
+class _TaskChildToolList extends StatefulWidget {
+  const _TaskChildToolList({required this.messages});
+
+  final List<dynamic> messages;
+
+  @override
+  State<_TaskChildToolList> createState() => _TaskChildToolListState();
+}
+
+class _TaskChildToolListState extends State<_TaskChildToolList> {
+  static const int _pageSize = 20;
+  int _visible = _pageSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = <Map<String, dynamic>>[];
+    var hasMore = false;
+    for (final item in widget.messages) {
+      if (item is! Map<String, dynamic> || item['kind'] != 'tool-call') {
+        continue;
+      }
+      if (shown.length == _visible) {
+        hasMore = true;
+        break;
+      }
+      shown.add(item);
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final message in shown)
+          _ChildToolItem(
+            tool: WireParsers.asMap(message['tool']) ?? message,
+            message: message,
+          ),
+        if (hasMore)
+          TextButton.icon(
+            onPressed: () => setState(() => _visible += _pageSize),
+            icon: const Icon(Icons.expand_more),
+            label: const Text('Show more'),
+          ),
       ],
     );
   }
@@ -283,13 +337,8 @@ class _ToolDetailView extends StatelessWidget {
 
 bool _hasMeaningfulPayload(dynamic value) {
   if (value == null) return false;
-  if (value is Map) {
-    if (value.isEmpty) return false;
-    return value.values.any(_hasMeaningfulPayload);
-  }
-  if (value is Iterable) {
-    return value.any(_hasMeaningfulPayload);
-  }
+  if (value is Map) return value.isNotEmpty;
+  if (value is Iterable) return value.isNotEmpty;
   if (value is String) return value.trim().isNotEmpty;
   return true;
 }
@@ -416,7 +465,7 @@ class _MessageHeader extends StatelessWidget {
 /// valid JSON, renders an interactive [JsonTreeViewer] with syntax
 /// highlighting and expand/collapse.  Plain text falls back to a dark
 /// monospace [_CodeBlock].
-class _ToolResultSection extends StatefulWidget {
+class _ToolResultSection extends StatelessWidget {
   const _ToolResultSection({
     required this.title,
     required this.icon,
@@ -432,21 +481,129 @@ class _ToolResultSection extends StatefulWidget {
   final bool isError;
 
   @override
-  State<_ToolResultSection> createState() => _ToolResultSectionState();
+  Widget build(BuildContext context) {
+    if (_isLargePayload(json, text)) {
+      return _DeferredToolResultSection(
+        title: title,
+        icon: icon,
+        json: json,
+        text: text,
+        isError: isError,
+      );
+    }
+    return _ImmediateToolResultSection(
+      title: title,
+      icon: icon,
+      json: json,
+      text: text,
+      isError: isError,
+    );
+  }
 }
 
-class _ToolResultSectionState extends State<_ToolResultSection> {
-  static const _jsonEncoder = JsonEncoder.withIndent('  ');
+bool _isLargePayload(dynamic json, String? text) {
+  if (text != null && text.length > _largePayloadThreshold) return true;
+  if (json is List && json.length > 50) return true;
+  if (json is Map) {
+    if (json.length > 50) return true;
+    var shallowTextLength = 0;
+    var visited = 0;
+    for (final value in json.values) {
+      if (value is String) {
+        shallowTextLength += value.length;
+        if (shallowTextLength > _largePayloadThreshold) return true;
+      }
+      if (++visited >= 50) break;
+    }
+  }
+  return false;
+}
 
-  late final String _copyText;
+class _DeferredToolResultSection extends StatefulWidget {
+  const _DeferredToolResultSection({
+    required this.title,
+    required this.icon,
+    this.json,
+    this.text,
+    this.isError = false,
+  });
+
+  final String title;
+  final IconData icon;
+  final dynamic json;
+  final String? text;
+  final bool isError;
+
+  @override
+  State<_DeferredToolResultSection> createState() =>
+      _DeferredToolResultSectionState();
+}
+
+class _DeferredToolResultSectionState
+    extends State<_DeferredToolResultSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_expanded) {
+      return _ImmediateToolResultSection(
+        title: widget.title,
+        icon: widget.icon,
+        json: widget.json,
+        text: widget.text,
+        isError: widget.isError,
+      );
+    }
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Card(
+      elevation: 0,
+      color: cs.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
+      ),
+      child: ListTile(
+        leading: Icon(
+          widget.icon,
+          color: widget.isError ? cs.error : cs.primary,
+        ),
+        title: Text(widget.title),
+        subtitle: const Text('Large output kept collapsed for smooth opening'),
+        trailing: const Icon(Icons.expand_more),
+        onTap: () => setState(() => _expanded = true),
+      ),
+    );
+  }
+}
+
+class _ImmediateToolResultSection extends StatefulWidget {
+  const _ImmediateToolResultSection({
+    required this.title,
+    required this.icon,
+    this.json,
+    this.text,
+    this.isError = false,
+  });
+
+  final String title;
+  final IconData icon;
+  final dynamic json;
+  final String? text;
+  final bool isError;
+
+  @override
+  State<_ImmediateToolResultSection> createState() =>
+      _ImmediateToolResultSectionState();
+}
+
+class _ImmediateToolResultSectionState
+    extends State<_ImmediateToolResultSection> {
   late final dynamic _jsonValue;
 
   @override
   void initState() {
     super.initState();
-    _copyText = widget.json != null
-        ? _jsonEncoder.convert(widget.json)
-        : AnsiParser.strip(widget.text ?? '');
     _jsonValue = _resolveJson();
   }
 
@@ -502,8 +659,7 @@ class _ToolResultSectionState extends State<_ToolResultSection> {
                     ),
                   ),
                 ),
-                // Copy button — always copies the raw JSON string
-                _CopyButton(content: _copyText),
+                _CopyButton(json: widget.json, content: widget.text ?? ''),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -841,7 +997,10 @@ class _LabelValue extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: SelectableText(value, style: theme.textTheme.bodySmall),
+            child: _PagedSelectableText(
+              content: value,
+              style: theme.textTheme.bodySmall,
+            ),
           ),
         ],
       ),
@@ -899,7 +1058,6 @@ class _CodeBlock extends StatelessWidget {
       color: CodeViewerTheme.dark.foreground,
       height: AppLineHeight.relaxed,
     );
-    final spans = AnsiParser.parse(content, defaultStyle: defaultStyle);
 
     return Container(
       width: double.infinity,
@@ -910,20 +1068,134 @@ class _CodeBlock extends StatelessWidget {
       ),
       child: ToolOutputScrollFrame(
         maxHeight: 320,
-        child: SelectableText.rich(
-          TextSpan(children: spans),
-          style: defaultStyle,
-        ),
+        child: _PagedAnsiText(content: content, style: defaultStyle),
       ),
+    );
+  }
+}
+
+/// Renders a bounded slice of a large string so text layout remains capped.
+/// The full value is still available through the copy button.
+class _PagedSelectableText extends StatefulWidget {
+  const _PagedSelectableText({required this.content, required this.style});
+
+  final String content;
+  final TextStyle? style;
+
+  @override
+  State<_PagedSelectableText> createState() => _PagedSelectableTextState();
+}
+
+class _PagedSelectableTextState extends State<_PagedSelectableText> {
+  int _page = 0;
+
+  int get _pageCount =>
+      (widget.content.length / _payloadPageSize).ceil().clamp(1, 1 << 20);
+
+  String get _slice {
+    final start = _page * _payloadPageSize;
+    final end = (start + _payloadPageSize).clamp(0, widget.content.length);
+    return widget.content.substring(start, end);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_pageCount == 1) {
+      return SelectableText(widget.content, style: widget.style);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SelectableText(_slice, style: widget.style),
+        _PayloadPager(
+          page: _page,
+          pageCount: _pageCount,
+          onChanged: (page) => setState(() => _page = page),
+        ),
+      ],
+    );
+  }
+}
+
+class _PagedAnsiText extends StatefulWidget {
+  const _PagedAnsiText({required this.content, required this.style});
+
+  final String content;
+  final TextStyle style;
+
+  @override
+  State<_PagedAnsiText> createState() => _PagedAnsiTextState();
+}
+
+class _PagedAnsiTextState extends State<_PagedAnsiText> {
+  int _page = 0;
+
+  int get _pageCount =>
+      (widget.content.length / _payloadPageSize).ceil().clamp(1, 1 << 20);
+
+  @override
+  Widget build(BuildContext context) {
+    final start = _page * _payloadPageSize;
+    final end = (start + _payloadPageSize).clamp(0, widget.content.length);
+    final pageText = widget.content.substring(start, end);
+    final spans = AnsiParser.parse(pageText, defaultStyle: widget.style);
+    final text = SelectableText.rich(
+      TextSpan(children: spans),
+      style: widget.style,
+    );
+    if (_pageCount == 1) return text;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        text,
+        _PayloadPager(
+          page: _page,
+          pageCount: _pageCount,
+          onChanged: (page) => setState(() => _page = page),
+        ),
+      ],
+    );
+  }
+}
+
+class _PayloadPager extends StatelessWidget {
+  const _PayloadPager({
+    required this.page,
+    required this.pageCount,
+    required this.onChanged,
+  });
+
+  final int page;
+  final int pageCount;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Previous output page',
+          onPressed: page == 0 ? null : () => onChanged(page - 1),
+          icon: const Icon(Icons.chevron_left),
+        ),
+        Text('${page + 1} / $pageCount'),
+        IconButton(
+          tooltip: 'Next output page',
+          onPressed: page + 1 >= pageCount ? null : () => onChanged(page + 1),
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
     );
   }
 }
 
 /// Small icon button that copies [content] to the clipboard.
 class _CopyButton extends StatelessWidget {
-  const _CopyButton({required this.content});
+  const _CopyButton({required this.content, this.json});
 
   final String content;
+  final dynamic json;
 
   @override
   Widget build(BuildContext context) {
@@ -931,7 +1203,15 @@ class _CopyButton extends StatelessWidget {
       icon: const Icon(Icons.copy, size: 16),
       tooltip: context.l10n.commonCopy,
       onPressed: () async {
-        await setClipboardTextSafely(content);
+        final String copyText;
+        if (json != null) {
+          copyText = await compute(_encodeJsonForClipboard, json);
+        } else if (content.length > _largePayloadThreshold) {
+          copyText = await compute(_stripAnsiForClipboard, content);
+        } else {
+          copyText = AnsiParser.strip(content);
+        }
+        await setClipboardTextSafely(copyText);
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

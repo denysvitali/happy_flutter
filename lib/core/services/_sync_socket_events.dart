@@ -704,11 +704,9 @@ extension SyncSocketEvents on Sync {
       );
       if (isInitialized) {
         _sessionLastSeq.remove(sessionId);
-        MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
+        _scheduleSaveSeq();
         _sessionFirstLoadedSeq.remove(sessionId);
-        MMKVStorage().saveSessionFirstLoadedSeq(
-          Map.unmodifiable(_sessionFirstLoadedSeq),
-        );
+        _scheduleSaveFirstLoadedSeq();
         _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
         _saveMsgsFirstScheduledAtMs.remove(sessionId);
         MessageCacheService().clearMessages(sessionId);

@@ -37,9 +37,7 @@ class SessionsCacheStorage {
     if (_db != null) return _db!;
     final idbFactory = getIdbFactory();
     if (idbFactory == null) {
-      throw StateError(
-        'IndexedDB not supported in this browser',
-      );
+      throw StateError('IndexedDB not supported in this browser');
     }
     _db = await idbFactory.open(
       _sessionsCacheDbName,
@@ -82,6 +80,9 @@ class SessionsCacheStorage {
     // Fire-and-forget to keep the sync path non-blocking.
     _saveSessionsCacheAsync(cache);
   }
+
+  Future<void> saveSessionsCacheAsync(Map<String, dynamic> cache) =>
+      _saveSessionsCacheAsync(cache);
 
   Future<void> _saveSessionsCacheAsync(Map<String, dynamic> cache) async {
     try {

@@ -59,6 +59,42 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('MessageDetailScreen', () {
+    testWidgets('keeps large tool output collapsed during route build', (
+      tester,
+    ) async {
+      final output = List<String>.filled(2500, 'large-output-line').join('\n');
+
+      await tester.pumpWidget(
+        _wrap(
+          MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm-large',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'CodexBash',
+              'state': 'completed',
+              'input': const <String, dynamic>{'command': 'generate output'},
+              'result': <String, dynamic>{'exitCode': 0, 'stdout': output},
+            },
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Large output kept collapsed for smooth opening'),
+        findsOneWidget,
+      );
+      expect(_renderedText(tester), isNot(contains('large-output-line')));
+
+      await tester.tap(
+        find.text('Large output kept collapsed for smooth opening'),
+      );
+      await tester.pump();
+
+      expect(_renderedText(tester), contains('large-output-line'));
+      expect(find.text('1 / 4'), findsOneWidget);
+    });
+
     testWidgets('renders command result maps as text in tool details', (
       tester,
     ) async {
@@ -306,9 +342,7 @@ void main() {
       expect(_renderedText(tester), isNot(contains('"prompt"')));
     });
 
-    testWidgets('raw JSON disclosure reveals the wire payload', (
-      tester,
-    ) async {
+    testWidgets('raw JSON disclosure reveals the wire payload', (tester) async {
       await tester.pumpWidget(
         _wrap(
           const MessageDetailScreen(

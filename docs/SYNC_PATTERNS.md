@@ -77,6 +77,11 @@ connect, `suspend()`, and `shutdown()`. This bounds foreground recovery to
 ~one watchdog period after the network returns, instead of waiting out
 Socket.IO's 10-attempt backoff cycles.
 
+An opening connection or Socket.IO Manager-owned retry loop counts as an
+in-flight dial. Lifecycle, connectivity, and watchdog callers must not dispose
+that Manager and start an overlapping generation; only explicit forced paths
+(token rotation, zombie detection, and the user action) bypass the guard.
+
 **Zombie sockets:** if the OS suspended the app before the 2s deferred
 suspend-disconnect fired (common on iOS), the socket can still report
 `connected` on resume while the server-side session is long dead. `resume()`

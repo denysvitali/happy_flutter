@@ -944,8 +944,11 @@ extension SyncMessagingRpc on Sync {
     return credentials;
   }
 
-  /// On session visible handler
-  Future<void> onSessionVisible(String sessionId) async {
+  /// Synchronously transfers routing ownership to [sessionId] and creates its
+  /// message queue. ChatScreen calls this during initState, then waits for its
+  /// first frame before starting [onSessionVisible]'s heavier cache/regroup/
+  /// network work.
+  void prepareSessionVisibility(String sessionId) {
     final previousVisibleSessionId = _visibleSessionId;
     _visibleSessionId = sessionId;
     // When the user switches chats, tear down the previous session's
@@ -966,12 +969,14 @@ extension SyncMessagingRpc on Sync {
     if (isInitialized && !messagesSync.containsKey(sessionId)) {
       messagesSync[sessionId] = _createMessagesSync(sessionId);
     }
+  }
 
-    // Opening a route must be allowed to paint before deferred transcript
-    // regrouping, cache I/O, capability setup, or network invalidation runs.
-    // The selected session and previous timer teardown above stay synchronous
-    // so incoming events route correctly during the hand-off; everything
-    // heavier resumes on the next event-loop turn.
+  /// On session visible handler
+  Future<void> onSessionVisible(String sessionId) async {
+    prepareSessionVisibility(sessionId);
+
+    // Non-widget callers still receive an asynchronous boundary. ChatScreen
+    // provides the stronger end-of-frame barrier before invoking this method.
     await Future<void>.delayed(Duration.zero);
     if (!isInitialized || _visibleSessionId != sessionId) return;
 

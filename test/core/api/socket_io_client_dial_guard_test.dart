@@ -91,6 +91,24 @@ void main() {
       expect(socketIoClient.testReconnectSkipped, skippedBefore);
     });
 
+    test('does not replace the Manager retry loop after connect error', () {
+      socketIoClient.connect(serverUrl: 'http://127.0.0.1:1', token: 'token');
+      final skippedBefore = socketIoClient.testReconnectSkipped;
+      socketIoClient.testConnectionStatus = ConnectionStatus.error;
+      socketIoClient.testManagerReconnecting = true;
+
+      socketIoClient.reconnect(reason: DialReason.watchdog);
+
+      expect(
+        socketIoClient.testReconnectSkipped,
+        skippedBefore + 1,
+        reason:
+            'Socket.IO already owns a bounded retry loop; replacing its '
+            'Manager turns one outage into overlapping connect/disconnect '
+            'cycles and strands ACK callers on the discarded generation',
+      );
+    });
+
     test('reconnect without stored credentials stays a no-op', () {
       final requestsBefore = socketIoClient.testReconnectRequests;
       final skippedBefore = socketIoClient.testReconnectSkipped;
@@ -135,60 +153,57 @@ void main() {
       expect(sw.elapsed, lessThan(const Duration(seconds: 1)));
     });
 
-    test(
-      'a socket torn down inside the await gap throws '
-      'SocketNotConnectedException, not a null-check TypeError',
-      () async {
-        // Install a real Socket object (it never reaches the unroutable
-        // port, which is fine — we only need `_socket != null`) so
-        // waitForConnection takes its "already connected" fast path
-        // instead of the null short-circuit.
-        socketIoClient.connect(
-          serverUrl: 'http://127.0.0.1:1',
-          token: 'token',
-        );
-        socketIoClient.testConnectionStatus = ConnectionStatus.connected;
-
-        // emitWithAck runs up to its `await waitForConnection(...)` and
-        // suspends. Tearing the socket down here — exactly what a
-        // lifecycle suspend or watchdog reconnect does — nulls `_socket`
-        // before the emit resumes.
-        final pending = socketIoClient.emitWithAck(
-          'rpc-call',
-          <String, dynamic>{},
-        );
-        socketIoClient.disconnect();
-
-        await expectLater(pending, throwsA(isA<SocketNotConnectedException>()));
-      },
-    );
-  });
-
-  group('SocketIoClient.emitWithAck budget exhaustion', () {
-    test('does not put the payload on the wire when no budget is left', () async {
+    test('a socket torn down inside the await gap throws '
+        'SocketNotConnectedException, not a null-check TypeError', () async {
+      // Install a real Socket object (it never reaches the unroutable
+      // port, which is fine — we only need `_socket != null`) so
+      // waitForConnection takes its "already connected" fast path
+      // instead of the null short-circuit.
       socketIoClient.connect(serverUrl: 'http://127.0.0.1:1', token: 'token');
       socketIoClient.testConnectionStatus = ConnectionStatus.connected;
 
-      final acksBefore = powerDiagnostics.snapshot().socketAckCalls;
-
-      // Zero budget models the real case: waitForConnection consumed the
-      // whole timeout and the socket connected at the last millisecond.
-      await expectLater(
-        socketIoClient.emitWithAck(
-          'rpc-call',
-          <String, dynamic>{},
-          timeout: Duration.zero,
-        ),
-        throwsA(isA<SocketAckTimeoutException>()),
+      // emitWithAck runs up to its `await waitForConnection(...)` and
+      // suspends. Tearing the socket down here — exactly what a
+      // lifecycle suspend or watchdog reconnect does — nulls `_socket`
+      // before the emit resumes.
+      final pending = socketIoClient.emitWithAck(
+        'rpc-call',
+        <String, dynamic>{},
       );
+      socketIoClient.disconnect();
 
-      expect(
-        powerDiagnostics.snapshot().socketAckCalls,
-        acksBefore,
-        reason:
-            'emitting and then immediately reporting an ACK timeout makes '
-            'the caller retry a message the server already received',
-      );
+      await expectLater(pending, throwsA(isA<SocketNotConnectedException>()));
     });
+  });
+
+  group('SocketIoClient.emitWithAck budget exhaustion', () {
+    test(
+      'does not put the payload on the wire when no budget is left',
+      () async {
+        socketIoClient.connect(serverUrl: 'http://127.0.0.1:1', token: 'token');
+        socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+
+        final acksBefore = powerDiagnostics.snapshot().socketAckCalls;
+
+        // Zero budget models the real case: waitForConnection consumed the
+        // whole timeout and the socket connected at the last millisecond.
+        await expectLater(
+          socketIoClient.emitWithAck(
+            'rpc-call',
+            <String, dynamic>{},
+            timeout: Duration.zero,
+          ),
+          throwsA(isA<SocketAckTimeoutException>()),
+        );
+
+        expect(
+          powerDiagnostics.snapshot().socketAckCalls,
+          acksBefore,
+          reason:
+              'emitting and then immediately reporting an ACK timeout makes '
+              'the caller retry a message the server already received',
+        );
+      },
+    );
   });
 }

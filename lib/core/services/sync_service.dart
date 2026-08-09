@@ -787,6 +787,7 @@ what you have, you must use the options mode.
     for (final domain in SyncDomain.values) domain: 0,
   };
   Timer? _saveSeqDebounceTimer;
+  Timer? _saveFirstLoadedSeqDebounceTimer;
   Timer? _saveSessionsCacheDebounceTimer;
   final Map<String, Timer> _saveMsgsDebounceTimers = {};
 
@@ -1253,6 +1254,16 @@ what you have, you must use the options mode.
   final Map<String, int> _rpcCapabilityNegativeUntil = <String, int>{};
   final Map<String, int> _rpcCapabilityFailureCount = <String, int>{};
   int _rpcCapabilityPolicyEpoch = 0;
+
+  /// Machine model catalogs are read-only and change only when the daemon or
+  /// installed Codex CLI changes. Chat rebuilds can request the catalog many
+  /// times, so share the transport and retain a bounded result instead of
+  /// putting every rebuild through capability discovery + a socket ACK.
+  final Map<String, CodexModelsResponse> _codexModelsCache =
+      <String, CodexModelsResponse>{};
+  final Map<String, int> _codexModelsCacheAtMs = <String, int>{};
+  final Map<String, Future<CodexModelsResponse>> _codexModelsInFlight =
+      <String, Future<CodexModelsResponse>>{};
 
   /// Test seam around the encrypted capability transport. Production uses
   /// [machineRPC]/[sessionRPC]; tests can assert policy without constructing

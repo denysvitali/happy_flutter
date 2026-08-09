@@ -1,13 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:mmkv/mmkv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/profile.dart' as models;
 import '../models/settings.dart';
 import 'logger_service.dart' show logger;
+
+/// JSON encoding used by foreground persistence paths.
+///
+/// MMKV's final string write is cheap, but serializing maps containing
+/// hundreds of session cursors or cached session records is not. Keeping the
+/// encoder top-level makes it safe for [compute].
+String _encodeJsonForStorage(Object? value) => jsonEncode(value);
 
 /// Reads a message-cache blob from a background isolate.
 ///
@@ -40,15 +47,13 @@ bool writeSessionMessagesEncodedInWorker(
 class _StorageKeys {
   static const String settings = 'settings';
   static const String sessionDrafts = 'session-drafts';
-  static const String sessionPermissionModes =
-      'session-permission-modes';
+  static const String sessionPermissionModes = 'session-permission-modes';
   static const String sessionModelModes = 'session-model-modes';
   static const String sessionProfiles = 'session-profiles';
   static const String profile = 'profile';
   static const String migrationComplete = 'mmkv-migration-complete';
   static const String sessionLastSeq = 'session-last-seq';
-  static const String sessionFirstLoadedSeq =
-      'session-first-loaded-seq';
+  static const String sessionFirstLoadedSeq = 'session-first-loaded-seq';
   static const String sessionsCache = 'sessions-cache';
   static const String installedVersion = 'installed-version';
 }
@@ -62,14 +67,15 @@ class _JsonMapStore {
     required MMKV? Function() mmkv,
     required String key,
     Map<String, String>? cache,
-  })  : _mmkv = mmkv,
-        _key = key,
-        _cache = cache;
+  }) : _mmkv = mmkv,
+       _key = key,
+       _cache = cache;
 
   final MMKV? Function() _mmkv;
   final String _key;
   Map<String, String>? _cache;
   Timer? _persistTimer;
+  int _revision = 0;
 
   /// Load from MMKV into cache, returning the map.
   Map<String, String> _loadCache() {
@@ -77,8 +83,7 @@ class _JsonMapStore {
       final json = _mmkv()?.decodeString(_key);
       if (json != null) {
         final decoded = jsonDecode(json) as Map<String, dynamic>;
-        return decoded.map(
-            (k, v) => MapEntry(k, v as String));
+        return decoded.map((k, v) => MapEntry(k, v as String));
       }
     } catch (e) {
       logger.warning('MMKV: Failed to load $_key: $e');
@@ -120,6 +125,7 @@ class _JsonMapStore {
     try {
       final map = _cache ??= _loadCache();
       map[id] = value;
+      _revision++;
       _schedulePersist();
     } catch (e) {
       logger.warning('MMKV: Failed to save $_key[$id]: $e');
@@ -134,6 +140,7 @@ class _JsonMapStore {
       final map = _cache ??= _loadCache();
       if (map.containsKey(id)) {
         map.remove(id);
+        _revision++;
         _schedulePersist();
       }
     } catch (e) {
@@ -150,14 +157,28 @@ class _JsonMapStore {
 
   void _persistNow() {
     final cache = _cache;
-    if (cache != null) {
-      _mmkv()?.encodeString(_key, jsonEncode(cache));
-    }
+    if (cache == null) return;
+    final revision = _revision;
+    final snapshot = Map<String, String>.from(cache);
+    unawaited(
+      compute(_encodeJsonForStorage, snapshot)
+          .then((encoded) {
+            if (revision != _revision) return;
+            _mmkv()?.encodeString(_key, encoded);
+          })
+          .catchError((Object error) {
+            logger.warning('MMKV: Failed to persist $_key: $error');
+          }),
+    );
   }
 
   /// Clear the entire map from MMKV.
   Future<void> clear() async {
     try {
+      _persistTimer?.cancel();
+      _persistTimer = null;
+      _revision++;
+      _cache = <String, String>{};
       _mmkv()?.removeValue(_key);
     } catch (e) {
       logger.warning('MMKV: Failed to clear $_key: $e');
@@ -174,6 +195,7 @@ class _JsonMapStore {
   void saveToCache(String id, String value) {
     _cache ??= {};
     _cache![id] = value;
+    _revision++;
     _schedulePersist();
   }
 
@@ -192,15 +214,14 @@ class _JsonMapStore {
 /// Generic store for a JSON-encoded `Map<String, int>` cursor map
 /// backed by an in-memory cache with synchronous access.
 class _IntCursorStore {
-  _IntCursorStore({
-    required MMKV? Function() mmkv,
-    required String key,
-  })   : _mmkv = mmkv,
-        _key = key;
+  _IntCursorStore({required MMKV? Function() mmkv, required String key})
+    : _mmkv = mmkv,
+      _key = key;
 
   final MMKV? Function() _mmkv;
   final String _key;
   Map<String, int>? _cache;
+  int _revision = 0;
 
   Map<String, int> _loadFromMMKV() {
     try {
@@ -235,10 +256,26 @@ class _IntCursorStore {
   /// Replace the entire map and persist.
   void saveAll(Map<String, int> seqs) {
     try {
+      _revision++;
       _mmkv()?.encodeString(_key, jsonEncode(seqs));
       _cache = Map<String, int>.from(seqs);
     } catch (e) {
       logger.warning('MMKV: Failed to save $_key: $e');
+    }
+  }
+
+  /// Replace the in-memory cursor snapshot immediately, but perform the
+  /// potentially large JSON serialization outside the UI isolate.
+  Future<void> saveAllAsync(Map<String, int> seqs) async {
+    final snapshot = Map<String, int>.from(seqs);
+    final revision = ++_revision;
+    _cache = snapshot;
+    try {
+      final encoded = await compute(_encodeJsonForStorage, snapshot);
+      if (revision != _revision) return;
+      _mmkv()?.encodeString(_key, encoded);
+    } catch (e) {
+      logger.warning('MMKV: Failed to save $_key asynchronously: $e');
     }
   }
 
@@ -247,6 +284,7 @@ class _IntCursorStore {
     _cache ??= getAll();
     _cache![id] = value;
     try {
+      _revision++;
       _mmkv()?.encodeString(_key, jsonEncode(_cache));
     } catch (e) {
       logger.warning('MMKV: Failed to save $_key[$id]: $e');
@@ -256,6 +294,7 @@ class _IntCursorStore {
   /// Clear all entries and reset cache.
   void clearAll() {
     try {
+      _revision++;
       _mmkv()?.removeValue(_key);
       _cache = null;
     } catch (e) {
@@ -277,6 +316,7 @@ class MMKVStorage {
 
   MMKV? _mmkv;
   bool _initialized = false;
+  int _sessionsCacheWriteRevision = 0;
 
   // Lazy-initialized stores
   late final _JsonMapStore _draftsStore = _JsonMapStore(
@@ -333,20 +373,17 @@ class MMKVStorage {
       _instance._firstLoadedSeqStore.getAll();
       await _instance._permissionModesStore.initCache();
       await _instance._modelModesStore.initCache();
+      await _instance._profilesStore.initCache();
 
       // Check if migration is needed
-      final migrationComplete =
-          _instance._mmkv!.decodeBool(_StorageKeys.migrationComplete);
+      final migrationComplete = _instance._mmkv!.decodeBool(
+        _StorageKeys.migrationComplete,
+      );
 
       if (!migrationComplete) {
         await _instance._migrateFromSharedPreferences();
-        _instance._mmkv!.encodeBool(
-          _StorageKeys.migrationComplete,
-          true,
-        );
-        logger.info(
-          'MMKV: Migration from SharedPreferences completed',
-        );
+        _instance._mmkv!.encodeBool(_StorageKeys.migrationComplete, true);
+        logger.info('MMKV: Migration from SharedPreferences completed');
       }
     } catch (e) {
       logger.warning('MMKV: Initialization failed: $e');
@@ -386,11 +423,9 @@ class MMKVStorage {
   Future<Settings> getSettings() async {
     await _ensureInitialized();
     try {
-      final settingsJson =
-          _mmkv?.decodeString(_StorageKeys.settings);
+      final settingsJson = _mmkv?.decodeString(_StorageKeys.settings);
       if (settingsJson != null) {
-        final decoded =
-            jsonDecode(settingsJson) as Map<String, dynamic>;
+        final decoded = jsonDecode(settingsJson) as Map<String, dynamic>;
         return Settings.fromJson(decoded);
       }
     } catch (e) {
@@ -403,7 +438,10 @@ class MMKVStorage {
   Future<void> saveSettings(Settings settings) async {
     await _ensureInitialized();
     try {
-      final settingsJson = jsonEncode(settings.toJson());
+      final settingsJson = await compute(
+        _encodeJsonForStorage,
+        settings.toJson(),
+      );
       _mmkv?.encodeString(_StorageKeys.settings, settingsJson);
     } catch (e) {
       logger.warning('MMKV: Failed to save settings: $e');
@@ -436,8 +474,7 @@ class MMKVStorage {
   }
 
   /// Save draft for a specific session
-  Future<void> saveSessionDraft(
-      String sessionId, String draft) async {
+  Future<void> saveSessionDraft(String sessionId, String draft) async {
     await _ensureInitialized();
     return _draftsStore.save(sessionId, draft);
   }
@@ -463,22 +500,19 @@ class MMKVStorage {
   // ── Session permission modes (delegates to _JsonMapStore) ──────
 
   /// Get permission mode for a specific session
-  Future<String?> getSessionPermissionMode(
-      String sessionId) async {
+  Future<String?> getSessionPermissionMode(String sessionId) async {
     await _ensureInitialized();
     return _permissionModesStore.get(sessionId);
   }
 
   /// Save permission mode for a specific session
-  Future<void> saveSessionPermissionMode(
-      String sessionId, String mode) async {
+  Future<void> saveSessionPermissionMode(String sessionId, String mode) async {
     await _ensureInitialized();
     return _permissionModesStore.save(sessionId, mode);
   }
 
   /// Remove permission mode for a specific session
-  Future<void> removeSessionPermissionMode(
-      String sessionId) async {
+  Future<void> removeSessionPermissionMode(String sessionId) async {
     await _ensureInitialized();
     return _permissionModesStore.remove(sessionId);
   }
@@ -503,8 +537,7 @@ class MMKVStorage {
   }
 
   /// Save permission mode to cache and persist (synchronous)
-  void saveSessionPermissionModeDirect(
-      String sessionId, String mode) {
+  void saveSessionPermissionModeDirect(String sessionId, String mode) {
     if (!_initialized) return;
     _permissionModesStore.saveToCache(sessionId, mode);
   }
@@ -518,8 +551,7 @@ class MMKVStorage {
   }
 
   /// Save model mode for a specific session
-  Future<void> saveSessionModelMode(
-      String sessionId, String mode) async {
+  Future<void> saveSessionModelMode(String sessionId, String mode) async {
     await _ensureInitialized();
     await _modelModesStore.save(sessionId, mode);
     // Update cache
@@ -533,8 +565,7 @@ class MMKVStorage {
   }
 
   /// Save model mode to cache and persist (synchronous)
-  void saveSessionModelModeDirect(
-      String sessionId, String mode) {
+  void saveSessionModelModeDirect(String sessionId, String mode) {
     if (!_initialized) return;
     _modelModesStore.saveToCache(sessionId, mode);
   }
@@ -548,8 +579,7 @@ class MMKVStorage {
   }
 
   /// Save profile ID for a specific session
-  Future<void> saveSessionProfile(
-      String sessionId, String profileId) async {
+  Future<void> saveSessionProfile(String sessionId, String profileId) async {
     await _ensureInitialized();
     return _profilesStore.save(sessionId, profileId);
   }
@@ -579,8 +609,11 @@ class MMKVStorage {
       _lastSeqStore.getSingle(sessionId);
 
   /// Persist all session last-seq cursors (synchronous)
-  void saveSessionLastSeq(Map<String, int> seqs) =>
-      _lastSeqStore.saveAll(seqs);
+  void saveSessionLastSeq(Map<String, int> seqs) => _lastSeqStore.saveAll(seqs);
+
+  /// Foreground variant that keeps full-map JSON encoding off the UI isolate.
+  Future<void> saveSessionLastSeqAsync(Map<String, int> seqs) =>
+      _lastSeqStore.saveAllAsync(seqs);
 
   /// Update a single session's last-seq cursor (synchronous, cached)
   void saveSessionLastSeqSingle(String sessionId, int seq) =>
@@ -592,8 +625,7 @@ class MMKVStorage {
   // ── Session first-loaded-seq (delegates to _IntCursorStore) ─────
 
   /// Get all persisted session first-loaded-seq cursors (synchronous)
-  Map<String, int> getSessionFirstLoadedSeq() =>
-      _firstLoadedSeqStore.getAll();
+  Map<String, int> getSessionFirstLoadedSeq() => _firstLoadedSeqStore.getAll();
 
   /// Get a single session's first-loaded-seq cursor (sync, cached)
   int? getSessionFirstLoadedSeqSingle(String sessionId) =>
@@ -603,14 +635,16 @@ class MMKVStorage {
   void saveSessionFirstLoadedSeq(Map<String, int> seqs) =>
       _firstLoadedSeqStore.saveAll(seqs);
 
+  /// Foreground variant that keeps full-map JSON encoding off the UI isolate.
+  Future<void> saveSessionFirstLoadedSeqAsync(Map<String, int> seqs) =>
+      _firstLoadedSeqStore.saveAllAsync(seqs);
+
   /// Update a single session's first-loaded-seq cursor (sync)
-  void saveSessionFirstLoadedSeqSingle(
-          String sessionId, int seq) =>
+  void saveSessionFirstLoadedSeqSingle(String sessionId, int seq) =>
       _firstLoadedSeqStore.saveSingle(sessionId, seq);
 
   /// Clear all session first-loaded-seq cursors
-  void clearSessionFirstLoadedSeq() =>
-      _firstLoadedSeqStore.clearAll();
+  void clearSessionFirstLoadedSeq() => _firstLoadedSeqStore.clearAll();
 
   // ── Sessions cache ──────────────────────────────────────────────
 
@@ -633,16 +667,32 @@ class MMKVStorage {
   void saveSessionsCache(Map<String, dynamic> cache) {
     if (!_initialized) return;
     try {
-      _mmkv?.encodeString(
-          _StorageKeys.sessionsCache, jsonEncode(cache));
+      _sessionsCacheWriteRevision++;
+      _mmkv?.encodeString(_StorageKeys.sessionsCache, jsonEncode(cache));
     } catch (e) {
       logger.warning('MMKV: Failed to save sessions cache: $e');
+    }
+  }
+
+  /// Persists the sessions cache without JSON-encoding up to 200 records on
+  /// the UI isolate. A later synchronous durability save invalidates this
+  /// result through [_sessionsCacheWriteRevision].
+  Future<void> saveSessionsCacheAsync(Map<String, dynamic> cache) async {
+    if (!_initialized) return;
+    final revision = ++_sessionsCacheWriteRevision;
+    try {
+      final encoded = await compute(_encodeJsonForStorage, cache);
+      if (revision != _sessionsCacheWriteRevision) return;
+      _mmkv?.encodeString(_StorageKeys.sessionsCache, encoded);
+    } catch (e) {
+      logger.warning('MMKV: Failed to save sessions cache asynchronously: $e');
     }
   }
 
   void clearSessionsCache() {
     if (!_initialized) return;
     try {
+      _sessionsCacheWriteRevision++;
       _mmkv?.removeValue(_StorageKeys.sessionsCache);
     } catch (e) {
       logger.warning('MMKV: Failed to clear sessions cache: $e');
@@ -743,15 +793,13 @@ class MMKVStorage {
   String? getString(String key) => _mmkv?.decodeString(key);
 
   /// Write a raw string for an arbitrary key.
-  void setString(String key, String value) =>
-      _mmkv?.encodeString(key, value);
+  void setString(String key, String value) => _mmkv?.encodeString(key, value);
 
   /// Read a raw bool for an arbitrary key.
   bool? getBool(String key) => _mmkv?.decodeBool(key);
 
   /// Write a raw bool for an arbitrary key.
-  void setBool(String key, bool value) =>
-      _mmkv?.encodeBool(key, value);
+  void setBool(String key, bool value) => _mmkv?.encodeBool(key, value);
 
   /// Remove a single key.
   void removeKey(String key) => _mmkv?.removeValue(key);
@@ -785,8 +833,7 @@ class ProfileStorage {
     try {
       final profileJson = await _getString(_StorageKeys.profile);
       if (profileJson != null) {
-        final decoded =
-            jsonDecode(profileJson) as Map<String, dynamic>;
+        final decoded = jsonDecode(profileJson) as Map<String, dynamic>;
         return models.Profile(
           id: decoded['id'] as String? ?? '',
           timestamp: decoded['timestamp'] as int? ?? 0,
@@ -794,15 +841,13 @@ class ProfileStorage {
           lastName: decoded['lastName'] as String?,
           connectedServices:
               (decoded['connectedServices'] as List<dynamic>?)
-                      ?.map((e) => e as String)
-                      .toList() ??
-                  [],
+                  ?.map((e) => e as String)
+                  .toList() ??
+              [],
         );
       }
     } catch (e) {
-      logger.warning(
-        'ProfileStorage: Failed to load profile: $e',
-      );
+      logger.warning('ProfileStorage: Failed to load profile: $e');
     }
 
     return models.Profile.defaults;
@@ -820,9 +865,7 @@ class ProfileStorage {
       });
       await _setString(_StorageKeys.profile, profileJson);
     } catch (e) {
-      logger.warning(
-        'ProfileStorage: Failed to save profile: $e',
-      );
+      logger.warning('ProfileStorage: Failed to save profile: $e');
       rethrow;
     }
   }
@@ -832,9 +875,7 @@ class ProfileStorage {
     try {
       _storage._mmkv?.removeValue(_StorageKeys.profile);
     } catch (e) {
-      logger.warning(
-        'ProfileStorage: Failed to clear profile: $e',
-      );
+      logger.warning('ProfileStorage: Failed to clear profile: $e');
     }
   }
 

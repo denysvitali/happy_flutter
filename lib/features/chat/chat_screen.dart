@@ -147,6 +147,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _loadFailed = false;
 
   bool _didStartInitialLoad = false;
+  bool _mayStartInitialLoad = false;
   Timer? _loadingSafetyTimer;
 
   /// Coalesces high-frequency [onSessionMessagesChanged] ticks during agent
@@ -322,6 +323,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     ChatSwitchMetrics().ensureStarted(widget.sessionId);
     _seedFromInMemorySync();
+    if (sync.isInitialized) {
+      sync.prepareSessionVisibility(widget.sessionId);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final hasContent = _messages.isNotEmpty;
@@ -453,13 +457,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ref
               .read(sessionUiStateNotifierProvider.notifier)
               .loadSessionFromSync(widget.sessionId);
-          if (!_didStartInitialLoad && sync.isInitialized) {
-            _doInitialLoad();
-          } else {
-            final latest = sync.sessions[widget.sessionId];
-            if (latest != _session) {
-              _refreshFromSync();
+          if (!_didStartInitialLoad) {
+            if (_mayStartInitialLoad && sync.isInitialized) {
+              unawaited(_doInitialLoad());
             }
+            return;
+          }
+          final latest = sync.sessions[widget.sessionId];
+          if (latest != _session) {
+            _refreshFromSync();
           }
         });
 
@@ -499,10 +505,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((failure) => failure.sessionId == widget.sessionId)
         .listen(_handleAutoRestoreFailure);
 
-    if (!sync.isInitialized) {
-      return;
-    }
-
+    // Paint the seeded in-memory transcript before cache restore, sidechain
+    // regrouping, cursor persistence, or network convergence begins. The
+    // lightweight visibility/queue hand-off already ran synchronously in
+    // initState, so incoming messages still route to the selected session.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    _mayStartInitialLoad = true;
+    if (!sync.isInitialized) return;
     await _doInitialLoad();
   }
 
