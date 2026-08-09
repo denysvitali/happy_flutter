@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view_helpers.dart';
 import 'package:happy_flutter/features/chat/tools/views/mcp_result_view.dart';
 
@@ -9,21 +10,6 @@ import 'package:happy_flutter/features/chat/tools/views/mcp_result_view.dart';
 String _renderedText(WidgetTester tester) {
   final widget = tester.widget<SelectableText>(find.byType(SelectableText));
   return widget.data ?? widget.textSpan!.toPlainText();
-}
-
-/// Color applied to the first span whose text is exactly [text].
-Color? _colorOf(WidgetTester tester, String text) {
-  final span = tester.widget<SelectableText>(find.byType(SelectableText))
-      .textSpan!;
-  InlineSpan? match;
-  span.visitChildren((child) {
-    if (child is TextSpan && child.text == text) {
-      match = child;
-      return false;
-    }
-    return true;
-  });
-  return (match as TextSpan?)?.style?.color;
 }
 
 Widget _wrap(Widget child) {
@@ -79,7 +65,7 @@ void main() {
   });
 
   group('McpResultView', () {
-    testWidgets('pretty-prints a single-line JSON payload', (tester) async {
+    testWidgets('renders a JSON payload as a collapsible tree', (tester) async {
       await tester.pumpWidget(
         _wrap(
           const McpResultView(
@@ -88,33 +74,32 @@ void main() {
         ),
       );
 
-      final rendered = _renderedText(tester);
-      expect(rendered, contains('\n'));
-      expect(rendered, contains('"limit": 0'));
+      expect(find.byType(JsonTreeViewer), findsOneWidget);
       expect(find.textContaining('JSON'), findsOneWidget);
+      expect(
+        find.textContaining('"limit"', findRichText: true),
+        findsOneWidget,
+      );
+      // The nested array is expanded, so its leaf is visible up front.
+      expect(find.textContaining('"abc"', findRichText: true), findsOneWidget);
     });
 
-    testWidgets('colors JSON keys apart from values', (tester) async {
+    testWidgets('collapses and re-expands a JSON node on tap', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const McpResultView(
-            text: '{"name":"probe","count":3,"ok":true,"gone":null}',
-          ),
-        ),
+        _wrap(const McpResultView(text: '{"traces":[{"id":"abc"}]}')),
       );
 
-      final key = _colorOf(tester, '"name"');
-      final value = _colorOf(tester, '"probe"');
-      final number = _colorOf(tester, '3');
-      final boolean = _colorOf(tester, 'true');
+      // Tapping the array's opening bracket row collapses it to a summary.
+      await tester.tap(find.textContaining('"traces"', findRichText: true));
+      await tester.pumpAndSettle();
 
-      expect(key, isNotNull);
-      expect(value, isNotNull);
-      expect(key, isNot(value));
-      expect(number, isNot(value));
-      expect(boolean, isNot(value));
-      // Punctuation is styled too, so nothing but indentation stays unstyled.
-      expect(_colorOf(tester, '{'), isNotNull);
+      expect(find.textContaining('"abc"', findRichText: true), findsNothing);
+      expect(find.textContaining('1 item', findRichText: true), findsOneWidget);
+
+      await tester.tap(find.textContaining('1 item', findRichText: true));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('"abc"', findRichText: true), findsOneWidget);
     });
 
     testWidgets('renders non-JSON output without span styling', (tester) async {

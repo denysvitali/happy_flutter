@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
-import '../json_syntax.dart' show JsonSyntaxColors, buildJsonSpans;
-import '../json_viewer.dart' show ToolOutputScrollFrame;
+import '../json_viewer.dart' show JsonTreeViewer, ToolOutputScrollFrame;
 import '../tool_view_helpers.dart';
 import '../tool_view_widgets.dart';
 
@@ -59,14 +58,10 @@ class _McpResultViewState extends State<McpResultView> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs = Theme.of(context).colorScheme;
 
     final lines = _payload.lines;
     final needsTruncation = lines.length > widget.collapsedMaxLines;
-    final visibleText = needsTruncation && !_expanded
-        ? lines.take(widget.collapsedMaxLines).join('\n')
-        : _payload.text;
 
     final baseStyle = TextStyle(
       fontFamily: 'monospace',
@@ -76,27 +71,33 @@ class _McpResultViewState extends State<McpResultView> {
       height: AppLineHeight.relaxed,
     );
 
+    // JSON gets the interactive tree (per-key expand/collapse) rather than a
+    // flat pretty-printed blob; its height is capped instead of its text,
+    // because a node the user collapsed must not change the truncation point.
+    final Widget content;
+    if (_payload.json != null) {
+      final collapsedHeight =
+          widget.collapsedMaxLines * AppFontSize.sm * AppLineHeight.relaxed;
+      content = ToolOutputScrollFrame(
+        maxHeight: _expanded ? widget.expandedMaxHeight : collapsedHeight,
+        child: JsonTreeViewer(value: _payload.json),
+      );
+    } else {
+      final visibleText = needsTruncation && !_expanded
+          ? lines.take(widget.collapsedMaxLines).join('\n')
+          : _payload.text;
+      content = ToolOutputScrollFrame(
+        maxHeight: _expanded ? widget.expandedMaxHeight : null,
+        child: SelectableText(visibleText, style: baseStyle),
+      );
+    }
+
     final body = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.smd,
         vertical: AppSpacing.sm,
       ),
-      child: ToolOutputScrollFrame(
-        maxHeight: _expanded ? widget.expandedMaxHeight : null,
-        // Keys, strings, numbers and booleans each get their own color when
-        // the payload is JSON; anything else stays plain monospace.
-        child: _payload.isJson
-            ? SelectableText.rich(
-                TextSpan(
-                  style: baseStyle,
-                  children: buildJsonSpans(
-                    visibleText,
-                    JsonSyntaxColors.of(theme.brightness, cs.onSurface),
-                  ),
-                ),
-              )
-            : SelectableText(visibleText, style: baseStyle),
-      ),
+      child: content,
     );
 
     return Container(
@@ -111,7 +112,11 @@ class _McpResultViewState extends State<McpResultView> {
           if (needsTruncation)
             ToolViewShowMoreButton(
               expanded: _expanded,
-              hiddenCount: lines.length - widget.collapsedMaxLines,
+              // The JSON tree's visible line count changes as nodes are
+              // expanded, so only the flat text pane can name a hidden count.
+              hiddenCount: _payload.json != null
+                  ? null
+                  : lines.length - widget.collapsedMaxLines,
               onToggle: () => setState(() => _expanded = !_expanded),
             ),
         ],
@@ -175,7 +180,7 @@ class _McpPayload {
     required this.text,
     required this.lines,
     required this.label,
-    required this.isJson,
+    required this.json,
   });
 
   factory _McpPayload.parse(String raw) {
@@ -188,7 +193,7 @@ class _McpPayload {
       text: pretty,
       lines: lines,
       label: '$kind · $count line${count == 1 ? '' : 's'}',
-      isJson: decoded != null,
+      json: decoded,
     );
   }
 
@@ -196,6 +201,7 @@ class _McpPayload {
   final List<String> lines;
   final String label;
 
-  /// Whether the payload parsed as JSON, and so may be syntax-highlighted.
-  final bool isJson;
+  /// Decoded collection when the payload parsed as JSON, else null — the tree
+  /// viewer needs the parsed value, not the pretty-printed text.
+  final dynamic json;
 }
