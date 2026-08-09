@@ -1212,6 +1212,13 @@ what you have, you must use the options mode.
   final Map<String, Future<void>> _workflowRefreshesInFlight =
       <String, Future<void>>{};
 
+  /// One in-flight snapshot request per run. The same run can be visible in
+  /// the chat inline surface and the workflow detail route simultaneously;
+  /// sharing the RPC prevents duplicate polling work on both client and
+  /// daemon.
+  final Map<(String, String), Future<WorkflowRun?>>
+  _workflowSnapshotFetchesInFlight = <(String, String), Future<WorkflowRun?>>{};
+
   /// Capability keys for daemons that do not implement `workflow-list`.
   /// Keys prefer machine id so one unsupported response suppresses retries
   /// for every session owned by the same daemon. Values are epoch-ms

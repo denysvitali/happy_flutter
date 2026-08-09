@@ -78,6 +78,67 @@ class SessionUiEntry {
   );
 }
 
+/// Identity-stable ordering inputs prepared alongside [SessionUiState].
+///
+/// The sessions screen previously rebuilt this timestamp map and hashed the
+/// full collection inside a Riverpod `select` callback for every preview or
+/// unread-count update. Preparing it while the notifier is already visiting
+/// changed entries makes that selector constant-time on the rendering path.
+@immutable
+class SessionUiOrdering {
+  const SessionUiOrdering._({
+    required this.timestamps,
+    required this.optimisticallyArchivedIds,
+    required this.revision,
+    required this.isPrepared,
+  });
+
+  static const unprepared = SessionUiOrdering._(
+    timestamps: <String, int?>{},
+    optimisticallyArchivedIds: <String>{},
+    revision: 0,
+    isPrepared: false,
+  );
+
+  static const empty = SessionUiOrdering._(
+    timestamps: <String, int?>{},
+    optimisticallyArchivedIds: <String>{},
+    revision: 0,
+    isPrepared: true,
+  );
+
+  final Map<String, int?> timestamps;
+  final Set<String> optimisticallyArchivedIds;
+  final int revision;
+
+  /// False only for hand-constructed [SessionUiState] fixtures that predate
+  /// this projection. Production notifier states are always prepared.
+  final bool isPrepared;
+
+  static SessionUiOrdering reconcile({
+    required SessionUiOrdering previous,
+    required Map<String, int?> timestamps,
+    required Set<String> optimisticallyArchivedIds,
+  }) {
+    if (previous.isPrepared &&
+        mapEquals(previous.timestamps, timestamps) &&
+        setEquals(
+          previous.optimisticallyArchivedIds,
+          optimisticallyArchivedIds,
+        )) {
+      return previous;
+    }
+    return SessionUiOrdering._(
+      timestamps: Map<String, int?>.unmodifiable(timestamps),
+      optimisticallyArchivedIds: Set<String>.unmodifiable(
+        optimisticallyArchivedIds,
+      ),
+      revision: previous.revision + 1,
+      isPrepared: true,
+    );
+  }
+}
+
 /// Composite state for the notifier. [bySessionId] is keyed by
 /// sessionId; [optimisticallyArchivedIds] is a flat set.
 @immutable
@@ -85,12 +146,14 @@ class SessionUiState {
   const SessionUiState({
     this.bySessionId = const {},
     this.optimisticallyArchivedIds = const <String>{},
+    this.ordering = SessionUiOrdering.unprepared,
   });
 
   final Map<String, SessionUiEntry> bySessionId;
   final Set<String> optimisticallyArchivedIds;
+  final SessionUiOrdering ordering;
 
-  static const empty = SessionUiState();
+  static const empty = SessionUiState(ordering: SessionUiOrdering.empty);
 
   @override
   bool operator ==(Object other) {
@@ -210,9 +273,36 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     }
 
     if (changed > 0) {
+      var ordering = state.ordering;
+      final nextTimestamp = nextEntries[sessionId]?.lastMessageTimestamp;
+      final orderingChanged =
+          !ordering.isPrepared ||
+          (session == null
+              ? ordering.timestamps.containsKey(sessionId)
+              : !ordering.timestamps.containsKey(sessionId) ||
+                    ordering.timestamps[sessionId] != nextTimestamp);
+      if (orderingChanged) {
+        final timestamps = ordering.isPrepared
+            ? Map<String, int?>.from(ordering.timestamps)
+            : <String, int?>{
+                for (final entry in nextEntries.entries)
+                  entry.key: entry.value.lastMessageTimestamp,
+              };
+        if (session == null) {
+          timestamps.remove(sessionId);
+        } else {
+          timestamps[sessionId] = nextTimestamp;
+        }
+        ordering = SessionUiOrdering.reconcile(
+          previous: ordering,
+          timestamps: timestamps,
+          optimisticallyArchivedIds: state.optimisticallyArchivedIds,
+        );
+      }
       state = SessionUiState(
         bySessionId: Map<String, SessionUiEntry>.unmodifiable(nextEntries),
         optimisticallyArchivedIds: state.optimisticallyArchivedIds,
+        ordering: ordering,
       );
     }
     _recordCompute(
@@ -233,6 +323,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     final usageBySession = sync.sessionUsage;
     final span = _startScaleTrace(trigger, sessions.length);
     final bySessionId = <String, SessionUiEntry>{};
+    final timestamps = <String, int?>{};
     var changed = 0;
     for (final session in sessions.values) {
       final previous = previousState.bySessionId[session.id];
@@ -242,6 +333,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         usageBySession[session.id],
       );
       bySessionId[session.id] = next;
+      timestamps[session.id] = next.lastMessageTimestamp;
       if (!identical(next, previous)) changed++;
     }
     changed +=
@@ -251,10 +343,16 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     _messageRevisions.removeWhere((id, _) => !sessions.containsKey(id));
     _hasUnsettledSend.removeWhere((id, _) => !sessions.containsKey(id));
 
+    final optimisticallyArchivedIds = Set<String>.unmodifiable(
+      sync.getOptimisticallyArchivedIds(),
+    );
     final result = SessionUiState(
       bySessionId: Map.unmodifiable(bySessionId),
-      optimisticallyArchivedIds: Set<String>.unmodifiable(
-        sync.getOptimisticallyArchivedIds(),
+      optimisticallyArchivedIds: optimisticallyArchivedIds,
+      ordering: SessionUiOrdering.reconcile(
+        previous: previousState.ordering,
+        timestamps: timestamps,
+        optimisticallyArchivedIds: optimisticallyArchivedIds,
       ),
     );
     _recordCompute(

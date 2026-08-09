@@ -103,6 +103,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   int? _listItemsCacheSignature;
   Widget? _retainedVisibleTree;
   late bool _sessionsRouteActive;
+  late String _sessionsViewStyle;
 
   /// Gate rapid taps on session cards.  Without this, 4 taps within
   /// ~50ms each call pushNamed('chat') and create 4 ChatScreen
@@ -139,7 +140,17 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     _sessionsRouteActive = isSessionsCollectionRoute(
       PerformanceContextService().currentRoute,
     );
+    _sessionsViewStyle = ref.read(settingsNotifierProvider).sessionsViewStyle;
+    ref.listenManual<String>(
+      settingsNotifierProvider.select((settings) => settings.sessionsViewStyle),
+      (_, next) {
+        if (_sessionsViewStyle == next) return;
+        _sessionsViewStyle = next;
+        _syncPerformanceContext();
+      },
+    );
     PerformanceContextService().routeListenable.addListener(_onRouteChanged);
+    _syncPerformanceContext();
     // Hoisted Phase 2: the build method now reads previews/timestamps/
     // unread counts/optimistic-archive state from the
     // [SessionUiStateNotifier] via `ref.watch`, which only rebuilds
@@ -161,9 +172,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     if (active == _sessionsRouteActive) return;
     _sessionsRouteActive = active;
     if (!mounted) return;
-    if (!_isVisible) {
-      PerformanceContextService().setCurrentSessionsView(null);
-    }
+    _syncPerformanceContext();
     if (_isVisible) {
       ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
     }
@@ -173,11 +182,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   @override
   void didUpdateWidget(covariant SessionsListContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isVisible && !widget.isVisible) {
-      PerformanceContextService().setCurrentSessionsView(null);
-    }
     if (!oldWidget.isVisible && widget.isVisible && _sessionsRouteActive) {
       ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+    }
+    if (oldWidget.isVisible != widget.isVisible) {
+      _syncPerformanceContext();
     }
   }
 
@@ -202,6 +211,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     if (folder == null && _selectedFolderKey != null) {
       _sel.value = const SelectionState();
       setState(() => _selectedFolderKey = null);
+      _syncPerformanceContext();
     }
   }
 
@@ -213,12 +223,25 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       _expandedOlderArchivedFolders.remove(folderKey);
     });
     widget.folderNotifier.value = header;
+    _syncPerformanceContext();
   }
 
   void _closeFolder() {
     _sel.value = const SelectionState();
     setState(() => _selectedFolderKey = null);
     widget.folderNotifier.value = null;
+    _syncPerformanceContext();
+  }
+
+  void _syncPerformanceContext() {
+    PerformanceContextService().setCurrentSessionsView(
+      _isVisible
+          ? _sessionsViewStyle == 'mission_control' &&
+                    _selectedFolderKey != null
+                ? 'mission_control_folder'
+                : _sessionsViewStyle
+          : null,
+    );
   }
 
   void _toggleArchivedFolder(String folderKey) {
@@ -276,7 +299,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     // rendered widget also preserves the outgoing route during slide
     // transitions instead of flashing an empty sessions pane.
     if (!_isVisible) {
-      PerformanceContextService().setCurrentSessionsView(null);
       return _retainedVisibleTree ?? const SizedBox.shrink();
     }
 
@@ -306,13 +328,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     final machines = needsMachineProjection
         ? ref.watch(machinesNotifierProvider)
         : ref.read(machinesNotifierProvider);
-    PerformanceContextService().setCurrentSessionsView(
-      _isVisible
-          ? sessionsViewStyle == 'mission_control' && _selectedFolderKey != null
-                ? 'mission_control_folder'
-                : sessionsViewStyle
-          : null,
-    );
     final showFlavorIcons = ref.watch(
       settingsNotifierProvider.select((s) => s.showFlavorIcons),
     );
@@ -785,20 +800,14 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
-    final tsLookup = <String, int?>{
-      for (final entry in uiState.bySessionId.entries)
-        entry.key: entry.value.lastMessageTimestamp,
-    };
-    final unreadLookup = <String, int>{
-      for (final entry in uiState.bySessionId.entries)
-        entry.key: entry.value.unreadCount,
-    };
     final folders = groupAllSessionsByFolder(
       activeSessions,
       inactiveSessions,
       machines,
-      getLastMessageTimestamp: (id) => tsLookup[id],
-      getUnreadCount: (id) => unreadLookup[id] ?? 0,
+      getLastMessageTimestamp: (id) => uiState.ordering.isPrepared
+          ? uiState.ordering.timestamps[id]
+          : uiState.bySessionId[id]?.lastMessageTimestamp,
+      getUnreadCount: (id) => uiState.bySessionId[id]?.unreadCount ?? 0,
     );
 
     SessionFolderGroup? selectedFolder;
@@ -816,6 +825,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         if (mounted) {
           setState(() => _selectedFolderKey = null);
           widget.folderNotifier.value = null;
+          _syncPerformanceContext();
         }
       });
     }

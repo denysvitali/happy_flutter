@@ -161,6 +161,45 @@ void main() {
       expect(identical(after.bySessionId['session-2'], unrelated), isTrue);
     });
 
+    test('targeted row update reuses prepared ordering projection', () {
+      sync
+        ..testSessions['session-1'] = makeSession(id: 'session-1')
+        ..testSetSessionMessages('session-1', const [
+          {
+            'id': 'msg-1',
+            'localId': 'local-1',
+            'role': 'user',
+            'content': 'Hello',
+            'createdAt': 1000,
+          },
+        ])
+        ..testSetSessionUsage('session-1', {'contextSize': 42});
+
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      final before = container.read(sessionUiStateNotifierProvider);
+
+      sync.testSetSessionUsage('session-1', {'contextSize': 43});
+      notifier.loadSessionFromSync('session-1');
+
+      final after = container.read(sessionUiStateNotifierProvider);
+      expect(after.bySessionId['session-1']!.sessionUsage['contextSize'], 43);
+      expect(identical(after.ordering, before.ordering), isTrue);
+    });
+
+    test('targeted session insert records a null timestamp membership', () {
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      final before = container.read(sessionUiStateNotifierProvider);
+      expect(before.ordering.timestamps, isEmpty);
+
+      sync.testSessions['session-1'] = makeSession(id: 'session-1');
+      notifier.loadSessionFromSync('session-1');
+
+      final after = container.read(sessionUiStateNotifierProvider);
+      expect(after.ordering.timestamps, contains('session-1'));
+      expect(after.ordering.timestamps['session-1'], isNull);
+      expect(after.ordering.revision, before.ordering.revision + 1);
+    });
+
     test('targeted load records scale-aware compute telemetry', () {
       sync
         ..testSessions['session-1'] = makeSession(id: 'session-1')

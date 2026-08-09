@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/models/session.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
+import '../../../core/providers/sessions_notifier.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/utils/performance_buckets.dart';
@@ -64,6 +65,16 @@ class SessionCollectionProjection {
   factory SessionCollectionProjection.fromSessions(
     Map<String, Session> sessions,
   ) {
+    if (sessions is SessionCollectionSnapshot) {
+      return SessionCollectionProjection._(
+        sessions: sessions,
+        revision: sessions.collectionRevision,
+      );
+    }
+
+    // Compatibility path for focused tests and provider overrides that expose
+    // a plain map. SessionsNotifier prepares this revision before publishing,
+    // keeping the production rendering selector constant-time.
     final revision = Object.hash(
       sessions.length,
       Object.hashAllUnordered(
@@ -122,6 +133,18 @@ class SessionOrderingProjection {
   });
 
   factory SessionOrderingProjection.fromState(SessionUiState state) {
+    final prepared = state.ordering;
+    if (prepared.isPrepared) {
+      return SessionOrderingProjection._(
+        timestamps: prepared.timestamps,
+        optimisticallyArchivedIds: prepared.optimisticallyArchivedIds,
+        revision: prepared.revision,
+      );
+    }
+
+    // Compatibility path for focused widget tests that hand-construct
+    // SessionUiState. Production notifier states prepare this projection
+    // incrementally, so rendering never walks or hashes the full collection.
     final timestamps = <String, int?>{
       for (final entry in state.bySessionId.entries)
         entry.key: entry.value.lastMessageTimestamp,
@@ -372,9 +395,9 @@ int _computeSortedSessionsSignature(
       session.metadata?.summary?.text,
       getLastMessageTimestamp(session.id),
       optimisticallyArchivedIds.contains(session.id),
-      // Capture idleness so a session crossing the idle threshold purely
-      // from time passing (no field change) still busts the cache.
-      isSessionIdle(session),
+      // Capture effective activity so daemon lifecycle changes that leave the
+      // legacy active/presence fields untouched still bust the grouping cache.
+      isSessionActive(session),
     );
   }
   return signature;

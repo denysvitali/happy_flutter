@@ -47,34 +47,6 @@ const _emptyAgentProjection = AgentSessionProjection(
   progress: TaskProgress(total: 0, running: 0, completed: 0, error: 0),
 );
 
-/// Retains the transcript-derived banner state until that session changes.
-///
-/// Public for a small contract test; production owns one cache per mounted
-/// banner, so projections cannot leak between sessions or chat screens.
-@visibleForTesting
-class SubAgentBannerProjectionCache {
-  String? _sessionId;
-  int? _revision;
-  AgentSessionProjection? _projection;
-
-  AgentSessionProjection resolve({
-    required String sessionId,
-    required int revision,
-    required AgentSessionProjection Function() load,
-  }) {
-    final cached = _projection;
-    if (cached != null && _sessionId == sessionId && _revision == revision) {
-      return cached;
-    }
-
-    final projection = load();
-    _sessionId = sessionId;
-    _revision = revision;
-    _projection = projection;
-    return projection;
-  }
-}
-
 class _SubAgentStatusBannerStateful extends StatefulWidget {
   const _SubAgentStatusBannerStateful({required this.sessionId});
 
@@ -87,8 +59,6 @@ class _SubAgentStatusBannerStateful extends StatefulWidget {
 
 class _SubAgentStatusBannerStatefulState
     extends State<_SubAgentStatusBannerStateful> {
-  final SubAgentBannerProjectionCache _projectionCache =
-      SubAgentBannerProjectionCache();
   StreamSubscription<String>? _messageSubscription;
   late AgentSessionProjection _projection;
   TaskProgress? _lastSeenProgress;
@@ -143,11 +113,7 @@ class _SubAgentStatusBannerStatefulState
 
   AgentSessionProjection _resolveProjection() {
     if (widget.sessionId.isEmpty) return _emptyAgentProjection;
-    return _projectionCache.resolve(
-      sessionId: widget.sessionId,
-      revision: sync.messagesRevision(widget.sessionId),
-      load: () => AgentsListSheet.computeProjection(widget.sessionId),
-    );
+    return AgentsListSheet.computeProjection(widget.sessionId);
   }
 
   void _refreshProjection() {

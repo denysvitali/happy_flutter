@@ -88,10 +88,14 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     setState(() => _error = null);
     try {
       final notifier = ref.read(workflowsNotifierProvider.notifier);
-      await notifier.refreshSession(widget.sessionId);
+      final visibleRefresh = notifier.refreshSession(widget.sessionId);
       // Also refresh other relevant sessions in the background so the
-      // global workflows map stays up to date.
+      // global workflows map stays up to date. Start it while the visible
+      // refresh is in flight: Sync shares per-session requests, so if the
+      // visible session is also a global candidate this reuses the same RPC
+      // rather than immediately issuing a second one.
       unawaited(notifier.refreshFromSync());
+      await visibleRefresh;
     } catch (e, st) {
       logger.warning('WorkflowsScreen refresh failed: $e', e, st);
       if (mounted) {
@@ -166,8 +170,9 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
     }
     _projectedSourceRuns = runs;
     _projectedMessageRevision = revision;
-    _projectedRuns = List<_WorkflowCardProjection>.unmodifiable(projected);
-    return _projectedRuns;
+    return _projectedRuns = List<_WorkflowCardProjection>.unmodifiable(
+      projected,
+    );
   }
 
   @override

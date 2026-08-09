@@ -99,6 +99,20 @@ collections over 50 sessions. Frame metrics now carry `sessions_view`, while
 frozen frames export separate build and raster histograms; `ui.jank` traces
 carry the same view plus the longest frame's build/raster split.
 
+**Steady-state projection follow-up, 2026-08-09.** Session collection and
+ordering fingerprints are now prepared when notifier snapshots are published,
+so visible list selectors no longer rebuild and hash whole maps. Targeted
+preview/unread updates reuse ordering identity in O(1) when their timestamp is
+unchanged. The app bar, sub-agent banner, and agents sheet share one bounded,
+revision-keyed transcript projection instead of recursively walking the same
+message tree per surface. Workflow detail/list polling now coalesces identical
+RPCs, suppresses unchanged storage/notification fan-out, and caches transcript
+projections by message revision. Command-palette session ordering uses one sort
+per open and fuzzy queries reuse their preprocessed index. On the daemon side,
+RPC handler registration publishes immutable lookup/capability snapshots;
+parallel handler lookup is allocation-free and avoids the former RWMutex
+reader contention.
+
 ### Live performance remediation, 2026-08-08
 
 The next live sweep found a localized server incident that dominated perceived

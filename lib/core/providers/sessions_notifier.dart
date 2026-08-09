@@ -1,4 +1,5 @@
 import 'dart:async' show unawaited;
+import 'dart:collection';
 
 import 'package:riverpod/riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -8,7 +9,62 @@ import '../services/logger_service.dart' show logger;
 import '../services/pinned_sessions_storage.dart';
 import '../services/session_folders_storage.dart';
 import '../services/sync_service.dart';
+import '../utils/session_utils.dart';
 import '_shared.dart';
+
+/// Immutable sessions map with its collection/grouping fingerprint prepared
+/// before widgets observe it.
+///
+/// Session cards select their own row by id, while the parent collection only
+/// needs fields that affect membership, search, grouping, or ordering. Keeping
+/// that fingerprint on the published map avoids hashing every session inside
+/// the sessions-list `build` selector on unrelated row updates.
+class SessionCollectionSnapshot extends UnmodifiableMapView<String, Session> {
+  factory SessionCollectionSnapshot(Map<String, Session> sessions) {
+    if (sessions is SessionCollectionSnapshot) return sessions;
+    final values = Map<String, Session>.from(sessions);
+    return SessionCollectionSnapshot._(
+      values,
+      _computeCollectionRevision(values),
+    );
+  }
+
+  SessionCollectionSnapshot._(super.sessions, this.collectionRevision);
+
+  final int collectionRevision;
+}
+
+int _computeCollectionRevision(Map<String, Session> sessions) {
+  return Object.hash(
+    sessions.length,
+    Object.hashAllUnordered(
+      sessions.entries.map((entry) {
+        final session = entry.value;
+        final metadata = session.metadata;
+        return Object.hashAll([
+          entry.key,
+          session.archived,
+          session.active,
+          session.presence,
+          session.activeAt,
+          session.updatedAt,
+          session.lastMessageAt,
+          session.folder,
+          session.lifecycleStateCleartext,
+          metadata?.name,
+          metadata?.path,
+          metadata?.machineId,
+          metadata?.host,
+          metadata?.homeDir,
+          metadata?.summary?.text,
+          metadata?.lifecycleState,
+          metadata?.lifecycleStateSince,
+          isSessionIdle(session),
+        ]);
+      }),
+    ),
+  );
+}
 
 class SessionsNotifier extends Notifier<Map<String, Session>> {
   int _lastDataChangeCounter = -1;
@@ -17,10 +73,14 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   final _foldersStorage = SessionFoldersStorage.instance;
 
   @override
-  Map<String, Session> build() => {};
+  Map<String, Session> build() => SessionCollectionSnapshot(const {});
+
+  void _publish(Map<String, Session> sessions) {
+    state = SessionCollectionSnapshot(sessions);
+  }
 
   void setSessions(List<Session> sessions) {
-    state = {for (final session in sessions) session.id: session};
+    _publish({for (final session in sessions) session.id: session});
     _mergeLocalState();
   }
 
@@ -62,7 +122,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       }
     }
     if (nextState != null) {
-      state = nextState;
+      _publish(nextState);
     }
   }
 
@@ -77,7 +137,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     // per-entry identical() catches the common no-op refresh.
     if (mapValuesIdentical(state, next)) return;
     try {
-      state = Map<String, Session>.from(next);
+      _publish(next);
       _mergeLocalState();
     } catch (e, st) {
       // A session envelope that doesn't satisfy the model (e.g. a
@@ -92,14 +152,16 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
         e,
         st,
       );
-      unawaited(Sentry.captureException(
-        e,
-        stackTrace: st,
-        hint: Hint.withMap({
-          'source': 'loadFromSync',
-          'sessionCount': next.length,
-        }),
-      ));
+      unawaited(
+        Sentry.captureException(
+          e,
+          stackTrace: st,
+          hint: Hint.withMap({
+            'source': 'loadFromSync',
+            'sessionCount': next.length,
+          }),
+        ),
+      );
     }
   }
 
@@ -114,23 +176,26 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     if (inFlight != null) {
       return inFlight;
     }
-    final future = () async {
-      try {
-        await sync.refreshSessionsListData(includeMachines: includeMachines);
-      } catch (e, stack) {
-        logger.warning('Failed to refresh sessions', e, stack);
-      }
-      loadFromSync();
-    }().whenComplete(() {
-      _refreshInFlight = null;
-    });
+    final future =
+        () async {
+          try {
+            await sync.refreshSessionsListData(
+              includeMachines: includeMachines,
+            );
+          } catch (e, stack) {
+            logger.warning('Failed to refresh sessions', e, stack);
+          }
+          loadFromSync();
+        }().whenComplete(() {
+          _refreshInFlight = null;
+        });
 
     _refreshInFlight = future;
     return future;
   }
 
   void clear() {
-    state = {};
+    _publish(const {});
   }
 
   Session? getSession(String id) => state[id];
@@ -140,7 +205,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   /// accepted the deletion.
   Future<bool> optimisticDelete(String id) async {
     final snapshot = state;
-    state = Map<String, Session>.from(state)..remove(id);
+    _publish(Map<String, Session>.from(state)..remove(id));
     try {
       final ok = await sync.deleteSession(id);
       if (!ok) {
@@ -165,8 +230,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   Future<int> optimisticBatchDelete(List<String> ids) async {
     if (ids.isEmpty) return 0;
     final snapshot = state;
-    state = Map<String, Session>.from(state)
-      ..removeWhere((id, _) => ids.contains(id));
+    _publish(
+      Map<String, Session>.from(state)
+        ..removeWhere((id, _) => ids.contains(id)),
+    );
     final results = await Future.wait(ids.map(sync.deleteSession));
     var failCount = 0;
     for (var i = 0; i < ids.length; i++) {
@@ -176,7 +243,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
       // Restore only the ones that failed.
       for (var i = 0; i < ids.length; i++) {
         if (!results[i] && snapshot.containsKey(ids[i])) {
-          state = {...state, ids[i]: snapshot[ids[i]]!};
+          _publish({...state, ids[i]: snapshot[ids[i]]!});
         }
       }
     }
@@ -196,8 +263,9 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     // Short-circuit when already pinned — avoids an unnecessary state
     // assignment and the resulting rebuild for every watcher.
     if (!session.pinned) {
-      state = Map<String, Session>.from(state)
-        ..[id] = session.copyWith(pinned: true);
+      _publish(
+        Map<String, Session>.from(state)..[id] = session.copyWith(pinned: true),
+      );
     }
     await _pinnedStorage.pinSession(id);
   }
@@ -207,8 +275,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     final session = state[id];
     if (session == null) return;
     if (session.pinned) {
-      state = Map<String, Session>.from(state)
-        ..[id] = session.copyWith(pinned: false);
+      _publish(
+        Map<String, Session>.from(state)
+          ..[id] = session.copyWith(pinned: false),
+      );
     }
     await _pinnedStorage.unpinSession(id);
   }
@@ -218,8 +288,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     final session = state[id];
     if (session == null) return;
     if (session.folder != folder) {
-      state = Map<String, Session>.from(state)
-        ..[id] = session.copyWith(folder: folder);
+      _publish(
+        Map<String, Session>.from(state)
+          ..[id] = session.copyWith(folder: folder),
+      );
     }
     if (folder != null) {
       await _foldersStorage.setFolder(id, folder);
@@ -271,10 +343,7 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
     }
-    return sync.createWorktree(
-      machineId: machineId,
-      basePath: basePath,
-    );
+    return sync.createWorktree(machineId: machineId, basePath: basePath);
   }
 }
 

@@ -178,11 +178,26 @@ extension SyncWorkflows on Sync {
   /// Returns the parsed [WorkflowRun] or `null` when the snapshot is missing
   /// or malformed. The in-memory mirror is updated so the UI sees the latest
   /// state without waiting for a `workflow-list` refresh.
-  Future<WorkflowRun?> fetchWorkflowSnapshot(
+  Future<WorkflowRun?> fetchWorkflowSnapshot(String sessionId, String runId) {
+    if (!isInitialized) return Future<WorkflowRun?>.value();
+    final key = (sessionId, runId);
+    final existing = _workflowSnapshotFetchesInFlight[key];
+    if (existing != null) return existing;
+
+    late final Future<WorkflowRun?> sharedFetch;
+    sharedFetch = _runWorkflowSnapshotFetch(sessionId, runId).whenComplete(() {
+      if (identical(_workflowSnapshotFetchesInFlight[key], sharedFetch)) {
+        _workflowSnapshotFetchesInFlight.remove(key);
+      }
+    });
+    _workflowSnapshotFetchesInFlight[key] = sharedFetch;
+    return sharedFetch;
+  }
+
+  Future<WorkflowRun?> _runWorkflowSnapshotFetch(
     String sessionId,
     String runId,
   ) async {
-    if (!isInitialized) return null;
     dynamic raw;
     try {
       if (testSessionRPCOverride == null) {
@@ -443,6 +458,8 @@ extension SyncWorkflows on Sync {
     List<WorkflowRun> workflows, {
     bool notifyDataChanged = false,
   }) {
+    final current = _workflowsBySession[sessionId];
+    if (_workflowRunListsEqual(current, workflows)) return;
     final next = List<WorkflowRun>.unmodifiable(workflows);
     _workflowsBySession[sessionId] = next;
     WorkflowStorage.instance.save(sessionId, next);
@@ -450,6 +467,17 @@ extension SyncWorkflows on Sync {
     if (notifyDataChanged) {
       _notifyDataChanged({SyncDomain.workflows});
     }
+  }
+
+  bool _workflowRunListsEqual(
+    List<WorkflowRun>? current,
+    List<WorkflowRun> next,
+  ) {
+    if (current == null || current.length != next.length) return false;
+    for (var i = 0; i < current.length; i++) {
+      if (current[i] != next[i]) return false;
+    }
+    return true;
   }
 
   void _notifyWorkflowsChanged(String sessionId) {
@@ -482,6 +510,7 @@ extension SyncWorkflows on Sync {
   @visibleForTesting
   void testResetWorkflowRefreshPolicy() {
     _workflowRefreshesInFlight.clear();
+    _workflowSnapshotFetchesInFlight.clear();
     _workflowListUnsupportedCapabilities.clear();
     _workflowRefreshBackoffUntil.clear();
     _workflowRefreshFailureCount.clear();

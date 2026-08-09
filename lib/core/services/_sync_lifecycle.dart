@@ -1052,6 +1052,7 @@ extension SyncLifecycle on Sync {
     // after login).
     _workflowsBySession.clear();
     _workflowRefreshesInFlight.clear();
+    _workflowSnapshotFetchesInFlight.clear();
     _workflowListUnsupportedCapabilities.clear();
     _loopListUnsupportedCapabilities.clear();
     _workflowRefreshBackoffUntil.clear();

@@ -9,7 +9,6 @@ import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
-import 'package:happy_flutter/features/sessions/widgets/session_headers.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 import 'package:happy_flutter/features/sessions/widgets/sessions_list_content.dart';
 
@@ -125,6 +124,7 @@ void main() {
       final beforeView = tester.widget<MissionControlView>(
         find.byType(MissionControlView),
       );
+      expect(performanceContext.currentSessionsView, 'mission_control');
       expect(
         beforeView.activeSessions.single.metadata?.summary?.text,
         'Before update',
@@ -139,11 +139,11 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(performanceContext.currentSessionsView, isNull);
 
-      final sessionsNotifier =
-          container.read(sessionsNotifierProvider.notifier)
-              as _StubSessionsNotifier;
-      sessionsNotifier.replaceWith(_after);
+      (container.read(sessionsNotifierProvider.notifier)
+              as _StubSessionsNotifier)
+          .replaceWith(_after);
       await tester.pump();
 
       final hiddenView = tester.widget<MissionControlView>(
@@ -164,6 +164,7 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(performanceContext.currentSessionsView, 'mission_control');
 
       final afterView = tester.widget<MissionControlView>(
         find.byType(MissionControlView),

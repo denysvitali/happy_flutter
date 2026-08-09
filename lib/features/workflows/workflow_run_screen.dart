@@ -57,6 +57,9 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   Timer? _pollTimer;
   bool _refreshing = false;
   final Set<String> _loggedFailureDetails = <String>{};
+  WorkflowRun? _projectedSourceRun;
+  int _projectedMessageRevision = -1;
+  _WorkflowRunProjection? _projection;
 
   @override
   void initState() {
@@ -91,7 +94,8 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     final found = runs.where((r) => r.runId == widget.runId).firstOrNull;
     if (found != null) {
       _logFailureDetails(found);
-      setState(() => _run = WorkflowRun.withFallbackProgress(found, _run));
+      final next = WorkflowRun.withFallbackProgress(found, _run);
+      if (next != _run) setState(() => _run = next);
       _updatePolling();
     }
   }
@@ -113,14 +117,15 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   Future<void> _refresh() async {
     if (!sync.isInitialized || _refreshing) return;
     _refreshing = true;
-    setState(() => _error = null);
+    if (_error != null) setState(() => _error = null);
     try {
       final run = await ref
           .read(workflowsNotifierProvider.notifier)
           .fetchWorkflowSnapshot(widget.sessionId, widget.runId);
       if (run != null && mounted) {
         _logFailureDetails(run);
-        setState(() => _run = WorkflowRun.withFallbackProgress(run, _run));
+        final next = WorkflowRun.withFallbackProgress(run, _run);
+        if (next != _run) setState(() => _run = next);
         _updatePolling();
       }
     } catch (e, st) {
@@ -135,8 +140,62 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
       }
     } finally {
       _refreshing = false;
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        final transcriptChanged =
+            _projectedMessageRevision !=
+            sync.messagesRevision(widget.sessionId);
+        if (_loading || transcriptChanged) {
+          setState(() => _loading = false);
+        }
+      }
     }
+  }
+
+  _WorkflowRunProjection? _projectionFor(WorkflowRun? source) {
+    final revision = sync.messagesRevision(widget.sessionId);
+    if (source == null) {
+      _projectedSourceRun = null;
+      _projectedMessageRevision = revision;
+      _projection = null;
+      return null;
+    }
+    if (identical(source, _projectedSourceRun) &&
+        revision == _projectedMessageRevision) {
+      return _projection;
+    }
+
+    final transcriptIndex = WorkflowTranscriptIndex.fromMessages(
+      sync.messagesForSession(widget.sessionId),
+    );
+    final run = WorkflowRun.enrichFromIndex(source, transcriptIndex);
+    final groups = WorkflowRun.phaseGroups(
+      run,
+      fallbackTitle: workflowDisplayName(run),
+    );
+    final logs = run.workflowProgress.whereType<WorkflowLog>().toList(
+      growable: false,
+    );
+    final stepChildren = groups.isNotEmpty
+        ? const <Map<String, dynamic>>[]
+        : WorkflowRun.collapseSteps(
+            WorkflowRun.stepChildrenForIndex(run.runId, transcriptIndex),
+          );
+    final models = <String>{
+      for (final group in groups)
+        for (final agent in group.agents)
+          if (agent.model.isNotEmpty) agent.model,
+    };
+    final projection = _WorkflowRunProjection(
+      run: run,
+      groups: groups,
+      logs: logs,
+      stepChildren: stepChildren,
+      commonModel: models.length == 1 ? models.first : null,
+    );
+    _projectedSourceRun = source;
+    _projectedMessageRevision = revision;
+    _projection = projection;
+    return projection;
   }
 
   void _logFailureDetails(WorkflowRun? run) {
@@ -170,34 +229,18 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final rawRun = _run;
-    final messages = sync.messagesForSession(widget.sessionId);
-    final transcriptIndex = WorkflowTranscriptIndex.fromMessages(messages);
-    final run = rawRun == null
-        ? null
-        : WorkflowRun.enrichFromIndex(rawRun, transcriptIndex);
-    final groups = run == null
-        ? const <WorkflowPhaseGroup>[]
-        : WorkflowRun.phaseGroups(run, fallbackTitle: workflowDisplayName(run));
-    final logs = run == null
-        ? const <WorkflowLog>[]
-        : run.workflowProgress.whereType<WorkflowLog>().toList(growable: false);
+    final projection = _projectionFor(_run);
+    final run = projection?.run;
+    final groups = projection?.groups ?? const <WorkflowPhaseGroup>[];
+    final logs = projection?.logs ?? const <WorkflowLog>[];
     // Structured snapshot empty (older CLI / workflow types that emit only
     // per-agent task_* chips, no aggregate `workflow_progress`): fall back to
     // the raw step events so the user still sees every agent step.
-    final stepChildren = (run == null || groups.isNotEmpty)
-        ? const <Map<String, dynamic>>[]
-        : WorkflowRun.collapseSteps(
-            WorkflowRun.stepChildrenForIndex(widget.runId, transcriptIndex),
-          );
+    final stepChildren =
+        projection?.stepChildren ?? const <Map<String, dynamic>>[];
     // When every agent runs the same model, repeating it on each row is
     // noise — show it once in the stat row instead.
-    final models = <String>{
-      for (final group in groups)
-        for (final agent in group.agents)
-          if (agent.model.isNotEmpty) agent.model,
-    };
-    final commonModel = models.length == 1 ? models.first : null;
+    final commonModel = projection?.commonModel;
     final body = _loading && run == null
         ? const Center(child: CircularProgressIndicator())
         : run == null
@@ -312,6 +355,22 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
       body: body,
     );
   }
+}
+
+class _WorkflowRunProjection {
+  const _WorkflowRunProjection({
+    required this.run,
+    required this.groups,
+    required this.logs,
+    required this.stepChildren,
+    this.commonModel,
+  });
+
+  final WorkflowRun run;
+  final List<WorkflowPhaseGroup> groups;
+  final List<WorkflowLog> logs;
+  final List<Map<String, dynamic>> stepChildren;
+  final String? commonModel;
 }
 
 /// Keeps the one-second elapsed-time invalidation local to the timestamp.

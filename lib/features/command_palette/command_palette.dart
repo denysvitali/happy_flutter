@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/recent_commands_storage.dart';
 import '../sessions/widgets/new_session_dialog.dart';
@@ -61,9 +62,16 @@ class CommandPaletteController {
 
     final commands = <CommandItem>[];
 
-    // Pinned sessions appear at the very top
-    final pinnedSessions = sessions.values.where((s) => s.pinned).toList()
+    // Sort the session snapshot once, then retain that ordering while
+    // partitioning pinned and recent entries. Large accounts previously paid
+    // for two independent O(n log n) sorts every time the palette opened.
+    final orderedSessions = sessions.values.toList(growable: false)
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final pinnedSessions = <Session>[];
+    final recentSessions = <Session>[];
+    for (final session in orderedSessions) {
+      (session.pinned ? pinnedSessions : recentSessions).add(session);
+    }
 
     for (final session in pinnedSessions) {
       final sessionName =
@@ -152,11 +160,6 @@ class CommandPaletteController {
 
     // Keep five recent sessions in the default shortlist, while every older
     // session stays indexed for fuzzy search.
-    final pinnedIds = pinnedSessions.map((s) => s.id).toSet();
-    final recentSessions =
-        sessions.values.where((s) => !pinnedIds.contains(s.id)).toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-
     for (var i = 0; i < recentSessions.length; i++) {
       final session = recentSessions[i];
       final sessionName =

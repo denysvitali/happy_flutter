@@ -102,6 +102,11 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
   List<CommandCategory> _filteredCategories = [];
   List<CommandItem> _allCommands = [];
 
+  /// Fuzzy pre-processing is stable for the lifetime of a command snapshot.
+  /// Reusing it keeps each keystroke to the actual query/match pass instead of
+  /// rebuilding the weighted search index for every debounced update.
+  Fuzzy<CommandItem>? _searchIndex;
+
   /// Pre-computed start index per category so itemBuilder is O(1).
   List<int> _categoryStartIndex = [];
 
@@ -137,6 +142,9 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.commands, widget.commands) ||
         !identical(oldWidget.recentCommands, widget.recentCommands)) {
+      if (!identical(oldWidget.commands, widget.commands)) {
+        _searchIndex = null;
+      }
       _filterCommands();
     }
   }
@@ -204,7 +212,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
           .toList(growable: false);
     } else {
       // Use fuzzy matching for typo-tolerant search with relevance scoring.
-      final fuzzy = Fuzzy<CommandItem>(
+      final searchIndex = _searchIndex ??= Fuzzy<CommandItem>(
         widget.commands,
         options: FuzzyOptions(
           keys: [
@@ -222,7 +230,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
           threshold: 0.4,
         ),
       );
-      final results = fuzzy.search(query);
+      final results = searchIndex.search(query);
       // Fuzzy results are already sorted by score (lower = better match).
       filtered = results.map((r) => r.item).toList();
 
@@ -634,7 +642,7 @@ class _CommandPaletteItemState extends State<_CommandPaletteItem> {
 
     final spans = <TextSpan>[];
     final buffer = StringBuffer();
-    bool lastWasHighlighted = false;
+    var lastWasHighlighted = false;
 
     void flush(bool highlighted) {
       if (buffer.isEmpty) return;

@@ -19,19 +19,21 @@ Widget _wrap(Widget child) {
 }
 
 void main() {
-  group('SubAgentBannerProjectionCache', () {
+  group('AgentSessionProjectionCache', () {
     const emptyProjection = AgentSessionProjection(
       agents: <Map<String, dynamic>>[],
       progress: TaskProgress(total: 0, running: 0, completed: 0, error: 0),
     );
 
-    test('reuses the projection for the same session revision', () {
-      final cache = SubAgentBannerProjectionCache();
+    test('reuses the projection for the same session source and revision', () {
+      final cache = AgentSessionProjectionCache(maxEntries: 2);
+      final source = Object();
       var scans = 0;
 
       final first = cache.resolve(
         sessionId: 'session-a',
         revision: 7,
+        source: source,
         load: () {
           scans++;
           return emptyProjection;
@@ -40,6 +42,7 @@ void main() {
       final second = cache.resolve(
         sessionId: 'session-a',
         revision: 7,
+        source: source,
         load: () {
           scans++;
           return emptyProjection;
@@ -50,8 +53,10 @@ void main() {
       expect(scans, 1);
     });
 
-    test('refreshes only when the session or its revision changes', () {
-      final cache = SubAgentBannerProjectionCache();
+    test('refreshes when revision or source identity changes', () {
+      final cache = AgentSessionProjectionCache(maxEntries: 2);
+      final firstSource = Object();
+      final secondSource = Object();
       var scans = 0;
 
       AgentSessionProjection load() {
@@ -60,12 +65,64 @@ void main() {
       }
 
       cache
-        ..resolve(sessionId: 'session-a', revision: 1, load: load)
-        ..resolve(sessionId: 'session-a', revision: 2, load: load)
-        ..resolve(sessionId: 'session-b', revision: 2, load: load)
-        ..resolve(sessionId: 'session-b', revision: 2, load: load);
+        ..resolve(
+          sessionId: 'session-a',
+          revision: 1,
+          source: firstSource,
+          load: load,
+        )
+        ..resolve(
+          sessionId: 'session-a',
+          revision: 2,
+          source: firstSource,
+          load: load,
+        )
+        ..resolve(
+          sessionId: 'session-a',
+          revision: 2,
+          source: secondSource,
+          load: load,
+        )
+        ..resolve(
+          sessionId: 'session-a',
+          revision: 2,
+          source: secondSource,
+          load: load,
+        );
 
       expect(scans, 3);
+    });
+
+    test('bounds retained projections with least-recently-used eviction', () {
+      final cache = AgentSessionProjectionCache(maxEntries: 2);
+      final sources = <String, Object>{
+        'a': Object(),
+        'b': Object(),
+        'c': Object(),
+      };
+      var scans = 0;
+
+      AgentSessionProjection resolve(String sessionId) {
+        return cache.resolve(
+          sessionId: sessionId,
+          revision: 1,
+          source: sources[sessionId]!,
+          load: () {
+            scans++;
+            return emptyProjection;
+          },
+        );
+      }
+
+      resolve('a');
+      resolve('b');
+      resolve('a'); // Make a the most recently used entry.
+      resolve('c'); // Evicts b.
+      resolve('a');
+      resolve('b'); // Must scan again after eviction.
+
+      expect(scans, 4);
+      expect(cache.length, 2);
     });
   });
 

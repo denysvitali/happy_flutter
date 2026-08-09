@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -34,6 +36,63 @@ class AgentSessionProjection {
 
   final List<Map<String, dynamic>> agents;
   final TaskProgress progress;
+}
+
+class _AgentSessionProjectionCacheEntry {
+  _AgentSessionProjectionCacheEntry({
+    required this.revision,
+    required Object source,
+    required this.projection,
+  }) : source = WeakReference<Object>(source);
+
+  final int revision;
+  final WeakReference<Object> source;
+  final AgentSessionProjection projection;
+}
+
+/// Bounded cache for transcript-derived agent rows and counters.
+///
+/// A chat frame renders the app-bar badge and sticky status banner, then may
+/// immediately open the agents sheet. All three surfaces need the same
+/// projection. Keying it by the session's monotonic message revision avoids
+/// repeating a full recursive transcript walk for each consumer. The source
+/// identity is also checked so test fixtures and cache hydration remain safe
+/// when a list is replaced before a notification advances the revision.
+@visibleForTesting
+class AgentSessionProjectionCache {
+  AgentSessionProjectionCache({this.maxEntries = 24}) : assert(maxEntries > 0);
+
+  final int maxEntries;
+  final LinkedHashMap<String, _AgentSessionProjectionCacheEntry> _entries =
+      LinkedHashMap<String, _AgentSessionProjectionCacheEntry>();
+
+  int get length => _entries.length;
+
+  AgentSessionProjection resolve({
+    required String sessionId,
+    required int revision,
+    required Object source,
+    required AgentSessionProjection Function() load,
+  }) {
+    final cached = _entries.remove(sessionId);
+    if (cached != null &&
+        cached.revision == revision &&
+        identical(cached.source.target, source)) {
+      _entries[sessionId] = cached;
+      return cached.projection;
+    }
+
+    final projection = load();
+    _entries[sessionId] = _AgentSessionProjectionCacheEntry(
+      revision: revision,
+      source: source,
+      projection: projection,
+    );
+    while (_entries.length > maxEntries) {
+      _entries.remove(_entries.keys.first);
+    }
+    return projection;
+  }
 }
 
 String? _taskEventDescription(Map<String, dynamic> msg) {
@@ -122,6 +181,9 @@ class AgentsListSheet extends StatelessWidget {
   final void Function(Map<String, dynamic> agent, String navigationId)?
   onAgentTap;
 
+  static final AgentSessionProjectionCache _projectionCache =
+      AgentSessionProjectionCache();
+
   static bool _isAgentToolName(String? name) =>
       name == 'Task' || name == 'Agent' || name == 'Workflow';
 
@@ -146,7 +208,18 @@ class AgentsListSheet extends StatelessWidget {
   /// once. This is the canonical projection used by both the sheet and the
   /// sticky banner.
   static AgentSessionProjection computeProjection(String sessionId) {
-    final messages = sync.sessionMessages[sessionId] ?? [];
+    final messages = sync.messagesForSession(sessionId);
+    return _projectionCache.resolve(
+      sessionId: sessionId,
+      revision: sync.messagesRevision(sessionId),
+      source: messages,
+      load: () => _computeProjection(messages),
+    );
+  }
+
+  static AgentSessionProjection _computeProjection(
+    List<Map<String, dynamic>> messages,
+  ) {
     final taskStates = <String, _TaskEventAgent>{};
     final backgroundShellTaskIds = <String>{};
     final catalogSeen = <String>{};

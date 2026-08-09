@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
+import 'package:happy_flutter/core/providers/sessions_notifier.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 
@@ -277,6 +278,48 @@ void main() {
       },
     );
 
+    test('sorted-session cache tracks effective lifecycle activity', () {
+      final inactive = buildSession(
+        'session-1',
+        path: '/home/dev/app',
+        machineId: 'm1',
+        updatedAt: 100,
+        activeAt: 100,
+        active: false,
+      );
+      final initialSessions = <String, Session>{inactive.id: inactive};
+      final archived = <String>{};
+      final first = computeSortedSessions(
+        initialSessions,
+        previous: null,
+        lastSessions: null,
+        lastSearchQuery: null,
+        optimisticallyArchivedIds: archived,
+        getLastMessageTimestamp: (_) => null,
+      );
+      expect(first.active, isEmpty);
+
+      final running = inactive.copyWith(
+        metadata: inactive.metadata!.copyWith(
+          lifecycleState: 'running',
+          lifecycleStateSince: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+      final updatedSessions = <String, Session>{running.id: running};
+      final second = computeSortedSessions(
+        updatedSessions,
+        previous: first,
+        lastSessions: initialSessions,
+        lastSearchQuery: '',
+        optimisticallyArchivedIds: archived,
+        lastOptimisticallyArchivedIds: archived,
+        getLastMessageTimestamp: (_) => null,
+      );
+
+      expect(second, isNot(same(first)));
+      expect(second.active.single.id, running.id);
+    });
+
     test('collection projection ignores row-only session changes', () {
       final session = buildSession(
         'active-1',
@@ -297,9 +340,25 @@ void main() {
           metadata: session.metadata!.copyWith(path: '/home/dev/other'),
         ),
       });
-
       expect(rowOnlyUpdate, initial);
       expect(regroupingUpdate, isNot(initial));
+    });
+
+    test('collection projection consumes notifier-prepared revision', () {
+      final session = buildSession(
+        'active-1',
+        path: '/home/dev/app',
+        machineId: 'm1',
+        updatedAt: 100,
+        activeAt: 100,
+        active: true,
+      );
+      final sessions = SessionCollectionSnapshot({session.id: session});
+
+      final projection = SessionCollectionProjection.fromSessions(sessions);
+
+      expect(projection.sessions, same(sessions));
+      expect(projection.revision, sessions.collectionRevision);
     });
 
     test('ordering projection ignores previews but tracks timestamps', () {
@@ -337,6 +396,28 @@ void main() {
       expect(previewUpdate, initial);
       expect(timestampUpdate, isNot(initial));
       expect(timestampUpdate.timestampFor('active-1'), 101);
+    });
+
+    test('prepared ordering inputs reuse identity for row-only updates', () {
+      final initial = SessionUiOrdering.reconcile(
+        previous: SessionUiOrdering.empty,
+        timestamps: const {'active-1': 100},
+        optimisticallyArchivedIds: const <String>{},
+      );
+      final rowOnlyUpdate = SessionUiOrdering.reconcile(
+        previous: initial,
+        timestamps: const {'active-1': 100},
+        optimisticallyArchivedIds: const <String>{},
+      );
+      final timestampUpdate = SessionUiOrdering.reconcile(
+        previous: rowOnlyUpdate,
+        timestamps: const {'active-1': 101},
+        optimisticallyArchivedIds: const <String>{},
+      );
+
+      expect(identical(rowOnlyUpdate, initial), isTrue);
+      expect(timestampUpdate.revision, initial.revision + 1);
+      expect(timestampUpdate.timestamps['active-1'], 101);
     });
 
     test('tablet candidate projection is identity-stable for row updates', () {

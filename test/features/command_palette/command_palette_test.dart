@@ -350,6 +350,37 @@ void main() {
       expect(find.text('Zen Mode'), findsOneWidget);
     });
 
+    testWidgets('active search reindexes when commands change', (tester) async {
+      final commands = _sampleCommands();
+
+      await tester.pumpWidget(
+        _wrapWithApp(CommandPaletteOverlay(commands: commands, onClose: () {})),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'diagnostics');
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('No commands found'), findsOneWidget);
+
+      final updatedCommands = [
+        ...commands,
+        CommandItem(
+          id: 'diagnostics',
+          title: 'Connection diagnostics',
+          action: () {},
+        ),
+      ];
+      await tester.pumpWidget(
+        _wrapWithApp(
+          CommandPaletteOverlay(commands: updatedCommands, onClose: () {}),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Connection diagnostics'), findsOneWidget);
+      expect(find.text('No commands found'), findsNothing);
+    });
+
     // -- Command tap --
 
     testWidgets('tapping a command fires action and closes', (tester) async {

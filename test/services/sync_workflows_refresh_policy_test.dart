@@ -126,6 +126,58 @@ void main() {
     await Future.wait([first, second]);
   });
 
+  test('concurrent snapshot fetches share one RPC', () async {
+    sync.testSessions['s1'] = _session(id: 's1', activeAt: 1);
+    final response = Completer<dynamic>();
+    var calls = 0;
+    sync.testSessionRPCOverride = (sessionId, method, params) {
+      calls++;
+      return response.future;
+    };
+
+    final first = sync.fetchWorkflowSnapshot('s1', 'run-1');
+    final second = sync.fetchWorkflowSnapshot('s1', 'run-1');
+    expect(first, same(second));
+    await Future<void>.delayed(Duration.zero);
+    expect(calls, 1);
+
+    response.complete({
+      'ok': true,
+      'snapshot': <String, dynamic>{
+        'runId': 'run-1',
+        'workflowName': 'Audit',
+        'status': WorkflowStatus.running,
+      },
+    });
+    final snapshots = await Future.wait([first, second]);
+
+    expect(snapshots[0], same(snapshots[1]));
+  });
+
+  test('unchanged list refresh does not publish a workflow change', () async {
+    sync.testSessions['s1'] = _session(id: 's1', activeAt: 1);
+    const cached = WorkflowRun(
+      runId: 'run-1',
+      workflowName: 'Audit',
+      status: WorkflowStatus.running,
+    );
+    sync.testSetWorkflows('s1', const <WorkflowRun>[cached]);
+    sync.testSessionRPCOverride = (sessionId, method, params) async =>
+        <String, dynamic>{
+          'ok': true,
+          'workflows': <dynamic>[cached.toJson()],
+        };
+    var changeEvents = 0;
+    final subscription = sync.onWorkflowsChanged.listen((_) => changeEvents++);
+    addTearDown(subscription.cancel);
+
+    await sync.refreshWorkflowsForSession('s1');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(changeEvents, 0);
+    expect(sync.workflowsForSession('s1').single, same(cached));
+  });
+
   test(
     'unsupported workflow RPC is remembered for the session capability',
     () async {
