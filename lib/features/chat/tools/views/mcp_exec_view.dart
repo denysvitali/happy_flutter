@@ -157,7 +157,7 @@ class McpExecView extends StatelessWidget {
       children: [
         CommandView(
           command: command,
-          description: target ?? cwd ?? _serverLabel(toolName),
+          cwd: target ?? cwd ?? _serverLabel(toolName),
           stdout: exec.stdout,
           stderr: exec.stderr,
           exitCode: exec.exitCode,

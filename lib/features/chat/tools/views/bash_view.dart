@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/exit_code_badge.dart';
-import 'package:happy_flutter/core/components/tool_view_buttons.dart';
-import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/tool_result_parser.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
 import '../tool_section_view.dart';
-import '_section_label.dart';
-import '../tool_view_widgets.dart';
+import 'terminal_command_bar.dart';
+import 'terminal_output_section.dart';
 
 /// View for displaying Bash tool command and output.
 class BashView extends StatelessWidget {
@@ -30,8 +26,7 @@ class BashView extends StatelessWidget {
     final state = tool['state'] as String? ?? 'pending';
 
     final command = cleanShellCommand(input['command'] as String?);
-    final description =
-        input['description'] as String? ?? _descriptionFromCommand(command);
+    final description = input['description'] as String?;
 
     final stdout = state == 'completed' && result != null
         ? parseStdout(result)
@@ -45,43 +40,18 @@ class BashView extends StatelessWidget {
     final error = state == 'error' && result != null ? result.toString() : null;
 
     return ToolSectionView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SectionLabel(label: context.l10n.toolSectionCommand),
-          const SizedBox(height: AppSpacing.xs),
-          CommandView(
-            command: command,
-            description: description,
-            stdout: stdout,
-            stderr: stderr,
-            exitCode: exitCode,
-            error: error,
-          ),
-        ],
+      child: CommandView(
+        command: command,
+        description: description,
+        stdout: stdout,
+        stderr: stderr,
+        exitCode: exitCode,
+        error: error,
+        rawResult: result,
       ),
     );
   }
 
-  static String? _descriptionFromCommand(String command) {
-    if (command.isEmpty) return null;
-    final firstWord = command.split(' ').first;
-    const knownCommands = {
-      'cd',
-      'ls',
-      'pwd',
-      'mkdir',
-      'rm',
-      'cp',
-      'mv',
-      'npm',
-      'yarn',
-      'git',
-    };
-    if (knownCommands.contains(firstWord)) return '$firstWord command';
-    return command.length > 20 ? '${command.substring(0, 20)}...' : command;
-  }
 }
 
 /// View for function-style command execution tools.
@@ -121,7 +91,7 @@ class ExecCommandView extends StatelessWidget {
     return ToolSectionView(
       child: CommandView(
         command: command,
-        description: cwd,
+        cwd: cwd,
         stdout: stdout,
         stderr: stderr,
         exitCode: exitCode,
@@ -133,10 +103,11 @@ class ExecCommandView extends StatelessWidget {
 }
 
 /// Command view showing the command being executed and its output.
-class CommandView extends StatefulWidget {
+class CommandView extends StatelessWidget {
   const CommandView({
     required this.command,
     super.key,
+    this.cwd,
     this.description,
     this.stdout,
     this.stderr,
@@ -148,6 +119,9 @@ class CommandView extends StatefulWidget {
 
   /// The shell command string.
   final String command;
+
+  /// Optional working directory / target shown in the card header.
+  final String? cwd;
 
   /// Human-readable description of what the command does.
   final String? description;
@@ -171,16 +145,6 @@ class CommandView extends StatefulWidget {
   final bool hideEmptyOutput;
 
   @override
-  State<CommandView> createState() => _CommandViewState();
-}
-
-class _CommandViewState extends State<CommandView> {
-  static const int _defaultMaxLines = 20;
-
-  bool _stdoutExpanded = false;
-  bool _stderrExpanded = false;
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
@@ -188,51 +152,40 @@ class _CommandViewState extends State<CommandView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _TerminalCommandBar(
-          command: widget.command,
-          description: widget.description,
+        TerminalCommandBar(
+          command: command,
+          cwd: cwd,
+          description: description,
         ),
-        if (widget.stdout != null && widget.stdout!.isNotEmpty)
-          _TerminalOutputSection(
+        if (stdout != null && stdout!.isNotEmpty)
+          TerminalOutputSection(
             label: 'stdout',
-            output: widget.stdout!,
+            output: stdout!,
             isError: false,
-            expanded: _stdoutExpanded,
-            maxLines: _defaultMaxLines,
-            onToggleExpand: () =>
-                setState(() => _stdoutExpanded = !_stdoutExpanded),
           ),
-        if (widget.stderr != null && widget.stderr!.isNotEmpty)
-          _TerminalOutputSection(
+        if (stderr != null && stderr!.isNotEmpty)
+          TerminalOutputSection(
             label: 'stderr',
-            output: widget.stderr!,
+            output: stderr!,
             isError: true,
-            expanded: _stderrExpanded,
-            maxLines: _defaultMaxLines,
-            onToggleExpand: () =>
-                setState(() => _stderrExpanded = !_stderrExpanded),
           ),
-        if (widget.error != null)
-          _TerminalOutputSection(
+        if (error != null)
+          TerminalOutputSection(
             label: 'error',
-            output: widget.error!,
+            output: error!,
             isError: true,
-            expanded: _stderrExpanded,
-            maxLines: _defaultMaxLines,
-            onToggleExpand: () =>
-                setState(() => _stderrExpanded = !_stderrExpanded),
           ),
-        if (widget.exitCode != null) ExitCodeBadge(exitCode: widget.exitCode!),
+        if (exitCode != null) ExitCodeBadge(exitCode: exitCode!),
         // Raw JSON output is reachable via long-press → details; no inline
         // toggle here. The `rawResult` field is preserved for callers that
         // pass it through (e.g. message_detail_screen pulls it from the
         // tool data directly), but the inline UI only renders the text
         // sections above.
-        if (widget.stdout == null &&
-            widget.stderr == null &&
-            widget.error == null &&
-            widget.exitCode != null &&
-            widget.exitCode == 0)
+        if (stdout == null &&
+            stderr == null &&
+            error == null &&
+            exitCode != null &&
+            exitCode == 0)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(
@@ -244,274 +197,6 @@ class _CommandViewState extends State<CommandView> {
             ),
           ),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Private sub-widgets
-// ---------------------------------------------------------------------------
-
-class _TerminalCommandBar extends StatelessWidget {
-  const _TerminalCommandBar({required this.command, this.description});
-  final String command;
-  final String? description;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    // Show description as primary label; fall back to "bash".
-    final label = description ?? 'bash';
-
-    return Container(
-      decoration: toolCardDecoration(cs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Title bar -- description (or "bash") + copy button
-          Container(
-            padding: toolCardHeaderPadding,
-            decoration: toolCardHeaderDecoration(cs),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.terminal,
-                  size: AppIconSize.sm,
-                  color: cs.onSurfaceVariant,
-                ),
-                const SizedBox(width: AppSpacing.xsm),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: description != null
-                          ? cs.onSurface
-                          : cs.onSurfaceVariant,
-                      fontFamily: description != null ? null : 'monospace',
-                      letterSpacing: description != null ? null : 0.5,
-                    ),
-                  ),
-                ),
-                ToolViewCopyButton(text: command, iconSize: 14),
-              ],
-            ),
-          ),
-          // Command -- single line, truncated with "$" prefix
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.smd,
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  r'$',
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.md,
-                    color: AppColors.success,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    // Collapse newlines so multi-line commands fit one line
-                    command.replaceAll('\n', ' '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.md,
-                      color: cs.onSurface,
-                      height: AppLineHeight.normal,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TerminalOutputSection extends StatefulWidget {
-  const _TerminalOutputSection({
-    required this.label,
-    required this.output,
-    required this.isError,
-    required this.expanded,
-    required this.maxLines,
-    required this.onToggleExpand,
-  });
-  final String label;
-  final String output;
-  final bool isError;
-  final bool expanded;
-  final int maxLines;
-  final VoidCallback onToggleExpand;
-
-  @override
-  State<_TerminalOutputSection> createState() => _TerminalOutputSectionState();
-}
-
-class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
-  late int _totalLines;
-  late bool _needsTruncation;
-  late String _visibleText;
-  late List<TextSpan> _parsedSpans;
-  // Track the style used to build _parsedSpans so we can avoid
-  // re-parsing when only unrelated parts of the tree rebuild.
-  TextStyle? _lastDefaultStyle;
-
-  /// Recomputes _totalLines, _needsTruncation, and _visibleText from
-  /// widget fields.  Call whenever output, expanded, or maxLines changes.
-  void _recomputeVisibleText() {
-    final lines = widget.output.split('\n');
-    _totalLines = lines.length;
-    _needsTruncation = _totalLines > widget.maxLines;
-    final visibleLines = widget.expanded || !_needsTruncation
-        ? lines
-        : lines.take(widget.maxLines).toList();
-    _visibleText = visibleLines.join('\n');
-  }
-
-  /// Rebuilds _parsedSpans using [defaultStyle].  Only called when
-  /// _visibleText or defaultStyle actually changes.
-  void _recomputeSpans(TextStyle defaultStyle) {
-    _parsedSpans = AnsiParser.parse(_visibleText, defaultStyle: defaultStyle);
-    _lastDefaultStyle = defaultStyle;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _recomputeVisibleText();
-    // Spans are populated on first build() once we have a BuildContext.
-    _parsedSpans = const [];
-  }
-
-  @override
-  void didUpdateWidget(_TerminalOutputSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.output != widget.output ||
-        oldWidget.expanded != widget.expanded ||
-        oldWidget.maxLines != widget.maxLines) {
-      _recomputeVisibleText();
-      // Force re-parse on next build by clearing the cached style.
-      _lastDefaultStyle = null;
-    } else if (oldWidget.isError != widget.isError) {
-      // visibleText is unchanged but the default text color may differ;
-      // clear the cached style so build() re-parses with the new color.
-      _lastDefaultStyle = null;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isError = widget.isError;
-
-    final defaultStyle = TextStyle(
-      fontFamily: 'monospace',
-      fontSize: AppFontSize.sm,
-      color: isError ? AppColors.error : cs.onSurface,
-      height: AppLineHeight.relaxed,
-    );
-
-    // Re-parse only when _visibleText or defaultStyle actually changed.
-    if (_lastDefaultStyle != defaultStyle) {
-      _recomputeSpans(defaultStyle);
-    }
-
-    final labelColor = isError ? AppColors.error : cs.onSurfaceVariant;
-    final borderColor = isError ? AppColors.error : cs.outlineVariant;
-    final bgColor = isError ? cs.errorContainer : cs.surface;
-
-    return Container(
-      margin: const EdgeInsets.only(top: AppSpacing.xsm),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Section header
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.smd,
-              vertical: AppSpacing.xxs2,
-            ),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainer,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppRadius.sm),
-                topRight: Radius.circular(AppRadius.sm),
-              ),
-              border: Border(bottom: BorderSide(color: borderColor)),
-            ),
-            child: Row(
-              children: [
-                if (isError)
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.xxs2),
-                    child: Icon(
-                      Icons.error_outline,
-                      size: AppIconSize.xs,
-                      color: AppColors.error,
-                    ),
-                  ),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.xs,
-                    color: labelColor,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '$_totalLines line${_totalLines == 1 ? '' : 's'}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontSize: AppFontSize.xxs,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                ToolViewCopyButton(
-                  text: AnsiParser.strip(widget.output),
-                  iconSize: 13,
-                ),
-              ],
-            ),
-          ),
-          // Output text
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.smd),
-            child: SelectableText.rich(TextSpan(children: _parsedSpans)),
-          ),
-          // Show more / show less button
-          if (_needsTruncation)
-            ToolViewShowMoreButton(
-              expanded: widget.expanded,
-              hiddenCount: _totalLines - widget.maxLines,
-              onToggle: widget.onToggleExpand,
-            ),
-        ],
-      ),
     );
   }
 }

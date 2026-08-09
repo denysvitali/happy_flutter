@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/exit_code_badge.dart';
-import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
-import 'package:happy_flutter/core/utils/ansi_parser.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/tool_result_parser.dart';
@@ -13,6 +11,7 @@ import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import '../tool_section_view.dart';
 import '../tool_view_widgets.dart';
 import 'terminal_command_bar.dart';
+import 'terminal_output_section.dart';
 
 /// View for displaying CodexBash tool (parsed bash commands).
 class CodexBashView extends StatelessWidget {
@@ -272,7 +271,7 @@ class _FileOperationBar extends StatelessWidget {
 // Terminal command view (stateful for expand/collapse)
 // ---------------------------------------------------------------------------
 
-class _CodexCommandView extends StatefulWidget {
+class _CodexCommandView extends StatelessWidget {
   const _CodexCommandView({
     required this.command,
     this.cwd,
@@ -291,41 +290,31 @@ class _CodexCommandView extends StatefulWidget {
   final dynamic rawResult;
 
   @override
-  State<_CodexCommandView> createState() => _CodexCommandViewState();
-}
-
-class _CodexCommandViewState extends State<_CodexCommandView> {
-  static const int _maxLines = 20;
-
-  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        TerminalCommandBar(command: widget.command, cwd: widget.cwd),
-        if (widget.stdout != null && widget.stdout!.isNotEmpty)
-          _TerminalOutputSection(
+        TerminalCommandBar(command: command, cwd: cwd),
+        if (stdout != null && stdout!.isNotEmpty)
+          TerminalOutputSection(
             label: 'stdout',
-            output: widget.stdout!,
+            output: stdout!,
             isError: false,
-            maxLines: _maxLines,
           ),
-        if (widget.stderr != null && widget.stderr!.isNotEmpty)
-          _TerminalOutputSection(
+        if (stderr != null && stderr!.isNotEmpty)
+          TerminalOutputSection(
             label: 'stderr',
-            output: widget.stderr!,
+            output: stderr!,
             isError: true,
-            maxLines: _maxLines,
           ),
-        if (widget.error != null)
-          _TerminalOutputSection(
+        if (error != null)
+          TerminalOutputSection(
             label: 'error',
-            output: widget.error!,
+            output: error!,
             isError: true,
-            maxLines: _maxLines,
           ),
-        if (widget.exitCode != null) ExitCodeBadge(exitCode: widget.exitCode!),
+        if (exitCode != null) ExitCodeBadge(exitCode: exitCode!),
         // Raw JSON output is reachable via long-press → details; no inline
         // toggle here.
       ],
@@ -333,135 +322,3 @@ class _CodexCommandViewState extends State<_CodexCommandView> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shared terminal sub-widgets
-// ---------------------------------------------------------------------------
-
-
-class _TerminalOutputSection extends StatefulWidget {
-  const _TerminalOutputSection({
-    required this.label,
-    required this.output,
-    required this.isError,
-    required this.maxLines,
-  });
-  final String label;
-  final String output;
-  final bool isError;
-  final int maxLines;
-
-  @override
-  State<_TerminalOutputSection> createState() => _TerminalOutputSectionState();
-}
-
-class _TerminalOutputSectionState extends State<_TerminalOutputSection> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isError = widget.isError;
-    final totalLines = widget.output.split('\n').length;
-    final needsTruncation = totalLines > widget.maxLines;
-
-    final labelColor = isError ? AppColors.error : cs.onSurfaceVariant;
-    final borderColor = isError ? AppColors.error : cs.outlineVariant;
-    final bgColor = isError ? cs.errorContainer : cs.surface;
-
-    final lines = widget.output.split('\n');
-    final visibleLines = _expanded || !needsTruncation
-        ? lines
-        : lines.take(widget.maxLines).toList();
-    final visibleText = visibleLines.join('\n');
-    final defaultStyle = TextStyle(
-      fontFamily: 'monospace',
-      fontFamilyFallback: const ['Courier New', 'Courier'],
-      fontSize: AppFontSize.sm,
-      color: cs.onSurface,
-      height: AppLineHeight.relaxed,
-    );
-    final parsedSpans = AnsiParser.parse(
-      visibleText,
-      defaultStyle: defaultStyle,
-    );
-
-    return Container(
-      margin: const EdgeInsets.only(top: AppSpacing.xsm),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.smd,
-              vertical: AppSpacing.xxs2,
-            ),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainer,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(AppRadius.sm),
-                topRight: Radius.circular(AppRadius.sm),
-              ),
-              border: Border(bottom: BorderSide(color: borderColor)),
-            ),
-            child: Row(
-              children: [
-                if (isError)
-                  Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.xxs2),
-                    child: Icon(
-                      Icons.error_outline,
-                      size: AppIconSize.xs,
-                      color: AppColors.error,
-                    ),
-                  ),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.xs,
-                    color: labelColor,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '$totalLines line${totalLines == 1 ? '' : 's'}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontSize: AppFontSize.xxs,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                ToolViewCopyButton(
-                  text: AnsiParser.strip(widget.output),
-                  iconSize: 13,
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.smd),
-            child: SelectableText.rich(
-              TextSpan(children: parsedSpans),
-              style: defaultStyle,
-            ),
-          ),
-          if (needsTruncation)
-            ToolViewShowMoreButton(
-              expanded: _expanded,
-              hiddenCount: totalLines - widget.maxLines,
-              onToggle: () => setState(() => _expanded = !_expanded),
-            ),
-        ],
-      ),
-    );
-  }
-}

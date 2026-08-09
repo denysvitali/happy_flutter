@@ -167,7 +167,9 @@ void main() {
       expect(find.text('Install dependencies'), findsOneWidget);
     });
 
-    testWidgets('derives description from known commands', (tester) async {
+    testWidgets('renders the bash header when no description is given', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           BashView(
@@ -179,8 +181,10 @@ void main() {
         ),
       );
 
-      // Falls back to derived description
-      expect(find.text('git command'), findsOneWidget);
+      // Same header as Codex/Gemini shell views — no fabricated description.
+      expect(find.text('bash'), findsOneWidget);
+      expect(find.text('git status'), findsOneWidget);
+      expect(find.text('git command'), findsNothing);
     });
 
     testWidgets('renders "No output" when stdout is empty and exit is 0', (
