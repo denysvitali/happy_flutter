@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
+import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_headers.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 import 'package:happy_flutter/features/sessions/widgets/sessions_list_content.dart';
@@ -120,7 +121,13 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(find.text('Before update'), findsOneWidget);
+      final beforeView = tester.widget<MissionControlView>(
+        find.byType(MissionControlView),
+      );
+      expect(
+        beforeView.activeSessions.single.metadata?.summary?.text,
+        'Before update',
+      );
 
       await tester.pumpWidget(
         _app(
@@ -138,8 +145,14 @@ void main() {
       sessionsNotifier.replaceWith(_after);
       await tester.pump();
 
-      expect(find.text('Before update'), findsOneWidget);
-      expect(find.text('After update'), findsNothing);
+      final hiddenView = tester.widget<MissionControlView>(
+        find.byType(MissionControlView),
+      );
+      expect(identical(hiddenView, beforeView), isTrue);
+      expect(
+        hiddenView.activeSessions.single.metadata?.summary?.text,
+        'Before update',
+      );
 
       await tester.pumpWidget(
         _app(
@@ -151,8 +164,14 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Before update'), findsNothing);
-      expect(find.text('After update'), findsOneWidget);
+      final afterView = tester.widget<MissionControlView>(
+        find.byType(MissionControlView),
+      );
+      expect(identical(afterView, beforeView), isFalse);
+      expect(
+        afterView.activeSessions.single.metadata?.summary?.text,
+        'After update',
+      );
     },
   );
 }
