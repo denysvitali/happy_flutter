@@ -7,12 +7,13 @@ import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/artifact.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/routing/safe_pop.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/sync_service.dart' show SyncDomain;
+import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
-import '../../core/routing/safe_pop.dart';
-import '../../core/sync/sync_subscription_mixin.dart';
 import 'widgets/artifact_pane_header.dart';
 
 /// Screen showing detail view for a single artifact.
@@ -293,8 +294,10 @@ class _ArtifactSessionRow extends StatelessWidget {
       style: const TextStyle(fontFamily: 'monospace'),
     ),
     trailing: const Icon(Icons.chevron_right),
-    onTap: () =>
-        context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
+    onTap: () {
+      ChatSwitchMetrics().begin(sessionId, source: 'artifact_detail');
+      context.pushNamed('chat', pathParameters: {'sessionId': sessionId});
+    },
   );
 }
 

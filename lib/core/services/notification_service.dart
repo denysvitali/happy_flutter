@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 
 import '../utils/permission_description.dart';
+import 'chat_switch_metrics.dart';
 import 'logger_service.dart';
 import 'sync_service.dart';
 
@@ -760,6 +761,7 @@ class NotificationService {
 
     final sessionId = data['sessionId'] as String?;
     if (sessionId != null) {
+      ChatSwitchMetrics().begin(sessionId, source: 'notification');
       _router!.goNamed('chat', pathParameters: {'sessionId': sessionId});
     }
   }

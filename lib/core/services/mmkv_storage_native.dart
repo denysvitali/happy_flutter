@@ -9,6 +9,33 @@ import '../models/profile.dart' as models;
 import '../models/settings.dart';
 import 'logger_service.dart' show logger;
 
+/// Reads a message-cache blob from a background isolate.
+///
+/// MMKV's native state is process-global, so the default handle can be opened
+/// in a Dart worker after the main isolate has initialized the library.
+String? readSessionMessagesEncodedInWorker(String sessionId) {
+  try {
+    return MMKV.defaultMMKV().decodeString('session-messages-$sessionId');
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Persists a message-cache blob without running MMKV FFI on the UI isolate.
+bool writeSessionMessagesEncodedInWorker(
+  String sessionId,
+  String encodedMessages,
+) {
+  try {
+    return MMKV.defaultMMKV().encodeString(
+      'session-messages-$sessionId',
+      encodedMessages,
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
 /// Storage keys for MMKV
 class _StorageKeys {
   static const String settings = 'settings';
@@ -642,8 +669,16 @@ class MMKVStorage {
 
   // ─── Session message cache ──────────────────────────────────────
 
+  String? getSessionMessagesEncoded(String sessionId) {
+    return _mmkv?.decodeString('session-messages-$sessionId');
+  }
+
+  Future<String?> getSessionMessagesEncodedAsync(String sessionId) async {
+    return getSessionMessagesEncoded(sessionId);
+  }
+
   List<Map<String, dynamic>> getSessionMessages(String sessionId) {
-    final raw = _mmkv?.decodeString('session-messages-$sessionId');
+    final raw = getSessionMessagesEncoded(sessionId);
     if (raw == null) return [];
     try {
       final list = jsonDecode(raw) as List<dynamic>;

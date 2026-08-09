@@ -15,15 +15,16 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/routing/safe_pop.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/sync_service.dart';
+import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart'
     show AppFontSize, AppRadius, AppSpacing, AppTouchTarget;
-import '../../core/routing/safe_pop.dart';
-import '../../core/sync/sync_subscription_mixin.dart';
-import '../../core/utils/utils.dart';
-import '../../core/utils/snack.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/snack.dart';
+import '../../core/utils/utils.dart';
 import '../../core/utils/version_utils.dart';
 
 /// Detail screen for a single machine.
@@ -344,8 +345,14 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                       name: _getSessionName(machineSessions[i]),
                       subtitle: _getSessionSubtitle(machineSessions[i]),
                       isOnline: machineSessions[i].isPresenceOnline,
-                      onTap: () =>
-                          context.push('/chat/${machineSessions[i].id}'),
+                      onTap: () {
+                        final sessionId = machineSessions[i].id;
+                        ChatSwitchMetrics().begin(
+                          sessionId,
+                          source: 'machine_detail',
+                        );
+                        context.push('/chat/$sessionId');
+                      },
                     ),
                   if (machineSessions.length > 5)
                     _GroupedRow(

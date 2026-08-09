@@ -4,13 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/providers/app_providers.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../i18n/app_localizations.dart';
+import '../utils/utils.dart';
 import 'app_status_dot.dart';
 import 'voice_assistant_status_bar.dart';
-import '../utils/utils.dart';
 
 /// Sidebar navigation widget matching React Native's SidebarView.tsx.
 ///
@@ -380,7 +381,10 @@ class _SidebarSessionListItem extends ConsumerWidget {
       elevation: 0,
       color: cs.surface,
       child: InkWell(
-        onTap: () => context.push('/chat/${session.id}'),
+        onTap: () {
+          ChatSwitchMetrics().begin(session.id, source: 'sidebar');
+          context.push('/chat/${session.id}');
+        },
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),

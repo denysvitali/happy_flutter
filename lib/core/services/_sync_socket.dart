@@ -530,7 +530,13 @@ extension SyncSocket on Sync {
           // (_restoreAllCachedMessages) so children are correctly
           // re-parented.  Previously we stripped isSidechain messages
           // here, which permanently lost them on cold-start.
-          unawaited(MessageCacheService().saveMessagesAsync(sessionId, msgs));
+          unawaited(
+            MessageCacheService().saveMessagesAsync(
+              sessionId,
+              msgs,
+              revision: messagesRevision(sessionId),
+            ),
+          );
         }
       },
     );
@@ -547,7 +553,7 @@ extension SyncSocket on Sync {
   static const int _saveMsgsDebounceMs = 2000;
 
   /// Hard ceiling on how long sustained streaming can defer a write.
-  static const int _saveMsgsMaxDelayMs = 5000;
+  static const int _saveMsgsMaxDelayMs = 15000;
 
   /// Immediately flush all pending debounced message saves so the MMKV
   /// cache is not stale when the app is backgrounded or killed.
@@ -559,6 +565,7 @@ extension SyncSocket on Sync {
     MessageCacheService().flushPendingMessages(
       _sessionMessages,
       additionalSessionIds: timerSessionIds,
+      latestRevisions: _sessionMessagesRevision,
     );
     _saveMsgsDebounceTimers.clear();
     _saveMsgsFirstScheduledAtMs.clear();

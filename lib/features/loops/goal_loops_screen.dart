@@ -7,6 +7,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/remote_feature_failure_localization.dart';
 import '../../core/models/loop.dart';
 import '../../core/providers/goal_loops_notifier.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'create_goal_loop_sheet.dart';
@@ -88,7 +89,10 @@ class GoalLoopsScreen extends ConsumerWidget {
         onDelete: () => notifier
             .delete(machineId: loop.machineId, loopId: loop.id)
             .then((res) => _report(messenger, l10n, fallbackError, res)),
-        onOpenSession: (sessionId) => context.push('/chat/$sessionId'),
+        onOpenSession: (sessionId) {
+          ChatSwitchMetrics().begin(sessionId, source: 'goal_loops');
+          context.push('/chat/$sessionId');
+        },
       ),
     );
   }

@@ -21,6 +21,15 @@ import '../models/profile.dart' as models;
 import '../models/settings.dart';
 import 'logger_service.dart' show logger;
 
+// Web `compute` shares the browser event loop, so message-cache persistence
+// continues through IndexedDB instead of these native-worker entry points.
+String? readSessionMessagesEncodedInWorker(String sessionId) => null;
+
+bool writeSessionMessagesEncodedInWorker(
+  String sessionId,
+  String encodedMessages,
+) => false;
+
 /// Storage key constants (mirrors mmkv_storage_native.dart)
 class _Keys {
   static const String settings = 'settings';
@@ -579,10 +588,29 @@ class MMKVStorage {
 
   // ─── Session message cache ──────────────────────────────────────────
 
-  List<Map<String, dynamic>> getSessionMessages(String sessionId) {
+  String? getSessionMessagesEncoded(String sessionId) {
+    return _cache['session-messages-$sessionId'];
+  }
+
+  Future<String?> getSessionMessagesEncodedAsync(String sessionId) async {
     final key = 'session-messages-$sessionId';
+    var raw = _cache[key];
+    if (raw == null && _sessionMessageCacheKeys.contains(key)) {
+      final txn = _db!.transaction(_storeName, idbModeReadOnly);
+      final store = txn.objectStore(_storeName);
+      final value = await store.getObject(key);
+      await txn.completed;
+      if (value is String) {
+        raw = value;
+        _cache[key] = value;
+      }
+    }
+    return raw;
+  }
+
+  List<Map<String, dynamic>> getSessionMessages(String sessionId) {
     try {
-      final raw = _cache[key];
+      final raw = getSessionMessagesEncoded(sessionId);
       if (raw == null) return [];
       final list = jsonDecode(raw) as List<dynamic>;
       return list.cast<Map<String, dynamic>>();
@@ -594,19 +622,8 @@ class MMKVStorage {
   Future<List<Map<String, dynamic>>> getSessionMessagesAsync(
     String sessionId,
   ) async {
-    final key = 'session-messages-$sessionId';
     try {
-      var raw = _cache[key];
-      if (raw == null && _sessionMessageCacheKeys.contains(key)) {
-        final txn = _db!.transaction(_storeName, idbModeReadOnly);
-        final store = txn.objectStore(_storeName);
-        final value = await store.getObject(key);
-        await txn.completed;
-        if (value is String) {
-          raw = value;
-          _cache[key] = value;
-        }
-      }
+      final raw = await getSessionMessagesEncodedAsync(sessionId);
       if (raw == null) return [];
       final list = jsonDecode(raw) as List<dynamic>;
       return list.cast<Map<String, dynamic>>();

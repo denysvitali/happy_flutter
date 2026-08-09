@@ -185,6 +185,29 @@ class AtRestEncryptionService {
   String? unprotectString(String protected, {required String associatedData}) {
     final key = _key;
     if (key == null || !isProtected(protected)) return null;
+    try {
+      return _unprotectStringWithKey(
+        protected,
+        associatedData: associatedData,
+        key: key,
+      );
+    } catch (error) {
+      logger.warning(
+        '[AtRestEncryption] payload authentication failed: '
+        '${error.runtimeType}',
+      );
+      return null;
+    }
+  }
+
+  static String? _unprotectStringWithKey(
+    String protected, {
+    required String associatedData,
+    required Uint8List key,
+  }) {
+    if (!protected.startsWith(envelopePrefix) || key.length != _keyLength) {
+      return null;
+    }
     final keyData = SecretKeyData(Uint8List.fromList(key));
     try {
       final bytes = base64Decode(protected.substring(envelopePrefix.length));
@@ -198,12 +221,6 @@ class AtRestEncryptionService {
         aad: utf8.encode(associatedData),
       );
       return utf8.decode(cleartext);
-    } catch (error) {
-      logger.warning(
-        '[AtRestEncryption] payload authentication failed: '
-        '${error.runtimeType}',
-      );
-      return null;
     } finally {
       keyData.destroy();
     }
@@ -222,6 +239,25 @@ String? protectAtRestPayloadForWorker(
   try {
     return AtRestEncryptionService._protectStringWithKey(
       plaintext,
+      associatedData: associatedData,
+      key: key,
+    );
+  } catch (_) {
+    return null;
+  } finally {
+    key.fillRange(0, key.length, 0);
+  }
+}
+
+/// Decrypts one payload in an isolate and destroys the caller's key copy.
+String? unprotectAtRestPayloadForWorker(
+  String protected, {
+  required String associatedData,
+  required Uint8List key,
+}) {
+  try {
+    return AtRestEncryptionService._unprotectStringWithKey(
+      protected,
       associatedData: associatedData,
       key: key,
     );

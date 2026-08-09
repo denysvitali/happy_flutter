@@ -11,6 +11,7 @@ import '../../core/components/tablet/resizable_split_view.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/performance_context_service.dart';
 import '../../core/services/sync_service.dart';
@@ -901,6 +902,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       initialPath: initialPath,
     );
     if (sessionId == null || !mounted) return;
+    ChatSwitchMetrics().begin(sessionId, source: 'new_session');
     if (isTablet) {
       setState(() => _selectedSessionId = sessionId);
     } else {

@@ -10,6 +10,7 @@ import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/auto_archive_service.dart';
+import '../../../core/services/chat_switch_metrics.dart';
 import '../../../core/services/performance_context_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/sync/sync_subscription_mixin.dart';
@@ -121,12 +122,14 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   void _navigateToChat(String sessionId) {
     final cb = widget.onSessionTap;
     if (cb != null) {
+      ChatSwitchMetrics().begin(sessionId, source: 'tablet_master_detail');
       cb(sessionId);
       return;
     }
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     if (nowMs - _lastNavTapMs < _navDebounceMs) return;
     _lastNavTapMs = nowMs;
+    ChatSwitchMetrics().begin(sessionId, source: 'sessions_list');
     unawaited(
       context.pushNamed('chat', pathParameters: {'sessionId': sessionId}),
     );

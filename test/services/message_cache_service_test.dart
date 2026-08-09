@@ -306,12 +306,50 @@ void main() {
     });
 
     test(
+      'a committed revision skips all repeated worker preparation',
+      () async {
+        final storage = _InMemoryMMKVStorage();
+        MessageCacheService().debugSetStorage = storage;
+        addTearDown(MessageCacheService().debugResetStorage);
+        addTearDown(
+          () => MessageCacheService().clearMessages('queue-revision'),
+        );
+        var workerInputs = 0;
+        MessageCacheService.debugWorkerInputSink = (_, _) => workerInputs++;
+        addTearDown(() => MessageCacheService.debugWorkerInputSink = null);
+
+        await MessageCacheService().saveMessagesAsync(
+          'queue-revision',
+          window('v1'),
+          revision: 7,
+        );
+        await MessageCacheService().saveMessagesAsync(
+          'queue-revision',
+          window('v1'),
+          revision: 7,
+        );
+
+        expect(storage.writeCount, 1);
+        expect(
+          workerInputs,
+          1,
+          reason: 'an unchanged revision must not cross the isolate boundary',
+        );
+      },
+    );
+
+    test(
       'worker trims and strips inline image bytes before persistence',
       () async {
         final storage = _InMemoryMMKVStorage();
         MessageCacheService().debugSetStorage = storage;
         addTearDown(MessageCacheService().debugResetStorage);
         addTearDown(() => MessageCacheService().clearMessages('queue-worker'));
+        final workerInputCounts = <int>[];
+        MessageCacheService.debugWorkerInputSink = (_, count) {
+          workerInputCounts.add(count);
+        };
+        addTearDown(() => MessageCacheService.debugWorkerInputSink = null);
         final messages = List<Map<String, dynamic>>.generate(
           205,
           (index) => <String, dynamic>{
@@ -344,8 +382,52 @@ void main() {
         final source = image['source'] as Map<String, dynamic>;
         expect(source['data'], isEmpty);
         expect(source['omitted'], isTrue);
+        expect(
+          workerInputCounts,
+          <int>[200],
+          reason: 'only the bounded cache window may cross to the worker',
+        );
       },
     );
+
+    test('worker strips inline image bytes from nested sidechains', () async {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      addTearDown(() => MessageCacheService().clearMessages('queue-nested'));
+
+      await MessageCacheService().saveMessagesAsync('queue-nested', [
+        <String, dynamic>{
+          'id': 'task-1',
+          'children': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'child-1',
+              'raw': <String, dynamic>{
+                'content': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'type': 'image',
+                    'source': <String, dynamic>{
+                      'type': 'base64',
+                      'data': 'nested-large-payload',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ]);
+
+      final stored = storage.rawStored('queue-nested');
+      final children = stored.single['children'] as List<dynamic>;
+      final child = children.single as Map<String, dynamic>;
+      final raw = child['raw'] as Map<String, dynamic>;
+      final content = raw['content'] as List<dynamic>;
+      final image = content.single as Map<String, dynamic>;
+      final source = image['source'] as Map<String, dynamic>;
+      expect(source['data'], isEmpty);
+      expect(source['omitted'], isTrue);
+    });
 
     test(
       'suspend flush persists service-owned queued work synchronously',

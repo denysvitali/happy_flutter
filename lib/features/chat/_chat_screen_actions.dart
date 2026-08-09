@@ -247,6 +247,9 @@ extension _ChatScreenActions on _ChatScreenState {
         );
       }
       final restoredCount = sync.messagesForSession(sessionId).length;
+      if (initialMessageCount == 0 && restoredCount > 0) {
+        _initialContentSource = 'cache';
+      }
       // Rows restored from the MMKV cache carry their last persisted
       // status, which is 'sending' for anything the outbox took over
       // before the app was killed. The outbox republishes statuses only
@@ -1075,6 +1078,7 @@ extension _ChatScreenActions on _ChatScreenState {
     final modelStr = _effectiveModelModeString ?? _modelMode.modeString;
     unawaited(storage.saveModelMode(sentSessionId, modelStr));
 
+    ChatSwitchMetrics().begin(sentSessionId, source: 'sent_session');
     context.goNamed('chat', pathParameters: {'sessionId': sentSessionId});
     return true;
   }

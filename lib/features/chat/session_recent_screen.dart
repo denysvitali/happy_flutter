@@ -7,6 +7,7 @@ import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/session_utils.dart';
@@ -154,7 +155,10 @@ class _SessionRecentList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: SessionCard(
         session: session,
-        onTap: () => context.push('/chat/${session.id}'),
+        onTap: () {
+          ChatSwitchMetrics().begin(session.id, source: 'recent_sessions');
+          context.push('/chat/${session.id}');
+        },
         isFirst: isFirst,
         isLast: isLast,
         isSingle: isSingle,

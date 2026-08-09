@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/recent_commands_storage.dart';
 import '../sessions/widgets/new_session_dialog.dart';
 import 'command_item.dart';
@@ -86,6 +87,10 @@ class CommandPaletteController {
           category: l10n.commandCategoryRecentSessions,
           isPinned: true,
           action: () {
+            ChatSwitchMetrics().begin(
+              session.id,
+              source: 'command_palette',
+            );
             router.go('/chat/${session.id}');
           },
         ),
@@ -176,6 +181,10 @@ class CommandPaletteController {
           isPinned: session.pinned,
           searchOnly: i >= 5,
           action: () {
+            ChatSwitchMetrics().begin(
+              session.id,
+              source: 'command_palette',
+            );
             router.go('/chat/${session.id}');
           },
         ),
@@ -199,6 +208,7 @@ Future<void> _showNewSessionDialog(
       appRouter?.routerDelegate.navigatorKey.currentContext ?? context;
   final sessionId = await showNewSessionDialog(dialogContext);
   if (sessionId != null && dialogContext.mounted) {
+    ChatSwitchMetrics().begin(sessionId, source: 'new_session');
     (appRouter ?? GoRouter.of(context)).goNamed(
       'chat',
       pathParameters: {'sessionId': sessionId},

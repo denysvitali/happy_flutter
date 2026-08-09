@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-08
+**Last Updated**: 2026-08-09
 
 ### Cross-platform trust and interaction audit, 2026-08-08
 
@@ -112,6 +112,21 @@ per open and fuzzy queries reuse their preprocessed index. On the daemon side,
 RPC handler registration publishes immutable lookup/capability snapshots;
 parallel handler lookup is allocation-free and avoids the former RWMutex
 reader contention.
+
+**Chat-switch latency follow-up, 2026-08-09.** Production build 249900 still
+showed build-dominated frozen frames up to 2.75 seconds. The affected launch
+also queued hundreds of whole-snapshot message-cache saves; encode, queue, and
+MMKV phases reached 4.0, 3.7, and 3.2 seconds respectively. Chat entry no
+longer synchronously reads, decrypts, parses, or regroups the persisted cache:
+it paints the existing in-memory projection first, then restores the cold
+cache after yielding a frame. Native cache reads, JSON/AES preparation, and
+routine writes run in workers; inputs are bounded to 200 rows before the
+isolate copy, nested inline image bytes are stripped, and unchanged Sync
+revisions never enter the worker queue. The suspend flush remains synchronous
+as the process-kill durability fence. New low-cardinality histograms measure
+tap-to-first-frame, tap-to-painted-content, complete cache reads, and every
+write phase; trace-only session IDs preserve per-launch diagnosis without
+metric-cardinality growth.
 
 ### Live performance remediation, 2026-08-08
 

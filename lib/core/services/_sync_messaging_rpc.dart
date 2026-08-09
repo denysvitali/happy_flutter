@@ -958,6 +958,15 @@ extension SyncMessagingRpc on Sync {
       messagesSync[previousVisibleSessionId]?.dispose();
       messagesSync.remove(previousVisibleSessionId);
     }
+
+    // Opening a route must be allowed to paint before deferred transcript
+    // regrouping, cache I/O, capability setup, or network invalidation runs.
+    // The selected session and previous timer teardown above stay synchronous
+    // so incoming events route correctly during the hand-off; everything
+    // heavier resumes on the next event-loop turn.
+    await Future<void>.delayed(Duration.zero);
+    if (!isInitialized || _visibleSessionId != sessionId) return;
+
     _sessionUnreadCounts.remove(sessionId);
     _sessionUnreadLastIncrementMs.remove(sessionId);
     // Clear any residual failed Future from the inline queue so that

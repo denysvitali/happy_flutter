@@ -19,9 +19,9 @@ import '../../core/models/outgoing_image.dart';
 import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
-import '../../core/services/message_cache_service.dart';
 import '../../core/services/opentelemetry_service.dart';
 import '../../core/services/performance_context_service.dart';
 import '../../core/services/screen_awake_service.dart';
@@ -262,6 +262,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // Track when the actual messages list changes (not just rebuilds)
   int _lastMessageFingerprint = 0;
   int _lastMessagesRevision = -1;
+  String _initialContentSource = 'none';
+  bool _hadInMemoryMessagesAtEntry = false;
 
   // Pre-computed neighbor cache for message list items (replacing O(N)
   // scans).
@@ -318,47 +320,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    ChatSwitchMetrics().ensureStarted(widget.sessionId);
+    _seedFromInMemorySync();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final hasContent = _messages.isNotEmpty;
+      final state = hasContent
+          ? 'content'
+          : _isLoadingMessages
+          ? 'loading'
+          : 'empty';
+      ChatSwitchMetrics().markFirstFrame(
+        widget.sessionId,
+        state: state,
+        hadInMemoryMessages: _hadInMemoryMessagesAtEntry,
+        messageCount: _messages.length,
+      );
+      if (hasContent) {
+        ChatSwitchMetrics().markContentReady(
+          widget.sessionId,
+          contentSource: _initialContentSource,
+          messageCount: _messages.length,
+        );
+      }
+    });
     _routeListener = _handleRouteChanged;
     PerformanceContextService().routeListenable.addListener(_routeListener);
     _scrollController.addListener(_onScroll);
     _loadInitialSettings();
     TtsService().currentToken.addListener(_updateScreenAwake);
-
-    // ── Local-first: Load cached messages instantly (0ms delay) ──
-    final cached = MessageCacheService().getMessages(widget.sessionId);
-    if (cached.isNotEmpty) {
-      final initialVisible = _initialVisibleCount(cached.length);
-      setState(() {
-        _messages = cached;
-        _recomputeMessageScanCache();
-        _isLoadingMessages = false;
-        // Mark cached messages as seen so they don't animate
-        for (final m in cached) {
-          _seenMessageIds.add(_messageKey(m));
-        }
-        _prevSeenLength = cached.length;
-        _visibleCount = initialVisible;
-      });
-      if (logger.shouldLog(LogLevel.debug)) {
-        logger.debug(
-          '[ChatScreen] Loaded ${cached.length} cached messages for '
-          'session ${widget.sessionId} '
-          'visibleCount=$_visibleCount',
-        );
-      }
-      Sentry.addBreadcrumb(
-        Breadcrumb(
-          message: 'ChatScreen: initState cache hit',
-          category: 'chat.load',
-          data: {
-            'sessionId': widget.sessionId,
-            'cachedCount': cached.length,
-            'visibleCount': _visibleCount,
-          },
-        ),
-      );
-    }
-    unawaited(_loadCachedMessagesAsyncIfNeeded());
 
     _initializeSyncBackedChat();
     final settings = ref.read(settingsNotifierProvider);
@@ -372,27 +362,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
-  Future<void> _loadCachedMessagesAsyncIfNeeded() async {
-    if (_messages.isNotEmpty) return;
-    final cached = await MessageCacheService().getMessagesAsync(
-      widget.sessionId,
-    );
-    if (!mounted || cached.isEmpty || _messages.isNotEmpty) return;
-    final initialVisible = _initialVisibleCount(cached.length);
-    setState(() {
-      _messages = cached;
-      _recomputeMessageScanCache();
-      _isLoadingMessages = false;
-      for (final m in cached) {
-        _seenMessageIds.add(_messageKey(m));
-      }
-      _prevSeenLength = cached.length;
-      _visibleCount = initialVisible;
-    });
+  void _seedFromInMemorySync() {
+    final sessionId = widget.sessionId;
+    _session = sync.sessions[sessionId];
+    _metadataJson = _session?.metadata?.toJson();
+    final messages = sync.messagesForSession(sessionId);
+    if (messages.isEmpty) return;
+
+    _messages = messages;
+    _hadInMemoryMessagesAtEntry = true;
+    _initialContentSource = 'memory';
+    _isLoadingMessages = false;
+    _visibleCount = _initialVisibleCount(messages.length);
+    _prevMessagesLength = messages.length;
+    _prevSeenLength = messages.length;
+    _lastMessageFingerprint = _computeMessageFingerprint(messages);
+    _lastMessagesRevision = sync.messagesRevision(sessionId);
+    _recomputeMessageScanCache();
   }
 
   @override
   void dispose() {
+    ChatSwitchMetrics().cancel(widget.sessionId);
     PerformanceContextService().routeListenable.removeListener(_routeListener);
     TtsService().currentToken.removeListener(_updateScreenAwake);
     _screenAwakeReleaseTimer?.cancel();
@@ -418,6 +409,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // per-session message-sync timer and stop background fetches.
     unawaited(sync.onSessionInvisible(widget.sessionId));
     super.dispose();
+  }
+
+  void _scheduleChatSwitchContentReady({required String contentSource}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ChatSwitchMetrics().markContentReady(
+        widget.sessionId,
+        contentSource: contentSource,
+        messageCount: _messages.length,
+      );
+    });
   }
 
   Future<void> _initializeSyncBackedChat() async {
@@ -739,6 +741,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         );
       }
+    }
+    if (latestMessages.isNotEmpty) {
+      if (_initialContentSource == 'none') {
+        _initialContentSource = _hadInMemoryMessagesAtEntry
+            ? 'memory'
+            : 'network';
+      }
+      _scheduleChatSwitchContentReady(contentSource: _initialContentSource);
+    } else if (markLoaded) {
+      _initialContentSource = 'empty';
+      _scheduleChatSwitchContentReady(contentSource: 'empty');
     }
     _updateScreenAwake();
   }
@@ -1373,11 +1386,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           },
           child: Scaffold(
             appBar: PreferredSize(
-              preferredSize: _buildChatAppBar(
-                context: context,
-                isWide: isWide,
-                avatarStyle: avatarStyle,
-              ).preferredSize,
+              preferredSize: const Size.fromHeight(kToolbarHeight),
               child: ValueListenableBuilder<int>(
                 valueListenable: _chatChromeRevision,
                 builder: (context, revision, child) => _buildChatAppBar(
