@@ -43,13 +43,14 @@ final _before = _session('Before update');
 final _after = _session('After update');
 
 Session _session(String name) {
+  final now = DateTime.now().millisecondsSinceEpoch;
   return Session(
     id: _sessionId,
     seq: 1,
     createdAt: 1,
-    updatedAt: 1,
+    updatedAt: now,
     active: true,
-    activeAt: 1,
+    activeAt: now,
     metadataVersion: 1,
     agentStateVersion: 1,
     thinking: true,
@@ -57,7 +58,7 @@ Session _session(String name) {
     metadata: Metadata(
       host: 'localhost',
       path: '/home/dev/happy_flutter',
-      summary: Summary(text: name, updatedAt: 1),
+      summary: Summary(text: name, updatedAt: now),
     ),
   );
 }
