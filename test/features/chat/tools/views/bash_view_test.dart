@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/known_tools.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/bash_view.dart';
 
@@ -53,6 +54,22 @@ void main() {
 
       expect(find.text('ls -la'), findsOneWidget);
       expect(find.text(r'$'), findsOneWidget);
+    });
+
+    testWidgets('renders a zsh transport as its inner command', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          BashView(
+            tool: {
+              'input': {'command': "/usr/bin/zsh -lc 'git status --short'"},
+              'state': 'pending',
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('git status --short'), findsOneWidget);
+      expect(find.textContaining('/usr/bin/zsh'), findsNothing);
     });
 
     testWidgets('renders stdout when completed', (tester) async {
@@ -150,8 +167,7 @@ void main() {
       expect(find.text('Install dependencies'), findsOneWidget);
     });
 
-    testWidgets('derives description from known commands',
-        (tester) async {
+    testWidgets('derives description from known commands', (tester) async {
       await tester.pumpWidget(
         _wrap(
           BashView(
@@ -167,8 +183,9 @@ void main() {
       expect(find.text('git command'), findsOneWidget);
     });
 
-    testWidgets('renders "No output" when stdout is empty and exit is 0',
-        (tester) async {
+    testWidgets('renders "No output" when stdout is empty and exit is 0', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           BashView(
@@ -201,13 +218,20 @@ void main() {
     });
   });
 
+  group('KnownTools terminal summaries', () {
+    test('hide zsh transport wrappers', () {
+      final definition = KnownTools.get('Bash')!;
+      final subtitle = definition.extractSubtitle!({
+        'input': {'command': "/usr/bin/zsh -lc 'git status --short'"},
+      }, null);
+
+      expect(subtitle, 'git status --short');
+    });
+  });
+
   group('CommandView', () {
     testWidgets('renders command with dollar prefix', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const CommandView(command: 'npm test'),
-        ),
-      );
+      await tester.pumpWidget(_wrap(const CommandView(command: 'npm test')));
 
       expect(find.text('npm test'), findsOneWidget);
       expect(find.text(r'$'), findsOneWidget);
@@ -215,12 +239,7 @@ void main() {
 
     testWidgets('renders stdout section', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const CommandView(
-            command: 'echo hi',
-            stdout: 'hi there',
-          ),
-        ),
+        _wrap(const CommandView(command: 'echo hi', stdout: 'hi there')),
       );
 
       expect(find.text('stdout'), findsOneWidget);
@@ -229,12 +248,7 @@ void main() {
 
     testWidgets('renders stderr section with error icon', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const CommandView(
-            command: 'fail',
-            stderr: 'error message',
-          ),
-        ),
+        _wrap(const CommandView(command: 'fail', stderr: 'error message')),
       );
 
       expect(find.text('stderr'), findsOneWidget);
@@ -243,23 +257,17 @@ void main() {
 
     testWidgets('renders exit code badge', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const CommandView(
-            command: 'some_cmd',
-            exitCode: 42,
-          ),
-        ),
+        _wrap(const CommandView(command: 'some_cmd', exitCode: 42)),
       );
 
       expect(find.text('exit 42'), findsOneWidget);
     });
 
-    testWidgets('shows "No output" for empty stdout with exit 0',
-        (tester) async {
+    testWidgets('shows "No output" for empty stdout with exit 0', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(
-          const CommandView(command: 'touch file', exitCode: 0),
-        ),
+        _wrap(const CommandView(command: 'touch file', exitCode: 0)),
       );
 
       expect(find.text('No output'), findsOneWidget);
@@ -268,12 +276,7 @@ void main() {
     testWidgets('truncates long stdout by default', (tester) async {
       final longOutput = List.generate(30, (i) => 'line $i').join('\n');
       await tester.pumpWidget(
-        _wrap(
-          CommandView(
-            command: 'cat big.txt',
-            stdout: longOutput,
-          ),
-        ),
+        _wrap(CommandView(command: 'cat big.txt', stdout: longOutput)),
       );
 
       expect(find.textContaining('Show'), findsOneWidget);
@@ -399,57 +402,41 @@ void main() {
   group('FilePillChip', () {
     testWidgets('renders file path with icon', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const FilePillChip(path: '/src/main.dart'),
-        ),
+        _wrap(const FilePillChip(path: '/src/main.dart')),
       );
 
       // Text is inside RichText via TextSpan children.
-      final richText = tester.widget<RichText>(
-        find.byType(RichText).last,
-      );
+      final richText = tester.widget<RichText>(find.byType(RichText).last);
       final textSpan = richText.text as TextSpan;
-      final spans =
-          textSpan.children!.map((s) => (s as TextSpan).text).toList();
+      final spans = textSpan.children!
+          .map((s) => (s as TextSpan).text)
+          .toList();
       expect(spans, contains('/src/'));
       expect(spans, contains('main.dart'));
-      expect(
-        find.byIcon(Icons.insert_drive_file_outlined),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.insert_drive_file_outlined), findsOneWidget);
     });
 
     testWidgets('renders filename without directory', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const FilePillChip(path: 'README.md'),
-        ),
-      );
+      await tester.pumpWidget(_wrap(const FilePillChip(path: 'README.md')));
 
-      final richText = tester.widget<RichText>(
-        find.byType(RichText).last,
-      );
+      final richText = tester.widget<RichText>(find.byType(RichText).last);
       final textSpan = richText.text as TextSpan;
-      final spans =
-          textSpan.children!.map((s) => (s as TextSpan).text).toList();
+      final spans = textSpan.children!
+          .map((s) => (s as TextSpan).text)
+          .toList();
       expect(spans, contains('README.md'));
     });
 
     testWidgets('renders deep path correctly', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const FilePillChip(
-            path: '/home/user/project/lib/main.dart',
-          ),
-        ),
+        _wrap(const FilePillChip(path: '/home/user/project/lib/main.dart')),
       );
 
-      final richText = tester.widget<RichText>(
-        find.byType(RichText).last,
-      );
+      final richText = tester.widget<RichText>(find.byType(RichText).last);
       final textSpan = richText.text as TextSpan;
-      final spans =
-          textSpan.children!.map((s) => (s as TextSpan).text).toList();
+      final spans = textSpan.children!
+          .map((s) => (s as TextSpan).text)
+          .toList();
       expect(spans, contains('main.dart'));
       expect(spans, contains('/home/user/project/lib/'));
     });

@@ -29,7 +29,7 @@ class BashView extends StatelessWidget {
     final result = tool['result'];
     final state = tool['state'] as String? ?? 'pending';
 
-    final command = input['command'] as String? ?? '';
+    final command = cleanShellCommand(input['command'] as String?);
     final description =
         input['description'] as String? ?? _descriptionFromCommand(command);
 
@@ -276,8 +276,11 @@ class _TerminalCommandBar extends StatelessWidget {
             decoration: toolCardHeaderDecoration(cs),
             child: Row(
               children: [
-                Icon(Icons.terminal,
-                    size: AppIconSize.sm, color: cs.onSurfaceVariant),
+                Icon(
+                  Icons.terminal,
+                  size: AppIconSize.sm,
+                  color: cs.onSurfaceVariant,
+                ),
                 const SizedBox(width: AppSpacing.xsm),
                 Expanded(
                   child: Text(

@@ -250,10 +250,14 @@ class KnownTools {
       minimal: false,
       hideDefaultError: true,
       isMutable: true,
-      extractSubtitle: (tool, _) => tool['input']?['command'] as String?,
+      extractSubtitle: (tool, _) {
+        final command = tool['input']?['command'] as String?;
+        return command == null ? null : cleanShellCommand(command);
+      },
       extractDescription: (tool, _) {
-        final cmd = tool['input']?['command'] as String?;
-        if (cmd == null) return null;
+        final command = tool['input']?['command'] as String?;
+        if (command == null) return null;
+        final cmd = cleanShellCommand(command);
         final firstWord = cmd.split(' ').first;
         if ([
           'cd',
@@ -648,10 +652,14 @@ class KnownTools {
       minimal: true,
       hideDefaultError: true,
       isMutable: true,
-      extractSubtitle: (tool, _) => tool['input']?['command'] as String?,
+      extractSubtitle: (tool, _) {
+        final command = tool['input']?['command'] as String?;
+        return command == null ? null : cleanShellCommand(command);
+      },
       extractDescription: (tool, _) {
-        final cmd = tool['input']?['command'] as String?;
-        if (cmd == null) return null;
+        final command = tool['input']?['command'] as String?;
+        if (command == null) return null;
+        final cmd = cleanShellCommand(command);
         final firstWord = cmd.split(' ').first;
         if ([
           'cd',
