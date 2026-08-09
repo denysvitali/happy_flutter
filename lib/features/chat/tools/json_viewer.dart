@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/ui/neutralize_inner_scroll.dart';
 import 'json_syntax.dart';
 
 const double _jsonIndent = 8;
@@ -222,7 +223,7 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
         // through to this frame's own scroll views (which set their own
         // explicit ClampingScrollPhysics and are outside this override).
         final child = ScrollConfiguration(
-          behavior: const _NeutralizeInnerScrollBehavior(),
+          behavior: const NeutralizeInnerScrollBehavior(),
           child: ConstrainedBox(
             constraints: BoxConstraints(minWidth: minWidth),
             child: widget.child,
@@ -264,22 +265,6 @@ class _ToolOutputScrollFrameState extends State<ToolOutputScrollFrame> {
       },
     );
   }
-}
-
-/// Forces clamping physics on descendant scrollables inside a
-/// [ToolOutputScrollFrame].
-///
-/// Neutralizes the phantom [Scrollable] that [SelectableText]'s internal
-/// [EditableText] installs. Under the app-wide [AppScrollBehavior]
-/// (BouncingScrollPhysics + AlwaysScrollable) that phantom steals vertical
-/// drags and bounces back to the top because its content always fits. Clamping
-/// physics refuses the drag when content fits so the real output pane scrolls.
-class _NeutralizeInnerScrollBehavior extends MaterialScrollBehavior {
-  const _NeutralizeInnerScrollBehavior();
-
-  @override
-  ScrollPhysics getScrollPhysics(BuildContext context) =>
-      const ClampingScrollPhysics();
 }
 
 /// Renders a pre-parsed JSON value as a collapsible tree with syntax

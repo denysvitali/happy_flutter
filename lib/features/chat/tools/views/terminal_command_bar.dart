@@ -11,12 +11,13 @@ import '../tool_view_widgets.dart';
 ///
 /// Extracted because codex_bash_view and gemini_execute_view carried
 /// byte-identical copies apart from the label and the banner.
-class TerminalCommandBar extends StatelessWidget {
+class TerminalCommandBar extends StatefulWidget {
   const TerminalCommandBar({
     required this.command,
     this.cwd,
     this.description,
     this.label = 'bash',
+    this.maxLines = 10,
     super.key,
   });
 
@@ -32,10 +33,40 @@ class TerminalCommandBar extends StatelessWidget {
   /// Title-bar label — 'bash' for Claude/Codex, 'execute' for Gemini.
   final String label;
 
+  /// Command lines shown before the "show more" toggle kicks in.
+  ///
+  /// Heredocs and inline scripts routinely run to dozens of lines; without a
+  /// cap the card grows taller than the viewport, so the reader has no
+  /// on-screen control left to collapse it again.
+  final int maxLines;
+
+  @override
+  State<TerminalCommandBar> createState() => _TerminalCommandBarState();
+}
+
+class _TerminalCommandBarState extends State<TerminalCommandBar> {
+  bool _expanded = false;
+
+  @override
+  void didUpdateWidget(TerminalCommandBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.command != widget.command) _expanded = false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final command = widget.command;
+    final cwd = widget.cwd;
+    final description = widget.description;
+    final label = widget.label;
+
+    final lines = command.split('\n');
+    final needsTruncation = lines.length > widget.maxLines;
+    final visibleCommand = _expanded || !needsTruncation
+        ? command
+        : lines.take(widget.maxLines).join('\n');
 
     return Container(
       decoration: toolCardDecoration(cs),
@@ -60,7 +91,7 @@ class TerminalCommandBar extends StatelessWidget {
                     letterSpacing: 0.5,
                   ),
                 ),
-                if (cwd != null && cwd!.isNotEmpty) ...[
+                if (cwd != null && cwd.isNotEmpty) ...[
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     '\u00b7',
@@ -72,7 +103,7 @@ class TerminalCommandBar extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      cwd!,
+                      cwd,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: 'monospace',
@@ -108,7 +139,7 @@ class TerminalCommandBar extends StatelessWidget {
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: SelectableText(
-                    command,
+                    visibleCommand,
                     style: TextStyle(
                       fontFamily: 'monospace',
                       fontSize: AppFontSize.md,
@@ -121,7 +152,7 @@ class TerminalCommandBar extends StatelessWidget {
             ),
           ),
           // Optional description banner
-          if (description != null && description!.isNotEmpty)
+          if (description != null && description.isNotEmpty)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(
@@ -143,7 +174,7 @@ class TerminalCommandBar extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xsm),
                   Expanded(
                     child: Text(
-                      description!,
+                      description,
                       style: TextStyle(
                         fontSize: AppFontSize.sm,
                         color: cs.onSurfaceVariant,
@@ -153,6 +184,12 @@ class TerminalCommandBar extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          if (needsTruncation)
+            ToolViewShowMoreButton(
+              expanded: _expanded,
+              hiddenCount: lines.length - widget.maxLines,
+              onToggle: () => setState(() => _expanded = !_expanded),
             ),
         ],
       ),

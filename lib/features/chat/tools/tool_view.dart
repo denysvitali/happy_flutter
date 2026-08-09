@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/utils/utils.dart' show prettyJson;
 import '../../../core/providers/app_providers.dart';
 import '../../../core/rpc/rpc_types.dart' show PermissionResponse;
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/ui/neutralize_inner_scroll.dart';
 import '../../../core/utils/grok_acp_normalize.dart';
 import '../../../core/utils/tool_error_parser.dart';
 import '../../../core/wire/wire_parsers.dart';
@@ -711,17 +712,24 @@ class _ToolViewState extends ConsumerState<ToolView>
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSpacing.xs,
                         ),
-                        child: _StaggerFadeContent(
-                          controller: _staggerController,
-                          collapsing: _collapsing,
-                          child: _buildContent(
-                            context,
-                            knownTool,
-                            toolInput,
-                            toolResult,
-                            state,
-                            errorResult,
-                            permission,
+                        // Every SelectableText in a tool body installs a
+                        // phantom Scrollable that steals vertical drags under
+                        // the app-wide bouncing physics, so the chat list
+                        // never moves while the finger is over the block.
+                        // Clamping physics lets the drag fall through.
+                        child: NeutralizeInnerScroll(
+                          child: _StaggerFadeContent(
+                            controller: _staggerController,
+                            collapsing: _collapsing,
+                            child: _buildContent(
+                              context,
+                              knownTool,
+                              toolInput,
+                              toolResult,
+                              state,
+                              errorResult,
+                              permission,
+                            ),
                           ),
                         ),
                       ),
