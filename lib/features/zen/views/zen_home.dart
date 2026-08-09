@@ -8,10 +8,10 @@ import '../../../core/models/session.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/sync/sync_domain.dart';
+import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
-import '../../../core/sync/sync_subscription_mixin.dart';
 
 // ─── Priority definitions ────────────────────────────────────────────────────
 
@@ -121,10 +121,20 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
 
   // ─── Data helpers ─────────────────────────────────────────────────────────
 
-  List<_SessionTodo> _collectTodos(List<Session> sessions) {
+  List<_SessionTodo> _collectTodos(
+    List<Session> sessions,
+    Map<String, List<TodoItem>> liveTodosBySession,
+  ) {
     final result = <_SessionTodo>[];
     for (final session in sessions) {
-      final todos = session.todos;
+      // Tool cards publish the newest task snapshot to the in-memory
+      // provider before that state is reflected in Session.todos. Treat a
+      // live bucket as authoritative, including an empty bucket that clears
+      // a stale server snapshot, and fall back to session metadata for chats
+      // that have not been opened during this app run.
+      final todos = liveTodosBySession.containsKey(session.id)
+          ? liveTodosBySession[session.id]
+          : session.todos;
       if (todos == null || todos.isEmpty) continue;
       for (final item in todos) {
         if (item.status.isTerminal) continue;
@@ -173,7 +183,10 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     // map identity actually changes (gated by mapValuesIdentical in
     // SessionsNotifier.loadFromSync).
     final sessions = ref.watch(sessionsListProvider);
-    final todos = _collectTodos(sessions);
+    final liveTodosBySession = ref.watch(
+      todoStateNotifierProvider.select((state) => state.bySession),
+    );
+    final todos = _collectTodos(sessions, liveTodosBySession);
     final grouped = _groupByPriority(todos);
 
     return Scaffold(
