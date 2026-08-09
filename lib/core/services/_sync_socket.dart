@@ -499,21 +499,14 @@ extension SyncSocket on Sync {
     });
   }
 
-  /// Debounced background serialization for the oldest loaded cursor map.
-  /// Pagination can advance this value once per page; encoding the whole map
-  /// synchronously made history loading contend with route frames.
+  /// Background serialization for the oldest loaded cursor map. Pagination
+  /// can advance this once per page, so native storage revision-guards worker
+  /// completions instead of keeping another lifecycle-owned timer alive.
   void _scheduleSaveFirstLoadedSeq() {
-    _saveFirstLoadedSeqDebounceTimer?.cancel();
-    _saveFirstLoadedSeqDebounceTimer = Timer(
-      const Duration(milliseconds: 500),
-      () {
-        _saveFirstLoadedSeqDebounceTimer = null;
-        unawaited(
-          MMKVStorage().saveSessionFirstLoadedSeqAsync(
-            Map.unmodifiable(_sessionFirstLoadedSeq),
-          ),
-        );
-      },
+    unawaited(
+      MMKVStorage().saveSessionFirstLoadedSeqAsync(
+        Map.unmodifiable(_sessionFirstLoadedSeq),
+      ),
     );
   }
 
