@@ -926,6 +926,53 @@ void main() {
         expect(result.messages.first['event']['type'], 'switch');
       });
 
+      test('preserves Codex steering disposition events for the timeline', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'event',
+                'data': {
+                  'type': 'message-steered',
+                  'messageId': 'user-message-1',
+                  'message': 'Update sent to the active task',
+                },
+              },
+            },
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'event',
+                'data': {
+                  'type': 'message-queued',
+                  'messageId': 'user-message-2',
+                  'message': 'Message queued for the next turn',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'event-1', 'seq': 1, 'createdAt': 1000},
+            {'id': 'event-2', 'seq': 2, 'createdAt': 2000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(2));
+        expect(result.messages[0]['kind'], 'agent-event');
+        expect(result.messages[0]['event'], {
+          'type': 'message-steered',
+          'messageId': 'user-message-1',
+          'message': 'Update sent to the active task',
+        });
+        expect(result.messages[1]['event'], {
+          'type': 'message-queued',
+          'messageId': 'user-message-2',
+          'message': 'Message queued for the next turn',
+        });
+      });
+
       test('skips ready events', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [

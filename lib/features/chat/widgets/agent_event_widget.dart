@@ -103,9 +103,15 @@ class AgentEventWidget extends StatelessWidget {
     if (label == null || label.isEmpty) return const SizedBox.shrink();
     final isUnrendered =
         event is Map<String, dynamic> && event['type'] == 'unrendered';
-    final color = isUnrendered
-        ? theme.colorScheme.error
-        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85);
+    final eventType = event is Map<String, dynamic>
+        ? event['type'] as String?
+        : null;
+    final color = switch (eventType) {
+      'message-steered' => theme.colorScheme.primary,
+      'message-queued' => theme.colorScheme.secondary,
+      _ when isUnrendered => theme.colorScheme.error,
+      _ => theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.85),
+    };
     final subAgentTool = _subAgentToolName;
     // The leading chip already prints [subAgentTool]; task_progress wire
     // labels repeat it — either as the "<tool> · <description>" prefix
@@ -162,6 +168,12 @@ class AgentEventWidget extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
+        const SizedBox(width: AppSpacing.xs),
+      ] else if (eventType == 'message-steered') ...[
+        Icon(Icons.alt_route_rounded, size: 14, color: color),
+        const SizedBox(width: AppSpacing.xs),
+      ] else if (eventType == 'message-queued') ...[
+        Icon(Icons.schedule_send_rounded, size: 14, color: color),
         const SizedBox(width: AppSpacing.xs),
       ] else if (isUnrendered) ...[
         Icon(Icons.warning_amber_rounded, size: 16, color: color),
@@ -231,6 +243,11 @@ class AgentEventWidget extends StatelessWidget {
         return event['message'] as String? ?? 'Usage limit reached';
       case 'unrendered':
         return event['message'] as String? ?? 'Unsupported agent message';
+      case 'message-steered':
+        return event['message'] as String? ?? 'Update sent to the active task';
+      case 'message-queued':
+        return event['message'] as String? ??
+            'Message queued for the next turn';
       default:
         return null;
     }

@@ -119,6 +119,40 @@ void main() {
 
       expect(find.text('Hello'), findsOneWidget);
     });
+
+    testWidgets('renders active-turn steering acknowledgement', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          const AgentEventWidget(
+            event: <String, dynamic>{
+              'type': 'message-steered',
+              'message': 'Update sent to the active task',
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Update sent to the active task'), findsOneWidget);
+      expect(find.byIcon(Icons.alt_route_rounded), findsOneWidget);
+    });
+
+    testWidgets('renders queued fallback acknowledgement', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const AgentEventWidget(
+            event: <String, dynamic>{
+              'type': 'message-queued',
+              'message': 'Message queued for the next turn',
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Message queued for the next turn'), findsOneWidget);
+      expect(find.byIcon(Icons.schedule_send_rounded), findsOneWidget);
+    });
   });
 
   group('AgentEventWidget.shouldRenderInChat', () {
@@ -245,6 +279,18 @@ void main() {
       expect(
         AgentEventWidget.labelFor(<String, dynamic>{'type': 'unrendered'}),
         'Unsupported agent message',
+      );
+      expect(
+        AgentEventWidget.labelFor(
+          <String, dynamic>{'type': 'message-steered'},
+        ),
+        'Update sent to the active task',
+      );
+      expect(
+        AgentEventWidget.labelFor(
+          <String, dynamic>{'type': 'message-queued'},
+        ),
+        'Message queued for the next turn',
       );
     });
 

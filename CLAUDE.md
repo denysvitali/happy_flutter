@@ -91,6 +91,9 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 - **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
 - **Repeated text like `continue` is never identity**
 - **Optimistic replacement is by `localId`, not by text or position**
+- **Codex follow-ups are explicit** — `message-steered` and `message-queued`
+  agent events tell the chat timeline whether an active-turn update was
+  accepted or retained for the next turn
 
 ## Verification Expectations
 
