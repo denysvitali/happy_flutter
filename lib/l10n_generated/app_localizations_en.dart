@@ -4764,6 +4764,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please sign in first to approve device linking';
 
   @override
+  String get authLinkRequestTitle => 'Approve device linking?';
+
+  @override
+  String authLinkRequestBody(String requestType, String fingerprint) {
+    return 'A $requestType is asking for access to your account. Only approve a request you initiated.\n\nSecurity fingerprint:\n$fingerprint';
+  }
+
+  @override
+  String get authLinkRequestTerminal => 'terminal';
+
+  @override
+  String get authLinkRequestAccount => 'device';
+
+  @override
   String get authSignInWithSecretKey => 'Sign In with Secret Key';
 
   @override

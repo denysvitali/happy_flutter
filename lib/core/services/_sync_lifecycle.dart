@@ -895,6 +895,12 @@ extension SyncLifecycle on Sync {
 
   /// Shutdown sync engine and clear volatile state.
   Future<void> shutdown() async {
+    // Fence every in-flight fetch before clearing state. Any continuation
+    // from the old account observes a stale generation and cannot resurrect
+    // sessions, machines, or readiness after logout.
+    _runtimeGeneration++;
+    _isReady = false;
+    isInitialized = false;
     _deferredSocketDisconnectTimer?.cancel();
     _deferredSocketDisconnectTimer = null;
     _reconnectWatchdogTimer?.cancel();

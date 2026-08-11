@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
@@ -97,23 +99,38 @@ void main() {
       expect(notifier, isA<AuthStateNotifier>());
     });
 
-    test('checkAuth(showProgress: false) never publishes authenticating '
-        '(regression: a background re-check after the server rejected the '
-        'token flipped the state to authenticating, and AuthGate then '
-        'unmounted the live chat screen along with the composer input)',
-        () async {
-      final notifier = container.read(authStateNotifierProvider.notifier);
-      final seen = <AuthState>[];
-      container.listen<AuthState>(
-        authStateNotifierProvider,
-        (_, next) => seen.add(next),
-        fireImmediately: true,
-      );
+    test('deep links are staged and never auto-approved', () {
+      final publicKey = List<int>.generate(32, (index) => index);
+      final encoded = base64UrlEncode(publicKey).replaceAll('=', '');
+      final url = 'happy://terminal?$encoded';
 
-      await notifier.checkAuth(showProgress: false);
+      container.read(authStateNotifierProvider.notifier).handleDeepLink(url);
 
-      expect(seen, isNot(contains(AuthState.authenticating)));
+      final request = container.read(pendingLinkRequestProvider);
+      expect(request?.url, url);
+      expect(request?.isTerminal, isTrue);
+      expect(request?.fingerprint, hasLength(64));
     });
+
+    test(
+      'checkAuth(showProgress: false) never publishes authenticating '
+      '(regression: a background re-check after the server rejected the '
+      'token flipped the state to authenticating, and AuthGate then '
+      'unmounted the live chat screen along with the composer input)',
+      () async {
+        final notifier = container.read(authStateNotifierProvider.notifier);
+        final seen = <AuthState>[];
+        container.listen<AuthState>(
+          authStateNotifierProvider,
+          (_, next) => seen.add(next),
+          fireImmediately: true,
+        );
+
+        await notifier.checkAuth(showProgress: false);
+
+        expect(seen, isNot(contains(AuthState.authenticating)));
+      },
+    );
 
     test('checkAuth() still shows progress for a foreground check', () async {
       final notifier = container.read(authStateNotifierProvider.notifier);

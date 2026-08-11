@@ -315,6 +315,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         sessionsViewStyle == 'folder' ||
         sessionsViewStyle == 'mission_control' ||
         sessionsViewStyle == 'unread_focus';
+    final usesMissionControlRoot =
+        sessionsViewStyle == 'mission_control' && _selectedFolderKey == null;
     final sessions = usesAggregateRows
         ? ref.watch(sessionsNotifierProvider)
         : ref
@@ -344,10 +346,17 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         SessionOrderingProjection.fromState,
       ),
     );
-    final aggregateUiState = usesAggregateRows
+    final aggregateUiState = usesAggregateRows && !usesMissionControlRoot
         ? (_isVisible
               ? ref.watch(sessionUiStateNotifierProvider)
               : ref.read(sessionUiStateNotifierProvider))
+        : null;
+    final missionControlUi = usesMissionControlRoot
+        ? ref.watch(
+            sessionUiStateNotifierProvider.select(
+              (state) => state.missionControl,
+            ),
+          )
         : null;
 
     final sorted = computeSortedSessions(
@@ -407,6 +416,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           machines,
           orderingProjection,
           aggregateUiState,
+          missionControlUi,
           sessionsViewStyle: sessionsViewStyle,
           triggerStagger: triggerStagger,
           hideInactive: hideInactive,
@@ -478,7 +488,8 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     List<Session> inactiveSessions,
     Map<String, Machine> machines,
     SessionOrderingProjection orderingProjection,
-    SessionUiState? aggregateUiState, {
+    SessionUiState? aggregateUiState,
+    MissionControlUiProjection? missionControlUi, {
     required String sessionsViewStyle,
     required bool triggerStagger,
     required bool hideInactive,
@@ -518,7 +529,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         activeSessions,
         inactiveSessions,
         machines,
-        aggregateUiState!,
+        missionControlUi!.toUiState(),
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       );
@@ -615,21 +626,26 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     MissionLane lane, {
     required bool animateActivity,
   }) {
-    final sel = _sel.value;
-    final row = MissionActionRow(
-      session: session,
-      entry: entry,
-      lane: lane,
-      animateActivity: animateActivity,
-      onTap: sel.isActive
-          ? () => _onSessionTapInSelectionMode(session.id)
-          : () => _navigateToChat(session.id),
-      onLongPress: () => _onSessionLongPress(session.id),
-      selected: sel.selectedIds.contains(session.id),
+    return Consumer(
+      builder: (context, ref, _) {
+        final rowEntry = ref.watch(sessionUiEntryProvider(session.id));
+        final sel = _sel.value;
+        final row = MissionActionRow(
+          session: session,
+          entry: rowEntry,
+          lane: lane,
+          animateActivity: animateActivity,
+          onTap: sel.isActive
+              ? () => _onSessionTapInSelectionMode(session.id)
+              : () => _navigateToChat(session.id),
+          onLongPress: () => _onSessionLongPress(session.id),
+          selected: sel.selectedIds.contains(session.id),
+        );
+        return sel.isActive
+            ? row
+            : DismissibleActiveSession(session: session, child: row);
+      },
     );
-    return sel.isActive
-        ? row
-        : DismissibleActiveSession(session: session, child: row);
   }
 
   Widget _buildUnreadFocusView(

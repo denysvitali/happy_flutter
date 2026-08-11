@@ -422,6 +422,19 @@ extension SyncSocketEvents on Sync {
     // upsert/apply. Fallback paths release the pending key so socket
     // re-delivery can retry instead of being suppressed forever.
     final embeddedMessage = WireParsers.asMap(data['message']);
+    final authoritativeLocalId = embeddedMessage?['localId'] as String?;
+    if (authoritativeLocalId != null && authoritativeLocalId.isNotEmpty) {
+      // A server echo is the authoritative acknowledgement even if later
+      // decrypt/merge work is deduplicated. Remove the durable retry now so a
+      // restored timer cannot resend an already-stored logical message.
+      unawaited(
+        messageOutbox.serialize(
+          sessionId,
+          () => messageOutbox.remove(authoritativeLocalId),
+        ),
+      );
+      _updateMessageSendStatus(sessionId, authoritativeLocalId, 'sent');
+    }
     final msgSeq = embeddedMessage?['seq'] as int?;
     String? inlineDedupKey;
     if (embeddedMessage != null) {

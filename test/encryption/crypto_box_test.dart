@@ -5,8 +5,7 @@ import 'package:happy_flutter/core/encryption/crypto_box.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   group('CryptoBox', () {
-    group('KeyPair Generation',
-        skip: 'Requires native sodium library', () {
+    group('KeyPair Generation', () {
       test('generateKeypair creates keys of correct size', () async {
         final keypair = await CryptoBox.generateKeypair();
 
@@ -62,8 +61,7 @@ void main() {
       });
     });
 
-    group('Nonce Generation',
-        skip: 'Requires native sodium library', () {
+    group('Nonce Generation', () {
       test('randomNonce generates correct size', () async {
         final nonce = await CryptoBox.randomNonce();
 
@@ -78,8 +76,7 @@ void main() {
       });
     });
 
-    group('Encryption and Decryption',
-        skip: 'Requires native sodium library', () {
+    group('Encryption and Decryption', () {
       test('encrypt and decrypt roundtrip works', () async {
         final senderKeyPair = await CryptoBox.generateKeypair();
         final recipientKeyPair = await CryptoBox.generateKeypair();
@@ -224,8 +221,7 @@ void main() {
       // These tests are removed as the method no longer exists
     });
 
-    group('KeyPair Class',
-        skip: 'Requires native sodium library', () {
+    group('KeyPair Class', () {
       test('KeyPair holds all required fields', () async {
         final publicKey = Uint8List.fromList([1, 2, 3]);
         // Generate a real keypair to get valid SecureKey instances
@@ -247,8 +243,7 @@ void main() {
       });
     });
 
-    group('Edge Cases',
-        skip: 'Requires native sodium library', () {
+    group('Edge Cases', () {
       test('decrypt returns null for corrupted data', () async {
         final recipientKeyPair = await CryptoBox.generateKeypair();
 
@@ -295,8 +290,7 @@ void main() {
       });
     });
 
-    group('Cross-Platform Compatibility',
-        skip: 'Requires native sodium library', () {
+    group('Cross-Platform Compatibility', () {
       test('encryption format is compatible with NaCl box format', () async {
         // Verify that our bundle format matches the expected structure
         // for compatibility with React Native's libsodium implementation

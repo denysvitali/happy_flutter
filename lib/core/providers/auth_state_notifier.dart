@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -22,10 +23,45 @@ final authStateNotifierProvider =
       return AuthStateNotifier();
     });
 
+final pendingLinkRequestProvider =
+    NotifierProvider<PendingLinkRequestNotifier, PendingLinkRequest?>(
+      PendingLinkRequestNotifier.new,
+    );
+
+class PendingLinkRequest {
+  const PendingLinkRequest({
+    required this.url,
+    required this.fingerprint,
+    required this.isTerminal,
+  });
+
+  final String url;
+  final String fingerprint;
+  final bool isTerminal;
+}
+
+class PendingLinkRequestNotifier extends Notifier<PendingLinkRequest?> {
+  @override
+  PendingLinkRequest? build() => null;
+
+  void stage(String url) {
+    final publicKey = AuthService.parseAuthUrl(url);
+    if (publicKey == null) return;
+    final fingerprint = sha256.convert(publicKey).toString();
+    state = PendingLinkRequest(
+      url: url,
+      fingerprint: fingerprint,
+      isTerminal: url.startsWith('happy://terminal?'),
+    );
+  }
+
+  void clear([String? expectedUrl]) {
+    if (expectedUrl == null || state?.url == expectedUrl) state = null;
+  }
+}
+
 class AuthStateNotifier extends Notifier<AuthState> {
   final _authService = AuthService();
-  String? _pendingDeepLink;
-  String? _activeDeepLink;
   OnTokenRefreshFailed? _tokenRefreshFailedListener;
   bool _reauthCheckInFlight = false;
   final _transitionEpoch = AuthTransitionEpoch();
@@ -199,11 +235,6 @@ class AuthStateNotifier extends Notifier<AuthState> {
             }
           }),
         );
-        if (_pendingDeepLink != null) {
-          await _handleDeepLink(_pendingDeepLink!);
-          if (!_transitionEpoch.isCurrent(transition)) return;
-          _pendingDeepLink = null;
-        }
       }
     } catch (e, stack) {
       if (!_transitionEpoch.isCurrent(transition)) return;
@@ -234,7 +265,8 @@ class AuthStateNotifier extends Notifier<AuthState> {
       logger.warning('Ignoring unsupported deep link');
       return;
     }
-    if (normalizedUrl == _pendingDeepLink || normalizedUrl == _activeDeepLink) {
+    final pending = ref.read(pendingLinkRequestProvider);
+    if (normalizedUrl == pending?.url) {
       unawaited(
         Sentry.addBreadcrumb(
           Breadcrumb(
@@ -260,34 +292,11 @@ class AuthStateNotifier extends Notifier<AuthState> {
       ),
     );
 
-    if (state == AuthState.authenticated) {
-      unawaited(_handleDeepLink(normalizedUrl));
-    } else {
-      _pendingDeepLink = normalizedUrl;
+    if (AuthService.parseAuthUrl(normalizedUrl) == null) {
+      logger.warning('Ignoring invalid linking deep link');
+      return;
     }
-  }
-
-  Future<void> _handleDeepLink(String url) async {
-    if (url == _activeDeepLink) return;
-    _activeDeepLink = url;
-    try {
-      await _authService.approveLinkingRequest(url);
-      unawaited(
-        Sentry.addBreadcrumb(
-          Breadcrumb(
-            message: 'Deep link handled',
-            category: 'deep_link',
-            data: _deepLinkBreadcrumbData(url),
-          ),
-        ),
-      );
-    } catch (e, stack) {
-      logger.warning('Failed to handle deep link', e, stack);
-    } finally {
-      if (_activeDeepLink == url) {
-        _activeDeepLink = null;
-      }
-    }
+    ref.read(pendingLinkRequestProvider.notifier).stage(normalizedUrl);
   }
 
   Map<String, Object?> _deepLinkBreadcrumbData(String url) {
@@ -305,6 +314,7 @@ class AuthStateNotifier extends Notifier<AuthState> {
     return _enqueueAuthTransition(() async {
       await syncShutdown();
       await _authService.signOut();
+      ref.read(pendingLinkRequestProvider.notifier).clear();
       AppLifecycleService.clearAll(ref);
       state = AuthState.unauthenticated;
       Sentry.configureScope((scope) => scope.setUser(null));

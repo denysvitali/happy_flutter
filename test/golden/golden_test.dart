@@ -16,11 +16,14 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
+import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/chat/message_widget.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 import 'package:happy_flutter/features/sessions/sessions_screen.dart';
 import 'package:happy_flutter/features/settings/settings_screen.dart';
+
+import '../helpers/golden_chat_screen_fixture.dart';
 
 // ─── Stub Notifiers ───────────────────────────────────────────────────────────
 
@@ -827,10 +830,20 @@ void main() {
       );
     }
 
-    testWidgets('light mode - running conversation', (tester) async {
-      setPhoneSize(tester);
+    Widget _realChatApp({Widget Function(Widget)? wrap}) {
+      final chat = const ChatScreen(sessionId: goldenChatSessionId);
+      return _buildApp(
+        wrap?.call(chat) ?? chat,
+        sessions: {goldenChatSessionId: goldenChatSession()},
+      );
+    }
 
-      await tester.pumpWidget(_chatApp());
+    testWidgets('real ChatScreen - running conversation', (tester) async {
+      setPhoneSize(tester);
+      seedGoldenChatScreen();
+      addTearDown(clearGoldenChatScreen);
+
+      await tester.pumpWidget(_realChatApp());
       // Settle message entrance animations.
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 100));
@@ -839,6 +852,34 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/chat_running_light.png'),
+      );
+    });
+
+    testWidgets('real ChatScreen - large text and reduced motion', (
+      tester,
+    ) async {
+      setPhoneSize(tester);
+      seedGoldenChatScreen();
+      addTearDown(clearGoldenChatScreen);
+
+      await tester.pumpWidget(
+        _realChatApp(
+          wrap: (chat) => MediaQuery(
+            data: const MediaQueryData(
+              textScaler: TextScaler.linear(1.3),
+              accessibleNavigation: true,
+            ),
+            child: chat,
+          ),
+        ),
+      );
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/chat_large_text_reduced_motion_light.png'),
       );
     });
 

@@ -1309,8 +1309,13 @@ void main() {
           return sync.sessions[sid];
         };
 
-        expect(
-          () => sync.sendMessage(sessionId, 'hello'),
+        const localId = 'encryption-setup-failure';
+        await expectLater(
+          () => sync.sendMessage(
+            sessionId,
+            'hello',
+            clientLocalId: localId,
+          ),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -1319,6 +1324,10 @@ void main() {
             ),
           ),
         );
+        final failedRows = sync.testSessionMessages(sessionId)!;
+        expect(failedRows, hasLength(1));
+        expect(failedRows.single['localId'], localId);
+        expect(failedRows.single['sendStatus'], 'failed');
       },
     );
   });

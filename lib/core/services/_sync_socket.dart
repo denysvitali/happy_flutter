@@ -49,6 +49,9 @@ extension SyncSocket on Sync {
       return;
     }
 
+    _runtimeGeneration++;
+    _isReady = false;
+
     this.credentials = credentials;
     this.encryption = encryption;
     _encryptionInitialized = true;
@@ -82,6 +85,7 @@ extension SyncSocket on Sync {
 
   /// Internal initialization
   Future<void> _init() async {
+    final runtimeGeneration = _runtimeGeneration;
     // Restore persisted message cursors
     _sessionLastSeq
       ..clear()
@@ -96,6 +100,7 @@ extension SyncSocket on Sync {
       _restoreSessionsCache(),
       MMKVStorage().getSettings().then((s) => restoredSettings = s),
     ]);
+    if (runtimeGeneration != _runtimeGeneration) return;
 
     // Restore cached settings so that loadFromSync() serves the user's
     // last-known settings instead of defaults before syncSettings()
@@ -176,13 +181,18 @@ extension SyncSocket on Sync {
     // NOTE: Previously this was awaited, blocking restore() on every warm
     // start until the HTTP fetches completed (2-9s). Now runs fire-and-forget
     // so AuthState.authenticated is set immediately after MMKV cache restore.
+    final readyGeneration = _runtimeGeneration;
     unawaited(
       Future.wait([sessionsSync.awaitQueue(), machinesSync.awaitQueue()])
-          .then((_) => _isReady = true)
+          .then((_) {
+            if (readyGeneration == _runtimeGeneration && isInitialized) {
+              _isReady = true;
+            }
+          })
           .catchError((Object error, StackTrace stack) {
             logger.error('Failed initial ready sync', error, stack);
             Sentry.captureException(error, stackTrace: stack);
-            return true; // Error handled — do not propagate
+            return null; // Error handled — do not propagate
           }),
     );
 
@@ -621,13 +631,15 @@ extension SyncSocket on Sync {
   static const int _coldStartSyncSessionRestoreLimit = 5;
 
   Future<void> _restoreSessionsCache() async {
+    final runtimeGeneration = _runtimeGeneration;
     // SessionsCacheStorage abstracts IndexedDB on web / MMKV on native.
     final cache = await SessionsCacheStorage.instance.getSessionsCacheAsync();
-    if (cache == null) return;
+    if (cache == null || runtimeGeneration != _runtimeGeneration) return;
     await _restoreSessionsCacheFrom(cache);
   }
 
   Future<void> _restoreSessionsCacheFrom(Map<String, dynamic> cache) async {
+    final runtimeGeneration = _runtimeGeneration;
     try {
       final sessionsRaw = cache['sessions'];
       final encryptedKeysRaw = cache['encryptedDataKeys'];
@@ -726,7 +738,11 @@ extension SyncSocket on Sync {
           await Future.wait(
             sessionKeys.entries.map((e) async {
               try {
-                await _ensureSessionEncryptionInitialized(e.key, e.value);
+                await _ensureSessionEncryptionInitialized(
+                  e.key,
+                  e.value,
+                  runtimeGeneration: runtimeGeneration,
+                );
               } catch (error, stack) {
                 logger.warning(
                   'Skipping cached session ${e.key}: encryption could not be '
@@ -798,10 +814,15 @@ extension SyncSocket on Sync {
   /// session id + error for post-mortem correlation.
   Future<void> _openAndCacheSessionEncryption(
     String sessionId,
-    Uint8List? dataKey,
-  ) async {
+    Uint8List? dataKey, {
+    int? runtimeGeneration,
+  }) async {
     try {
       final encryptorDecryptor = await encryption.openEncryption(dataKey);
+      if (runtimeGeneration != null &&
+          runtimeGeneration != _runtimeGeneration) {
+        return;
+      }
       if (encryptorDecryptor is Encryptor) {
         final enc = encryptorDecryptor;
         final dec = encryptorDecryptor;
@@ -856,8 +877,12 @@ extension SyncSocket on Sync {
   /// the session. If the cached key changed, replace the existing encryptor.
   Future<void> _ensureSessionEncryptionInitialized(
     String sessionId,
-    Uint8List? dataKey,
-  ) async {
+    Uint8List? dataKey, {
+    int? runtimeGeneration,
+  }) async {
+    if (runtimeGeneration != null && runtimeGeneration != _runtimeGeneration) {
+      return;
+    }
     final existingEncryption = encryption.getSessionEncryption(sessionId);
     final cachedKey = _sessionDataKeys[sessionId];
     if (existingEncryption != null && cachedKey == null && dataKey == null) {
@@ -871,7 +896,11 @@ extension SyncSocket on Sync {
       encryption.removeSessionEncryption(sessionId);
       _sessionDataKeys.remove(sessionId);
     }
-    await _openAndCacheSessionEncryption(sessionId, dataKey);
+    await _openAndCacheSessionEncryption(
+      sessionId,
+      dataKey,
+      runtimeGeneration: runtimeGeneration,
+    );
   }
 
   /// Maximum sessions to store in the on-disk sessions cache.

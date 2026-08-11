@@ -27,7 +27,10 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/utils/theme_helper.dart';
+import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/sessions/sessions_screen.dart';
+
+import '../helpers/golden_chat_screen_fixture.dart';
 
 // ─── Stub Notifiers (mirror those in golden_test.dart) ───────────────────────
 
@@ -128,20 +131,22 @@ Session _makeSession({
 
 // ignore: type_annotate_public_apis
 _commonOverrides(Map<String, Session> sessions) => [
-      authStateNotifierProvider
-          .overrideWith(() => _StubAuthNotifier(AuthState.authenticated)),
-      settingsNotifierProvider.overrideWith(() => _StubSettingsNotifier()),
-      sessionsNotifierProvider
-          .overrideWith(() => _StubSessionsNotifier(sessions)),
-      machinesNotifierProvider.overrideWith(() => _StubMachinesNotifier()),
-      connectionNotifierProvider.overrideWith(() => _StubConnectionNotifier()),
-      networkNotifierProvider.overrideWith(() => _StubNetworkNotifier()),
-      profileNotifierProvider.overrideWith(() => _StubProfileNotifier()),
-      currentSessionNotifierProvider
-          .overrideWith(() => _StubCurrentSessionNotifier()),
-      sessionGitStatusNotifierProvider
-          .overrideWith(() => _StubSessionGitStatusNotifier()),
-    ];
+  authStateNotifierProvider.overrideWith(
+    () => _StubAuthNotifier(AuthState.authenticated),
+  ),
+  settingsNotifierProvider.overrideWith(() => _StubSettingsNotifier()),
+  sessionsNotifierProvider.overrideWith(() => _StubSessionsNotifier(sessions)),
+  machinesNotifierProvider.overrideWith(() => _StubMachinesNotifier()),
+  connectionNotifierProvider.overrideWith(() => _StubConnectionNotifier()),
+  networkNotifierProvider.overrideWith(() => _StubNetworkNotifier()),
+  profileNotifierProvider.overrideWith(() => _StubProfileNotifier()),
+  currentSessionNotifierProvider.overrideWith(
+    () => _StubCurrentSessionNotifier(),
+  ),
+  sessionGitStatusNotifierProvider.overrideWith(
+    () => _StubSessionGitStatusNotifier(),
+  ),
+];
 
 Widget _buildApp(
   Widget child, {
@@ -234,43 +239,41 @@ void main() {
   // unskipped without baselines would fail the pipeline.
 
   group('Sessions Screen (tablet)', () {
-    testWidgets(
-      'landscape light - master-detail with sessions',
-      (tester) async {
-        _setTabletLandscapeSize(tester);
+    testWidgets('landscape light - master-detail with sessions', (
+      tester,
+    ) async {
+      _setTabletLandscapeSize(tester);
 
-        await tester.pumpWidget(
-          _buildApp(const SessionsScreen(), sessions: _mockSessions),
-        );
-        for (var i = 0; i < 12; i++) {
-          await tester.pump(const Duration(milliseconds: 100));
-        }
+      await tester.pumpWidget(
+        _buildApp(const SessionsScreen(), sessions: _mockSessions),
+      );
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
-        await expectLater(
-          find.byType(MaterialApp),
-          matchesGoldenFile('goldens/tablet_sessions_landscape_light.png'),
-        );
-      },
-    );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tablet_sessions_landscape_light.png'),
+      );
+    });
 
-    testWidgets(
-      'portrait light - master-detail still rendered at 768',
-      (tester) async {
-        _setTabletPortraitSize(tester);
+    testWidgets('portrait light - master-detail still rendered at 768', (
+      tester,
+    ) async {
+      _setTabletPortraitSize(tester);
 
-        await tester.pumpWidget(
-          _buildApp(const SessionsScreen(), sessions: _mockSessions),
-        );
-        for (var i = 0; i < 12; i++) {
-          await tester.pump(const Duration(milliseconds: 100));
-        }
+      await tester.pumpWidget(
+        _buildApp(const SessionsScreen(), sessions: _mockSessions),
+      );
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
-        await expectLater(
-          find.byType(MaterialApp),
-          matchesGoldenFile('goldens/tablet_sessions_portrait_light.png'),
-        );
-      },
-    );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tablet_sessions_portrait_light.png'),
+      );
+    });
   });
 
   // ── Stubs — to be filled in by Phase-2 agents ─────────────────────────────
@@ -280,60 +283,49 @@ void main() {
   // that produces `goldens/<name>.png` via `--update-goldens`.
 
   group('Tablet stubs (Phase 2)', () {
-    testWidgets(
-      'tablet_chat_landscape_light',
-      (tester) async {
-        // TODO: filled in by chat agent (F3).
-      },
-      skip: true,
-    );
+    testWidgets('tablet_chat_landscape_light', (tester) async {
+      _setTabletLandscapeSize(tester);
+      seedGoldenChatScreen();
+      addTearDown(clearGoldenChatScreen);
 
-    testWidgets(
-      'tablet_artifacts_landscape_light',
-      (tester) async {
-        // TODO: filled in by artifacts agent (F4).
-      },
-      skip: true,
-    );
+      await tester.pumpWidget(
+        _buildApp(
+          const ChatScreen(sessionId: goldenChatSessionId),
+          sessions: {goldenChatSessionId: goldenChatSession()},
+        ),
+      );
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
-    testWidgets(
-      'tablet_zen_landscape_light',
-      (tester) async {
-        // TODO: filled in by zen agent (F5).
-      },
-      skip: true,
-    );
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tablet_chat_landscape_light.png'),
+      );
+    });
 
-    testWidgets(
-      'tablet_inbox_landscape_light',
-      (tester) async {
-        // TODO: filled in by inbox agent (F6).
-      },
-      skip: true,
-    );
+    testWidgets('tablet_artifacts_landscape_light', (tester) async {
+      // TODO: filled in by artifacts agent (F4).
+    }, skip: true);
 
-    testWidgets(
-      'tablet_profiles_landscape_light',
-      (tester) async {
-        // TODO: filled in by profiles agent (F7).
-      },
-      skip: true,
-    );
+    testWidgets('tablet_zen_landscape_light', (tester) async {
+      // TODO: filled in by zen agent (F5).
+    }, skip: true);
 
-    testWidgets(
-      'tablet_sftp_landscape_light',
-      (tester) async {
-        // TODO: filled in by sftp agent (F8).
-      },
-      skip: true,
-    );
+    testWidgets('tablet_inbox_landscape_light', (tester) async {
+      // TODO: filled in by inbox agent (F6).
+    }, skip: true);
 
-    testWidgets(
-      'tablet_session_pickers_landscape_light',
-      (tester) async {
-        // TODO: filled in by session pickers agent (F9).
-      },
-      skip: true,
-    );
+    testWidgets('tablet_profiles_landscape_light', (tester) async {
+      // TODO: filled in by profiles agent (F7).
+    }, skip: true);
+
+    testWidgets('tablet_sftp_landscape_light', (tester) async {
+      // TODO: filled in by sftp agent (F8).
+    }, skip: true);
+
+    testWidgets('tablet_session_pickers_landscape_light', (tester) async {
+      // TODO: filled in by session pickers agent (F9).
+    }, skip: true);
   });
 }

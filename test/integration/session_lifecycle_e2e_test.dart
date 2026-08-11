@@ -687,8 +687,9 @@ void main() {
         return <String, dynamic>{};
       };
 
+      const localId = 'errored-setup-local-id';
       await expectLater(
-        sync.sendMessage(sessionId, 'hello'),
+        sync.sendMessage(sessionId, 'hello', clientLocalId: localId),
         throwsA(
           isA<StateError>().having(
             (error) => error.message,
@@ -698,11 +699,11 @@ void main() {
         ),
       );
       expect(rpcCalled, isFalse);
-      expect(
-        sync.testSessionMessages(sessionId),
-        isNull,
-        reason: 'stopped sessions without restore metadata cannot be sent to',
-      );
+      final failedRows = sync.testSessionMessages(sessionId)!;
+      expect(failedRows, hasLength(1));
+      expect(failedRows.single['localId'], localId);
+      expect(failedRows.single['sendStatus'], 'failed');
+      expect(failedRows.single['raw'], isA<Map<String, dynamic>>());
     });
   });
 }

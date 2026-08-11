@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sodium/sodium.dart' show SecureKey, Sodium;
 
 import '../api/api_client.dart';
@@ -38,18 +39,55 @@ enum AuthFailureKind {
 /// Authentication service handling QR-based authentication flow.
 class AuthService {
   factory AuthService() => _instance;
-  AuthService._();
+  AuthService._()
+    : _apiClient = ApiClient(),
+      _encryption = EncryptionService(),
+      _credentials = const _TokenCredentialStore(),
+      _crypto = const _SodiumAuthCrypto(),
+      _clearApiKeys = _clearStoredApiKeys,
+      _now = DateTime.now,
+      _delay = Future<void>.delayed,
+      _approvalTimeout = const Duration(minutes: 2);
+
+  /// Creates an isolated service with deterministic dependencies for tests.
+  ///
+  /// The default factory remains the process-wide production singleton.
+  @visibleForTesting
+  AuthService.test({
+    required ApiClient apiClient,
+    required EncryptionService encryption,
+    required AuthCredentialStore credentials,
+    required AuthCrypto crypto,
+    Future<void> Function()? clearApiKeys,
+    DateTime Function()? now,
+    Future<void> Function(Duration)? delay,
+    Duration approvalTimeout = const Duration(minutes: 2),
+  }) : _apiClient = apiClient,
+       _encryption = encryption,
+       _credentials = credentials,
+       _crypto = crypto,
+       _clearApiKeys = clearApiKeys ?? _noopClearApiKeys,
+       _now = now ?? DateTime.now,
+       _delay = delay ?? Future<void>.delayed,
+       _approvalTimeout = approvalTimeout;
+
   static final AuthService _instance = AuthService._();
 
-  final _apiClient = ApiClient();
-  final _encryption = EncryptionService();
+  final ApiClient _apiClient;
+  final EncryptionService _encryption;
+  final AuthCredentialStore _credentials;
+  final AuthCrypto _crypto;
+  final Future<void> Function() _clearApiKeys;
+  final DateTime Function() _now;
+  final Future<void> Function(Duration) _delay;
+  final Duration _approvalTimeout;
 
   // Pending secret keys for in-progress auth flows (NaCl box, X25519)
-  SecureKey? _pendingQRSecretKey;
-  SecureKey? _pendingLinkingSecretKey;
+  Object? _pendingQRSecretKey;
+  Object? _pendingLinkingSecretKey;
 
   // Cached secret key for signing (64-byte extended Ed25519 secret key)
-  SecureKey? _cachedKeypairSecret;
+  Object? _cachedKeypairSecret;
 
   // Sodium instance for Ed25519 signing
   static Sodium? _sodium;
@@ -78,7 +116,7 @@ class AuthService {
   /// re-authenticate.
   /// Throws [AuthException] on other errors.
   Future<String> refreshToken() async {
-    final credentials = await TokenStorage().getCredentials();
+    final credentials = await _credentials.getCredentials();
     if (credentials == null) {
       throw AuthException('No credentials available for token refresh');
     }
@@ -86,9 +124,7 @@ class AuthService {
     try {
       final response = await _apiClient.post(
         '/v1/auth/refresh',
-        data: {
-          'token': credentials.token,
-        },
+        data: {'token': credentials.token},
       );
 
       if (response.statusCode == 200) {
@@ -100,7 +136,7 @@ class AuthService {
           token: newToken,
           secret: credentials.secret,
         );
-        await TokenStorage().setCredentials(newCredentials);
+        await _credentials.setCredentials(newCredentials);
 
         // Update ApiClient with the new token
         _apiClient.updateToken(newToken);
@@ -114,9 +150,7 @@ class AuthService {
           serverResponse: response.data?.toString(),
         );
       } else {
-        throw AuthException(
-          'Token refresh failed: ${response.statusCode}',
-        );
+        throw AuthException('Token refresh failed: ${response.statusCode}');
       }
     } on DioException catch (e) {
       if (_isReauthStatus(e.response?.statusCode)) {
@@ -144,15 +178,13 @@ class AuthService {
   /// Start QR authentication.
   /// Returns the public key to display in QR code.
   Future<Uint8List> startQRAuth() async {
-    _pendingQRSecretKey?.dispose();
-    final keypair = await CryptoBox.generateKeypair();
+    _disposeKey(_pendingQRSecretKey);
+    final keypair = await _crypto.generateBoxKeypair();
     _pendingQRSecretKey = keypair.secretKey;
 
     await _apiClient.post(
       '/v1/auth/account/request',
-      data: {
-        'publicKey': base64Encode(keypair.publicKey),
-      },
+      data: {'publicKey': base64Encode(keypair.publicKey)},
     );
 
     return keypair.publicKey;
@@ -160,9 +192,9 @@ class AuthService {
 
   /// Create a new account.
   Future<void> createAccount() async {
-    final secret = _encryption.randomBytes(32);
+    final secret = _crypto.randomBytes(32);
     final keypair = await _generateKeypair(secret);
-    final challenge = _encryption.randomBytes(32);
+    final challenge = _crypto.randomBytes(32);
     final signature = await _signChallenge(challenge, keypair.privateKey);
 
     Response response;
@@ -206,8 +238,10 @@ class AuthService {
 
       await _encryption.initialize(secret);
 
-      final credentials =
-          AuthCredentials(token: token, secret: base64Encode(secret));
+      final credentials = AuthCredentials(
+        token: token,
+        secret: base64Encode(secret),
+      );
       await _persistCredentials(credentials);
       _apiClient.updateToken(token);
     } else if (response.statusCode == 409) {
@@ -244,8 +278,10 @@ class AuthService {
   Future<AuthCredentials> completeAuth(String token, Uint8List secret) async {
     await _encryption.initialize(secret);
 
-    final credentials =
-        AuthCredentials(token: token, secret: base64Encode(secret));
+    final credentials = AuthCredentials(
+      token: token,
+      secret: base64Encode(secret),
+    );
     await _persistCredentials(credentials);
 
     return credentials;
@@ -253,7 +289,7 @@ class AuthService {
 
   /// Check if user is authenticated.
   Future<bool> isAuthenticated() async {
-    return TokenStorage().isAuthenticated();
+    return _credentials.isAuthenticated();
   }
 
   /// Why the last [getAuthState] call ended in [AuthState.error].
@@ -266,14 +302,14 @@ class AuthService {
 
   /// Get current authentication state.
   Future<AuthState> getAuthState() async {
-    final credentials = await TokenStorage().getCredentials();
+    final credentials = await _credentials.getCredentials();
     if (credentials == null) {
       _lastAuthFailure = null;
       return AuthState.unauthenticated;
     }
 
     try {
-      await _verifyToken(credentials.token);
+      await _verifyToken();
       _lastAuthFailure = null;
       return AuthState.authenticated;
     } on AuthForbiddenError catch (e, stack) {
@@ -309,12 +345,9 @@ class AuthService {
   /// and never as a [DioException] — the status check below is what
   /// actually fires in production; the catch clause only covers transport
   /// failures.
-  Future<void> _verifyToken(String token) async {
+  Future<void> _verifyToken() async {
     try {
-      final response = await _apiClient.get(
-        '/v1/auth/verify',
-        queryParameters: {'token': token},
-      );
+      final response = await _apiClient.get('/v1/auth/verify');
       if (_apiClient.isAuthError(response)) {
         throw AuthForbiddenError(
           'Token is invalid or has been revoked '
@@ -337,14 +370,15 @@ class AuthService {
 
   /// Sign out.
   Future<void> signOut() async {
-    _cachedKeypairSecret?.dispose();
+    _disposeKey(_cachedKeypairSecret);
     _cachedKeypairSecret = null;
-    _pendingQRSecretKey?.dispose();
+    _disposeKey(_pendingQRSecretKey);
     _pendingQRSecretKey = null;
-    _pendingLinkingSecretKey?.dispose();
+    _disposeKey(_pendingLinkingSecretKey);
     _pendingLinkingSecretKey = null;
     _apiClient.clearToken();
-    await TokenStorage().removeCredentials();
+    await _clearApiKeys();
+    await _credentials.removeCredentials();
   }
 
   /// Restore account from backup key.
@@ -352,7 +386,7 @@ class AuthService {
   Future<AuthCredentials> restoreAccount(String formattedKey) async {
     final secret = BackupKeyUtils.decodeKey(formattedKey);
     final keypair = await _generateKeypair(secret);
-    final challenge = _encryption.randomBytes(32);
+    final challenge = _crypto.randomBytes(32);
     final signature = await _signChallenge(challenge, keypair.privateKey);
 
     Response response;
@@ -394,8 +428,10 @@ class AuthService {
 
       await _encryption.initialize(secret);
 
-      final credentials =
-          AuthCredentials(token: token, secret: base64Encode(secret));
+      final credentials = AuthCredentials(
+        token: token,
+        secret: base64Encode(secret),
+      );
       await _persistCredentials(credentials);
       _apiClient.updateToken(token);
 
@@ -404,9 +440,7 @@ class AuthService {
       final errorMsg = _extractErrorMessage(response.data);
       throw AuthRequestError(errorMsg, statusCode: response.statusCode);
     } else {
-      throw AuthException(
-        'Failed to restore account: ${response.statusCode}',
-      );
+      throw AuthException('Failed to restore account: ${response.statusCode}');
     }
   }
 
@@ -438,8 +472,7 @@ class AuthService {
         if (services != null) {
           return services
               .map(
-                (s) =>
-                    ConnectedServiceInfo.fromJson(s as Map<String, dynamic>),
+                (s) => ConnectedServiceInfo.fromJson(s as Map<String, dynamic>),
               )
               .toList();
         }
@@ -453,9 +486,9 @@ class AuthService {
 
   /// Start device linking process.
   Future<DeviceLinkingResult> startDeviceLinking() async {
-    _pendingLinkingSecretKey?.dispose();
-    final seed = _encryption.randomBytes(32);
-    final keypair = await CryptoBox.keypairFromSeed(seed);
+    _disposeKey(_pendingLinkingSecretKey);
+    final seed = _crypto.randomBytes(32);
+    final keypair = await _crypto.boxKeypairFromSeed(seed);
     _pendingLinkingSecretKey = keypair.secretKey;
     final serverUrl = _apiClient.getCurrentServerUrl();
     final encodedPublicKey = base64Encode(keypair.publicKey);
@@ -472,7 +505,8 @@ class AuthService {
         secret: seed,
       );
     } on DioException catch (e) {
-      final errorMessage = '''
+      final errorMessage =
+          '''
 ========================================
 Device Linking Error
 ========================================
@@ -542,7 +576,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
 
   /// Generate backup key from current credentials.
   Future<String> generateBackupKey() async {
-    final credentials = await TokenStorage().getCredentials();
+    final credentials = await _credentials.getCredentials();
     if (credentials == null) {
       throw AuthException('Not authenticated');
     }
@@ -572,20 +606,13 @@ Timestamp: ${DateTime.now().toIso8601String()}
       throw ArgumentError('Seed must be exactly 32 bytes');
     }
 
-    final sodium = await _sodiumInstance;
-
-    final seedKey = SecureKey.fromList(sodium, seed);
-    final keypair = sodium.crypto.sign.seedKeyPair(seedKey);
-    seedKey.dispose();
-
-    final publicKeyBytes = Uint8List.fromList(keypair.publicKey);
-
-    // Cache the 64-byte extended Ed25519 secret key for signing.
+    final keypair = await _crypto.generateSigningKeypair(seed);
+    _disposeKey(_cachedKeypairSecret);
     _cachedKeypairSecret = keypair.secretKey;
 
     return _KeyPair(
       privateKey: Uint8List.fromList(seed),
-      publicKey: publicKeyBytes,
+      publicKey: keypair.publicKey,
     );
   }
 
@@ -634,14 +661,13 @@ Timestamp: ${DateTime.now().toIso8601String()}
   /// Dispose [_cachedKeypairSecret] if [condition] is true.
   void _disposeCachedKeypairIf(bool condition) {
     if (condition) {
-      _cachedKeypairSecret?.dispose();
+      _disposeKey(_cachedKeypairSecret);
       _cachedKeypairSecret = null;
     }
   }
 
   Future<void> _persistCredentials(AuthCredentials credentials) async {
-    final tokenStorage = TokenStorage();
-    final previous = await tokenStorage.getCredentials();
+    final previous = await _credentials.getCredentials();
     final changedAccountContext =
         previous != null &&
         (previous.token != credentials.token ||
@@ -655,7 +681,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
       await syncShutdown();
     }
 
-    await tokenStorage.setCredentials(credentials);
+    await _credentials.setCredentials(credentials);
   }
 
   /// Sign a challenge using Ed25519 detached signature.
@@ -663,24 +689,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
     Uint8List challenge,
     Uint8List privateKey,
   ) async {
-    final sodium = await _sodiumInstance;
-
-    // Use the cached secret key if available (from _generateKeypair).
-    // This is the proper 64-byte extended Ed25519 secret key.
-    final secretKey =
-        _cachedKeypairSecret ?? SecureKey.fromList(sodium, privateKey);
-
-    final signature = sodium.crypto.sign.detached(
-      message: challenge,
-      secretKey: secretKey,
-    );
-
-    // Only dispose if we created it from the privateKey (not cached).
-    if (_cachedKeypairSecret == null) {
-      secretKey.dispose();
-    }
-
-    return signature;
+    return _crypto.sign(challenge, _cachedKeypairSecret ?? privateKey);
   }
 
   /// Check if an error string indicates an SSL/TLS failure.
@@ -714,14 +723,18 @@ Timestamp: ${DateTime.now().toIso8601String()}
         return null;
       }
 
-      base64Key = base64Key.replaceAll('-', '+').replaceAll('_', '/');
+      base64Key = Uri.decodeComponent(
+        base64Key,
+      ).replaceAll('-', '+').replaceAll('_', '/');
 
       final padding = base64Key.length % 4;
       if (padding != 0) {
         base64Key += '=' * (4 - padding);
       }
 
-      return base64Decode(base64Key);
+      final publicKey = base64Decode(base64Key);
+      if (publicKey.length != 32) return null;
+      return publicKey;
     } catch (e) {
       logger.warning('Failed to parse auth URL: $e');
       return null;
@@ -752,7 +765,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
     Uint8List requesterPublicKey, {
     bool isTerminalLink = false,
   }) async {
-    final credentials = await TokenStorage().getCredentials();
+    final credentials = await _credentials.getCredentials();
     if (credentials == null) {
       throw AuthException('Not authenticated');
     }
@@ -763,27 +776,25 @@ Timestamp: ${DateTime.now().toIso8601String()}
       // Terminal link: check V2 support, then POST to /v1/auth/response
       final publicKeyB64 = base64Encode(requesterPublicKey);
 
-      // Check whether the requester supports the V2 bundle format.
-      var supportsV2 = false;
-      try {
-        final statusResponse = await _apiClient.get(
-          '/v1/auth/request/status',
-          queryParameters: {'publicKey': publicKeyB64},
-        );
-        if (statusResponse.statusCode == 200 &&
-            statusResponse.data is Map<String, dynamic>) {
-          final statusData = statusResponse.data as Map<String, dynamic>;
-          supportsV2 = statusData['supportsV2'] == true;
-
-          // If already authorized, nothing more to do.
-          final status = statusData['status'] as String?;
-          if (status == 'authorized') {
-            return true;
-          }
-        }
-      } catch (e) {
-        logger.warning('Failed to check auth request status: $e');
-        // Fall through and attempt V1 approval.
+      // Verify that the server still has a live request for this key before
+      // releasing any account material. Network errors and unknown requests
+      // fail closed instead of silently falling back to approval.
+      final statusResponse = await _apiClient.get(
+        '/v1/auth/request/status',
+        queryParameters: {'publicKey': publicKeyB64},
+      );
+      if (statusResponse.statusCode != 200 ||
+          statusResponse.data is! Map<String, dynamic>) {
+        throw AuthException('Linking request is missing or expired');
+      }
+      final statusData = statusResponse.data as Map<String, dynamic>;
+      final supportsV2 = statusData['supportsV2'] == true;
+      final status = statusData['status'] as String?;
+      if (status == 'authorized') {
+        return true;
+      }
+      if (status != 'pending') {
+        throw AuthException('Linking request is not pending');
       }
 
       final Uint8List responsePayload;
@@ -793,11 +804,10 @@ Timestamp: ${DateTime.now().toIso8601String()}
         final v2Bundle = Uint8List(1 + contentDataKey.length);
         v2Bundle[0] = 0x00;
         v2Bundle.setAll(1, contentDataKey);
-        responsePayload =
-            await CryptoBox.encrypt(v2Bundle, requesterPublicKey);
+        responsePayload = await _crypto.encrypt(v2Bundle, requesterPublicKey);
       } else {
         // V1: encrypt the raw secret
-        responsePayload = await CryptoBox.encrypt(secret, requesterPublicKey);
+        responsePayload = await _crypto.encrypt(secret, requesterPublicKey);
       }
 
       final response = await _apiClient.post(
@@ -810,7 +820,7 @@ Timestamp: ${DateTime.now().toIso8601String()}
       return response.statusCode == 200;
     } else {
       // Account link: always POST to /v1/auth/account/response
-      final encryptedResponse = await CryptoBox.encrypt(
+      final encryptedResponse = await _crypto.encrypt(
         secret,
         requesterPublicKey,
       );
@@ -825,4 +835,115 @@ Timestamp: ${DateTime.now().toIso8601String()}
       return response.statusCode == 200;
     }
   }
+
+  void _disposeKey(Object? key) {
+    if (key != null) _crypto.disposeKey(key);
+  }
 }
+
+abstract interface class AuthCredentialStore {
+  Future<AuthCredentials?> getCredentials();
+  Future<bool> setCredentials(AuthCredentials credentials);
+  Future<bool> removeCredentials();
+  Future<bool> isAuthenticated();
+}
+
+abstract interface class AuthCrypto {
+  Uint8List randomBytes(int length);
+  Future<AuthBoxKeyPair> generateBoxKeypair();
+  Future<AuthBoxKeyPair> boxKeypairFromSeed(Uint8List seed);
+  Future<Uint8List?> decrypt(Uint8List data, Object secretKey);
+  Future<Uint8List> encrypt(Uint8List data, Uint8List publicKey);
+  Future<AuthSigningKeyPair> generateSigningKeypair(Uint8List seed);
+  Future<Uint8List> sign(Uint8List challenge, Object secretKey);
+  void disposeKey(Object secretKey);
+}
+
+class AuthBoxKeyPair {
+  const AuthBoxKeyPair({required this.publicKey, required this.secretKey});
+  final Uint8List publicKey;
+  final Object secretKey;
+}
+
+class AuthSigningKeyPair {
+  const AuthSigningKeyPair({required this.publicKey, required this.secretKey});
+  final Uint8List publicKey;
+  final Object secretKey;
+}
+
+class _TokenCredentialStore implements AuthCredentialStore {
+  const _TokenCredentialStore();
+  @override
+  Future<AuthCredentials?> getCredentials() => TokenStorage().getCredentials();
+  @override
+  Future<bool> isAuthenticated() => TokenStorage().isAuthenticated();
+  @override
+  Future<bool> removeCredentials() => TokenStorage().removeCredentials();
+  @override
+  Future<bool> setCredentials(AuthCredentials value) =>
+      TokenStorage().setCredentials(value);
+}
+
+class _SodiumAuthCrypto implements AuthCrypto {
+  const _SodiumAuthCrypto();
+  @override
+  Uint8List randomBytes(int length) => EncryptionService().randomBytes(length);
+  @override
+  Future<AuthBoxKeyPair> generateBoxKeypair() async {
+    final value = await CryptoBox.generateKeypair();
+    return AuthBoxKeyPair(
+      publicKey: value.publicKey,
+      secretKey: value.secretKey,
+    );
+  }
+
+  @override
+  Future<AuthBoxKeyPair> boxKeypairFromSeed(Uint8List seed) async {
+    final value = await CryptoBox.keypairFromSeed(seed);
+    return AuthBoxKeyPair(
+      publicKey: value.publicKey,
+      secretKey: value.secretKey,
+    );
+  }
+
+  @override
+  Future<Uint8List?> decrypt(Uint8List data, Object secretKey) =>
+      CryptoBox.decrypt(data, secretKey as SecureKey);
+  @override
+  Future<Uint8List> encrypt(Uint8List data, Uint8List publicKey) =>
+      CryptoBox.encrypt(data, publicKey);
+  @override
+  Future<AuthSigningKeyPair> generateSigningKeypair(Uint8List seed) async {
+    final sodium = await AuthService._sodiumInstance;
+    final seedKey = SecureKey.fromList(sodium, seed);
+    final value = sodium.crypto.sign.seedKeyPair(seedKey);
+    seedKey.dispose();
+    return AuthSigningKeyPair(
+      publicKey: Uint8List.fromList(value.publicKey),
+      secretKey: value.secretKey,
+    );
+  }
+
+  @override
+  Future<Uint8List> sign(Uint8List challenge, Object secretKey) async {
+    final sodium = await AuthService._sodiumInstance;
+    final ownsKey = secretKey is Uint8List;
+    final key = ownsKey
+        ? SecureKey.fromList(sodium, secretKey)
+        : secretKey as SecureKey;
+    final signature = sodium.crypto.sign.detached(
+      message: challenge,
+      secretKey: key,
+    );
+    if (ownsKey) key.dispose();
+    return signature;
+  }
+
+  @override
+  void disposeKey(Object secretKey) {
+    if (secretKey is SecureKey) secretKey.dispose();
+  }
+}
+
+Future<void> _clearStoredApiKeys() => APIKeyStorage().clearAllAPIKeys();
+Future<void> _noopClearApiKeys() async {}

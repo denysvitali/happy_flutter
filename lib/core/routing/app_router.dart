@@ -84,6 +84,7 @@ Page<void> _fadePage(Widget child, GoRouterState state) {
     restorationId: state.pageKey.value,
     child: child,
     transitionsBuilder: (context, animation, _, child) {
+      if (MediaQuery.disableAnimationsOf(context)) return child;
       final eased = CurvedAnimation(parent: animation, curve: AppCurve.enter);
       return FadeTransition(
         opacity: eased,
@@ -107,6 +108,7 @@ Page<void> _slideUpPage(Widget child, GoRouterState state) {
     restorationId: state.pageKey.value,
     child: child,
     transitionsBuilder: (context, animation, _, child) {
+      if (MediaQuery.disableAnimationsOf(context)) return child;
       final tween = Tween(
         begin: const Offset(0, 0.15),
         end: Offset.zero,
@@ -152,12 +154,20 @@ class _SwipeBackPage extends Page<void> {
 
   @override
   Route<void> createRoute(BuildContext context) {
-    return _SwipeBackRoute(page: this);
+    return _SwipeBackRoute(
+      page: this,
+      animationsDisabled: MediaQuery.disableAnimationsOf(context),
+    );
   }
 }
 
 class _SwipeBackRoute extends PageRoute<void> {
-  _SwipeBackRoute({required _SwipeBackPage page}) : super(settings: page);
+  _SwipeBackRoute({
+    required _SwipeBackPage page,
+    required this.animationsDisabled,
+  }) : super(settings: page);
+
+  final bool animationsDisabled;
 
   _SwipeBackPage get _page => settings as _SwipeBackPage;
 
@@ -171,10 +181,12 @@ class _SwipeBackRoute extends PageRoute<void> {
   String? get barrierLabel => null;
 
   @override
-  Duration get transitionDuration => const Duration(milliseconds: 300);
+  Duration get transitionDuration =>
+      animationsDisabled ? Duration.zero : const Duration(milliseconds: 300);
 
   @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 250);
+  Duration get reverseTransitionDuration =>
+      animationsDisabled ? Duration.zero : const Duration(milliseconds: 250);
 
   @override
   Widget buildPage(
@@ -192,6 +204,7 @@ class _SwipeBackRoute extends PageRoute<void> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    if (animationsDisabled) return child;
     if (kIsWeb) {
       return CupertinoPageTransition(
         primaryRouteAnimation: animation,

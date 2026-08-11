@@ -595,6 +595,9 @@ what you have, you must use the options mode.
   bool revenueCatInitialized = false;
   bool isInitialized = false;
   bool _isReady = false;
+  // Account/runtime epoch. Every asynchronous state commit captures this
+  // value and must abandon work after logout or a subsequent restore.
+  int _runtimeGeneration = 0;
   ConnectionStatus _connectionStatus = ConnectionStatus.disconnected;
 
   // Pending settings

@@ -170,6 +170,36 @@ void main() {
     expect(find.text('Show less'), findsOneWidget);
   });
 
+  testWidgets('reduced motion removes disclosure animations', (tester) async {
+    final sessions = [
+      for (var i = 0; i < 5; i++)
+        _session(id: 'motion-$i', thinking: true, path: '/home/dev/p$i'),
+    ];
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: sessions,
+        mediaQueryData: const MediaQueryData(accessibleNavigation: true),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<AnimatedSize>(find.byType(AnimatedSize)).duration,
+      Duration.zero,
+    );
+    await tester.tap(find.text('… +1 more'));
+    await tester.pump();
+    final rotations = tester.widgetList<AnimatedRotation>(
+      find.byType(AnimatedRotation),
+    );
+    expect(rotations, isNotEmpty);
+    expect(
+      rotations.every((rotation) => rotation.duration == Duration.zero),
+      isTrue,
+    );
+  });
+
   testWidgets('quiet workspaces hide behind a drawer', (tester) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     // Quiet window is 3h (missionControlQuietWindow). "recent" must be
@@ -472,19 +502,24 @@ Widget _app({
   required List<Session> activeSessions,
   SessionUiState uiState = SessionUiState.empty,
   void Function(SessionFolderHeader header)? onOpenWorkspace,
+  MediaQueryData mediaQueryData = const MediaQueryData(),
 }) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(
-      body: MissionControlView(
-        activeSessions: activeSessions,
-        inactiveSessions: const [],
-        machines: const {},
-        uiState: uiState,
-        actionCardBuilder: (session, entry, lane, {required animateActivity}) =>
-            Text('action-${session.id}'),
-        onOpenWorkspace: onOpenWorkspace ?? (_) {},
+    home: MediaQuery(
+      data: mediaQueryData,
+      child: Scaffold(
+        body: MissionControlView(
+          activeSessions: activeSessions,
+          inactiveSessions: const [],
+          machines: const {},
+          uiState: uiState,
+          actionCardBuilder:
+              (session, entry, lane, {required animateActivity}) =>
+                  Text('action-${session.id}'),
+          onOpenWorkspace: onOpenWorkspace ?? (_) {},
+        ),
       ),
     ),
   );

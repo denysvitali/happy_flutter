@@ -454,8 +454,7 @@ class _ActionSection extends StatelessWidget {
     final cs = theme.colorScheme;
     final color = missionLaneColor(context, lane);
     final l10n = context.l10n;
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final reduceMotion = AppMotion.reduceMotion(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

@@ -12,7 +12,7 @@ void main() {
       expect(result.error, isNull);
     });
 
-    test('validates HTTP URL', () {
+    test('validates HTTP loopback URL in debug builds', () {
       final result = validateServerUrl('http://localhost:3000');
 
       expect(result.valid, isTrue);
@@ -49,14 +49,14 @@ void main() {
       final result = validateServerUrl('ftp://files.example.com');
 
       expect(result.valid, isFalse);
-      expect(result.error, contains('HTTP or HTTPS'));
+      expect(result.error, contains('HTTPS'));
     });
 
     test('rejects WebSocket protocol', () {
       final result = validateServerUrl('ws://socket.example.com');
 
       expect(result.valid, isFalse);
-      expect(result.error, contains('HTTP or HTTPS'));
+      expect(result.error, contains('HTTPS'));
     });
 
     test('rejects URL without host', () {
@@ -79,10 +79,17 @@ void main() {
       expect(result.valid, isTrue);
     });
 
-    test('validates URL with IP address', () {
+    test('rejects insecure LAN URL', () {
       final result = validateServerUrl('http://192.168.1.100:8080');
 
-      expect(result.valid, isTrue);
+      expect(result.valid, isFalse);
+      expect(result.error, contains('HTTPS'));
+    });
+
+    test('rejects credentials, query, and fragment', () {
+      expect(validateServerUrl('https://user:pass@example.com').valid, isFalse);
+      expect(validateServerUrl('https://example.com?q=1').valid, isFalse);
+      expect(validateServerUrl('https://example.com/#fragment').valid, isFalse);
     });
   });
 

@@ -34,8 +34,8 @@ extension SyncDataMachines on Sync {
         final thinking = s['thinking'] as bool? ?? false;
         final nextThinkingAt = thinking
             ? (activeAt ??
-                (session.thinking ? session.thinkingAt : null) ??
-                now)
+                  (session.thinking ? session.thinkingAt : null) ??
+                  now)
             : null;
         final changed =
             session.presence != 'online' ||
@@ -273,6 +273,7 @@ extension SyncDataMachines on Sync {
   Future<void> fetchMachines() async {
     logger.info('Fetching machines...');
 
+    final runtimeGeneration = _runtimeGeneration;
     try {
       final apiClient = ApiClient();
       // Machine presence is a liveness signal, not durable API data. Serving
@@ -282,6 +283,7 @@ extension SyncDataMachines on Sync {
         '/v1/machines',
         options: Options(extra: const {'bypassCache': true}),
       );
+      if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
 
       if (apiClient.isSuccess(response)) {
         // Machines response may be a list directly or wrapped in an
@@ -404,6 +406,7 @@ extension SyncDataMachines on Sync {
         final machineIsolateResults = await _decryptMachinesInIsolate(
           machineIsolateItems,
         );
+        if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
         final machineResultById = {
           for (final r in machineIsolateResults) r.id: r,
         };
@@ -454,14 +457,12 @@ extension SyncDataMachines on Sync {
           );
         }
 
-        // Guard against a transient empty response wiping out known
-        // machines -- mirrors fetchSessions() which returns early on
-        // an empty full-fetch rather than clearing _sessions.
+        // A successful list response is authoritative even when empty.
         if (decryptedMachines.isEmpty) {
-          logger.warning(
-            'fetchMachines: full fetch returned 0 machines -- '
-            'possible auth/server issue, skipping update',
-          );
+          _machines.clear();
+          _machineDataKeys.clear();
+          _notifyDataChanged({SyncDomain.machines});
+          logger.info('fetchMachines: authoritative empty snapshot');
           return;
         }
 
@@ -519,6 +520,7 @@ extension SyncDataMachines on Sync {
           rethrow;
         }
       }
+      rethrow;
     }
   }
 }

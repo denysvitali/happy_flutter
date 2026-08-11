@@ -11,11 +11,11 @@ import 'package:happy_flutter/core/models/profile.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('MMKVStorage', skip: 'Requires native MMKV plugin', () {
+  group('MMKVStorage', () {
     late MMKVStorage storage;
 
     setUp(() async {
-      // Initialize MMKV for testing
+      MMKVStorage.resetForTesting();
       await MMKV.initialize();
       storage = MMKVStorage();
       // Clear any existing data
@@ -110,7 +110,10 @@ void main() {
         expect(retrieved.profiles.length, equals(1));
         expect(retrieved.profiles[0].id, equals('profile1'));
         expect(retrieved.profiles[0].name, equals('Test Profile'));
-        expect(retrieved.favoriteDirectories, equals(['~/src', '~/Desktop', '~/Documents']));
+        expect(
+          retrieved.favoriteDirectories,
+          equals(['~/src', '~/Desktop', '~/Documents']),
+        );
       });
 
       test('should handle dismissed CLI warnings', () async {
@@ -122,11 +125,7 @@ void main() {
               gemini: true,
             ),
           }
-          ..global = GlobalWarnings(
-            claude: false,
-            codex: true,
-            gemini: false,
-          );
+          ..global = GlobalWarnings(claude: false, codex: true, gemini: false);
         final settings = Settings()..dismissedCLIWarnings = warnings;
 
         await storage.saveSettings(settings);
@@ -228,8 +227,9 @@ void main() {
       });
 
       test('should return null for non-existent permission mode', () async {
-        final retrieved =
-            await storage.getSessionPermissionMode('non-existent');
+        final retrieved = await storage.getSessionPermissionMode(
+          'non-existent',
+        );
         expect(retrieved, isNull);
       });
 
@@ -313,10 +313,7 @@ void main() {
         final profile1 = const Profile(id: 'user-123', firstName: 'John');
         await profileStorage.saveProfile(profile1);
 
-        final profile2 = const Profile(
-          id: 'user-123',
-          firstName: 'Jane',
-        );
+        final profile2 = const Profile(id: 'user-123', firstName: 'Jane');
         await profileStorage.saveProfile(profile2);
 
         final retrieved = await profileStorage.loadProfile();
@@ -335,14 +332,9 @@ void main() {
       });
 
       test('should copy profile correctly', () async {
-        const profile = Profile(
-          id: 'user-123',
-          firstName: 'John',
-        );
+        const profile = Profile(id: 'user-123', firstName: 'John');
 
-        final copied = profile.copyWith(
-          firstName: 'Jane',
-        );
+        final copied = profile.copyWith(firstName: 'Jane');
 
         expect(copied.firstName, equals('Jane'));
         expect(copied.id, equals('user-123'));
@@ -353,6 +345,7 @@ void main() {
       setUp(() async {
         // Clear MMKV before migration tests
         await storage.clearAll();
+        MMKVStorage.resetForTesting();
       });
 
       test('should migrate settings from SharedPreferences', () async {
@@ -385,10 +378,7 @@ void main() {
         SharedPreferences.setMockInitialValues({});
         final prefs = await SharedPreferences.getInstance();
 
-        final drafts = {
-          'session-1': 'Draft 1',
-          'session-2': 'Draft 2',
-        };
+        final drafts = {'session-1': 'Draft 1', 'session-2': 'Draft 2'};
         final draftsJson = jsonEncode(drafts);
         await prefs.setString('session-drafts', draftsJson);
 
@@ -403,15 +393,11 @@ void main() {
         expect(oldDrafts, isNull);
       });
 
-      test('should migrate permission modes from SharedPreferences',
-          () async {
+      test('should migrate permission modes from SharedPreferences', () async {
         SharedPreferences.setMockInitialValues({});
         final prefs = await SharedPreferences.getInstance();
 
-        final modes = {
-          'session-1': 'browse',
-          'session-2': 'edit',
-        };
+        final modes = {'session-1': 'browse', 'session-2': 'edit'};
         final modesJson = jsonEncode(modes);
         await prefs.setString('session-permission-modes', modesJson);
 
@@ -456,8 +442,7 @@ void main() {
         expect(oldProfile, isNull);
       });
 
-      test('should handle migration when SharedPreferences is empty',
-          () async {
+      test('should handle migration when SharedPreferences is empty', () async {
         SharedPreferences.setMockInitialValues({});
         await SharedPreferences.getInstance();
 
@@ -542,7 +527,7 @@ void main() {
     });
   });
 
-  group('ServerConfigStorage', skip: 'Requires native MMKV plugin', () {
+  group('ServerConfigStorage', () {
     late ServerConfigStorage storage;
 
     setUp(() async {
@@ -658,7 +643,7 @@ void main() {
     });
   });
 
-  group('Storage Integration', skip: 'Requires native MMKV plugin', () {
+  group('Storage Integration', () {
     late Storage storage;
 
     setUp(() async {
@@ -719,9 +704,7 @@ void main() {
       // Concurrent draft writes
       final mmkvStorage = MMKVStorage();
       for (int i = 0; i < 10; i++) {
-        futures.add(
-          mmkvStorage.saveSessionDraft('session-$i', 'Draft $i'),
-        );
+        futures.add(mmkvStorage.saveSessionDraft('session-$i', 'Draft $i'));
       }
 
       // Concurrent permission mode writes
@@ -740,7 +723,8 @@ void main() {
       final drafts = await mmkvStorage.getSessionDrafts();
       expect(drafts.length, equals(10));
 
-      final modes = await storage.sessionPermissionModesStorage.getAllPermissionModes();
+      final modes = await storage.sessionPermissionModesStorage
+          .getAllPermissionModes();
       expect(modes.length, equals(10));
     });
   });

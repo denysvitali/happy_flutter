@@ -186,6 +186,43 @@ void main() {
       expect(identical(after.ordering, before.ordering), isTrue);
     });
 
+    test('preview-only update reuses mission-control model projection', () {
+      sync
+        ..testSessions['session-1'] = makeSession(id: 'session-1')
+        ..testSetSessionMessages('session-1', const [
+          {
+            'id': 'msg-1',
+            'localId': 'local-1',
+            'role': 'assistant',
+            'content': 'First preview',
+            'createdAt': 1000,
+          },
+        ]);
+
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      final before = container.read(sessionUiStateNotifierProvider);
+
+      sync
+        ..testSetSessionMessages('session-1', const [
+          {
+            'id': 'msg-1',
+            'localId': 'local-1',
+            'role': 'assistant',
+            'content': 'Streaming preview changed',
+            'createdAt': 1000,
+          },
+        ])
+        ..testNotifySessionMessagesChanged('session-1');
+      notifier.loadSessionFromSync('session-1');
+
+      final after = container.read(sessionUiStateNotifierProvider);
+      expect(
+        after.bySessionId['session-1']!.lastMessagePreview,
+        isNot(before.bySessionId['session-1']!.lastMessagePreview),
+      );
+      expect(identical(after.missionControl, before.missionControl), isTrue);
+    });
+
     test('targeted session insert records a null timestamp membership', () {
       final notifier = container.read(sessionUiStateNotifierProvider.notifier);
       final before = container.read(sessionUiStateNotifierProvider);

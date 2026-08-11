@@ -8764,6 +8764,30 @@ abstract class AppLocalizations {
   /// **'Please sign in first to approve device linking'**
   String get authSignInFirst;
 
+  /// No description provided for @authLinkRequestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve device linking?'**
+  String get authLinkRequestTitle;
+
+  /// No description provided for @authLinkRequestBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A {requestType} is asking for access to your account. Only approve a request you initiated.\n\nSecurity fingerprint:\n{fingerprint}'**
+  String authLinkRequestBody(String requestType, String fingerprint);
+
+  /// No description provided for @authLinkRequestTerminal.
+  ///
+  /// In en, this message translates to:
+  /// **'terminal'**
+  String get authLinkRequestTerminal;
+
+  /// No description provided for @authLinkRequestAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'device'**
+  String get authLinkRequestAccount;
+
   /// No description provided for @authSignInWithSecretKey.
   ///
   /// In en, this message translates to:

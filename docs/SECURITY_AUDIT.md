@@ -91,9 +91,11 @@ Settings and drafts stored in plaintext MMKV. Device theft exposes data.
 
 **File:** `lib/core/services/server_config.dart` (lines 87–114)
 
-Validation accepts `http://` scheme. No domain whitelist.
+**Resolved:** production now requires HTTPS. Debug builds accept HTTP only for
+loopback development servers, and credentials/query/fragment components are
+rejected.
 
-**Fix:** Reject HTTP entirely. Consider domain whitelist for production.
+**Fix applied:** enforce the transport rule before saving or verifying a URL.
 
 ---
 
@@ -105,7 +107,7 @@ Validation accepts `http://` scheme. No domain whitelist.
 | 9 | Base64 encoding used for crypto material — could be confused with encryption | `encryption/base64.dart` | Add clarifying comments |
 | 10 | No client-side rate limiting on auth polling | `auth_service.dart` | Add exponential backoff |
 | 11 | Sentry DSN not validated | `sync_service.dart` | Use environment-specific DSNs |
-| 12 | QR code data no length validation | `auth_service.dart` | Validate decoded key is 32 bytes |
+| 12 | QR code data no length validation | `auth_service.dart` | **Resolved:** decoded linking keys must be exactly 32 bytes |
 
 ---
 

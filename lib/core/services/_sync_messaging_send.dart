@@ -179,6 +179,11 @@ extension SyncMessagingSend on Sync {
     String? profileId,
     List<OutgoingImage>? images,
   }) async {
+    // Mint identity before any fallible setup. Encryption/session recovery can
+    // fail before the ordinary optimistic insert, but the user must still get
+    // one retryable row carrying the same canonical localId.
+    final localId = clientLocalId ?? createLocalMessageId();
+    final runtimeGeneration = _runtimeGeneration;
     // OTel sibling of the Sentry transaction started below. The span is
     // opened BEFORE encryption recovery and target resolution: those can
     // do three sequential `invalidateAndAwait()` round trips and may
@@ -204,7 +209,7 @@ extension SyncMessagingSend on Sync {
       return await _sendMessageTraced(
         sessionId,
         text,
-        clientLocalId: clientLocalId,
+        clientLocalId: localId,
         displayText: displayText,
         permissionMode: permissionMode,
         modelMode: modelMode,
@@ -215,6 +220,16 @@ extension SyncMessagingSend on Sync {
         prepareStopwatch: prepareStopwatch,
       );
     } catch (error, stack) {
+      _preserveFailedPreparation(
+        sessionId: sessionId,
+        localId: localId,
+        text: text,
+        displayText: displayText,
+        permissionMode: permissionMode,
+        modelMode: modelMode,
+        images: images,
+        runtimeGeneration: runtimeGeneration,
+      );
       // Setup failed before _completeSend could take ownership of the
       // span — end it here so the failure is exported instead of leaked.
       _recordSendPreparationTotal(
@@ -229,6 +244,55 @@ extension SyncMessagingSend on Sync {
         ..end(ok: false);
       rethrow;
     }
+  }
+
+  void _preserveFailedPreparation({
+    required String sessionId,
+    required String localId,
+    required String text,
+    required String? displayText,
+    required String? permissionMode,
+    required String? modelMode,
+    required List<OutgoingImage>? images,
+    required int runtimeGeneration,
+  }) {
+    if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+    final messages = _sessionMessages.putIfAbsent(sessionId, () => []);
+    final existing = messages.indexWhere((m) => _matchesLocalId(m, localId));
+    if (existing >= 0) {
+      _updateMessageSendStatus(sessionId, localId, 'failed');
+      _notifySessionMessagesChanged(sessionId);
+      return;
+    }
+
+    final rawRecord = <String, dynamic>{
+      'role': 'user',
+      'content': _buildOutboundUserContent(text, images: images),
+      'meta': <String, dynamic>{
+        'permissionMode': permissionMode ?? 'default',
+        'model': modelMode == 'default' ? null : modelMode,
+        'displayText': ?displayText,
+      },
+    };
+    final now = DateTime.now().millisecondsSinceEpoch;
+    messageInvariantMonitor.recordOptimisticSent(localId);
+    _upsertSessionMessages(sessionId, [
+      {
+        'id': localId,
+        'localId': localId,
+        'seq': 0,
+        'createdAt': now,
+        'role': 'user',
+        'kind': 'text',
+        'content': _extractDisplayTextFromUserContent(
+          rawRecord['content'],
+          text,
+        ),
+        'raw': rawRecord,
+        'sendStatus': 'failed',
+      },
+    ]);
+    _notifySessionMessagesChanged(sessionId);
   }
 
   Future<String> _sendMessageTraced(
@@ -547,9 +611,12 @@ extension SyncMessagingSend on Sync {
       transaction: sendTransaction,
       otelSpan: sendSpan,
     );
-    final completeSendFuture = sendSpan == null
-        ? completeSend()
-        : otelService.withActiveSpan(sendSpan, completeSend);
+    final completeSendFuture = messageOutbox.serialize(
+      targetSessionId,
+      () => sendSpan == null
+          ? completeSend()
+          : otelService.withActiveSpan(sendSpan, completeSend),
+    );
     lastCompleteSendFuture = completeSendFuture;
     unawaited(completeSendFuture);
 
@@ -587,6 +654,9 @@ extension SyncMessagingSend on Sync {
     required ISentrySpan transaction,
     required OTelSpan? otelSpan,
   }) async {
+    final runtimeGeneration = _runtimeGeneration;
+    bool runtimeIsStale() =>
+        runtimeGeneration != _runtimeGeneration || !isInitialized;
     final apiClient = ApiClient();
     final sendStopwatch = Stopwatch()..start();
     // A freshly-spawned session legitimately needs up to
@@ -674,6 +744,7 @@ extension SyncMessagingSend on Sync {
             );
       try {
         ready = await waitForAgentReady(targetSessionId, waitBudget);
+        if (runtimeIsStale()) return;
         otelWaitSpan
           ?..setAttribute('agent.ready', ready)
           ..end(ok: ready);
@@ -803,6 +874,7 @@ extension SyncMessagingSend on Sync {
             )
             .timeout(postBudget);
       } on TimeoutException catch (error, stack) {
+        if (runtimeIsStale()) return;
         logger.warning(
           '[sendMessage] send deadline exceeded after '
           '${sendStopwatch.elapsedMilliseconds}ms; handing to outbox '
@@ -831,6 +903,7 @@ extension SyncMessagingSend on Sync {
         );
         return;
       }
+      if (runtimeIsStale()) return;
       postSpan.setData('statusCode', response.statusCode ?? 0);
       unawaited(
         postSpan.finish(
@@ -948,6 +1021,7 @@ extension SyncMessagingSend on Sync {
         await transaction.finish(status: const SpanStatus.ok());
       }
     } catch (e, stack) {
+      if (runtimeIsStale()) return;
       final permanent = !sent && _isPermanentSendFailure(e);
       // A permanently-unrestorable session is an expected user-facing
       // condition (session deleted on the server), not a code defect —
@@ -1029,17 +1103,28 @@ extension SyncMessagingSend on Sync {
     required Map<String, dynamic> rawRecord,
     int retryCount = 0,
   }) {
-    return messageOutbox.add(
-      OutboxEntry(
-        localId: localId,
-        sessionId: sessionId,
-        text: text,
-        encryptedContent: encryptedRawRecord,
-        rawRecord: rawRecord,
-        queuedAt: DateTime.now().millisecondsSinceEpoch,
-        retryCount: retryCount,
-      ),
-    );
+    return messageOutbox
+        .add(
+          OutboxEntry(
+            localId: localId,
+            sessionId: sessionId,
+            text: text,
+            encryptedContent: encryptedRawRecord,
+            rawRecord: rawRecord,
+            queuedAt: DateTime.now().millisecondsSinceEpoch,
+            retryCount: retryCount,
+          ),
+        )
+        .catchError((Object error, StackTrace stack) {
+          logger.error(
+            '[MessageOutbox] durable enqueue failed '
+            'session=$sessionId localId=$localId',
+            error,
+            stack,
+          );
+          _updateMessageSendStatus(sessionId, localId, 'failed');
+          _notifySessionMessagesChanged(sessionId);
+        });
   }
 
   void _emitSocketMessage(
@@ -1522,6 +1607,10 @@ extension SyncMessagingSend on Sync {
       );
     }
     if (firstIdx >= 0) {
+      final currentStatus = msgs[firstIdx]['sendStatus'] as String?;
+      // Server acknowledgement is terminal. A delayed retry timer or outbox
+      // status callback must never regress a confirmed row to pending/failed.
+      if (currentStatus == 'sent' && status != 'sent') return;
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
       _invalidateMessageCaches(sessionId);
     }

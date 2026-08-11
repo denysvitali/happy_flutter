@@ -1,19 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/auth_screen.dart';
+import '../i18n/app_localizations.dart';
 import '../models/auth.dart';
 import '../providers/app_providers.dart';
+import '../services/auth_service.dart';
+import '../services/logger_service.dart' show logger;
 import '../theme/app_tokens.dart';
 
 /// Authentication gate widget that switches between
 /// the auth screen and the main app content.
 class AuthGate extends ConsumerStatefulWidget {
-  const AuthGate({
-    required this.child,
-    super.key,
-    this.initialDeepLinkFuture,
-  });
+  const AuthGate({required this.child, super.key, this.initialDeepLinkFuture});
 
   final Widget child;
 
@@ -30,10 +31,76 @@ class AuthGate extends ConsumerStatefulWidget {
 
 class _AuthGateState extends ConsumerState<AuthGate> {
   bool _deepLinkHandled = false;
+  String? _presentedLink;
+
+  Future<void> _confirmLinkRequest(PendingLinkRequest request) async {
+    if (!mounted || _presentedLink != null) return;
+    _presentedLink = request.url;
+    final l10n = context.l10n;
+    final approved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.authLinkRequestTitle),
+        content: Text(
+          l10n.authLinkRequestBody(
+            request.isTerminal
+                ? l10n.authLinkRequestTerminal
+                : l10n.authLinkRequestAccount,
+            request.fingerprint,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.accountApproveLinking),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (approved != true) {
+      ref.read(pendingLinkRequestProvider.notifier).clear(request.url);
+      _presentedLink = null;
+      return;
+    }
+    try {
+      final success = await AuthService().approveLinkingRequest(request.url);
+      if (!mounted) return;
+      final message = success
+          ? l10n.authDeviceLinkedSuccess
+          : l10n.authFailedToLinkDevice;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+      if (success) {
+        ref.read(pendingLinkRequestProvider.notifier).clear(request.url);
+      }
+    } catch (error, stack) {
+      logger.warning('Failed to approve staged linking request', error, stack);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.authFailedToLinkDevice)));
+      }
+    } finally {
+      _presentedLink = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateNotifierProvider);
+    final pendingLink = ref.watch(pendingLinkRequestProvider);
+    if (authState == AuthState.authenticated && pendingLink != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_confirmLinkRequest(pendingLink));
+      });
+    }
 
     // If auth has completed and we haven't dispatched the initial
     // deep link yet, forward it to the auth state notifier.  The

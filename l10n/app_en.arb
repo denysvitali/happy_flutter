@@ -1994,6 +1994,16 @@
   "authSecretKeyInstruction": "Enter backup key (11 groups like XXXXX-XXXXX...), base64/base64url, or 64-char hex key.",
   "authServerUrlSaved": "Server URL saved and applied.",
   "authSignInFirst": "Please sign in first to approve device linking",
+  "authLinkRequestTitle": "Approve device linking?",
+  "authLinkRequestBody": "A {requestType} is asking for access to your account. Only approve a request you initiated.\n\nSecurity fingerprint:\n{fingerprint}",
+  "@authLinkRequestBody": {
+    "placeholders": {
+      "requestType": {"type": "String"},
+      "fingerprint": {"type": "String"}
+    }
+  },
+  "authLinkRequestTerminal": "terminal",
+  "authLinkRequestAccount": "device",
   "authSignInWithSecretKey": "Sign In with Secret Key",
   "authSecretKeyReassurance": "We'll never ask for this in email or support chats. Only enter it here.",
   "authSecretKeyReassuranceTitle": "Your key stays private",

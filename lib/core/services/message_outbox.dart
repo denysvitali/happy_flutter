@@ -243,8 +243,10 @@ class MessageOutbox {
   /// something to resend.
   final Map<String, OutboxEntry> _dead = {};
   final Map<String, Timer> _retryTimers = {};
+  final Map<String, Future<void>> _sessionDeliveryTails = {};
   Timer? _persistTimer;
   bool _initialized = false;
+  int _generation = 0;
 
   static final Random _rng = Random();
 
@@ -367,9 +369,24 @@ class MessageOutbox {
 
   /// Queue a failed message for retry.
   Future<void> add(OutboxEntry entry) async {
-    _dead.remove(entry.localId);
+    final previousPending = _entries[entry.localId];
+    final previousDead = _dead.remove(entry.localId);
     _entries[entry.localId] = entry.copyWith(dead: false);
-    _schedulePersist();
+    // A successful return is the durability boundary. In particular, callers
+    // may background or be killed immediately after this future completes;
+    // the entry must already be recoverable from storage at that point.
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    if (!await _persistCurrentSnapshot()) {
+      _entries.remove(entry.localId);
+      if (previousPending != null) {
+        _entries[entry.localId] = previousPending;
+      }
+      if (previousDead != null) {
+        _dead[entry.localId] = previousDead;
+      }
+      throw StateError('Failed to persist message outbox entry');
+    }
     _onStatusChanged?.call(entry.sessionId, entry.localId, 'pending');
     logger.info(
       '[MessageOutbox] queued localId=${entry.localId} '
@@ -384,9 +401,40 @@ class MessageOutbox {
         _entries.remove(localId) != null || _dead.remove(localId) != null;
     if (removed) {
       _retryTimers.remove(localId)?.cancel();
-      _schedulePersist();
+      _persistTimer?.cancel();
+      _persistTimer = null;
+      if (!await _persistCurrentSnapshot()) {
+        _schedulePersist();
+      }
       logger.info('[MessageOutbox] removed localId=$localId');
     }
+  }
+
+  /// Runs delivery work in FIFO order for one session.
+  ///
+  /// Foreground sends and outbox retries share this queue, preventing a later
+  /// message or a restored retry from overtaking an earlier logical send.
+  /// Different sessions remain independent.
+  Future<T> serialize<T>(String sessionId, Future<T> Function() action) {
+    final result = Completer<T>();
+    final previous = _sessionDeliveryTails[sessionId] ?? Future<void>.value();
+    late final Future<void> tail;
+    tail = previous.catchError((Object _) {}).then((_) async {
+      try {
+        result.complete(await action());
+      } catch (error, stack) {
+        result.completeError(error, stack);
+      }
+    });
+    _sessionDeliveryTails[sessionId] = tail;
+    unawaited(
+      tail.whenComplete(() {
+        if (identical(_sessionDeliveryTails[sessionId], tail)) {
+          _sessionDeliveryTails.remove(sessionId);
+        }
+      }),
+    );
+    return result.future;
   }
 
   /// Test-only: place [entry] in the pending bucket WITHOUT scheduling a
@@ -508,12 +556,14 @@ class MessageOutbox {
 
   /// Cancel all pending retry timers and clear in-memory state.
   void dispose() {
+    _generation++;
     _persistTimer?.cancel();
     _persistTimer = null;
     for (final t in _retryTimers.values) {
       t.cancel();
     }
     _retryTimers.clear();
+    _sessionDeliveryTails.clear();
     _entries.clear();
     _dead.clear();
     _initialized = false;
@@ -549,6 +599,16 @@ class MessageOutbox {
     final entry = _entries[localId];
     if (entry == null) return; // already removed
 
+    final generation = _generation;
+    await serialize(entry.sessionId, () async {
+      await _attemptSerialized(localId, generation);
+    });
+  }
+
+  Future<void> _attemptSerialized(String localId, int generation) async {
+    final entry = _entries[localId];
+    if (entry == null || generation != _generation) return;
+
     final deliver = _deliver;
     if (deliver == null) {
       logger.warning(
@@ -583,10 +643,16 @@ class MessageOutbox {
       );
     }
 
+    if (generation != _generation || _entries[localId] == null) return;
+
     if (failure == null) {
       logger.info('[MessageOutbox] delivered localId=$localId');
       _entries.remove(localId);
-      _schedulePersist();
+      _persistTimer?.cancel();
+      _persistTimer = null;
+      if (!await _persistCurrentSnapshot()) {
+        _schedulePersist();
+      }
       _onStatusChanged?.call(entry.sessionId, localId, 'sent');
       return;
     }

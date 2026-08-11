@@ -24,6 +24,7 @@ extension SyncData on Sync {
   Future<void> fetchSessions() async {
     logger.info('Fetching sessions...');
 
+    final runtimeGeneration = _runtimeGeneration;
     final fetchStartMs = DateTime.now().millisecondsSinceEpoch;
     final forceFullFetch = _forceFullFetchNext;
     if (forceFullFetch) _forceFullFetchNext = false;
@@ -35,6 +36,7 @@ extension SyncData on Sync {
       final allSessions = await SessionsApi(
         client: apiClient,
       ).fetchSessions(limit: 50, changedSince: changedSince);
+      if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
 
       if (logger.shouldLog(LogLevel.info)) {
         logger.info(
@@ -60,10 +62,19 @@ extension SyncData on Sync {
           _scheduleSaveSessionsCache();
           logger.info('fetchSessions: no changes since delta fetch');
         } else {
-          logger.warning(
-            'fetchSessions: full fetch returned 0 sessions -- '
-            'possible auth/server issue',
-          );
+          // A successful full response is authoritative, including an empty
+          // list. Keeping the previous snapshot here resurrected deleted or
+          // previous-account sessions indefinitely.
+          for (final timer in _presenceTimers.values) {
+            timer.cancel();
+          }
+          _presenceTimers.clear();
+          _sessions = <String, Session>{};
+          _optimisticallyArchivedSessions.clear();
+          _lastSessionsFetchedAt = fetchStartMs;
+          _scheduleSaveSessionsCache();
+          _notifyDataChanged({SyncDomain.sessions});
+          logger.info('fetchSessions: authoritative empty full snapshot');
         }
         return;
       }
@@ -172,7 +183,11 @@ extension SyncData on Sync {
       // is the slowest single call instead of the sum.
       await Future.wait(
         sessionKeys.entries.map(
-          (e) => _ensureSessionEncryptionInitialized(e.key, e.value),
+          (e) => _ensureSessionEncryptionInitialized(
+            e.key,
+            e.value,
+            runtimeGeneration: runtimeGeneration,
+          ),
         ),
       );
 
@@ -185,6 +200,7 @@ extension SyncData on Sync {
       // p95 from ~1s to roughly the slowest single decrypt.
       final preDecryptStartMs = DateTime.now().millisecondsSinceEpoch;
       final preDecrypted = await _preDecryptSessions(allSessions);
+      if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
       final preDecryptMs =
           DateTime.now().millisecondsSinceEpoch - preDecryptStartMs;
       if (allSessions.length > 1 && logger.shouldLog(LogLevel.info)) {
@@ -486,6 +502,7 @@ extension SyncData on Sync {
       } else {
         logger.error('Error fetching sessions', error, stack);
       }
+      rethrow;
     } finally {
       if (showedConversationProgress) {
         _setSyncProgress(null);
@@ -499,6 +516,7 @@ extension SyncData on Sync {
   /// This avoids a full session list re-fetch when only one session
   /// is needed.
   Future<Session?> fetchSingleSession(String sessionId) async {
+    final runtimeGeneration = _runtimeGeneration;
     final override = testFetchSingleSessionOverride;
     if (override != null) return override(sessionId);
     try {
@@ -506,7 +524,7 @@ extension SyncData on Sync {
       final raw = await SessionsApi(
         client: apiClient,
       ).fetchSessionById(sessionId);
-      if (raw == null) return null;
+      if (raw == null || runtimeGeneration != _runtimeGeneration) return null;
 
       final dataEncryptionKey = WireParsers.parseString(
         raw['dataEncryptionKey'],
@@ -530,7 +548,14 @@ extension SyncData on Sync {
       } else {
         _sessionEncryptedDataKeys.remove(sessionId);
       }
-      await _ensureSessionEncryptionInitialized(sessionId, sessionKey);
+      await _ensureSessionEncryptionInitialized(
+        sessionId,
+        sessionKey,
+        runtimeGeneration: runtimeGeneration,
+      );
+      if (runtimeGeneration != _runtimeGeneration || !isInitialized) {
+        return null;
+      }
 
       final sessionEncryption = encryption.getSessionEncryption(sessionId);
 
@@ -627,6 +652,9 @@ extension SyncData on Sync {
         }(),
       );
 
+      if (runtimeGeneration != _runtimeGeneration || !isInitialized) {
+        return null;
+      }
       _sessions[sessionId] = session;
       _notifyDataChanged({SyncDomain.sessions});
       _scheduleSaveSessionsCache();

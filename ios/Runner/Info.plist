@@ -70,15 +70,9 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Local network access is used to discover devices on your network.</string>
 
-	<!-- flutter_gemma / MediaPipe LLM Inference: allow large model files via
-	     Files app and avoid frame-duration throttling during inference.
-	     NOTE: iOS also requires IPHONEOS_DEPLOYMENT_TARGET 16.0, a static
-	     frameworks Podfile, and increased-memory-limit entitlements before
-	     on-device inference will run. Tracked as a follow-up. -->
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
+		<!-- Allow users to import and export large local model files. -->
+		<key>UIFileSharingEnabled</key>
+		<true/>
 
 	<!-- Deep link URL scheme configuration -->
 	<key>CFBundleURLTypes</key>

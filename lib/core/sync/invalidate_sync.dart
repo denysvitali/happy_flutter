@@ -90,37 +90,12 @@ class InvalidateSync {
 
   /// Invalidate the current operation and schedule a retry
   void invalidate() {
+    // dispose() is teardown-only and terminal. Temporary lifecycle pauses use
+    // suspend(), while a new account constructs fresh managers. Reviving a
+    // disposed instance lets an old account's in-flight work race the new
+    // runtime and resurrect cleared state.
+    if (_disposed) return;
     _invalidated = true;
-
-    // Revive a disposed instance so it can accept new invalidations after
-    // suspend/resume.  Without this, if dispose() was called while an operation
-    // was in-flight (leaving _running=true) or while a retry timer was pending,
-    // the next invalidate() would skip because _running is stuck true.
-    // This can happen when suspend() disposes all InvalidateSync instances
-    // while background network requests are still in-flight.
-    //
-    // CRITICAL: Reset ALL state that could block a new operation BEFORE
-    // creating a new _currentOperation completer. The old completer may have
-    // an in-flight _run() that races with the revived one.
-    if (_disposed) {
-      _disposed = false;
-      _runGeneration++;
-      _setRunning(false);
-      _retryCount = 0;
-      _lastRunEnd = null;
-      _lastSuccessAt = null;
-      _lastFailureAt = null;
-      _lastFailureKind = null;
-      // Complete any orphaned completer from the disposed run normally so
-      // that awaitQueue() callers are silently unblocked.  Using
-      // completeError here previously caused unhandled StateError crashes
-      // in callers that don't wrap the await in try/catch.
-      final oldOp = _currentOperation;
-      _currentOperation = null;
-      if (oldOp != null && !oldOp.isCompleted) {
-        oldOp.complete();
-      }
-    }
 
     // Always ensure a Completer exists so that awaitQueue() callers
     // block until the invalidated work actually completes — even if

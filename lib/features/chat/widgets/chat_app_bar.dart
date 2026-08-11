@@ -137,7 +137,6 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
     );
   }
-
 }
 
 /// Animates the session title and status row into view with a
@@ -493,8 +492,7 @@ class _AppBarAction extends StatelessWidget {
       style: IconButton.styleFrom(
         foregroundColor: cs.onSurfaceVariant,
         padding: const EdgeInsets.all(AppSpacing.sm),
-        minimumSize: const Size(36, 36),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        minimumSize: const Size.square(AppTouchTarget.min),
       ),
       onPressed: () {
         HapticFeedback.selectionClick();
@@ -533,8 +531,7 @@ class _AgentsListButton extends StatelessWidget {
           style: IconButton.styleFrom(
             foregroundColor: cs.onSurfaceVariant,
             padding: const EdgeInsets.all(AppSpacing.sm),
-            minimumSize: const Size(36, 36),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            minimumSize: const Size.square(AppTouchTarget.min),
           ),
           onPressed: () {
             HapticFeedback.selectionClick();
@@ -680,4 +677,3 @@ ChatMachineVitals? buildChatMachineVitals({
   if (machineId == null || machineId.isEmpty) return null;
   return ChatMachineVitals.fromDaemonState(daemonState);
 }
-

@@ -139,6 +139,61 @@ class SessionUiOrdering {
   }
 }
 
+/// Minimal Mission Control model inputs.
+///
+/// Preview text, usage, pagination, and readiness belong to individual rows;
+/// changing them must not rebuild and re-sort the whole dashboard. Only the
+/// timestamp and unread count affect workspace grouping or lane selection.
+@immutable
+class MissionControlUiEntry {
+  const MissionControlUiEntry({
+    required this.lastMessageTimestamp,
+    required this.unreadCount,
+  });
+
+  final int? lastMessageTimestamp;
+  final int unreadCount;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MissionControlUiEntry &&
+      lastMessageTimestamp == other.lastMessageTimestamp &&
+      unreadCount == other.unreadCount;
+
+  @override
+  int get hashCode => Object.hash(lastMessageTimestamp, unreadCount);
+}
+
+/// Identity-stable projection watched by the Mission Control model.
+@immutable
+class MissionControlUiProjection {
+  const MissionControlUiProjection._(this.bySessionId);
+
+  static const empty = MissionControlUiProjection._({});
+
+  final Map<String, MissionControlUiEntry> bySessionId;
+
+  static MissionControlUiProjection reconcile({
+    required MissionControlUiProjection previous,
+    required Map<String, MissionControlUiEntry> entries,
+  }) {
+    if (mapEquals(previous.bySessionId, entries)) return previous;
+    return MissionControlUiProjection._(Map.unmodifiable(entries));
+  }
+
+  /// Compatibility snapshot for the existing pure MissionControlView API.
+  /// Full preview/usage state is watched separately by each action row.
+  SessionUiState toUiState() => SessionUiState(
+    bySessionId: Map.unmodifiable({
+      for (final entry in bySessionId.entries)
+        entry.key: SessionUiEntry(
+          lastMessageTimestamp: entry.value.lastMessageTimestamp,
+          unreadCount: entry.value.unreadCount,
+        ),
+    }),
+  );
+}
+
 /// Composite state for the notifier. [bySessionId] is keyed by
 /// sessionId; [optimisticallyArchivedIds] is a flat set.
 @immutable
@@ -147,11 +202,13 @@ class SessionUiState {
     this.bySessionId = const {},
     this.optimisticallyArchivedIds = const <String>{},
     this.ordering = SessionUiOrdering.unprepared,
+    this.missionControl = MissionControlUiProjection.empty,
   });
 
   final Map<String, SessionUiEntry> bySessionId;
   final Set<String> optimisticallyArchivedIds;
   final SessionUiOrdering ordering;
+  final MissionControlUiProjection missionControl;
 
   static const empty = SessionUiState(ordering: SessionUiOrdering.empty);
 
@@ -303,6 +360,11 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         bySessionId: Map<String, SessionUiEntry>.unmodifiable(nextEntries),
         optimisticallyArchivedIds: state.optimisticallyArchivedIds,
         ordering: ordering,
+        missionControl: _reconcileMissionControlEntry(
+          previous: state.missionControl,
+          sessionId: sessionId,
+          entry: nextEntries[sessionId],
+        ),
       );
     }
     _recordCompute(
@@ -324,6 +386,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     final span = _startScaleTrace(trigger, sessions.length);
     final bySessionId = <String, SessionUiEntry>{};
     final timestamps = <String, int?>{};
+    final missionControlEntries = <String, MissionControlUiEntry>{};
     var changed = 0;
     for (final session in sessions.values) {
       final previous = previousState.bySessionId[session.id];
@@ -334,6 +397,10 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       );
       bySessionId[session.id] = next;
       timestamps[session.id] = next.lastMessageTimestamp;
+      missionControlEntries[session.id] = MissionControlUiEntry(
+        lastMessageTimestamp: next.lastMessageTimestamp,
+        unreadCount: next.unreadCount,
+      );
       if (!identical(next, previous)) changed++;
     }
     changed +=
@@ -353,6 +420,10 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         previous: previousState.ordering,
         timestamps: timestamps,
         optimisticallyArchivedIds: optimisticallyArchivedIds,
+      ),
+      missionControl: MissionControlUiProjection.reconcile(
+        previous: previousState.missionControl,
+        entries: missionControlEntries,
       ),
     );
     _recordCompute(
@@ -400,6 +471,36 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       hasUnsettledSend: unsettled,
     );
     return previous == next ? previous! : next;
+  }
+
+  MissionControlUiProjection _reconcileMissionControlEntry({
+    required MissionControlUiProjection previous,
+    required String sessionId,
+    required SessionUiEntry? entry,
+  }) {
+    final current = previous.bySessionId[sessionId];
+    final next = entry == null
+        ? null
+        : MissionControlUiEntry(
+            lastMessageTimestamp: entry.lastMessageTimestamp,
+            unreadCount: entry.unreadCount,
+          );
+    if (current == next &&
+        (entry != null || !previous.bySessionId.containsKey(sessionId))) {
+      return previous;
+    }
+    final entries = Map<String, MissionControlUiEntry>.from(
+      previous.bySessionId,
+    );
+    if (next == null) {
+      entries.remove(sessionId);
+    } else {
+      entries[sessionId] = next;
+    }
+    return MissionControlUiProjection.reconcile(
+      previous: previous,
+      entries: entries,
+    );
   }
 
   String _computeTrigger({

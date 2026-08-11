@@ -24,7 +24,7 @@ class _ApprovalFlowConfig {
 
   final String label;
   final Map<String, dynamic> requestData;
-  final SecureKey? Function() getSecretKey;
+  final Object? Function() getSecretKey;
   final void Function() clearSecretKey;
   final bool disposeCachedKeypairOnError;
   final bool handleSslErrors;
@@ -37,13 +37,10 @@ class _ApprovalFlowConfig {
 
 extension _ApprovalFlowMethods on AuthService {
   /// Shared polling loop for both QR auth and device linking approval.
-  Future<AuthCredentials> _waitForApproval(
-    _ApprovalFlowConfig config,
-  ) async {
-    final startTime = DateTime.now().millisecondsSinceEpoch;
-    const timeout = 120000;
+  Future<AuthCredentials> _waitForApproval(_ApprovalFlowConfig config) async {
+    final startTime = _now();
 
-    while (DateTime.now().millisecondsSinceEpoch - startTime < timeout) {
+    while (_now().difference(startTime) < _approvalTimeout) {
       try {
         final response = await _apiClient.post(
           '/v1/auth/account/request',
@@ -90,7 +87,7 @@ extension _ApprovalFlowMethods on AuthService {
             final secretKey = config.getSecretKey();
             final secret = secretKey == null
                 ? null
-                : await CryptoBox.decrypt(
+                : await _crypto.decrypt(
                     base64Decode(encryptedResponse),
                     secretKey,
                   );
@@ -111,7 +108,13 @@ extension _ApprovalFlowMethods on AuthService {
           }
         }
 
-        await Future.delayed(const Duration(milliseconds: 1000));
+        await _delay(const Duration(seconds: 1));
+      } on AuthForbiddenError {
+        rethrow;
+      } on AuthRequestError {
+        rethrow;
+      } on ServerError {
+        rethrow;
       } on DioException catch (e) {
         if (e.type == DioExceptionType.connectionError ||
             e.type == DioExceptionType.connectionTimeout) {
@@ -119,13 +122,12 @@ extension _ApprovalFlowMethods on AuthService {
             'Connection error during ${config.label.toLowerCase()} '
             'polling: ${e.message}',
           );
-          await Future.delayed(const Duration(milliseconds: 1000));
+          await _delay(const Duration(seconds: 1));
         } else if (e.response?.statusCode == 403) {
           _disposeCachedKeypairIf(config.disposeCachedKeypairOnError);
-          final serverResponse =
-              config.dioForbiddenUsesExtractErrorMessage
-                  ? _extractErrorMessage(e.response?.data)
-                  : e.response?.data?.toString();
+          final serverResponse = config.dioForbiddenUsesExtractErrorMessage
+              ? _extractErrorMessage(e.response?.data)
+              : e.response?.data?.toString();
           throw AuthForbiddenError(
             config.dioForbiddenMessage,
             serverResponse: serverResponse,
@@ -142,10 +144,8 @@ extension _ApprovalFlowMethods on AuthService {
             certificateInfo: e.message,
           );
         } else {
-          logger.warning(
-            '${config.label} polling error: $e',
-          );
-          await Future.delayed(const Duration(milliseconds: 1000));
+          logger.warning('${config.label} polling error: $e');
+          await _delay(const Duration(seconds: 1));
         }
       } catch (e) {
         if (config.handleSslErrors && AuthService._isSslError(e.toString())) {
@@ -155,7 +155,7 @@ extension _ApprovalFlowMethods on AuthService {
           );
         }
         logger.warning('${config.label} polling error: $e');
-        await Future.delayed(const Duration(milliseconds: 1000));
+        await _delay(const Duration(seconds: 1));
       }
     }
 

@@ -94,6 +94,13 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 - **Codex follow-ups are explicit** — `message-steered` and `message-queued`
   agent events tell the chat timeline whether an active-turn update was
   accepted or retained for the next turn
+- **Linking deep links are requests, never approvals** — lifecycle handlers
+  stage `happy://` links; only an explicit in-app fingerprint confirmation may
+  release account key material.
+- **Sync commits are runtime-scoped** — async work must verify the current
+  account/runtime generation after every await before mutating state or cache.
+- **Per-session sends are FIFO** — foreground sends and outbox retries share
+  one serialized delivery lane; confirmed `sent` state is monotonic.
 
 ## Verification Expectations
 
@@ -306,6 +313,10 @@ Some domains have both `XxxService` (production) and `XxxApi` (injectable for te
 | `APIKeyStorage` | FlutterSecureStorage | Per-profile API keys |
 
 `Storage().initialize()` inits all. SharedPreferences → MMKV migration runs once on first init.
+
+Production custom servers must use HTTPS. Debug builds permit HTTP only for
+loopback (`localhost`, `127.0.0.1`, `::1`) development endpoints. Provider API
+keys are cleared on sign-out so they cannot cross account boundaries.
 
 ## Models
 

@@ -207,7 +207,7 @@ void main() {
         await future;
       });
 
-      test('revive after dispose runs new action', () async {
+      test('dispose is terminal and later invalidations are ignored', () async {
         var callCount = 0;
         final blocker = Completer<void>();
         final sync = InvalidateSync(() async {
@@ -223,12 +223,11 @@ void main() {
         // Dispose while first action is in-flight.
         sync.dispose();
 
-        // Revive by calling invalidate() again.
+        // A shutdown-owned instance must never revive into the next account.
         sync.invalidate();
         await sync.awaitQueue();
 
-        // The revived run should have executed.
-        expect(callCount, 2);
+        expect(callCount, 1);
       });
 
       test(
@@ -286,7 +285,8 @@ void main() {
           sync.dispose();
         }
 
-        // Final revive.
+        // A disposed manager remains terminal. Resume uses suspend(), not
+        // dispose(), and a new login constructs fresh managers.
         sync.invalidate();
 
         // Complete any pending blockers so the final run can
@@ -297,7 +297,7 @@ void main() {
 
         await sync.awaitQueue();
 
-        // At least the final run executed.
+        // Only runs started before terminal disposal may have executed.
         expect(callCount, greaterThanOrEqualTo(1));
       });
     });

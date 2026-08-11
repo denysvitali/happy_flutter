@@ -393,6 +393,19 @@ class MMKVStorage {
     }
   }
 
+  /// Resets process-local initialization and caches between isolated tests.
+  @visibleForTesting
+  static void resetForTesting() {
+    _instance._initialized = false;
+    _instance._mmkv = null;
+    _instance._draftsStore.clearCache();
+    _instance._permissionModesStore.clearCache();
+    _instance._modelModesStore.clearCache();
+    _instance._profilesStore.clearCache();
+    _instance._lastSeqStore.clearAll();
+    _instance._firstLoadedSeqStore.clearAll();
+  }
+
   /// Migrate data from SharedPreferences to MMKV
   Future<void> _migrateFromSharedPreferences() async {
     if (_mmkv == null) return;
@@ -706,6 +719,12 @@ class MMKVStorage {
     await _ensureInitialized();
     try {
       _mmkv?.clearAll();
+      _draftsStore.clearCache();
+      _permissionModesStore.clearCache();
+      _modelModesStore.clearCache();
+      _profilesStore.clearCache();
+      _lastSeqStore.clearAll();
+      _firstLoadedSeqStore.clearAll();
     } catch (e) {
       logger.warning('MMKV: Failed to clear all: $e');
     }

@@ -27,7 +27,6 @@ void main() {
 
   group(
     'Encryption — session and machine management',
-    skip: 'Requires native sodium library',
     () {
       late Encryption enc;
 

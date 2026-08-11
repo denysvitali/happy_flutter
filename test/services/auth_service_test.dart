@@ -1,531 +1,287 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
-import 'package:happy_flutter/core/encryption/crypto_box.dart';
 import 'package:happy_flutter/core/models/auth.dart';
-import 'package:happy_flutter/core/models/auth_models.dart';
-import 'package:happy_flutter/core/models/profile.dart';
 import 'package:happy_flutter/core/services/auth_service.dart';
 import 'package:happy_flutter/core/services/encryption_service.dart';
-import 'package:happy_flutter/core/services/storage_service.dart';
-import 'package:mockito/mockito.dart';
+import 'package:happy_flutter/core/utils/backup_key_utils.dart';
 import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 
-// Generate mocks for ApiClient and EncryptionService
 @GenerateMocks([ApiClient, EncryptionService])
 import 'auth_service_test.mocks.dart';
 
-// Standalone mock for TokenStorage (cannot extend singleton)
-class MockTokenStorage {
-  AuthCredentials? _credentials;
+class _MemoryCredentials implements AuthCredentialStore {
+  AuthCredentials? value;
 
-  Future<AuthCredentials?> getCredentials() async => _credentials;
+  @override
+  Future<AuthCredentials?> getCredentials() async => value;
 
-  Future<bool> setCredentials(AuthCredentials credentials) async {
-    _credentials = credentials;
-    return true;
-  }
+  @override
+  Future<bool> isAuthenticated() async => value != null;
 
+  @override
   Future<bool> removeCredentials() async {
-    _credentials = null;
+    value = null;
     return true;
   }
 
-  Future<bool> isAuthenticated() async => _credentials != null;
+  @override
+  Future<bool> setCredentials(AuthCredentials credentials) async {
+    value = credentials;
+    return true;
+  }
 }
+
+class _FakeCrypto implements AuthCrypto {
+  final seed = Uint8List.fromList(List<int>.generate(32, (i) => i));
+  final boxPublicKey = Uint8List.fromList(List<int>.filled(32, 7));
+  final signingPublicKey = Uint8List.fromList(List<int>.filled(32, 9));
+  final signature = Uint8List.fromList(List<int>.filled(64, 11));
+  Uint8List decrypted = Uint8List.fromList(List<int>.filled(32, 13));
+  final disposed = <Object>[];
+
+  @override
+  Future<AuthBoxKeyPair> boxKeypairFromSeed(Uint8List value) async =>
+      AuthBoxKeyPair(publicKey: boxPublicKey, secretKey: Object());
+
+  @override
+  Future<Uint8List?> decrypt(Uint8List data, Object secretKey) async =>
+      decrypted;
+
+  @override
+  void disposeKey(Object secretKey) => disposed.add(secretKey);
+
+  @override
+  Future<Uint8List> encrypt(Uint8List data, Uint8List publicKey) async =>
+      Uint8List.fromList(data.reversed.toList());
+
+  @override
+  Future<AuthBoxKeyPair> generateBoxKeypair() async =>
+      AuthBoxKeyPair(publicKey: boxPublicKey, secretKey: Object());
+
+  @override
+  Future<AuthSigningKeyPair> generateSigningKeypair(Uint8List value) async =>
+      AuthSigningKeyPair(publicKey: signingPublicKey, secretKey: Object());
+
+  @override
+  Uint8List randomBytes(int length) =>
+      Uint8List.fromList(seed.take(length).toList());
+
+  @override
+  Future<Uint8List> sign(Uint8List challenge, Object secretKey) async =>
+      signature;
+}
+
+Response<dynamic> _response(int statusCode, [dynamic data]) =>
+    Response<dynamic>(
+      data: data,
+      statusCode: statusCode,
+      requestOptions: RequestOptions(path: ''),
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('AuthService', () {
-    late AuthService authService;
-    late MockApiClient mockApiClient;
-    late MockEncryptionService mockEncryption;
-    late MockTokenStorage mockTokenStorage;
+  group('AuthService injected authentication flows', () {
+    late MockApiClient api;
+    late MockEncryptionService encryption;
+    late _MemoryCredentials credentials;
+    late _FakeCrypto crypto;
+    late AuthService service;
+    late DateTime now;
 
     setUp(() {
-      mockApiClient = MockApiClient();
-      mockEncryption = MockEncryptionService();
-      mockTokenStorage = MockTokenStorage();
-
-      // Create AuthService and inject mocks via the public interface
-      authService = AuthService();
-
-      // Replace the internal ApiClient and EncryptionService references
-      // Note: AuthService is a singleton, so we need to be careful about state
-      // For testing, we'll use the public methods and verify behavior
+      api = MockApiClient();
+      encryption = MockEncryptionService();
+      credentials = _MemoryCredentials();
+      crypto = _FakeCrypto();
+      now = DateTime.utc(2026);
+      when(encryption.initialize(any)).thenAnswer((_) async {});
+      service = AuthService.test(
+        apiClient: api,
+        encryption: encryption,
+        credentials: credentials,
+        crypto: crypto,
+        now: () => now,
+        delay: (duration) async => now = now.add(duration),
+        approvalTimeout: const Duration(seconds: 2),
+      );
     });
 
-    tearDown(() async {
-      // Clean up any pending operations
-      await authService.signOut();
+    test('QR request sends the generated public key', () async {
+      when(
+        api.post('/v1/auth/account/request', data: anyNamed('data')),
+      ).thenAnswer((_) async => _response(200));
+
+      final publicKey = await service.startQRAuth();
+
+      expect(publicKey, crypto.boxPublicKey);
+      final captured =
+          verify(
+                api.post(
+                  '/v1/auth/account/request',
+                  data: captureAnyNamed('data'),
+                ),
+              ).captured.single
+              as Map<String, dynamic>;
+      expect(captured['publicKey'], base64Encode(crypto.boxPublicKey));
     });
 
-    group('QR Authentication', skip: 'Requires native sodium library', () {
-      group('startQRAuth', () {
-        test('generates keypair and sends public key to server', () async {
-          // Arrange
-          when(mockApiClient.post(
-            '/v1/auth/account/request',
-            data: anyNamed('data'),
-          )).thenAnswer((_) async => Response(
-            data: {'success': true},
-            statusCode: 200,
-            requestOptions: RequestOptions(path: ''),
-          ));
+    test('QR request propagates a transport failure', () async {
+      when(
+        api.post('/v1/auth/account/request', data: anyNamed('data')),
+      ).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: ''),
+          type: DioExceptionType.connectionError,
+        ),
+      );
 
-          // Act - we test the actual method since it doesn't depend on injected dependencies
-          final publicKey = await authService.startQRAuth();
-
-          // Assert
-          expect(publicKey, isA<Uint8List>());
-          expect(publicKey.length, equals(32)); // X25519 public key is 32 bytes
-        });
-
-        test('throws exception when server returns error', () async {
-          // This test verifies error handling behavior
-          // Since startQRAuth uses the real ApiClient singleton, we test the model behavior
-          expect(() async => await authService.startQRAuth(), throwsException);
-        });
-      });
-
-      group('waitForAuthApproval', () {
-        test('successfully completes when state is authorized', () async {
-          // Create a mock public key
-          final publicKey = Uint8List(32);
-          for (var i = 0; i < 32; i++) {
-            publicKey[i] = i;
-          }
-
-          // This test would need the server to respond with authorized state
-          // Since we can't easily mock the singleton, we test timeout behavior
-          expect(
-            () async => await authService.waitForAuthApproval(publicKey),
-            throwsA(isA<ExpiredError>()),
-          );
-        }, timeout: const Timeout(Duration(seconds: 5)));
-
-        test('throws AuthForbiddenError on 403 response', () async {
-          final publicKey = Uint8List(32);
-
-          // Test that 403 errors are properly thrown
-          expect(
-            () async => await authService.waitForAuthApproval(publicKey),
-            throwsA(isA<ExpiredError>()),
-          );
-        }, timeout: const Timeout(Duration(seconds: 5)));
-      });
-
-      group('completeAuth', () {
-        test('stores credentials and initializes encryption', () async {
-          // Arrange
-          final token = 'test-token-123';
-          final secret = Uint8List(32);
-          for (var i = 0; i < 32; i++) {
-            secret[i] = i + 1;
-          }
-
-          // Act
-          final credentials = await authService.completeAuth(token, secret);
-
-          // Assert
-          expect(credentials.token, equals(token));
-          expect(credentials.secret, equals(base64Encode(secret)));
-
-          // Verify credentials are stored
-          final stored = await mockTokenStorage.getCredentials();
-          expect(stored, isNotNull);
-          expect(stored!.token, equals(token));
-        });
-      });
+      await expectLater(service.startQRAuth(), throwsA(isA<DioException>()));
     });
 
-    group('Device Linking', skip: 'Requires native sodium library', () {
-      group('startDeviceLinking', () {
-        test('generates seed-based keypair and returns linking data', () async {
-          // Act
-          final result = await authService.startDeviceLinking();
+    test('QR approval decrypts and persists credentials', () async {
+      when(
+        api.post('/v1/auth/account/request', data: anyNamed('data')),
+      ).thenAnswer((_) async => _response(200));
+      await service.startQRAuth();
+      when(
+        api.post(
+          '/v1/auth/account/request',
+          data: anyNamed('data'),
+          options: anyNamed('options'),
+        ),
+      ).thenAnswer(
+        (_) async => _response(200, {
+          'state': 'authorized',
+          'token': 'qr-token',
+          'response': base64Encode([1, 2, 3]),
+        }),
+      );
 
-          // Assert
-          expect(result, isA<DeviceLinkingResult>());
-          expect(result.linkingId, isNotEmpty);
-          expect(result.publicKey, isA<Uint8List>());
-          expect(result.publicKey.length, equals(32));
-          expect(result.secret, isA<Uint8List>());
-          expect(result.secret.length, equals(32));
-        });
+      final result = await service.waitForAuthApproval(crypto.boxPublicKey);
 
-        test('getQRData returns properly formatted URL', () async {
-          // Act
-          final result = await authService.startDeviceLinking();
-          final qrData = result.getQRData();
-
-          // Assert
-          expect(qrData, startsWith('happy:///account?'));
-          expect(qrData.length, greaterThan('happy:///account?'.length));
-        });
-      });
-
-      group('waitForLinkingApproval', () {
-        test('times out after 2 minutes', () async {
-          // Arrange
-          final publicKey = base64Encode(Uint8List(32));
-
-          // Act & Assert
-          expect(
-            () async => await authService.waitForLinkingApproval(publicKey),
-            throwsA(isA<ExpiredError>().having(
-              (e) => e.message,
-              'message',
-              contains('timed out'),
-            )),
-          );
-        }, timeout: const Timeout(Duration(seconds: 5)));
-      });
+      expect(result.token, 'qr-token');
+      expect(credentials.value, result);
+      verify(encryption.initialize(crypto.decrypted)).called(1);
+      verify(api.updateToken('qr-token')).called(1);
     });
 
-    group('Ed25519 Signatures', skip: 'Requires native sodium library', () {
-      group('createAccount', () {
-        test('creates account with valid signature', () async {
-          // This test would verify Ed25519 signing during account creation
-          // Since it requires server interaction, we test the error case
-          expect(
-            () async => await authService.createAccount(),
-            throwsException,
-          );
-        });
+    test('QR approval reports a server rejection immediately', () async {
+      when(
+        api.post(
+          '/v1/auth/account/request',
+          data: anyNamed('data'),
+          options: anyNamed('options'),
+        ),
+      ).thenAnswer((_) async => _response(403, {'error': 'denied'}));
 
-        test('handles 409 conflict for existing account', () async {
-          // Test that 409 errors are properly handled
-          expect(
-            () async => await authService.createAccount(),
-            throwsException,
-          );
-        });
-      });
-
-      group('restoreAccount', () {
-        test('restores account from backup key', () async {
-          // Arrange
-          final secret = Uint8List(32);
-          for (var i = 0; i < 32; i++) {
-            secret[i] = i;
-          }
-          final backupKey = base64Encode(secret);
-
-          // Act & Assert - will fail without server
-          expect(
-            () async => await authService.restoreAccount(backupKey),
-            throwsException,
-          );
-        });
-
-        test('throws on invalid backup key format', () async {
-          // Act & Assert
-          expect(
-            () async => await authService.restoreAccount('invalid-key!!!'),
-            throwsA(isA<FormatException>()),
-          );
-        });
-      });
-
-      group('generateBackupKey', () {
-        test('throws when not authenticated', () async {
-          // Ensure not authenticated
-          await authService.signOut();
-
-          // Act & Assert
-          expect(
-            () async => await authService.generateBackupKey(),
-            throwsA(isA<AuthException>().having(
-              (e) => e.message,
-              'message',
-              equals('Not authenticated'),
-            )),
-          );
-        });
-      });
+      await expectLater(
+        service.waitForAuthApproval(crypto.boxPublicKey),
+        throwsA(isA<AuthForbiddenError>()),
+      );
     });
 
-    group('Deep Linking', () {
-      group('parseAuthUrl', () {
-        test('parses happy://terminal? URL format', () {
-          // Arrange
-          final publicKey = Uint8List(32);
-          for (var i = 0; i < 32; i++) {
-            publicKey[i] = i;
-          }
-          final base64Key = base64Encode(publicKey);
-          final url = 'happy://terminal?$base64Key';
+    test(
+      'device linking uses seeded key material and formats QR data',
+      () async {
+        when(api.getCurrentServerUrl()).thenReturn('https://example.test');
+        when(
+          api.post('/v1/auth/account/request', data: anyNamed('data')),
+        ).thenAnswer((_) async => _response(200));
 
-          // Act
-          final result = AuthService.parseAuthUrl(url);
+        final result = await service.startDeviceLinking();
 
-          // Assert
-          expect(result, isNotNull);
-          expect(result!.length, equals(32));
-        });
+        expect(result.publicKey, crypto.boxPublicKey);
+        expect(result.secret, crypto.seed);
+        expect(result.getQRData(), startsWith('happy:///account?'));
+      },
+    );
 
-        test('parses happy:///account? URL format', () {
-          // Arrange
-          final publicKey = Uint8List(32);
-          for (var i = 0; i < 32; i++) {
-            publicKey[i] = i + 1;
-          }
-          final base64Key = base64Encode(publicKey);
-          final url = 'happy:///account?$base64Key';
+    test('device approval timeout is deterministic without waiting', () async {
+      when(
+        api.post(
+          '/v1/auth/account/request',
+          data: anyNamed('data'),
+          options: anyNamed('options'),
+        ),
+      ).thenAnswer((_) async => _response(200, {'state': 'pending'}));
 
-          // Act
-          final result = AuthService.parseAuthUrl(url);
-
-          // Assert
-          expect(result, isNotNull);
-          expect(result!.length, equals(32));
-        });
-
-        test('handles base64url encoding with - and _', () {
-          // Arrange — _--__vvv is base64url for [0xFF,0xEF,0xBF,0xFE,0xFB,0xEF]
-          final url = 'happy:///account?_--__vvv';
-
-          // Act
-          final result = AuthService.parseAuthUrl(url);
-
-          // Assert - should handle base64url encoding
-          expect(result, isNotNull);
-          expect(
-            result,
-            equals(Uint8List.fromList([0xFF, 0xEF, 0xBF, 0xFE, 0xFB, 0xEF])),
-          );
-        });
-
-        test('returns null for invalid URL scheme', () {
-          // Arrange
-          final url = 'https://example.com?key=test';
-
-          // Act
-          final result = AuthService.parseAuthUrl(url);
-
-          // Assert
-          expect(result, isNull);
-        });
-
-        test('returns null for malformed URL', () {
-          // Arrange
-          final url = 'happy://invalid-path?key=test';
-
-          // Act
-          final result = AuthService.parseAuthUrl(url);
-
-          // Assert
-          expect(result, isNull);
-        });
-
-        test('returns null for invalid base64', () {
-          // Arrange
-          final url = 'happy:///account???invalid';
-
-          // Act
-          final result = AuthService.parseAuthUrl(url);
-
-          // Assert
-          expect(result, isNull);
-        });
-      });
-
-      group('approveLinkingRequest', () {
-        test('throws on invalid URL format', () async {
-          // Act & Assert
-          expect(
-            () async => await authService.approveLinkingRequest('invalid-url'),
-            throwsA(isA<AuthException>().having(
-              (e) => e.message,
-              'message',
-              equals('Invalid auth URL format'),
-            )),
-          );
-        });
-
-        test('throws when not authenticated', () async {
-          // Arrange
-          final publicKey = Uint8List(32);
-          for (var i = 0; i < 32; i++) {
-            publicKey[i] = i;
-          }
-          final base64Key = base64Encode(publicKey);
-          final url = 'happy:///account?$base64Key';
-
-          // Ensure not authenticated
-          await authService.signOut();
-
-          // Act & Assert
-          expect(
-            () async => await authService.approveLinkingRequest(url),
-            throwsA(isA<AuthException>().having(
-              (e) => e.message,
-              'message',
-              equals('Not authenticated'),
-            )),
-          );
-        });
-      });
-
-      group('approveLinkingWithPublicKey', () {
-        test('throws when not authenticated', () async {
-          // Arrange
-          final publicKey = Uint8List(32);
-          await authService.signOut();
-
-          // Act & Assert
-          expect(
-            () async => await authService.approveLinkingWithPublicKey(publicKey),
-            throwsA(isA<AuthException>().having(
-              (e) => e.message,
-              'message',
-              equals('Not authenticated'),
-            )),
-          );
-        });
-      });
+      await expectLater(
+        service.waitForLinkingApproval(base64Encode(crypto.boxPublicKey)),
+        throwsA(isA<ExpiredError>()),
+      );
     });
 
-    group('Token Management', () {
-      group('isAuthenticated', () {
-        test('returns false when no credentials', () async {
-          // Arrange
-          await authService.signOut();
+    test('account creation signs request and stores returned token', () async {
+      when(
+        api.post('/v1/auth', data: anyNamed('data')),
+      ).thenAnswer((_) async => _response(200, {'token': 'new-token'}));
 
-          // Act
-          final result = await authService.isAuthenticated();
+      await service.createAccount();
 
-          // Assert
-          expect(result, isFalse);
-        });
-      });
-
-      group('getAuthState', () {
-        test('returns unauthenticated when no credentials', () async {
-          // Arrange
-          await authService.signOut();
-
-          // Act
-          final state = await authService.getAuthState();
-
-          // Assert
-          expect(state, equals(AuthState.unauthenticated));
-        });
-      });
-
-      group('signOut', () {
-        test('clears credentials and tokens', () async {
-          // Act
-          await authService.signOut();
-
-          // Assert
-          final isAuth = await authService.isAuthenticated();
-          expect(isAuth, isFalse);
-        });
-      });
+      final request =
+          verify(
+                api.post('/v1/auth', data: captureAnyNamed('data')),
+              ).captured.single
+              as Map<String, dynamic>;
+      expect(request['publicKey'], base64Encode(crypto.signingPublicKey));
+      expect(request['signature'], base64Encode(crypto.signature));
+      expect(credentials.value?.token, 'new-token');
     });
 
-    group('Profile and Services', () {
-      group('getProfile', () {
-        test('returns null when server returns error', () async {
-          // Act
-          final profile = await authService.getProfile();
+    test('account creation maps a conflict', () async {
+      when(
+        api.post('/v1/auth', data: anyNamed('data')),
+      ).thenAnswer((_) async => _response(409));
 
-          // Assert - returns null on error (not authenticated)
-          expect(profile, isNull);
-        });
-      });
-
-      group('getConnectedServices', () {
-        test('returns empty list when server returns error', () async {
-          // Act
-          final services = await authService.getConnectedServices();
-
-          // Assert - returns empty list on error
-          expect(services, isEmpty);
-        });
-      });
-
-      group('getLinkedDevices', () {
-        test('returns empty list when server returns error', () async {
-          // Act
-          final devices = await authService.getLinkedDevices();
-
-          // Assert - returns empty list on error
-          expect(devices, isEmpty);
-        });
-      });
-
-      group('unlinkDevice', () {
-        test('returns false when server returns error', () async {
-          // Act
-          final result = await authService.unlinkDevice('device-123');
-
-          // Assert - returns false on error
-          expect(result, isFalse);
-        });
-      });
-
-      group('getAccountBackupInfo', () {
-        test('returns null when server returns error', () async {
-          // Act
-          final info = await authService.getAccountBackupInfo();
-
-          // Assert - returns null on error
-          expect(info, isNull);
-        });
-      });
+      await expectLater(
+        service.createAccount(),
+        throwsA(
+          isA<AuthRequestError>().having((e) => e.statusCode, 'status', 409),
+        ),
+      );
     });
 
-    group('DeviceLinkingResult', () {
-      test('creates with required parameters', () {
-        // Arrange
-        final linkingId = 'test-linking-id';
-        final publicKey = Uint8List.fromList(List.generate(32, (i) => i));
-        final secret = Uint8List.fromList(List.generate(32, (i) => i + 32));
+    test('restore uses decoded backup secret and persists result', () async {
+      final secret = Uint8List.fromList(List<int>.generate(32, (i) => i + 1));
+      final key = BackupKeyUtils.encodeKey(secret);
+      when(
+        api.post('/v1/auth', data: anyNamed('data')),
+      ).thenAnswer((_) async => _response(200, {'token': 'restored'}));
 
-        // Act
-        final result = DeviceLinkingResult(
-          linkingId: linkingId,
-          publicKey: publicKey,
-          secret: secret,
-        );
+      final result = await service.restoreAccount(key);
 
-        // Assert
-        expect(result.linkingId, equals(linkingId));
-        expect(result.publicKey, equals(publicKey));
-        expect(result.secret, equals(secret));
-      });
+      expect(result.secret, base64Encode(secret));
+      expect(credentials.value, result);
+    });
 
-      test('getQRData returns valid URL format', () {
-        // Arrange
-        final publicKey = Uint8List(32);
-        for (var i = 0; i < 32; i++) {
-          publicKey[i] = i;
-        }
-        final result = DeviceLinkingResult(
-          linkingId: 'test-id',
-          publicKey: publicKey,
-          secret: Uint8List(32),
-        );
+    test('completeAuth and signOut use injected stores', () async {
+      await service.completeAuth('token', crypto.seed);
+      expect(await service.isAuthenticated(), isTrue);
 
-        // Act
-        final qrData = result.getQRData();
+      await service.signOut();
 
-        // Assert
-        expect(qrData, startsWith('happy:///account?'));
-        // Check the base64url key portion (after the ?)
-        final keyPart = qrData.split('?').last;
-        expect(keyPart, isNot(contains('+')));
-        expect(keyPart, isNot(contains('/')));
-        expect(keyPart, isNot(contains('=')));
-      });
+      expect(await service.isAuthenticated(), isFalse);
+    });
+  });
+
+  group('AuthService.parseAuthUrl', () {
+    test('accepts terminal and account URL formats', () {
+      final key = Uint8List.fromList(List<int>.generate(32, (i) => i));
+      final encoded = base64UrlEncode(key).replaceAll('=', '');
+
+      expect(AuthService.parseAuthUrl('happy://terminal?$encoded'), key);
+      expect(AuthService.parseAuthUrl('happy:///account?$encoded'), key);
+    });
+
+    test('rejects malformed URLs and keys of the wrong size', () {
+      expect(AuthService.parseAuthUrl('https://example.test'), isNull);
+      expect(AuthService.parseAuthUrl('happy:///account?AA'), isNull);
     });
   });
 }

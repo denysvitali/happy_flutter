@@ -7,6 +7,8 @@ This document describes the API protocol used by the Happy system, including bot
 The default server URL is: `https://api.cluster-fluster.com`
 
 Clients can configure a custom server URL which takes priority over the default.
+Production clients require HTTPS and reject URL credentials, queries, and
+fragments. Debug clients permit plain HTTP only for loopback development.
 
 ## Authentication
 

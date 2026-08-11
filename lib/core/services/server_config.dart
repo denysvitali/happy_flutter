@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'logger_service.dart' show logger;
 import 'server_config_storage.dart';
@@ -96,7 +97,8 @@ class ServerUrlValidation {
 }
 
 /// Validate a server URL
-/// Checks: non-empty, valid URL format, http/https protocol
+/// Production credentials must only be sent over HTTPS. Debug builds permit
+/// plain HTTP solely for loopback development servers.
 ServerUrlValidation validateServerUrl(String url) {
   if (!url.trim().isNotEmpty) {
     return const ServerUrlValidation(
@@ -107,10 +109,16 @@ ServerUrlValidation validateServerUrl(String url) {
 
   try {
     final uri = Uri.parse(url);
-    if (uri.scheme != 'http' && uri.scheme != 'https') {
+    final isLoopback =
+        uri.host == 'localhost' || uri.host == '127.0.0.1' || uri.host == '::1';
+    final isAllowedDebugHttp =
+        !kReleaseMode && uri.scheme == 'http' && isLoopback;
+    if (uri.scheme != 'https' && !isAllowedDebugHttp) {
       return const ServerUrlValidation(
         valid: false,
-        error: 'Server URL must use HTTP or HTTPS protocol',
+        error:
+            'Server URL must use HTTPS (HTTP is allowed only for '
+            'loopback development servers)',
       );
     }
     if (uri.host.isEmpty) {
@@ -119,6 +127,12 @@ ServerUrlValidation validateServerUrl(String url) {
         error:
             'Server URL must include a hostname'
             ' (e.g. https://example.com)',
+      );
+    }
+    if (uri.hasFragment || uri.hasQuery || uri.userInfo.isNotEmpty) {
+      return const ServerUrlValidation(
+        valid: false,
+        error: 'Server URL must not contain credentials, a query, or fragment',
       );
     }
     return const ServerUrlValidation(valid: true);

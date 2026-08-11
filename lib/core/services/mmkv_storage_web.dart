@@ -69,6 +69,14 @@ class MMKVStorage {
   final Set<String> _sessionMessageCacheKeys = <String>{};
   bool _initialized = false;
 
+  @visibleForTesting
+  static void resetForTesting() {
+    _instance._initialized = false;
+    _instance._db = null;
+    _instance._cache.clear();
+    _instance._sessionMessageCacheKeys.clear();
+  }
+
   // In-memory caches for the synchronous seq methods.
   Map<String, int> _sessionLastSeq = {};
   Map<String, int> _sessionFirstLoadedSeq = {};

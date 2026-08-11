@@ -28,6 +28,7 @@ class _StreamingCursorState extends State<StreamingCursor>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _opacity;
+  bool? _animationsDisabled;
 
   @override
   void initState() {
@@ -35,12 +36,24 @@ class _StreamingCursorState extends State<StreamingCursor>
     _controller = AnimationController(
       vsync: this,
       duration: AppDuration.slower, // 500 ms half-period
-    )..repeat(reverse: true);
-
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: AppCurve.standard,
     );
+
+    _opacity = CurvedAnimation(parent: _controller, curve: AppCurve.standard);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disabled = MediaQuery.disableAnimationsOf(context);
+    if (_animationsDisabled == disabled) return;
+    _animationsDisabled = disabled;
+    if (disabled) {
+      _controller
+        ..stop()
+        ..value = 1;
+    } else {
+      _controller.repeat(reverse: true);
+    }
   }
 
   @override

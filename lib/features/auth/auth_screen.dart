@@ -10,7 +10,6 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/services/server_config.dart';
-import '../../core/services/storage_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../dev/dev_logs_screen.dart';
@@ -43,8 +42,7 @@ class AuthScreen extends ConsumerStatefulWidget {
   final bool showError;
 
   @override
-  ConsumerState<AuthScreen> createState() =>
-      _AuthScreenState();
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen>
@@ -103,17 +101,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   // -- deep-link handling ---------------------
 
-  Future<void> _handleIncomingLink(
-    String url,
-  ) async {
+  Future<void> _handleIncomingLink(String url) async {
     setState(() {
       _isProcessingLink = true;
       _error = null;
     });
 
     try {
-      final publicKey =
-          AuthService.parseAuthUrl(url);
+      final publicKey = AuthService.parseAuthUrl(url);
       if (publicKey == null) {
         setState(() {
           _error = context.l10n.authInvalidQR;
@@ -122,37 +117,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         return;
       }
 
-      final credentials =
-          await TokenStorage().getCredentials();
-      if (credentials == null) {
-        setState(() {
-          _error = context.l10n.authSignInFirst;
-          _isProcessingLink = false;
-        });
-        return;
-      }
-
-      final success = await AuthService()
-          .approveLinkingRequest(url);
-
-      if (success) {
-        setState(() {
-          _linkSuccessMessage =
-              context.l10n.authDeviceLinkedSuccess;
-          _isProcessingLink = false;
-        });
-      } else {
-        setState(() {
-          _error =
-              context.l10n.authFailedToLinkDevice;
-          _isProcessingLink = false;
-        });
-      }
+      ref.read(authStateNotifierProvider.notifier).handleDeepLink(url);
+      setState(() {
+        _error = context.l10n.authSignInFirst;
+        _isProcessingLink = false;
+      });
     } catch (e, st) {
       logger.warning('Device linking failed: $e', e, st);
       setState(() {
-        _error = context.l10n
-            .authErrorLinkingDevice(e.toString());
+        _error = context.l10n.authErrorLinkingDevice(e.toString());
         _isProcessingLink = false;
       });
     }
@@ -180,19 +153,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       await AuthService().createAccount();
       logger.info('Account created successfully');
       if (mounted) {
-        unawaited(
-          ref
-              .read(
-                authStateNotifierProvider.notifier,
-              )
-              .checkAuth(),
-        );
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       }
     } catch (e, st) {
       logger.warning('Create account error: $e', e, st);
       setState(() {
-        _error =
-            _formatErrorMessage(e, context);
+        _error = _formatErrorMessage(e, context);
       });
     } finally {
       if (mounted) {
@@ -208,21 +174,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       context: context,
       builder: (ctx) => RestoreKeyDialog(
         onRestore: (normalized) async {
-          await AuthService()
-              .restoreAccount(normalized);
+          await AuthService().restoreAccount(normalized);
           if (!mounted) return;
           Navigator.of(context).pop();
-          unawaited(
-            ref
-                .read(
-                  authStateNotifierProvider
-                      .notifier,
-                )
-                .checkAuth(),
-          );
+          unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
         },
-        formatError: (e) =>
-            _formatErrorMessage(e, context),
+        formatError: (e) => _formatErrorMessage(e, context),
       ),
     );
   }
@@ -251,8 +208,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     });
 
     try {
-      final publicKey =
-          await AuthService().startQRAuth();
+      final publicKey = await AuthService().startQRAuth();
       setState(() {
         _publicKey = publicKey;
       });
@@ -260,8 +216,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     } catch (e, st) {
       logger.warning('QR auth start failed: $e', e, st);
       setState(() {
-        _error =
-            _formatErrorMessage(e, context);
+        _error = _formatErrorMessage(e, context);
         _isPolling = false;
       });
     }
@@ -269,10 +224,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   // -- helpers --------------------------------
 
-  String _formatErrorMessage(
-    dynamic e,
-    BuildContext ctx,
-  ) {
+  String _formatErrorMessage(dynamic e, BuildContext ctx) {
     final l10n = ctx.l10n;
     if (e is AuthForbiddenError) {
       return '${l10n.authAccessDenied}\n'
@@ -298,28 +250,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     return '${l10n.authAuthenticationFailed}: $e';
   }
 
-  Future<void> _pollForApproval(
-    Uint8List publicKey,
-  ) async {
+  Future<void> _pollForApproval(Uint8List publicKey) async {
     try {
-      await AuthService()
-          .waitForAuthApproval(publicKey);
+      await AuthService().waitForAuthApproval(publicKey);
       if (mounted) {
         setState(() => _isPolling = false);
-        unawaited(
-          ref
-              .read(
-                authStateNotifierProvider.notifier,
-              )
-              .checkAuth(),
-        );
+        unawaited(ref.read(authStateNotifierProvider.notifier).checkAuth());
       }
     } catch (e, st) {
       logger.warning('QR auth approval poll failed: $e', e, st);
       if (mounted) {
         setState(() {
-          _error =
-              _formatErrorMessage(e, context);
+          _error = _formatErrorMessage(e, context);
           _isPolling = false;
         });
       }
@@ -330,40 +272,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     showGeneralDialog<void>(
       context: ctx,
       barrierDismissible: true,
-      barrierLabel: MaterialLocalizations.of(ctx)
-          .modalBarrierDismissLabel,
+      barrierLabel: MaterialLocalizations.of(ctx).modalBarrierDismissLabel,
       barrierColor: Colors.black54,
       transitionDuration: AppDuration.slow,
-      transitionBuilder: (
-        ctx2,
-        animation,
-        secondaryAnimation,
-        child,
-      ) {
+      transitionBuilder: (ctx2, animation, secondaryAnimation, child) {
         return SlideTransition(
           position: Tween<Offset>(
             begin: const Offset(0, -0.3),
             end: Offset.zero,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: AppCurve.enter,
-            ),
-          ),
+          ).animate(CurvedAnimation(parent: animation, curve: AppCurve.enter)),
           child: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: animation,
-              curve: AppCurve.enter,
-            ),
+            opacity: CurvedAnimation(parent: animation, curve: AppCurve.enter),
             child: child,
           ),
         );
       },
-      pageBuilder: (
-        ctx2,
-        animation,
-        secondaryAnimation,
-      ) {
+      pageBuilder: (ctx2, animation, secondaryAnimation) {
         return ServerUrlDialog(
           initialUrl: getServerUrl(),
           defaultUrl: defaultServerUrl,
@@ -376,9 +300,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
-        builder: (context) => const DevLogsScreen(
-          requireDeveloperMode: false,
-        ),
+        builder: (context) => const DevLogsScreen(requireDeveloperMode: false),
       ),
     );
   }
@@ -397,8 +319,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   Widget build(BuildContext context) {
     final isLandscape =
-        MediaQuery.of(context).orientation ==
-            Orientation.landscape;
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
       appBar: _buildAppBar(context),
@@ -424,32 +345,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               );
             },
             child: _showQRScreen
-                ? _buildQRScreen(
-                    context,
-                    isLandscape,
-                  )
-                : _buildLandingScreen(
-                    context,
-                    isLandscape,
-                  ),
+                ? _buildQRScreen(context, isLandscape)
+                : _buildLandingScreen(context, isLandscape),
           ),
         ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar(
-    BuildContext context,
-  ) {
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
     if (_showQRScreen) {
       return AppBar(
-        title: Text(
-          context.l10n.authLinkAccount,
-        ),
+        title: Text(context.l10n.authLinkAccount),
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_rounded,
-          ),
+          icon: const Icon(Icons.arrow_back_rounded),
           tooltip: context.l10n.commonBack,
           onPressed: _goBack,
         ),
@@ -460,22 +369,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       title: Text(context.l10n.appTitle),
       actions: [
         IconButton(
-          icon: const Icon(
-            Icons.settings_outlined,
-          ),
-          tooltip:
-              context.l10n.authServerSettings,
-          onPressed: () =>
-              _showServerDialog(context),
+          icon: const Icon(Icons.settings_outlined),
+          tooltip: context.l10n.authServerSettings,
+          onPressed: () => _showServerDialog(context),
         ),
       ],
     );
   }
 
-  Widget _buildLandingScreen(
-    BuildContext context,
-    bool isLandscape,
-  ) {
+  Widget _buildLandingScreen(BuildContext context, bool isLandscape) {
     final theme = Theme.of(context);
     final padding = MediaQuery.of(context).padding;
 
@@ -488,8 +390,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       isLoadingCreate: _isLoadingCreateAccount,
       l10n: context.l10n,
     );
-    final diagnosticsButton =
-        _buildDiagnosticsButton(context);
+    final diagnosticsButton = _buildDiagnosticsButton(context);
 
     if (isLandscape) {
       return KeyedSubtree(
@@ -497,42 +398,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         child: SafeArea(
           child: Padding(
             padding: EdgeInsets.only(
-              left:
-                  AppSpacing.xxxl + AppSpacing.lg,
-              right:
-                  AppSpacing.xxxl + AppSpacing.lg,
-              bottom:
-                  padding.bottom + AppSpacing.xxl,
+              left: AppSpacing.xxxl + AppSpacing.lg,
+              right: AppSpacing.xxxl + AppSpacing.lg,
+              bottom: padding.bottom + AppSpacing.xxl,
             ),
             child: Row(
               children: [
-                const Expanded(
-                  child: Center(
-                    child: LandingLogoMark(),
-                  ),
-                ),
+                const Expanded(child: Center(child: LandingLogoMark())),
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         ...notices,
                         header,
-                        const SizedBox(
-                          height: AppSpacing.xxxl,
-                        ),
+                        const SizedBox(height: AppSpacing.xxxl),
                         SizedBox(
                           width: 300,
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.stretch,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               buttons,
                               if (diagnosticsButton != null) ...[
-                                const SizedBox(
-                                  height: AppSpacing.md,
-                                ),
+                                const SizedBox(height: AppSpacing.md),
                                 diagnosticsButton,
                               ],
                             ],
@@ -554,46 +442,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 480,
-            ),
+            constraints: const BoxConstraints(maxWidth: 480),
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(
-                  AppSpacing.xxl,
-                ),
+                padding: const EdgeInsets.all(AppSpacing.xxl),
                 child: Column(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const SizedBox(
-                      height: AppSpacing.xxxl,
-                    ),
+                    const SizedBox(height: AppSpacing.xxxl),
                     ...notices,
                     header,
-                    const SizedBox(
-                      height: AppSpacing.xxxl +
-                          AppSpacing.lg,
-                    ),
+                    const SizedBox(height: AppSpacing.xxxl + AppSpacing.lg),
                     SizedBox(
                       width: 300,
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.stretch,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           buttons,
                           if (diagnosticsButton != null) ...[
-                            const SizedBox(
-                              height: AppSpacing.md,
-                            ),
+                            const SizedBox(height: AppSpacing.md),
                             diagnosticsButton,
                           ],
                         ],
                       ),
                     ),
-                    const SizedBox(
-                      height: AppSpacing.xxl,
-                    ),
+                    const SizedBox(height: AppSpacing.xxl),
                   ],
                 ),
               ),
@@ -606,15 +479,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   List<Widget> _buildNotices(BuildContext context) {
     final notices = <Widget>[];
-    final scheme =
-        Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
 
     if (_isProcessingLink) {
       notices.add(
         StatusBanner(
           icon: null,
-          message: context
-              .l10n.authProcessingDeviceLink,
+          message: context.l10n.authProcessingDeviceLink,
           color: scheme.primary,
           isLoading: true,
           onDismiss: null,
@@ -629,9 +500,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           message: _linkSuccessMessage!,
           color: AppColors.success,
           isLoading: false,
-          onDismiss: () => setState(
-            () => _linkSuccessMessage = null,
-          ),
+          onDismiss: () => setState(() => _linkSuccessMessage = null),
         ),
       );
     }
@@ -640,13 +509,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       notices.add(
         StatusBanner(
           icon: Icons.warning_amber_rounded,
-          message: context
-              .l10n.authServerConnectionError,
+          message: context.l10n.authServerConnectionError,
           color: scheme.error,
           isLoading: false,
-          onDismiss: () => setState(
-            () => _serverError = null,
-          ),
+          onDismiss: () => setState(() => _serverError = null),
         ),
       );
     }
@@ -658,8 +524,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           message: _error!,
           color: scheme.error,
           isLoading: false,
-          onDismiss: () =>
-              setState(() => _error = null),
+          onDismiss: () => setState(() => _error = null),
         ),
       );
     }
@@ -667,22 +532,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     return notices;
   }
 
-  Widget _buildQRScreen(
-    BuildContext context,
-    bool isLandscape,
-  ) {
+  Widget _buildQRScreen(BuildContext context, bool isLandscape) {
     final theme = Theme.of(context);
     final padding = MediaQuery.of(context).padding;
 
-    final instructions =
-        QRInstructions(theme: theme);
+    final instructions = QRInstructions(theme: theme);
 
     final qrSection = QRCodeSection(
       isPolling: _isPolling,
       publicKey: _publicKey,
       error: _error,
-      onDismissError: () =>
-          setState(() => _error = null),
+      onDismissError: () => setState(() => _error = null),
       theme: theme,
     );
 
@@ -700,35 +560,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         child: SafeArea(
           child: Padding(
             padding: EdgeInsets.only(
-              left:
-                  AppSpacing.xxxl + AppSpacing.lg,
-              right:
-                  AppSpacing.xxxl + AppSpacing.lg,
-              bottom:
-                  padding.bottom + AppSpacing.xxl,
+              left: AppSpacing.xxxl + AppSpacing.lg,
+              right: AppSpacing.xxxl + AppSpacing.lg,
+              bottom: padding.bottom + AppSpacing.xxl,
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [instructions],
                   ),
                 ),
                 Expanded(
                   child: Column(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       qrSection,
-                      const SizedBox(
-                        height: AppSpacing.xxl,
-                      ),
-                      SizedBox(
-                        width: 300,
-                        child: actions,
-                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      SizedBox(width: 300, child: actions),
                     ],
                   ),
                 ),
@@ -744,34 +594,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       child: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: 480,
-            ),
+            constraints: const BoxConstraints(maxWidth: 480),
             child: SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(
-                  AppSpacing.xxl,
-                ),
+                padding: const EdgeInsets.all(AppSpacing.xxl),
                 child: Column(
                   children: [
-                    const SizedBox(
-                      height: AppSpacing.lg,
-                    ),
+                    const SizedBox(height: AppSpacing.lg),
                     instructions,
-                    const SizedBox(
-                      height: AppSpacing.xxl,
-                    ),
+                    const SizedBox(height: AppSpacing.xxl),
                     qrSection,
-                    const SizedBox(
-                      height: AppSpacing.xxl,
-                    ),
-                    SizedBox(
-                      width: 300,
-                      child: actions,
-                    ),
-                    const SizedBox(
-                      height: AppSpacing.xxl,
-                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+                    SizedBox(width: 300, child: actions),
+                    const SizedBox(height: AppSpacing.xxl),
                   ],
                 ),
               ),

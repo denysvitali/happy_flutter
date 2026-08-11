@@ -26,6 +26,7 @@ class TypingIndicator extends StatefulWidget {
 class _TypingIndicatorState extends State<TypingIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool? _animationsDisabled;
 
   // Footprint of the orb plus its glow bleed. Kept close to the old
   // bubble's box so the chat layout does not shift.
@@ -38,7 +39,22 @@ class _TypingIndicatorState extends State<TypingIndicator>
     _controller = AnimationController(
       duration: const Duration(milliseconds: 2200),
       vsync: this,
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final disabled = MediaQuery.disableAnimationsOf(context);
+    if (_animationsDisabled == disabled) return;
+    _animationsDisabled = disabled;
+    if (disabled) {
+      _controller
+        ..stop()
+        ..value = 0.5;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -112,20 +128,12 @@ class _AuroraOrbPainter extends CustomPainter {
     _paintSpark(canvas, center, radius, t, tau);
   }
 
-  void _paintGlow(
-    Canvas canvas,
-    Offset center,
-    double t,
-    double tau,
-  ) {
+  void _paintGlow(Canvas canvas, Offset center, double t, double tau) {
     final pulse = 12 + 2.5 * math.sin(tau * t);
 
     // Primary halo, centred on the orb.
     final primaryGlow = RadialGradient(
-      colors: [
-        primary.withValues(alpha: 0.30),
-        primary.withValues(alpha: 0),
-      ],
+      colors: [primary.withValues(alpha: 0.30), primary.withValues(alpha: 0)],
     );
     canvas.drawCircle(
       center,
@@ -137,27 +145,18 @@ class _AuroraOrbPainter extends CustomPainter {
     );
 
     // Tertiary halo, drifting around the centre for an aurora feel.
-    final drift = Offset(
-      math.cos(tau * t) * 3,
-      math.sin(tau * t * 0.8) * 3,
-    );
+    final drift = Offset(math.cos(tau * t) * 3, math.sin(tau * t * 0.8) * 3);
     final tertiaryCenter = center + drift;
     final tertiaryRadius = pulse * 0.8;
     final tertiaryGlow = RadialGradient(
-      colors: [
-        tertiary.withValues(alpha: 0.24),
-        tertiary.withValues(alpha: 0),
-      ],
+      colors: [tertiary.withValues(alpha: 0.24), tertiary.withValues(alpha: 0)],
     );
     canvas.drawCircle(
       tertiaryCenter,
       tertiaryRadius,
       Paint()
         ..shader = tertiaryGlow.createShader(
-          Rect.fromCircle(
-            center: tertiaryCenter,
-            radius: tertiaryRadius,
-          ),
+          Rect.fromCircle(center: tertiaryCenter, radius: tertiaryRadius),
         ),
     );
   }
@@ -173,7 +172,8 @@ class _AuroraOrbPainter extends CustomPainter {
     // liquid rather than a perfect disc.
     final points = List<Offset>.generate(_blobPoints, (i) {
       final angle = (i / _blobPoints) * tau;
-      final wobble = 1 +
+      final wobble =
+          1 +
           0.14 * math.sin(3 * angle + tau * t) +
           0.06 * math.sin(2 * angle - tau * t * 0.7);
       final r = radius * wobble;
@@ -190,12 +190,7 @@ class _AuroraOrbPainter extends CustomPainter {
       final current = points[i];
       final next = points[(i + 1) % points.length];
       final mid = _midpoint(current, next);
-      path.quadraticBezierTo(
-        current.dx,
-        current.dy,
-        mid.dx,
-        mid.dy,
-      );
+      path.quadraticBezierTo(current.dx, current.dy, mid.dx, mid.dy);
     }
     path.close();
 
@@ -206,10 +201,7 @@ class _AuroraOrbPainter extends CustomPainter {
       colors: [primary, mid, tertiary, mid],
       stops: const [0, 0.33, 0.66, 1],
     );
-    final rect = Rect.fromCircle(
-      center: center,
-      radius: radius * 1.2,
-    );
+    final rect = Rect.fromCircle(center: center, radius: radius * 1.2);
     canvas.drawPath(
       path,
       Paint()
@@ -246,17 +238,13 @@ class _AuroraOrbPainter extends CustomPainter {
         sparkRadius,
         Paint()
           ..shader = glint.createShader(
-            Rect.fromCircle(
-              center: pos,
-              radius: sparkRadius,
-            ),
+            Rect.fromCircle(center: pos, radius: sparkRadius),
           ),
       )
       ..drawCircle(
         pos,
         1.0,
-        Paint()
-          ..color = Colors.white.withValues(alpha: 0.95),
+        Paint()..color = Colors.white.withValues(alpha: 0.95),
       );
   }
 

@@ -30,6 +30,18 @@ class _FakeMMKVStorage extends MMKVStorage {
   }
 }
 
+class _BlockingMMKVStorage extends _FakeMMKVStorage {
+  final saveStarted = Completer<void>();
+  final allowSave = Completer<void>();
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    if (!saveStarted.isCompleted) saveStarted.complete();
+    await allowSave.future;
+    await super.saveOutboxEntries(json);
+  }
+}
+
 List<Map<String, dynamic>> _decodeStoredOutbox(_FakeMMKVStorage storage) {
   final protection = AtRestEncryptionService.memoryOnly(
     Uint8List.fromList(List<int>.generate(32, (index) => 32 - index)),
@@ -125,6 +137,53 @@ void main() {
       expect(storage._outboxData, isNot(contains(entry.localId)));
       expect(storage._outboxData, isNot(contains(entry.text)));
     });
+
+    test('add does not complete before the durable write', () async {
+      final blockingStorage = _BlockingMMKVStorage();
+      final durableOutbox = MessageOutbox(storage: blockingStorage)
+        ..configure(deliver: (entry) async => null);
+
+      var completed = false;
+      final addFuture = durableOutbox.add(_makeEntry()).then((_) {
+        completed = true;
+      });
+      await blockingStorage.saveStarted.future;
+      expect(completed, isFalse);
+
+      blockingStorage.allowSave.complete();
+      await addFuture;
+      expect(completed, isTrue);
+      durableOutbox.dispose();
+    });
+
+    test(
+      'serializes delivery within a session but not across sessions',
+      () async {
+        final firstGate = Completer<void>();
+        final secondStarted = Completer<void>();
+        final otherStarted = Completer<void>();
+        final order = <String>[];
+
+        final first = outbox.serialize('session-a', () async {
+          order.add('first');
+          await firstGate.future;
+        });
+        final second = outbox.serialize('session-a', () async {
+          order.add('second');
+          secondStarted.complete();
+        });
+        final other = outbox.serialize('session-b', () async {
+          order.add('other');
+          otherStarted.complete();
+        });
+
+        await otherStarted.future;
+        expect(secondStarted.isCompleted, isFalse);
+        firstGate.complete();
+        await Future.wait([first, second, other]);
+        expect(order.indexOf('first'), lessThan(order.indexOf('second')));
+      },
+    );
 
     test(
       'legacy plaintext restore migrates without changing localId',

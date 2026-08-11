@@ -1201,6 +1201,10 @@ class _CopyButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.copy, size: 16),
+      constraints: const BoxConstraints.tightFor(
+        width: AppTouchTarget.min,
+        height: AppTouchTarget.min,
+      ),
       tooltip: context.l10n.commonCopy,
       onPressed: () async {
         final String copyText;
@@ -1220,7 +1224,6 @@ class _CopyButton extends StatelessWidget {
           ),
         );
       },
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
     );

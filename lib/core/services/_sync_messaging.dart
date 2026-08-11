@@ -883,6 +883,17 @@ extension SyncMessaging on Sync {
           final messages = (data['messages'] as List<dynamic>? ?? [])
               .whereType<Map<String, dynamic>>()
               .toList();
+          for (final message in messages) {
+            final localId = message['localId'] as String?;
+            if (localId == null || localId.isEmpty) continue;
+            unawaited(
+              messageOutbox.serialize(
+                sessionId,
+                () => messageOutbox.remove(localId),
+              ),
+            );
+            _updateMessageSendStatus(sessionId, localId, 'sent');
+          }
           final hasMore = data['hasMore'] as bool? ?? false;
           final rawMaxSeq = _maxRawMessageSeq(messages);
           totalPagesFetched++;

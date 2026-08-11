@@ -8,8 +8,7 @@ import 'package:happy_flutter/core/encryption/derive_key.dart';
 /// Tests for libsodium compatibility with React Native implementation
 /// Verifies 24-byte nonce alignment and cross-platform encryption/decryption
 void main() {
-  group('CryptoBox - libsodium compatibility',
-      skip: 'Requires native sodium library', () {
+  group('CryptoBox - libsodium compatibility', () {
     test('Constants match libsodium values', () {
       // Verify constants match libsodium
       expect(CryptoBoxConstants.publicKeyBytes, equals(32),
@@ -151,8 +150,7 @@ void main() {
     });
   });
 
-  group('CryptoSecretBox - libsodium compatibility',
-      skip: 'Requires native sodium library', () {
+  group('CryptoSecretBox - libsodium compatibility', () {
     test('Nonce size is 24 bytes', () {
       // Nonce size is 24 bytes for libsodium compatibility
       const nonceSize = 24;
@@ -243,8 +241,7 @@ void main() {
     });
   });
 
-  group('Cross-platform compatibility tests',
-      skip: 'Requires native sodium library', () {
+  group('Cross-platform compatibility tests', () {
     test('CryptoBox bundle format matches React Native', () async {
       // React Native format from libsodium.ts:
       // result.set(ephemeralKeyPair.publicKey, 0);
@@ -307,8 +304,7 @@ void main() {
     });
   });
 
-  group('Key derivation compatibility',
-      skip: 'Requires native sodium library', () {
+  group('Key derivation compatibility', () {
     test('DeriveKey produces consistent results', () async {
       final masterSecret = Uint8List.fromList(
         List.generate(32, (i) => i),
@@ -352,8 +348,7 @@ void main() {
     });
   });
 
-  group('Edge cases and error handling',
-      skip: 'Requires native sodium library', () {
+  group('Edge cases and error handling', () {
     test('Empty message can be encrypted and decrypted', () async {
       final senderKeypair = await CryptoBox.generateKeypair();
       final recipientKeypair = await CryptoBox.generateKeypair();
