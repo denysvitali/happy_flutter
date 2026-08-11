@@ -598,6 +598,7 @@ extension SyncMessagingRpc on Sync {
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
+        isRestore: true,
         agent: sessionAgent,
         permissionMode: session.permissionMode,
         spawnBackend: _spawnBackendForExistingSession(session),

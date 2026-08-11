@@ -61,6 +61,7 @@ void main() {
       final sessionId = 'spawn-1';
       sync.testMachineRPCOverride = (machineId, method, params) async {
         expect(method, 'spawn-happy-session');
+        expect(params, isNot(contains('isRestore')));
         return <String, dynamic>{
           'type': 'success',
           'sessionId': sessionId,
@@ -969,6 +970,7 @@ void main() {
       final restoredId = 'restored-sess';
       sync.testMachineRPCOverride = (machineId, method, params) async {
         expect(method, 'spawn-happy-session');
+        expect(params['isRestore'], isTrue);
         return <String, dynamic>{
           'type': 'success',
           'sessionId': restoredId,

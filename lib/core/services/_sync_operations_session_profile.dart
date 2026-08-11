@@ -699,6 +699,7 @@ extension SyncSpawnProfileResolution on Sync {
         type: 'spawn-in-directory',
         directory: path,
         sessionId: sessionId,
+        isRestore: true,
         agent: sessionAgent,
         permissionMode: effectivePermissionMode,
         spawnBackend: _spawnBackendForExistingSession(session),

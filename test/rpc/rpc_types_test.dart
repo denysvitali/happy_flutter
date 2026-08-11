@@ -24,6 +24,18 @@ void main() {
         containsPair('repoUrl', 'https://example.com/repo.git'),
       );
       expect(request.toJson(), containsPair('repoRef', 'main'));
+      expect(request.toJson(), isNot(contains('isRestore')));
+    });
+
+    test('includes explicit restore intent', () {
+      final request = SpawnSessionRequest(
+        type: 'spawn-in-directory',
+        directory: '/tmp/project',
+        sessionId: 'session-1',
+        isRestore: true,
+      );
+
+      expect(request.toJson(), containsPair('isRestore', true));
     });
   });
 

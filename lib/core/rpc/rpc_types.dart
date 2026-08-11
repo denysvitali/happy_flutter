@@ -24,6 +24,7 @@ class SpawnSessionRequest {
     this.repoUrl,
     this.repoRef,
     this.repoCommit,
+    this.isRestore = false,
   });
   final String type;
   final String directory;
@@ -38,6 +39,7 @@ class SpawnSessionRequest {
   final String? repoUrl;
   final String? repoRef;
   final String? repoCommit;
+  final bool isRestore;
 
   Map<String, dynamic> toJson() => {
     'type': type,
@@ -59,6 +61,7 @@ class SpawnSessionRequest {
     if (repoUrl != null && repoUrl!.isNotEmpty) 'repoUrl': repoUrl,
     if (repoRef != null && repoRef!.isNotEmpty) 'repoRef': repoRef,
     if (repoCommit != null && repoCommit!.isNotEmpty) 'repoCommit': repoCommit,
+    if (isRestore) 'isRestore': true,
   };
 }
 
