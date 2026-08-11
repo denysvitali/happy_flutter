@@ -253,6 +253,46 @@ void main() {
       expect(find.text('35'), findsOneWidget);
     });
 
+    testWidgets('keeps wide tables readable and horizontally scrollable', (
+      tester,
+    ) async {
+      const evidence = 'Independently reproduced by security team';
+      const markdown =
+          '| Finding | Affected component | Evidence status | '
+          'Recommended remediation |\n'
+          '|---|---|---|---|\n'
+          '| Remote code execution | Camera firmware validation pipeline | '
+          '$evidence | Reject unsigned update packages before parsing |';
+
+      await pumpMarkdown(
+        tester,
+        const SizedBox(
+          width: 320,
+          child: SimpleMarkdownView(markdown: markdown),
+        ),
+      );
+
+      final horizontalScroll = find.byWidgetPredicate(
+        (widget) =>
+            widget is SingleChildScrollView &&
+            widget.scrollDirection == Axis.horizontal,
+      );
+      expect(horizontalScroll, findsOneWidget);
+
+      final table = tester.widget<Table>(find.byType(Table));
+      expect(table.defaultColumnWidth, isA<IntrinsicColumnWidth>());
+      expect(tester.getSize(find.text(evidence)).height, lessThan(30));
+
+      final scrollView = tester.widget<SingleChildScrollView>(horizontalScroll);
+      final controller = scrollView.controller!;
+      expect(controller.position.maxScrollExtent, greaterThan(0));
+
+      await tester.drag(horizontalScroll, const Offset(-200, 0));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, greaterThan(0));
+    });
+
     testWidgets('renders blockquote', (tester) async {
       await pumpMarkdown(
         tester,
@@ -374,6 +414,18 @@ void main() {
       expect(find.text('Col B'), findsOneWidget);
       expect(find.text('Val 1'), findsOneWidget);
       expect(find.text('Val 2'), findsOneWidget);
+      expect(
+        tester.widget<Table>(find.byType(Table)).defaultColumnWidth,
+        isA<IntrinsicColumnWidth>(),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SingleChildScrollView &&
+              widget.scrollDirection == Axis.horizontal,
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders blockquotes', (tester) async {

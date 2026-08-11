@@ -16,6 +16,10 @@ import '../code_block_widget.dart';
 /// Callback type for when an option is pressed in an options block.
 typedef OptionPressedCallback = void Function(String option);
 
+/// Intrinsic sizing preserves readable cells and activates the renderer's
+/// built-in horizontal table scroller when the table exceeds its viewport.
+const TableColumnWidth _scrollableTableColumnWidth = IntrinsicColumnWidth();
+
 /// A widget that renders markdown content with full formatting support.
 ///
 /// Supports:
@@ -135,6 +139,8 @@ class _MarkdownViewState extends State<MarkdownView> {
         color: widget.textColor,
         backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
       ),
+      tableColumnWidth: _scrollableTableColumnWidth,
+      tableScrollbarThumbVisibility: true,
     );
   }
 
@@ -145,7 +151,8 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   Widget _buildMarkdownBody(BuildContext context) {
     final theme = Theme.of(context);
-    final themeChanged = _styleSheet == null ||
+    final themeChanged =
+        _styleSheet == null ||
         !identical(theme, _lastTheme) ||
         widget.textColor != _lastTextColor;
     if (themeChanged) {
@@ -226,6 +233,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         color: onSurface,
         backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
       ),
+      tableColumnWidth: _scrollableTableColumnWidth,
+      tableScrollbarThumbVisibility: true,
     );
   }
 
