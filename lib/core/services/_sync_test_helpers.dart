@@ -622,6 +622,12 @@ extension SyncTestHelpers on Sync {
   String? testNormalizeModelModeForAgent(String? modelMode, String? agent) =>
       _normalizeModelModeForAgent(modelMode, agent);
 
+  String? testNormalizeModelModeForAgentWithProfile(
+    String? modelMode,
+    String? agent,
+    AIBackendProfile profile,
+  ) => _normalizeModelModeForAgent(modelMode, agent, profile: profile);
+
   /// Test helper: set [_settingsSnapshot] for model override tests.
   @visibleForTesting
   set testSettingsSnapshot(Settings value) {

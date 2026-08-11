@@ -195,14 +195,20 @@ extension SyncSpawnProfileResolution on Sync {
     return trimmed;
   }
 
-  String? _normalizeModelModeForAgent(String? modelMode, String? agent) {
+  String? _normalizeModelModeForAgent(
+    String? modelMode,
+    String? agent, {
+    AIBackendProfile? profile,
+  }) {
     if (modelMode == null || modelMode == 'default') {
       return modelMode;
     }
     if (agent != 'claude' && _isClaudeModelAlias(modelMode)) {
       return 'default';
     }
-    if (agent == 'codex' && !_isKnownCodexModelMode(modelMode)) {
+    if (agent == 'codex' &&
+        !_isCustomCodexProfile(profile) &&
+        !_isKnownCodexModelMode(modelMode)) {
       return 'default';
     }
     // The reverse direction: non-Claude model names from a previous
@@ -373,8 +379,7 @@ extension SyncSpawnProfileResolution on Sync {
     // reject them when the full string is not a known Claude alias
     // so that 'anthropic/claude-opus-4-6' third-party endpoints
     // still pass through.
-    if (modelMode.contains('/') &&
-        !_isClaudeModelAlias(modelMode)) {
+    if (modelMode.contains('/') && !_isClaudeModelAlias(modelMode)) {
       return true;
     }
     if (modelMode.startsWith('gpt-')) return true;

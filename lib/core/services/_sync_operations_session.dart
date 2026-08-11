@@ -161,7 +161,11 @@ extension SyncSessionOperations on Sync {
     final selectedProfile = selectedProfileId != null
         ? _resolveProfile(selectedProfileId)
         : null;
-    final normalizedModelMode = _normalizeModelModeForAgent(modelMode, agent);
+    final normalizedModelMode = _normalizeModelModeForAgent(
+      modelMode,
+      agent,
+      profile: selectedProfile,
+    );
     final spawnProfileResolution = _resolveEffectiveProfileForSpawn(
       profile: selectedProfile,
       modelMode: normalizedModelMode,

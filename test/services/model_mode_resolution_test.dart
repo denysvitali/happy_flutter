@@ -81,38 +81,44 @@ void main() {
       );
     });
 
-    test('drops explicit Claude alias for Codex sessions by returning default', () {
-      // Claude aliases are stripped for Codex spawns so they do not
-      // leak into a ChatGPT session. The wire value 'default' is kept
-      // (not collapsed to null) so the daemon clears the sticky model.
-      expect(
-        sync.testGetModelOverride(agent: 'codex', modelMode: 'opus'),
-        'default',
-      );
-      expect(
-        sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet'),
-        'default',
-      );
-      expect(
-        sync.testGetModelOverride(agent: 'codex', modelMode: 'opus:max'),
-        'default',
-      );
-      expect(
-        sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet:high'),
-        'default',
-      );
-      expect(
-        sync.testGetModelOverride(agent: 'codex', modelMode: 'claude-fable-5'),
-        'default',
-      );
-      expect(
-        sync.testGetModelOverride(
-          agent: 'codex',
-          modelMode: 'anthropic/claude-opus-4-6',
-        ),
-        'default',
-      );
-    });
+    test(
+      'drops explicit Claude alias for Codex sessions by returning default',
+      () {
+        // Claude aliases are stripped for Codex spawns so they do not
+        // leak into a ChatGPT session. The wire value 'default' is kept
+        // (not collapsed to null) so the daemon clears the sticky model.
+        expect(
+          sync.testGetModelOverride(agent: 'codex', modelMode: 'opus'),
+          'default',
+        );
+        expect(
+          sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet'),
+          'default',
+        );
+        expect(
+          sync.testGetModelOverride(agent: 'codex', modelMode: 'opus:max'),
+          'default',
+        );
+        expect(
+          sync.testGetModelOverride(agent: 'codex', modelMode: 'sonnet:high'),
+          'default',
+        );
+        expect(
+          sync.testGetModelOverride(
+            agent: 'codex',
+            modelMode: 'claude-fable-5',
+          ),
+          'default',
+        );
+        expect(
+          sync.testGetModelOverride(
+            agent: 'codex',
+            modelMode: 'anthropic/claude-opus-4-6',
+          ),
+          'default',
+        );
+      },
+    );
 
     test('drops explicit Claude alias for Codex-only profiles', () {
       final profile = AIBackendProfile(
@@ -163,19 +169,25 @@ void main() {
       );
     });
 
-    test('returns default for provider-owned model names in Codex default sessions', () {
-      // MiniMax-M3 is not a known Codex model, so normalization
-      // collapses it to 'default' which is kept explicit on the wire
-      // (not collapsed to null) so the daemon clears the sticky model.
-      expect(
-        sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3'),
-        'default',
-      );
-      expect(
-        sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3:high'),
-        'default',
-      );
-    });
+    test(
+      'returns default for provider-owned model names in Codex default sessions',
+      () {
+        // MiniMax-M3 is not a known Codex model, so normalization
+        // collapses it to 'default' which is kept explicit on the wire
+        // (not collapsed to null) so the daemon clears the sticky model.
+        expect(
+          sync.testGetModelOverride(agent: 'codex', modelMode: 'MiniMax-M3'),
+          'default',
+        );
+        expect(
+          sync.testGetModelOverride(
+            agent: 'codex',
+            modelMode: 'MiniMax-M3:high',
+          ),
+          'default',
+        );
+      },
+    );
 
     test('passes provider-owned model names for custom Codex profiles', () {
       final profile = AIBackendProfile(
@@ -192,6 +204,14 @@ void main() {
         ),
       );
 
+      expect(
+        sync.testNormalizeModelModeForAgentWithProfile(
+          'vendor/model:free',
+          'codex',
+          profile,
+        ),
+        'vendor/model:free',
+      );
       expect(
         sync.testGetModelOverride(
           agent: 'codex',

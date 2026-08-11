@@ -579,6 +579,7 @@ extension SyncMessagingRpc on Sync {
       final normalizedModelMode = _normalizeModelModeForAgent(
         session.modelMode,
         sessionAgent,
+        profile: spawnResult.profile,
       );
       // Drop incompatible model overrides (e.g. a Claude model alias paired
       // with a third-party Anthropic-compatible base URL). The daemon rejects

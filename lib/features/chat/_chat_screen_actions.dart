@@ -505,9 +505,16 @@ extension _ChatScreenActions on _ChatScreenState {
     // unknown/provider strings, so without the allowlist normalization
     // would silently rewrite the pick to 'default' and the model would
     // never take effect.
+    final flavor = _session?.metadata?.flavor;
+    final selected = flavor == 'codex' && model.isCustom
+        ? ChatModelMode.customCodex(
+            slug: model.modelSlug ?? model.modeString,
+            effort: model.reasoningEffort,
+          )
+        : model;
     final normalized = ChatModelMode.normalizeForFlavor(
-      model,
-      _session?.metadata?.flavor,
+      selected,
+      flavor,
       allowedRawModels: _selectedProfile?.models,
     );
     setState(() {

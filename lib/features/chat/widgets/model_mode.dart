@@ -54,6 +54,18 @@ class ChatModelMode {
     );
   }
 
+  /// A user-entered Codex model ID that is not present in the machine catalog.
+  factory ChatModelMode.customCodex({required String slug, String? effort}) {
+    final effortLabel = effort != null ? _capitalizeEffort(effort) : null;
+    return ChatModelMode._(
+      label: effortLabel != null ? '$slug $effortLabel' : slug,
+      modeString: effort != null ? '$slug:$effort' : slug,
+      modelSlug: slug,
+      reasoningEffort: effort,
+      flavor: 'codex',
+    );
+  }
+
   /// Use the server-configured default model.
   static const defaultModel = ChatModelMode._(
     label: 'Default',
@@ -216,8 +228,7 @@ class ChatModelMode {
     if (profileModels != null && profileModels.isNotEmpty) {
       return [
         defaultModel,
-        for (final model in profileModels)
-          ChatModelMode.fromString(model),
+        for (final model in profileModels) ChatModelMode.fromString(model),
       ];
     }
     final baseModels = availableForFlavor(flavor);

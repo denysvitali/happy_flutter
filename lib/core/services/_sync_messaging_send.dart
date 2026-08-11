@@ -336,10 +336,9 @@ extension SyncMessagingSend on Sync {
         // Compute before target resolution so model changes can restore.
         final flavor =
             session.metadata?.flavor ?? settingsSnapshot.lastUsedAgent;
-        final requestedModelMode = _normalizeModelModeForAgent(
-          modelMode,
-          flavor,
-        );
+        final requestedModelMode = flavor == 'codex' && modelMode != null
+            ? (_isClaudeModelAlias(modelMode) ? 'default' : modelMode)
+            : _normalizeModelModeForAgent(modelMode, flavor);
         final effectiveModelMode =
             requestedModelMode != null && requestedModelMode != 'default'
             ? requestedModelMode

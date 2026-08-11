@@ -204,6 +204,19 @@ void main() {
     expect(fableHigh.isCustom, isFalse);
   });
 
+  test('custom Codex IDs preserve provider suffixes and effort', () {
+    final model = ChatModelMode.customCodex(
+      slug: 'openrouter/model:free',
+      effort: 'high',
+    );
+
+    expect(model.modeString, 'openrouter/model:free:high');
+    expect(model.modelSlug, 'openrouter/model:free');
+    expect(model.reasoningEffort, 'high');
+    expect(model.isCodex, isTrue);
+    expect(ChatModelMode.normalizeForFlavor(model, 'codex'), model);
+  });
+
   testWidgets('custom models can be removed from the picker', (tester) async {
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
@@ -270,10 +283,11 @@ void main() {
 
       // Followed by the standard Codex effort range, all on the same slug.
       final efforts = models.sublist(1);
-      expect(
-        efforts.map((m) => m.modeString).toList(),
-        ['qwen3.7-max:low', 'qwen3.7-max:medium', 'qwen3.7-max:high'],
-      );
+      expect(efforts.map((m) => m.modeString).toList(), [
+        'qwen3.7-max:low',
+        'qwen3.7-max:medium',
+        'qwen3.7-max:high',
+      ]);
       for (final m in efforts) {
         expect(m.modelSlug, 'qwen3.7-max');
         expect(m.isCodex, isTrue);
@@ -285,10 +299,7 @@ void main() {
         'qwen3.7-max:high',
       );
       expect(models.first.modeString, 'qwen3.7-max');
-      expect(
-        models.map((m) => m.modelSlug).toSet(),
-        {'qwen3.7-max'},
-      );
+      expect(models.map((m) => m.modelSlug).toSet(), {'qwen3.7-max'});
     });
 
     test('availableForProfile prefers the provider-owned model over the '
@@ -311,15 +322,12 @@ void main() {
       // The OpenAI catalog model must not leak in when the provider owns
       // the model; only the provider slug + its effort variants appear.
       expect(models.any((m) => m.modelSlug == 'gpt-5.5'), isFalse);
-      expect(
-        models.map((m) => m.modeString).toList(),
-        [
-          'qwen3.7-max',
-          'qwen3.7-max:low',
-          'qwen3.7-max:medium',
-          'qwen3.7-max:high',
-        ],
-      );
+      expect(models.map((m) => m.modeString).toList(), [
+        'qwen3.7-max',
+        'qwen3.7-max:low',
+        'qwen3.7-max:medium',
+        'qwen3.7-max:high',
+      ]);
     });
 
     test('availableForProfile falls back to the catalog when no provider '
@@ -340,9 +348,7 @@ void main() {
       expect(models, catalog);
     });
 
-    testWidgets('shows an effort slider and emits slug:effort', (
-      tester,
-    ) async {
+    testWidgets('shows an effort slider and emits slug:effort', (tester) async {
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -428,21 +434,20 @@ void main() {
     );
   });
 
-  test('raw model normalization preserves Qwen Token Plan slugs for Codex',
-      () {
-        // The daemon's get-codex-models catalog only reports gpt-*; the
-        // Token Plan slugs must survive normalization via the static
-        // catalog extension, with and without a reasoning-effort suffix.
-        for (final slug in qwenTokenPlanCodexModels) {
-          expect(ChatModelMode.isKnownCodexModelString(slug), isTrue);
-          expect(ChatModelMode.fromString(slug).isCodex, isTrue);
-          expect(ChatModelMode.normalizeRawForFlavor(slug, 'codex'), slug);
-          expect(
-            ChatModelMode.normalizeRawForFlavor('$slug:high', 'codex'),
-            '$slug:high',
-          );
-        }
-      });
+  test('raw model normalization preserves Qwen Token Plan slugs for Codex', () {
+    // The daemon's get-codex-models catalog only reports gpt-*; the
+    // Token Plan slugs must survive normalization via the static
+    // catalog extension, with and without a reasoning-effort suffix.
+    for (final slug in qwenTokenPlanCodexModels) {
+      expect(ChatModelMode.isKnownCodexModelString(slug), isTrue);
+      expect(ChatModelMode.fromString(slug).isCodex, isTrue);
+      expect(ChatModelMode.normalizeRawForFlavor(slug, 'codex'), slug);
+      expect(
+        ChatModelMode.normalizeRawForFlavor('$slug:high', 'codex'),
+        '$slug:high',
+      );
+    }
+  });
 
   test('raw model normalization preserves provider-owned strings', () {
     expect(
