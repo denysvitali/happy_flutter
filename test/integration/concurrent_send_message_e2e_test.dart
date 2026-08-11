@@ -356,12 +356,9 @@ void main() {
       final f2 = sync.sendMessage(sessionId, 'msg B');
       final f3 = sync.sendMessage(sessionId, 'msg C');
 
-      // Let optimistic inserts complete.
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-
-      // Capture insertion order after optimistic
-      // inserts.
+      // Capture insertion order synchronously. sendMessage inserts each
+      // optimistic row before its first await; pumping microtasks here lets
+      // the mocked server ACKs race and legitimately reorder by server seq.
       final msgs = sync.testSessionMessages(sessionId)!;
       final optimistic = msgs
           .where(

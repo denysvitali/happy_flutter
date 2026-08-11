@@ -297,7 +297,10 @@ jobs:
           !contains(github.event.head_commit.message, '[update-goldens]'))
         # Runs both the phone suite (golden_test.dart) and the tablet suite
         # (tablet_golden_test.dart) in `test/golden/`.
-        run: mise exec -- flutter test --no-pub test/golden/
+        # Golden files share process-wide Sync/settings singletons. Running the
+        # two suites in parallel makes their responsive-layout state race and
+        # produces different tablet pixels between generation and verification.
+        run: mise exec -- flutter test --no-pub --concurrency=1 test/golden/
 
       - name: Generate golden screenshots
         if: >-
@@ -306,7 +309,7 @@ jobs:
           (github.event_name == 'push' &&
           contains(github.event.head_commit.message, '[update-goldens]'))
         run: >-
-          mise exec -- flutter test --no-pub test/golden/
+          mise exec -- flutter test --no-pub --concurrency=1 test/golden/
           --update-goldens
 
       - name: Upload generated golden screenshots

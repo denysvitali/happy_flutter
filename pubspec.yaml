@@ -86,7 +86,9 @@ dependencies:
   flutter_user_certificates_android: ^0.0.1
 
   # Native platform integrations
-  connectivity_plus: ^7.0.0
+  # 7.1.1 references NWPath.isUltraConstrained, which is unavailable on the
+  # macOS-14/Xcode SDK used by the unsigned iOS CI build.
+  connectivity_plus: 7.0.0
   # local_auth and geolocator removed — zero callers in lib/
   firebase_core: ^4.4.0
   firebase_messaging: ^16.1.1

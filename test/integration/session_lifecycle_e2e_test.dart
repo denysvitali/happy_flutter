@@ -53,25 +53,26 @@ void main() {
     // as ready when the timestamp is recent.  This test verifies that
     // waitForAgentReady for a 'starting'-only session times out, while
     // the session IS considered ready for send purposes.
-    test(
-      'starting session with recent timestamp — ready for send, '
-      'not immediately for waitForAgentReady',
-      () async {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        sync.testSessions['s-starting'] = _makeSession(
-          's-starting',
-          lifecycleState: 'starting',
-          lifecycleStateSince: now - 5000, // 5 s ago
-        );
+    test('starting session with recent timestamp — ready for send, '
+        'not immediately for waitForAgentReady', () async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions['s-starting'] = _makeSession(
+        's-starting',
+        lifecycleState: 'starting',
+        lifecycleStateSince: now - 5000, // 5 s ago
+      );
 
-        // waitForAgentReady does NOT resolve for 'starting' —
-        // it only checks presence=='online' or lifecycleState=='running'.
-        final ready = await sync.waitForAgentReady('s-starting', 100);
-        expect(ready, isFalse,
-            reason: 'waitForAgentReady does not resolve for "starting" '
-                'state; only "online" or "running" qualify');
-      },
-    );
+      // waitForAgentReady does NOT resolve for 'starting' —
+      // it only checks presence=='online' or lifecycleState=='running'.
+      final ready = await sync.waitForAgentReady('s-starting', 100);
+      expect(
+        ready,
+        isFalse,
+        reason:
+            'waitForAgentReady does not resolve for "starting" '
+            'state; only "online" or "running" qualify',
+      );
+    });
 
     test(
       'running session with recent timestamp is immediately ready',
@@ -88,21 +89,17 @@ void main() {
       },
     );
 
-    test(
-      'starting session with stale timestamp is NOT ready',
-      () async {
-        final stale =
-            DateTime.now().millisecondsSinceEpoch - 300000; // 300 s ago
-        sync.testSessions['s-stale-starting'] = _makeSession(
-          's-stale-starting',
-          lifecycleState: 'starting',
-          lifecycleStateSince: stale,
-        );
+    test('starting session with stale timestamp is NOT ready', () async {
+      final stale = DateTime.now().millisecondsSinceEpoch - 300000; // 300 s ago
+      sync.testSessions['s-stale-starting'] = _makeSession(
+        's-stale-starting',
+        lifecycleState: 'starting',
+        lifecycleStateSince: stale,
+      );
 
-        final ready = await sync.waitForAgentReady('s-stale-starting', 100);
-        expect(ready, isFalse);
-      },
-    );
+      final ready = await sync.waitForAgentReady('s-stale-starting', 100);
+      expect(ready, isFalse);
+    });
 
     test('offline session with no lifecycle is NOT ready', () async {
       sync.testSessions['s-offline'] = _makeSession('s-offline');
@@ -160,76 +157,75 @@ void main() {
       sync.testGetSpawnEnvVarsOverride = null;
     });
 
-    test(
-      'recently spawned session (< 120 s) is ready despite offline '
-      '— sendMessage does not trigger auto-restore',
-      () async {
-        const sessionId = 'spawned-recent';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          machineId: 'machine-1',
-          path: '/project',
-        );
-        // Mark spawned 10 s ago — within the 120 s window.
-        sync.testSetSessionSpawnedAt(
-          sessionId,
-          DateTime.now().millisecondsSinceEpoch - 10000,
-        );
+    test('recently spawned session (< 120 s) is ready despite offline '
+        '— sendMessage does not trigger auto-restore', () async {
+      const sessionId = 'spawned-recent';
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        machineId: 'machine-1',
+        path: '/project',
+      );
+      // Mark spawned 10 s ago — within the 120 s window.
+      sync.testSetSessionSpawnedAt(
+        sessionId,
+        DateTime.now().millisecondsSinceEpoch - 10000,
+      );
 
-        var rpcCalled = false;
-        sync.testMachineRPCOverride = (_, __, ___) async {
-          rpcCalled = true;
-          return <String, dynamic>{};
+      var rpcCalled = false;
+      sync.testMachineRPCOverride = (_, __, ___) async {
+        rpcCalled = true;
+        return <String, dynamic>{};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      final result = await sync.sendMessage(sessionId, 'hello');
+      await sync.lastCompleteSendFuture;
+
+      // Should use the same session without auto-restore.
+      expect(result, sessionId);
+      expect(
+        rpcCalled,
+        isFalse,
+        reason: 'recently spawned session must not trigger auto-restore RPC',
+      );
+    });
+
+    test('stale spawn (> 120 s) triggers auto-restore RPC', () async {
+      const sessionId = 'spawned-stale';
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        machineId: 'machine-1',
+        path: '/project',
+      );
+      // Mark spawned 200 s ago — outside the 120 s window.
+      sync.testSetSessionSpawnedAt(
+        sessionId,
+        DateTime.now().millisecondsSinceEpoch - 200000,
+      );
+
+      var rpcCalled = false;
+      const restoredId = 'restored-stale-1';
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        rpcCalled = true;
+        expect(method, 'spawn-happy-session');
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': restoredId,
+          'dataEncryptionKey': null,
         };
-        sync.testFetchSingleSessionOverride = (_) async => null;
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
 
-        final result = await sync.sendMessage(sessionId, 'hello');
-        await sync.lastCompleteSendFuture;
+      final result = await sync.sendMessage(sessionId, 'hello');
+      await sync.lastCompleteSendFuture;
 
-        // Should use the same session without auto-restore.
-        expect(result, sessionId);
-        expect(rpcCalled, isFalse,
-            reason:
-                'recently spawned session must not trigger auto-restore RPC');
-      },
-    );
-
-    test(
-      'stale spawn (> 120 s) triggers auto-restore RPC',
-      () async {
-        const sessionId = 'spawned-stale';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          machineId: 'machine-1',
-          path: '/project',
-        );
-        // Mark spawned 200 s ago — outside the 120 s window.
-        sync.testSetSessionSpawnedAt(
-          sessionId,
-          DateTime.now().millisecondsSinceEpoch - 200000,
-        );
-
-        var rpcCalled = false;
-        const restoredId = 'restored-stale-1';
-        sync.testMachineRPCOverride = (machineId, method, params) async {
-          rpcCalled = true;
-          expect(method, 'spawn-happy-session');
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': restoredId,
-            'dataEncryptionKey': null,
-          };
-        };
-        sync.testFetchSingleSessionOverride = (_) async => null;
-
-        final result = await sync.sendMessage(sessionId, 'hello');
-        await sync.lastCompleteSendFuture;
-
-        expect(rpcCalled, isTrue,
-            reason: 'stale spawn must trigger auto-restore RPC');
-        expect(result, restoredId);
-      },
-    );
+      expect(
+        rpcCalled,
+        isTrue,
+        reason: 'stale spawn must trigger auto-restore RPC',
+      );
+      expect(result, restoredId);
+    });
   });
 
   // ── Group 3: lifecycle transitions via socket events ─────────────────────
@@ -245,36 +241,27 @@ void main() {
       _stubAllSyncs(sync);
     });
 
-    test(
-      'session-presence online makes session ready — '
-      'waitForAgentReady resolves after ephemeral update',
-      () async {
-        sync.testSessions['s-eph'] = _makeSession('s-eph');
+    test('session-presence online makes session ready — '
+        'waitForAgentReady resolves after ephemeral update', () async {
+      sync.testSessions['s-eph'] = _makeSession('s-eph');
 
-        // Schedule the ephemeral update to fire after a short delay.
-        Timer(const Duration(milliseconds: 80), () {
-          sync.handleEphemeralUpdate({
-            'type': 'session-alive',
-            'id': 's-eph',
-          });
-        });
+      // Schedule the ephemeral update to fire after a short delay.
+      Timer(const Duration(milliseconds: 80), () {
+        sync.handleEphemeralUpdate({'type': 'session-alive', 'id': 's-eph'});
+      });
 
-        final ready = await sync.waitForAgentReady('s-eph', 5000);
-        expect(ready, isTrue);
-      },
-    );
+      final ready = await sync.waitForAgentReady('s-eph', 5000);
+      expect(ready, isTrue);
+    });
 
-    test(
-      'session going offline during waitForAgentReady does not '
-      'falsely resolve',
-      () async {
-        sync.testSessions['s-neverready'] = _makeSession('s-neverready');
+    test('session going offline during waitForAgentReady does not '
+        'falsely resolve', () async {
+      sync.testSessions['s-neverready'] = _makeSession('s-neverready');
 
-        // Never inject an online event — should time out.
-        final ready = await sync.waitForAgentReady('s-neverready', 150);
-        expect(ready, isFalse);
-      },
-    );
+      // Never inject an online event — should time out.
+      final ready = await sync.waitForAgentReady('s-neverready', 150);
+      expect(ready, isFalse);
+    });
 
     test('rapid lifecycle transitions settle to the final state', () async {
       const id = 's-rapid';
@@ -289,8 +276,11 @@ void main() {
 
       // After the rapid events the session should be online.
       final session = sync.testSessions[id];
-      expect(session?.isOnline, isTrue,
-          reason: 'rapid ephemeral events must settle to online');
+      expect(
+        session?.isOnline,
+        isTrue,
+        reason: 'rapid ephemeral events must settle to online',
+      );
     });
   });
 
@@ -400,9 +390,13 @@ void main() {
         final result = await sync.sendMessage(sessionId, 'hello');
         await sync.lastCompleteSendFuture;
 
-        expect(rpcCalled, isTrue,
-            reason: 'archived lifecycleState must trigger auto-restore '
-                'even when presence == "online"');
+        expect(
+          rpcCalled,
+          isTrue,
+          reason:
+              'archived lifecycleState must trigger auto-restore '
+              'even when presence == "online"',
+        );
         expect(result, restoredId);
       },
     );
@@ -447,7 +441,7 @@ void main() {
       expect(result, restoredId);
       expect(
         sync.testSessionMessages(sessionId),
-        isNull,
+        isEmpty,
         reason: 'the stopped session must not receive the outbound message',
       );
       expect(sync.testSessionMessages(restoredId), isNotNull);
@@ -558,7 +552,8 @@ void main() {
       expect(
         messages.single['sendStatus'],
         anyOf('sending', 'pending', 'failed'),
-        reason: 'failed restore should keep a retryable optimistic message '
+        reason:
+            'failed restore should keep a retryable optimistic message '
             'instead of dropping the send',
       );
     });
@@ -605,73 +600,68 @@ void main() {
       expect(sync.testSessionSpawnedModel[sessionId], 'gpt-5.5:medium');
     });
 
-    test(
-      'permission auto-restore drops incompatible Claude model override '
-      'for third-party Anthropic base URL',
-      () async {
-        const sessionId = 'claude-permission-incompatible-model';
-        Map<String, dynamic>? capturedParams;
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          machineId: 'machine-1',
-          path: '/project',
-          lifecycleState: 'archived',
-          flavor: 'claude',
-          modelMode: 'opus:max',
-        );
+    test('permission auto-restore drops incompatible Claude model override '
+        'for third-party Anthropic base URL', () async {
+      const sessionId = 'claude-permission-incompatible-model';
+      Map<String, dynamic>? capturedParams;
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        machineId: 'machine-1',
+        path: '/project',
+        lifecycleState: 'archived',
+        flavor: 'claude',
+        modelMode: 'opus:max',
+      );
 
-        final deepseek = getBuiltInProfile('deepseek')!;
-        sync.testGetSpawnEnvVarsOverride = (_) async => (
-          envVars: {
-            for (final v in deepseek.environmentVariables) v.name: v.value,
-          },
-          profile: deepseek,
-        );
+      final deepseek = getBuiltInProfile('deepseek')!;
+      sync.testGetSpawnEnvVarsOverride = (_) async => (
+        envVars: {
+          for (final v in deepseek.environmentVariables) v.name: v.value,
+        },
+        profile: deepseek,
+      );
 
-        sync.testMachineRPCOverride = (machineId, method, params) async {
-          capturedParams = params;
-          expect(machineId, 'machine-1');
-          expect(method, 'spawn-happy-session');
-          return <String, dynamic>{
-            'type': 'success',
-            'sessionId': sessionId,
-            'dataEncryptionKey': null,
-          };
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        expect(machineId, 'machine-1');
+        expect(method, 'spawn-happy-session');
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
         };
-        sync.testFetchSingleSessionOverride = (_) async => null;
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
 
-        await expectLater(
-          () => sync.sessionAllow(sessionId, 'perm-1'),
-          throwsA(
-            isA<StateError>().having(
-              (error) => error.message,
-              'message',
-              contains('permission has expired'),
-            ),
+      await expectLater(
+        () => sync.sessionAllow(sessionId, 'perm-1'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('permission has expired'),
           ),
-        );
+        ),
+      );
 
-        expect(capturedParams, isNotNull);
-        expect(
-          capturedParams!['model'],
-          'default',
-          reason:
-              'Claude model override must be dropped when profile sets a '
-              'third-party Anthropic-compatible base URL, and replaced with '
-              'an explicit default so the daemon clears sticky metadata',
-        );
-        final envVars =
-            capturedParams!['environmentVariables']
-                as Map<String, dynamic>?;
-        expect(envVars, isNotNull);
-        expect(
-          envVars!['ANTHROPIC_BASE_URL'],
-          contains('deepseek'),
-          reason:
-              'Third-party Anthropic-compatible base URL must still be sent',
-        );
-      },
-    );
+      expect(capturedParams, isNotNull);
+      expect(
+        capturedParams!['model'],
+        'default',
+        reason:
+            'Claude model override must be dropped when profile sets a '
+            'third-party Anthropic-compatible base URL, and replaced with '
+            'an explicit default so the daemon clears sticky metadata',
+      );
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>?;
+      expect(envVars, isNotNull);
+      expect(
+        envVars!['ANTHROPIC_BASE_URL'],
+        contains('deepseek'),
+        reason: 'Third-party Anthropic-compatible base URL must still be sent',
+      );
+    });
 
     test('errored session without restore target fails before send', () async {
       const sessionId = 'errored-no-restore-target';
@@ -777,17 +767,14 @@ class _FakeEncryption implements Encryption {
       );
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
   Future<Uint8List?> decryptEncryptionKey(String encryptedKey) async =>
       Uint8List.fromList(utf8.encode('decrypted'));
 
   @override
-  Future<void> initializeSessions(
-    Map<String, Uint8List?> sessionKeys,
-  ) async {}
+  Future<void> initializeSessions(Map<String, Uint8List?> sessionKeys) async {}
 
   @override
   void removeSessionEncryption(String sessionId) {
@@ -800,12 +787,12 @@ class _FakeEncryption implements Encryption {
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {
