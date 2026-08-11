@@ -130,6 +130,7 @@ void main() {
 
     setUp(() async {
       sync = createTestSync();
+      sync.testIsInitialized = true;
       encryption = _TrackingEncryption();
       sync.encryption = encryption;
       await ApiClient().initialize(serverUrl: 'http://localhost');
@@ -137,6 +138,7 @@ void main() {
     });
 
     tearDown(() {
+      sync.testIsInitialized = false;
       ApiClient().dispose();
     });
 

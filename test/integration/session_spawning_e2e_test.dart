@@ -1311,11 +1311,7 @@ void main() {
 
         const localId = 'encryption-setup-failure';
         await expectLater(
-          () => sync.sendMessage(
-            sessionId,
-            'hello',
-            clientLocalId: localId,
-          ),
+          () => sync.sendMessage(sessionId, 'hello', clientLocalId: localId),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
@@ -1831,37 +1827,43 @@ void main() {
       },
     );
 
-    test('createSession → sendMessage stays queued when fresh session '
-        'never becomes ready', () async {
-      final sessionId = 'e2e-startup-timeout';
+    test(
+      'createSession → sendMessage fails canonically when a fresh '
+      'session never becomes ready and durable enqueue is unavailable',
+      () async {
+        final sessionId = 'e2e-startup-timeout';
 
-      sync.testMachineRPCOverride = (machineId, method, params) async {
-        return <String, dynamic>{
-          'type': 'success',
-          'sessionId': sessionId,
-          'dataEncryptionKey': null,
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
         };
-      };
 
-      await sync.createSession(
-        agent: 'claude',
-        machineId: 'machine-1',
-        path: '/home/user/project',
-      );
+        await sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+        );
 
-      sync.testFetchSingleSessionOverride = (_) async => null;
+        sync.testFetchSingleSessionOverride = (_) async => null;
 
-      final sentId = await sync.sendMessage(sessionId, 'Will fail');
-      expect(sentId, sessionId);
+        final sentId = await sync.sendMessage(sessionId, 'Will fail');
+        expect(sentId, sessionId);
 
-      await sync.lastCompleteSendFuture;
+        await sync.lastCompleteSendFuture;
 
-      final updatedMsgs = sync.testSessionMessages(sessionId)!;
-      final queuedMsg = updatedMsgs.firstWhere(
-        (m) => m['content'] == 'Will fail',
-      );
-      expect(queuedMsg['sendStatus'], 'sending');
-    });
+        final updatedMsgs = sync.testSessionMessages(sessionId)!;
+        final queuedMsg = updatedMsgs.firstWhere(
+          (m) => m['content'] == 'Will fail',
+        );
+        // The test runner has no secure-storage plugin. A message that cannot
+        // be made durable must be retryable as the same canonical row, not
+        // left in a misleading perpetual sending state.
+        expect(queuedMsg['sendStatus'], 'failed');
+      },
+    );
 
     test('createSession → auto-restore → redirected sendMessage', () async {
       final originalId = 'e2e-original';

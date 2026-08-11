@@ -200,7 +200,8 @@ void main() {
       ApiClient().testDio!.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
-            if (options.path == '/v3/sessions/sess-spawn/messages') {
+            if (options.method == 'POST' &&
+                options.path == '/v3/sessions/sess-spawn/messages') {
               capturedRequestData = options.data;
               handler.resolve(
                 Response<dynamic>(

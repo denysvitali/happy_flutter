@@ -184,10 +184,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      tester.widget<AnimatedSize>(find.byType(AnimatedSize)).duration,
-      Duration.zero,
-    );
+    expect(find.byType(AnimatedSize), findsNothing);
     await tester.tap(find.text('… +1 more'));
     await tester.pump();
     final rotations = tester.widgetList<AnimatedRotation>(

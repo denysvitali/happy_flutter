@@ -455,6 +455,40 @@ class _ActionSection extends StatelessWidget {
     final color = missionLaneColor(context, lane);
     final l10n = context.l10n;
     final reduceMotion = AppMotion.reduceMotion(context);
+    final content = Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0)
+              Divider(
+                height: 1,
+                thickness: 1,
+                indent: 58,
+                color: cs.outlineVariant,
+              ),
+            children[i],
+          ],
+          if (hiddenCount > 0 || expanded) ...[
+            Divider(height: 1, thickness: 1, color: cs.outlineVariant),
+            _DisclosureButton(
+              label: expanded
+                  ? l10n.machineShowLess
+                  : l10n.missionControlMoreActions(hiddenCount),
+              expanded: expanded,
+              onTap: onToggle,
+            ),
+          ],
+        ],
+      ),
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -487,45 +521,15 @@ class _ActionSection extends StatelessWidget {
           selectedLane: selectedLane,
           onSelectLane: onSelectLane,
         ),
-        AnimatedSize(
-          duration: reduceMotion ? Duration.zero : AppDuration.normal,
-          curve: AppCurve.standard,
-          alignment: Alignment.topCenter,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            clipBehavior: Clip.hardEdge,
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: cs.outlineVariant),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < children.length; i++) ...[
-                  if (i > 0)
-                    Divider(
-                      height: 1,
-                      thickness: 1,
-                      indent: 58,
-                      color: cs.outlineVariant,
-                    ),
-                  children[i],
-                ],
-                if (hiddenCount > 0 || expanded) ...[
-                  Divider(height: 1, thickness: 1, color: cs.outlineVariant),
-                  _DisclosureButton(
-                    label: expanded
-                        ? l10n.machineShowLess
-                        : l10n.missionControlMoreActions(hiddenCount),
-                    expanded: expanded,
-                    onTap: onToggle,
-                  ),
-                ],
-              ],
-            ),
+        if (reduceMotion)
+          content
+        else
+          AnimatedSize(
+            duration: AppDuration.normal,
+            curve: AppCurve.standard,
+            alignment: Alignment.topCenter,
+            child: content,
           ),
-        ),
       ],
     );
   }

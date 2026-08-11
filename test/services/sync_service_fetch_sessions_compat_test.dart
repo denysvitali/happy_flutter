@@ -60,6 +60,7 @@ void main() {
       instance.testSessions.clear();
       instance.testLastSessionsFetchedAt = null;
       instance.testForceFullFetchNext = false;
+      instance.testIsInitialized = true;
 
       instance.encryption = _FakeEncryption(
         _FakeSessionEncryption(
@@ -84,6 +85,7 @@ void main() {
       instance.testSessions.clear();
       instance.testLastSessionsFetchedAt = null;
       instance.testForceFullFetchNext = false;
+      instance.testIsInitialized = false;
     });
 
     test(

@@ -437,6 +437,13 @@ class MessageOutbox {
     return result.future;
   }
 
+  /// Drives one delivery attempt without waiting for the retry timer.
+  ///
+  /// This keeps failure-budget contract tests deterministic and fast while
+  /// production continues to use the real exponential-backoff scheduler.
+  @visibleForTesting
+  Future<void> testAttemptNow(String localId) => _attempt(localId);
+
   /// Test-only: place [entry] in the pending bucket WITHOUT scheduling a
   /// retry timer or a persist. Lets widget tests reproduce "the outbox
   /// now owns this message" without leaving pending timers behind.

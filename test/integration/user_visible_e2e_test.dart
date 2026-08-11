@@ -10,6 +10,8 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/services/message_outbox.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -65,51 +67,48 @@ void main() {
           'REST is the only path',
         );
       };
-      sync.testFetchMessagesOverride = (_, __, ___) async =>
-          _emptyMessagesPage;
+      sync.testFetchMessagesOverride = (_, __, ___) async => _emptyMessagesPage;
 
       interceptor = _AckInterceptor();
       await ApiClient().initialize(serverUrl: 'http://localhost');
       ApiClient().testDio!.interceptors.add(interceptor);
+      messageOutbox.dispose();
+      messageOutbox.testStorage = _FakeOutboxStorage();
     });
 
     tearDown(() {
       ApiClient().dispose();
+      messageOutbox.dispose();
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
       sync.testFetchMessagesOverride = null;
     });
 
-    test('REST-only send reaches sent state with the optimistic localId',
-        () async {
-      const sessionId = 'sess-1';
+    test(
+      'REST-only send reaches sent state with the optimistic localId',
+      () async {
+        const sessionId = 'sess-1';
 
-      // Kick the send off, then drain microtasks so sendMessage
-      // has actually run to the point where it sets
-      // lastCompleteSendFuture. Awaiting that future directly
-      // when it's still null (the function hasn't yet reached the
-      // assignment) would return immediately and the assertion below
-      // would race the actual POST.
-      final future = sync.sendMessage(sessionId, 'ping while offline');
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-      await sync.lastCompleteSendFuture;
-      await future;
+        // Await preparation first: sendMessage sets lastCompleteSendFuture
+        // before it returns, so this cannot race a still-null completion.
+        await sync.sendMessage(sessionId, 'ping while offline');
+        await sync.lastCompleteSendFuture;
 
-      final msgs = sync.testSessionMessages(sessionId)!;
-      final userMsgs = msgs
-          .where((m) => m['content'] == 'ping while offline')
-          .toList();
-      expect(userMsgs, hasLength(1));
-      expect(userMsgs.single['sendStatus'], 'sent');
-      expect(userMsgs.single['localId'], isNotNull);
-      expect(userMsgs.single['localId'], isNotEmpty);
+        final msgs = sync.testSessionMessages(sessionId)!;
+        final userMsgs = msgs
+            .where((m) => m['content'] == 'ping while offline')
+            .toList();
+        expect(userMsgs, hasLength(1));
+        expect(userMsgs.single['sendStatus'], 'sent');
+        expect(userMsgs.single['localId'], isNotNull);
+        expect(userMsgs.single['localId'], isNotEmpty);
 
-      // The localId the optimistic row used must be the same one the
-      // server echoed back, and must be the only one in flight.
-      expect(interceptor.ackedLocalIds, hasLength(1));
-      expect(interceptor.ackedLocalIds.single, userMsgs.single['localId']);
-    });
+        // The localId the optimistic row used must be the same one the
+        // server echoed back, and must be the only one in flight.
+        expect(interceptor.ackedLocalIds, hasLength(1));
+        expect(interceptor.ackedLocalIds.single, userMsgs.single['localId']);
+      },
+    );
 
     test('repeated identical sends while offline all persist as distinct '
         'messages', () async {
@@ -123,8 +122,9 @@ void main() {
       await sync.lastCompleteSendFuture;
 
       final msgs = sync.testSessionMessages(sessionId)!;
-      final continueMsgs =
-          msgs.where((m) => m['content'] == 'continue').toList();
+      final continueMsgs = msgs
+          .where((m) => m['content'] == 'continue')
+          .toList();
       expect(
         continueMsgs,
         hasLength(3),
@@ -134,17 +134,17 @@ void main() {
       // Three distinct localIds and three distinct server IDs — the
       // REST-only path must not collapse identical text into a single
       // logical message.
-      final localIds =
-          continueMsgs.map((m) => m['localId'] as String).toSet();
+      final localIds = continueMsgs.map((m) => m['localId'] as String).toSet();
       expect(
         localIds,
         hasLength(3),
         reason: 'Repeated identical text must still get distinct localIds',
       );
 
-      final serverIds =
-          continueMsgs.map((m) => m['id'] as String?).whereType<String>()
-              .toSet();
+      final serverIds = continueMsgs
+          .map((m) => m['id'] as String?)
+          .whereType<String>()
+          .toSet();
       expect(
         serverIds,
         hasLength(3),
@@ -165,8 +165,7 @@ void main() {
       // Session starts in a "thinking" state — the agent is mid-response
       // on the previous turn. The user's follow-up send must still be
       // accepted as a brand-new logical message.
-      sync.testSessions['sess-2'] =
-          _makeSession('sess-2', thinking: true);
+      sync.testSessions['sess-2'] = _makeSession('sess-2', thinking: true);
       sync.testSetLastEphemeralAt(
         'sess-2',
         DateTime.now().millisecondsSinceEpoch,
@@ -175,8 +174,7 @@ void main() {
       sync.testIsInitialized = true;
       sync.testSocketConnectedOverride = true;
       sync.testSocketSendOverride = (_, __) {};
-      sync.testFetchMessagesOverride = (_, __, ___) async =>
-          _emptyMessagesPage;
+      sync.testFetchMessagesOverride = (_, __, ___) async => _emptyMessagesPage;
 
       interceptor = _AckInterceptor();
       await ApiClient().initialize(serverUrl: 'http://localhost');
@@ -214,8 +212,7 @@ void main() {
         hasLength(2),
         reason: 'Both sends must insert an optimistic row before ack',
       );
-      final midLocalIds =
-          midUser.map((m) => m['localId'] as String).toSet();
+      final midLocalIds = midUser.map((m) => m['localId'] as String).toSet();
       expect(
         midLocalIds,
         hasLength(2),
@@ -227,21 +224,25 @@ void main() {
 
       final finalMsgs = sync.testSessionMessages(sessionId)!;
       final userMsgs = finalMsgs
-          .where((m) => m['content'] == 'first thought'
-              || m['content'] == 'follow-up while thinking')
+          .where(
+            (m) =>
+                m['content'] == 'first thought' ||
+                m['content'] == 'follow-up while thinking',
+          )
           .toList();
       expect(userMsgs, hasLength(2));
 
-      final localIds =
-          userMsgs.map((m) => m['localId'] as String).toSet();
+      final localIds = userMsgs.map((m) => m['localId'] as String).toSet();
       expect(
         localIds,
         hasLength(2),
         reason: 'Two distinct logical messages must persist',
       );
 
-      final serverIds =
-          userMsgs.map((m) => m['id'] as String?).whereType<String>().toSet();
+      final serverIds = userMsgs
+          .map((m) => m['id'] as String?)
+          .whereType<String>()
+          .toSet();
       expect(
         serverIds,
         hasLength(2),
@@ -250,10 +251,7 @@ void main() {
 
       // Both reached 'sent' — the session was in a thinking state but
       // a fresh user tap is always accepted.
-      expect(
-        userMsgs.every((m) => m['sendStatus'] == 'sent'),
-        isTrue,
-      );
+      expect(userMsgs.every((m) => m['sendStatus'] == 'sent'), isTrue);
     });
 
     test('the second tap never re-acks the first message', () async {
@@ -264,10 +262,12 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       await Future<void>.delayed(Duration.zero);
 
-      final firstLocalId = sync
-          .testSessionMessages(sessionId)!
-          .where((m) => m['content'] == 'first')
-          .single['localId'] as String;
+      final firstLocalId =
+          sync
+                  .testSessionMessages(sessionId)!
+                  .where((m) => m['content'] == 'first')
+                  .single['localId']
+              as String;
 
       final f2 = sync.sendMessage(sessionId, 'second');
       await Future.wait([f1, f2]);
@@ -290,6 +290,20 @@ void main() {
   });
 }
 
+class _FakeOutboxStorage extends MMKVStorage {
+  _FakeOutboxStorage() : super.testConstructor();
+
+  String? _data;
+
+  @override
+  Future<String?> getOutboxEntries() async => _data;
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    _data = json;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // HTTP interceptor that captures acked localIds and returns a fresh
 // server id for each POST so a re-ack (e.g. by mistake) would surface
@@ -304,7 +318,7 @@ class _AckInterceptor extends Interceptor {
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final isMessagesPath =
         options.path.contains('/v3/sessions/') &&
-            options.path.contains('/messages');
+        options.path.contains('/messages');
     final isPost = options.method.toUpperCase() == 'POST';
 
     if (isMessagesPath && isPost) {

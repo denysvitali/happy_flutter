@@ -91,10 +91,11 @@ class _JsonMapStore {
     return {};
   }
 
-  /// Get all entries (re-reads from MMKV each time).
+  /// Get all entries, including writes still waiting for the debounce flush.
   Future<Map<String, String>> getAll() async {
     try {
-      return _loadCache();
+      final cache = _cache ??= _loadCache();
+      return Map<String, String>.from(cache);
     } catch (e) {
       logger.warning('MMKV: Failed to get all $_key: $e');
     }
@@ -853,17 +854,7 @@ class ProfileStorage {
       final profileJson = await _getString(_StorageKeys.profile);
       if (profileJson != null) {
         final decoded = jsonDecode(profileJson) as Map<String, dynamic>;
-        return models.Profile(
-          id: decoded['id'] as String? ?? '',
-          timestamp: decoded['timestamp'] as int? ?? 0,
-          firstName: decoded['firstName'] as String?,
-          lastName: decoded['lastName'] as String?,
-          connectedServices:
-              (decoded['connectedServices'] as List<dynamic>?)
-                  ?.map((e) => e as String)
-                  .toList() ??
-              [],
-        );
+        return models.Profile.fromJson(decoded);
       }
     } catch (e) {
       logger.warning('ProfileStorage: Failed to load profile: $e');
@@ -875,13 +866,7 @@ class ProfileStorage {
   /// Save profile to storage
   Future<void> saveProfile(models.Profile profile) async {
     try {
-      final profileJson = jsonEncode({
-        'id': profile.id,
-        'timestamp': profile.timestamp,
-        'firstName': profile.firstName,
-        'lastName': profile.lastName,
-        'connectedServices': profile.connectedServices,
-      });
+      final profileJson = jsonEncode(profile.toJson());
       await _setString(_StorageKeys.profile, profileJson);
     } catch (e) {
       logger.warning('ProfileStorage: Failed to save profile: $e');

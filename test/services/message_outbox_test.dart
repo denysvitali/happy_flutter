@@ -445,12 +445,11 @@ void main() {
         await outbox.restoreAndFlush();
 
         await outbox.add(_makeEntry(localId: 'brownout'));
-        // Attempt 1 fires after backoff(0) ≈ 1 s. Each resume() re-arms the
-        // pending entry at the 1 s floor, walking through attempts without
-        // waiting out the doubling backoff.
+        // Drive the delivery state machine directly. The exponential delay is
+        // a production scheduling concern; this contract only needs to prove
+        // that transient failures survive the old three-attempt budget.
         for (var i = 0; i < 5; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 1500));
-          outbox.resume();
+          await outbox.testAttemptNow('brownout');
         }
 
         // Four failed attempts — one past the old flat budget that used to
@@ -692,13 +691,18 @@ void main() {
     // ── Suspend ─────────────────────────────────────────────────────────────
 
     test(
-      'suspendAndFlush persists pending entries before cancelling timers',
+      'suspendAndFlush preserves an already-durable pending entry',
       () async {
         outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
 
         await outbox.add(_makeEntry(localId: 'flush-me'));
-        // The persist is debounced 100ms — nothing on disk yet.
-        expect(storage._outboxData, isNull);
+        // add() is the durability boundary: a successful return means the
+        // encrypted entry is already recoverable if the process is killed.
+        expect(storage._outboxData, isNotNull);
+        expect(
+          storage._outboxData,
+          startsWith(AtRestEncryptionService.envelopePrefix),
+        );
 
         await outbox.suspendAndFlush();
 
@@ -733,11 +737,11 @@ void main() {
       },
     );
 
-    test('suspend() flushes the debounced persist without an await', () async {
+    test('suspend() preserves the durable snapshot without an await', () async {
       outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
 
       await outbox.add(_makeEntry(localId: 'flush-sync'));
-      expect(storage._outboxData, isNull);
+      expect(storage._outboxData, isNotNull);
 
       outbox.suspend();
       await Future<void>.delayed(Duration.zero);

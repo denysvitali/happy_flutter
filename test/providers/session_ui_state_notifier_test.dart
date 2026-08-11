@@ -139,7 +139,6 @@ void main() {
         ..testSetSessionMessages('session-2', const []);
 
       final notifier = container.read(sessionUiStateNotifierProvider.notifier);
-      notifier.loadFromSync();
       final before = container.read(sessionUiStateNotifierProvider);
       final unrelated = before.bySessionId['session-2'];
 
@@ -176,6 +175,7 @@ void main() {
         ..testSetSessionUsage('session-1', {'contextSize': 42});
 
       final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      notifier.loadFromSync();
       final before = container.read(sessionUiStateNotifierProvider);
 
       sync.testSetSessionUsage('session-1', {'contextSize': 43});
@@ -193,7 +193,7 @@ void main() {
           {
             'id': 'msg-1',
             'localId': 'local-1',
-            'role': 'assistant',
+            'role': 'agent',
             'content': 'First preview',
             'createdAt': 1000,
           },
@@ -207,7 +207,7 @@ void main() {
           {
             'id': 'msg-1',
             'localId': 'local-1',
-            'role': 'assistant',
+            'role': 'agent',
             'content': 'Streaming preview changed',
             'createdAt': 1000,
           },

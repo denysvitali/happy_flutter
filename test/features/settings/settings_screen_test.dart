@@ -22,6 +22,15 @@ class _TestSettingsNotifier extends SettingsNotifier {
   Future<void> updateSetting<T>(String key, T value) async {
     state = SettingsUpdate.copyWithUpdated(state, key, value);
   }
+
+  @override
+  Future<void> applySettings(Map<String, dynamic> values) async {
+    var updated = state;
+    for (final entry in values.entries) {
+      updated = SettingsUpdate.copyWithUpdated(updated, entry.key, entry.value);
+    }
+    state = updated;
+  }
 }
 
 class _TestMachinesNotifier extends MachinesNotifier {

@@ -184,6 +184,16 @@ extension SyncMessagingSend on Sync {
     // one retryable row carrying the same canonical localId.
     final localId = clientLocalId ?? createLocalMessageId();
     final runtimeGeneration = _runtimeGeneration;
+    final optimisticInsertedAtStart = _insertPreparingOptimistic(
+      sessionId: sessionId,
+      localId: localId,
+      text: text,
+      displayText: displayText,
+      permissionMode: permissionMode,
+      modelMode: modelMode,
+      images: images,
+      runtimeGeneration: runtimeGeneration,
+    );
     // OTel sibling of the Sentry transaction started below. The span is
     // opened BEFORE encryption recovery and target resolution: those can
     // do three sequential `invalidateAndAwait()` round trips and may
@@ -218,6 +228,7 @@ extension SyncMessagingSend on Sync {
         otelService: otelService,
         sendSpan: sendSpan,
         prepareStopwatch: prepareStopwatch,
+        optimisticInsertedAtStart: optimisticInsertedAtStart,
       );
     } catch (error, stack) {
       _preserveFailedPreparation(
@@ -244,6 +255,46 @@ extension SyncMessagingSend on Sync {
         ..end(ok: false);
       rethrow;
     }
+  }
+
+  bool _insertPreparingOptimistic({
+    required String sessionId,
+    required String localId,
+    required String text,
+    required String? displayText,
+    required String? permissionMode,
+    required String? modelMode,
+    required List<OutgoingImage>? images,
+    required int runtimeGeneration,
+  }) {
+    if (!isInitialized || runtimeGeneration != _runtimeGeneration) return false;
+    final content = _buildOutboundUserContent(text, images: images);
+    final rawRecord = <String, dynamic>{
+      'role': 'user',
+      'content': content,
+      'meta': <String, dynamic>{
+        'permissionMode': permissionMode ?? 'default',
+        'model': modelMode == 'default' ? null : modelMode,
+        'displayText': ?displayText,
+      },
+    };
+    final now = DateTime.now().millisecondsSinceEpoch;
+    messageInvariantMonitor.recordOptimisticSent(localId);
+    _upsertSessionMessages(sessionId, [
+      {
+        'id': localId,
+        'localId': localId,
+        'seq': 0,
+        'createdAt': now,
+        'role': 'user',
+        'kind': 'text',
+        'content': _extractDisplayTextFromUserContent(content, text),
+        'raw': rawRecord,
+        'sendStatus': 'sending',
+      },
+    ]);
+    _notifySessionMessagesChanged(sessionId);
+    return true;
   }
 
   void _preserveFailedPreparation({
@@ -301,6 +352,7 @@ extension SyncMessagingSend on Sync {
     required OpenTelemetryService otelService,
     required OTelSpan? sendSpan,
     required Stopwatch prepareStopwatch,
+    required bool optimisticInsertedAtStart,
     String? clientLocalId,
     String? displayText,
     String? permissionMode,
@@ -550,9 +602,22 @@ extension SyncMessagingSend on Sync {
           _notifyDataChanged({SyncDomain.sessions});
         }
 
-        // Register and insert the same canonical localId that REST, socket,
-        // retry, and merge use downstream.
-        messageInvariantMonitor.recordOptimisticSent(localId);
+        // Auto-restore can redirect the send to a replacement session. Move
+        // the already-visible optimistic row rather than showing it in both
+        // timelines. For the normal same-session path, the upsert below
+        // enriches the early row with the final resolved wire options.
+        if (optimisticInsertedAtStart && targetSessionId != sessionId) {
+          final requestedMessages = _sessionMessages[sessionId];
+          requestedMessages?.removeWhere((m) => _matchesLocalId(m, localId));
+          _invalidateMessageCaches(sessionId);
+          _notifySessionMessagesChanged(sessionId);
+        }
+        // Register if startup happened outside an initialized runtime and no
+        // early row could be inserted. REST, socket, retry, and merge still
+        // share this same canonical localId.
+        if (!optimisticInsertedAtStart) {
+          messageInvariantMonitor.recordOptimisticSent(localId);
+        }
         _upsertSessionMessages(targetSessionId, [
           {
             'id': localId,

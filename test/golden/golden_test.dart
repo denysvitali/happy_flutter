@@ -1,6 +1,7 @@
 // ignore_for_file: depend_on_referenced_packages
 
 import 'package:flutter/material.dart' hide TabBar;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 // App fonts are loaded in flutter_test_config.dart so golden text renders
@@ -422,8 +423,17 @@ class _MockChatView extends StatelessWidget {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const recordChannel = MethodChannel('com.llfbandit.record/messages');
 
-  setUpAll(() {});
+  setUpAll(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(recordChannel, (call) async => null);
+  });
+
+  tearDownAll(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(recordChannel, null);
+  });
 
   void setPhoneSize(WidgetTester tester) {
     tester.view.physicalSize = const Size(390 * 2, 844 * 2);
