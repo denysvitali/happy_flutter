@@ -14,7 +14,7 @@ suppressing the per-commit Android release.
 | Analyze Code | Strict Flutter analysis with dependency resolution skipped |
 | Verify Generated Code | Reject generated Dart and localization drift |
 | Build iOS | Compile an unsigned release-mode iOS app |
-| Test | 13 main / 15 other duration-balanced non-golden test shards |
+| Test | 10 main / 15 other duration-balanced non-golden test shards |
 | Upload Coverage | Merge shard coverage and upload it to Codecov |
 | Golden Screenshots | Verify PR goldens or generate requested replacements |
 | Quality Gate | Combine analyze, codegen, iOS, test, and golden results |
@@ -42,12 +42,12 @@ remain part of the same workflow.
 
 Test files are assigned by `.github/scripts/select_test_shard.py`. The planner
 uses timings captured in `.github/test-durations.json` and applies a
-longest-first balancing pass. Main uses 13 shards so its seven other runnable
-jobs fit the observed 20-runner ceiling without delaying the release build.
-Pull requests and develop use 15 shards for lower isolated latency. New tests
-receive the configured default estimate, so they are included automatically
-even before timing data is refreshed. Each shard still runs tests serially to
-control memory usage.
+longest-first balancing pass. Main uses 10 shards so overlapping per-commit
+release runs retain capacity under the shared runner quota; tests still finish
+before the longer Android and iOS builds. Pull requests and develop use 15
+shards for lower isolated latency. New tests receive the configured default
+estimate, so they are included automatically even before timing data is
+refreshed. Each shard still runs tests serially to control memory usage.
 
 Golden tests are excluded from these shards and run only in the dedicated
 golden job. Full Flutter tests and golden updates must run in CI, not locally.

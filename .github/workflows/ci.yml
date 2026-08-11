@@ -157,15 +157,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Main has seven other runnable jobs and an observed 20-runner cap.
-        # Thirteen shards avoid pushing release work into a second wave; PRs
-        # and develop retain the lower-latency 15-shard split.
+        # Main tests finish well before the Android/iOS builds. Ten shards
+        # leave capacity for overlapping per-commit releases on the shared
+        # runner quota; PRs and develop retain the lower-latency 15-way split.
         shard: >-
           ${{ fromJSON(github.ref == 'refs/heads/main' &&
-          '[1,2,3,4,5,6,7,8,9,10,11,12,13]' ||
+          '[1,2,3,4,5,6,7,8,9,10]' ||
           '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]') }}
         total_shards:
-          - ${{ github.ref == 'refs/heads/main' && 13 || 15 }}
+          - ${{ github.ref == 'refs/heads/main' && 10 || 15 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
