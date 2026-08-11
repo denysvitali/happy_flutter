@@ -29,6 +29,7 @@ Sync createTestSync() {
     ..nativeUpdateSync = InvalidateSync(() async {})
     ..artifactsSync = InvalidateSync(() async {})
     ..sessionGitStatusSync = InvalidateSync(() async {})
+    ..testCriticalSyncManagersInitialized = true
     ..messagesSync.clear()
     ..testResetRpcCapabilitiesPolicy();
   return testSync;
@@ -54,6 +55,7 @@ Sync createPartialMockSync() {
     ..nativeUpdateSync = InvalidateSync(() async {})
     ..artifactsSync = InvalidateSync(() async {})
     ..sessionGitStatusSync = InvalidateSync(() async {})
+    ..testCriticalSyncManagersInitialized = true
     ..messagesSync.clear()
     ..testResetRpcCapabilitiesPolicy();
   // The test helper getters (testSessions, testSessionSpawnedAt, etc.)

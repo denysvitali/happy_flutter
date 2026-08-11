@@ -590,6 +590,7 @@ what you have, you must use the options mode.
   late InvalidateSync nativeUpdateSync;
   late InvalidateSync artifactsSync;
   late InvalidateSync sessionGitStatusSync;
+  bool _criticalSyncManagersInitialized = false;
 
   // State tracking
   bool revenueCatInitialized = false;
@@ -1659,7 +1660,7 @@ what you have, you must use the options mode.
   /// flows. Treating their cold-start failures as authoritative empty data
   /// makes a REST outage look like a healthy account with no machines.
   bool get hasUnrecoveredCriticalSyncFailure {
-    if (!isInitialized) return false;
+    if (!isInitialized || !_criticalSyncManagersInitialized) return false;
     return hasUnrecoveredSyncFailure(sessionsSync) ||
         hasUnrecoveredSyncFailure(machinesSync);
   }

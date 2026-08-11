@@ -901,6 +901,7 @@ extension SyncLifecycle on Sync {
     _runtimeGeneration++;
     _isReady = false;
     isInitialized = false;
+    _criticalSyncManagersInitialized = false;
     _deferredSocketDisconnectTimer?.cancel();
     _deferredSocketDisconnectTimer = null;
     _reconnectWatchdogTimer?.cancel();

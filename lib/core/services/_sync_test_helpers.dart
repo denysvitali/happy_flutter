@@ -98,7 +98,14 @@ extension SyncTestHelpers on Sync {
   bool get testIsInitialized => isInitialized;
 
   @visibleForTesting
-  set testIsInitialized(bool value) => isInitialized = value;
+  set testIsInitialized(bool value) {
+    isInitialized = value;
+    if (!value) _criticalSyncManagersInitialized = false;
+  }
+
+  @visibleForTesting
+  set testCriticalSyncManagersInitialized(bool value) =>
+      _criticalSyncManagersInitialized = value;
 
   @visibleForTesting
   void testInvalidateAllSyncs({
