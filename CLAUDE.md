@@ -261,6 +261,11 @@ Guard on `sync.isInitialized` — `loadFromSync()` is a no-op when `false`. `syn
 
 **InvalidateSync fields (9):** `sessionsSync`, `settingsSync`, `profileSync`, `purchasesSync`, `machinesSync`, `pushTokenSync`, `nativeUpdateSync`, `artifactsSync`, `sessionGitStatusSync`. `messagesSync` is `Map<String, InvalidateSync>` (per-session). `createTestSync()` in `test/helpers/test_helpers.dart` is the authoritative list — never hand-roll the field list in a test.
 
+Exhausted sessions or machines refreshes remain visible through
+`Sync.hasUnrecoveredCriticalSyncFailure` and `SyncProgressBar` until a later
+successful refresh. A failed cold-start fetch is not an authoritative empty
+catalog.
+
 **Lifecycle handling:** `Sync.suspend()` disconnects socket after a 2s grace (deferred timer; cancels if resumed sooner), cancels all timers, flushes MMKV. `Sync.resume()` reconnects the socket and invalidates syncs; it also forces a fresh connection when a socket still claims `connected` after >45s backgrounded (zombie — the server-side session dies ~45s after heartbeats stop). Rapid lifecycle cycling (resume→suspend within 2s) keeps socket connected to avoid reconnect cascades. A 15s reconnect watchdog armed on resume re-arms itself while disconnected (cancelled on connect/suspend), and `Sync.forceReconnect()` is the manual "Reconnect now" entry point (offline banner) — it dials fresh and arms the same watchdog.
 
 See @docs/SYNC_PATTERNS.md for subscription template and details.

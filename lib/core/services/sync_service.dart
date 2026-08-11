@@ -1653,6 +1653,17 @@ what you have, you must use the options mode.
   /// Whether any sync operation is currently running.
   bool get isSyncing => _activeSyncCount > 0;
 
+  /// Whether essential catalog data failed after exhausting its retries.
+  ///
+  /// Sessions and machines drive the app's primary navigation and creation
+  /// flows. Treating their cold-start failures as authoritative empty data
+  /// makes a REST outage look like a healthy account with no machines.
+  bool get hasUnrecoveredCriticalSyncFailure {
+    if (!isInitialized) return false;
+    return hasUnrecoveredSyncFailure(sessionsSync) ||
+        hasUnrecoveredSyncFailure(machinesSync);
+  }
+
   /// Human-readable sync progress for status UI.
   SyncProgress? get syncProgress {
     final explicit = _syncProgress;

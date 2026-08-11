@@ -156,4 +156,58 @@ void main() {
       moreOrLessEquals(0),
     );
   });
+
+  testWidgets('keeps an exhausted critical data refresh failure visible', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          networkNotifierProvider.overrideWith(
+            () => _StubNetworkNotifier(true),
+          ),
+          connectionNotifierProvider.overrideWith(
+            () => _StubConnectionNotifier(ConnectionStatus.connected),
+          ),
+          syncStateNotifierProvider.overrideWith(
+            () => _StubSyncStateNotifier(
+              const SyncState(hasCriticalFailure: true),
+            ),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: SyncProgressBar())),
+      ),
+    );
+
+    expect(find.text('Data refresh failed'), findsOneWidget);
+    expect(
+      find.text('Sessions or machines may be out of date'),
+      findsOneWidget,
+    );
+    expect(find.text('Syncing'), findsNothing);
+  });
+
+  testWidgets('successful recovery returns the status bar to idle', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          networkNotifierProvider.overrideWith(
+            () => _StubNetworkNotifier(true),
+          ),
+          connectionNotifierProvider.overrideWith(
+            () => _StubConnectionNotifier(ConnectionStatus.connected),
+          ),
+          syncStateNotifierProvider.overrideWith(
+            () => _StubSyncStateNotifier(const SyncState()),
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: SyncProgressBar())),
+      ),
+    );
+
+    expect(find.text('Data refresh failed'), findsNothing);
+    expect(find.byKey(const ValueKey('idle')), findsOneWidget);
+  });
 }

@@ -62,10 +62,16 @@ no-ops, use `createPartialMockSync()` instead.
 
 Each data type has an `InvalidateSync` for debounced server fetches:
 - Exponential backoff: 1s–5s (with 0–250ms random jitter)
-- Max retries: 5
+- Default max retries: 2
 - `invalidate()` — marks work needed, starts immediately if idle
 - `invalidateAndAwait()` — invalidates and returns a Future for the cycle
 - `dispose()` — cancels retry and cooldown timers
+
+Sessions and machines are user-visible critical catalogs. After either manager
+exhausts its retries, `sync.hasUnrecoveredCriticalSyncFailure` remains true and
+the global sync status bar reports that app data may be stale. The failure is
+suppressed while retries are pending and clears only after a later successful
+refresh. Do not infer a successful empty catalog from a failed refresh.
 
 ## Reconnect Watchdog
 

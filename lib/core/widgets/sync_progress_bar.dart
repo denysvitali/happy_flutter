@@ -22,6 +22,7 @@ class SyncProgressBar extends ConsumerWidget {
       connectionStatus: connectionStatus,
       isSyncing: syncState.isSyncing,
       progress: progress,
+      hasCriticalFailure: syncState.hasCriticalFailure,
     );
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -187,6 +188,7 @@ class _StatusBarState {
     required ConnectionStatus connectionStatus,
     required bool isSyncing,
     required SyncProgress? progress,
+    required bool hasCriticalFailure,
   }) {
     if (!isOnline) {
       return const _StatusBarState(
@@ -231,6 +233,16 @@ class _StatusBarState {
         kind: _StatusBarKind.sync,
         progressValue: progress?.fraction,
         showSpinner: true,
+      );
+    }
+
+    if (hasCriticalFailure) {
+      return const _StatusBarState(
+        key: 'data-refresh-error',
+        title: 'Data refresh failed',
+        detail: 'Sessions or machines may be out of date',
+        icon: Icons.cloud_off_rounded,
+        kind: _StatusBarKind.error,
       );
     }
 

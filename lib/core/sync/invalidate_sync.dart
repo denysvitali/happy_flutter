@@ -8,6 +8,19 @@ import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart';
 import '../services/power_diagnostics_service.dart';
 
+/// Whether [manager] exhausted its retries and has not recovered yet.
+///
+/// A failed attempt is not user-visible while its retry cycle is still
+/// pending. A later success wins even though the manager retains its bounded
+/// failure metadata for diagnostics.
+bool hasUnrecoveredSyncFailure(InvalidateSync manager) {
+  if (manager.isPending) return false;
+  final failureAt = manager.lastFailureAtMs;
+  if (failureAt == null) return false;
+  final successAt = manager.lastSuccessAtMs;
+  return successAt == null || failureAt > successAt;
+}
+
 /// A utility class for managing async operations with invalidation
 class InvalidateSync {
   InvalidateSync(
