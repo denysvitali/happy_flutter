@@ -9,18 +9,9 @@ void main() {
       test('generateKeypair creates keys of correct size', () async {
         final keypair = await CryptoBox.generateKeypair();
 
-        expect(
-          keypair.publicKey.length,
-          CryptoBoxConstants.publicKeyBytes,
-        );
-        expect(
-          keypair.privateKey.length,
-          CryptoBoxConstants.secretKeyBytes,
-        );
-        expect(
-          keypair.secretKey.length,
-          CryptoBoxConstants.secretKeyBytes,
-        );
+        expect(keypair.publicKey.length, CryptoBoxConstants.publicKeyBytes);
+        expect(keypair.privateKey.length, CryptoBoxConstants.secretKeyBytes);
+        expect(keypair.secretKey.length, CryptoBoxConstants.secretKeyBytes);
       });
 
       test('generateKeypair produces unique keypairs', () async {
@@ -32,7 +23,7 @@ void main() {
       });
 
       test('keypairFromSeed produces deterministic keys', () async {
-        final seed = Uint8List.fromList([1, 2, 3, 4, 5]);
+        final seed = Uint8List(CryptoBoxConstants.seedBytes)..[0] = 1;
 
         final keypair1 = await CryptoBox.keypairFromSeed(seed);
         final keypair2 = await CryptoBox.keypairFromSeed(seed);
@@ -41,22 +32,25 @@ void main() {
         expect(keypair1.privateKey, equals(keypair2.privateKey));
       });
 
-      test('keypairFromSeed produces different keys for different seeds', () async {
-        final seed1 = Uint8List.fromList([1, 2, 3, 4, 5]);
-        final seed2 = Uint8List.fromList([5, 4, 3, 2, 1]);
+      test(
+        'keypairFromSeed produces different keys for different seeds',
+        () async {
+          final seed1 = Uint8List(CryptoBoxConstants.seedBytes)..[0] = 1;
+          final seed2 = Uint8List(CryptoBoxConstants.seedBytes)..[0] = 2;
 
-        final keypair1 = await CryptoBox.keypairFromSeed(seed1);
-        final keypair2 = await CryptoBox.keypairFromSeed(seed2);
+          final keypair1 = await CryptoBox.keypairFromSeed(seed1);
+          final keypair2 = await CryptoBox.keypairFromSeed(seed2);
 
-        expect(keypair1.publicKey, isNot(equals(keypair2.publicKey)));
-      });
+          expect(keypair1.publicKey, isNot(equals(keypair2.publicKey)));
+        },
+      );
 
       test('keypairFromSeed requires 32 byte seed', () async {
         final shortSeed = Uint8List(16);
 
-        expect(
-          () async => await CryptoBox.keypairFromSeed(shortSeed),
-          returnsNormally,
+        await expectLater(
+          CryptoBox.keypairFromSeed(shortSeed),
+          throwsA(isA<RangeError>()),
         );
       });
     });
@@ -81,9 +75,18 @@ void main() {
         final senderKeyPair = await CryptoBox.generateKeypair();
         final recipientKeyPair = await CryptoBox.generateKeypair();
 
-        final originalData = Uint8List.fromList(
-          [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        );
+        final originalData = Uint8List.fromList([
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+        ]);
 
         final encrypted = await CryptoBox.encrypt(
           originalData,
@@ -194,8 +197,7 @@ void main() {
         expect(
           encrypted.length,
           greaterThanOrEqualTo(
-            CryptoBoxConstants.publicKeyBytes +
-                CryptoBoxConstants.nonceBytes,
+            CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
           ),
         );
 
@@ -238,7 +240,10 @@ void main() {
       test('constants have expected values', () {
         expect(CryptoBoxConstants.publicKeyBytes, 32);
         expect(CryptoBoxConstants.secretKeyBytes, 32);
-        expect(CryptoBoxConstants.nonceBytes, 24); // Updated to 24 for libsodium
+        expect(
+          CryptoBoxConstants.nonceBytes,
+          24,
+        ); // Updated to 24 for libsodium
         expect(CryptoBoxConstants.seedBytes, 32);
       });
     });
@@ -297,7 +302,13 @@ void main() {
 
         final recipientKeyPair = await CryptoBox.generateKeypair();
 
-        final testData = Uint8List.fromList([72, 101, 108, 108, 111]); // "Hello"
+        final testData = Uint8List.fromList([
+          72,
+          101,
+          108,
+          108,
+          111,
+        ]); // "Hello"
 
         final encrypted = await CryptoBox.encrypt(
           testData,
@@ -307,7 +318,9 @@ void main() {
         // Bundle should contain: ephemeral_pk (32) + nonce (24) + ciphertext
         expect(
           encrypted.length,
-          greaterThan(CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes),
+          greaterThan(
+            CryptoBoxConstants.publicKeyBytes + CryptoBoxConstants.nonceBytes,
+          ),
         );
 
         // Verify we can extract components

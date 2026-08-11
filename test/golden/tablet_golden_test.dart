@@ -155,13 +155,16 @@ Widget _buildApp(
 }) {
   return ProviderScope(
     overrides: _commonOverrides(sessions),
-    child: MaterialApp(
-      theme: _testLightTheme(),
-      darkTheme: _testDarkTheme(),
-      themeMode: dark ? ThemeMode.dark : ThemeMode.light,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      debugShowCheckedModeBanner: false,
-      home: child,
+    child: TickerMode(
+      enabled: false,
+      child: MaterialApp(
+        theme: _testLightTheme(),
+        darkTheme: _testDarkTheme(),
+        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        debugShowCheckedModeBanner: false,
+        home: child,
+      ),
     ),
   );
 }

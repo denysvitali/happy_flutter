@@ -369,13 +369,6 @@ class MMKVStorage {
       // Only mark initialized after _mmkv is confirmed non-null
       _instance._initialized = true;
 
-      // Initialize in-memory caches
-      _instance._lastSeqStore.getAll();
-      _instance._firstLoadedSeqStore.getAll();
-      await _instance._permissionModesStore.initCache();
-      await _instance._modelModesStore.initCache();
-      await _instance._profilesStore.initCache();
-
       // Check if migration is needed
       final migrationComplete = _instance._mmkv!.decodeBool(
         _StorageKeys.migrationComplete,
@@ -386,6 +379,15 @@ class MMKVStorage {
         _instance._mmkv!.encodeBool(_StorageKeys.migrationComplete, true);
         logger.info('MMKV: Migration from SharedPreferences completed');
       }
+
+      // Warm caches only after migration so migrated values are visible to
+      // the process immediately. Initializing them first pins empty maps in
+      // memory even though migration subsequently writes the MMKV entries.
+      _instance._lastSeqStore.getAll();
+      _instance._firstLoadedSeqStore.getAll();
+      await _instance._permissionModesStore.initCache();
+      await _instance._modelModesStore.initCache();
+      await _instance._profilesStore.initCache();
     } catch (e) {
       logger.warning('MMKV: Initialization failed: $e');
       // Do NOT mark _initialized = true on failure;

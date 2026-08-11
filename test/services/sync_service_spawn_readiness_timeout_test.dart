@@ -194,6 +194,11 @@ void main() {
       );
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
+      instance.testFetchMessagesOverride = (_, __, ___) async =>
+          <String, dynamic>{
+            'messages': <Map<String, dynamic>>[],
+            'pagination': <String, dynamic>{'hasMore': false},
+          };
 
       capturedRequestData = null;
       await ApiClient().initialize(serverUrl: 'http://localhost');
@@ -250,6 +255,7 @@ void main() {
       InvalidateSync.isBackgrounded = false;
       instance.testSocketConnectedOverride = null;
       instance.testSocketSendOverride = null;
+      instance.testFetchMessagesOverride = null;
     });
 
     test('records exactly one Sentry-style spawn-timeout capture '
