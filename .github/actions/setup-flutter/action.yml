@@ -4,7 +4,7 @@ description: >
 
 inputs:
   platform:
-    description: SDK payload required by this job (host, android, or web).
+    description: SDK payload required by this job (host, android, ios, or web).
     required: false
     default: host
   cache-write:
@@ -66,6 +66,22 @@ runs:
         restore-keys: |
           mise-flutter-web-v4-${{ runner.os }}-${{ runner.arch }}-
 
+    - name: Restore iOS Flutter SDK
+      id: flutter-ios
+      if: inputs.platform == 'ios'
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/linux-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
+        key: >-
+          mise-flutter-ios-v1-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+        restore-keys: |
+          mise-flutter-ios-v1-${{ runner.os }}-${{ runner.arch }}-
+
     # Seed each new trimmed cache from the existing full SDK cache. This only
     # runs on the first v4 miss, avoiding a cold Flutter download on rollout.
     - name: Restore legacy full Flutter SDK
@@ -75,7 +91,9 @@ runs:
         (inputs.platform == 'android' &&
         steps.flutter-android.outputs.cache-hit != 'true') ||
         (inputs.platform == 'web' &&
-        steps.flutter-web.outputs.cache-hit != 'true') }}
+        steps.flutter-web.outputs.cache-hit != 'true') ||
+        (inputs.platform == 'ios' &&
+        steps.flutter-ios.outputs.cache-hit != 'true') }}
       uses: actions/cache/restore@v5
       with:
         path: ~/.local/share/mise
@@ -101,15 +119,32 @@ runs:
       run: |
         set -euo pipefail
         mise exec -- flutter --version
+        cache_hit=''
         case "${{ inputs.platform }}" in
-          host) mise exec -- flutter precache --linux ;;
-          android) mise exec -- flutter precache --android ;;
-          web) mise exec -- flutter precache --web ;;
+          host)
+            cache_hit='${{ steps.flutter-host.outputs.cache-hit }}'
+            platform_flag='--linux'
+            ;;
+          android)
+            cache_hit='${{ steps.flutter-android.outputs.cache-hit }}'
+            platform_flag='--android'
+            ;;
+          ios)
+            cache_hit='${{ steps.flutter-ios.outputs.cache-hit }}'
+            platform_flag='--ios'
+            ;;
+          web)
+            cache_hit='${{ steps.flutter-web.outputs.cache-hit }}'
+            platform_flag='--web'
+            ;;
           *)
             echo "Unsupported Flutter platform: ${{ inputs.platform }}"
             exit 1
             ;;
         esac
+        if [ "$cache_hit" != 'true' ]; then
+          mise exec -- flutter precache "$platform_flag"
+        fi
 
     - name: Save host Flutter SDK
       if: >-
@@ -160,4 +195,20 @@ runs:
           !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/linux-*/**
         key: >-
           mise-flutter-web-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+
+    - name: Save iOS Flutter SDK
+      if: >-
+        ${{ inputs.platform == 'ios' && inputs.cache-write == 'true' &&
+        steps.flutter-ios.outputs.cache-hit != 'true' &&
+        github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/linux-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
+        key: >-
+          mise-flutter-ios-v1-${{ runner.os }}-${{ runner.arch }}-${{
           hashFiles('.mise.toml') }}

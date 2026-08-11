@@ -1,9 +1,13 @@
 name: Happy Flutter CI/CD
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  # Cancel stale PR runs; never cancel main-branch runs so the
-  # deploy-web → deploy-pages flow is not interrupted (see fa072b98).
+  # GitHub retains only one pending run per concurrency group. Give every
+  # push its own group so a burst of main commits cannot suppress releases;
+  # only superseded PR runs share a cancellable group.
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+    format('{0}-{1}', github.workflow, github.ref) ||
+    format('{0}-{1}', github.workflow, github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
@@ -57,7 +61,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
-          lfs: true
 
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
@@ -94,6 +97,16 @@ jobs:
         with:
           cache-write: 'false'
 
+      - name: Cache pub package downloads
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: >-
+            pub-v3-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('.mise.toml', 'pubspec.lock') }}
+          restore-keys: |
+            pub-v3-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Get dependencies
         run: mise exec -- flutter pub get
 
@@ -115,10 +128,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup mise
-        uses: jdx/mise-action@v4
+      - name: Setup Flutter
+        uses: ./.github/actions/setup-flutter
         with:
-          install: true
+          platform: ios
+          cache-write: 'true'
+
+      - name: Cache pub package downloads
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: >-
+            pub-v3-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('.mise.toml', 'pubspec.lock') }}
+          restore-keys: |
+            pub-v3-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Get dependencies
         run: mise exec -- flutter pub get
@@ -133,23 +157,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard:
-          - 1
-          - 2
-          - 3
-          - 4
-          - 5
-          - 6
-          - 7
-          - 8
-          - 9
-          - 10
-          - 11
-          - 12
-          - 13
-          - 14
-          - 15
-        total_shards: [15]
+        # Main has seven other runnable jobs and an observed 20-runner cap.
+        # Thirteen shards avoid pushing release work into a second wave; PRs
+        # and develop retain the lower-latency 15-shard split.
+        shard: >-
+          ${{ fromJSON(github.ref == 'refs/heads/main' &&
+          '[1,2,3,4,5,6,7,8,9,10,11,12,13]' ||
+          '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]') }}
+        total_shards:
+          - ${{ github.ref == 'refs/heads/main' && 13 || 15 }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -433,6 +449,8 @@ jobs:
     name: Build Release APK
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
     if: >-
       startsWith(github.ref, 'refs/tags/v') ||
       github.ref == 'refs/heads/main' ||
@@ -550,6 +568,22 @@ jobs:
             exit "$status"
           fi
 
+      # Publish from the build runner while the signed APK is local. Quality
+      # jobs continue independently, and Linux attaches to this release later.
+      - name: Publish release APK
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.build_meta.outputs.RELEASE_TAG }}
+          name: Happy Flutter ${{ steps.build_meta.outputs.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          files: >-
+            build/app/outputs/flutter-apk/app-${{
+            steps.build_meta.outputs.FLAVOR }}-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Save prebuilt release APK
         if: >-
           success() &&
@@ -594,13 +628,6 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
           SENTRY_RELEASE: ${{ steps.build_meta.outputs.SENTRY_RELEASE }}
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: happy-flutter-release-${{ steps.build_meta.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          path: build/app/outputs/flutter-apk/app-${{ steps.build_meta.outputs.FLAVOR }}-release.apk
-          retention-days: 14
 
       - name: Upload debug info artifact
         uses: actions/upload-artifact@v7
@@ -680,9 +707,9 @@ jobs:
           path: happy-flutter-linux-x64.tar.gz
           retention-days: 14
 
-  publish-release:
-    name: Publish GitHub Release
-    needs: [build-release, build-linux, quality-gate]
+  attach-linux:
+    name: Attach Linux to GitHub Release
+    needs: [build-release, build-linux]
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -690,20 +717,11 @@ jobs:
       always() &&
       needs.build-release.result == 'success' &&
       needs.build-linux.result == 'success' &&
-      needs.quality-gate.result == 'success' &&
       (github.event_name == 'workflow_dispatch' ||
        startsWith(github.ref, 'refs/tags/v') ||
        github.ref == 'refs/heads/main')
 
     steps:
-      - name: Download release APK
-        uses: actions/download-artifact@v8
-        with:
-          name: >-
-            happy-flutter-release-${{ needs.build-release.outputs.flavor
-            }}-b${{ needs.build-release.outputs.build_number }}
-          path: release-assets
-
       - name: Download Linux x64 bundle
         uses: actions/download-artifact@v8
         with:
@@ -712,7 +730,7 @@ jobs:
             needs.build-release.outputs.build_number }}
           path: release-assets
 
-      - name: Create GitHub Release
+      - name: Attach Linux x64 bundle
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.build-release.outputs.release_tag }}
@@ -720,9 +738,7 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: false
-          files: |
-            release-assets/app-${{ needs.build-release.outputs.flavor }}-release.apk
-            release-assets/happy-flutter-linux-x64.tar.gz
+          files: release-assets/happy-flutter-linux-x64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -804,6 +820,9 @@ jobs:
   deploy-web:
     name: Deploy to GitHub Pages
     needs: [build-web, quality-gate]
+    concurrency:
+      group: github-pages
+      cancel-in-progress: true
     permissions:
       contents: read
       pages: write

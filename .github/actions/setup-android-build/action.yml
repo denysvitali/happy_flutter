@@ -112,10 +112,12 @@ runs:
           ~/.gradle/caches/transforms-3
           ~/.gradle/caches/transforms-4
           ~/.gradle/caches/build-cache-1
+          ~/.gradle/caches/9.5.1/generated-gradle-jars
+          ~/.gradle/caches/9.5.1/kotlin-dsl
           ~/.gradle/wrapper
         key: >-
           gradle-v3-${{ runner.os }}-${{ runner.arch }}-${{
-          hashFiles('android/**/*.gradle*',
+          hashFiles('.mise.toml', 'pubspec.lock', 'android/**/*.gradle*',
           'android/gradle/wrapper/gradle-wrapper.properties',
           'android/gradle.properties') }}
         restore-keys: |
