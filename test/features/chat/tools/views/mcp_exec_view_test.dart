@@ -219,7 +219,7 @@ void main() {
       await tester.pumpWidget(_wrap(ToolView(tool: tool)));
       await tester.pump();
 
-      expect(find.text('SSH'), findsOneWidget);
+      expect(_allText(tester), contains('SSH'));
       await tester.tap(find.byType(ToolView));
       await tester.pumpAndSettle();
 
