@@ -172,8 +172,8 @@ Widget _buildApp(
 // ─── Mock data ───────────────────────────────────────────────────────────────
 
 final _mockSessions = {
-  's1': _makeSession(
-    id: 's1',
+  goldenChatSessionId: _makeSession(
+    id: goldenChatSessionId,
     host: 'mbp-work.local',
     path: '/Users/alex/work/backend-api',
     active: true,
@@ -246,6 +246,8 @@ void main() {
       tester,
     ) async {
       _setTabletLandscapeSize(tester);
+      seedGoldenChatScreen();
+      addTearDown(clearGoldenChatScreen);
 
       await tester.pumpWidget(
         _buildApp(const SessionsScreen(), sessions: _mockSessions),
@@ -264,6 +266,8 @@ void main() {
       tester,
     ) async {
       _setTabletPortraitSize(tester);
+      seedGoldenChatScreen();
+      addTearDown(clearGoldenChatScreen);
 
       await tester.pumpWidget(
         _buildApp(const SessionsScreen(), sessions: _mockSessions),
