@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/mcp_exec_view.dart';
 
 /// Production shape of an `mcp__ssh__ssh_execute` result: the exec record
@@ -38,6 +39,37 @@ Map<String, dynamic> _sshTool({
     ],
   };
 }
+
+Map<String, dynamic> _bareSshTool() => <String, dynamic>{
+  'name': 'ssh_execute',
+  'state': 'completed',
+  'input': <String, dynamic>{
+    'arguments': <String, dynamic>{
+      'command': 'id\nuname -srvm\ncat /proc/sys/kernel/random/boot_id',
+      'connection_id': 'jagar-wifi',
+      'max_bytes': 4096,
+      'max_lines': 20,
+    },
+  },
+  'result': <String, dynamic>{
+    'content': <dynamic>[
+      <String, dynamic>{
+        'type': 'text',
+        'text': <String, dynamic>{
+          'binary_output': false,
+          'exit_code': 0,
+          'signal': 0,
+          'signal_name': '',
+          'stderr': '',
+          'stdout': 'uid=0(root) gid=0(root)\nLinux jagar 6.12.0',
+          'success': true,
+          'timed_out': false,
+        },
+      },
+    ],
+    'status': 'completed',
+  },
+};
 
 Widget _wrap(Widget child) => MaterialApp(
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -118,7 +150,10 @@ void main() {
       final tool = _sshTool();
       await tester.pumpWidget(
         _wrap(
-          McpExecView(tool: tool, exec: McpExecResult.tryParse(tool['result'])!),
+          McpExecView(
+            tool: tool,
+            exec: McpExecResult.tryParse(tool['result'])!,
+          ),
         ),
       );
       await tester.pump();
@@ -141,7 +176,10 @@ void main() {
       );
       await tester.pumpWidget(
         _wrap(
-          McpExecView(tool: tool, exec: McpExecResult.tryParse(tool['result'])!),
+          McpExecView(
+            tool: tool,
+            exec: McpExecResult.tryParse(tool['result'])!,
+          ),
         ),
       );
       await tester.pump();
@@ -150,6 +188,44 @@ void main() {
       expect(text, contains('connection reset'));
       expect(text, contains('exit 255'));
       expect(text, contains('timed out'));
+    });
+
+    testWidgets('unwraps ssh-mcp arguments', (tester) async {
+      final tool = _bareSshTool();
+      await tester.pumpWidget(
+        _wrap(
+          McpExecView(
+            tool: tool,
+            exec: McpExecResult.tryParse(tool['result'])!,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final text = _allText(tester);
+      expect(text, contains('uname -srvm'));
+      expect(text, contains('jagar-wifi'));
+      expect(text, contains('uid=0(root)'));
+      expect(text, isNot(contains('max_bytes')));
+    });
+
+    testWidgets('ToolView recognizes bare ssh_execute as a terminal', (
+      tester,
+    ) async {
+      final tool = _bareSshTool();
+      await tester.pumpWidget(_wrap(ToolView(tool: tool)));
+      await tester.pump();
+
+      expect(find.text('SSH'), findsOneWidget);
+      await tester.tap(find.byType(ToolView));
+      await tester.pumpAndSettle();
+
+      final text = _allText(tester);
+      expect(text, contains('uname -srvm'));
+      expect(text, contains('uid=0(root)'));
+      expect(text, contains('jagar-wifi'));
+      expect(text, isNot(contains('binary_output')));
+      expect(text, isNot(contains('max_lines')));
     });
   });
 }

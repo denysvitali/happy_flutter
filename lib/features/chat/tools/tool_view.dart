@@ -98,6 +98,7 @@ const Set<String> _monoSubtitleToolNames = {
   'bash',
   'exec_command',
   'functions.exec_command',
+  'ssh_execute',
   'codexbash',
   'geminibash',
   'shell',
@@ -508,11 +509,15 @@ class _ToolViewState extends ConsumerState<ToolView>
     final createdAt = widget.tool['createdAt'] as int?;
 
     final knownTool = KnownTools.get(toolName);
-    final isMCP = toolName.startsWith('mcp__') || toolName.contains('__');
+    final isSshExec = isSshMcpExecuteTool(toolName);
+    final isMCP =
+        toolName.startsWith('mcp__') || toolName.contains('__') || isSshExec;
 
     // Determine tool title
     var toolTitle = toolName;
-    if (isMCP) {
+    if (isSshExec && knownTool != null) {
+      toolTitle = knownTool.title as String;
+    } else if (isMCP) {
       toolTitle = _formatMCPTitle(toolName);
     } else if (knownTool != null) {
       if (knownTool.title is String) {
@@ -621,7 +626,9 @@ class _ToolViewState extends ConsumerState<ToolView>
     // tool-family accent. MCP tools share the extension glyph — arbitrary
     // per-server emojis mixed badly with the rest of the iconography.
     final iconColor = hasPermissionRequest ? permissionColor : typeAccentColor;
-    final toolIcon = isMCP
+    final toolIcon = isSshExec
+        ? KnownTools.bashIcon(18, iconColor)
+        : isMCP
         ? KnownTools.mcpIcon(18, iconColor)
         : KnownTools.iconFor(toolName, 18, iconColor);
 
@@ -856,7 +863,7 @@ class _ToolViewState extends ConsumerState<ToolView>
     // Exec-shaped MCP servers (ssh, remote shells) answer with a process
     // record rather than text. Render it as a terminal card instead of the
     // JSON blob the generic MCP path would produce.
-    final exec = toolName.startsWith('mcp__')
+    final exec = (toolName.startsWith('mcp__') || isSshMcpExecuteTool(toolName))
         ? McpExecResult.tryParse(toolResult)
         : null;
     if (exec != null) {

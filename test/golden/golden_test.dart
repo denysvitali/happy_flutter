@@ -616,6 +616,60 @@ void main() {
       );
     });
 
+    testWidgets('ssh-mcp execute - light', (tester) async {
+      tester.view.physicalSize = const Size(390 * 2, 650 * 2);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _toolApp({
+          'name': 'ssh_execute',
+          'input': <String, dynamic>{
+            'arguments': <String, dynamic>{
+              'command':
+                  'id\nuname -srvm\ncat /proc/sys/kernel/random/boot_id\n'
+                  "cut -d ' ' -f 1 /proc/uptime",
+              'connection_id': 'jagar-wifi',
+              'max_bytes': 4096,
+              'max_lines': 20,
+            },
+          },
+          'result': <String, dynamic>{
+            'content': <dynamic>[
+              <String, dynamic>{
+                'type': 'text',
+                'text': <String, dynamic>{
+                  'binary_output': false,
+                  'exit_code': 0,
+                  'signal': 0,
+                  'signal_name': '',
+                  'stderr': '',
+                  'stdout':
+                      'uid=0(root) gid=0(root) groups=0(root)\n'
+                      'Linux jagar 6.12.34 aarch64 GNU/Linux\n'
+                      'df27c21a-8319-4d9f-a0fa-8ff34710cb0f\n'
+                      '37218.04',
+                  'success': true,
+                  'timed_out': false,
+                },
+              },
+            ],
+            'status': 'completed',
+          },
+          'state': 'completed',
+        }),
+      );
+      await tester.pump();
+      await tester.tap(find.byType(ToolView));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/tool_ssh_execute_light.png'),
+      );
+    });
+
     testWidgets('bash running - light', (tester) async {
       tester.view.physicalSize = const Size(390 * 2, 300 * 2);
       tester.view.devicePixelRatio = 2.0;

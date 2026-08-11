@@ -364,4 +364,62 @@ void main() {
       expect(rendered, contains('gpt-5.3-codex-spark'));
     });
   });
+
+  group('MessageDetailScreen — ssh-mcp', () {
+    const sshMessage = <String, dynamic>{
+      'kind': 'tool-call',
+      'name': 'ssh_execute',
+      'state': 'completed',
+      'input': <String, dynamic>{
+        'arguments': <String, dynamic>{
+          'command': 'id\nuname -srvm',
+          'connection_id': 'jagar-wifi',
+          'max_bytes': 4096,
+          'max_lines': 20,
+        },
+      },
+      'result': <String, dynamic>{
+        'content': <dynamic>[
+          <String, dynamic>{
+            'type': 'text',
+            'text': <String, dynamic>{
+              'binary_output': false,
+              'exit_code': 0,
+              'signal': 0,
+              'signal_name': '',
+              'stderr': '',
+              'stdout': 'uid=0(root) gid=0(root)',
+              'success': true,
+              'timed_out': false,
+            },
+          },
+        ],
+        'status': 'completed',
+      },
+    };
+
+    testWidgets('renders a terminal session instead of input/output JSON', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: sshMessage,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('SSH'), findsOneWidget);
+      final rendered = _renderedText(tester);
+      expect(rendered, contains('jagar-wifi'));
+      expect(rendered, contains('uname -srvm'));
+      expect(rendered, contains('uid=0(root)'));
+      expect(rendered, isNot(contains('max_bytes')));
+      expect(rendered, isNot(contains('binary_output')));
+      expect(find.text('Raw JSON'), findsOneWidget);
+    });
+  });
 }

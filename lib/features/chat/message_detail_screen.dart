@@ -168,7 +168,9 @@ class _ToolDetailView extends StatelessWidget {
           result is String ? result : null,
         );
     final execResult =
-        toolName.startsWith('mcp__') && !isRunning && !hasLargePayload
+        (toolName.startsWith('mcp__') || isSshMcpExecuteTool(toolName)) &&
+            !isRunning &&
+            !hasLargePayload
         ? McpExecResult.tryParse(result)
         : null;
 

@@ -8,6 +8,24 @@ import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import '../tool_section_view.dart';
 import 'bash_view.dart' show CommandView;
 
+/// Whether [toolName] is ssh-mcp's synchronous command tool.
+///
+/// Claude commonly prefixes MCP names with `mcp__<server>__`, while some
+/// provider adapters retain only the server's bare `ssh_execute` name.
+bool isSshMcpExecuteTool(String toolName) {
+  final normalized = toolName.toLowerCase().replaceAll('-', '_');
+  return normalized == 'ssh_execute' ||
+      normalized.endsWith('__ssh_execute') ||
+      normalized.endsWith('.ssh_execute');
+}
+
+/// Returns the real ssh-mcp parameters from either the standard direct input
+/// or the function-call envelope used by some provider adapters.
+Map<String, dynamic> sshMcpArguments(dynamic input) {
+  final inputMap = WireParsers.asMap(input) ?? const <String, dynamic>{};
+  return WireParsers.asMap(inputMap['arguments']) ?? inputMap;
+}
+
 /// Remote-shell result carried by an MCP tool (`mcp__ssh__ssh_execute` and
 /// the other exec-shaped MCP tools).
 ///
@@ -133,14 +151,11 @@ class McpExecView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final input = WireParsers.asMap(tool['input']) ?? const {};
+    final input = sshMcpArguments(tool['input']);
     final toolName = tool['name'] as String? ?? '';
 
-    final command = _stringField(input, const [
-      'command',
-      'cmd',
-      'script',
-    ]) ?? '';
+    final command =
+        _stringField(input, const ['command', 'cmd', 'script']) ?? '';
     final target = _stringField(input, const [
       'connection_id',
       'connectionId',

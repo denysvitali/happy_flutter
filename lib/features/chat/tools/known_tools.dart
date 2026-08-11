@@ -300,6 +300,17 @@ class KnownTools {
         return command == null ? null : cleanShellCommand(command);
       },
     ),
+    'ssh_execute': ToolDefinition(
+      icon: bashIcon,
+      title: 'SSH',
+      minimal: false,
+      hideDefaultError: true,
+      extractSubtitle: (tool, _) {
+        final input = WireParsers.asMap(tool['input']);
+        final arguments = WireParsers.asMap(input?['arguments']) ?? input;
+        return arguments?['connection_id'] as String?;
+      },
+    ),
     'Glob': ToolDefinition(
       icon: searchIcon,
       title: 'Search Files',
