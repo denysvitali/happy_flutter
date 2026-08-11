@@ -16,6 +16,7 @@ import 'package:happy_flutter/features/chat/widgets/file_autocomplete.dart';
 Widget _buildComposer({
   required TextEditingController controller,
   required VoidCallback onSend,
+  VoidCallback? onQueueNextTurn,
   ChatAttachmentController? attachmentController,
   FileSuggestionsLoader? onFileSuggestionsRequested,
   MediaQueryData? mediaQueryData,
@@ -28,6 +29,7 @@ Widget _buildComposer({
         controller: controller,
         attachmentController: attachmentController,
         onSend: onSend,
+        onQueueNextTurn: onQueueNextTurn,
         onFileSuggestionsRequested: onFileSuggestionsRequested,
       ),
     ),
@@ -126,6 +128,49 @@ void main() {
     handle.dispose();
     controller.dispose();
     attachments.dispose();
+  });
+
+  testWidgets('offers a distinct next-turn action for active Codex turns', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    final controller = TextEditingController(text: 'Handle this next');
+    var sends = 0;
+    var queued = 0;
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () => sends++,
+        onQueueNextTurn: () => queued++,
+      ),
+    );
+    await tester.pump();
+
+    final queueButton = find.byKey(
+      const ValueKey<String>('queue-next-turn-button'),
+    );
+    expect(queueButton, findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
+    expect(
+      tester.getSemantics(queueButton),
+      isSemantics(
+        label: 'Queue for next turn',
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+      ),
+    );
+
+    await tester.tap(queueButton);
+    await tester.pump();
+    expect(queued, 1);
+    expect(sends, 0);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    handle.dispose();
+    controller.dispose();
   });
 
   testWidgets('centers a bounded composer on tablet without live blur', (

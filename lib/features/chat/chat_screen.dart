@@ -1448,6 +1448,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Banner priority (top → bottom, limited stack):
     // offline → sub-agent → issue → (goal/tasks only if no issue) →
     // permission sticky → TTS → thinking+stop → input
+    final hasActiveCodexTurn =
+        _session?.metadata?.flavor == 'codex' && (_session?.thinking ?? false);
     return Column(
       children: [
         const OfflineBanner(),
@@ -1510,7 +1512,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             sessionId: widget.sessionId,
             controller: _controller,
             attachmentController: _attachmentController,
-            onSend: _sendMessage,
+            onSend: hasActiveCodexTurn
+                ? () => _sendMessage(codexDeliveryMode: 'active-turn')
+                : _sendMessage,
+            onQueueNextTurn: hasActiveCodexTurn
+                ? () => _sendMessage(codexDeliveryMode: 'next-turn')
+                : null,
             isSending: _isSending,
             isSendDisabled: _sessionSendIssue?.blocksSend ?? false,
             permissionMode: _permissionMode,

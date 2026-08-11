@@ -5104,6 +5104,24 @@ abstract class AppLocalizations {
   /// **'Send'**
   String get chatSend;
 
+  /// No description provided for @chatQueueNextTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue for next turn'**
+  String get chatQueueNextTurn;
+
+  /// No description provided for @chatNextTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get chatNextTurn;
+
+  /// No description provided for @chatQueuedForNextTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued for next turn'**
+  String get chatQueuedForNextTurn;
+
   /// No description provided for @chatSending.
   ///
   /// In en, this message translates to:

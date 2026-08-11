@@ -39,6 +39,7 @@ Map<String, dynamic> buildOptimisticUserMessage({
   required String text,
   int? createdAtMs,
   List<Map<String, dynamic>>? imageBlocks,
+  String? codexDeliveryMode,
 }) {
   final displayText = text.isNotEmpty
       ? text
@@ -56,6 +57,15 @@ Map<String, dynamic> buildOptimisticUserMessage({
           if (text.isNotEmpty) <String, dynamic>{'type': 'text', 'text': text},
           ...imageBlocks,
         ],
+        if (codexDeliveryMode != null)
+          'meta': <String, dynamic>{'codexDeliveryMode': codexDeliveryMode},
+      },
+    if ((imageBlocks == null || imageBlocks.isEmpty) &&
+        codexDeliveryMode != null)
+      'raw': <String, dynamic>{
+        'role': 'user',
+        'content': <String, dynamic>{'type': 'text', 'text': text},
+        'meta': <String, dynamic>{'codexDeliveryMode': codexDeliveryMode},
       },
     'createdAt': createdAtMs ?? DateTime.now().millisecondsSinceEpoch,
     'seq': -1,

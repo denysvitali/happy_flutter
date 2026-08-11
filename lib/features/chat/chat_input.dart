@@ -67,6 +67,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.isSessionOnline = false,
     this.enterToSend = false,
     this.lastDeliveryStatus,
+    this.onQueueNextTurn,
   });
 
   /// Stable identifier for the current session
@@ -81,6 +82,10 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Called when the user submits a message.
   final VoidCallback onSend;
+
+  /// Optional explicit Codex action that keeps this message out of the
+  /// active turn and starts it after that turn finishes.
+  final VoidCallback? onQueueNextTurn;
 
   /// Whether a message is currently being sent.
   final bool isSending;
@@ -551,6 +556,19 @@ class _ChatInputState extends ConsumerState<ChatInput>
     widget.onSend();
   }
 
+  void _onQueueNextTurnTap() {
+    if (widget.onQueueNextTurn == null ||
+        widget.isSendDisabled ||
+        widget.isSending ||
+        !_hasSendableContent) {
+      return;
+    }
+    _autocompleteDebounce?.cancel();
+    _cancelDictationForSend();
+    HapticFeedback.mediumImpact();
+    widget.onQueueNextTurn!();
+  }
+
   // -----------------------------------------------------------
   // Build
   // -----------------------------------------------------------
@@ -720,8 +738,30 @@ class _ChatInputState extends ConsumerState<ChatInput>
                       ),
               ),
               Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.xs),
+                child: ListenableBuilder(
+                  listenable: Listenable.merge([
+                    widget.controller,
+                    if (widget.attachmentController != null)
+                      widget.attachmentController!,
+                  ]),
+                  builder: (context, _) {
+                    if (widget.onQueueNextTurn == null) {
+                      return const SizedBox.shrink();
+                    }
+                    return QueueNextTurnButton(
+                      isDisabled:
+                          widget.isSendDisabled ||
+                          widget.isSending ||
+                          !_hasSendableContent,
+                      onTap: _onQueueNextTurnTap,
+                    );
+                  },
+                ),
+              ),
+              Padding(
                 padding: const EdgeInsets.only(
-                  left: AppSpacing.xs,
+                  left: AppSpacing.xxs,
                   right: AppSpacing.xsm,
                 ),
                 child: ListenableBuilder(

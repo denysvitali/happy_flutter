@@ -52,6 +52,7 @@ Session _makeSession({
   String id = 'session_1',
   String presence = 'offline',
   bool thinking = false,
+  String? flavor,
   int? updatedAt,
 }) {
   final now = DateTime.now().millisecondsSinceEpoch;
@@ -66,6 +67,7 @@ Session _makeSession({
     agentStateVersion: 1,
     thinking: thinking,
     presence: presence,
+    metadata: flavor == null ? null : Metadata(host: '', flavor: flavor),
   );
 }
 
@@ -183,6 +185,47 @@ void main() {
 
       expect(find.text('Hello there'), findsOneWidget);
       expect(find.text('Hi! How can I help?'), findsOneWidget);
+    });
+
+    testWidgets('shows explicitly queued Codex messages and queue action', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        <String, dynamic>{
+          'id': 'queued-1',
+          'localId': 'queued-1',
+          'role': 'user',
+          'kind': 'text',
+          'content': 'Handle this next',
+          'raw': <String, dynamic>{
+            'role': 'user',
+            'content': <String, dynamic>{
+              'type': 'text',
+              'text': 'Handle this next',
+            },
+            'meta': <String, dynamic>{'codexDeliveryMode': 'next-turn'},
+          },
+          'sendStatus': 'sent',
+        },
+      ]);
+      sync.testSessions['session_1'] = _makeSession(
+        thinking: true,
+        flavor: 'codex',
+      );
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Queued for next turn'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('queue-next-turn-button')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders unknown agent-event types as fallback rows', (

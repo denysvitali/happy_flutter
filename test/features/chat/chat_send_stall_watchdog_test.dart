@@ -60,6 +60,7 @@ class _HangingChatActionNotifier extends ChatActionNotifier {
     String? modelMode,
     String? profileId,
     List<OutgoingImage>? images,
+    String? codexDeliveryMode,
   }) {
     return _never.future;
   }
@@ -181,8 +182,7 @@ void main() {
       expect(
         find.text('Retry queued'),
         findsNothing,
-        reason:
-            'The watchdog must not announce a retry the outbox never took.',
+        reason: 'The watchdog must not announce a retry the outbox never took.',
       );
 
       // Let the watchdog retire so no timer outlives the test: hand the

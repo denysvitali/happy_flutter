@@ -178,6 +178,7 @@ extension SyncMessagingSend on Sync {
     String? modelMode,
     String? profileId,
     List<OutgoingImage>? images,
+    String? codexDeliveryMode,
   }) async {
     // Mint identity before any fallible setup. Encryption/session recovery can
     // fail before the ordinary optimistic insert, but the user must still get
@@ -192,6 +193,7 @@ extension SyncMessagingSend on Sync {
       permissionMode: permissionMode,
       modelMode: modelMode,
       images: images,
+      codexDeliveryMode: codexDeliveryMode,
       runtimeGeneration: runtimeGeneration,
     );
     // OTel sibling of the Sentry transaction started below. The span is
@@ -225,6 +227,7 @@ extension SyncMessagingSend on Sync {
         modelMode: modelMode,
         profileId: profileId,
         images: images,
+        codexDeliveryMode: codexDeliveryMode,
         otelService: otelService,
         sendSpan: sendSpan,
         prepareStopwatch: prepareStopwatch,
@@ -239,6 +242,7 @@ extension SyncMessagingSend on Sync {
         permissionMode: permissionMode,
         modelMode: modelMode,
         images: images,
+        codexDeliveryMode: codexDeliveryMode,
         runtimeGeneration: runtimeGeneration,
       );
       // Setup failed before _completeSend could take ownership of the
@@ -265,6 +269,7 @@ extension SyncMessagingSend on Sync {
     required String? permissionMode,
     required String? modelMode,
     required List<OutgoingImage>? images,
+    required String? codexDeliveryMode,
     required int runtimeGeneration,
   }) {
     if (!isInitialized || runtimeGeneration != _runtimeGeneration) return false;
@@ -276,6 +281,7 @@ extension SyncMessagingSend on Sync {
         'permissionMode': permissionMode ?? 'default',
         'model': modelMode == 'default' ? null : modelMode,
         'displayText': ?displayText,
+        'codexDeliveryMode': ?codexDeliveryMode,
       },
     };
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -305,6 +311,7 @@ extension SyncMessagingSend on Sync {
     required String? permissionMode,
     required String? modelMode,
     required List<OutgoingImage>? images,
+    required String? codexDeliveryMode,
     required int runtimeGeneration,
   }) {
     if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
@@ -323,6 +330,7 @@ extension SyncMessagingSend on Sync {
         'permissionMode': permissionMode ?? 'default',
         'model': modelMode == 'default' ? null : modelMode,
         'displayText': ?displayText,
+        'codexDeliveryMode': ?codexDeliveryMode,
       },
     };
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -359,6 +367,7 @@ extension SyncMessagingSend on Sync {
     String? modelMode,
     String? profileId,
     List<OutgoingImage>? images,
+    String? codexDeliveryMode,
   }) async {
     var sessionEncryption = await _measureSendPreparation<SessionEncryption>(
       otelService: otelService,
@@ -535,6 +544,7 @@ extension SyncMessagingSend on Sync {
             'fallbackModel': null,
             'appendSystemPrompt': Sync._appendSystemPrompt,
             'displayText': ?displayText,
+            'codexDeliveryMode': ?codexDeliveryMode,
           },
         };
         return (

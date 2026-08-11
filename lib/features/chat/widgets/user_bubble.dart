@@ -37,6 +37,7 @@ class UserBubble extends StatefulWidget {
     this.onOptionPress,
     this.sendStatus,
     this.sendSlow = false,
+    this.codexDeliveryMode,
     this.onRetry,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
@@ -58,6 +59,9 @@ class UserBubble extends StatefulWidget {
   /// outbox retry confirmed the server already had it. Reported as
   /// "Delivered · slow" rather than left looking degraded.
   final bool sendSlow;
+
+  /// Explicit Codex routing intent preserved in the user message metadata.
+  final String? codexDeliveryMode;
   final VoidCallback? onRetry;
   final bool isFirstInGroup;
   final bool isLastInGroup;
@@ -179,6 +183,32 @@ class _UserBubbleState extends State<UserBubble> {
               )
             else
               bubble,
+            if (widget.codexDeliveryMode == 'next-turn')
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xxs, right: 2),
+                child: Semantics(
+                  label: context.l10n.chatQueuedForNextTurn,
+                  excludeSemantics: true,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.schedule_send_rounded,
+                        size: 11,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                      const SizedBox(width: AppSpacing.xxs),
+                      Text(
+                        context.l10n.chatQueuedForNextTurn,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.secondary,
+                          fontSize: AppFontSize.xxs,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             if (widget.sendStatus != null)
               SendStatusIndicator(
                 status: widget.sendStatus!,
@@ -305,7 +335,9 @@ class _UserImageThumb extends StatelessWidget {
               color: Colors.transparent,
               child: InteractiveViewer(
                 maxScale: 8,
-                child: Center(child: Image.memory(bytes, gaplessPlayback: true)),
+                child: Center(
+                  child: Image.memory(bytes, gaplessPlayback: true),
+                ),
               ),
             ),
           );

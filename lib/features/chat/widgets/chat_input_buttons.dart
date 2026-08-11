@@ -17,6 +17,63 @@ const kCheckMorphDuration = AppDuration.normal;
 // How long the checkmark stays visible before reverting.
 const kCheckHoldDuration = AppDuration.slower;
 
+/// Explicit Codex follow-up action shown while a turn is active.
+///
+/// Unlike the primary send button, this asks the daemon to retain the
+/// message for a fresh turn instead of steering the currently running one.
+class QueueNextTurnButton extends StatelessWidget {
+  const QueueNextTurnButton({
+    required this.isDisabled,
+    required this.onTap,
+    super.key,
+  });
+
+  final bool isDisabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final label = context.l10n.chatQueueNextTurn;
+    final enabled = !isDisabled;
+    return Semantics(
+      key: const ValueKey<String>('queue-next-turn-button'),
+      container: true,
+      label: label,
+      button: true,
+      enabled: enabled,
+      onTap: enabled ? onTap : null,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: label,
+        child: TextButton.icon(
+          onPressed: enabled ? onTap : null,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(0, AppTouchTarget.min),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            foregroundColor: cs.secondary,
+            backgroundColor: cs.secondaryContainer.withValues(alpha: 0.55),
+            disabledForegroundColor: cs.onSurface.withValues(
+              alpha: AppMotion.disabledContentOpacity,
+            ),
+            disabledBackgroundColor: cs.onSurface.withValues(
+              alpha: AppMotion.disabledContainerOpacity,
+            ),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(Icons.schedule_send_rounded, size: AppIconSize.md),
+          label: Text(
+            context.l10n.chatNextTurn,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Send button — circular, matches iMessage's arrow-up design.
 ///
 /// When [lastDeliveryStatus] transitions to `'sent'` the button

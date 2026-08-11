@@ -2836,6 +2836,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSend => 'Send';
 
   @override
+  String get chatQueueNextTurn => 'Queue for next turn';
+
+  @override
+  String get chatNextTurn => 'Next';
+
+  @override
+  String get chatQueuedForNextTurn => 'Queued for next turn';
+
+  @override
   String get chatSending => 'Sending';
 
   @override

@@ -20,6 +20,7 @@ abstract interface class MessagesRepository {
     String? modelMode,
     String? profileId,
     List<OutgoingImage>? images,
+    String? codexDeliveryMode,
   });
 
   Future<void> abortSession(String sessionId, {String reason = ''});
@@ -52,6 +53,7 @@ class SyncMessagesRepository implements MessagesRepository {
     String? modelMode,
     String? profileId,
     List<OutgoingImage>? images,
+    String? codexDeliveryMode,
   }) => _sync.sendMessage(
     sessionId,
     text,
@@ -61,6 +63,7 @@ class SyncMessagesRepository implements MessagesRepository {
     modelMode: modelMode,
     profileId: profileId,
     images: images,
+    codexDeliveryMode: codexDeliveryMode,
   );
 
   @override

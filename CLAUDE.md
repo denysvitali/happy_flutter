@@ -93,7 +93,9 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 - **Optimistic replacement is by `localId`, not by text or position**
 - **Codex follow-ups are explicit** — `message-steered` and `message-queued`
   agent events tell the chat timeline whether an active-turn update was
-  accepted or retained for the next turn
+  accepted or retained for the next turn; user messages carry
+  `meta.codexDeliveryMode` (`active-turn` or `next-turn`) when the composer
+  explicitly selects the destination
 - **Linking deep links are requests, never approvals** — lifecycle handlers
   stage `happy://` links; only an explicit in-app fingerprint confirmation may
   release account key material.

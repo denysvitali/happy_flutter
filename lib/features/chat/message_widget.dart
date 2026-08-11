@@ -157,6 +157,7 @@ class _MessageWidgetState extends State<MessageWidget>
       msg['name'],
       msg['sendStatus'],
       msg['sendSlow'],
+      _codexDeliveryMode(msg['raw']),
       msg['isThinking'],
       msg['updatedAt'] ?? msg['createdAt'],
       rowSignature,
@@ -304,6 +305,7 @@ class _MessageWidgetState extends State<MessageWidget>
 
     final sendStatus = widget.messageData['sendStatus'] as String?;
     final sendSlow = widget.messageData['sendSlow'] == true;
+    final codexDeliveryMode = _codexDeliveryMode(widget.messageData['raw']);
 
     return _cacheBody(
       signature,
@@ -315,6 +317,7 @@ class _MessageWidgetState extends State<MessageWidget>
               onOptionPress: widget.onOptionPress,
               sendStatus: sendStatus,
               sendSlow: sendSlow,
+              codexDeliveryMode: codexDeliveryMode,
               onRetry: widget.onRetry,
               isFirstInGroup: widget.isFirstInGroup,
               isLastInGroup: widget.isLastInGroup,
@@ -329,6 +332,13 @@ class _MessageWidgetState extends State<MessageWidget>
               isCompact: widget.isCompact,
             ),
     );
+  }
+
+  static String? _codexDeliveryMode(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final meta = raw['meta'];
+    if (meta is! Map<String, dynamic>) return null;
+    return meta['codexDeliveryMode'] as String?;
   }
 
   Widget _cacheBody(int signature, Widget body) {

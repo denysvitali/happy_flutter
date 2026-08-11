@@ -766,7 +766,7 @@ extension _ChatScreenActions on _ChatScreenState {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _sendMessage() async {
+  Future<void> _sendMessage({String? codexDeliveryMode}) async {
     final text = _controller.text.trim();
     final attachments = _attachmentController.images;
     if ((text.isEmpty && attachments.isEmpty) || _isSending) return;
@@ -804,6 +804,7 @@ extension _ChatScreenActions on _ChatScreenState {
               permissionMode: _permissionMode.toModeString(),
               modelMode: _effectiveModelModeString ?? _modelMode.modeString,
               profileId: _selectedProfile?.id,
+              codexDeliveryMode: codexDeliveryMode,
             );
         if (_followRedirectedSession(sentSessionId)) {
           return;
@@ -843,7 +844,12 @@ extension _ChatScreenActions on _ChatScreenState {
       return;
     }
 
-    await _sendOptimisticUserText(text, localId: localId, images: attachments);
+    await _sendOptimisticUserText(
+      text,
+      localId: localId,
+      images: attachments,
+      codexDeliveryMode: codexDeliveryMode,
+    );
   }
 
   /// Shared optimistic send path for typed messages and loop fall-through.
@@ -853,6 +859,7 @@ extension _ChatScreenActions on _ChatScreenState {
     String text, {
     required String localId,
     List<OutgoingImage>? images,
+    String? codexDeliveryMode,
   }) async {
     final optimisticStopwatch = Stopwatch()..start();
     _autoScrollNotifier.value = true;
@@ -864,6 +871,7 @@ extension _ChatScreenActions on _ChatScreenState {
       imageBlocks: hasImages
           ? images.map((image) => image.toContentBlock()).toList()
           : null,
+      codexDeliveryMode: codexDeliveryMode,
     );
     setState(() {
       _messages = [..._messages, optimisticMessage];
@@ -942,6 +950,7 @@ extension _ChatScreenActions on _ChatScreenState {
             modelMode: _effectiveModelModeString ?? _modelMode.modeString,
             profileId: _selectedProfile?.id,
             images: hasImages ? images : null,
+            codexDeliveryMode: codexDeliveryMode,
           );
       if (_followRedirectedSession(sentSessionId)) {
         return;

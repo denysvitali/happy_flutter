@@ -52,6 +52,19 @@ void main() {
       expect(msg['createdAt'], 1000);
     });
 
+    test('marks an explicit Codex next-turn message in its raw record', () {
+      final msg = buildOptimisticUserMessage(
+        localId: 'next-1',
+        text: 'Do this next',
+        codexDeliveryMode: 'next-turn',
+      );
+
+      expect(msg['localId'], 'next-1');
+      final raw = msg['raw'] as Map<String, dynamic>;
+      final meta = raw['meta'] as Map<String, dynamic>;
+      expect(meta['codexDeliveryMode'], 'next-turn');
+    });
+
     test('repeated identical text still produces independent maps', () {
       final a = buildOptimisticUserMessage(localId: 'l1', text: 'continue');
       final b = buildOptimisticUserMessage(localId: 'l2', text: 'continue');

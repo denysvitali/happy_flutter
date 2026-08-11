@@ -34,6 +34,7 @@ class ChatActionNotifier extends Notifier<void> {
     String? modelMode,
     String? profileId,
     List<OutgoingImage>? images,
+    String? codexDeliveryMode,
   }) async {
     if (!_messages.isReady) {
       throw StateError('Sync is not initialized');
@@ -47,6 +48,7 @@ class ChatActionNotifier extends Notifier<void> {
       modelMode: modelMode,
       profileId: profileId,
       images: images,
+      codexDeliveryMode: codexDeliveryMode,
     );
   }
 

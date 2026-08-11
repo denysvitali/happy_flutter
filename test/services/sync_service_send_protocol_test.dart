@@ -450,6 +450,39 @@ void main() {
       expect(optimistic, isNotEmpty);
     });
 
+    test(
+      'next-turn delivery preserves intent and localId through ACK',
+      () async {
+        await instance.sendMessage(
+          'sess-1',
+          'Do this after the active turn',
+          clientLocalId: 'client-local-next-turn',
+          codexDeliveryMode: 'next-turn',
+        );
+        await instance.lastCompleteSendFuture;
+
+        final encryptedRaw = sessionEncryption.lastRawRecord!;
+        final encryptedMeta = encryptedRaw['meta'] as Map<String, dynamic>;
+        expect(encryptedMeta['codexDeliveryMode'], 'next-turn');
+
+        final requestData = capturedRequestData as Map<String, dynamic>;
+        final message =
+            (requestData['messages'] as List<dynamic>).single
+                as Map<String, dynamic>;
+        expect(message['localId'], 'client-local-next-turn');
+
+        final localMessages = instance.testSessionMessages('sess-1')!;
+        final matching = localMessages.where(
+          (m) => m['localId'] == 'client-local-next-turn',
+        );
+        expect(matching, hasLength(1));
+        final localRaw = matching.single['raw'] as Map<String, dynamic>;
+        final localMeta = localRaw['meta'] as Map<String, dynamic>;
+        expect(localMeta['codexDeliveryMode'], 'next-turn');
+        expect(matching.single['sendStatus'], 'sent');
+      },
+    );
+
     test('REST ACK advances message cursor and session lastSeq', () async {
       expect(instance.sessionMessageCursors['sess-1'], isNull);
       expect(instance.testSessions['sess-1']!.lastSeq, isNull);
@@ -469,6 +502,7 @@ void main() {
         'sess-1',
         'retry me',
         clientLocalId: 'client-local-500',
+        codexDeliveryMode: 'next-turn',
       );
       await instance.lastCompleteSendFuture;
 
@@ -480,6 +514,11 @@ void main() {
       );
       expect(matching, hasLength(1));
       expect(matching.single['sendStatus'], 'pending');
+      final entry = messageOutbox.entries.singleWhere(
+        (candidate) => candidate.localId == 'client-local-500',
+      );
+      final entryMeta = entry.rawRecord['meta'] as Map<String, dynamic>;
+      expect(entryMeta['codexDeliveryMode'], 'next-turn');
     });
 
     test(
@@ -537,7 +576,10 @@ void main() {
       final raw = <String, dynamic>{
         'role': 'user',
         'content': <String, dynamic>{'type': 'text', 'text': 'retry me'},
-        'meta': <String, dynamic>{'sentFrom': 'test'},
+        'meta': <String, dynamic>{
+          'sentFrom': 'test',
+          'codexDeliveryMode': 'next-turn',
+        },
       };
       instance.testSetSessionMessages('sess-1', [
         <String, dynamic>{
