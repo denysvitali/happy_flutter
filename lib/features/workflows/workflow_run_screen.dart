@@ -513,12 +513,12 @@ class _StatRow extends StatelessWidget {
                 '${run.agentCount} '
                 '${run.agentCount == 1 ? 'agent' : 'agents'}',
           ),
-        if (run.totalTokens != null)
+        if (run.totalTokens != null && run.totalTokens! > 0)
           _StatChip(
             icon: Icons.token_outlined,
             label: '${formatWorkflowCount(run.totalTokens!)} tokens',
           ),
-        if (run.totalToolCalls != null)
+        if (run.totalToolCalls != null && run.totalToolCalls! > 0)
           _StatChip(
             icon: Icons.build_outlined,
             label: '${formatWorkflowCount(run.totalToolCalls!)} tools',
@@ -575,16 +575,26 @@ class _PhaseProgress extends StatelessWidget {
     final label = current == 0
         ? '${groups.length} phases'
         : 'Phase $current of ${groups.length}';
+    // Credit the live phase so "Phase 1 of 2" is not an empty bar. Completed
+    // phases count fully; the active one counts as in-progress, not done.
+    final inFlight = activeIdx >= 0 ? 0.45 : 0.0;
+    final fraction = groups.isEmpty
+        ? 0.0
+        : ((done + inFlight) / groups.length).clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.xs),
-          child: LinearProgressIndicator(
-            value: groups.isEmpty ? 0 : done / groups.length,
-            minHeight: 4,
-            backgroundColor: cs.surfaceContainerHighest,
+        Semantics(
+          label: label,
+          value: '${(fraction * 100).round()} percent',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.xs),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 4,
+              backgroundColor: cs.surfaceContainerHighest,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -872,11 +882,13 @@ class _AgentRow extends StatelessWidget {
     if (agent.durationMs != null) {
       parts.add(formatDuration(Duration(milliseconds: agent.durationMs!)));
     }
-    if (agent.tokens != null) {
-      parts.add('${formatWorkflowCount(agent.tokens!)} tokens');
+    final tokens = agent.tokens;
+    if (tokens != null && tokens > 0) {
+      parts.add('${formatWorkflowCount(tokens)} tokens');
     }
-    if (agent.toolCalls != null) {
-      parts.add('${formatWorkflowCount(agent.toolCalls!)} tools');
+    final toolCalls = agent.toolCalls;
+    if (toolCalls != null && toolCalls > 0) {
+      parts.add('${formatWorkflowCount(toolCalls)} tools');
     }
     return parts.join(' · ');
   }
@@ -933,7 +945,7 @@ class _AgentSubtitle extends StatelessWidget {
   }
 }
 
-class _AgentDetailBlock extends StatelessWidget {
+class _AgentDetailBlock extends StatefulWidget {
   const _AgentDetailBlock({
     required this.label,
     required this.text,
@@ -944,17 +956,46 @@ class _AgentDetailBlock extends StatelessWidget {
   final String text;
   final Color? color;
 
+  static const int collapsedMaxLines = 8;
+
+  @override
+  State<_AgentDetailBlock> createState() => _AgentDetailBlockState();
+}
+
+class _AgentDetailBlockState extends State<_AgentDetailBlock> {
+  bool _expanded = false;
+
+  bool _exceeds(String text, TextStyle? style, double maxWidth) {
+    if (!maxWidth.isFinite) {
+      return '\n'.allMatches(text).length + 1 >
+          _AgentDetailBlock.collapsedMaxLines;
+    }
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      maxLines: _AgentDetailBlock.collapsedMaxLines,
+      textDirection: Directionality.of(context),
+    )..layout(maxWidth: maxWidth);
+    final exceeded = painter.didExceedMaxLines;
+    painter.dispose();
+    return exceeded;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final bodyStyle = theme.textTheme.bodySmall?.copyWith(
+      color: widget.color ?? cs.onSurfaceVariant,
+      height: 1.35,
+    );
+    final trimmed = widget.text.trim();
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label.toUpperCase(),
+            widget.label.toUpperCase(),
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
@@ -969,14 +1010,55 @@ class _AgentDetailBlock extends StatelessWidget {
               color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
-            child: Text(
-              text.trim(),
-              maxLines: 8,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: color ?? cs.onSurfaceVariant,
-                height: 1.35,
-              ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final overflows = _exceeds(
+                  trimmed,
+                  bodyStyle,
+                  constraints.maxWidth,
+                );
+                final body = SelectableText(
+                  trimmed,
+                  maxLines: _expanded || !overflows
+                      ? null
+                      : _AgentDetailBlock.collapsedMaxLines,
+                  style: bodyStyle,
+                );
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_expanded && overflows)
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 280),
+                        child: SingleChildScrollView(child: body),
+                      )
+                    else
+                      body,
+                    if (overflows)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () =>
+                              setState(() => _expanded = !_expanded),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(
+                              AppTouchTarget.min,
+                              AppTouchTarget.min,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            _expanded
+                                ? context.l10n.toolOutputShowLess
+                                : context.l10n.toolOutputShowMore,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],

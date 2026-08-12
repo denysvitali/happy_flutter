@@ -238,6 +238,80 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('hides a zero token count on an agent row', (tester) async {
+    Sync().testSetSessionMessages(_sessionId, <Map<String, dynamic>>[
+      _progressOwner(<Map<String, dynamic>>[
+        _phase(1, 'Analyze'),
+        _agent('a1', 1, state: 'running', tokens: 0, toolCalls: 4),
+      ]),
+    ]);
+
+    await tester.pumpWidget(_harness());
+    await tester.pump();
+
+    expect(find.text('0 tokens · 4 tools'), findsNothing);
+    expect(find.text('4 tools'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('fills the phase bar while the first of two phases is active', (
+    tester,
+  ) async {
+    Sync().testSetSessionMessages(_sessionId, <Map<String, dynamic>>[
+      _progressOwner(<Map<String, dynamic>>[
+        _phase(1, 'Scout'),
+        _phase(2, 'Synthesize'),
+        _agent('a1', 1, state: 'running', toolCalls: 3),
+      ]),
+    ]);
+
+    await tester.pumpWidget(_harness());
+    await tester.pump();
+
+    expect(find.text('Phase 1 of 2'), findsOneWidget);
+    final bar = tester.widget<LinearProgressIndicator>(
+      find.byType(LinearProgressIndicator),
+    );
+    expect(bar.value, greaterThan(0));
+    expect(bar.value, lessThan(1));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('expands a long agent prompt past the collapsed cap', (
+    tester,
+  ) async {
+    final prompt = List<String>.generate(
+      12,
+      (i) => 'Focus line $i',
+    ).join('\n');
+    Sync().testSetSessionMessages(_sessionId, <Map<String, dynamic>>[
+      _progressOwner(<Map<String, dynamic>>[
+        _phase(1, 'Scout'),
+        _agent('a1', 1, promptPreview: prompt),
+      ]),
+    ]);
+
+    await tester.pumpWidget(_harness());
+    await tester.pump();
+
+    await tester.tap(find.text('agent-a1'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Show more'), findsOneWidget);
+    expect(find.text('Show less'), findsNothing);
+
+    await tester.tap(find.text('Show more'));
+    await tester.pump();
+
+    expect(find.text('Show less'), findsOneWidget);
+    expect(find.text('Show more'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('renders raw step chips when no progress snapshot exists', (
     tester,
   ) async {
@@ -302,6 +376,7 @@ Map<String, dynamic> _agent(
   String state = 'done',
   int? tokens,
   int? toolCalls,
+  String? promptPreview,
 }) => <String, dynamic>{
   'type': 'workflow_agent',
   'agentId': agentId,
@@ -312,6 +387,7 @@ Map<String, dynamic> _agent(
   'state': state,
   if (tokens != null) 'tokens': tokens,
   if (toolCalls != null) 'toolCalls': toolCalls,
+  if (promptPreview != null) 'promptPreview': promptPreview,
 };
 
 Map<String, dynamic> _progressOwner(List<Map<String, dynamic>> progress) =>
