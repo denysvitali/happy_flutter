@@ -141,15 +141,8 @@ AgentState? _agentStateFromJson(dynamic value) {
   return null;
 }
 
-List<TodoItem>? _todoListFromJson(dynamic value) {
-  if (value is List) {
-    return value
-        .whereType<Map<String, dynamic>>()
-        .map(TodoItem.fromJson)
-        .toList();
-  }
-  return null;
-}
+List<TodoItem>? _todoListFromJson(dynamic value) =>
+    TodoItem.listFromJson(value);
 
 String _presenceFromJson(dynamic value) {
   if (value is String) return value;

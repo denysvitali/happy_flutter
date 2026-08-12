@@ -55,6 +55,25 @@ void main() {
         'wait for scan',
       );
     });
+
+    test('does not strip a tool name that is only a prefix of a word', () {
+      // Production bug: last_tool_name=Read + description="Reading ~/.claude/…"
+      // rendered as "ing ~/.claude/…" because replaceAll ate the prefix.
+      expect(
+        AgentEventWidget.stripToolName(
+          'Reading ~/.claude/projects/foo/bar',
+          'Read',
+        ),
+        'Reading ~/.claude/projects/foo/bar',
+      );
+    });
+
+    test('still strips a standalone tool token before a path', () {
+      expect(
+        AgentEventWidget.stripToolName('Read ~/.claude/foo', 'Read'),
+        '~/.claude/foo',
+      );
+    });
   });
 
   group('AgentEventWidget — sub-agent chip', () {

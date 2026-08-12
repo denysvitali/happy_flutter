@@ -5,6 +5,7 @@ import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
+import '../known_tools.dart';
 import '../tool_section_view.dart';
 
 /// Renders TaskCreate / TaskUpdate / TaskList / TaskGet tool calls AND
@@ -64,13 +65,14 @@ class TaskToolView extends ConsumerStatefulWidget {
         WireParsers.parseInt(tool['completedAt']) ??
         WireParsers.parseInt(tool['createdAt']) ??
         now;
-    final name = (tool['name'] as String?) ?? '';
+    final name = KnownTools.canonicalName((tool['name'] as String?) ?? '');
     final toolId = _toolIdFor(tool);
 
     switch (name) {
       case 'TaskCreate':
         final input = WireParsers.asMap(tool['input']) ?? const {};
-        final subject = input['subject'] as String?;
+        final subject =
+            input['subject'] as String? ?? input['content'] as String?;
         if (subject == null || subject.isEmpty) return existing;
         // The harness assigns the real task id in the tool *result*
         // ("Task #1 created successfully: <subject>"), not the input.
@@ -118,11 +120,15 @@ class TaskToolView extends ConsumerStatefulWidget {
         final input = WireParsers.asMap(tool['input']) ?? const {};
         final explicitId = input['taskId'] as String? ?? input['id'] as String?;
         if (explicitId == null) return existing;
+        final rawName = (tool['name'] as String?) ?? '';
         final rawStatus = input['status'] as String?;
-        if (rawStatus == 'deleted') {
+        if (rawStatus == 'deleted' ||
+            rawName == 'todo_remove' ||
+            rawName == 'mcp__happy__todo_remove') {
           return existing.where((e) => e.id != explicitId).toList();
         }
-        final newSubject = input['subject'] as String?;
+        final newSubject =
+            input['subject'] as String? ?? input['content'] as String?;
         final idx = existing.indexWhere((e) => e.id == explicitId);
         if (idx == -1) {
           // Reverse-order replay can deliver the update before its create.
@@ -398,7 +404,8 @@ class TaskToolView extends ConsumerStatefulWidget {
 }
 
 class _TaskToolViewState extends ConsumerState<TaskToolView> {
-  String get _name => (widget.tool['name'] as String?) ?? '';
+  String get _name =>
+      KnownTools.canonicalName((widget.tool['name'] as String?) ?? '');
 
   @override
   void initState() {
@@ -442,7 +449,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
 
   Widget _buildCreate(BuildContext context) {
     final input = WireParsers.asMap(widget.tool['input']) ?? const {};
-    final subject = input['subject'] as String?;
+    final subject = input['subject'] as String? ?? input['content'] as String?;
     final description = input['description'] as String?;
     final activeForm = input['activeForm'] as String?;
     final status = input['status'] as String?;
@@ -464,7 +471,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
     final taskId = input['taskId'] as String? ?? input['id'] as String?;
     final status = input['status'] as String?;
     final activeForm = input['activeForm'] as String?;
-    final subject = input['subject'] as String?;
+    final subject = input['subject'] as String? ?? input['content'] as String?;
     // The update payload names the task by id only. Resolve the subject
     // from the task list this session already built (TaskCreate/TaskList
     // push into it) so the row says which task changed, not "Task #5".

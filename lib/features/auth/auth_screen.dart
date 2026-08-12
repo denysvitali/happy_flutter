@@ -58,6 +58,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   String? _serverError;
   bool _isProcessingLink = false;
   String? _linkSuccessMessage;
+  bool _didApplyShowError = false;
 
   @override
   void initState() {
@@ -87,8 +88,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         });
       });
     }
+  }
 
-    if (widget.showError) {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Localizations are not safe in initState — AuthGate builds this
+    // screen on AuthState.error, so reading context.l10n there crashed
+    // failed-auth users into ErrorBoundary instead of the sign-in page.
+    if (widget.showError && !_didApplyShowError) {
+      _didApplyShowError = true;
       _error = context.l10n.authSomethingWentWrong;
     }
   }

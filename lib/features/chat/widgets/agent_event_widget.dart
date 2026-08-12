@@ -130,44 +130,91 @@ class AgentEventWidget extends StatelessWidget {
     // would print "Task updated · Task updated". Show the prefix only.
     final labelIsPhaseOnly =
         _isTaskEvent &&
-        (displayLabel.trim() == _taskPhaseLabel ||
+        (displayLabel.trim().isEmpty ||
+            displayLabel.trim() == _taskPhaseLabel ||
             displayLabel.trim() == 'Task');
+    final titleStyle = theme.textTheme.labelMedium?.copyWith(
+      color: color,
+      fontWeight: isUnrendered ? FontWeight.w600 : null,
+    );
+    final titleText = compactTaskLabel(displayLabel);
+    final toolChip = subAgentTool == null
+        ? const <Widget>[]
+        : <Widget>[
+            IconTheme(
+              data: IconThemeData(size: 12, color: color),
+              child: KnownTools.iconFor(subAgentTool, 12, color),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              subAgentTool,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ];
+    if (_isTaskEvent) {
+      // Status + tool on line 1; title on its own full-width line.
+      // Cramming the title into the leftover strip after
+      // "Task running · Bash" wrapped mid-word (`Read` / `ing …`).
+      return Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm + 2,
+          vertical: AppSpacing.xs,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _isTaskStart
+                      ? Icons.play_circle_outline_rounded
+                      : Icons.autorenew_rounded,
+                  size: 13,
+                  color: color,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  _taskPhaseLabel,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (toolChip.isNotEmpty) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '·',
+                    style: theme.textTheme.labelSmall?.copyWith(color: color),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  ...toolChip,
+                ],
+              ],
+            ),
+            if (!labelIsPhaseOnly)
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: 13 + AppSpacing.xs,
+                  top: 1,
+                ),
+                child: Text(
+                  titleText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyle,
+                  textAlign: TextAlign.start,
+                ),
+              ),
+          ],
+        ),
+      );
+    }
     final rowChildren = <Widget>[
-      if (_isTaskEvent) ...[
-        Icon(
-          _isTaskStart
-              ? Icons.play_circle_outline_rounded
-              : Icons.autorenew_rounded,
-          size: 13,
-          color: color,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          _taskPhaseLabel,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        if (!labelIsPhaseOnly) ...[
-          const SizedBox(width: AppSpacing.xs),
-          Text('·', style: theme.textTheme.labelSmall?.copyWith(color: color)),
-        ],
-        const SizedBox(width: AppSpacing.xs),
-      ],
       if (subAgentTool != null) ...[
-        IconTheme(
-          data: IconThemeData(size: 12, color: color),
-          child: KnownTools.iconFor(subAgentTool, 12, color),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          subAgentTool,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        ...toolChip,
         const SizedBox(width: AppSpacing.xs),
       ] else if (eventType == 'message-steered') ...[
         Icon(Icons.alt_route_rounded, size: 14, color: color),
@@ -185,43 +232,40 @@ class AgentEventWidget extends StatelessWidget {
             // Defensive clamp: cached/legacy events can carry a whole
             // multi-line shell command as their label, which would
             // otherwise dump a wall of centered text into the timeline.
-            compactTaskLabel(displayLabel),
+            titleText,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: color,
-              fontWeight: isUnrendered ? FontWeight.w600 : null,
-            ),
-            // Left-align wrapped lines against the leading icon/prefix;
-            // per-line centering parked two centered lines beside a
-            // vertically-centered prefix and read as a layout bug.
+            style: titleStyle,
             textAlign: TextAlign.start,
           ),
         ),
     ];
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: _isTaskEvent ? AppSpacing.sm + 2 : AppSpacing.lg,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
         vertical: AppSpacing.sm,
       ),
-      child: _isTaskEvent
-          ? Row(children: rowChildren)
-          : Center(
-              child: Row(mainAxisSize: MainAxisSize.min, children: rowChildren),
-            ),
+      child: Center(
+        child: Row(mainAxisSize: MainAxisSize.min, children: rowChildren),
+      ),
     );
   }
 
-  /// Removes every occurrence of [tool] from [label] and tidies up the
-  /// separator punctuation it leaves behind.
+  /// Removes every whole-token occurrence of [tool] from [label] and
+  /// tidies up the separator punctuation it leaves behind.
   ///
   /// `"hunt:a · Hunt: hunt:a"` with tool `"hunt:a"` becomes `"Hunt"`.
+  /// `"Reading ~/.claude/foo"` with tool `"Read"` stays intact — a
+  /// substring replace used to print `ing ~/.claude/foo`.
   /// Returns an empty string when nothing but the tool name remains.
   @visibleForTesting
   static String stripToolName(String label, String tool) {
     if (tool.isEmpty || !label.contains(tool)) return label;
+    final token = RegExp(
+      '(?<![A-Za-z0-9])${RegExp.escape(tool)}(?![A-Za-z0-9])',
+    );
     final flattened = label
-        .replaceAll(tool, ' ')
+        .replaceAll(token, ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     return flattened

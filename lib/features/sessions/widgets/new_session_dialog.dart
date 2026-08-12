@@ -213,271 +213,274 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       canPop: !_isCreating,
       child: AlertDialog(
         title: Text(l10n.newSessionTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (machines.isEmpty)
-              Text(l10n.newSessionNoMachinesFound)
-            else
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(labelText: l10n.sessionMachine),
-                initialValue: _selectedMachine,
-                isExpanded: true,
-                selectedItemBuilder: (context) => [
-                  Text(
-                    l10n.sessionSelectMachine,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  ...machines.map(
-                    (machine) => Text(
-                      machine.displayLabel,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (machines.isEmpty)
+                Text(l10n.newSessionNoMachinesFound)
+              else
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(labelText: l10n.sessionMachine),
+                  initialValue: _selectedMachine,
+                  isExpanded: true,
+                  selectedItemBuilder: (context) => [
+                    Text(
+                      l10n.sessionSelectMachine,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
-                items: [
-                  DropdownMenuItem(
-                    value: null,
-                    child: Text(l10n.sessionSelectMachine),
-                  ),
-                  ...machines.map((machine) {
-                    final online = machine.isOnlineAt(machineSortNow);
-                    // Disable offline items so the user cannot select a
-                    // machine that will fail at session creation time.
-                    return DropdownMenuItem(
-                      value: machine.id,
-                      enabled: online,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AppStatusDot(
-                            color: online
-                                ? AppColors.success
-                                : cs.onSurfaceVariant,
-                            size: 8,
-                            semanticLabel: online
-                                ? l10n.machineOnline
-                                : l10n.machineOffline,
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Flexible(
-                            child: Text(
-                              machine.displayLabel,
-                              overflow: TextOverflow.ellipsis,
-                              style: online
-                                  ? null
-                                  : theme.textTheme.bodyMedium?.copyWith(
-                                      color: cs.onSurfaceVariant,
-                                    ),
+                    ...machines.map(
+                      (machine) => Text(
+                        machine.displayLabel,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  items: [
+                    DropdownMenuItem(
+                      value: null,
+                      child: Text(l10n.sessionSelectMachine),
+                    ),
+                    ...machines.map((machine) {
+                      final online = machine.isOnlineAt(machineSortNow);
+                      // Disable offline items so the user cannot select a
+                      // machine that will fail at session creation time.
+                      return DropdownMenuItem(
+                        value: machine.id,
+                        enabled: online,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AppStatusDot(
+                              color: online
+                                  ? AppColors.success
+                                  : cs.onSurfaceVariant,
+                              size: 8,
+                              semanticLabel: online
+                                  ? l10n.machineOnline
+                                  : l10n.machineOffline,
                             ),
-                          ),
-                          if (!online) ...[
                             const SizedBox(width: AppSpacing.sm),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: AppSpacing.xxs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: cs.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.xs,
-                                ),
-                              ),
+                            Flexible(
                               child: Text(
-                                l10n.machineOffline,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
-                                ),
+                                machine.displayLabel,
+                                overflow: TextOverflow.ellipsis,
+                                style: online
+                                    ? null
+                                    : theme.textTheme.bodyMedium?.copyWith(
+                                        color: cs.onSurfaceVariant,
+                                      ),
                               ),
                             ),
+                            if (!online) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.sm,
+                                  vertical: AppSpacing.xxs,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cs.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.xs,
+                                  ),
+                                ),
+                                child: Text(
+                                  l10n.machineOffline,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-                onChanged: (value) {
-                  // Guard against selecting an offline machine even if a
-                  // disabled DropdownMenuItem is somehow tapped.
-                  if (value != null) {
-                    final m = allMachines[value];
-                    if (m != null && !m.isOnlineAt(machineSortNow)) {
-                      return;
-                    }
-                  }
-                  setState(() {
-                    if (_selectedMachine != value) {
-                      _selectedPath = null;
-                      _selectedRepoUrl = null;
-                      _selectedSpawnBackend = _defaultSpawnBackendForMachine(
-                        allMachines[value],
+                        ),
                       );
-                      _spawnBackendTouched = false;
+                    }),
+                  ],
+                  onChanged: (value) {
+                    // Guard against selecting an offline machine even if a
+                    // disabled DropdownMenuItem is somehow tapped.
+                    if (value != null) {
+                      final m = allMachines[value];
+                      if (m != null && !m.isOnlineAt(machineSortNow)) {
+                        return;
+                      }
                     }
-                    _selectedMachine = value;
-                  });
-                },
-              ),
-            const SizedBox(height: AppSpacing.lg),
-            Autocomplete<String>(
-              key: ValueKey(_selectedMachine),
-              optionsBuilder: (textEditingValue) {
-                if (_selectedMachine == null) return const [];
-                final sessions = ref.read(sessionsNotifierProvider);
-                final paths = sessions.values
-                    .where((s) => s.metadata?.machineId == _selectedMachine)
-                    .map((s) => s.metadata?.path)
-                    .whereType<String>()
-                    .toSet()
-                    .toList();
-                if (textEditingValue.text.isEmpty) {
-                  return paths;
-                }
-                return paths.where(
-                  (p) => p.toLowerCase().contains(
-                    textEditingValue.text.toLowerCase(),
-                  ),
-                );
-              },
-              onSelected: (value) {
-                setState(() => _selectedPath = value);
-              },
-              fieldViewBuilder:
-                  (context, controller, focusNode, onFieldSubmitted) {
-                    // Pre-fill the path if provided via initialPath.
-                    if (_selectedPath != null && controller.text.isEmpty) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && controller.text.isEmpty) {
-                          controller.text = _selectedPath!;
-                        }
-                      });
-                    }
-                    return TextFormField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        labelText: l10n.sessionPath,
-                        hintText: l10n.sessionPathHint,
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedPath = value;
-                          _createError = null;
-                        });
-                      },
-                    );
+                    setState(() {
+                      if (_selectedMachine != value) {
+                        _selectedPath = null;
+                        _selectedRepoUrl = null;
+                        _selectedSpawnBackend = _defaultSpawnBackendForMachine(
+                          allMachines[value],
+                        );
+                        _spawnBackendTouched = false;
+                      }
+                      _selectedMachine = value;
+                    });
                   },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(
-                  value: 'simple',
-                  label: Text(l10n.sessionsSimple),
-                  icon: const Icon(Icons.folder_outlined),
                 ),
-                ButtonSegment(
-                  value: 'worktree',
-                  label: Text(l10n.sessionsWorktree),
-                  icon: const Icon(Icons.account_tree_outlined),
-                ),
-              ],
-              selected: {_sessionType},
-              onSelectionChanged: (selection) {
-                setState(() => _sessionType = selection.first);
-              },
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            if (spawnBackends.length > 1) ...[
-              _SpawnBackendPicker(
-                backends: spawnBackends,
-                selectedBackend: selectedSpawnBackend,
-                onSelected: (backend) {
-                  setState(() {
-                    _selectedSpawnBackend = backend;
-                    _spawnBackendTouched = true;
-                  });
-                },
-              ),
               const SizedBox(height: AppSpacing.lg),
-            ],
-            if (repositoryRequired) ...[
-              _RepositoryUrlField(
-                machineId: _selectedMachine,
-                selectedRepoUrl: _selectedRepoUrl,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedRepoUrl = value;
-                    _createError = null;
-                  });
+              Autocomplete<String>(
+                key: ValueKey(_selectedMachine),
+                optionsBuilder: (textEditingValue) {
+                  if (_selectedMachine == null) return const [];
+                  final sessions = ref.read(sessionsNotifierProvider);
+                  final paths = sessions.values
+                      .where((s) => s.metadata?.machineId == _selectedMachine)
+                      .map((s) => s.metadata?.path)
+                      .whereType<String>()
+                      .toSet()
+                      .toList();
+                  if (textEditingValue.text.isEmpty) {
+                    return paths;
+                  }
+                  return paths.where(
+                    (p) => p.toLowerCase().contains(
+                      textEditingValue.text.toLowerCase(),
+                    ),
+                  );
                 },
                 onSelected: (value) {
-                  setState(() {
-                    _selectedRepoUrl = value;
-                    _createError = null;
-                  });
+                  setState(() => _selectedPath = value);
+                },
+                fieldViewBuilder:
+                    (context, controller, focusNode, onFieldSubmitted) {
+                      // Pre-fill the path if provided via initialPath.
+                      if (_selectedPath != null && controller.text.isEmpty) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && controller.text.isEmpty) {
+                            controller.text = _selectedPath!;
+                          }
+                        });
+                      }
+                      return TextFormField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: l10n.sessionPath,
+                          hintText: l10n.sessionPathHint,
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedPath = value;
+                            _createError = null;
+                          });
+                        },
+                      );
+                    },
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: 'simple',
+                    label: Text(l10n.sessionsSimple),
+                    icon: const Icon(Icons.folder_outlined),
+                  ),
+                  ButtonSegment(
+                    value: 'worktree',
+                    label: Text(l10n.sessionsWorktree),
+                    icon: const Icon(Icons.account_tree_outlined),
+                  ),
+                ],
+                selected: {_sessionType},
+                onSelectionChanged: (selection) {
+                  setState(() => _sessionType = selection.first);
                 },
               ),
               const SizedBox(height: AppSpacing.lg),
-            ],
-            _AgentPicker(
-              selectedAgent: _selectedAgent,
-              onSelected: (agent) => setState(() => _selectedAgent = agent),
-            ),
-            if (createBlocker != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              _DialogRequirementStatus(
-                blocker: createBlocker,
-                selectedMachineOffline: selectedMachineOffline,
+              if (spawnBackends.length > 1) ...[
+                _SpawnBackendPicker(
+                  backends: spawnBackends,
+                  selectedBackend: selectedSpawnBackend,
+                  onSelected: (backend) {
+                    setState(() {
+                      _selectedSpawnBackend = backend;
+                      _spawnBackendTouched = true;
+                    });
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              if (repositoryRequired) ...[
+                _RepositoryUrlField(
+                  machineId: _selectedMachine,
+                  selectedRepoUrl: _selectedRepoUrl,
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedRepoUrl = value;
+                      _createError = null;
+                    });
+                  },
+                  onSelected: (value) {
+                    setState(() {
+                      _selectedRepoUrl = value;
+                      _createError = null;
+                    });
+                  },
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              _AgentPicker(
+                selectedAgent: _selectedAgent,
+                onSelected: (agent) => setState(() => _selectedAgent = agent),
               ),
-              if (selectedMachineOffline ||
-                  createBlocker == NewSessionCreateBlocker.offlineMachine) ...[
-                const SizedBox(height: AppSpacing.sm),
-                Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.xl),
-                  child: Text(
-                    l10n.machineOfflineHelp,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
+              if (createBlocker != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _DialogRequirementStatus(
+                  blocker: createBlocker,
+                  selectedMachineOffline: selectedMachineOffline,
+                ),
+                if (selectedMachineOffline ||
+                    createBlocker ==
+                        NewSessionCreateBlocker.offlineMachine) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Padding(
+                    padding: const EdgeInsets.only(left: AppSpacing.xl),
+                    child: Text(
+                      l10n.machineOfflineHelp,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
+                  ),
+                ],
+              ],
+              if (createBlocker == null) ...[
+                const SizedBox(height: AppSpacing.md),
+                _DialogRequirementStatus(
+                  blocker: null,
+                  selectedMachineOffline: false,
+                ),
+              ],
+              if (_createError != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  _createError!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              if (_isCreating && _creationPhase != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                Semantics(
+                  liveRegion: true,
+                  child: Row(
+                    children: [
+                      const SizedBox.square(
+                        dimension: AppSpacing.lg,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(child: Text(_creationPhase!)),
+                    ],
                   ),
                 ),
               ],
             ],
-            if (createBlocker == null) ...[
-              const SizedBox(height: AppSpacing.md),
-              _DialogRequirementStatus(
-                blocker: null,
-                selectedMachineOffline: false,
-              ),
-            ],
-            if (_createError != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                _createError!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-            ],
-            if (_isCreating && _creationPhase != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Semantics(
-                liveRegion: true,
-                child: Row(
-                  children: [
-                    const SizedBox.square(
-                      dimension: AppSpacing.lg,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(child: Text(_creationPhase!)),
-                  ],
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
         actions: [
           TextButton(

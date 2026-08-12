@@ -68,6 +68,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.enterToSend = false,
     this.lastDeliveryStatus,
     this.onQueueNextTurn,
+    this.sessionFlavor,
   });
 
   /// Stable identifier for the current session
@@ -105,6 +106,9 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Model options available for the current session flavor.
   final List<ChatModelMode> availableModels;
+
+  /// Agent flavor for the session (`claude`, `codex`, and so on).
+  final String? sessionFlavor;
 
   /// Slash commands advertised by the current session's agent.
   final List<String> availableSlashCommands;
@@ -647,6 +651,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                       selectedProfile: widget.selectedProfile,
                       onShowProfilePicker: () => _showProfilePicker(context),
                       contextSize: widget.contextSize,
+                      sessionFlavor: widget.sessionFlavor,
                     ),
                   ],
                 ),

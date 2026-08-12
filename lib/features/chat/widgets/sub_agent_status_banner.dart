@@ -271,14 +271,17 @@ class _BannerBody extends StatelessWidget {
       icon = Icons.warning_amber_rounded;
       label = l10n.subAgentBannerError(progress.error, progress.total);
     } else if (isComplete) {
-      backgroundColor = AppColors.success.withValues(alpha: 0.16);
+      backgroundColor = Color.alphaBlend(
+        AppColors.success.withValues(alpha: 0.16),
+        theme.colorScheme.surface,
+      );
       foregroundColor = AppColors.success;
       icon = Icons.check_circle_rounded;
       label = l10n.subAgentBannerComplete(progress.total);
     } else {
-      backgroundColor = theme.colorScheme.primaryContainer.withValues(
-        alpha: 0.6,
-      );
+      // Opaque. 0.6 alpha let the list's top fade bleed through and
+      // printed a ghost "Task completed …" row under the banner.
+      backgroundColor = theme.colorScheme.primaryContainer;
       foregroundColor = theme.colorScheme.onPrimaryContainer;
       icon = Icons.rocket_launch_rounded;
       label = l10n.subAgentBannerRunning(progress.running, progress.total);
@@ -286,6 +289,9 @@ class _BannerBody extends StatelessWidget {
 
     return Material(
       color: backgroundColor,
+      shape: Border(
+        bottom: BorderSide(color: foregroundColor.withValues(alpha: 0.12)),
+      ),
       child: InkWell(
         onTap: () {
           HapticFeedback.selectionClick();

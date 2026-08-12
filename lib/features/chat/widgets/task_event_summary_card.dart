@@ -88,34 +88,38 @@ class TaskEventSummaryCard extends StatelessWidget {
         Padding(
           padding: EdgeInsets.symmetric(
             horizontal: AppSpacing.sm + 2,
-            vertical: AppSpacing.sm,
+            vertical: AppSpacing.xs,
           ),
           // Left-aligned sibling of the task_started marker (icon ·
           // label · title), in the same column as the tool rows so the
           // transcript keeps one left edge.
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(_statusIcon(), size: 13, color: iconColor),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                _statusLabel(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: labelColor,
-                  fontWeight: FontWeight.w600,
-                ),
+              Row(
+                children: [
+                  Icon(_statusIcon(), size: 13, color: iconColor),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    _statusLabel(),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: labelColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
-              if (showSummary) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  '·',
-                  style: theme.textTheme.labelSmall?.copyWith(color: muted),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
+              if (showSummary)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 13 + AppSpacing.xs,
+                    top: 1,
+                  ),
                   child: Text(
                     // `local_bash` notifications repeat the entire shell
                     // command as their summary; clamp so one task can't
-                    // own the screen.
+                    // own the screen. Title sits on its own line so a
+                    // long path cannot wrap mid-word after the prefix.
                     compactTaskLabel(summary),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -123,7 +127,6 @@ class TaskEventSummaryCard extends StatelessWidget {
                     textAlign: TextAlign.start,
                   ),
                 ),
-              ],
             ],
           ),
         ),

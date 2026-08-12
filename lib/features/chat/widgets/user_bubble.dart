@@ -116,7 +116,7 @@ class _UserBubbleState extends State<UserBubble> {
       bottomRight: widget.isLastInGroup ? UserBubble._full : UserBubble._small,
     );
 
-    final bubble = Semantics(
+    Widget bubbleFor(BoxConstraints constraints) => Semantics(
       label: 'User message: ${_truncateForLabel(widget.text)}',
       button: false,
       child: Container(
@@ -125,7 +125,9 @@ class _UserBubbleState extends State<UserBubble> {
           vertical: AppSpacing.sm + 2,
         ),
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.80,
+          // Cap to the incoming pane, not the window. Tablet master-detail
+          // and desktop splits are far narrower than MediaQuery.size.width.
+          maxWidth: constraints.maxWidth * 0.80,
         ),
         decoration: BoxDecoration(
           color: color,
@@ -160,64 +162,75 @@ class _UserBubbleState extends State<UserBubble> {
       ),
     );
 
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: AppSpacing.xxl,
-          right: AppSpacing.sm,
-          top: widget.isFirstInGroup ? AppSpacing.xs : 1,
-          bottom: widget.isLastInGroup ? AppSpacing.xs : 1,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (interactive)
-              PressableCard(
-                onLongPress: _openFocusView,
-                pressedScale: 0.97,
-                enableHaptics: false,
-                duration: const Duration(milliseconds: 100),
-                child: bubble,
-              )
-            else
-              bubble,
-            if (widget.codexDeliveryMode == 'next-turn')
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xxs, right: 2),
-                child: Semantics(
-                  label: context.l10n.chatQueuedForNextTurn,
-                  excludeSemantics: true,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.schedule_send_rounded,
-                        size: 11,
-                        color: Theme.of(context).colorScheme.secondary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bubble = bubbleFor(constraints);
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: AppSpacing.xxl,
+              right: AppSpacing.sm,
+              top: widget.isFirstInGroup ? AppSpacing.xs : 1,
+              bottom: widget.isLastInGroup ? AppSpacing.xs : 1,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (interactive)
+                  PressableCard(
+                    onLongPress: _openFocusView,
+                    pressedScale: 0.97,
+                    enableHaptics: false,
+                    duration: const Duration(milliseconds: 100),
+                    child: bubble,
+                  )
+                else
+                  bubble,
+                if (widget.codexDeliveryMode == 'next-turn')
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: AppSpacing.xxs,
+                      right: 2,
+                    ),
+                    child: Semantics(
+                      label: context.l10n.chatQueuedForNextTurn,
+                      excludeSemantics: true,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.schedule_send_rounded,
+                            size: 11,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          const SizedBox(width: AppSpacing.xxs),
+                          Text(
+                            context.l10n.chatQueuedForNextTurn,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.secondary,
+                                  fontSize: AppFontSize.xxs,
+                                ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: AppSpacing.xxs),
-                      Text(
-                        context.l10n.chatQueuedForNextTurn,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.secondary,
-                          fontSize: AppFontSize.xxs,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            if (widget.sendStatus != null)
-              SendStatusIndicator(
-                status: widget.sendStatus!,
-                slow: widget.sendSlow,
-                onRetry: interactive ? widget.onRetry : null,
-              ),
-          ],
-        ),
-      ),
+                if (widget.sendStatus != null)
+                  SendStatusIndicator(
+                    status: widget.sendStatus!,
+                    slow: widget.sendSlow,
+                    onRetry: interactive ? widget.onRetry : null,
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

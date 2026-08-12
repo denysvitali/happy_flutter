@@ -193,6 +193,18 @@ void main() {
       expect(find.textContaining('2'), findsWidgets);
       expect(find.textContaining('3'), findsWidgets);
       expect(find.textContaining('sub-agent'), findsOneWidget);
+
+      // Must be fully opaque. A 0.6 fill plus the list's top fade
+      // printed a ghost first row under the banner.
+      final material = tester.widget<Material>(
+        find
+            .descendant(
+              of: find.byType(SubAgentStatusBanner),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(material.color?.a, 1.0);
     });
 
     testWidgets('refreshes only for its session message events', (

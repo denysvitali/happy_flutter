@@ -83,5 +83,24 @@ void main() {
       final updated = item.copyWith(clearDescription: true);
       expect(updated.description, isNull);
     });
+
+    test('listFromJson reads Happy MCP metadata.todos', () {
+      final items = TodoItem.listFromJson([
+        {
+          'id': '1',
+          'content': 'Ship MCP',
+          'status': 'in_progress',
+          'priority': 'high',
+          'order': 0,
+          'createdAt': 1000,
+          'updatedAt': 2000,
+        },
+        {'id': '', 'content': 'skip'},
+      ]);
+      expect(items, hasLength(1));
+      expect(items!.first.id, '1');
+      expect(items.first.status, TodoState.inProgress);
+      expect(items.first.priority, 'high');
+    });
   });
 }

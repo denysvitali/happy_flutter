@@ -105,6 +105,31 @@ void main() {
     );
   });
 
+  testWidgets('codex sessions show only codex permission modes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          sessionFlavor: 'codex',
+          permissionMode: perm.PermissionMode.defaultMode,
+          onPermissionModeChanged: (_) {},
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(perm.PermissionModeSelector));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Read-only'), findsOneWidget);
+    expect(find.text('Safe YOLO'), findsOneWidget);
+    expect(find.text('YOLO'), findsOneWidget);
+    expect(find.text('Accept Edits'), findsNothing);
+    expect(find.text('Plan'), findsNothing);
+  });
+
   testWidgets('toolbar chips expose semantics and min hit targets', (
     tester,
   ) async {

@@ -416,6 +416,39 @@ bool shouldShowInactiveSessionsSection({
   return activeCount == 0;
 }
 
+/// Session ids Select All may touch — matches what the list actually shows.
+///
+/// Hidden archived rows (`hideInactiveSessions` with live sessions present)
+/// stay out of the set so one tap cannot mass-delete history the user never
+/// saw. Folder view still scopes to the open folder.
+Set<String> selectableSessionIds({
+  required Iterable<Session> sessions,
+  required bool hideInactive,
+  SessionFolderHeader? folder,
+}) {
+  final scoped = folder == null
+      ? sessions
+      : sessions.where((s) => sessionFolderKey(s) == folder.folderKey);
+  final active = <Session>[];
+  final inactive = <Session>[];
+  for (final session in scoped) {
+    if (isSessionActive(session)) {
+      active.add(session);
+    } else {
+      inactive.add(session);
+    }
+  }
+  final showInactive = shouldShowInactiveSessionsSection(
+    hideInactive: hideInactive,
+    activeCount: active.length,
+    inactiveCount: inactive.length,
+  );
+  return {
+    ...active.map((s) => s.id),
+    if (showInactive) ...inactive.map((s) => s.id),
+  };
+}
+
 // ── List item descriptors ─────────────────────────────
 
 /// Enum of list item types rendered in the sessions list.

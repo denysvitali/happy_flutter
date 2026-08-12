@@ -74,11 +74,12 @@ class TodoItem {
 
   factory TodoItem.fromJson(Map<String, dynamic> json) {
     return TodoItem(
-      id: json['id'] as String,
-      content: json['content'] as String,
-      status: TodoState.fromString(json['status'] as String),
-      priority: json['priority'] as String,
-      order: json['order'] as int,
+      id: '${json['id'] ?? ''}',
+      content:
+          (json['content'] as String?) ?? (json['subject'] as String?) ?? '',
+      status: TodoState.fromString('${json['status'] ?? 'pending'}'),
+      priority: (json['priority'] as String?) ?? 'medium',
+      order: _asInt(json['order']) ?? 0,
       description: json['description'] as String?,
       parentId: json['parentId'] as String?,
       dependencies:
@@ -86,12 +87,32 @@ class TodoItem {
               ?.map((e) => e as String)
               .toList() ??
           [],
-      dueAt: json['dueAt'] as int?,
-      createdAt: json['createdAt'] as int,
-      updatedAt: json['updatedAt'] as int,
+      dueAt: _asInt(json['dueAt']),
+      createdAt: _asInt(json['createdAt']) ?? 0,
+      updatedAt: _asInt(json['updatedAt']) ?? 0,
       sessionId: json['sessionId'] as String?,
-      completedAt: json['completedAt'] as int?,
+      completedAt: _asInt(json['completedAt']),
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is num) return value.toInt();
+    return null;
+  }
+
+  /// Parses the `metadata.todos` list the Happy MCP persists.
+  static List<TodoItem>? listFromJson(dynamic value) {
+    if (value is! List) return null;
+    final out = <TodoItem>[];
+    for (final entry in value) {
+      if (entry is! Map) continue;
+      final item = TodoItem.fromJson(Map<String, dynamic>.from(entry));
+      if (item.id.isEmpty || item.content.isEmpty) continue;
+      out.add(item);
+    }
+    return out;
   }
 
   final String id;
@@ -149,9 +170,7 @@ class TodoItem {
       status: status ?? this.status,
       priority: priority ?? this.priority,
       order: order ?? this.order,
-      description: clearDescription
-          ? null
-          : (description ?? this.description),
+      description: clearDescription ? null : (description ?? this.description),
       parentId: clearParentId ? null : (parentId ?? this.parentId),
       dependencies: dependencies != null
           ? List<String>.from(dependencies)

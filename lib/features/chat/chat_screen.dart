@@ -1575,6 +1575,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,
             availableModels: availableModels,
+            sessionFlavor: _session?.metadata?.flavor,
             availableSlashCommands:
                 _session?.metadata?.slashCommands ?? const [],
             onFileSuggestionsRequested: _loadFileSuggestions,

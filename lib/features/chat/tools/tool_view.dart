@@ -235,7 +235,7 @@ class _ToolViewState extends ConsumerState<ToolView>
   }
 
   bool get _isTaskTool {
-    final name = widget.tool['name'] as String? ?? '';
+    final name = KnownTools.canonicalName(widget.tool['name'] as String? ?? '');
     return name == 'TaskCreate' ||
         name == 'TaskUpdate' ||
         name == 'TaskList' ||

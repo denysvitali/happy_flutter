@@ -45,6 +45,7 @@ class SessionsListContent extends ConsumerStatefulWidget {
     /// This allows a parent to handle navigation in a custom way
     /// (for example, tablet master-detail).
     this.onSessionTap,
+    this.onCreateSession,
     this.scrollController,
     this.isVisible = true,
     super.key,
@@ -69,6 +70,9 @@ class SessionsListContent extends ConsumerStatefulWidget {
   /// pushing the 'chat' route. Use this for custom navigation
   /// (e.g. master-detail layouts on tablet).
   final void Function(String sessionId)? onSessionTap;
+
+  /// Parent-owned create flow so empty-state success can open the new chat.
+  final Future<void> Function()? onCreateSession;
 
   /// Optional scroll controller forwarded to the primary list view so that
   /// a parent can observe the scroll offset (e.g. to show/hide an AppBar
@@ -395,7 +399,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     }
 
     if (sessionListCount == 0) {
-      return _retainVisibleTree(const EmptySessionsView());
+      return _retainVisibleTree(
+        EmptySessionsView(onCreateSession: widget.onCreateSession),
+      );
     }
 
     final triggerStagger = !_animationTriggered;

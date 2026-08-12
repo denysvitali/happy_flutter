@@ -175,9 +175,7 @@ class ProfileChip extends StatelessWidget {
                         displayLabel,
                         style: theme.textTheme.labelSmall?.copyWith(
                           fontSize: AppFontSize.xxs,
-                          color: isDefault
-                              ? cs.onSurfaceVariant
-                              : cs.tertiary,
+                          color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
@@ -277,6 +275,7 @@ class InputToolbar extends StatelessWidget {
     this.availableModels = ChatModelMode.values,
     this.selectedProfile,
     this.contextSize,
+    this.sessionFlavor,
   });
 
   final perm.PermissionMode? permissionMode;
@@ -287,6 +286,10 @@ class InputToolbar extends StatelessWidget {
   final AIBackendProfile? selectedProfile;
   final VoidCallback onShowProfilePicker;
   final int? contextSize;
+
+  /// Session agent flavor (`claude`, `codex`, …). Codex sessions get
+  /// Codex permission modes instead of Claude/Gemini ones.
+  final String? sessionFlavor;
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +307,9 @@ class InputToolbar extends StatelessWidget {
           perm.PermissionModeSelector(
             selectedMode: permissionMode,
             onModeChanged: onPermissionModeChanged,
-            availableModes: perm.PermissionModeExtension.claudeGeminiModes,
+            availableModes: sessionFlavor == 'codex'
+                ? perm.PermissionModeExtension.codexModes
+                : perm.PermissionModeExtension.claudeGeminiModes,
           ),
         ModelChip(
           model: model,

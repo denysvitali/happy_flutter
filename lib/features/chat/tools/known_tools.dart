@@ -102,6 +102,17 @@ class KnownTools {
     'run_terminal_cmd': 'Bash',
     'search_replace': 'Edit',
     'todo_write': 'TodoWrite',
+    // Happy progress MCP (mcp__happy__todo_*).
+    'todo_add': 'TaskCreate',
+    'todo_update': 'TaskUpdate',
+    'todo_remove': 'TaskUpdate',
+    'todo_list': 'TaskList',
+    'todo_get': 'TaskGet',
+    'mcp__happy__todo_add': 'TaskCreate',
+    'mcp__happy__todo_update': 'TaskUpdate',
+    'mcp__happy__todo_remove': 'TaskUpdate',
+    'mcp__happy__todo_list': 'TaskList',
+    'mcp__happy__todo_get': 'TaskGet',
   };
 
   /// Returns the canonical definition name for [name].

@@ -14,7 +14,12 @@ import 'new_session_dialog.dart';
 /// Returning users (machines known but no active sessions) see a minimal
 /// "no active sessions" state with a start-session CTA.
 class EmptySessionsView extends ConsumerWidget {
-  const EmptySessionsView({super.key});
+  const EmptySessionsView({super.key, this.onCreateSession});
+
+  /// Parent-owned create flow. When set, the CTA uses it so a successful
+  /// create can open the new chat (push / tablet-select). The local fallback
+  /// only shows the dialog and drops the returned session id.
+  final Future<void> Function()? onCreateSession;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,6 +42,11 @@ class EmptySessionsView extends ConsumerWidget {
   }
 
   Future<void> _showNewSessionDialog(BuildContext context) async {
+    final create = onCreateSession;
+    if (create != null) {
+      await create();
+      return;
+    }
     await showNewSessionDialog(context);
   }
 }

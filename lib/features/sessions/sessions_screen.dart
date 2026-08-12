@@ -603,6 +603,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               searchQuery: _searchController.text,
               onClearSearch: _clearSearch,
               scrollController: _scrollController,
+              onCreateSession: () => _showNewSessionDialog(context),
               onSessionTap: (sessionId) {
                 setState(() {
                   _selectedSessionId = sessionId;
@@ -643,6 +644,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
             onClearSearch: _clearSearch,
             isVisible: true,
             scrollController: _scrollController,
+            onCreateSession: () => _showNewSessionDialog(context),
           ),
         ),
       );
@@ -672,6 +674,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
               onClearSearch: _clearSearch,
               isVisible: _activeTab == AppTab.sessions,
               scrollController: _scrollController,
+              onCreateSession: () => _showNewSessionDialog(context),
             ),
             _buildLoopsTab(),
             _buildProvidersTab(),
@@ -749,17 +752,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
   }
 
   Set<String> _allSelectableSessionIds() {
-    final sessions = ref.read(sessionsNotifierProvider);
-    final folder = _folderNotifier.value;
-    if (folder == null) {
-      return sessions.values.map((s) => s.id).toSet();
-    }
-    // Select-all in folder view must match what the list actually displays —
-    // only sessions in this folder's `'${machineId}:${path}'` group.
-    return sessions.values
-        .where((s) => sessionFolderKey(s) == folder.folderKey)
-        .map((s) => s.id)
-        .toSet();
+    return selectableSessionIds(
+      sessions: ref.read(sessionsNotifierProvider).values,
+      hideInactive: ref.read(settingsNotifierProvider).hideInactiveSessions,
+      folder: _folderNotifier.value,
+    );
   }
 
   bool _hasActiveSessionsInSelection(SelectionState sel) {
@@ -894,7 +891,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     String? initialMachineId,
     String? initialPath,
   }) async {
-    final isTablet = MediaQuery.sizeOf(context).width >= AppBreakpoint.tablet;
+    final width = MediaQuery.sizeOf(context).width;
+    final usesMasterDetail =
+        width >= AppBreakpoint.masterDetail && _activeTab == AppTab.sessions;
     final router = GoRouter.of(context);
     final sessionId = await showNewSessionDialog(
       context,
@@ -903,7 +902,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
     if (sessionId == null || !mounted) return;
     ChatSwitchMetrics().begin(sessionId, source: 'new_session');
-    if (isTablet) {
+    // Only the master-detail branch (≥736) reads `_selectedSessionId`.
+    // Compact tablet (600–735) is list-only — it must pushNamed like phone.
+    if (usesMasterDetail) {
       setState(() => _selectedSessionId = sessionId);
     } else {
       unawaited(

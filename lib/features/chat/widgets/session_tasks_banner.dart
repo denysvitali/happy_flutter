@@ -34,11 +34,13 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     // Scope the watch to this session — re-render only when our
     // session's bucket changes (other sessions' updates don't
     // invalidate this widget).
-    final items = ref.watch(
-      todoStateNotifierProvider.select(
-        (s) => s.bySession[widget.sessionId] ?? const [],
-      ),
+    final live = ref.watch(
+      todoStateNotifierProvider.select((s) => s.bySession[widget.sessionId]),
     );
+    final persisted = ref.watch(
+      sessionByIdProvider(widget.sessionId).select((s) => s?.todos),
+    );
+    final items = live ?? persisted ?? const <TodoItem>[];
 
     if (items.isEmpty) return const SizedBox.shrink();
 
@@ -51,9 +53,9 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     final cs = theme.colorScheme;
 
     return Material(
-      color: cs.surface.withValues(alpha: 0.98),
+      color: cs.surfaceContainerLow.withValues(alpha: 0.96),
       shape: Border(
-        top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+        top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.32)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -113,101 +115,139 @@ class _Header extends StatelessWidget {
     final cs = theme.colorScheme;
     final allDone = completed == total;
     final color = allDone ? AppColors.success : cs.primary;
-    final pending = total - completed;
     final progress = total == 0 ? 0.0 : completed / total;
-    final activeLabel = running > 0 ? '$running running' : '$pending active';
+    final progressLabel = '$completed of $total complete';
+    final detailLabel = running > 0
+        ? '$progressLabel · $running running'
+        : progressLabel;
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          AppSpacing.sm,
-          AppSpacing.sm,
-          AppSpacing.sm,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
+    return Row(
+      children: [
+        Expanded(
+          child: Semantics(
+            button: true,
+            expanded: expanded,
+            label: '${context.l10n.tasksTitle}, $detailLabel',
+            onTap: onTap,
+            child: ExcludeSemantics(
+              child: InkWell(
+                onTap: onTap,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: AppTouchTarget.comfortable,
                   ),
-                  child: Icon(
-                    allDone
-                        ? Icons.check_circle_rounded
-                        : Icons.checklist_rounded,
-                    size: 18,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$completed/$total done',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: cs.onSurface,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxs),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 4,
-                          backgroundColor: cs.surfaceContainerHighest
-                              .withValues(alpha: 0.9),
-                          valueColor: AlwaysStoppedAnimation<Color>(color),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                _StatusPill(label: activeLabel, color: color),
-                const SizedBox(width: AppSpacing.xs),
-                TextButton(
-                  onPressed: onViewAll,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.xsm,
+                      AppSpacing.xs,
+                      AppSpacing.xsm,
                     ),
-                    minimumSize: const Size(0, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    'View all',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: cs.primary,
-                      fontWeight: FontWeight.w600,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(AppRadius.smd),
+                          ),
+                          child: Icon(
+                            allDone
+                                ? Icons.check_rounded
+                                : Icons.checklist_rounded,
+                            size: AppIconSize.lg,
+                            color: color,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.smd),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                context.l10n.tasksTitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  color: cs.onSurface,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xxs),
+                              Text(
+                                detailLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.pill,
+                                ),
+                                child: LinearProgressIndicator(
+                                  key: const ValueKey('session-tasks-progress'),
+                                  value: progress,
+                                  minHeight: 3,
+                                  backgroundColor: cs.surfaceContainerHighest,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: cs.surfaceContainerHighest.withValues(
+                              alpha: 0.7,
+                            ),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                          ),
+                          child: AnimatedRotation(
+                            duration: AppDuration.fast,
+                            turns: expanded ? 0.5 : 0.0,
+                            child: Icon(
+                              Icons.expand_more_rounded,
+                              size: AppIconSize.lg,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xxs),
-                AnimatedRotation(
-                  duration: AppDuration.fast,
-                  turns: expanded ? 0.5 : 0.0,
-                  child: Icon(
-                    Icons.expand_more_rounded,
-                    size: 20,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ],
+          ),
         ),
-      ),
+        TextButton(
+          onPressed: onViewAll,
+          style: TextButton.styleFrom(
+            foregroundColor: cs.primary,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            minimumSize: const Size(0, AppTouchTarget.min),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          child: const Text('View all'),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+      ],
     );
   }
 }

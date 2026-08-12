@@ -56,5 +56,37 @@ void main() {
       expect(find.text('Task running'), findsNothing);
       expect(find.text('Approaching rate limit'), findsOneWidget);
     });
+
+    testWidgets('keeps Reading intact when last tool is Read', (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const path =
+          'Reading ~/.claude/projects/-home-workspace-git-fw-analyzer/ '
+          '2150fa82-9.jsonl';
+      await tester.pumpWidget(
+        _wrap(
+          const AgentEventWidget(
+            event: {'type': 'message', 'message': path},
+            message: {
+              'taskEvent': true,
+              'taskPhase': 'task_progress',
+              'subAgentLastTool': 'Read',
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Task running'), findsOneWidget);
+      expect(find.text('Read'), findsOneWidget);
+      expect(find.textContaining('Reading'), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^ing\b')), findsNothing);
+
+      final title = tester.widget<Text>(find.textContaining('Reading'));
+      expect(title.maxLines, 2);
+      expect(title.overflow, TextOverflow.ellipsis);
+    });
   });
 }

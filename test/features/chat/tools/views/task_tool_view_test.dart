@@ -73,8 +73,9 @@ void main() {
       expect(find.text('in_progress'), findsOneWidget);
     });
 
-    testWidgets('TaskList renders count and subjects from result',
-        (tester) async {
+    testWidgets('TaskList renders count and subjects from result', (
+      tester,
+    ) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       await tester.pumpWidget(
@@ -173,8 +174,7 @@ void main() {
       expect(find.text('in_progress'), findsOneWidget);
     });
 
-    testWidgets('TaskGet with no result falls back to id hint',
-        (tester) async {
+    testWidgets('TaskGet with no result falls back to id hint', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       await tester.pumpWidget(
@@ -194,8 +194,7 @@ void main() {
       expect(find.text('No data for #42'), findsOneWidget);
     });
 
-    testWidgets('Unknown task name renders nothing (no crash)',
-        (tester) async {
+    testWidgets('Unknown task name renders nothing (no crash)', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       await tester.pumpWidget(
@@ -217,8 +216,9 @@ void main() {
   });
 
   group('TaskToolView — global todo state side effects', () {
-    testWidgets('TaskCreate pushes a single item into the session bucket',
-        (tester) async {
+    testWidgets('TaskCreate pushes a single item into the session bucket', (
+      tester,
+    ) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       const sessionId = 's1';
@@ -252,8 +252,9 @@ void main() {
       expect(items.first.status, TodoState.pending);
     });
 
-    testWidgets('TaskList replaces the session bucket with all listed tasks',
-        (tester) async {
+    testWidgets('TaskList replaces the session bucket with all listed tasks', (
+      tester,
+    ) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
       const sessionId = 's1';
@@ -283,8 +284,7 @@ void main() {
           .read(todoStateNotifierProvider)
           .bySession[sessionId];
       expect(items, hasLength(3));
-      expect(items!.map((e) => e.content).toList(),
-          equals(['A', 'B', 'C']));
+      expect(items!.map((e) => e.content).toList(), equals(['A', 'B', 'C']));
       expect(items[0].status, TodoState.pending);
       expect(items[1].status, TodoState.inProgress);
       expect(items[2].status, TodoState.completed);
@@ -404,8 +404,9 @@ void main() {
       return container;
     }
 
-    testWidgets('TaskCreate text result assigns the harness task id',
-        (tester) async {
+    testWidgets('TaskCreate text result assigns the harness task id', (
+      tester,
+    ) async {
       final container = await pumpHost(tester);
       TaskToolView.pushToolToGlobalState(ctx, {
         'name': 'TaskCreate',
@@ -416,37 +417,37 @@ void main() {
         'result': 'Task #1 created successfully: Fix the banner',
       }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items.single.id, '1');
       expect(items.single.content, 'Fix the banner');
     });
 
     testWidgets(
-        'TaskUpdate by harness id flips the item created from text result',
-        (tester) async {
-      final container = await pumpHost(tester);
-      TaskToolView.pushToolToGlobalState(ctx, {
-        'name': 'TaskCreate',
-        'toolUseId': 'call-1',
-        'createdAt': 1000,
-        'input': {'subject': 'Fix the banner'},
-        'result': 'Task #1 created successfully: Fix the banner',
-      }, 's1');
-      TaskToolView.pushToolToGlobalState(ctx, {
-        'name': 'TaskUpdate',
-        'toolUseId': 'call-2',
-        'createdAt': 2000,
-        'input': {'taskId': '1', 'status': 'in_progress'},
-      }, 's1');
+      'TaskUpdate by harness id flips the item created from text result',
+      (tester) async {
+        final container = await pumpHost(tester);
+        TaskToolView.pushToolToGlobalState(ctx, {
+          'name': 'TaskCreate',
+          'toolUseId': 'call-1',
+          'createdAt': 1000,
+          'input': {'subject': 'Fix the banner'},
+          'result': 'Task #1 created successfully: Fix the banner',
+        }, 's1');
+        TaskToolView.pushToolToGlobalState(ctx, {
+          'name': 'TaskUpdate',
+          'toolUseId': 'call-2',
+          'createdAt': 2000,
+          'input': {'taskId': '1', 'status': 'in_progress'},
+        }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
-      expect(items.single.status, TodoState.inProgress);
-    });
+        final items = container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!;
+        expect(items.single.status, TodoState.inProgress);
+      },
+    );
 
-    testWidgets(
-        'TaskCreate running-then-result migrates the synthetic id so a '
+    testWidgets('TaskCreate running-then-result migrates the synthetic id so a '
         'later TaskUpdate matches', (tester) async {
       final container = await pumpHost(tester);
       // Push while running: no result yet → synthetic id.
@@ -474,16 +475,16 @@ void main() {
         'input': {'taskId': '1', 'status': 'completed'},
       }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items, hasLength(1));
       expect(items.single.id, '1');
       expect(items.single.status, TodoState.completed);
       expect(items.single.completedAt, isNotNull);
     });
 
-    testWidgets('TaskUpdate without status keeps the current status',
-        (tester) async {
+    testWidgets('TaskUpdate without status keeps the current status', (
+      tester,
+    ) async {
       final container = await pumpHost(tester);
       TaskToolView.pushToolToGlobalState(ctx, {
         'name': 'TaskCreate',
@@ -499,13 +500,11 @@ void main() {
         'input': {'taskId': '1', 'owner': 'agent-a'},
       }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items.single.status, TodoState.inProgress);
     });
 
-    testWidgets('TaskUpdate status deleted removes the item',
-        (tester) async {
+    testWidgets('TaskUpdate status deleted removes the item', (tester) async {
       final container = await pumpHost(tester);
       TaskToolView.pushToolToGlobalState(ctx, {
         'name': 'TaskCreate',
@@ -527,8 +526,9 @@ void main() {
       );
     });
 
-    testWidgets('TaskList plain-text result replaces the bucket',
-        (tester) async {
+    testWidgets('TaskList plain-text result replaces the bucket', (
+      tester,
+    ) async {
       final container = await pumpHost(tester);
       TaskToolView.pushToolToGlobalState(ctx, {
         'name': 'TaskList',
@@ -537,8 +537,7 @@ void main() {
         'result': '#1 [completed] First thing\n#2 [in_progress] Second thing',
       }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items, hasLength(2));
       expect(items[0].id, '1');
       expect(items[0].status, TodoState.completed);
@@ -547,8 +546,9 @@ void main() {
       expect(items[1].status, TodoState.inProgress);
     });
 
-    testWidgets('TaskList without result does not wipe known tasks',
-        (tester) async {
+    testWidgets('TaskList without result does not wipe known tasks', (
+      tester,
+    ) async {
       final container = await pumpHost(tester);
       TaskToolView.pushToolToGlobalState(ctx, {
         'name': 'TaskCreate',
@@ -571,8 +571,9 @@ void main() {
       );
     });
 
-    testWidgets('TaskGet plain-text result upserts subject and status',
-        (tester) async {
+    testWidgets('TaskGet plain-text result upserts subject and status', (
+      tester,
+    ) async {
       final container = await pumpHost(tester);
       TaskToolView.pushToolToGlobalState(ctx, {
         'name': 'TaskGet',
@@ -583,15 +584,13 @@ void main() {
             'Task #3: Audit IPC\nStatus: in_progress\nDescription: details',
       }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items.single.id, '3');
       expect(items.single.content, 'Audit IPC');
       expect(items.single.status, TodoState.inProgress);
     });
 
-    testWidgets(
-        'reverse-order replay (update before create) converges to the '
+    testWidgets('reverse-order replay (update before create) converges to the '
         'newest state', (tester) async {
       // Cold load mounts the reversed chat list newest-first, so the
       // TaskUpdate pushes before its TaskCreate.
@@ -610,8 +609,7 @@ void main() {
         'result': 'Task #1 created successfully: Fix the banner',
       }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items, hasLength(1));
       expect(items.single.id, '1');
       // Subject from the create, status from the (newer) update.
@@ -619,8 +617,9 @@ void main() {
       expect(items.single.status, TodoState.completed);
     });
 
-    testWidgets('older TaskList snapshot does not clobber newer item state',
-        (tester) async {
+    testWidgets('older TaskList snapshot does not clobber newer item state', (
+      tester,
+    ) async {
       final container = await pumpHost(tester);
       TaskToolView.pushToolToGlobalState(ctx, {
         'name': 'TaskUpdate',
@@ -636,9 +635,46 @@ void main() {
         'result': '#1 [pending] Fix the banner',
       }, 's1');
 
-      final items =
-          container.read(todoStateNotifierProvider).bySession['s1']!;
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items.single.status, TodoState.completed);
+    });
+
+    testWidgets('Happy MCP todo_add content field creates an item', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-mcp-1',
+        'createdAt': 1000,
+        'input': {'content': 'Ship progress MCP', 'status': 'pending'},
+        'result': 'Added #1: Ship progress MCP\n#1 [pending] Ship progress MCP',
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items.single.content, 'Ship progress MCP');
+      expect(items.single.status, TodoState.pending);
+    });
+
+    testWidgets('Happy MCP todo_remove drops the item', (tester) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-mcp-1',
+        'createdAt': 1000,
+        'input': {'id': '1', 'content': 'Ship progress MCP'},
+      }, 's1');
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_remove',
+        'toolUseId': 'call-mcp-2',
+        'createdAt': 2000,
+        'input': {'id': '1'},
+      }, 's1');
+
+      expect(
+        container.read(todoStateNotifierProvider).bySession['s1'],
+        isEmpty,
+      );
     });
   });
 
@@ -650,50 +686,49 @@ void main() {
     // that completed while hidden. The fix is to drive the global notifier
     // push from the always-mounted parent (ToolView) too.
 
-    testWidgets(
-      'ToolView pushes task data even when its body never mounts',
-      (tester) async {
-        final container = ProviderContainer();
-        addTearDown(container.dispose);
-        const sessionId = 's-collapsed';
+    testWidgets('ToolView pushes task data even when its body never mounts', (
+      tester,
+    ) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      const sessionId = 's-collapsed';
 
-        // Use the static entry point directly — this is what ToolView
-        // calls from didUpdateWidget. We bypass the body mount entirely
-        // to prove the global state path works without the conditional
-        // AnimatedSize subtree.
-        final tool = <String, dynamic>{
-          'name': 'TaskCreate',
-          'toolUseId': 'call-collapsed',
-          'state': 'completed',
-          'input': {
-            'subject': 'Item created while collapsed',
-            'status': 'in_progress',
-          },
-        };
+      // Use the static entry point directly — this is what ToolView
+      // calls from didUpdateWidget. We bypass the body mount entirely
+      // to prove the global state path works without the conditional
+      // AnimatedSize subtree.
+      final tool = <String, dynamic>{
+        'name': 'TaskCreate',
+        'toolUseId': 'call-collapsed',
+        'state': 'completed',
+        'input': {
+          'subject': 'Item created while collapsed',
+          'status': 'in_progress',
+        },
+      };
 
-        late BuildContext ctx;
-        await tester.pumpWidget(
-          _wrap(
-            container,
-            Builder(
-              builder: (context) {
-                ctx = context;
-                return const SizedBox.shrink();
-              },
-            ),
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          Builder(
+            builder: (context) {
+              ctx = context;
+              return const SizedBox.shrink();
+            },
           ),
-        );
-        await tester.pumpAndSettle();
-        TaskToolView.pushToolToGlobalState(ctx, tool, sessionId);
+        ),
+      );
+      await tester.pumpAndSettle();
+      TaskToolView.pushToolToGlobalState(ctx, tool, sessionId);
 
-        final items = container
-            .read(todoStateNotifierProvider)
-            .bySession[sessionId];
-        expect(items, isNotNull);
-        expect(items, hasLength(1));
-        expect(items!.first.content, 'Item created while collapsed');
-        expect(items.first.status, TodoState.inProgress);
-      },
-    );
+      final items = container
+          .read(todoStateNotifierProvider)
+          .bySession[sessionId];
+      expect(items, isNotNull);
+      expect(items, hasLength(1));
+      expect(items!.first.content, 'Item created while collapsed');
+      expect(items.first.status, TodoState.inProgress);
+    });
   });
 }
