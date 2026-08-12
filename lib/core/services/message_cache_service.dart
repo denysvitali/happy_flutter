@@ -825,11 +825,18 @@ class MessageCacheService {
         });
         writeMs = writeWatch.elapsedMilliseconds;
         if (!writeSucceeded) {
-          logger.warning(
-            '[MessageCache] Native worker failed to write cache for '
+          // Some Android MMKV builds cannot reopen the process-global handle
+          // from a short-lived Dart worker isolate. The main isolate already
+          // owns an initialized handle, so preserve the snapshot through that
+          // handle instead of dropping every cache write. Encoding and
+          // encryption still happened off-isolate; this fallback performs
+          // only the final native string write.
+          _storage.saveSessionMessagesEncoded(sessionId, marker);
+          logger.info(
+            '[MessageCache] Native worker storage unavailable; '
+            'wrote cache through the initialized main-isolate handle for '
             '$sessionId',
           );
-          return;
         }
         // A synchronous suspend/delete may have fenced this write while the
         // worker was inside MMKV. Repair its newer state before returning.

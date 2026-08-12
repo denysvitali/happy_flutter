@@ -51,6 +51,13 @@ void main() {
       contains('compute(_writeMessageCacheJson'),
       reason: 'routine native MMKV writes must not run on the UI isolate',
     );
+    expect(
+      cache,
+      contains('_storage.saveSessionMessagesEncoded(sessionId, marker);'),
+      reason:
+          'worker-isolate MMKV failures must fall back to the initialized '
+          'main-isolate handle instead of dropping the cache snapshot',
+    );
   });
 
   test('foreground cursor and sessions-cache saves serialize off-isolate', () {

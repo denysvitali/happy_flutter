@@ -208,6 +208,17 @@ extension SyncSocket on Sync {
     );
     unawaited(
       messageOutbox.restoreAndFlush().then((_) {
+        // The encrypted outbox can survive even when an Android MMKV cache
+        // worker write did not. Its localIds were still minted by this client
+        // in an earlier process lifetime, so seed them before an async status
+        // callback observes the server ack. Otherwise every restored send is
+        // misclassified as unknown_acked_local_id after restart.
+        for (final entry in messageOutbox.entries) {
+          messageInvariantMonitor.seedSentLocalId(entry.localId);
+        }
+        for (final entry in messageOutbox.deadEntries) {
+          messageInvariantMonitor.seedSentLocalId(entry.localId);
+        }
         // Cold-start race: the socket can reach `connected` before the
         // MMKV restore above has loaded the dead-letter bucket, in which
         // case the connect-time reviveTransientDead ran against an empty

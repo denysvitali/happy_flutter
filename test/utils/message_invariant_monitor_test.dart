@@ -242,6 +242,24 @@ void main() {
       expect(durations, isEmpty);
     });
 
+    test('restored outbox localId is not unknown-acked after restart',
+        () async {
+      // The outbox is a second persistence source independent of the message
+      // cache. A cache write may be missing while the encrypted outbox still
+      // restores the canonical localId, so restore must seed that identity
+      // before its status callback can deliver an ack.
+      monitor.seedSentLocalId('outbox-restored-1');
+      monitor.recordAck(
+        localId: 'outbox-restored-1',
+        optimisticRowCount: 0,
+        sessionId: 's1',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
+      expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
+    });
+
     test('seeded localId with a missing row is unmatched, not unknown',
         () async {
       monitor.seedSentLocalId('restored-2');
