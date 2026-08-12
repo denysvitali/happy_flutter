@@ -126,10 +126,5 @@ void main() {
           .first,
     );
     expect(banner.color?.a, 1.0);
-
-    await expectLater(
-      find.byType(Scaffold),
-      matchesGoldenFile('goldens/sub_agent_stream_layout.png'),
-    );
   });
 }

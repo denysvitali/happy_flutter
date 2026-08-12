@@ -2,4 +2,3 @@
 test/golden/goldens/*.png filter=lfs diff=lfs merge=lfs -text
 test/golden/failures/*.png filter=lfs diff=lfs merge=lfs -text
 test/core/ui/diff/goldens/*.png filter=lfs diff=lfs merge=lfs -text
-test/features/chat/widgets/goldens/*.png filter=lfs diff=lfs merge=lfs -text
