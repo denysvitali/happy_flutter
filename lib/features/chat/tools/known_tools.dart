@@ -106,7 +106,6 @@ class KnownTools {
     'todo_add': 'TaskCreate',
     'todo_update': 'TaskUpdate',
     'todo_remove': 'TaskUpdate',
-    'todo_list': 'TaskList',
     'todo_get': 'TaskGet',
     'mcp__happy__todo_add': 'TaskCreate',
     'mcp__happy__todo_update': 'TaskUpdate',
