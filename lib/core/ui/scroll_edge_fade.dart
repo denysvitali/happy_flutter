@@ -8,6 +8,13 @@ import 'package:flutter/material.dart';
 /// ```dart
 /// ScrollEdgeFade(child: ListView(...))
 /// ```
+///
+/// Implemented as a thin gradient painted *over* the edges rather than a
+/// [ShaderMask]. A ShaderMask around a full-screen list forces an offscreen
+/// `saveLayer` of the whole viewport on every scrolled frame, which showed
+/// up as raster-side jank while dragging the chat. Because the fade already
+/// blends to `colorScheme.surface` — the color behind the list — painting
+/// that gradient on top is visually identical and costs one small quad.
 class ScrollEdgeFade extends StatelessWidget {
   /// Creates a scroll edge fade.
   const ScrollEdgeFade({
@@ -33,29 +40,46 @@ class ScrollEdgeFade extends StatelessWidget {
     // and dark mode alike (was hardcoded to Colors.white, which rendered
     // as a white blob on dark surfaces).
     final surface = Theme.of(context).colorScheme.surface;
-    return ShaderMask(
-      shaderCallback: (rect) {
-        final h = rect.height;
-        if (h <= 0) {
-          return LinearGradient(colors: [surface, surface])
-              .createShader(rect);
-        }
-        final topStop = (topExtent / h).clamp(0.0, 0.45);
-        final bottomStop = 1.0 - (bottomExtent / h).clamp(0.0, 0.45);
-        return LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            surface,
-            surface,
-            Colors.transparent,
-          ],
-          stops: [0.0, topStop, bottomStop, 1.0],
-        ).createShader(rect);
-      },
-      blendMode: BlendMode.dstIn,
-      child: child,
+    return Stack(
+      children: [
+        child,
+        if (topExtent > 0)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topExtent,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [surface, surface.withValues(alpha: 0)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (bottomExtent > 0)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: bottomExtent,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [surface, surface.withValues(alpha: 0)],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

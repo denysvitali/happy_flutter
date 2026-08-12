@@ -55,6 +55,7 @@ import 'send/image_attachment_service.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
+import 'widgets/agents_list_sheet.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_messages_body.dart';
@@ -230,6 +231,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   double? _lastScrollMaxExtent;
   double? _lastScrollPixels;
   static const double _historyLoadThreshold = 300;
+
+  /// Whether the user currently has a finger (or pointer) on the list.
+  ///
+  /// Every programmatic `animateTo`/`jumpTo` begins a new scroll activity,
+  /// which disposes the in-flight drag — the list stops dead under the
+  /// finger. Streaming agents produce a message tick every ~50 ms, so
+  /// without this guard a drag near the bottom is cancelled many times a
+  /// second and reads as stutter.
+  bool _isUserDragging = false;
+
+  /// Set while a scroll-to-bottom is already queued for the next frame so
+  /// a burst of message ticks collapses into one animation instead of
+  /// restarting (and re-easing) it on every tick.
+  bool _scrollToBottomScheduled = false;
+
+  /// Offsets this close to the bottom count as "already there".
+  static const double _bottomSnapEpsilon = 1;
 
   // Cached slicing / index data for _buildMessageList.
   List<Map<String, dynamic>>? _cachedVisibleMessages;
@@ -861,16 +879,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _scrollToBottom() {
+    if (_scrollToBottomScheduled) return;
+    _scrollToBottomScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottomScheduled = false;
       if (!mounted || !_scrollController.hasClients) {
         return;
       }
+      // Never steal an active drag — beginning a driven activity disposes
+      // the user's drag and the list stops under the finger.
+      if (_isUserDragging) return;
+      // Reverse list: offset 0 is the newest message. Content added at the
+      // bottom keeps `pixels` at 0, so the common streaming case is already
+      // at the target; animating anyway only cancels an in-flight fling.
+      final pos = _scrollController.position;
+      if (pos.pixels <= pos.minScrollExtent + _bottomSnapEpsilon) return;
       _scrollController.animateTo(
         0,
         duration: AppDuration.fast,
         curve: AppCurve.enter,
       );
     });
+  }
+
+  /// Tracks pointer-driven scrolling so programmatic corrections can stand
+  /// down while the user is dragging or coasting on a fling.
+  ///
+  /// Stays true from the drag until the following ballistic settle emits
+  /// [ScrollEndNotification], so a fling is not cut short either.
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification.depth != 0) return false;
+    if (notification is ScrollStartNotification) {
+      if (notification.dragDetails != null) _isUserDragging = true;
+    } else if (notification is ScrollEndNotification) {
+      _isUserDragging = false;
+    }
+    return false;
   }
 
   void _onScroll() {
@@ -914,6 +958,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _preserveHistoryEdgeOnExtentGrowth(ScrollPosition pos) {
     if (_isAdjustingHistoryScroll || _isLoadingMore) return;
+    // `jumpTo` goes idle first, which disposes an in-flight drag. In a
+    // reverse list the new (older) rows are laid out beyond the current
+    // offset anyway, so the visible content does not move — re-anchoring
+    // to the edge can wait until the finger lifts.
+    if (_isUserDragging) return;
 
     final previousMax = _lastScrollMaxExtent;
     final previousPixels = _lastScrollPixels;
@@ -964,7 +1013,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         pos.pixels >= previousMax - _historyLoadThreshold;
     if (!atCurrentHistoryEdge && !atPreviousHistoryEdge) return;
 
-    if (alignToHistoryEdge && !atCurrentHistoryEdge) {
+    if (alignToHistoryEdge && !atCurrentHistoryEdge && !_isUserDragging) {
       _isAdjustingHistoryScroll = true;
       try {
         pos.jumpTo(pos.maxScrollExtent);
@@ -991,7 +1040,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       _bumpMessagePaneRevision();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (keepAtHistoryEdge && _scrollController.hasClients) {
+        if (keepAtHistoryEdge &&
+            !_isUserDragging &&
+            _scrollController.hasClients) {
           _isAdjustingHistoryScroll = true;
           try {
             _scrollController.jumpTo(

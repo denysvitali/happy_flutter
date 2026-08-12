@@ -6,6 +6,9 @@
 // part boundaries.
 part of 'chat_screen.dart';
 
+/// How far beyond the viewport the chat list builds rows, in logical pixels.
+const double _chatListCacheExtent = 600;
+
 extension _ChatScreenBuilders on _ChatScreenState {
   Widget _buildMessageList({required bool hideToolCalls}) {
     final stopwatch = Stopwatch()..start();
@@ -130,6 +133,11 @@ extension _ChatScreenBuilders on _ChatScreenState {
       // skip the default automatic wrappers to reduce widget depth.
       addAutomaticKeepAlives: false,
       addRepaintBoundaries: false,
+      // Chat rows are expensive (markdown, tool views, diffs). The default
+      // 250 px cache means a fling reaches unbuilt rows within two frames
+      // and stalls on layout; building further ahead keeps the raster
+      // thread fed while scrolling.
+      cacheExtent: _chatListCacheExtent,
       itemCount:
           items.length + (showHeader ? 1 : 0) + (showTypingIndicator ? 1 : 0),
       findChildIndexCallback: (key) {
@@ -166,7 +174,21 @@ extension _ChatScreenBuilders on _ChatScreenState {
       },
     );
     // Messages dissolve under the app bar instead of hard-clipping.
-    final fadedList = ScrollEdgeFade(topExtent: 28, child: listView);
+    // Skip the fade while the sticky sub-agent banner is up — the
+    // 28 px mask plus the banner's former 60% fill printed a ghost
+    // first row under "N of N sub-agents running".
+    final bannerVisible = AgentsListSheet.computeTaskProgress(
+      widget.sessionId,
+    ).hasTasks;
+    final fadedList = ScrollEdgeFade(
+      topExtent: bannerVisible ? 0 : 28,
+      // Drag/fling state gates the programmatic scroll corrections so they
+      // never dispose the user's own scroll activity mid-gesture.
+      child: NotificationListener<ScrollNotification>(
+        onNotification: _onScrollNotification,
+        child: listView,
+      ),
+    );
     stopwatch.stop();
     if (stopwatch.elapsedMilliseconds >= 8) {
       OpenTelemetryService().recordDuration(

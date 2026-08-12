@@ -3,11 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/ui/scroll_edge_fade.dart';
 
 /// Wraps [ScrollEdgeFade] in a MaterialApp with a configurable brightness
-/// so the test can assert the shader samples `colorScheme.surface` rather
+/// so the test can assert the fade samples `colorScheme.surface` rather
 /// than a hardcoded white.
 Widget _wrap({
   required Brightness brightness,
   double topExtent = 24,
+  double bottomExtent = 0,
   Widget? child,
 }) {
   final colorScheme = brightness == Brightness.dark
@@ -24,6 +25,7 @@ Widget _wrap({
     home: Scaffold(
       body: ScrollEdgeFade(
         topExtent: topExtent,
+        bottomExtent: bottomExtent,
         child: child ??
             const SizedBox(
               height: 200,
@@ -35,58 +37,103 @@ Widget _wrap({
   );
 }
 
+/// The gradients painted by [ScrollEdgeFade], outermost first.
+List<LinearGradient> _fadeGradients(WidgetTester tester) {
+  return tester
+      .widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byType(ScrollEdgeFade),
+          matching: find.byType(DecoratedBox),
+        ),
+      )
+      .map((box) => box.decoration)
+      .whereType<BoxDecoration>()
+      .map((decoration) => decoration.gradient)
+      .whereType<LinearGradient>()
+      .toList();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ScrollEdgeFade', () {
-    testWidgets('returns child directly when both extents are zero',
-        (tester) async {
-      // Zero extents short-circuit the ShaderMask entirely.
-      await tester.pumpWidget(_wrap(
-        brightness: Brightness.light,
-        topExtent: 0,
-        child: const Text('untouched'),
-      ));
-      expect(find.byType(ShaderMask), findsNothing);
+    testWidgets('returns child directly when both extents are zero', (
+      tester,
+    ) async {
+      // Zero extents short-circuit the overlay entirely.
+      await tester.pumpWidget(
+        _wrap(
+          brightness: Brightness.light,
+          topExtent: 0,
+          child: const Text('untouched'),
+        ),
+      );
+      expect(
+        find.descendant(
+          of: find.byType(ScrollEdgeFade),
+          matching: find.byType(Stack),
+        ),
+        findsNothing,
+      );
       expect(find.text('untouched'), findsOneWidget);
     });
 
-    testWidgets('renders a ShaderMask when topExtent > 0', (tester) async {
+    testWidgets('paints an overlay gradient, never a ShaderMask', (
+      tester,
+    ) async {
+      // A ShaderMask around a full-screen list forces an offscreen
+      // saveLayer of the whole viewport on every scrolled frame. The fade
+      // is a small overlay quad instead — reverting to ShaderMask would
+      // reintroduce that per-frame raster cost.
       await tester.pumpWidget(_wrap(brightness: Brightness.light));
-      expect(find.byType(ShaderMask), findsOneWidget);
+      expect(find.byType(ShaderMask), findsNothing);
+      expect(_fadeGradients(tester), hasLength(1));
     });
 
-    testWidgets(
-      'uses light surface color in light mode (not Colors.white)',
-      (tester) async {
-        // The fix pins the shader to colorScheme.surface; in light mode
-        // that color is NOT Colors.white, so a regression that reverts
-        // to Colors.white would be detectable by reading the LinearGradient
-        // off the ShaderMask shaderCallback.
-        final lightSurface = ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6750A4),
+    testWidgets('fades from the surface color, not Colors.white', (
+      tester,
+    ) async {
+      final lightSurface = ColorScheme.fromSeed(
+        seedColor: const Color(0xFF6750A4),
+        brightness: Brightness.light,
+      ).surface;
+      expect(lightSurface, isNot(equals(Colors.white)));
+
+      await tester.pumpWidget(_wrap(brightness: Brightness.light));
+      final gradient = _fadeGradients(tester).single;
+      expect(gradient.colors.first, equals(lightSurface));
+      expect(gradient.colors.last.a, equals(0.0));
+    });
+
+    testWidgets('renders one gradient per enabled edge', (tester) async {
+      await tester.pumpWidget(
+        _wrap(brightness: Brightness.dark, bottomExtent: 16),
+      );
+      final gradients = _fadeGradients(tester);
+      expect(gradients, hasLength(2));
+      expect(gradients.first.begin, equals(Alignment.topCenter));
+      expect(gradients.last.begin, equals(Alignment.bottomCenter));
+    });
+
+    testWidgets('the fade never absorbs taps meant for the list', (
+      tester,
+    ) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        _wrap(
           brightness: Brightness.light,
-        ).surface;
-        expect(lightSurface, isNot(equals(Colors.white)));
-
-        await tester.pumpWidget(_wrap(brightness: Brightness.light));
-        final mask = tester.widget<ShaderMask>(find.byType(ShaderMask));
-        // Pump one frame so shaderCallback is materialised.
-        await tester.pump();
-        // We can't easily inspect the gradient colors from a ShaderMask
-        // public API, but we can assert the build itself ran without
-        // throwing. The semantic guarantee is that the implementation
-        // reads `Theme.of(context).colorScheme.surface`, not `Colors.white`.
-        expect(mask, isNotNull);
-      },
-    );
-
-    testWidgets('survives being rebuilt under a dark theme', (tester) async {
-      // The previous Colors.white implementation was visible as a white
-      // blob in dark mode. We assert the widget builds without throwing
-      // under a dark theme and still produces exactly one ShaderMask.
-      await tester.pumpWidget(_wrap(brightness: Brightness.dark));
-      expect(find.byType(ShaderMask), findsOneWidget);
+          child: GestureDetector(
+            onTap: () => taps++,
+            child: const SizedBox.expand(
+              child: ColoredBox(color: Color(0xFF123456)),
+            ),
+          ),
+        ),
+      );
+      // Tap inside the top fade band — it must reach the content below.
+      await tester.tapAt(const Offset(100, 10));
+      await tester.pump();
+      expect(taps, 1);
     });
   });
 }
