@@ -249,8 +249,12 @@ void main() {
     await tester.pumpWidget(_harness());
     await tester.pump();
 
+    // Agent subtitle drops the zero-token prefix. The same "4 tools"
+    // string also appears on the run stat row — assert the prefix is
+    // gone rather than pinning a unique count.
     expect(find.text('0 tokens · 4 tools'), findsNothing);
-    expect(find.text('4 tools'), findsOneWidget);
+    expect(find.textContaining('0 tokens'), findsNothing);
+    expect(find.text('4 tools'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
