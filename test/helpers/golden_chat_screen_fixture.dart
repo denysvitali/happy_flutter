@@ -4,13 +4,31 @@ import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 const goldenChatSessionId = 'golden-chat-session';
 
-Session goldenChatSession() => const Session(
+/// Seed timestamp that renders the same string on every calendar day.
+///
+/// Session cards and the chat header print "last seen" relative to
+/// `DateTime.now()`, so a fixed epoch rots the baselines: a Nov-2023
+/// timestamp rendered "1000d ago" the day the goldens were generated and
+/// "1001d ago" the next, failing CI on an unchanged tree. Anchoring under
+/// two minutes before the run pins every label at "1m ago" and keeps the
+/// seeded rows on today's date header outside the first minutes after
+/// midnight.
+///
+/// [ageSeconds] must stay inside 61-119 so the label does not change; give
+/// each seeded session a distinct value, because the session list sorts by
+/// timestamp and equal values leave the row order — and therefore the
+/// screenshot — undefined.
+int goldenSeededTimestamp({int ageSeconds = 90}) => DateTime.now()
+    .subtract(Duration(seconds: ageSeconds))
+    .millisecondsSinceEpoch;
+
+Session goldenChatSession() => Session(
   id: goldenChatSessionId,
   seq: 4,
-  createdAt: 1700000000000,
-  updatedAt: 1700050000000,
+  createdAt: goldenSeededTimestamp(),
+  updatedAt: goldenSeededTimestamp(),
   active: true,
-  activeAt: 1700050000000,
+  activeAt: goldenSeededTimestamp(),
   metadataVersion: 1,
   agentStateVersion: 1,
   thinking: false,

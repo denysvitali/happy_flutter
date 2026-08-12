@@ -113,14 +113,16 @@ Session _makeSession({
   bool active = false,
   bool thinking = false,
   String presence = 'offline',
+  int ageSeconds = 90,
 }) {
+  final seededAt = goldenSeededTimestamp(ageSeconds: ageSeconds);
   return Session(
     id: id,
     seq: 1,
-    createdAt: 1700000000000,
-    updatedAt: 1700050000000,
+    createdAt: seededAt,
+    updatedAt: seededAt,
     active: active,
-    activeAt: 1700050000000,
+    activeAt: seededAt,
     metadataVersion: 1,
     agentStateVersion: 1,
     thinking: thinking,
@@ -174,6 +176,7 @@ Widget _buildApp(
 final _mockSessions = {
   goldenChatSessionId: _makeSession(
     id: goldenChatSessionId,
+    ageSeconds: 62,
     host: 'mbp-work.local',
     path: '/Users/alex/work/backend-api',
     active: true,
@@ -181,22 +184,26 @@ final _mockSessions = {
   ),
   's2': _makeSession(
     id: 's2',
+    ageSeconds: 70,
     host: 'mbp-work.local',
     path: '/Users/alex/work/frontend',
     thinking: true,
   ),
   's3': _makeSession(
     id: 's3',
+    ageSeconds: 78,
     host: 'ubuntu-server',
     path: '/home/alex/infra/terraform',
   ),
   's4': _makeSession(
     id: 's4',
+    ageSeconds: 86,
     host: 'ubuntu-server',
     path: '/home/alex/scripts/deploy',
   ),
   's5': _makeSession(
     id: 's5',
+    ageSeconds: 94,
     host: 'macbook-air.local',
     path: '/Users/alex/personal/side-project',
   ),
