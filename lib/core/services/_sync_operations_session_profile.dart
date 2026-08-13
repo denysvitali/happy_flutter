@@ -468,6 +468,42 @@ extension SyncSpawnProfileResolution on Sync {
     return (envVars: _spawnEnvironmentVariables(null), profile: null);
   }
 
+  /// Send `spawn-happy-session`, tolerating daemons that predate the
+  /// `isRestore` request field: their strict protobuf JSON unmarshal
+  /// rejects the whole request with an "unknown field" error. Retry once
+  /// without the field instead of failing the restore.
+  Future<SpawnSessionResponse> _spawnHappySessionRPC(
+    String machineId,
+    SpawnSessionRequest req, {
+    Duration timeout = const Duration(seconds: 60),
+  }) async {
+    try {
+      return await _typedMachineRPC(
+        machineId,
+        'spawn-happy-session',
+        req.toJson(),
+        SpawnSessionResponse.fromJson,
+        timeout: timeout,
+      );
+    } on RpcException catch (error) {
+      final rejectedIsRestore =
+          error.message.contains('unknown field') &&
+          error.message.contains('isRestore');
+      if (!req.isRestore || !rejectedIsRestore) rethrow;
+      logger.warning(
+        '[spawn] daemon on machine=$machineId rejected the isRestore '
+        'field (pre-field daemon); retrying spawn without it',
+      );
+      return _typedMachineRPC(
+        machineId,
+        'spawn-happy-session',
+        req.toJson()..remove('isRestore'),
+        SpawnSessionResponse.fromJson,
+        timeout: timeout,
+      );
+    }
+  }
+
   Future<
     ({String sessionId, Session session, SessionEncryption sessionEncryption})
   >
@@ -529,6 +565,35 @@ extension SyncSpawnProfileResolution on Sync {
 
     final lifecycleState = session.effectiveLifecycleState;
     final lifecycleErrored = lifecycleState == 'errored';
+
+    // Snapshot of the spawn tracking cleared for a profile/model respawn.
+    // If the respawn fails, this is put back so the next send re-detects
+    // the change and retries — otherwise the change is forgotten and every
+    // later send silently keeps the old process (and its old model) alive.
+    ({
+      int? at,
+      bool hadProfile,
+      String? profile,
+      bool hadModel,
+      String? model,
+      String? agent,
+    })?
+    clearedSpawnTracking;
+    void restoreClearedSpawnTracking() {
+      final cleared = clearedSpawnTracking;
+      if (cleared == null) return;
+      clearedSpawnTracking = null;
+      // A successful spawn re-registered fresh tracking — keep it.
+      if (_sessionSpawnedAt.containsKey(sessionId)) return;
+      if (cleared.at case final at?) _sessionSpawnedAt[sessionId] = at;
+      if (cleared.hadProfile) {
+        _sessionSpawnedProfile[sessionId] = cleared.profile;
+      }
+      if (cleared.hadModel) _sessionSpawnedModel[sessionId] = cleared.model;
+      if (cleared.agent case final agent?) {
+        _sessionSpawnedAgent[sessionId] = agent;
+      }
+    }
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '
@@ -563,10 +628,14 @@ extension SyncSpawnProfileResolution on Sync {
           // new profile/model instead of re-using the old one. The machine
           // replacement RPC owns the process boundary: it kills the old
           // process and starts a new one with the replacement environment.
-          _sessionSpawnedAt.remove(sessionId);
-          _sessionSpawnedProfile.remove(sessionId);
-          _sessionSpawnedModel.remove(sessionId);
-          _sessionSpawnedAgent.remove(sessionId);
+          clearedSpawnTracking = (
+            at: _sessionSpawnedAt.remove(sessionId),
+            hadProfile: _sessionSpawnedProfile.containsKey(sessionId),
+            profile: _sessionSpawnedProfile.remove(sessionId),
+            hadModel: _sessionSpawnedModel.containsKey(sessionId),
+            model: _sessionSpawnedModel.remove(sessionId),
+            agent: _sessionSpawnedAgent.remove(sessionId),
+          );
         }
       }
     } else if (looksReady || recentlySpawned) {
@@ -583,6 +652,7 @@ extension SyncSpawnProfileResolution on Sync {
         machineId.isEmpty ||
         path == null ||
         path.isEmpty) {
+      restoreClearedSpawnTracking();
       if (lifecycleErrored) {
         throw StateError(
           'Could not restore stopped session $sessionId: '
@@ -599,6 +669,7 @@ extension SyncSpawnProfileResolution on Sync {
     // Fail fast if the machine is offline — don't wait 60 s for a timeout.
     final machine = _machines[machineId];
     if (machine != null && !machine.isOnline) {
+      restoreClearedSpawnTracking();
       logger.info(
         '[sendMessage] machine=$machineId is offline, '
         'skipping auto-restore',
@@ -713,14 +784,13 @@ extension SyncSpawnProfileResolution on Sync {
         ),
         environmentVariables: effectiveEnvVars,
       );
-      final result = await _typedMachineRPC(
+      final result = await _spawnHappySessionRPC(
         machineId,
-        'spawn-happy-session',
-        req.toJson(),
-        SpawnSessionResponse.fromJson,
+        req,
         timeout: const Duration(seconds: 60),
       );
       if (result.type != 'success') {
+        restoreClearedSpawnTracking();
         final errorMsg = result.errorMessage ?? '';
         // If the error indicates the session/machine doesn't exist, treat it
         // as permanent — don't return fallback which would cause _completeSend
@@ -915,6 +985,7 @@ extension SyncSpawnProfileResolution on Sync {
       completer.complete(restored);
       return restored;
     } catch (error, stack) {
+      restoreClearedSpawnTracking();
       // Transient network errors and unsupported RPC methods during
       // auto-restore are expected — log at info to avoid Sentry noise.
       if (Sync._isTransientRpcError(error) ||

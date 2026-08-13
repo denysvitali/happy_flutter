@@ -612,11 +612,9 @@ extension SyncMessagingRpc on Sync {
         ),
         environmentVariables: effectiveEnvVars,
       );
-      final result = await _typedMachineRPC(
+      final result = await _spawnHappySessionRPC(
         machineId,
-        'spawn-happy-session',
-        req.toJson(),
-        SpawnSessionResponse.fromJson,
+        req,
         timeout: const Duration(seconds: 60),
       );
       if (result.type == 'success') {

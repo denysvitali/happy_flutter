@@ -1791,6 +1791,110 @@ void main() {
         reason: 'A no-op send (Default → Default) must not respawn',
       );
     });
+
+    test('spawn rejected with unknown-field isRestore is retried without '
+        'the field (pre-field daemon compat)', () async {
+      const sessionId = 'legacy-daemon-isrestore';
+      final spawnParams = <Map<String, dynamic>>[];
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'deepseek',
+      );
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          spawnParams.add(params);
+          if (params.containsKey('isRestore')) {
+            throw const RpcException(
+              code: RpcErrorCode.unknown,
+              message:
+                  'unmarshal JSON to protobuf request: proto: '
+                  '(line 1:111): unknown field "isRestore"',
+              retryable: false,
+            );
+          }
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'success'};
+      };
+
+      try {
+        await sync.sendMessage(sessionId, 'hello', profileId: 'anthropic');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+
+      expect(
+        spawnParams,
+        hasLength(2),
+        reason:
+            'A daemon that predates the isRestore field rejects the whole '
+            'request; the spawn must be retried without the field instead '
+            'of failing the respawn.',
+      );
+      expect(spawnParams.first.containsKey('isRestore'), isTrue);
+      expect(spawnParams.last.containsKey('isRestore'), isFalse);
+    });
+
+    test('failed respawn keeps the pending profile change so the next send '
+        'retries instead of silently using the old model', () async {
+      const sessionId = 'failed-respawn-retries';
+      var spawnAttempts = 0;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'deepseek',
+      );
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          spawnAttempts++;
+          throw const RpcException(
+            code: RpcErrorCode.unknown,
+            message: 'daemon exploded',
+            retryable: false,
+          );
+        }
+        return <String, dynamic>{'type': 'success'};
+      };
+
+      try {
+        await sync.sendMessage(sessionId, 'hello', profileId: 'anthropic');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+      expect(spawnAttempts, 1);
+
+      try {
+        await sync.sendMessage(sessionId, 'again', profileId: 'anthropic');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+
+      expect(
+        spawnAttempts,
+        2,
+        reason:
+            'The spawn tracking cleared for the respawn must be restored '
+            'when the respawn fails — otherwise the profile/model change is '
+            'forgotten and every later send keeps the old process alive.',
+      );
+    });
   });
 }
 
