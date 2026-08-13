@@ -434,38 +434,73 @@ class _StatusRow extends StatelessWidget {
           : SizedBox(
               key: chipKey,
               height: 22,
-              child: ClipRect(
-                child: Row(
-                  children: [
-                    for (final (index, chip) in statusChips.indexed) ...[
-                      if (index > 0) const SizedBox(width: AppSpacing.xs),
-                      Flexible(
-                        fit: FlexFit.loose,
-                        flex: chip.text.length > 18 ? 2 : 1,
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: 1,
-                          child: SessionHeaderChip(
-                            text: chip.text,
-                            tooltip: chip.text,
-                            leading: chip.showDot
-                                ? AppStatusDot(
-                                    color: chip.color,
-                                    pulse: chip.pulse,
-                                    size: 6,
-                                  )
-                                : Icon(chip.icon, size: 11, color: chip.color),
-                            textColor: chip.color,
-                            backgroundColor: chip.color.withValues(alpha: 0.08),
-                            borderColor: chip.color.withValues(alpha: 0.16),
-                          ),
+              // Chips keep their intrinsic width and the row scrolls when
+              // they overrun the title column, under a trailing fade that
+              // marks the cut. Sharing the width with `Flexible` truncated
+              // every chip at once — two short chips rendered as "On…" and
+              // "Th…" on a phone-width app bar — while flexing only the
+              // last one overflowed the Row once three chips were present.
+              child: _FadingEdge(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const ClampingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      for (final (index, chip) in statusChips.indexed) ...[
+                        if (index > 0) const SizedBox(width: AppSpacing.xs),
+                        SessionHeaderChip(
+                          text: chip.text,
+                          tooltip: chip.text,
+                          leading: chip.showDot
+                              ? AppStatusDot(
+                                  color: chip.color,
+                                  pulse: chip.pulse,
+                                  size: 6,
+                                )
+                              : Icon(chip.icon, size: 11, color: chip.color),
+                          textColor: chip.color,
+                          backgroundColor: chip.color.withValues(alpha: 0.08),
+                          borderColor: chip.color.withValues(alpha: 0.16),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
+    );
+  }
+
+}
+
+/// Fades out the trailing edge of a horizontally scrollable strip so a chip
+/// cut off by the app bar's width reads as "there is more", not as a
+/// rendering glitch.
+class _FadingEdge extends StatelessWidget {
+  const _FadingEdge({required this.child});
+
+  static const double _fadeWidth = 16;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        if (!width.isFinite || width <= _fadeWidth * 2) return child;
+        final solid = 1 - _fadeWidth / width;
+        return ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) => LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: const [Colors.white, Colors.white, Colors.transparent],
+            stops: [0, solid, 1],
+          ).createShader(bounds),
+          child: child,
+        );
+      },
     );
   }
 }
