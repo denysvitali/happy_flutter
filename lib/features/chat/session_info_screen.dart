@@ -263,10 +263,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
     setState(() => _isArchiving = true);
     try {
-      await api.setSessionArchived(sessionId, true);
       await ref
           .read(sessionsNotifierProvider.notifier)
           .markSessionArchived(sessionId, true);
+      await api.setSessionArchived(sessionId, true);
       if (!mounted) return;
       if (!embedded) {
         safePop<void>(context);
