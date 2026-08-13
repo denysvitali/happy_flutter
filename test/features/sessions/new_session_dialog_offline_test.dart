@@ -892,11 +892,15 @@ void main() {
         findsNothing,
       );
 
-      // Switching machines clears the previously-selected path; type a
-      // path so the only remaining gate is the machine status.
+      // Kubernetes creation is repository/ref centric. Switching machines
+      // clears the repository selection, so provide both required fields.
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Path'),
-        '/repo',
+        find.widgetWithText(TextFormField, 'Git repository'),
+        'https://github.com/acme/repo.git',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Branch or ref'),
+        'main',
       );
       await tester.pump();
 
@@ -906,7 +910,7 @@ void main() {
       expect(
         createButton.onPressed,
         isNotNull,
-        reason: 'online machine + path must enable Create',
+        reason: 'online machine + repository/ref must enable Create',
       );
     });
   });

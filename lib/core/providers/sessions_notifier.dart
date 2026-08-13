@@ -205,6 +205,10 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   /// accepted the deletion.
   Future<bool> optimisticDelete(String id) async {
     final snapshot = state;
+    final session = snapshot[id];
+    if (session != null && !await _cleanupKubernetesSession(session)) {
+      return false;
+    }
     _publish(Map<String, Session>.from(state)..remove(id));
     try {
       final ok = await sync.deleteSession(id);
@@ -230,20 +234,34 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   Future<int> optimisticBatchDelete(List<String> ids) async {
     if (ids.isEmpty) return 0;
     final snapshot = state;
+    final cleanupResults = await Future.wait(
+      ids.map((id) async {
+        final session = snapshot[id];
+        return session == null || await _cleanupKubernetesSession(session);
+      }),
+    );
+    final cleanupFailed = <String>{
+      for (var i = 0; i < ids.length; i++)
+        if (!cleanupResults[i]) ids[i],
+    };
+    final deletableIds = ids
+        .where((id) => !cleanupFailed.contains(id))
+        .toList();
     _publish(
       Map<String, Session>.from(state)
-        ..removeWhere((id, _) => ids.contains(id)),
+        ..removeWhere((id, _) => deletableIds.contains(id)),
     );
-    final results = await Future.wait(ids.map(sync.deleteSession));
-    var failCount = 0;
-    for (var i = 0; i < ids.length; i++) {
+    final results = await Future.wait(deletableIds.map(sync.deleteSession));
+    var failCount = cleanupFailed.length;
+    for (var i = 0; i < deletableIds.length; i++) {
       if (!results[i]) failCount++;
     }
     if (failCount > 0) {
       // Restore only the ones that failed.
-      for (var i = 0; i < ids.length; i++) {
-        if (!results[i] && snapshot.containsKey(ids[i])) {
-          _publish({...state, ids[i]: snapshot[ids[i]]!});
+      for (var i = 0; i < deletableIds.length; i++) {
+        final id = deletableIds[i];
+        if (!results[i] && snapshot.containsKey(id)) {
+          _publish({...state, id: snapshot[id]!});
         }
       }
     }
@@ -304,7 +322,35 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
   /// current sync API; passing [archived] = false is a no-op.
   Future<void> markSessionArchived(String id, bool archived) async {
     if (!sync.isInitialized || !archived) return;
+    final session = state[id];
+    if (session != null && !await _cleanupKubernetesSession(session)) {
+      throw StateError('Failed to clean up Kubernetes session resources');
+    }
     sync.markSessionArchived(id);
+  }
+
+  Future<bool> _cleanupKubernetesSession(Session session) async {
+    final metadata = session.metadata;
+    final machineId = metadata?.machineId;
+    if (!session.isKubernetesSession ||
+        machineId == null ||
+        machineId.isEmpty) {
+      return true;
+    }
+    try {
+      final response = await sync.machineKillSessionPod(
+        machineId: machineId,
+        sessionId: session.id,
+      );
+      return response.success;
+    } catch (error, stack) {
+      logger.warning(
+        'Failed to clean Kubernetes resources for ${session.id}',
+        error,
+        stack,
+      );
+      return false;
+    }
   }
 
   /// Create a new session.

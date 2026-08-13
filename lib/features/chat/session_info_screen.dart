@@ -263,7 +263,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
     setState(() => _isArchiving = true);
     try {
-      await _cleanupKubernetesRuntimeBeforeRemoval();
       await api.setSessionArchived(sessionId, true);
       await ref
           .read(sessionsNotifierProvider.notifier)
@@ -318,20 +317,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (confirmed != true) return;
     if (!mounted) return;
     setState(() => _isDeleting = true);
-    try {
-      await _cleanupKubernetesRuntimeBeforeRemoval();
-    } catch (error, stack) {
-      logger.error(
-        'Failed to clean up Kubernetes session resources',
-        error,
-        stack,
-      );
-      if (mounted) {
-        setState(() => _isDeleting = false);
-        _showError(failedDeleteMsg);
-      }
-      return;
-    }
     final deleted = await sessionsNotifier.optimisticDelete(sessionId);
     if (!mounted) return;
     setState(() => _isDeleting = false);
@@ -341,23 +326,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       }
     } else {
       _showError(failedDeleteMsg);
-    }
-  }
-
-  Future<void> _cleanupKubernetesRuntimeBeforeRemoval() async {
-    final metadata = widget.session.metadata;
-    final machineId = metadata?.machineId;
-    if (!widget.session.isKubernetesSession ||
-        machineId == null ||
-        machineId.isEmpty) {
-      return;
-    }
-    final response = await sync.machineKillSessionPod(
-      machineId: machineId,
-      sessionId: widget.session.id,
-    );
-    if (!response.success) {
-      throw StateError(response.message);
     }
   }
 
