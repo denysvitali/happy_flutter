@@ -482,25 +482,6 @@ extension SyncLifecycle on Sync {
             );
             try {
               messagesSync[sessionId]?.invalidate();
-              final messageQueue = messagesSync[sessionId]?.awaitQueue();
-              if (messageQueue != null) {
-                unawaited(
-                  messageQueue.then(
-                    (_) => _advanceResumeConversationProgress(1),
-                    onError: (Object e, StackTrace st) {
-                      logger.warning(
-                        '[Sync] resume: immediate messagesSync[$sessionId] '
-                        'failed — catalog recovery will retry: $e',
-                        e,
-                        st,
-                      );
-                      _advanceResumeConversationProgress(1);
-                    },
-                  ),
-                );
-              } else {
-                _advanceResumeConversationProgress(1);
-              }
             } on Object catch (e, st) {
               logger.warning(
                 '[Sync] resume: immediate messagesSync[$sessionId] '
@@ -516,7 +497,6 @@ extension SyncLifecycle on Sync {
                   }),
                 ),
               );
-              _advanceResumeConversationProgress(1);
             }
           }
 
@@ -549,6 +529,11 @@ extension SyncLifecycle on Sync {
                 )
                 .then((_) {
                   for (final sessionId in sessionsToRefresh) {
+                    final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
+                    final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
+                    if (serverLastSeq <= cursorSeq) {
+                      continue;
+                    }
                     _requestMessageFetchProbe(
                       sessionId,
                       intent: probeIntents[sessionId],
@@ -607,6 +592,10 @@ extension SyncLifecycle on Sync {
                   );
                 })
                 .whenComplete(() {
+                  // ALWAYS advance — even on failure — so the
+                  // "Fetching conversations" bar never hangs at
+                  // "0 of N complete".
+                  _advanceResumeConversationProgress(sessionsToRefresh.length);
                   if (shouldRunGlobalInvalidation) {
                     _schedulePostResumeNonCriticalSyncs();
                   }

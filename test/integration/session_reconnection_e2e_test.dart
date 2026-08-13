@@ -566,13 +566,20 @@ void main() {
         );
 
         final messageFetchStarted = Completer<void>();
+        var messageFetchCount = 0;
         sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          messageFetchCount++;
           if (!messageFetchStarted.isCompleted) {
             messageFetchStarted.complete();
           }
-          return _buildMessagesResponse([
-            _makeEncryptedMessage('msg-11', seq: 11),
-          ]);
+          return _buildMessagesResponse(
+            afterSeq <= 10
+                ? [_makeEncryptedMessage('msg-11', seq: 11)]
+                : [
+                    for (var i = 12; i <= 15; i++)
+                      _makeEncryptedMessage('msg-$i', seq: i),
+                  ],
+          );
         };
 
         sync.suspend();
@@ -593,7 +600,10 @@ void main() {
         await sync.messagesSync[sessionId]?.awaitQueue();
 
         final messages = sync.testSessionMessages(sessionId)!;
-        expect(messages.where((m) => m['seq'] == 11), hasLength(1));
+        expect(messageFetchCount, 2);
+        for (var i = 11; i <= 15; i++) {
+          expect(messages.where((m) => m['seq'] == i), hasLength(1));
+        }
       },
     );
 

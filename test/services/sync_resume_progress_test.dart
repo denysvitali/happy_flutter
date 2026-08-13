@@ -250,10 +250,10 @@ void main() {
         expect(instance.testSyncProgress, isNull);
         expect(
           messageFetches,
-          equals(0),
+          equals(1),
           reason:
-              'message fetches should not fan out while the prerequisite '
-              'sessions refresh is still stuck',
+              'visible message recovery must not wait behind a stuck '
+              'sessions refresh',
         );
 
         sessionsBlocker.complete();
@@ -332,8 +332,8 @@ void main() {
 
         // Now the underlying sessionsSync work actually finishes in
         // the background. This must not throw and the messagesSync
-        // for the pending session must NOT fire — the .then() chain
-        // was already cleared by the timeout path.
+        // for the pending session must not fire a second time — the .then()
+        // chain was already cleared by the timeout path.
         sessionsBlocker.complete();
         async.elapse(const Duration(seconds: 1));
         async.flushMicrotasks();
@@ -341,10 +341,10 @@ void main() {
         expect(unexpectedErrors, isEmpty);
         expect(
           messageFetches,
-          equals(0),
+          equals(1),
           reason:
-              'late completion of the timed-out awaitQueue() must not '
-              're-fire the deferred messagesSync.invalidate() chain',
+              'visible recovery starts immediately, but late completion of '
+              'the timed-out catalog must not re-fire it',
         );
       });
     });
