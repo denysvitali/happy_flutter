@@ -432,6 +432,7 @@ void main() {
     Widget buildHarness({
       required Map<String, Machine> machines,
       String? initialMachineId,
+      String? initialPath,
       String? initialRepositoryUrl = 'https://example.com/repo.git',
       Future<String> Function()? onCreateSession,
     }) {
@@ -452,7 +453,7 @@ void main() {
           home: Scaffold(
             body: NewSessionDialog(
               initialMachineId: initialMachineId,
-              initialPath: null,
+              initialPath: initialPath,
               initialRepositoryUrl: initialRepositoryUrl,
             ),
           ),
@@ -800,6 +801,37 @@ void main() {
       expect(find.text('Git repository'), findsOneWidget);
       expect(find.text('Branch or ref'), findsOneWidget);
       expect(find.text('Spawn on'), findsNothing);
+    });
+
+    testWidgets('supports local sessions alongside Kubernetes sessions', (
+      tester,
+    ) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final machine = _machine(
+        id: 'm-both',
+        displayName: 'Hybrid Box',
+        active: true,
+        activeAtMs: now,
+        spawnBackends: const ['local', 'kubernetes'],
+        defaultSpawnBackend: 'local',
+      );
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {'m-both': machine},
+          initialMachineId: 'm-both',
+          initialPath: '/home/me/project',
+        ),
+      );
+
+      expect(find.text('Local'), findsOneWidget);
+      expect(find.text('Kubernetes'), findsOneWidget);
+      expect(find.text('Path'), findsOneWidget);
+      expect(find.text('Git repository'), findsNothing);
+      final createButton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Create'),
+      );
+      expect(createButton.onPressed, isNotNull);
     });
 
     testWidgets('Kubernetes session requires repository URL', (tester) async {
