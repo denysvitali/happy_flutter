@@ -927,20 +927,12 @@ void main() {
       sync.onTailRefreshRequested = null;
     });
 
-    test('resume() chains visible session messagesSync invalidation '
-        'AFTER sessionsSync completes (not in parallel)', () {
-      // THE RACE CONDITION BEING TESTED:
-      //
-      // OLD BUG: resume() called messagesSync.invalidate() immediately after
-      // _invalidateAllSyncs(), in the same synchronous block. Both were queued
-      // as microtasks and ran in undefined order. If messagesSync._run() (which
-      // calls fetchMessages) ran BEFORE sessionsSync._run() (which updates
-      // _sessions[sessionId].lastSeq), fetchMessages would see stale serverLastSeq
-      // and skip via "already caught up" — losing messages.
-      //
-      // NEW FIX: resume() chains messagesSync.invalidate() inside
-      // sessionsSync.invalidateAndAwait().then(...), guaranteeing that
-      // sessionsSync completes first and _sessions[sessionId].lastSeq is updated.
+    test('resume() starts visible message recovery without waiting for the '
+        'sessions catalog', () {
+      // Message recovery now forces an authoritative endpoint probe, so it no
+      // longer depends on the cached Session.lastSeq hint being refreshed
+      // first. This removes the user-visible catalog wait while the guarded
+      // post-catalog probe still closes any cursor gap discovered later.
 
       fakeAsync((async) {
         final visibleId = 'visible-session';
@@ -968,17 +960,16 @@ void main() {
         async.elapse(const Duration(milliseconds: 2500));
         async.flushMicrotasks();
 
-        // Verify messagesSync ran AFTER sessionsSync (chained, not parallel).
-        // sessionsSync may appear multiple times due to _invalidateAllSyncs
-        // calling it for both phase=null and phase=_criticalSyncPhase.
-        // The key invariant: messagesSync LAST (after all sessionsSync calls).
+        // The authoritative message probe must start before the catalog work.
+        // With no refreshed server cursor in this fixture, no redundant
+        // post-catalog probe is needed.
         expect(
-          callOrder.last,
+          callOrder.first,
           equals('messagesSync'),
           reason:
-              'messagesSync must be the LAST call (chained after sessionsSync, '
-              'not parallel — this is the race condition fix)',
+              'visible message recovery must not wait for sessionsSync',
         );
+        expect(callOrder.where((call) => call == 'messagesSync'), hasLength(1));
       });
     });
 
