@@ -73,7 +73,7 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('shows one reconnecting status while sync is active', (
+  testWidgets('does not duplicate socket recovery while sync is active', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -102,11 +102,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Connecting'), findsOneWidget);
-    expect(
-      find.text('Sync is waiting for live updates to reconnect'),
-      findsOneWidget,
-    );
+    expect(find.text('Connecting'), findsNothing);
     expect(find.text('Syncing'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);

@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-09
+**Last Updated**: 2026-08-13
 
 ### Cross-platform trust and interaction audit, 2026-08-08
 
@@ -142,6 +142,11 @@ redials replacing Socket.IO's own active retry Manager. Codex catalogs now
 coalesce per machine and use bounded positive/failure TTLs. Lifecycle,
 connectivity, and watchdog reconnect requests preserve an opening/reconnecting
 Manager instead of discarding its generation and stranding ACK callers.
+Startup and resume no longer present that routine handshake as two simultaneous
+outage banners. Socket recovery has an eight-second UI grace period, while the
+visible chat's authoritative HTTP message probe now runs in parallel with the
+sessions-catalog refresh instead of waiting behind it; a second post-catalog
+probe preserves convergence for messages created during the first request.
 
 ### Live performance remediation, 2026-08-08
 

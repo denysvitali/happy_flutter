@@ -24,6 +24,11 @@ import '../theme/app_tokens.dart';
 class OfflineBanner extends ConsumerWidget {
   const OfflineBanner({super.key});
 
+  /// Socket handshakes are expected during every cold start and resume.
+  /// Only promote the transient state to a user-facing outage when it lasts
+  /// long enough to be actionable.
+  static const reconnectGracePeriod = Duration(seconds: 8);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isOnline = ref.watch(networkNotifierProvider);
@@ -47,13 +52,62 @@ class OfflineBanner extends ConsumerWidget {
       );
     }
 
-    // Online but socket not connected — show reconnecting state with
-    // countdown timer and manual reconnect button.
-    return const _AnimatedBannerShell(
-      visible: true,
-      child: _ReconnectingBanner(),
-    );
+    // A socket handshake is routine on startup/resume. Avoid flashing an
+    // outage banner over every chat while the connection is still within its
+    // normal grace period. The reconnect watchdog continues running during
+    // this delay, and a persistent failure still surfaces with a manual
+    // recovery action.
+    return _DelayedReconnectingBanner(status: socketStatus);
   }
+}
+
+class _DelayedReconnectingBanner extends StatefulWidget {
+  const _DelayedReconnectingBanner({required this.status});
+
+  final ConnectionStatus status;
+
+  @override
+  State<_DelayedReconnectingBanner> createState() =>
+      _DelayedReconnectingBannerState();
+}
+
+class _DelayedReconnectingBannerState
+    extends State<_DelayedReconnectingBanner> {
+  Timer? _graceTimer;
+  late bool _visible;
+
+  @override
+  void initState() {
+    super.initState();
+    _visible = widget.status == ConnectionStatus.error;
+    if (!_visible) {
+      _graceTimer = Timer(OfflineBanner.reconnectGracePeriod, () {
+        if (mounted) setState(() => _visible = true);
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _DelayedReconnectingBanner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.status == ConnectionStatus.error && !_visible) {
+      _graceTimer?.cancel();
+      _graceTimer = null;
+      _visible = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _graceTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _AnimatedBannerShell(
+    visible: _visible,
+    child: _visible ? const _ReconnectingBanner() : null,
+  );
 }
 
 /// Banner body for the "reconnecting" state. Manages a per-second

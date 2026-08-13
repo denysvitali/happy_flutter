@@ -14,11 +14,9 @@ class SyncProgressBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final syncState = ref.watch(syncStateNotifierProvider);
-    final isOnline = ref.watch(networkNotifierProvider);
     final connectionStatus = ref.watch(connectionNotifierProvider);
     final progress = syncState.progress;
     final status = _StatusBarState.resolve(
-      isOnline: isOnline,
       connectionStatus: connectionStatus,
       isSyncing: syncState.isSyncing,
       progress: progress,
@@ -184,44 +182,17 @@ class _StatusBarState {
   bool get showProgressLine => kind == _StatusBarKind.sync;
 
   static _StatusBarState? resolve({
-    required bool isOnline,
     required ConnectionStatus connectionStatus,
     required bool isSyncing,
     required SyncProgress? progress,
     required bool hasCriticalFailure,
   }) {
-    if (!isOnline) {
-      return const _StatusBarState(
-        key: 'offline',
-        title: 'Offline',
-        detail: 'Changes will sync when the network returns',
-        icon: Icons.wifi_off_rounded,
-        kind: _StatusBarKind.error,
-      );
-    }
-
-    if (connectionStatus == ConnectionStatus.error) {
-      return const _StatusBarState(
-        key: 'socket-error',
-        title: 'Connection issue',
-        detail: 'Retrying the live update connection',
-        icon: Icons.error_outline_rounded,
-        kind: _StatusBarKind.warning,
-      );
-    }
-
+    // OfflineBanner owns network/socket recovery. In particular, connecting
+    // is the normal state during every startup and resume, not a sync error.
+    // Suppressing progress here avoids stacking two banners and falsely
+    // claiming that HTTP message catch-up is waiting on the socket.
     if (connectionStatus != ConnectionStatus.connected) {
-      return _StatusBarState(
-        key: 'reconnecting',
-        title: connectionStatus == ConnectionStatus.connecting
-            ? 'Connecting'
-            : 'Reconnecting',
-        detail: isSyncing
-            ? 'Sync is waiting for live updates to reconnect'
-            : 'Restoring live updates',
-        icon: Icons.sync_rounded,
-        kind: _StatusBarKind.warning,
-      );
+      return null;
     }
 
     if (isSyncing || progress != null) {
@@ -267,10 +238,6 @@ class _StatusBarState {
         AppColors.iosBlue.withValues(alpha: 0.12),
         cs.surface,
       ),
-      _StatusBarKind.warning => Color.alphaBlend(
-        AppColors.warning.withValues(alpha: 0.16),
-        cs.surface,
-      ),
       _StatusBarKind.error => cs.errorContainer,
     };
   }
@@ -278,10 +245,9 @@ class _StatusBarState {
   Color foregroundColor(ColorScheme cs) {
     return switch (kind) {
       _StatusBarKind.sync => AppColors.iosBlue,
-      _StatusBarKind.warning => AppColors.warning,
       _StatusBarKind.error => cs.onErrorContainer,
     };
   }
 }
 
-enum _StatusBarKind { sync, warning, error }
+enum _StatusBarKind { sync, error }

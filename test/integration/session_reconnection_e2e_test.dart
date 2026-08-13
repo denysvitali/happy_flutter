@@ -549,6 +549,55 @@ void main() {
     });
 
     test(
+      'visible message recovery does not wait for the sessions catalog',
+      () async {
+        const sessionId = 'resume-visible-slow-catalog';
+        final catalogGate = Completer<void>();
+
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
+        sync.testVisibleSessionId = sessionId;
+        sync.testSetSessionLastSeq(sessionId, 10);
+        sync.testSetSessionMessages(sessionId, [
+          for (var i = 1; i <= 10; i++) _makePlainMessage('msg-$i', seq: i),
+        ]);
+        sync.sessionsSync = InvalidateSync(() => catalogGate.future);
+        sync.messagesSync[sessionId] = InvalidateSync(
+          () => sync.fetchMessages(sessionId),
+        );
+
+        final messageFetchStarted = Completer<void>();
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          if (!messageFetchStarted.isCompleted) {
+            messageFetchStarted.complete();
+          }
+          return _buildMessagesResponse([
+            _makeEncryptedMessage('msg-11', seq: 11),
+          ]);
+        };
+
+        sync.suspend();
+        sync.resume();
+
+        await Future<void>.delayed(const Duration(milliseconds: 700));
+        expect(
+          messageFetchStarted.isCompleted,
+          isTrue,
+          reason:
+              'the visible chat must catch up over HTTP while the slower '
+              'sessions catalog refresh is still in flight',
+        );
+        expect(catalogGate.isCompleted, isFalse);
+
+        catalogGate.complete();
+        await sync.sessionsSync.awaitQueue();
+        await sync.messagesSync[sessionId]?.awaitQueue();
+
+        final messages = sync.testSessionMessages(sessionId)!;
+        expect(messages.where((m) => m['seq'] == 11), hasLength(1));
+      },
+    );
+
+    test(
       'suspend then resume recovers non-visible session messages '
       'from pending socket id-only events',
       () async {

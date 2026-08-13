@@ -468,7 +468,59 @@ extension SyncLifecycle on Sync {
               sessionId: _captureMessageFetchProbeIntent(sessionId),
           };
 
-          // Ensure sessions are fresh, then refresh messages.
+          // Message catch-up is authoritative on its own HTTP endpoint and
+          // must not sit behind a potentially slow sessions-catalog fetch.
+          // Start one probe immediately so the visible chat can receive new
+          // rows while the socket handshake and catalog refresh continue in
+          // parallel. We probe again after sessions settles below to close
+          // the race with messages created during the first request; normal
+          // merge/dedup keeps overlapping results idempotent.
+          for (final sessionId in sessionsToRefresh) {
+            _requestMessageFetchProbe(
+              sessionId,
+              intent: probeIntents[sessionId],
+            );
+            try {
+              messagesSync[sessionId]?.invalidate();
+              final messageQueue = messagesSync[sessionId]?.awaitQueue();
+              if (messageQueue != null) {
+                unawaited(
+                  messageQueue.then(
+                    (_) => _advanceResumeConversationProgress(1),
+                    onError: (Object e, StackTrace st) {
+                      logger.warning(
+                        '[Sync] resume: immediate messagesSync[$sessionId] '
+                        'failed — catalog recovery will retry: $e',
+                        e,
+                        st,
+                      );
+                      _advanceResumeConversationProgress(1);
+                    },
+                  ),
+                );
+              } else {
+                _advanceResumeConversationProgress(1);
+              }
+            } on Object catch (e, st) {
+              logger.warning(
+                '[Sync] resume: immediate messagesSync[$sessionId] '
+                'invalidate() threw — catalog recovery will retry: $e',
+              );
+              unawaited(
+                Sentry.captureException(
+                  e,
+                  stackTrace: st,
+                  hint: Hint.withMap(<String, dynamic>{
+                    'where': 'resume.immediate.messagesSync.invalidate',
+                    'sessionId': sessionId,
+                  }),
+                ),
+              );
+              _advanceResumeConversationProgress(1);
+            }
+          }
+
+          // Refresh messages again after sessions are fresh.
           // Use invalidate() + awaitQueue() instead of a second
           // invalidateAndAwait() — the socket reconnection handler
           // already kicked off a sessions fetch via
@@ -555,10 +607,6 @@ extension SyncLifecycle on Sync {
                   );
                 })
                 .whenComplete(() {
-                  // ALWAYS advance — even on failure — so the
-                  // "Fetching conversations" bar never hangs at
-                  // "0 of N complete".
-                  _advanceResumeConversationProgress(sessionsToRefresh.length);
                   if (shouldRunGlobalInvalidation) {
                     _schedulePostResumeNonCriticalSyncs();
                   }
