@@ -772,6 +772,192 @@ abstract class AppLocalizations {
   /// **'Could not start session. Please try again.'**
   String get newSessionCouldNotStartSession;
 
+  /// No description provided for @newSessionRepositoryUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Git repository'**
+  String get newSessionRepositoryUrl;
+
+  /// No description provided for @newSessionRepositoryRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'A git repository is required'**
+  String get newSessionRepositoryRequired;
+
+  /// No description provided for @newSessionGitRef.
+  ///
+  /// In en, this message translates to:
+  /// **'Branch or ref'**
+  String get newSessionGitRef;
+
+  /// No description provided for @newSessionGitRefHint.
+  ///
+  /// In en, this message translates to:
+  /// **'main'**
+  String get newSessionGitRefHint;
+
+  /// No description provided for @newSessionGitRefRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'A branch or git ref is required'**
+  String get newSessionGitRefRequired;
+
+  /// No description provided for @newSessionKubernetesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This daemon cannot create Kubernetes pods'**
+  String get newSessionKubernetesUnavailable;
+
+  /// No description provided for @sessionPodSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes pod'**
+  String get sessionPodSection;
+
+  /// No description provided for @sessionPod.
+  ///
+  /// In en, this message translates to:
+  /// **'Session pod'**
+  String get sessionPod;
+
+  /// No description provided for @sessionPodScheduling.
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduling'**
+  String get sessionPodScheduling;
+
+  /// No description provided for @sessionPodReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get sessionPodReady;
+
+  /// No description provided for @sessionPodPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get sessionPodPaused;
+
+  /// No description provided for @sessionPodArchived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get sessionPodArchived;
+
+  /// No description provided for @sessionPodFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get sessionPodFailed;
+
+  /// No description provided for @sessionPodLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the pod state. Check that the daemon is online and up to date.'**
+  String get sessionPodLoadFailed;
+
+  /// No description provided for @sessionPodLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs'**
+  String get sessionPodLogs;
+
+  /// No description provided for @sessionPodLogsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No pod logs are available yet.'**
+  String get sessionPodLogsEmpty;
+
+  /// No description provided for @sessionPodLogsTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the most recent pod log lines.'**
+  String get sessionPodLogsTruncated;
+
+  /// No description provided for @sessionPodPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get sessionPodPause;
+
+  /// No description provided for @sessionPodResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get sessionPodResume;
+
+  /// No description provided for @sessionPodKill.
+  ///
+  /// In en, this message translates to:
+  /// **'Kill pod'**
+  String get sessionPodKill;
+
+  /// No description provided for @claudeAuthTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code authentication'**
+  String get claudeAuthTitle;
+
+  /// No description provided for @claudeAuthSharedCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared Claude Code credentials'**
+  String get claudeAuthSharedCredentials;
+
+  /// No description provided for @claudeAuthSharedCredentialsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate once with your Claude subscription and share it with all session pods.'**
+  String get claudeAuthSharedCredentialsHelp;
+
+  /// No description provided for @claudeAuthInstructions.
+  ///
+  /// In en, this message translates to:
+  /// **'Start authentication, sign in to Claude Code in your browser, then paste the authorization response below.'**
+  String get claudeAuthInstructions;
+
+  /// No description provided for @claudeAuthAuthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'Claude Code is authenticated. New session pods will use the shared credentials.'**
+  String get claudeAuthAuthenticated;
+
+  /// No description provided for @claudeAuthOpenLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Open sign-in link'**
+  String get claudeAuthOpenLink;
+
+  /// No description provided for @claudeAuthResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorization response'**
+  String get claudeAuthResponse;
+
+  /// No description provided for @claudeAuthResponseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste the complete response from Claude'**
+  String get claudeAuthResponseHint;
+
+  /// No description provided for @claudeAuthBegin.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate'**
+  String get claudeAuthBegin;
+
+  /// No description provided for @claudeAuthAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate again'**
+  String get claudeAuthAgain;
+
+  /// No description provided for @claudeAuthComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get claudeAuthComplete;
+
   /// No description provided for @newSessionMachineDetails.
   ///
   /// In en, this message translates to:

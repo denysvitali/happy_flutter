@@ -386,6 +386,106 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not start session. Please try again.';
 
   @override
+  String get newSessionRepositoryUrl => 'Git repository';
+
+  @override
+  String get newSessionRepositoryRequired => 'A git repository is required';
+
+  @override
+  String get newSessionGitRef => 'Branch or ref';
+
+  @override
+  String get newSessionGitRefHint => 'main';
+
+  @override
+  String get newSessionGitRefRequired => 'A branch or git ref is required';
+
+  @override
+  String get newSessionKubernetesUnavailable =>
+      'This daemon cannot create Kubernetes pods';
+
+  @override
+  String get sessionPodSection => 'Kubernetes pod';
+
+  @override
+  String get sessionPod => 'Session pod';
+
+  @override
+  String get sessionPodScheduling => 'Scheduling';
+
+  @override
+  String get sessionPodReady => 'Ready';
+
+  @override
+  String get sessionPodPaused => 'Paused';
+
+  @override
+  String get sessionPodArchived => 'Archived';
+
+  @override
+  String get sessionPodFailed => 'Failed';
+
+  @override
+  String get sessionPodLoadFailed =>
+      'Could not load the pod state. Check that the daemon is online and up to date.';
+
+  @override
+  String get sessionPodLogs => 'Logs';
+
+  @override
+  String get sessionPodLogsEmpty => 'No pod logs are available yet.';
+
+  @override
+  String get sessionPodLogsTruncated =>
+      'Showing the most recent pod log lines.';
+
+  @override
+  String get sessionPodPause => 'Pause';
+
+  @override
+  String get sessionPodResume => 'Resume';
+
+  @override
+  String get sessionPodKill => 'Kill pod';
+
+  @override
+  String get claudeAuthTitle => 'Claude Code authentication';
+
+  @override
+  String get claudeAuthSharedCredentials => 'Shared Claude Code credentials';
+
+  @override
+  String get claudeAuthSharedCredentialsHelp =>
+      'Authenticate once with your Claude subscription and share it with all session pods.';
+
+  @override
+  String get claudeAuthInstructions =>
+      'Start authentication, sign in to Claude Code in your browser, then paste the authorization response below.';
+
+  @override
+  String get claudeAuthAuthenticated =>
+      'Claude Code is authenticated. New session pods will use the shared credentials.';
+
+  @override
+  String get claudeAuthOpenLink => 'Open sign-in link';
+
+  @override
+  String get claudeAuthResponse => 'Authorization response';
+
+  @override
+  String get claudeAuthResponseHint =>
+      'Paste the complete response from Claude';
+
+  @override
+  String get claudeAuthBegin => 'Authenticate';
+
+  @override
+  String get claudeAuthAgain => 'Authenticate again';
+
+  @override
+  String get claudeAuthComplete => 'Complete';
+
+  @override
   String get newSessionMachineDetails => 'View machine details →';
 
   @override

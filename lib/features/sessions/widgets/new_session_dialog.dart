@@ -22,7 +22,9 @@ enum NewSessionCreateBlocker {
   missingMachine,
   offlineMachine,
   missingPath,
+  kubernetesUnavailable,
   missingRepository,
+  missingRepositoryRef,
   creating,
   disconnected,
   syncNotReady,
@@ -33,18 +35,29 @@ const _agentIds = ['claude', 'codex', 'gemini', 'pi', 'opencode', 'grok'];
 NewSessionCreateBlocker? newSessionCreateBlocker({
   required Machine? machine,
   required bool machineOnline,
-  required String path,
   required bool isCreating,
   required ConnectionStatus connectionStatus,
   required bool syncInitialized,
-  bool repositoryRequired = false,
   String repositoryUrl = '',
+  String repositoryRef = '',
+  String? path,
+  bool repositoryRequired = false,
+  bool enforceKubernetes = false,
 }) {
   if (machine == null) return NewSessionCreateBlocker.missingMachine;
   if (!machineOnline) return NewSessionCreateBlocker.offlineMachine;
-  if (path.trim().isEmpty) return NewSessionCreateBlocker.missingPath;
-  if (repositoryRequired && repositoryUrl.trim().isEmpty) {
+  if (path != null && path.trim().isEmpty) {
+    return NewSessionCreateBlocker.missingPath;
+  }
+  if (enforceKubernetes && !_machineSupportsKubernetes(machine)) {
+    return NewSessionCreateBlocker.kubernetesUnavailable;
+  }
+  if ((enforceKubernetes || repositoryRequired) &&
+      repositoryUrl.trim().isEmpty) {
     return NewSessionCreateBlocker.missingRepository;
+  }
+  if (enforceKubernetes && repositoryRef.trim().isEmpty) {
+    return NewSessionCreateBlocker.missingRepositoryRef;
   }
   if (isCreating) return NewSessionCreateBlocker.creating;
   if (connectionStatus != ConnectionStatus.connected) {
@@ -86,6 +99,8 @@ Future<String?> showNewSessionDialog(
   BuildContext context, {
   String? initialMachineId,
   String? initialPath,
+  String? initialRepositoryUrl,
+  String? initialRepositoryRef,
   bool useRootNavigator = true,
 }) {
   return showDialog<String>(
@@ -95,35 +110,42 @@ Future<String?> showNewSessionDialog(
     builder: (_) => NewSessionDialog(
       initialMachineId: initialMachineId,
       initialPath: initialPath,
+      initialRepositoryUrl: initialRepositoryUrl,
+      initialRepositoryRef: initialRepositoryRef,
     ),
   );
 }
 
 /// New session dialog.
 class NewSessionDialog extends ConsumerStatefulWidget {
-  const NewSessionDialog({super.key, this.initialMachineId, this.initialPath});
+  const NewSessionDialog({
+    super.key,
+    this.initialMachineId,
+    this.initialPath,
+    this.initialRepositoryUrl,
+    this.initialRepositoryRef,
+  });
 
   /// Optional pre-selected machine ID.
   final String? initialMachineId;
 
   /// Optional pre-selected path.
   final String? initialPath;
+  final String? initialRepositoryUrl;
+  final String? initialRepositoryRef;
 
   @override
   ConsumerState<NewSessionDialog> createState() => _NewSessionDialogState();
 }
 
 class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
-  String? _selectedPath;
   String? _selectedRepoUrl;
+  String _selectedRepoRef = 'main';
   String? _selectedMachine;
   bool _isCreating = false;
   String? _creationPhase;
   String? _createError;
   String _selectedAgent = 'claude';
-  String _sessionType = 'simple';
-  String? _selectedSpawnBackend;
-  bool _spawnBackendTouched = false;
 
   /// Whether Riverpod's [ref] (and `setState`) may still be touched.
   ///
@@ -147,7 +169,8 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         ? lastUsedAgent!
         : 'claude';
     _selectedMachine = widget.initialMachineId;
-    _selectedPath = widget.initialPath;
+    _selectedRepoUrl = widget.initialRepositoryUrl;
+    _selectedRepoRef = widget.initialRepositoryRef ?? 'main';
     Future<void>.microtask(_refreshMachinesAndResolveSelection);
   }
 
@@ -185,26 +208,18 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final selectedMachineObj = _selectedMachine != null
         ? allMachines[_selectedMachine]
         : null;
-    final spawnBackends = _spawnBackendsForMachine(selectedMachineObj);
-    final selectedSpawnBackend = _spawnBackendTouched
-        ? _selectedSpawnBackendForMachine(
-            selectedMachineObj,
-            _selectedSpawnBackend,
-          )
-        : _defaultSpawnBackendForMachine(selectedMachineObj);
-    final repositoryRequired = selectedSpawnBackend == 'kubernetes';
     final selectedMachineOffline =
         selectedMachineObj != null &&
         !selectedMachineObj.isOnlineAt(machineSortNow);
     final createBlocker = newSessionCreateBlocker(
       machine: selectedMachineObj,
       machineOnline: selectedMachineObj != null && !selectedMachineOffline,
-      path: _selectedPath ?? '',
       isCreating: _isCreating,
       connectionStatus: connectionStatus,
       syncInitialized: sync.isInitialized,
-      repositoryRequired: repositoryRequired,
       repositoryUrl: _selectedRepoUrl ?? '',
+      repositoryRef: _selectedRepoRef,
+      enforceKubernetes: true,
     );
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -243,11 +258,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     ),
                     ...machines.map((machine) {
                       final online = machine.isOnlineAt(machineSortNow);
+                      final supportsKubernetes = _machineSupportsKubernetes(
+                        machine,
+                      );
                       // Disable offline items so the user cannot select a
                       // machine that will fail at session creation time.
                       return DropdownMenuItem(
                         value: machine.id,
-                        enabled: online,
+                        enabled: online && supportsKubernetes,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -272,7 +290,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                       ),
                               ),
                             ),
-                            if (!online) ...[
+                            if (!online || !supportsKubernetes) ...[
                               const SizedBox(width: AppSpacing.sm),
                               Container(
                                 padding: const EdgeInsets.symmetric(
@@ -286,7 +304,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                   ),
                                 ),
                                 child: Text(
-                                  l10n.machineOffline,
+                                  online
+                                      ? l10n.newSessionKubernetesUnavailable
+                                      : l10n.machineOffline,
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: cs.onSurfaceVariant,
                                   ),
@@ -303,125 +323,52 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     // disabled DropdownMenuItem is somehow tapped.
                     if (value != null) {
                       final m = allMachines[value];
-                      if (m != null && !m.isOnlineAt(machineSortNow)) {
+                      if (m != null &&
+                          (!m.isOnlineAt(machineSortNow) ||
+                              !_machineSupportsKubernetes(m))) {
                         return;
                       }
                     }
                     setState(() {
                       if (_selectedMachine != value) {
-                        _selectedPath = null;
                         _selectedRepoUrl = null;
-                        _selectedSpawnBackend = _defaultSpawnBackendForMachine(
-                          allMachines[value],
-                        );
-                        _spawnBackendTouched = false;
                       }
                       _selectedMachine = value;
                     });
                   },
                 ),
               const SizedBox(height: AppSpacing.lg),
-              Autocomplete<String>(
-                key: ValueKey(_selectedMachine),
-                optionsBuilder: (textEditingValue) {
-                  if (_selectedMachine == null) return const [];
-                  final sessions = ref.read(sessionsNotifierProvider);
-                  final paths = sessions.values
-                      .where((s) => s.metadata?.machineId == _selectedMachine)
-                      .map((s) => s.metadata?.path)
-                      .whereType<String>()
-                      .toSet()
-                      .toList();
-                  if (textEditingValue.text.isEmpty) {
-                    return paths;
-                  }
-                  return paths.where(
-                    (p) => p.toLowerCase().contains(
-                      textEditingValue.text.toLowerCase(),
-                    ),
-                  );
+              _RepositoryUrlField(
+                machineId: _selectedMachine,
+                selectedRepoUrl: _selectedRepoUrl,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedRepoUrl = value;
+                    _createError = null;
+                  });
                 },
                 onSelected: (value) {
-                  setState(() => _selectedPath = value);
-                },
-                fieldViewBuilder:
-                    (context, controller, focusNode, onFieldSubmitted) {
-                      // Pre-fill the path if provided via initialPath.
-                      if (_selectedPath != null && controller.text.isEmpty) {
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (mounted && controller.text.isEmpty) {
-                            controller.text = _selectedPath!;
-                          }
-                        });
-                      }
-                      return TextFormField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          labelText: l10n.sessionPath,
-                          hintText: l10n.sessionPathHint,
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedPath = value;
-                            _createError = null;
-                          });
-                        },
-                      );
-                    },
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(
-                    value: 'simple',
-                    label: Text(l10n.sessionsSimple),
-                    icon: const Icon(Icons.folder_outlined),
-                  ),
-                  ButtonSegment(
-                    value: 'worktree',
-                    label: Text(l10n.sessionsWorktree),
-                    icon: const Icon(Icons.account_tree_outlined),
-                  ),
-                ],
-                selected: {_sessionType},
-                onSelectionChanged: (selection) {
-                  setState(() => _sessionType = selection.first);
+                  setState(() {
+                    _selectedRepoUrl = value;
+                    _createError = null;
+                  });
                 },
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (spawnBackends.length > 1) ...[
-                _SpawnBackendPicker(
-                  backends: spawnBackends,
-                  selectedBackend: selectedSpawnBackend,
-                  onSelected: (backend) {
-                    setState(() {
-                      _selectedSpawnBackend = backend;
-                      _spawnBackendTouched = true;
-                    });
-                  },
+              TextFormField(
+                initialValue: _selectedRepoRef,
+                decoration: InputDecoration(
+                  labelText: l10n.newSessionGitRef,
+                  hintText: l10n.newSessionGitRefHint,
+                  prefixIcon: const Icon(Icons.account_tree_outlined),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              if (repositoryRequired) ...[
-                _RepositoryUrlField(
-                  machineId: _selectedMachine,
-                  selectedRepoUrl: _selectedRepoUrl,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedRepoUrl = value;
-                      _createError = null;
-                    });
-                  },
-                  onSelected: (value) {
-                    setState(() {
-                      _selectedRepoUrl = value;
-                      _createError = null;
-                    });
-                  },
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
+                textInputAction: TextInputAction.next,
+                onChanged: (value) => setState(() {
+                  _selectedRepoRef = value;
+                  _createError = null;
+                }),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               _AgentPicker(
                 selectedAgent: _selectedAgent,
                 onSelected: (agent) => setState(() => _selectedAgent = agent),
@@ -505,8 +452,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   Future<void> _createSession(BuildContext context) async {
     final l10n = context.l10n;
     final selectedMachineId = _selectedMachine;
-    final path = _selectedPath?.trim();
-    if (selectedMachineId == null || path == null || path.isEmpty) {
+    final repoUrl = _selectedRepoUrl?.trim();
+    final repoRef = _selectedRepoRef.trim();
+    if (selectedMachineId == null ||
+        repoUrl == null ||
+        repoUrl.isEmpty ||
+        repoRef.isEmpty) {
       return;
     }
     final navigator = Navigator.of(context, rootNavigator: true);
@@ -553,15 +504,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (machineId != _selectedMachine) {
         setState(() => _selectedMachine = machineId);
       }
-      final spawnBackend = _spawnBackendRequestValueForMachine(
-        machine,
-        _spawnBackendTouched
-            ? _selectedSpawnBackend
-            : _defaultSpawnBackendForMachine(machine),
-      );
-      final repoUrl = spawnBackend == 'kubernetes'
-          ? _selectedRepoUrl?.trim()
-          : null;
+      if (!_machineSupportsKubernetes(machine)) {
+        throw StateError('Kubernetes spawning is unavailable');
+      }
+      final sessionPath = kubernetesCheckoutPath(machine, repoUrl);
 
       setState(() {
         _creationPhase = l10n.newSessionPhaseSavingPreferences;
@@ -616,23 +562,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
           modelMode ??= candidate;
         }
       }
-      final String sessionPath;
-      if (_sessionType == 'worktree') {
-        setState(() {
-          _creationPhase = l10n.newSessionPhasePreparingWorktree;
-        });
-        sessionPath = await sessionsNotifier.createWorktree(
-          machineId: machineId,
-          basePath: path,
-        );
-      } else {
-        sessionPath = path;
-      }
       if (!_canUseRef) return;
       setState(() {
-        _creationPhase = spawnBackend == 'kubernetes'
-            ? l10n.newSessionPhaseSchedulingContainer
-            : l10n.newSessionPhaseStartingAgent;
+        _creationPhase = l10n.newSessionPhaseSchedulingContainer;
       });
       final sessionId = await sessionsNotifier.createSession(
         machineId: machineId,
@@ -640,8 +572,9 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         agent: _selectedAgent,
         profileId: profileId,
         modelMode: modelMode,
-        spawnBackend: spawnBackend,
+        spawnBackend: 'kubernetes',
         repoUrl: repoUrl,
+        repoRef: repoRef,
       );
       if (!_canUseRef) return;
       setState(() {
@@ -791,20 +724,28 @@ Future<String> resolveReachableMachineId(
   );
 }
 
-List<String> _spawnBackendsForMachine(Machine? machine) {
-  final advertised = machine?.metadata?.spawnBackends ?? const <String>[];
-  final supported = advertised
-      .where((backend) => backend == 'local' || backend == 'kubernetes')
-      .toList(growable: false);
-  return supported.isEmpty ? const ['local'] : supported;
-}
+bool _machineSupportsKubernetes(Machine machine) =>
+    machine.metadata?.spawnBackends?.contains('kubernetes') == true;
 
-String _defaultSpawnBackendForMachine(Machine? machine) {
-  final backends = _spawnBackendsForMachine(machine);
-  final advertisedDefault = machine?.metadata?.defaultSpawnBackend;
-  return backends.contains(advertisedDefault)
-      ? advertisedDefault!
-      : backends.first;
+String kubernetesCheckoutPath(Machine machine, String repositoryUrl) {
+  final advertisedBase = machine.metadata?.kubernetesCheckoutBaseDir?.trim();
+  final base = advertisedBase != null && advertisedBase.isNotEmpty
+      ? advertisedBase
+      : '/workspace';
+  var slug = repositoryUrl.trim().replaceAll(RegExp(r'[/\\]+$'), '');
+  final slash = slug.lastIndexOf('/');
+  final colon = slug.lastIndexOf(':');
+  final separator = slash > colon ? slash : colon;
+  if (separator >= 0) slug = slug.substring(separator + 1);
+  if (slug.toLowerCase().endsWith('.git')) {
+    slug = slug.substring(0, slug.length - 4);
+  }
+  slug = slug
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9._-]+'), '-')
+      .replaceAll(RegExp(r'^[-.]+|[-.]+$'), '');
+  if (slug.isEmpty) slug = 'repository';
+  return '${base.replaceAll(RegExp(r'/+$'), '')}/$slug';
 }
 
 /// Mirrors Sync._isClaudeModelAlias so the create dialog can reject
@@ -819,86 +760,6 @@ bool _isClaudeModelAliasForDialog(String modelMode) {
       slug == 'fable' ||
       slug.startsWith('claude-') ||
       slug.contains('/claude-');
-}
-
-String _selectedSpawnBackendForMachine(Machine? machine, String? selected) {
-  final backends = _spawnBackendsForMachine(machine);
-  return backends.contains(selected)
-      ? selected!
-      : _defaultSpawnBackendForMachine(machine);
-}
-
-String? _spawnBackendRequestValueForMachine(
-  Machine? machine,
-  String? selected,
-) {
-  final advertised = machine?.metadata?.spawnBackends;
-  if (advertised == null || advertised.isEmpty) return null;
-  return _selectedSpawnBackendForMachine(machine, selected);
-}
-
-String _spawnBackendLabel(String backend) {
-  switch (backend) {
-    case 'kubernetes':
-      return 'Kubernetes';
-    case 'local':
-    default:
-      return 'Local';
-  }
-}
-
-IconData _spawnBackendIcon(String backend) {
-  switch (backend) {
-    case 'kubernetes':
-      return Icons.cloud_queue_outlined;
-    case 'local':
-    default:
-      return Icons.computer_outlined;
-  }
-}
-
-class _SpawnBackendPicker extends StatelessWidget {
-  const _SpawnBackendPicker({
-    required this.backends,
-    required this.selectedBackend,
-    required this.onSelected,
-  });
-
-  final List<String> backends;
-  final String selectedBackend;
-  final ValueChanged<String> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Spawn on',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: cs.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        SegmentedButton<String>(
-          segments: backends
-              .map(
-                (backend) => ButtonSegment(
-                  value: backend,
-                  label: Text(_spawnBackendLabel(backend)),
-                  icon: Icon(_spawnBackendIcon(backend)),
-                ),
-              )
-              .toList(growable: false),
-          selected: {selectedBackend},
-          onSelectionChanged: (selection) => onSelected(selection.first),
-        ),
-      ],
-    );
-  }
 }
 
 class _RepositoryUrlField extends ConsumerWidget {
@@ -940,9 +801,10 @@ class _RepositoryUrlField extends ConsumerWidget {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
-          decoration: const InputDecoration(
-            labelText: 'Repository URL',
+          decoration: InputDecoration(
+            labelText: context.l10n.newSessionRepositoryUrl,
             hintText: 'https://github.com/org/repo.git',
+            prefixIcon: const Icon(Icons.source_outlined),
           ),
           keyboardType: TextInputType.url,
           textInputAction: TextInputAction.next,
@@ -1182,10 +1044,14 @@ String _dialogRequirementText(
       return l10n.sessionNoMachineSelected;
     case NewSessionCreateBlocker.offlineMachine:
       return l10n.machineOfflineUnableToSpawn;
+    case NewSessionCreateBlocker.kubernetesUnavailable:
+      return l10n.newSessionKubernetesUnavailable;
     case NewSessionCreateBlocker.missingPath:
       return l10n.sessionNoPathSelected;
     case NewSessionCreateBlocker.missingRepository:
-      return 'Repository URL required for Kubernetes';
+      return l10n.newSessionRepositoryRequired;
+    case NewSessionCreateBlocker.missingRepositoryRef:
+      return l10n.newSessionGitRefRequired;
     case NewSessionCreateBlocker.creating:
       return l10n.commonCreate;
     case NewSessionCreateBlocker.disconnected:

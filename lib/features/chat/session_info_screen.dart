@@ -9,9 +9,11 @@ import '../../core/components/app_section_header.dart';
 import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
+import '../../core/rpc/rpc_types.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/routing/safe_pop.dart';
 import '../../core/services/logger_service.dart' show logger;
+import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/session_utils.dart';
@@ -84,6 +86,85 @@ class _SessionInfoBody extends ConsumerStatefulWidget {
 class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
   bool _isArchiving = false;
   bool _isDeleting = false;
+  SessionPod? _pod;
+  SessionPodLogsResponse? _podLogs;
+  bool _podLoading = false;
+  bool _podActionRunning = false;
+  Object? _podError;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.session.isKubernetesSession) {
+      Future<void>.microtask(_refreshPod);
+    }
+  }
+
+  Future<void> _refreshPod({bool loadLogs = false}) async {
+    final machineId = widget.session.metadata?.machineId;
+    if (machineId == null || machineId.isEmpty) return;
+    setState(() {
+      _podLoading = true;
+      _podError = null;
+    });
+    try {
+      final pod = await sync.machineGetSessionPod(
+        machineId: machineId,
+        sessionId: widget.session.id,
+      );
+      SessionPodLogsResponse? logs;
+      if (loadLogs) {
+        logs = await sync.machineGetSessionPodLogs(
+          machineId: machineId,
+          sessionId: widget.session.id,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _pod = pod;
+        if (logs != null) _podLogs = logs;
+      });
+    } catch (error, stack) {
+      logger.warning('Failed to load session pod', error, stack);
+      if (mounted) setState(() => _podError = error);
+    } finally {
+      if (mounted) setState(() => _podLoading = false);
+    }
+  }
+
+  Future<void> _runPodAction(String action) async {
+    final machineId = widget.session.metadata?.machineId;
+    if (machineId == null || machineId.isEmpty) return;
+    setState(() {
+      _podActionRunning = true;
+      _podError = null;
+    });
+    try {
+      final response = switch (action) {
+        'pause' => await sync.machinePauseSessionPod(
+          machineId: machineId,
+          sessionId: widget.session.id,
+        ),
+        'resume' => await sync.machineResumeSessionPod(
+          machineId: machineId,
+          sessionId: widget.session.id,
+        ),
+        _ => await sync.machineKillSessionPod(
+          machineId: machineId,
+          sessionId: widget.session.id,
+        ),
+      };
+      if (!response.success) throw StateError(response.message);
+      if (!mounted) return;
+      setState(() => _pod = response.pod ?? _pod);
+      await _refreshPod(loadLogs: _podLogs != null);
+    } catch (error, stack) {
+      logger.warning('Session pod action failed: $action', error, stack);
+      if (mounted) setState(() => _podError = error);
+    } finally {
+      if (mounted) setState(() => _podActionRunning = false);
+    }
+  }
 
   String _formatDate(int timestamp) {
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
@@ -182,6 +263,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
     setState(() => _isArchiving = true);
     try {
+      await _cleanupKubernetesRuntimeBeforeRemoval();
       await api.setSessionArchived(sessionId, true);
       await ref
           .read(sessionsNotifierProvider.notifier)
@@ -236,6 +318,20 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (confirmed != true) return;
     if (!mounted) return;
     setState(() => _isDeleting = true);
+    try {
+      await _cleanupKubernetesRuntimeBeforeRemoval();
+    } catch (error, stack) {
+      logger.error(
+        'Failed to clean up Kubernetes session resources',
+        error,
+        stack,
+      );
+      if (mounted) {
+        setState(() => _isDeleting = false);
+        _showError(failedDeleteMsg);
+      }
+      return;
+    }
     final deleted = await sessionsNotifier.optimisticDelete(sessionId);
     if (!mounted) return;
     setState(() => _isDeleting = false);
@@ -245,6 +341,23 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       }
     } else {
       _showError(failedDeleteMsg);
+    }
+  }
+
+  Future<void> _cleanupKubernetesRuntimeBeforeRemoval() async {
+    final metadata = widget.session.metadata;
+    final machineId = metadata?.machineId;
+    if (!widget.session.isKubernetesSession ||
+        machineId == null ||
+        machineId.isEmpty) {
+      return;
+    }
+    final response = await sync.machineKillSessionPod(
+      machineId: machineId,
+      sessionId: widget.session.id,
+    );
+    if (!response.success) {
+      throw StateError(response.message);
     }
   }
 
@@ -314,6 +427,25 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
+
+        if (session.isKubernetesSession) ...[
+          AppSectionHeader(title: l10n.sessionPodSection, uppercase: true),
+          const SizedBox(height: AppSpacing.sm),
+          _SessionPodCard(
+            session: session,
+            pod: _pod,
+            logs: _podLogs,
+            loading: _podLoading,
+            actionRunning: _podActionRunning,
+            error: _podError,
+            onRefresh: () => _refreshPod(loadLogs: _podLogs != null),
+            onLoadLogs: () => _refreshPod(loadLogs: true),
+            onPause: () => _runPodAction('pause'),
+            onResume: () => _runPodAction('resume'),
+            onKill: () => _runPodAction('kill'),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
 
         // CLI Version Outdated Warning
         if (isCliOutdated) ...[
@@ -704,6 +836,179 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         const SizedBox(height: AppSpacing.xxxl),
       ],
+    );
+  }
+}
+
+class _SessionPodCard extends StatelessWidget {
+  const _SessionPodCard({
+    required this.session,
+    required this.pod,
+    required this.logs,
+    required this.loading,
+    required this.actionRunning,
+    required this.error,
+    required this.onRefresh,
+    required this.onLoadLogs,
+    required this.onPause,
+    required this.onResume,
+    required this.onKill,
+  });
+
+  final Session session;
+  final SessionPod? pod;
+  final SessionPodLogsResponse? logs;
+  final bool loading;
+  final bool actionRunning;
+  final Object? error;
+  final VoidCallback onRefresh;
+  final VoidCallback onLoadLogs;
+  final VoidCallback onPause;
+  final VoidCallback onResume;
+  final VoidCallback onKill;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final currentPod = pod;
+    final state = currentPod == null
+        ? session.podDisplayState
+        : currentPod.archived
+        ? SessionPodDisplayState.archived
+        : currentPod.paused
+        ? SessionPodDisplayState.paused
+        : currentPod.ready
+        ? SessionPodDisplayState.ready
+        : currentPod.phase.toLowerCase() == 'failed'
+        ? SessionPodDisplayState.failed
+        : SessionPodDisplayState.scheduling;
+    final stateLabel = switch (state) {
+      SessionPodDisplayState.scheduling => l10n.sessionPodScheduling,
+      SessionPodDisplayState.ready => l10n.sessionPodReady,
+      SessionPodDisplayState.paused => l10n.sessionPodPaused,
+      SessionPodDisplayState.archived => l10n.sessionPodArchived,
+      SessionPodDisplayState.failed => l10n.sessionPodFailed,
+    };
+
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.cloud_queue_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    currentPod?.podName ??
+                        session.metadata?.podName ??
+                        l10n.sessionPod,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ),
+                Chip(label: Text(stateLabel)),
+                IconButton(
+                  onPressed: loading ? null : onRefresh,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            if ((currentPod?.namespace ?? session.metadata?.namespace)
+                    ?.isNotEmpty ==
+                true)
+              Text(
+                currentPod?.namespace ?? session.metadata!.namespace!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            if (currentPod?.reason.isNotEmpty == true ||
+                currentPod?.message.isNotEmpty == true) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                [
+                  currentPod!.reason,
+                  currentPod.message,
+                ].where((value) => value.isNotEmpty).join(' · '),
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                l10n.sessionPodLoadFailed,
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.md),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: loading ? null : onLoadLogs,
+                  icon: const Icon(Icons.article_outlined),
+                  label: Text(l10n.sessionPodLogs),
+                ),
+                if (state == SessionPodDisplayState.paused)
+                  FilledButton.tonalIcon(
+                    onPressed: actionRunning ? null : onResume,
+                    icon: const Icon(Icons.play_arrow),
+                    label: Text(l10n.sessionPodResume),
+                  )
+                else if (state == SessionPodDisplayState.ready)
+                  FilledButton.tonalIcon(
+                    onPressed: actionRunning ? null : onPause,
+                    icon: const Icon(Icons.pause),
+                    label: Text(l10n.sessionPodPause),
+                  ),
+                FilledButton.tonalIcon(
+                  onPressed: actionRunning ? null : onKill,
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  label: Text(l10n.sessionPodKill),
+                ),
+              ],
+            ),
+            if (logs != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                constraints: const BoxConstraints(maxHeight: 320),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                color: theme.colorScheme.surfaceContainerHighest,
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    logs!.content.isEmpty
+                        ? l10n.sessionPodLogsEmpty
+                        : logs!.content,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ),
+              if (logs!.truncated)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Text(
+                    l10n.sessionPodLogsTruncated,
+                    style: theme.textTheme.labelSmall,
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

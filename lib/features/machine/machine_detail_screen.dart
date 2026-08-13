@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/components/app_card.dart';
@@ -331,6 +332,30 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
               ],
             ),
 
+            if (metadata?.spawnBackends?.contains('kubernetes') == true) ...[
+              const SizedBox(height: AppSpacing.xxl),
+              AppSectionHeader(title: context.l10n.claudeAuthTitle),
+              const SizedBox(height: AppSpacing.xs),
+              AppCard(
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.key_outlined),
+                  title: Text(context.l10n.claudeAuthSharedCredentials),
+                  subtitle: Text(context.l10n.claudeAuthSharedCredentialsHelp),
+                  trailing: const Icon(Icons.chevron_right),
+                  enabled: isOnline,
+                  onTap: isOnline
+                      ? () => showDialog<void>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (_) =>
+                              _ClaudeAuthDialog(machineId: widget.machineId),
+                        )
+                      : null,
+                ),
+              ),
+            ],
+
             // ── Sessions ──
             if (machineSessions.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.xxl),
@@ -383,6 +408,186 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ClaudeAuthDialog extends StatefulWidget {
+  const _ClaudeAuthDialog({required this.machineId});
+  final String machineId;
+
+  @override
+  State<_ClaudeAuthDialog> createState() => _ClaudeAuthDialogState();
+}
+
+class _ClaudeAuthDialogState extends State<_ClaudeAuthDialog> {
+  final _responseController = TextEditingController();
+  String? _flowId;
+  String? _authorizationUrl;
+  String? _status;
+  String? _error;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(_checkStatus);
+  }
+
+  @override
+  void dispose() {
+    _responseController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkStatus() async {
+    setState(() => _busy = true);
+    try {
+      final response = await sync.machineClaudeAuthStatus(
+        machineId: widget.machineId,
+        flowId: _flowId ?? '',
+      );
+      if (!mounted) return;
+      setState(() {
+        _flowId = response.flowId.isEmpty ? _flowId : response.flowId;
+        _status = response.authenticated ? 'authenticated' : response.status;
+        _error = response.error.isEmpty ? null : response.error;
+      });
+    } catch (_) {
+      // An old daemon may not implement status yet. Begin will surface a
+      // useful error if the user chooses to authenticate.
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _begin() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final response = await sync.machineBeginClaudeAuth(
+        machineId: widget.machineId,
+        force: _status == 'authenticated',
+      );
+      if (!mounted) return;
+      setState(() {
+        _flowId = response.flowId;
+        _authorizationUrl = response.authorizationUrl;
+        _status = response.status;
+      });
+      final uri = Uri.tryParse(response.authorizationUrl);
+      if (uri != null) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _complete() async {
+    final flowId = _flowId;
+    final authResponse = _responseController.text.trim();
+    if (flowId == null || authResponse.isEmpty) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final response = await sync.machineCompleteClaudeAuth(
+        machineId: widget.machineId,
+        flowId: flowId,
+        authResponse: authResponse,
+      );
+      if (!mounted) return;
+      setState(() {
+        _status = response.authenticated ? 'authenticated' : response.status;
+        _error = response.error.isEmpty ? null : response.error;
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final authenticated = _status == 'authenticated';
+    return PopScope(
+      canPop: !_busy,
+      child: AlertDialog(
+        title: Text(l10n.claudeAuthTitle),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                authenticated
+                    ? l10n.claudeAuthAuthenticated
+                    : l10n.claudeAuthInstructions,
+              ),
+              if (_authorizationUrl != null) ...[
+                const SizedBox(height: AppSpacing.md),
+                SelectableText(_authorizationUrl!),
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => launchUrl(
+                          Uri.parse(_authorizationUrl!),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                  icon: const Icon(Icons.open_in_new),
+                  label: Text(l10n.claudeAuthOpenLink),
+                ),
+                TextField(
+                  controller: _responseController,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: l10n.claudeAuthResponse,
+                    hintText: l10n.claudeAuthResponseHint,
+                  ),
+                ),
+              ],
+              if (_error != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              if (_busy) ...[
+                const SizedBox(height: AppSpacing.md),
+                const LinearProgressIndicator(),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _busy ? null : () => Navigator.pop(context),
+            child: Text(l10n.commonClose),
+          ),
+          if (_authorizationUrl == null)
+            FilledButton(
+              onPressed: _busy ? null : _begin,
+              child: Text(
+                authenticated ? l10n.claudeAuthAgain : l10n.claudeAuthBegin,
+              ),
+            )
+          else
+            FilledButton(
+              onPressed: _busy ? null : _complete,
+              child: Text(l10n.claudeAuthComplete),
+            ),
+        ],
       ),
     );
   }

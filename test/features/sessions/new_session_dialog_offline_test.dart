@@ -35,7 +35,7 @@ Machine _machine({
     metadata: MachineMetadata(
       displayName: displayName,
       host: displayName,
-      spawnBackends: spawnBackends,
+      spawnBackends: spawnBackends ?? const ['kubernetes'],
       defaultSpawnBackend: defaultSpawnBackend,
     ),
   );
@@ -432,6 +432,7 @@ void main() {
     Widget buildHarness({
       required Map<String, Machine> machines,
       String? initialMachineId,
+      String? initialRepositoryUrl = 'https://example.com/repo.git',
       Future<String> Function()? onCreateSession,
     }) {
       return ProviderScope(
@@ -451,7 +452,8 @@ void main() {
           home: Scaffold(
             body: NewSessionDialog(
               initialMachineId: initialMachineId,
-              initialPath: '/repo',
+              initialPath: null,
+              initialRepositoryUrl: initialRepositoryUrl,
             ),
           ),
         ),
@@ -484,7 +486,8 @@ void main() {
                   showNewSessionDialog(
                     context,
                     initialMachineId: initialMachineId,
-                    initialPath: '/repo',
+                    initialPath: null,
+                    initialRepositoryUrl: 'https://example.com/repo.git',
                   ),
                 ),
                 child: const Text('Open dialog'),
@@ -777,7 +780,7 @@ void main() {
       },
     );
 
-    testWidgets('shows spawn backend selector when machine advertises it', (
+    testWidgets('shows repository and ref inputs for Kubernetes pods', (
       tester,
     ) async {
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -794,9 +797,9 @@ void main() {
         buildHarness(machines: {'m-kube': machine}, initialMachineId: 'm-kube'),
       );
 
-      expect(find.text('Spawn on'), findsOneWidget);
-      expect(find.text('Local'), findsOneWidget);
-      expect(find.text('Kubernetes'), findsOneWidget);
+      expect(find.text('Git repository'), findsOneWidget);
+      expect(find.text('Branch or ref'), findsOneWidget);
+      expect(find.text('Spawn on'), findsNothing);
     });
 
     testWidgets('Kubernetes session requires repository URL', (tester) async {
@@ -811,21 +814,22 @@ void main() {
       );
       await pumpDialog(
         tester,
-        buildHarness(machines: {'m-kube': machine}, initialMachineId: 'm-kube'),
+        buildHarness(
+          machines: {'m-kube': machine},
+          initialMachineId: 'm-kube',
+          initialRepositoryUrl: null,
+        ),
       );
 
-      expect(find.text('Repository URL'), findsOneWidget);
-      expect(
-        find.text('Repository URL required for Kubernetes'),
-        findsOneWidget,
-      );
+      expect(find.text('Git repository'), findsOneWidget);
+      expect(find.text('A git repository is required'), findsOneWidget);
       var createButton = tester.widget<ElevatedButton>(
         find.widgetWithText(ElevatedButton, 'Create'),
       );
       expect(createButton.onPressed, isNull);
 
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Repository URL'),
+        find.widgetWithText(TextFormField, 'Git repository'),
         'https://example.com/repo.git',
       );
       await tester.pump();
