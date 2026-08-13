@@ -52,6 +52,10 @@ void main() {
         'sandboxEnforced': false,
         'sandboxBackend': 'none',
         'sandboxReason': 'boxy is unavailable',
+        'runtimeType': 'kubernetes',
+        'podName': 'happy-session-123',
+        'namespace': 'happy-sessions',
+        'phase': 'Running',
       });
 
       expect(response.type, 'success');
@@ -63,6 +67,10 @@ void main() {
       expect(response.sandboxEnforced, isFalse);
       expect(response.sandboxBackend, 'none');
       expect(response.sandboxReason, 'boxy is unavailable');
+      expect(response.runtimeKind, 'kubernetes');
+      expect(response.podName, 'happy-session-123');
+      expect(response.namespace, 'happy-sessions');
+      expect(response.phase, 'Running');
     });
 
     test('parses snake_case compatibility fields', () {
@@ -78,6 +86,59 @@ void main() {
       expect(response.sessionId, 'session-456');
       expect(response.errorMessage, 'none');
       expect(response.dataEncryptionKey, 'dek-def');
+    });
+  });
+
+  group('Kubernetes pod RPC responses', () {
+    test('parses pod state and bounded logs', () {
+      final pods = SessionPodsResponse.fromJson({
+        'pods': [
+          {
+            'sessionId': 'session-1',
+            'podName': 'happy-session-1',
+            'namespace': 'happy',
+            'status': 'ready',
+            'phase': 'Running',
+            'reason': '',
+            'message': '',
+            'ready': true,
+            'paused': false,
+            'archived': false,
+            'repoUrl': 'https://github.com/happy/repo.git',
+            'repoRef': 'main',
+          },
+        ],
+      });
+      final logs = SessionPodLogsResponse.fromJson({
+        'podName': 'happy-session-1',
+        'content': 'agent started',
+        'truncated': true,
+      });
+
+      expect(pods.pods.single.ready, isTrue);
+      expect(pods.pods.single.repoRef, 'main');
+      expect(logs.content, 'agent started');
+      expect(logs.truncated, isTrue);
+    });
+
+    test('parses shared Claude auth flow responses', () {
+      final begin = ClaudeAuthBeginResponse.fromJson({
+        'flowId': 'flow-1',
+        'authorizationUrl': 'https://claude.ai/oauth/authorize',
+        'expiresAt': '1234',
+        'status': 'waiting_for_response',
+      });
+      final status = ClaudeAuthStatusResponse.fromJson({
+        'flowId': 'flow-1',
+        'status': 'authenticated',
+        'success': true,
+        'authenticated': true,
+        'error': '',
+      });
+
+      expect(begin.expiresAt, 1234);
+      expect(status.success, isTrue);
+      expect(status.authenticated, isTrue);
     });
   });
 }

@@ -77,6 +77,10 @@ class SpawnSessionResponse {
     this.sandboxEnforced,
     this.sandboxBackend,
     this.sandboxReason,
+    this.runtimeKind,
+    this.podName,
+    this.namespace,
+    this.phase,
   });
 
   factory SpawnSessionResponse.fromJson(
@@ -99,6 +103,10 @@ class SpawnSessionResponse {
     sandboxEnforced: json['sandboxEnforced'] as bool?,
     sandboxBackend: json['sandboxBackend'] as String?,
     sandboxReason: json['sandboxReason'] as String?,
+    runtimeKind: json['runtimeType'] as String?,
+    podName: json['podName'] as String?,
+    namespace: json['namespace'] as String?,
+    phase: json['phase'] as String?,
   );
   final String? type;
   final String? sessionId;
@@ -110,6 +118,10 @@ class SpawnSessionResponse {
   final bool? sandboxEnforced;
   final String? sandboxBackend;
   final String? sandboxReason;
+  final String? runtimeKind;
+  final String? podName;
+  final String? namespace;
+  final String? phase;
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +354,173 @@ class StopSessionResponse {
       StopSessionResponse(message: json['message']?.toString() ?? '');
 
   final String message;
+}
+
+// ---------------------------------------------------------------------------
+// Kubernetes session pods
+// ---------------------------------------------------------------------------
+
+class SessionPod {
+  const SessionPod({
+    required this.sessionId,
+    required this.podName,
+    required this.namespace,
+    required this.status,
+    required this.phase,
+    required this.reason,
+    required this.message,
+    required this.ready,
+    required this.paused,
+    required this.archived,
+    required this.repoUrl,
+    required this.repoRef,
+  });
+
+  factory SessionPod.fromJson(Map<dynamic, dynamic> json) => SessionPod(
+    sessionId: json['sessionId']?.toString() ?? '',
+    podName: json['podName']?.toString() ?? '',
+    namespace: json['namespace']?.toString() ?? '',
+    status: json['status']?.toString() ?? '',
+    phase: json['phase']?.toString() ?? '',
+    reason: json['reason']?.toString() ?? '',
+    message: json['message']?.toString() ?? '',
+    ready: json['ready'] == true,
+    paused: json['paused'] == true,
+    archived: json['archived'] == true,
+    repoUrl: json['repoUrl']?.toString() ?? '',
+    repoRef: json['repoRef']?.toString() ?? '',
+  );
+
+  final String sessionId;
+  final String podName;
+  final String namespace;
+  final String status;
+  final String phase;
+  final String reason;
+  final String message;
+  final bool ready;
+  final bool paused;
+  final bool archived;
+  final String repoUrl;
+  final String repoRef;
+}
+
+class SessionPodsResponse {
+  const SessionPodsResponse({required this.pods});
+
+  factory SessionPodsResponse.fromJson(Map<String, dynamic> json) =>
+      SessionPodsResponse(
+        pods: (json['pods'] as List<dynamic>? ?? const [])
+            .whereType<Map>()
+            .map(SessionPod.fromJson)
+            .toList(growable: false),
+      );
+
+  final List<SessionPod> pods;
+}
+
+class SessionPodResponse {
+  const SessionPodResponse({required this.pod});
+
+  factory SessionPodResponse.fromJson(Map<String, dynamic> json) {
+    final rawPod = json['pod'];
+    return SessionPodResponse(
+      pod: rawPod is Map ? SessionPod.fromJson(rawPod) : null,
+    );
+  }
+
+  final SessionPod? pod;
+}
+
+class SessionPodLogsResponse {
+  const SessionPodLogsResponse({
+    required this.podName,
+    required this.content,
+    required this.truncated,
+  });
+
+  factory SessionPodLogsResponse.fromJson(Map<String, dynamic> json) =>
+      SessionPodLogsResponse(
+        podName: json['podName']?.toString() ?? '',
+        content: json['content']?.toString() ?? '',
+        truncated: json['truncated'] == true,
+      );
+
+  final String podName;
+  final String content;
+  final bool truncated;
+}
+
+class SessionPodActionResponse {
+  const SessionPodActionResponse({
+    required this.success,
+    required this.message,
+    this.pod,
+  });
+
+  factory SessionPodActionResponse.fromJson(Map<String, dynamic> json) {
+    final rawPod = json['pod'];
+    return SessionPodActionResponse(
+      success: json['success'] == true,
+      message: json['message']?.toString() ?? '',
+      pod: rawPod is Map ? SessionPod.fromJson(rawPod) : null,
+    );
+  }
+
+  final bool success;
+  final String message;
+  final SessionPod? pod;
+}
+
+// ---------------------------------------------------------------------------
+// Shared Claude Code authentication
+// ---------------------------------------------------------------------------
+
+class ClaudeAuthBeginResponse {
+  const ClaudeAuthBeginResponse({
+    required this.flowId,
+    required this.authorizationUrl,
+    required this.expiresAt,
+    required this.status,
+  });
+
+  factory ClaudeAuthBeginResponse.fromJson(Map<String, dynamic> json) =>
+      ClaudeAuthBeginResponse(
+        flowId: json['flowId']?.toString() ?? '',
+        authorizationUrl: json['authorizationUrl']?.toString() ?? '',
+        expiresAt: _parseInt64(json['expiresAt']) ?? 0,
+        status: json['status']?.toString() ?? '',
+      );
+
+  final String flowId;
+  final String authorizationUrl;
+  final int expiresAt;
+  final String status;
+}
+
+class ClaudeAuthStatusResponse {
+  const ClaudeAuthStatusResponse({
+    required this.flowId,
+    required this.status,
+    required this.success,
+    required this.authenticated,
+    required this.error,
+  });
+
+  factory ClaudeAuthStatusResponse.fromJson(Map<String, dynamic> json) =>
+      ClaudeAuthStatusResponse(
+        flowId: json['flowId']?.toString() ?? '',
+        status: json['status']?.toString() ?? '',
+        success: json['success'] == true,
+        authenticated: json['authenticated'] == true,
+        error: json['error']?.toString() ?? '',
+      );
+
+  final String flowId;
+  final String status;
+  final bool success;
+  final bool authenticated;
+  final String error;
 }
 
 // ---------------------------------------------------------------------------

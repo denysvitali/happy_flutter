@@ -20,16 +20,28 @@ Metadata _metadataWithSpawnResult(
       result.sandboxRequired != null ||
       result.sandboxEnforced != null ||
       result.sandboxBackend != null;
-  if (!hasSandboxState) return metadata;
   return metadata.copyWith(
-    runtimeKind: result.sandboxBackend == 'kubernetes'
-        ? 'kubernetes'
-        : metadata.runtimeKind,
+    runtimeKind:
+        result.runtimeKind ??
+        (result.sandboxBackend == 'kubernetes'
+            ? 'kubernetes'
+            : metadata.runtimeKind),
+    podName: result.podName ?? metadata.podName,
+    namespace: result.namespace ?? metadata.namespace,
+    podPhase: result.phase ?? metadata.podPhase,
+    podReady: result.phase?.toLowerCase() == 'running'
+        ? true
+        : metadata.podReady,
+    lifecycleState: result.phase?.toLowerCase() == 'running'
+        ? 'running'
+        : metadata.lifecycleState,
     sandboxRequested: result.sandboxRequested ?? metadata.sandboxRequested,
     sandboxRequired: result.sandboxRequired ?? metadata.sandboxRequired,
     sandboxEnforced: result.sandboxEnforced ?? metadata.sandboxEnforced,
     sandboxBackend: result.sandboxBackend ?? metadata.sandboxBackend,
-    sandboxReason: result.sandboxReason,
+    sandboxReason: hasSandboxState
+        ? result.sandboxReason
+        : metadata.sandboxReason,
   );
 }
 
@@ -329,6 +341,11 @@ extension SyncSessionOperations on Sync {
               lifecycleState: 'starting',
               runtimeKind: spawnBackend,
               repoUrl: repoUrl,
+              repoRef: repoRef,
+              repoCommit: repoCommit,
+              podName: result.podName,
+              namespace: result.namespace,
+              podPhase: result.phase,
             ),
             result,
           ),

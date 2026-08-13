@@ -72,6 +72,7 @@ abstract class MachineMetadata with _$MachineMetadata {
     @JsonKey(fromJson: _asApiStringNullable) String? shutdownSource,
     @JsonKey(fromJson: _stringListOrNull) List<String>? spawnBackends,
     @JsonKey(fromJson: _asApiStringNullable) String? defaultSpawnBackend,
+    @JsonKey(fromJson: _asApiStringNullable) String? kubernetesCheckoutBaseDir,
     @JsonKey(fromJson: _asApiStringNullable) String? sandboxBackend,
     @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxAvailable,
     @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxEnabled,

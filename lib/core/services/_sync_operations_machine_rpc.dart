@@ -11,6 +11,90 @@ extension SyncMachineRpcOperations on Sync {
   static const int _codexModelsSuccessTtlMs = 60 * 60 * 1000;
   static const int _codexModelsFailureTtlMs = 30 * 1000;
 
+  Future<SessionPodsResponse> machineListSessionPods({
+    required String machineId,
+    bool includeArchived = true,
+  }) => _typedMachineRPC(machineId, 'list-session-pods', <String, dynamic>{
+    'includeArchived': includeArchived,
+  }, SessionPodsResponse.fromJson);
+
+  Future<SessionPod?> machineGetSessionPod({
+    required String machineId,
+    required String sessionId,
+  }) async {
+    final response = await _typedMachineRPC(
+      machineId,
+      'get-session-pod',
+      <String, dynamic>{'sessionId': sessionId},
+      SessionPodResponse.fromJson,
+    );
+    return response.pod;
+  }
+
+  Future<SessionPodLogsResponse> machineGetSessionPodLogs({
+    required String machineId,
+    required String sessionId,
+    int tailLines = 500,
+    bool timestamps = true,
+  }) => _typedMachineRPC(machineId, 'get-session-pod-logs', <String, dynamic>{
+    'sessionId': sessionId,
+    'tailLines': tailLines,
+    'timestamps': timestamps,
+  }, SessionPodLogsResponse.fromJson);
+
+  Future<SessionPodActionResponse> machinePauseSessionPod({
+    required String machineId,
+    required String sessionId,
+  }) => _sessionPodAction(machineId, sessionId, 'pause-session-pod');
+
+  Future<SessionPodActionResponse> machineResumeSessionPod({
+    required String machineId,
+    required String sessionId,
+  }) => _sessionPodAction(machineId, sessionId, 'resume-session-pod');
+
+  Future<SessionPodActionResponse> machineKillSessionPod({
+    required String machineId,
+    required String sessionId,
+  }) => _sessionPodAction(machineId, sessionId, 'kill-session-pod');
+
+  Future<SessionPodActionResponse> _sessionPodAction(
+    String machineId,
+    String sessionId,
+    String method,
+  ) => _typedMachineRPC(machineId, method, <String, dynamic>{
+    'sessionId': sessionId,
+  }, SessionPodActionResponse.fromJson);
+
+  Future<ClaudeAuthBeginResponse> machineBeginClaudeAuth({
+    required String machineId,
+    bool force = false,
+  }) => _typedMachineRPC(machineId, 'claude-auth-begin', <String, dynamic>{
+    'force': force,
+  }, ClaudeAuthBeginResponse.fromJson);
+
+  Future<ClaudeAuthStatusResponse> machineCompleteClaudeAuth({
+    required String machineId,
+    required String flowId,
+    required String authResponse,
+  }) => _typedMachineRPC(machineId, 'claude-auth-complete', <String, dynamic>{
+    'flowId': flowId,
+    'authResponse': authResponse,
+  }, ClaudeAuthStatusResponse.fromJson);
+
+  Future<ClaudeAuthStatusResponse> machineClaudeAuthStatus({
+    required String machineId,
+    String flowId = '',
+  }) => _typedMachineRPC(machineId, 'claude-auth-status', <String, dynamic>{
+    'flowId': flowId,
+  }, ClaudeAuthStatusResponse.fromJson);
+
+  Future<ClaudeAuthStatusResponse> machineCancelClaudeAuth({
+    required String machineId,
+    required String flowId,
+  }) => _typedMachineRPC(machineId, 'claude-auth-cancel', <String, dynamic>{
+    'flowId': flowId,
+  }, ClaudeAuthStatusResponse.fromJson);
+
   /// Execute a bash command on a machine.
   Future<BashResponse> machineBash({
     required String machineId,

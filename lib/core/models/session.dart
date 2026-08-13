@@ -182,6 +182,10 @@ abstract class Metadata with _$Metadata {
     String? runtimeKind,
     @JsonKey(fromJson: _asApiStringNullable) String? podName,
     @JsonKey(fromJson: _asApiStringNullable) String? namespace,
+    @JsonKey(fromJson: _asApiStringNullable) String? podPhase,
+    @JsonKey(fromJson: _asApiStringNullable) String? podStatus,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? podReady,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? podPaused,
     // sandbox field is stored as {enabled: bool} but we keep bool? in model
     @JsonKey(
       name: 'sandbox',
@@ -198,6 +202,36 @@ abstract class Metadata with _$Metadata {
 
   factory Metadata.fromJson(Map<String, dynamic> json) =>
       _$MetadataFromJson(json);
+}
+
+enum SessionPodDisplayState { scheduling, ready, paused, archived, failed }
+
+extension SessionPodMetadata on Session {
+  bool get isKubernetesSession =>
+      metadata?.runtimeKind?.toLowerCase() == 'kubernetes' ||
+      (metadata?.podName?.isNotEmpty ?? false);
+
+  SessionPodDisplayState get podDisplayState {
+    if (archived || effectiveLifecycleState == 'archived') {
+      return SessionPodDisplayState.archived;
+    }
+    final metadata = this.metadata;
+    if (metadata?.podPaused == true ||
+        metadata?.podStatus?.toLowerCase() == 'paused') {
+      return SessionPodDisplayState.paused;
+    }
+    final phase = metadata?.podPhase?.toLowerCase() ?? '';
+    final lifecycle = effectiveLifecycleState?.toLowerCase() ?? '';
+    if (phase == 'failed' || lifecycle == 'errored') {
+      return SessionPodDisplayState.failed;
+    }
+    if (metadata?.podReady == true ||
+        phase == 'running' ||
+        lifecycle == 'running') {
+      return SessionPodDisplayState.ready;
+    }
+    return SessionPodDisplayState.scheduling;
+  }
 }
 
 @freezed
