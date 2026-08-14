@@ -56,6 +56,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late final List<ModelRow> _modelRows;
   AIBackendProfile? _profile;
   late ProfileCompatibility _compatibility;
+  int? _contextWindow;
 
   bool _showScript = false;
   String? _selectedTemplate;
@@ -73,6 +74,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         .map((e) => EnvRow(name: e.name, value: e.value))
         .toList();
     _modelRows = (p?.models ?? []).map((m) => ModelRow(model: m)).toList();
+    _contextWindow = p?.contextWindow;
     _showScript = p?.startupBashScript?.isNotEmpty ?? false;
   }
 
@@ -284,6 +286,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             environmentVariables: envVars,
           ) ??
           existing?.defaultModelMode,
+      contextWindow: _contextWindow,
       models: models,
       isBuiltIn: existing?.isBuiltIn ?? false,
       compatibility: _compatibility,
@@ -492,6 +495,18 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
               onAdd: _addModelRow,
               onRemove: _removeModelRow,
               onChanged: () => setState(() {}),
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          AppCard(
+            child: ContextWindowSection(
+              contextWindow: _contextWindow,
+              l10n: l10n,
+              textTheme: tt,
+              colorScheme: cs,
+              onChanged: (value) => setState(() => _contextWindow = value),
             ),
           ),
 

@@ -7582,6 +7582,30 @@ abstract class AppLocalizations {
   /// **'No models configured'**
   String get profilesModelsEmpty;
 
+  /// No description provided for @profilesContextWindowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window'**
+  String get profilesContextWindowTitle;
+
+  /// No description provided for @profilesContextWindowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Token limit for this profile\'s Claude-compatible models. 1M requires Claude Code\'s extended window.'**
+  String get profilesContextWindowHint;
+
+  /// No description provided for @profilesContextWindowDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider default'**
+  String get profilesContextWindowDefault;
+
+  /// No description provided for @profilesContextWindow1M.
+  ///
+  /// In en, this message translates to:
+  /// **'1M tokens'**
+  String get profilesContextWindow1M;
+
   /// No description provided for @profilesAtLeastOneAgent.
   ///
   /// In en, this message translates to:

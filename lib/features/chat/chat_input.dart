@@ -64,13 +64,12 @@ class ChatInput extends ConsumerStatefulWidget {
     this.onProfilePressed,
     this.isSendDisabled = false,
     this.contextSize,
+    this.maxContext,
     this.isSessionOnline = false,
     this.enterToSend = false,
     this.lastDeliveryStatus,
     this.onQueueNextTurn,
     this.sessionFlavor,
-    this.oneMillionContext = false,
-    this.onContextWindowChanged,
   });
 
   /// Stable identifier for the current session
@@ -111,13 +110,6 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Agent flavor for the session (`claude`, `codex`, and so on).
   final String? sessionFlavor;
-
-  /// Whether the 1M context window is selected for the current model.
-  final bool oneMillionContext;
-
-  /// Called with the desired 1M state when the user toggles the chip.
-  /// Null hides the toggle chip.
-  final ValueChanged<bool>? onContextWindowChanged;
 
   /// Slash commands advertised by the current session's agent.
   final List<String> availableSlashCommands;
@@ -162,6 +154,10 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Current context window usage in tokens.
   final int? contextSize;
+
+  /// The context window [contextSize] is measured against (from the
+  /// selected profile), or null to use the model's default budget.
+  final int? maxContext;
 
   /// Whether the session CLI is currently connected
   /// (presence == 'online').
@@ -661,8 +657,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                       onShowProfilePicker: () => _showProfilePicker(context),
                       contextSize: widget.contextSize,
                       sessionFlavor: widget.sessionFlavor,
-                      oneMillionContext: widget.oneMillionContext,
-                      onContextWindowChanged: widget.onContextWindowChanged,
+                      maxContext: widget.maxContext,
                     ),
                   ],
                 ),

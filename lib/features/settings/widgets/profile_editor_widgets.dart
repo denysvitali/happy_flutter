@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/models/settings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/env_secrets.dart';
@@ -620,6 +621,78 @@ class ModelsSection extends StatelessWidget {
             ),
             visualDensity: VisualDensity.compact,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Context-window size selector for a profile. Backed by a nullable token
+/// count: `null` means "provider default"; [extendedContextWindowTokens]
+/// (1M) requests the Claude Code `[1m]` extended window at send time.
+class ContextWindowSection extends StatelessWidget {
+  const ContextWindowSection({
+    required this.contextWindow,
+    required this.l10n,
+    required this.textTheme,
+    required this.colorScheme,
+    required this.onChanged,
+    super.key,
+  });
+
+  final int? contextWindow;
+  final AppLocalizations l10n;
+  final TextTheme textTheme;
+  final ColorScheme colorScheme;
+  final ValueChanged<int?> onChanged;
+
+  /// Sentinel for "provider default" in the dropdown, since a null dropdown
+  /// value reads as "no selection" and shows the hint instead.
+  static const int _defaultSentinel = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.profilesContextWindowTitle,
+          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          l10n.profilesContextWindowHint,
+          style: textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        DropdownButtonFormField<int>(
+          initialValue: contextWindow ?? _defaultSentinel,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            isDense: true,
+          ),
+          items: [
+            DropdownMenuItem(
+              value: _defaultSentinel,
+              child: Text(l10n.profilesContextWindowDefault),
+            ),
+            DropdownMenuItem(
+              value: extendedContextWindowTokens,
+              child: Text(l10n.profilesContextWindow1M),
+            ),
+          ],
+          onChanged: (value) {
+            if (value == null) return;
+            onChanged(value == _defaultSentinel ? null : value);
+          },
         ),
       ],
     );

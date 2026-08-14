@@ -586,6 +586,11 @@ class GlobalWarnings {
   Map<String, dynamic> toJson() => _$GlobalWarningsToJson(this);
 }
 
+/// Extended (1M-token) context window. Profiles set
+/// [AIBackendProfile.contextWindow] to this to request the Claude Code
+/// `[1m]` model suffix — the only wire-supported override today.
+const int extendedContextWindowTokens = 1000000;
+
 /// AI backend profile for environment configuration
 @JsonSerializable(explicitToJson: true)
 class AIBackendProfile {
@@ -603,6 +608,7 @@ class AIBackendProfile {
     this.defaultSessionType,
     this.defaultPermissionMode,
     this.defaultModelMode,
+    this.contextWindow,
     this.models = const [],
     this.compatibility = const ProfileCompatibility(
       claude: true,
@@ -631,6 +637,12 @@ class AIBackendProfile {
   final String? defaultSessionType;
   final String? defaultPermissionMode;
   final String? defaultModelMode;
+
+  /// Context window in tokens the profile requests for its models, or null
+  /// to use each model's default. The only wire-supported override today is
+  /// [extendedContextWindowTokens] (1M), mapped to the Claude Code `[1m]`
+  /// model suffix at send time.
+  final int? contextWindow;
   final List<String> models;
   final ProfileCompatibility compatibility;
   final bool isBuiltIn;
@@ -702,6 +714,7 @@ class AIBackendProfile {
       'defaultSessionType': defaultSessionType,
       'defaultPermissionMode': defaultPermissionMode,
       'defaultModelMode': defaultModelMode,
+      'contextWindow': contextWindow,
       'models': models.map((e) => e).toList(),
       'compatibility': compatibility.toJson(),
       'isBuiltIn': isBuiltIn,
@@ -725,6 +738,7 @@ class AIBackendProfile {
     String? defaultSessionType,
     String? defaultPermissionMode,
     String? defaultModelMode,
+    int? contextWindow,
     List<String>? models,
     ProfileCompatibility? compatibility,
     bool? isBuiltIn,
@@ -749,6 +763,7 @@ class AIBackendProfile {
       defaultPermissionMode:
           defaultPermissionMode ?? this.defaultPermissionMode,
       defaultModelMode: defaultModelMode ?? this.defaultModelMode,
+      contextWindow: contextWindow ?? this.contextWindow,
       models: models != null ? List<String>.from(models) : this.models,
       compatibility: compatibility ?? this.compatibility,
       isBuiltIn: isBuiltIn ?? this.isBuiltIn,

@@ -182,27 +182,44 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? get _effectiveModelModeString =>
       _profileModelOverride ?? _modelMode.modeString;
 
-  /// Whether the current model opts into the 1M context window.
-  bool get _oneMillionContext =>
-      (_effectiveModelModeString ?? '').endsWith(
-        ChatModelMode.oneMillionSuffix,
-      );
+  /// The model string sent to the server, with the selected profile's 1M
+  /// context-window suffix applied when the model can carry it.
+  String? get _effectiveSendModelMode {
+    final raw = _effectiveModelModeString;
+    if (raw == null) return null;
+    return _withProfileContextSuffix(raw);
+  }
 
-  /// Whether the 1M context-window toggle is meaningful for the current
-  /// selection. Only concrete provider model slugs (e.g. `deepseek-chat`)
-  /// can carry the `[1m]` suffix — Claude tier aliases and `default` resolve
-  /// through the daemon, and non-Claude agents don't use the suffix at all.
-  bool get _contextWindowApplicable {
+  /// Apply the selected profile's context-window setting to [raw], stripping
+  /// any legacy `[1m]` suffix first so a stale draft can never outlive the
+  /// profile setting.
+  String? _withProfileContextSuffix(String raw) {
+    final base = ChatModelMode.stripOneMillionSuffix(raw).trim();
+    if (base.isEmpty || !_canCarryContextWindowSuffix(base)) return raw;
+    final wants1M =
+        _selectedProfile?.contextWindow == extendedContextWindowTokens;
+    return wants1M ? ChatModelMode.withOneMillionSuffix(base) : base;
+  }
+
+  /// Whether [raw] is a concrete provider model slug that can carry the
+  /// `[1m]` suffix. Claude tier aliases and `default` resolve through the
+  /// daemon, and non-Claude agents don't use the suffix at all.
+  bool _canCarryContextWindowSuffix(String raw) {
     final flavor = _session?.metadata?.flavor;
     if (flavor != null && flavor != 'claude') return false;
-    final raw = _effectiveModelModeString?.trim();
-    if (raw == null || raw.isEmpty) return false;
     if (raw == ChatModelMode.defaultModel.modeString) return false;
     if (raw == 'fable' || raw == 'sonnet' || raw == 'opus' || raw == 'haiku') {
       return false;
     }
     if (raw.startsWith('claude-') || raw.contains('/claude-')) return false;
     return true;
+  }
+
+  /// The context window the usage indicator measures against, from the
+  /// selected profile (null → the indicator's default budget).
+  int? get _profileMaxContext {
+    final window = _selectedProfile?.contextWindow;
+    return (window != null && window > 0) ? window : null;
   }
 
   /// Raw model mode string from storage, used for provider-owned modes.
@@ -1609,10 +1626,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             machineName: _session?.metadata?.host,
             currentPath: _session?.metadata?.path,
             contextSize: sessionUiEntry.sessionUsage['contextSize'] as int?,
-            oneMillionContext: _oneMillionContext,
-            onContextWindowChanged: _contextWindowApplicable
-                ? _onContextWindowChanged
-                : null,
+            maxContext: _profileMaxContext,
             isSessionOnline: _session?.isPresenceOnline ?? false,
             enterToSend: enterToSend,
             lastDeliveryStatus:

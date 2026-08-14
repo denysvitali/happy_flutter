@@ -112,12 +112,6 @@ class ChatModelMode {
   /// 1M budget.
   static const oneMillionSuffix = '[1m]';
 
-  /// Context window used for the usage indicator when the 1M window is off.
-  static const defaultContextWindowTokens = 200000;
-
-  /// Context window used for the usage indicator when the 1M window is on.
-  static const oneMillionContextWindowTokens = 1000000;
-
   /// Whether this selection opts into the 1M context window.
   bool get has1MContext => modeString.endsWith(oneMillionSuffix);
 

@@ -4122,6 +4122,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profilesModelsEmpty => 'No models configured';
 
   @override
+  String get profilesContextWindowTitle => 'Context window';
+
+  @override
+  String get profilesContextWindowHint =>
+      'Token limit for this profile\'s Claude-compatible models. 1M requires Claude Code\'s extended window.';
+
+  @override
+  String get profilesContextWindowDefault => 'Provider default';
+
+  @override
+  String get profilesContextWindow1M => '1M tokens';
+
+  @override
   String get profilesAtLeastOneAgent => 'Select at least one agent';
 
   @override

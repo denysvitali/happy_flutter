@@ -205,6 +205,7 @@ AIBackendProfile _$AIBackendProfileFromJson(
   defaultSessionType: json['defaultSessionType'] as String?,
   defaultPermissionMode: json['defaultPermissionMode'] as String?,
   defaultModelMode: json['defaultModelMode'] as String?,
+  contextWindow: (json['contextWindow'] as num?)?.toInt(),
   models:
       (json['models'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
@@ -236,6 +237,7 @@ Map<String, dynamic> _$AIBackendProfileToJson(AIBackendProfile instance) =>
       'defaultSessionType': instance.defaultSessionType,
       'defaultPermissionMode': instance.defaultPermissionMode,
       'defaultModelMode': instance.defaultModelMode,
+      'contextWindow': instance.contextWindow,
       'models': instance.models,
       'compatibility': instance.compatibility.toJson(),
       'isBuiltIn': instance.isBuiltIn,
