@@ -19,6 +19,7 @@ import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_input_buttons.dart';
 import 'widgets/file_autocomplete.dart';
+import 'widgets/fullscreen_composer.dart';
 import 'widgets/input_toolbar.dart';
 import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
@@ -565,6 +566,26 @@ class _ChatInputState extends ConsumerState<ChatInput>
     widget.onSend();
   }
 
+  /// Opens the draft in a full-screen editor for long prompts. The editor
+  /// shares this composer's controller, so text, cursor, and draft
+  /// auto-save carry over untouched in both directions.
+  Future<void> _openFullscreenComposer() async {
+    // Suggestions belong to the inline field; the editor is plain prose.
+    _clearAutocomplete();
+    _focusNode.unfocus();
+    final shouldSend = await showFullscreenComposer(
+      context,
+      controller: widget.controller,
+      isSendDisabled: widget.isSendDisabled || widget.isSending,
+    );
+    if (!mounted) return;
+    if (shouldSend) {
+      _onSendTap();
+    } else {
+      _focusNode.requestFocus();
+    }
+  }
+
   void _onQueueNextTurnTap() {
     if (widget.onQueueNextTurn == null ||
         widget.isSendDisabled ||
@@ -645,19 +666,29 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   children: [
                     _buildCardInputArea(context),
                     const SizedBox(height: AppSpacing.xs),
-                    InputToolbar(
-                      permissionMode: widget.permissionMode,
-                      onPermissionModeChanged: widget.onPermissionModeChanged,
-                      modelMode: widget.modelMode,
-                      availableModels: widget.availableModels,
-                      onShowModelPicker: () => widget.onModelModeChanged != null
-                          ? _showModelPicker(context)
-                          : null,
-                      selectedProfile: widget.selectedProfile,
-                      onShowProfilePicker: () => _showProfilePicker(context),
-                      contextSize: widget.contextSize,
-                      sessionFlavor: widget.sessionFlavor,
-                      maxContext: widget.maxContext,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InputToolbar(
+                            permissionMode: widget.permissionMode,
+                            onPermissionModeChanged:
+                                widget.onPermissionModeChanged,
+                            modelMode: widget.modelMode,
+                            availableModels: widget.availableModels,
+                            onShowModelPicker: () =>
+                                widget.onModelModeChanged != null
+                                ? _showModelPicker(context)
+                                : null,
+                            selectedProfile: widget.selectedProfile,
+                            onShowProfilePicker: () =>
+                                _showProfilePicker(context),
+                            contextSize: widget.contextSize,
+                            sessionFlavor: widget.sessionFlavor,
+                            maxContext: widget.maxContext,
+                          ),
+                        ),
+                        ExpandComposerButton(onTap: _openFullscreenComposer),
+                      ],
                     ),
                   ],
                 ),

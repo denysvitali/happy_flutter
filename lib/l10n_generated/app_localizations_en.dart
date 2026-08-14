@@ -2921,6 +2921,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatInputHint => 'Message...';
 
   @override
+  String get chatComposerExpand => 'Expand editor';
+
+  @override
+  String get chatComposerCollapse => 'Collapse editor';
+
+  @override
+  String get chatComposerFullscreenTitle => 'Compose message';
+
+  @override
+  String chatComposerCharacterCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count characters',
+      one: '1 character',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get chatInputProfileTitle => 'Profile';
 
   @override

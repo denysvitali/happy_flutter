@@ -1176,6 +1176,18 @@
   "pickRecent": "Recent",
   "pickAllMachines": "All Machines",
   "chatInputHint": "Message...",
+  "chatComposerExpand": "Expand editor",
+  "chatComposerCollapse": "Collapse editor",
+  "chatComposerFullscreenTitle": "Compose message",
+  "chatComposerCharacterCount": "{count, plural, =1 {1 character} other {{count} characters}}",
+  "@chatComposerCharacterCount": {
+    "description": "Character count in the full-screen composer",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatInputProfileTitle": "Profile",
   "chatInputProfileDefault": "Default",
   "chatInputProfileDefaultSubtitle": "Server-configured defaults",

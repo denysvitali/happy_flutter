@@ -5260,6 +5260,30 @@ abstract class AppLocalizations {
   /// **'Message...'**
   String get chatInputHint;
 
+  /// No description provided for @chatComposerExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand editor'**
+  String get chatComposerExpand;
+
+  /// No description provided for @chatComposerCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse editor'**
+  String get chatComposerCollapse;
+
+  /// No description provided for @chatComposerFullscreenTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compose message'**
+  String get chatComposerFullscreenTitle;
+
+  /// Character count in the full-screen composer
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 character} other {{count} characters}}'**
+  String chatComposerCharacterCount(int count);
+
   /// No description provided for @chatInputProfileTitle.
   ///
   /// In en, this message translates to:
