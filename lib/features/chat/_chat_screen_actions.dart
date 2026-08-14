@@ -547,6 +547,47 @@ extension _ChatScreenActions on _ChatScreenState {
     }
   }
 
+  void _onContextWindowChanged(bool oneMillion) {
+    final raw = _effectiveModelModeString;
+    if (raw == null ||
+        raw.isEmpty ||
+        raw == ChatModelMode.defaultModel.modeString) {
+      return;
+    }
+    final next = oneMillion
+        ? ChatModelMode.withOneMillionSuffix(raw)
+        : ChatModelMode.stripOneMillionSuffix(raw);
+    if (next == raw) return;
+    setState(() {
+      _userOverrodeModelOrProfile = true;
+      _profileModelOverride = next;
+    });
+    // Persist the suffixed model so the 1M window survives app restarts and
+    // drives the send/respawn path (which reads _effectiveModelModeString).
+    ref
+        .read(chatActionNotifierProvider.notifier)
+        .saveSelection(
+          widget.sessionId,
+          profileId: _selectedProfile?.id,
+          modelMode: next,
+        );
+
+    // The next sendMessage call detects the model change and kill+respawns
+    // the session with the 1M suffix. No manual restart required.
+    final isRunning = _session?.isPresenceOnline ?? false;
+    if (isRunning && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Context window changed. The session will restart '
+            'automatically on the next message.',
+          ),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   Future<void> _refreshCodexModelModes(Session? session) async {
     if (session?.metadata?.flavor != 'codex') return;
     final machineId = session?.metadata?.machineId;

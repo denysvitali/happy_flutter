@@ -182,6 +182,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? get _effectiveModelModeString =>
       _profileModelOverride ?? _modelMode.modeString;
 
+  /// Whether the current model opts into the 1M context window.
+  bool get _oneMillionContext =>
+      (_effectiveModelModeString ?? '').endsWith(
+        ChatModelMode.oneMillionSuffix,
+      );
+
+  /// Whether the 1M context-window toggle is meaningful for the current
+  /// selection. Only concrete provider model slugs (e.g. `deepseek-chat`)
+  /// can carry the `[1m]` suffix — Claude tier aliases and `default` resolve
+  /// through the daemon, and non-Claude agents don't use the suffix at all.
+  bool get _contextWindowApplicable {
+    final flavor = _session?.metadata?.flavor;
+    if (flavor != null && flavor != 'claude') return false;
+    final raw = _effectiveModelModeString?.trim();
+    if (raw == null || raw.isEmpty) return false;
+    if (raw == ChatModelMode.defaultModel.modeString) return false;
+    if (raw == 'fable' || raw == 'sonnet' || raw == 'opus' || raw == 'haiku') {
+      return false;
+    }
+    if (raw.startsWith('claude-') || raw.contains('/claude-')) return false;
+    return true;
+  }
+
   /// Raw model mode string from storage, used for provider-owned modes.
   /// For Claude profiles, this matches _modelMode.modeString.
   /// For profiles with their own model names, this contains the actual
@@ -1586,6 +1609,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             machineName: _session?.metadata?.host,
             currentPath: _session?.metadata?.path,
             contextSize: sessionUiEntry.sessionUsage['contextSize'] as int?,
+            oneMillionContext: _oneMillionContext,
+            onContextWindowChanged: _contextWindowApplicable
+                ? _onContextWindowChanged
+                : null,
             isSessionOnline: _session?.isPresenceOnline ?? false,
             enterToSend: enterToSend,
             lastDeliveryStatus:

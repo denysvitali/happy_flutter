@@ -69,6 +69,8 @@ class ChatInput extends ConsumerStatefulWidget {
     this.lastDeliveryStatus,
     this.onQueueNextTurn,
     this.sessionFlavor,
+    this.oneMillionContext = false,
+    this.onContextWindowChanged,
   });
 
   /// Stable identifier for the current session
@@ -109,6 +111,13 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Agent flavor for the session (`claude`, `codex`, and so on).
   final String? sessionFlavor;
+
+  /// Whether the 1M context window is selected for the current model.
+  final bool oneMillionContext;
+
+  /// Called with the desired 1M state when the user toggles the chip.
+  /// Null hides the toggle chip.
+  final ValueChanged<bool>? onContextWindowChanged;
 
   /// Slash commands advertised by the current session's agent.
   final List<String> availableSlashCommands;
@@ -652,6 +661,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
                       onShowProfilePicker: () => _showProfilePicker(context),
                       contextSize: widget.contextSize,
                       sessionFlavor: widget.sessionFlavor,
+                      oneMillionContext: widget.oneMillionContext,
+                      onContextWindowChanged: widget.onContextWindowChanged,
                     ),
                   ],
                 ),

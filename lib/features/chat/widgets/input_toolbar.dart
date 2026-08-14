@@ -201,19 +201,107 @@ class ProfileChip extends StatelessWidget {
   }
 }
 
-/// Context-size indicator showing token usage.
-class ContextSizeIndicator extends StatelessWidget {
-  const ContextSizeIndicator({required this.contextSize, super.key});
+/// Inline toggle chip for the 1M context window. When [oneMillion] is on,
+/// the session spawns with the `[1m]` model suffix so Claude Code opens a
+/// 1M-token window; when off, the model uses its default window.
+class ContextWindowChip extends StatelessWidget {
+  const ContextWindowChip({
+    required this.oneMillion,
+    required this.onTap,
+    super.key,
+  });
 
-  final int contextSize;
-
-  static const int _maxContext = 190000;
+  final bool oneMillion;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final pctUsed = (contextSize / _maxContext * 100).clamp(0.0, 100.0);
+    final color = oneMillion ? cs.secondary : cs.onSurfaceVariant;
+    final label = oneMillion ? '1M context' : 'Default context';
+
+    return Semantics(
+      button: true,
+      toggled: oneMillion,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              minHeight: AppTouchTarget.min,
+              minWidth: AppTouchTarget.min,
+            ),
+            child: Align(
+              alignment: Alignment.center,
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Container(
+                height: _toolbarChipVisualHeight,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: oneMillion
+                      ? cs.secondary.withValues(alpha: 0.12)
+                      : cs.onSurface.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.aspect_ratio_rounded,
+                      size: 11,
+                      color: color,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      '1M',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontSize: AppFontSize.xxs,
+                        color: color,
+                        fontWeight: oneMillion
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Context-size indicator showing token usage.
+class ContextSizeIndicator extends StatelessWidget {
+  const ContextSizeIndicator({
+    required this.contextSize,
+    this.maxContext = defaultMaxContext,
+    super.key,
+  });
+
+  final int contextSize;
+
+  /// The window the [contextSize] is measured against. Reflects the
+  /// selected context window (1M vs. the model's default).
+  final int maxContext;
+
+  /// Conservative default budget for the standard (non-1M) window.
+  static const int defaultMaxContext = 190000;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final pctUsed = (contextSize / maxContext * 100).clamp(0.0, 100.0);
     final pctRemaining = (100 - pctUsed).round();
 
     final Color indicatorColor;
@@ -276,6 +364,8 @@ class InputToolbar extends StatelessWidget {
     this.selectedProfile,
     this.contextSize,
     this.sessionFlavor,
+    this.oneMillionContext = false,
+    this.onContextWindowChanged,
   });
 
   final perm.PermissionMode? permissionMode;
@@ -290,6 +380,13 @@ class InputToolbar extends StatelessWidget {
   /// Session agent flavor (`claude`, `codex`, …). Codex sessions get
   /// Codex permission modes instead of Claude/Gemini ones.
   final String? sessionFlavor;
+
+  /// Whether the 1M context window is selected for the current model.
+  final bool oneMillionContext;
+
+  /// Called with the desired 1M state when the user toggles the chip.
+  /// Null hides the chip.
+  final ValueChanged<bool>? onContextWindowChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -317,8 +414,18 @@ class InputToolbar extends StatelessWidget {
           onTap: onShowModelPicker,
         ),
         ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
+        if (onContextWindowChanged != null)
+          ContextWindowChip(
+            oneMillion: oneMillionContext,
+            onTap: () => onContextWindowChanged!(!oneMillionContext),
+          ),
         if (contextSize != null && contextSize! > 0)
-          ContextSizeIndicator(contextSize: contextSize!),
+          ContextSizeIndicator(
+            contextSize: contextSize!,
+            maxContext: oneMillionContext
+                ? ChatModelMode.oneMillionContextWindowTokens
+                : ContextSizeIndicator.defaultMaxContext,
+          ),
       ],
     );
   }

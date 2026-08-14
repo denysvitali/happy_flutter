@@ -106,6 +106,44 @@ class ChatModelMode {
   /// user-selectable (see [providerOwnedCodexEfforts]).
   static const codexEfforts = ['low', 'medium', 'high'];
 
+  /// Suffix the Claude Code CLI parses locally to open a 1M-token context
+  /// window. It is stripped client-side before the model ID reaches the
+  /// provider, so `deepseek-v4-pro[1m]` is sent as `deepseek-v4-pro` with a
+  /// 1M budget.
+  static const oneMillionSuffix = '[1m]';
+
+  /// Context window used for the usage indicator when the 1M window is off.
+  static const defaultContextWindowTokens = 200000;
+
+  /// Context window used for the usage indicator when the 1M window is on.
+  static const oneMillionContextWindowTokens = 1000000;
+
+  /// Whether this selection opts into the 1M context window.
+  bool get has1MContext => modeString.endsWith(oneMillionSuffix);
+
+  /// Strip a trailing 1M suffix, if present.
+  static String stripOneMillionSuffix(String raw) {
+    if (!raw.endsWith(oneMillionSuffix)) return raw;
+    return raw.substring(0, raw.length - oneMillionSuffix.length);
+  }
+
+  /// Append the 1M suffix, if not already present.
+  static String withOneMillionSuffix(String raw) =>
+      raw.endsWith(oneMillionSuffix) ? raw : '$raw$oneMillionSuffix';
+
+  /// Return a copy of this selection that opts into the 1M context window.
+  /// The label is left unchanged so the chip can render a separate badge.
+  ChatModelMode withOneMillionContext() {
+    if (has1MContext) return this;
+    return ChatModelMode._(
+      label: label,
+      modeString: '$modeString$oneMillionSuffix',
+      modelSlug: modelSlug,
+      reasoningEffort: reasoningEffort,
+      flavor: flavor,
+    );
+  }
+
   static List<ChatModelMode> _buildClaudeModels() {
     final list = <ChatModelMode>[defaultModel];
     const tiers = [
@@ -161,6 +199,16 @@ class ChatModelMode {
 
   /// Parse a wire-format string back to a [ChatModelMode].
   static ChatModelMode fromString(String? value) {
+    final trimmed = value?.trim();
+    final has1M = trimmed != null && trimmed.endsWith(oneMillionSuffix);
+    final base = has1M
+        ? trimmed.substring(0, trimmed.length - oneMillionSuffix.length)
+        : trimmed;
+    final parsed = _fromStringBase(base);
+    return has1M ? parsed.withOneMillionContext() : parsed;
+  }
+
+  static ChatModelMode _fromStringBase(String? value) {
     return switch (value) {
       'fable' => fable,
       'sonnet' => sonnet,
