@@ -16,8 +16,19 @@ List<RouteBase> get settingsRoutes => [
     GoRoute(
       path: '/tasks',
       name: 'tasks',
-      pageBuilder: (context, state) =>
-          _fadePage(const AuthGate(child: ZenHomeScreen()), state),
+      pageBuilder: (context, state) {
+        final sessionId = state.uri.queryParameters['session'];
+        return _fadePage(
+          AuthGate(
+            child: ZenHomeScreen(
+              sessionId: sessionId != null && sessionId.isNotEmpty
+                  ? sessionId
+                  : null,
+            ),
+          ),
+          state,
+        );
+      },
     ),
     GoRoute(
       path: '/settings/account',

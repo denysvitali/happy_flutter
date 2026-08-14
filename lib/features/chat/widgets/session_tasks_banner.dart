@@ -71,7 +71,10 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
             },
             onViewAll: () {
               HapticFeedback.lightImpact();
-              context.pushNamed('tasks');
+              context.pushNamed(
+                'tasks',
+                queryParameters: {'session': widget.sessionId},
+              );
             },
           ),
           AnimatedSize(

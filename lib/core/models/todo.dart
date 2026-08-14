@@ -69,6 +69,7 @@ class TodoItem {
     this.dependencies = const [],
     this.dueAt,
     this.sessionId,
+    this.path,
     this.completedAt,
   });
 
@@ -91,6 +92,7 @@ class TodoItem {
       createdAt: _asInt(json['createdAt']) ?? 0,
       updatedAt: _asInt(json['updatedAt']) ?? 0,
       sessionId: json['sessionId'] as String?,
+      path: json['path'] as String?,
       completedAt: _asInt(json['completedAt']),
     );
   }
@@ -127,6 +129,7 @@ class TodoItem {
   final int createdAt;
   final int updatedAt;
   final String? sessionId;
+  final String? path;
   final int? completedAt;
 
   Map<String, dynamic> toJson() {
@@ -143,6 +146,7 @@ class TodoItem {
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'sessionId': sessionId,
+      'path': path,
       'completedAt': completedAt,
     };
   }
@@ -162,6 +166,7 @@ class TodoItem {
     int? createdAt,
     int? updatedAt,
     String? sessionId,
+    String? path,
     int? completedAt,
   }) {
     return TodoItem(
@@ -179,6 +184,7 @@ class TodoItem {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       sessionId: sessionId ?? this.sessionId,
+      path: path ?? this.path,
       completedAt: completedAt ?? this.completedAt,
     );
   }

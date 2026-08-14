@@ -84,20 +84,29 @@ class _SessionTodo {
     required this.item,
     required this.sessionTitle,
     required this.sessionId,
+    required this.directoryKey,
+    required this.directoryLabel,
   });
 
   final TodoItem item;
   final String sessionTitle;
   final String sessionId;
+  final String directoryKey;
+  final String directoryLabel;
 }
 
 // ─── Zen Home Screen ─────────────────────────────────────────────────────────
 
-/// Zen home screen — aggregates todos from all sessions,
-/// grouped by priority (critical / high / medium / low) in
-/// collapsible sections with colored left-border headers.
+/// Zen home screen — session ToDo list, optionally scoped.
+///
+/// When [sessionId] is set (chat "View all"), only that session's
+/// items are shown, grouped by priority. When unset, items are
+/// grouped by working directory so two projects never share a list.
 class ZenHomeScreen extends ConsumerStatefulWidget {
-  const ZenHomeScreen({super.key});
+  const ZenHomeScreen({super.key, this.sessionId});
+
+  /// Owning chat session. Null means the unscoped /tasks inbox.
+  final String? sessionId;
 
   @override
   ConsumerState<ZenHomeScreen> createState() => _ZenHomeScreenState();
@@ -107,6 +116,9 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     with SyncSubscriptionMixin {
   /// Which priority sections are currently collapsed.
   final Set<_Priority> _collapsed = {};
+
+  /// Which directory sections are currently collapsed (unscoped view).
+  final Set<String> _collapsedDirectories = {};
 
   @override
   void initState() {
@@ -124,9 +136,11 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
   List<_SessionTodo> _collectTodos(
     List<Session> sessions,
     Map<String, List<TodoItem>> liveTodosBySession,
+    String? sessionId,
   ) {
     final result = <_SessionTodo>[];
     for (final session in sessions) {
+      if (sessionId != null && session.id != sessionId) continue;
       // Tool cards publish the newest task snapshot to the in-memory
       // provider before that state is reflected in Session.todos. Treat a
       // live bucket as authoritative, including an empty bucket that clears
@@ -136,6 +150,8 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
           ? liveTodosBySession[session.id]
           : session.todos;
       if (todos == null || todos.isEmpty) continue;
+      final directoryKey = sessionFolderKey(session);
+      final directoryLabel = getSessionSubtitle(session);
       for (final item in todos) {
         if (item.status.isTerminal) continue;
         result.add(
@@ -143,11 +159,26 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
             item: item,
             sessionTitle: getSessionName(session),
             sessionId: session.id,
+            directoryKey: directoryKey,
+            directoryLabel: directoryLabel,
           ),
         );
       }
     }
     return result;
+  }
+
+  Map<String, List<_SessionTodo>> _groupByDirectory(
+    List<_SessionTodo> todos,
+  ) {
+    final map = <String, List<_SessionTodo>>{};
+    for (final st in todos) {
+      map.putIfAbsent(st.directoryKey, () => []).add(st);
+    }
+    for (final group in map.values) {
+      group.sort((a, b) => a.item.order.compareTo(b.item.order));
+    }
+    return map;
   }
 
   Map<_Priority, List<_SessionTodo>> _groupByPriority(
@@ -175,6 +206,16 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     });
   }
 
+  void _toggleDirectory(String key) {
+    setState(() {
+      if (_collapsedDirectories.contains(key)) {
+        _collapsedDirectories.remove(key);
+      } else {
+        _collapsedDirectories.add(key);
+      }
+    });
+  }
+
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
@@ -186,11 +227,22 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     final liveTodosBySession = ref.watch(
       todoStateNotifierProvider.select((state) => state.bySession),
     );
-    final todos = _collectTodos(sessions, liveTodosBySession);
-    final grouped = _groupByPriority(todos);
+    final scopedSessionId = widget.sessionId;
+    final todos = _collectTodos(sessions, liveTodosBySession, scopedSessionId);
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.tasksTitle), centerTitle: false),
+      appBar: AppBar(
+        title: Text(
+          scopedSessionId == null
+              ? context.l10n.tasksTitle
+              : _scopedTitle(
+                  sessions,
+                  scopedSessionId,
+                  context.l10n.tasksTitle,
+                ),
+        ),
+        centerTitle: false,
+      ),
       body: todos.isEmpty
           ? _EmptyState()
           : ListView(
@@ -198,37 +250,91 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
                 horizontal: AppSpacing.lg,
                 vertical: AppSpacing.md,
               ),
-              children: _Priority.values
-                  .where((p) => grouped.containsKey(p))
-                  .expand(
-                    (p) => [
-                      _PrioritySectionHeader(
-                        priority: p,
-                        count: grouped[p]!.length,
-                        collapsed: _collapsed.contains(p),
-                        onToggle: () => _toggleSection(p),
-                      ),
-                      AnimatedCrossFade(
-                        firstChild: _PrioritySectionBody(
-                          priority: p,
-                          todos: grouped[p]!,
-                        ),
-                        secondChild: const SizedBox.shrink(),
-                        crossFadeState: _collapsed.contains(p)
-                            ? CrossFadeState.showSecond
-                            : CrossFadeState.showFirst,
-                        duration: AppMotion.duration(
-                          context,
-                          const Duration(milliseconds: 200),
-                        ),
-                        sizeCurve: Curves.easeInOut,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
-                  )
-                  .toList(),
+              children: scopedSessionId == null
+                  ? _directoryChildren(todos)
+                  : _priorityChildren(_groupByPriority(todos)),
             ),
     );
+  }
+
+  String _scopedTitle(
+    List<Session> sessions,
+    String sessionId,
+    String fallback,
+  ) {
+    for (final session in sessions) {
+      if (session.id == sessionId) return getSessionName(session);
+    }
+    return fallback;
+  }
+
+  List<Widget> _priorityChildren(Map<_Priority, List<_SessionTodo>> grouped) {
+    return _Priority.values
+        .where((p) => grouped.containsKey(p))
+        .expand(
+          (p) => [
+            _PrioritySectionHeader(
+              priority: p,
+              count: grouped[p]!.length,
+              collapsed: _collapsed.contains(p),
+              onToggle: () => _toggleSection(p),
+            ),
+            AnimatedCrossFade(
+              firstChild: _PrioritySectionBody(
+                priority: p,
+                todos: grouped[p]!,
+              ),
+              secondChild: const SizedBox.shrink(),
+              crossFadeState: _collapsed.contains(p)
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: AppMotion.duration(
+                context,
+                const Duration(milliseconds: 200),
+              ),
+              sizeCurve: Curves.easeInOut,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        )
+        .toList();
+  }
+
+  List<Widget> _directoryChildren(List<_SessionTodo> todos) {
+    final grouped = _groupByDirectory(todos);
+    final keys = grouped.keys.toList()
+      ..sort((a, b) {
+        final aLabel = grouped[a]!.first.directoryLabel;
+        final bLabel = grouped[b]!.first.directoryLabel;
+        return aLabel.compareTo(bLabel);
+      });
+    return keys
+        .expand((key) {
+          final items = grouped[key]!;
+          final collapsed = _collapsedDirectories.contains(key);
+          return [
+            _DirectorySectionHeader(
+              label: items.first.directoryLabel,
+              count: items.length,
+              collapsed: collapsed,
+              onToggle: () => _toggleDirectory(key),
+            ),
+            AnimatedCrossFade(
+              firstChild: _DirectorySectionBody(todos: items),
+              secondChild: const SizedBox.shrink(),
+              crossFadeState: collapsed
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: AppMotion.duration(
+                context,
+                const Duration(milliseconds: 200),
+              ),
+              sizeCurve: Curves.easeInOut,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ];
+        })
+        .toList();
   }
 }
 
@@ -344,6 +450,129 @@ class _PrioritySectionBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: todos
             .map((st) => _TodoRow(priority: priority, sessionTodo: st))
+            .toList(),
+      ),
+    );
+  }
+}
+
+// ─── Directory section (unscoped view) ────────────────────────────────────────
+
+class _DirectorySectionHeader extends StatelessWidget {
+  const _DirectorySectionHeader({
+    required this.label,
+    required this.count,
+    required this.collapsed,
+    required this.onToggle,
+  });
+
+  final String label;
+  final int count;
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
+
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+        decoration: BoxDecoration(
+          border: Border(left: BorderSide(color: accent, width: 3)),
+          color: accent.withValues(alpha: 0.06),
+          borderRadius: const BorderRadius.horizontal(
+            right: Radius.circular(AppRadius.sm),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.folder_rounded, size: 16, color: accent),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.4,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
+              ),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              child: Text(
+                '$count',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            AnimatedRotation(
+              turns: collapsed ? -0.25 : 0,
+              duration: AppMotion.duration(
+                context,
+                const Duration(milliseconds: 200),
+              ),
+              curve: Curves.easeInOut,
+              child: Icon(
+                Icons.expand_more_rounded,
+                size: 20,
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DirectorySectionBody extends StatelessWidget {
+  const _DirectorySectionBody({required this.todos});
+
+  final List<_SessionTodo> todos;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(left: 3, bottom: AppSpacing.xs),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: theme.colorScheme.secondary.withValues(alpha: 0.30),
+            width: 2,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: todos
+            .map(
+              (st) => _TodoRow(
+                priority: _Priority.fromString(st.item.priority),
+                sessionTodo: st,
+              ),
+            )
             .toList(),
       ),
     );
