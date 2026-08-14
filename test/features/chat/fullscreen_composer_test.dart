@@ -8,6 +8,7 @@ import 'package:happy_flutter/features/chat/widgets/fullscreen_composer.dart';
 Widget _buildComposer({
   required TextEditingController controller,
   required VoidCallback onSend,
+  required String sessionId,
   bool isSendDisabled = false,
 }) {
   return ProviderScope(
@@ -18,7 +19,7 @@ Widget _buildComposer({
         body: Align(
           alignment: Alignment.bottomCenter,
           child: ChatInput(
-            sessionId: 'fullscreen-composer-test',
+            sessionId: sessionId,
             controller: controller,
             onSend: onSend,
             isSendDisabled: isSendDisabled,
@@ -46,7 +47,11 @@ void main() {
     addTearDown(controller.dispose);
 
     await tester.pumpWidget(
-      _buildComposer(controller: controller, onSend: () {}),
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        sessionId: 'composer-expand',
+      ),
     );
     await tester.pump();
 
@@ -60,7 +65,7 @@ void main() {
     );
 
     await tester.enterText(_fullscreenField(), 'first paragraph\nsecond one');
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     await tester.tap(
       find.byKey(const ValueKey<String>('fullscreen-composer-collapse')),
@@ -80,7 +85,11 @@ void main() {
     var sends = 0;
 
     await tester.pumpWidget(
-      _buildComposer(controller: controller, onSend: () => sends++),
+      _buildComposer(
+        controller: controller,
+        onSend: () => sends++,
+        sessionId: 'composer-send',
+      ),
     );
     await tester.pump();
 
@@ -98,7 +107,7 @@ void main() {
     );
 
     await tester.enterText(_fullscreenField(), 'a very long prompt');
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
 
     await tester.tap(
       find.byKey(const ValueKey<String>('fullscreen-composer-send')),
@@ -118,6 +127,7 @@ void main() {
       _buildComposer(
         controller: controller,
         onSend: () => sends++,
+        sessionId: 'composer-blocked',
         isSendDisabled: true,
       ),
     );
