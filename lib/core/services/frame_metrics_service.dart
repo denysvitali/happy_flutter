@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
@@ -30,6 +31,17 @@ class FrameMetricsService {
   static const int _maxJankBuffer = 50;
   static const int _slowFrameMicros = 16667;
   static const int _frozenFrameMicros = 100000;
+
+  /// Length of one metrics window. Frames-per-window is only interpretable
+  /// against this, so the timer and the fps buckets must share it.
+  static const int _flushIntervalSeconds = 30;
+
+  /// Frames in a single idle window above which the window is worth a log
+  /// line — 300 frames over 30 s is 10 fps sustained with nothing on screen
+  /// asking to be redrawn.
+  static const int _idleRenderWarnFrames = 300;
+
+  static const Duration _idleRenderWarnCooldown = Duration(minutes: 5);
 
   int _frameCount = 0;
   int _slowFrameCount = 0;
@@ -72,6 +84,20 @@ class FrameMetricsService {
   bool _jankWindowOpen = false;
   Duration? _lastJankWindow;
 
+  /// Pointer events routed anywhere in the app since the last flush. Counted
+  /// globally rather than per-widget: the question is only "did the user
+  /// touch the screen at all in this window?".
+  int _pointerEvents = 0;
+
+  /// `dataChangeCounter + messagesChangeCounter` as of the last flush, so a
+  /// window can tell whether Sync published anything while it was rendering.
+  int _lastActivityCounter = 0;
+
+  DateTime? _lastIdleRenderWarnAt;
+
+  int _lastWindowFrames = 0;
+  bool _lastWindowIdle = false;
+
   /// Longest frozen frame observed in the most recent flushed window.
   Duration? _lastMaxFrozenFrame;
   Duration? _lastMaxFrozenBuild;
@@ -111,6 +137,29 @@ class FrameMetricsService {
   @visibleForTesting
   int get debugFrameCount => _frameCount;
 
+  /// Frames counted by the most recently flushed window.
+  @visibleForTesting
+  int get debugLastWindowFrames => _lastWindowFrames;
+
+  /// Whether the most recently flushed window saw neither pointer input nor
+  /// a Sync change — i.e. it had no reason to render at all.
+  @visibleForTesting
+  bool get debugLastWindowIdle => _lastWindowIdle;
+
+  @visibleForTesting
+  void debugRecordPointerEvent() => _pointerEvents++;
+
+  /// Re-seed the window accounting so a test starts from a clean window
+  /// regardless of what earlier tests left on the shared singleton.
+  @visibleForTesting
+  void debugResetWindow() {
+    _pointerEvents = 0;
+    _lastActivityCounter = _activityCounter();
+    _lastWindowFrames = 0;
+    _lastWindowIdle = false;
+    _lastIdleRenderWarnAt = null;
+  }
+
   @visibleForTesting
   int get debugSlowFrameCount => _slowFrameCount;
 
@@ -127,15 +176,27 @@ class FrameMetricsService {
     _attached = true;
 
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_onPointerEvent);
+    _lastActivityCounter = _activityCounter();
 
     // Periodically flush accumulated jank stats as a single Sentry
     // transaction instead of one per frame.
-    _flushTimer = Timer.periodic(const Duration(seconds: 30), (_) => _flush());
+    _flushTimer = Timer.periodic(
+      const Duration(seconds: _flushIntervalSeconds),
+      (_) => _flush(),
+    );
 
     if (kDebugMode) {
       logger.debug('[FrameMetrics] Attached');
     }
   }
+
+  void _onPointerEvent(PointerEvent _) => _pointerEvents++;
+
+  /// Collection-wide "something changed" clock. Both counters are monotonic
+  /// while the app runs, but `dataChangeCounter` is reset by `shutdown()`, so
+  /// callers must treat a negative delta as activity rather than as silence.
+  int _activityCounter() => sync.dataChangeCounter + sync.messagesChangeCounter;
 
   void _onTimings(List<FrameTiming> timings) {
     for (final t in timings) {
@@ -221,6 +282,16 @@ class FrameMetricsService {
   }
 
   void _flush() {
+    // Reset the window's activity accounting before the zero-frame early
+    // return. A window that rendered nothing is the healthy case, but its
+    // taps and data changes still belong to it — carrying them forward would
+    // make the *next* window look active and mask a real idle-render burst.
+    final activityCounter = _activityCounter();
+    final activityTicks = activityCounter - _lastActivityCounter;
+    final pointerEvents = _pointerEvents;
+    _lastActivityCounter = activityCounter;
+    _pointerEvents = 0;
+
     if (_frameCount == 0) return;
 
     final snapshot = List<_FrozenFrameSample>.from(_recentFrozenFrames);
@@ -291,6 +362,43 @@ class FrameMetricsService {
         value: entry.value,
         attributes: {...attributes, 'bucket': entry.key},
       );
+    }
+
+    // Idle-render detection. A window that rendered frames while the user
+    // never touched the screen and Sync never published a change had nothing
+    // to draw — those frames are pure battery burn. A healthy screen at rest
+    // produces zero frames and never reaches this code at all.
+    //
+    // A negative delta means `shutdown()` reset `dataChangeCounter` mid
+    // window, which is itself activity; do not read it as silence.
+    final idleWindow = pointerEvents == 0 && activityTicks == 0;
+    final windowAttributes = <String, Object?>{
+      ...attributes,
+      'activity': idleWindow ? 'idle' : 'active',
+    };
+    _lastWindowFrames = frameCount;
+    _lastWindowIdle = idleWindow;
+    otel
+      ..recordCount(
+        'app.ui.window_frames',
+        value: frameCount,
+        attributes: windowAttributes,
+        description:
+            'Frames rendered in one metrics window, split by whether that '
+            'window saw any pointer input or Sync data change',
+      )
+      ..recordCount(
+        'app.ui.render_windows',
+        attributes: {
+          ...windowAttributes,
+          'window_fps_bucket': _windowFpsBucket(frameCount),
+        },
+        description:
+            'Metrics windows that rendered at least one frame, bucketed by '
+            'sustained frame rate — the denominator for app.ui.window_frames',
+      );
+    if (idleWindow && frameCount >= _idleRenderWarnFrames) {
+      _warnIdleRender(route, frameCount);
     }
 
     if (snapshot.isEmpty) {
@@ -420,11 +528,41 @@ class FrameMetricsService {
       ..end();
   }
 
+  /// Sustained frame rate of a window, bucketed. Kept coarse: this label
+  /// exists to separate "a couple of frames on a socket update" from "the
+  /// screen never stopped drawing", not to profile.
+  static String _windowFpsBucket(int frames) => switch (frames) {
+    < _flushIntervalSeconds => 'under_1fps',
+    < _flushIntervalSeconds * 5 => '1_5fps',
+    < _flushIntervalSeconds * 15 => '5_15fps',
+    < _flushIntervalSeconds * 30 => '15_30fps',
+    _ => '30fps_plus',
+  };
+
+  /// One greppable line per idle-render burst, rate limited so a screen that
+  /// spins forever cannot flood Loki. The metrics above carry the counts;
+  /// this exists so the route can be found without a dashboard.
+  void _warnIdleRender(String route, int frames) {
+    final now = DateTime.now();
+    final last = _lastIdleRenderWarnAt;
+    if (last != null && now.difference(last) < _idleRenderWarnCooldown) {
+      return;
+    }
+    _lastIdleRenderWarnAt = now;
+    final fps = (frames / _flushIntervalSeconds).toStringAsFixed(1);
+    logger.warning(
+      '[FrameMetrics] idle render: route=$route frames=$frames '
+      'window=${_flushIntervalSeconds}s fps=$fps '
+      '(no pointer input, no sync change)',
+    );
+  }
+
   /// Detach and clean up. Call on app dispose.
   void detach() {
     if (!_attached) return;
     _attached = false;
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointerEvent);
     _flushTimer?.cancel();
     _flushTimer = null;
     _flush();

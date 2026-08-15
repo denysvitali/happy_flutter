@@ -791,6 +791,10 @@ what you have, you must use the options mode.
   /// this against their last-seen value to skip expensive equality checks
   /// when nothing has changed.
   int _dataChangeCounter = 0;
+
+  /// Monotonic counter incremented on every message-list mutation across all
+  /// sessions. See [messagesChangeCounter].
+  int _messagesChangeCounter = 0;
   final Map<SyncDomain, int> _domainChangeCounters = {
     for (final domain in SyncDomain.values) domain: 0,
   };
@@ -1369,6 +1373,7 @@ what you have, you must use the options mode.
   void _bumpMessagesRevision(String sessionId) {
     _sessionMessagesRevision[sessionId] =
         (_sessionMessagesRevision[sessionId] ?? 0) + 1;
+    _messagesChangeCounter++;
   }
 
   /// Invalidate the cached all-sessions snapshot and the per-session
@@ -1617,6 +1622,12 @@ what you have, you must use the options mode.
   /// Monotonic counter incremented on every data change notification.
   /// Providers compare this to skip expensive equality checks.
   int get dataChangeCounter => _dataChangeCounter;
+
+  /// Monotonic counter incremented on every real message-list mutation, in
+  /// any session. Unlike [messagesRevision] this is collection-wide, which
+  /// is what a global "did anything change in this window?" check needs —
+  /// see `FrameMetricsService` idle-render detection.
+  int get messagesChangeCounter => _messagesChangeCounter;
 
   /// Monotonic counter for a specific domain.
   int domainChangeCounter(SyncDomain domain) =>

@@ -294,4 +294,112 @@ void main() {
       expect(FrameMetricsService.instance.debugLastJankRoute, 'unknown');
     });
   });
+
+  // A screen at rest must render zero frames. Windows that rendered anyway,
+  // with no pointer input and no Sync change to justify it, are the
+  // battery-drain signal these metrics exist to name.
+  group('FrameMetricsService idle-render detection', () {
+    late Map<String, Map<String, Object?>> attributes;
+    late Map<String, int> values;
+
+    void recordSmoothFrames(int count) {
+      for (var i = 0; i < count; i++) {
+        FrameMetricsService.instance.testRecordFrame(
+          build: const Duration(milliseconds: 4),
+          raster: const Duration(milliseconds: 4),
+          total: const Duration(milliseconds: 8),
+        );
+      }
+    }
+
+    setUp(() {
+      // Drain frames left by earlier groups before the sink is installed, so
+      // an assertion on an empty window cannot see someone else's frames.
+      FrameMetricsService.instance.debugFlush();
+      attributes = <String, Map<String, Object?>>{};
+      values = <String, int>{};
+      OpenTelemetryService.debugCountSink = (name, value, attrs) {
+        attributes[name] = attrs;
+        values[name] = (values[name] ?? 0) + value;
+      };
+      FrameMetricsService.instance.debugResetWindow();
+    });
+
+    tearDown(() {
+      OpenTelemetryService.debugCountSink = null;
+      FrameMetricsService.instance.debugResetWindow();
+    });
+
+    test('marks a window with no input and no sync change as idle', () {
+      recordSmoothFrames(3);
+      FrameMetricsService.instance.debugFlush();
+
+      expect(attributes['app.ui.window_frames']?['activity'], 'idle');
+      expect(values['app.ui.window_frames'], 3);
+      expect(values['app.ui.render_windows'], 1);
+      expect(FrameMetricsService.instance.debugLastWindowIdle, isTrue);
+      expect(FrameMetricsService.instance.debugLastWindowFrames, 3);
+    });
+
+    test('a pointer event makes the window active', () {
+      FrameMetricsService.instance
+        ..debugRecordPointerEvent()
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 4),
+          raster: const Duration(milliseconds: 4),
+          total: const Duration(milliseconds: 8),
+        )
+        ..debugFlush();
+
+      expect(attributes['app.ui.window_frames']?['activity'], 'active');
+      expect(FrameMetricsService.instance.debugLastWindowIdle, isFalse);
+    });
+
+    test('a message-list change makes the window active', () {
+      sync.testNotifySessionMessagesChanged('session-1');
+      recordSmoothFrames(1);
+      FrameMetricsService.instance.debugFlush();
+
+      expect(attributes['app.ui.window_frames']?['activity'], 'active');
+      expect(FrameMetricsService.instance.debugLastWindowIdle, isFalse);
+    });
+
+    // The reset has to happen before the zero-frame early return, or a tap
+    // in a quiet window would leak forward and label the *next* window
+    // active — hiding exactly the burst we are hunting.
+    test('input stays in its own window and does not mask the next', () {
+      FrameMetricsService.instance
+        ..debugRecordPointerEvent()
+        // Zero frames: the healthy window, which returns early.
+        ..debugFlush();
+
+      expect(attributes, isEmpty);
+
+      recordSmoothFrames(2);
+      FrameMetricsService.instance.debugFlush();
+
+      expect(attributes['app.ui.window_frames']?['activity'], 'idle');
+    });
+
+    test('buckets the window by sustained frame rate', () {
+      recordSmoothFrames(40);
+      FrameMetricsService.instance.debugFlush();
+
+      expect(
+        attributes['app.ui.render_windows']?['window_fps_bucket'],
+        '1_5fps',
+      );
+      expect(values['app.ui.window_frames'], 40);
+    });
+
+    test('a single frame is under one frame per second', () {
+      recordSmoothFrames(1);
+      FrameMetricsService.instance.debugFlush();
+
+      expect(
+        attributes['app.ui.render_windows']?['window_fps_bucket'],
+        'under_1fps',
+      );
+    });
+  });
 }
