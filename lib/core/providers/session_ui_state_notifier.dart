@@ -169,11 +169,8 @@ class MissionControlUiEntry {
       lastMessageIsError == other.lastMessageIsError;
 
   @override
-  int get hashCode => Object.hash(
-    lastMessageTimestamp,
-    unreadCount,
-    lastMessageIsError,
-  );
+  int get hashCode =>
+      Object.hash(lastMessageTimestamp, unreadCount, lastMessageIsError);
 }
 
 /// Identity-stable projection watched by the Mission Control model.

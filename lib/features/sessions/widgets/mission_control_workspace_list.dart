@@ -72,8 +72,7 @@ class MissionWorkspaceList extends StatelessWidget {
                   _WorkspaceTile(
                     group: group,
                     lanes: lanes,
-                    muted:
-                        isMutedFolder?.call(group.header.folderKey) ?? false,
+                    muted: isMutedFolder?.call(group.header.folderKey) ?? false,
                     onTap: () => onOpen(group.header),
                     onLongPress: onToggleMute == null
                         ? null

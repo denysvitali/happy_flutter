@@ -621,10 +621,9 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       triage: triage,
       onMarkRead: (sessionId) => sync.markSessionRead(sessionId),
       onTogglePin: triageNotifier.togglePin,
-      onToggleSnooze: (sessionId, snooze) =>
-          snooze ? triageNotifier.snooze(sessionId) : triageNotifier.unsnooze(
-            sessionId,
-          ),
+      onToggleSnooze: (sessionId, snooze) => snooze
+          ? triageNotifier.snooze(sessionId)
+          : triageNotifier.unsnooze(sessionId),
       onToggleMuteFolder: (folderKey) {
         triageNotifier.toggleMute(folderKey);
         final muted = ref.read(missionTriageProvider).isMuted(folderKey);
@@ -640,7 +639,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         );
       },
       actionCardBuilder:
-          (session, entry, lane, {
+          (
+            session,
+            entry,
+            lane, {
             required animateActivity,
             required highlighted,
           }) => _buildMissionActionRow(

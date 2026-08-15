@@ -508,7 +508,11 @@ void main() {
   testWidgets('the preview outranks the activity label on the detail line', (
     tester,
   ) async {
-    final session = _session(id: 'preview', path: '/home/dev/p', thinking: true);
+    final session = _session(
+      id: 'preview',
+      path: '/home/dev/p',
+      thinking: true,
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -529,12 +533,13 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.textContaining('Used Grep · rg mission_control'), findsOneWidget);
+    expect(
+      find.textContaining('Used Grep · rg mission_control'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('tapping the unread pill marks the session read', (
-    tester,
-  ) async {
+  testWidgets('tapping the unread pill marks the session read', (tester) async {
     var marked = 0;
     final session = _session(id: 'unread-pill', path: '/home/dev/p');
 
@@ -619,9 +624,7 @@ void main() {
     expect(find.byKey(const ValueKey('mission-filter-error')), findsOneWidget);
   });
 
-  testWidgets('a snoozed session stays out of the focus queue', (
-    tester,
-  ) async {
+  testWidgets('a snoozed session stays out of the focus queue', (tester) async {
     final session = _session(id: 'snoozed', thinking: true);
     final other = _session(id: 'awake', thinking: true);
 
@@ -643,9 +646,7 @@ void main() {
     expect(find.text('action-awake'), findsOneWidget);
   });
 
-  testWidgets('a pinned session moves to the top of the queue', (
-    tester,
-  ) async {
+  testWidgets('a pinned session moves to the top of the queue', (tester) async {
     final first = _session(id: 'first', thinking: true);
     final second = _session(id: 'second', thinking: true);
 
@@ -677,10 +678,7 @@ void main() {
     final session = _session(id: 'hot', path: '/home/dev/loud');
     final uiState = SessionUiState(
       bySessionId: {
-        'hot': SessionUiEntry(
-          unreadCount: 1,
-          lastMessageTimestamp: now,
-        ),
+        'hot': SessionUiEntry(unreadCount: 1, lastMessageTimestamp: now),
       },
     );
 
@@ -790,7 +788,10 @@ Widget _app({
           uiState: uiState,
           triage: triage,
           actionCardBuilder:
-              (session, entry, lane, {
+              (
+                session,
+                entry,
+                lane, {
                 required animateActivity,
                 required highlighted,
               }) {

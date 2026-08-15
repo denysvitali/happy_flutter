@@ -34,9 +34,9 @@ class MissionTriageState {
   @override
   bool operator ==(Object other) =>
       other is MissionTriageState &&
-          setEquals(pinnedSessions, other.pinnedSessions) &&
-          mapEquals(snoozedUntil, other.snoozedUntil) &&
-          setEquals(mutedFolders, other.mutedFolders);
+      setEquals(pinnedSessions, other.pinnedSessions) &&
+      mapEquals(snoozedUntil, other.snoozedUntil) &&
+      setEquals(mutedFolders, other.mutedFolders);
 
   @override
   int get hashCode => Object.hash(
@@ -51,7 +51,7 @@ class MissionTriageState {
 /// Riverpod notifier persisting [MissionTriageState] to MMKV.
 class MissionTriageNotifier extends Notifier<MissionTriageState> {
   MissionTriageNotifier({MMKVStorage? storage})
-      : _storage = storage ?? MMKVStorage();
+    : _storage = storage ?? MMKVStorage();
 
   static const _storageKey = 'mission-control-triage';
 
@@ -120,9 +120,8 @@ class MissionTriageNotifier extends Notifier<MissionTriageState> {
   }
 
   void unsnooze(String sessionId) {
-    final snoozed = Map<String, int>.from(state.snoozedUntil)..remove(
-      sessionId,
-    );
+    final snoozed = Map<String, int>.from(state.snoozedUntil)
+      ..remove(sessionId);
     _commit(
       MissionTriageState(
         pinnedSessions: state.pinnedSessions,
@@ -158,5 +157,7 @@ extension on MissionTriageState {
   };
 }
 
-final missionTriageProvider = NotifierProvider<MissionTriageNotifier,
-    MissionTriageState>(MissionTriageNotifier.new);
+final missionTriageProvider =
+    NotifierProvider<MissionTriageNotifier, MissionTriageState>(
+      MissionTriageNotifier.new,
+    );

@@ -318,7 +318,8 @@ void main() {
         return null;
       };
 
-      final before = DateTime.now().millisecondsSinceEpoch -
+      final before =
+          DateTime.now().millisecondsSinceEpoch -
           instance.testSessionEncryptionRecoveryThrottleMs -
           1;
       instance.testSessionEncryptionRecoveryAttempts['session_1'] = before;
@@ -454,43 +455,45 @@ void main() {
       expect(session.thinkingAt, 1234);
     });
 
-    test('unchanged ephemeral heartbeats do not notify session listeners',
-        () async {
-      final instance = Sync();
-      instance.testSessions['s1'] = Session(
-        id: 's1',
-        seq: 1,
-        createdAt: 0,
-        updatedAt: 0,
-        active: true,
-        activeAt: 0,
-        metadataVersion: 0,
-        agentStateVersion: 0,
-        thinking: false,
-        presence: 'online',
-      );
+    test(
+      'unchanged ephemeral heartbeats do not notify session listeners',
+      () async {
+        final instance = Sync();
+        instance.testSessions['s1'] = Session(
+          id: 's1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: 0,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'online',
+        );
 
-      // Let trailing debounced notifications (250ms window) leaked from
-      // earlier tests on the shared singleton flush before counting.
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        // Let trailing debounced notifications (250ms window) leaked from
+        // earlier tests on the shared singleton flush before counting.
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      var notifications = 0;
-      final subscription = instance.onDomainChanged
-          .where((domain) => domain == SyncDomain.sessions)
-          .listen((_) => notifications++);
+        var notifications = 0;
+        final subscription = instance.onDomainChanged
+            .where((domain) => domain == SyncDomain.sessions)
+            .listen((_) => notifications++);
 
-      instance.handleEphemeralUpdate({
-        'type': 'activity',
-        'id': 's1',
-        'thinking': false,
-        'active': true,
-      });
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+        instance.handleEphemeralUpdate({
+          'type': 'activity',
+          'id': 's1',
+          'thinking': false,
+          'active': true,
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
-      expect(notifications, 0);
-      expect(instance.testLastEphemeralAt['s1'], isNotNull);
-      await subscription.cancel();
-    });
+        expect(notifications, 0);
+        expect(instance.testLastEphemeralAt['s1'], isNotNull);
+        await subscription.cancel();
+      },
+    );
 
     test('ignores ephemeral heartbeats while backgrounded', () {
       final instance = Sync();
@@ -1182,7 +1185,10 @@ void main() {
           'createdAt': 1,
         },
       ]);
-      expect(instance.getLastMessagePreview('s1'), 'Used Bash · rg mission lib/');
+      expect(
+        instance.getLastMessagePreview('s1'),
+        'Used Bash · rg mission lib/',
+      );
       expect(instance.getLastMessageIsError('s1'), isFalse);
     });
 
@@ -1269,39 +1275,36 @@ void main() {
   });
 
   group('Sync cold-start message cache warmup', () {
-    test(
-      'sorts all sessions by updatedAt desc so previews warm most-recent '
-      'first',
-      () {
-        final instance = Sync();
-        instance.testSessions.clear();
+    test('sorts all sessions by updatedAt desc so previews warm most-recent '
+        'first', () {
+      final instance = Sync();
+      instance.testSessions.clear();
 
-        for (var i = 0; i < 25; i++) {
-          final id = 'session-$i';
-          instance.testSessions[id] = Session(
-            id: id,
-            seq: 0,
-            createdAt: i,
-            updatedAt: i,
-            active: true,
-            activeAt: i,
-            metadataVersion: 0,
-            agentStateVersion: 0,
-            thinking: false,
-            presence: 'offline',
-          );
-        }
+      for (var i = 0; i < 25; i++) {
+        final id = 'session-$i';
+        instance.testSessions[id] = Session(
+          id: id,
+          seq: 0,
+          createdAt: i,
+          updatedAt: i,
+          active: true,
+          activeAt: i,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'offline',
+        );
+      }
 
-        final selected = instance.testSortedSessionIdsForCacheWarmup();
+      final selected = instance.testSortedSessionIdsForCacheWarmup();
 
-        // All sessions are processed (no 20-session cap) so older sessions
-        // also get their last-message previews warmed instead of falling
-        // back to session.updatedAt ("Just now") in the list UI.
-        expect(selected, hasLength(25));
-        expect(selected.first, 'session-24');
-        expect(selected.last, 'session-0');
-      },
-    );
+      // All sessions are processed (no 20-session cap) so older sessions
+      // also get their last-message previews warmed instead of falling
+      // back to session.updatedAt ("Just now") in the list UI.
+      expect(selected, hasLength(25));
+      expect(selected.first, 'session-24');
+      expect(selected.last, 'session-0');
+    });
   });
 
   group('Sync model change detection', () {

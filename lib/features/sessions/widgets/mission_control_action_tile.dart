@@ -195,8 +195,7 @@ class MissionActionRow extends StatelessWidget {
                       lane: lane,
                       entry: entry,
                       since: since,
-                      onMarkRead:
-                          lane == MissionLane.unread && !selected
+                      onMarkRead: lane == MissionLane.unread && !selected
                           ? onMarkRead
                           : null,
                     ),
@@ -295,7 +294,9 @@ class _OutcomePill extends StatelessWidget {
     final child = switch (lane) {
       MissionLane.blocked => Text(l10n.missionControlReview),
       MissionLane.error => Text(missionLaneLabel(context, lane)),
-      MissionLane.unread => Text(l10n.missionControlNewCount(entry.unreadCount)),
+      MissionLane.unread => Text(
+        l10n.missionControlNewCount(entry.unreadCount),
+      ),
       MissionLane.live => _LiveElapsedLabel(since: since),
       MissionLane.quiet => Text(missionLaneLabel(context, lane)),
     };
@@ -380,14 +381,15 @@ class _TriageMenu extends StatelessWidget {
       },
       itemBuilder: (context) => [
         if (canMarkRead && onMarkRead != null)
-          PopupMenuItem(value: 'read', child: Text(l10n.missionControlMarkRead)),
+          PopupMenuItem(
+            value: 'read',
+            child: Text(l10n.missionControlMarkRead),
+          ),
         if (onTogglePin != null)
           PopupMenuItem(
             value: 'pin',
             child: Text(
-              isPinned
-                  ? l10n.missionControlUnpin
-                  : l10n.missionControlPinToTop,
+              isPinned ? l10n.missionControlUnpin : l10n.missionControlPinToTop,
             ),
           ),
         if (onToggleSnooze != null)

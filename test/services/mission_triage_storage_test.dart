@@ -32,7 +32,7 @@ void main() {
 
   tearDown(() => container.dispose());
 
-  MissionTriageNotifier get notifier =>
+  MissionTriageNotifier notifier() =>
       container.read(missionTriageProvider.notifier);
 
   test('starts empty', () {
@@ -43,15 +43,15 @@ void main() {
   });
 
   test('togglePin adds then removes a session', () {
-    notifier.togglePin('s1');
+    notifier().togglePin('s1');
     expect(container.read(missionTriageProvider).isPinned('s1'), isTrue);
 
-    notifier.togglePin('s1');
+    notifier().togglePin('s1');
     expect(container.read(missionTriageProvider).isPinned('s1'), isFalse);
   });
 
   test('snooze is active until the window lapses', () {
-    notifier.snooze('s1');
+    notifier().snooze('s1');
     final until = container.read(missionTriageProvider).snoozedUntil['s1']!;
     expect(
       container.read(missionTriageProvider).isSnoozed('s1', nowMs: until - 1),
@@ -62,7 +62,7 @@ void main() {
       isFalse,
     );
 
-    notifier.unsnooze('s1');
+    notifier().unsnooze('s1');
     expect(
       container.read(missionTriageProvider).isSnoozed('s1', nowMs: until - 1),
       isFalse,
@@ -70,23 +70,17 @@ void main() {
   });
 
   test('toggleMute parks a folder and back', () {
-    notifier.toggleMute('m1:/repo');
-    expect(
-      container.read(missionTriageProvider).isMuted('m1:/repo'),
-      isTrue,
-    );
+    notifier().toggleMute('m1:/repo');
+    expect(container.read(missionTriageProvider).isMuted('m1:/repo'), isTrue);
 
-    notifier.toggleMute('m1:/repo');
-    expect(
-      container.read(missionTriageProvider).isMuted('m1:/repo'),
-      isFalse,
-    );
+    notifier().toggleMute('m1:/repo');
+    expect(container.read(missionTriageProvider).isMuted('m1:/repo'), isFalse);
   });
 
   test('triage decisions persist across container instances', () {
-    notifier.togglePin('s1');
-    notifier.snooze('s2');
-    notifier.toggleMute('m1:/repo');
+    notifier().togglePin('s1');
+    notifier().snooze('s2');
+    notifier().toggleMute('m1:/repo');
 
     final second = ProviderContainer(
       overrides: [

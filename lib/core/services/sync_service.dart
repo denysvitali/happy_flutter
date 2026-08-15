@@ -1483,8 +1483,7 @@ what you have, you must use the options mode.
         role = msgRole;
         // Only text messages mark the error lane — a failed tool result
         // is routine agent self-correction, not a stalled session.
-        isError =
-            msg['isError'] == true || text.trim().startsWith('API Error');
+        isError = msg['isError'] == true || text.trim().startsWith('API Error');
         break;
       }
     }
