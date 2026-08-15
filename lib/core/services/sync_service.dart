@@ -617,7 +617,10 @@ what you have, you must use the options mode.
   /// Cached preview metadata per session — avoids rescanning
   /// the full message list on every session-card build.
   /// Invalidated when messages change via [_invalidatePreviewCache].
-  final Map<String, ({int? timestamp, String? preview, String? role})>
+  final Map<
+    String,
+    ({int? timestamp, String? preview, String? role, bool isError})
+  >
   _previewCache = {};
 
   /// Identity of the message list when the preview was computed.
@@ -1423,6 +1426,12 @@ what you have, you must use the options mode.
   String? getLastMessageRole(String sessionId) =>
       _ensurePreviewCache(sessionId).role;
 
+  /// Returns whether the last previewable message in [sessionId] was an
+  /// error (wire `isError` flag, or the CLI's conventional `API Error:`
+  /// text prefix when the daemon does not flag it).
+  bool getLastMessageIsError(String sessionId) =>
+      _ensurePreviewCache(sessionId).isError;
+
   /// Invalidates the preview cache for a session so the next call
   /// to [getLastMessagePreview] etc. will rescan.
   void _invalidatePreviewCache(String sessionId) {
@@ -1430,12 +1439,11 @@ what you have, you must use the options mode.
     _previewCacheVersion.remove(sessionId);
   }
 
-  ({int? timestamp, String? preview, String? role}) _ensurePreviewCache(
-    String sessionId,
-  ) {
+  ({int? timestamp, String? preview, String? role, bool isError})
+  _ensurePreviewCache(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) {
-      return (timestamp: null, preview: null, role: null);
+      return (timestamp: null, preview: null, role: null, isError: false);
     }
     // Use list identity + length as a cheap version check.
     final version = identityHashCode(messages) ^ messages.length;
@@ -1443,12 +1451,13 @@ what you have, you must use the options mode.
       return _previewCache[sessionId]!;
     }
 
-    // Compute all three in a single backward scan.
+    // Compute all fields in a single backward scan.
     final timestamp = messages.last['createdAt'] as int?;
     String? preview;
     String? role;
     String? toolFallback;
     String? toolFallbackRole;
+    var isError = false;
     var sawToolCall = false;
     for (var i = messages.length - 1; i >= 0; i--) {
       final msg = messages[i];
@@ -1472,13 +1481,22 @@ what you have, you must use the options mode.
       if (text != null && text.trim().isNotEmpty) {
         preview = _cleanPreviewText(text.trim());
         role = msgRole;
+        // Only text messages mark the error lane — a failed tool result
+        // is routine agent self-correction, not a stalled session.
+        isError =
+            msg['isError'] == true || text.trim().startsWith('API Error');
         break;
       }
     }
     preview ??= toolFallback;
     role ??= toolFallbackRole ?? (sawToolCall ? MessageRole.agent : null);
 
-    final result = (timestamp: timestamp, preview: preview, role: role);
+    final result = (
+      timestamp: timestamp,
+      preview: preview,
+      role: role,
+      isError: isError,
+    );
     _previewCache[sessionId] = result;
     _previewCacheVersion[sessionId] = version;
     return result;
@@ -1489,7 +1507,31 @@ what you have, you must use the options mode.
   String? _toolPreview(Map<String, dynamic> message) {
     final name = message['name'] as String?;
     if (name == null || name.isEmpty) return null;
-    return _cleanPreviewText('Used $name');
+    final target = _toolTargetHint(message['input']);
+    return _cleanPreviewText(
+      target == null ? 'Used $name' : 'Used $name · $target',
+    );
+  }
+
+  /// Best-effort one-line hint of what a tool call operated on, so
+  /// session rows read "Used Bash · rg mission" instead of "Used Bash".
+  static String? _toolTargetHint(Object? input) {
+    if (input is! Map) return null;
+    for (final key in const [
+      'command',
+      'file_path',
+      'path',
+      'pattern',
+      'url',
+      'description',
+    ]) {
+      final value = input[key];
+      if (value is String && value.trim().isNotEmpty) {
+        final hint = value.trim();
+        return hint.length > 60 ? '${hint.substring(0, 60)}…' : hint;
+      }
+    }
+    return null;
   }
 
   /// Strips markdown formatting, collapses whitespace, and truncates

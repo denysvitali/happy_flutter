@@ -11,6 +11,7 @@ import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/auto_archive_service.dart';
 import '../../../core/services/chat_switch_metrics.dart';
+import '../../../core/services/mission_triage_storage.dart';
 import '../../../core/services/performance_context_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/sync/sync_subscription_mixin.dart';
@@ -609,18 +610,45 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
+    final triage = ref.watch(missionTriageProvider);
+    final triageNotifier = ref.read(missionTriageProvider.notifier);
     return MissionControlView(
       scrollController: widget.scrollController,
       activeSessions: activeSessions,
       inactiveSessions: inactiveSessions,
       machines: machines,
       uiState: uiState,
-      actionCardBuilder: (session, entry, lane, {required animateActivity}) =>
-          _buildMissionActionRow(
+      triage: triage,
+      onMarkRead: (sessionId) => sync.markSessionRead(sessionId),
+      onTogglePin: triageNotifier.togglePin,
+      onToggleSnooze: (sessionId, snooze) =>
+          snooze ? triageNotifier.snooze(sessionId) : triageNotifier.unsnooze(
+            sessionId,
+          ),
+      onToggleMuteFolder: (folderKey) {
+        triageNotifier.toggleMute(folderKey);
+        final muted = ref.read(missionTriageProvider).isMuted(folderKey);
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 2),
+            content: Text(
+              muted
+                  ? context.l10n.missionControlMuteWorkspace
+                  : context.l10n.missionControlUnmuteWorkspace,
+            ),
+          ),
+        );
+      },
+      actionCardBuilder:
+          (session, entry, lane, {
+            required animateActivity,
+            required highlighted,
+          }) => _buildMissionActionRow(
             session,
             entry,
             lane,
             animateActivity: animateActivity,
+            highlighted: highlighted,
           ),
       onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
@@ -631,16 +659,27 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     SessionUiEntry entry,
     MissionLane lane, {
     required bool animateActivity,
+    required bool highlighted,
   }) {
     return Consumer(
       builder: (context, ref, _) {
         final rowEntry = ref.watch(sessionUiEntryProvider(session.id));
+        final triage = ref.watch(missionTriageProvider);
+        final triageNotifier = ref.read(missionTriageProvider.notifier);
         final sel = _sel.value;
         final row = MissionActionRow(
           session: session,
           entry: rowEntry,
           lane: lane,
           animateActivity: animateActivity,
+          highlighted: highlighted,
+          isPinned: triage.isPinned(session.id),
+          isSnoozed: triage.isSnoozed(session.id),
+          onMarkRead: () => sync.markSessionRead(session.id),
+          onTogglePin: () => triageNotifier.togglePin(session.id),
+          onToggleSnooze: (snooze) => snooze
+              ? triageNotifier.snooze(session.id)
+              : triageNotifier.unsnooze(session.id),
           onTap: sel.isActive
               ? () => _onSessionTapInSelectionMode(session.id)
               : () => _navigateToChat(session.id),

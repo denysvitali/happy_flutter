@@ -25,6 +25,7 @@ class MissionControlFilters extends StatelessWidget {
   Widget build(BuildContext context) {
     final visibleLanes = [
       MissionLane.blocked,
+      MissionLane.error,
       MissionLane.unread,
       MissionLane.live,
     ].where((lane) => counts[lane]! > 0).toList();

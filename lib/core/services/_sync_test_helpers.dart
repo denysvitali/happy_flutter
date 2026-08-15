@@ -48,6 +48,13 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testNotifyDataChanged() => _notifyDataChanged();
 
+  /// Seeds the unread counter for a session so mark-read triage can be
+  /// tested without driving the socket increment path.
+  @visibleForTesting
+  void testSeedUnread(String sessionId, int count) {
+    _sessionUnreadCounts[sessionId] = count;
+  }
+
   @visibleForTesting
   void testEmitLoopsChanged(String sessionId) {
     if (!_loopsChangeController.isClosed) {

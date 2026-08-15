@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_types.dart';
-import 'session_headers.dart';
+import 'session_headers.dart' show SessionFolderGroup;
 
 /// Lazily built workspace pulse sliver used by Mission Control.
 class MissionWorkspaceList extends StatelessWidget {
@@ -12,11 +13,15 @@ class MissionWorkspaceList extends StatelessWidget {
     required this.lanes,
     required this.onOpen,
     super.key,
+    this.isMutedFolder,
+    this.onToggleMute,
   });
 
   final List<SessionFolderGroup> groups;
   final Map<String, MissionLane> lanes;
   final void Function(SessionFolderHeader header) onOpen;
+  final bool Function(String folderKey)? isMutedFolder;
+  final void Function(String folderKey)? onToggleMute;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +72,12 @@ class MissionWorkspaceList extends StatelessWidget {
                   _WorkspaceTile(
                     group: group,
                     lanes: lanes,
+                    muted:
+                        isMutedFolder?.call(group.header.folderKey) ?? false,
                     onTap: () => onOpen(group.header),
+                    onLongPress: onToggleMute == null
+                        ? null
+                        : () => onToggleMute!(group.header.folderKey),
                   ),
                 ],
               ),
@@ -88,46 +98,61 @@ class _WorkspaceTile extends StatelessWidget {
     required this.group,
     required this.lanes,
     required this.onTap,
+    this.muted = false,
+    this.onLongPress,
   });
 
   final SessionFolderGroup group;
   final Map<String, MissionLane> lanes;
   final VoidCallback onTap;
+  final bool muted;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final l10n = context.l10n;
     final counts = <MissionLane, int>{
       for (final lane in MissionLane.values) lane: 0,
     };
+    var sessionCount = 0;
     for (final session in group.activeSessions.followedBy(
       group.inactiveSessions,
     )) {
+      sessionCount++;
       final lane = lanes[session.id] ?? MissionLane.quiet;
       counts[lane] = counts[lane]! + 1;
     }
     final header = group.header;
     final leadingLane = [
       MissionLane.blocked,
+      MissionLane.error,
       MissionLane.unread,
       MissionLane.live,
     ].firstWhere((lane) => counts[lane]! > 0, orElse: () => MissionLane.quiet);
-    final breakdown = folderBreakdownLabel(context, header);
+    // Lane composition replaces the raw "X active • Y archived" counts —
+    // nobody triages by archive size, and the ambiguous dot badge was the
+    // only place the leading lane was visible.
     final laneDetails = [
       for (final lane in [
         MissionLane.blocked,
+        MissionLane.error,
         MissionLane.unread,
         MissionLane.live,
       ])
         if (counts[lane]! > 0)
           '${counts[lane]} ${missionLaneLabel(context, lane)}',
     ];
+    final breakdown = muted
+        ? l10n.missionControlMutedLabel
+        : laneDetails.isNotEmpty
+        ? laneDetails.join(' · ')
+        : l10n.missionControlSessionCount(sessionCount);
     final semantics = [
       header.displayPath,
       header.machineName,
       breakdown,
-      ...laneDetails,
     ].where((value) => value.isNotEmpty).join(', ');
 
     return Semantics(
@@ -138,6 +163,7 @@ class _WorkspaceTile extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             onTap: onTap,
+            onLongPress: onLongPress,
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 60),
               child: Padding(
@@ -160,11 +186,13 @@ class _WorkspaceTile extends StatelessWidget {
                         alignment: Alignment.center,
                         children: [
                           Icon(
-                            Icons.folder_outlined,
+                            muted
+                                ? Icons.notifications_off_outlined
+                                : Icons.folder_outlined,
                             size: AppIconSize.lg,
                             color: missionLaneColor(context, leadingLane),
                           ),
-                          if (leadingLane != MissionLane.quiet)
+                          if (leadingLane != MissionLane.quiet && !muted)
                             Positioned(
                               right: AppSpacing.xsm,
                               top: AppSpacing.xsm,
@@ -211,11 +239,13 @@ class _WorkspaceTile extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          _WorkspaceSignal(
-                            lane: leadingLane,
-                            count: counts[leadingLane]!,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
+                          if (!muted) ...[
+                            _WorkspaceSignal(
+                              lane: leadingLane,
+                              count: counts[leadingLane]!,
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                          ],
                           Icon(
                             Icons.chevron_right_rounded,
                             size: AppIconSize.lg,

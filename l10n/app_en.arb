@@ -1093,9 +1093,28 @@
     }
   },
   "missionControlStatBlocked": "blocked",
+  "missionControlStatError": "error",
   "missionControlStatUnread": "unread",
   "missionControlStatWorking": "working",
   "missionControlStatIdle": "idle",
+  "missionControlMarkRead": "Mark read",
+  "missionControlTriage": "Session actions",
+  "missionControlPinToTop": "Pin to top",
+  "missionControlUnpin": "Unpin",
+  "missionControlSnooze": "Snooze 1 hour",
+  "missionControlUnsnooze": "Unsnooze",
+  "missionControlMuteWorkspace": "Workspace muted",
+  "missionControlUnmuteWorkspace": "Workspace unmuted",
+  "missionControlMutedLabel": "muted",
+  "missionControlSessionCount": "{count, plural, =1 {1 session} other {{count} sessions}}",
+  "@missionControlSessionCount": {
+    "description": "Workspace row fallback when no lane has activity",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "missionControlMoreActions": "\u2026 +{count} more",
   "@missionControlMoreActions": {
     "description": "Expander for overflow action rows in Mission Control",

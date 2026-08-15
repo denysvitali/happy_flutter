@@ -11,6 +11,10 @@ enum MissionLane {
   /// Permission request pending — agent blocked on the user.
   blocked,
 
+  /// Last message was an error (e.g. an API failure) — the agent has
+  /// stopped making progress and the user should know why.
+  error,
+
   /// Unread messages the user has not seen.
   unread,
 
@@ -27,6 +31,7 @@ MissionLane missionLaneFor(Session session, SessionUiEntry entry) {
   if (status.state == SessionState.permissionRequired) {
     return MissionLane.blocked;
   }
+  if (entry.lastMessageIsError) return MissionLane.error;
   if (entry.unreadCount > 0) return MissionLane.unread;
   if (status.state == SessionState.thinking) return MissionLane.live;
   return MissionLane.quiet;
@@ -39,6 +44,7 @@ Color missionLaneColor(BuildContext context, MissionLane lane) {
   final appColors = theme.extension<AppColorScheme>();
   return switch (lane) {
     MissionLane.blocked => appColors?.warning ?? cs.error,
+    MissionLane.error => cs.error,
     MissionLane.unread => cs.primary,
     MissionLane.live => cs.tertiary,
     MissionLane.quiet => cs.onSurfaceVariant,
@@ -62,6 +68,7 @@ Color missionLaneContainerColor(BuildContext context, MissionLane lane) {
 /// Icon that makes each lane distinguishable without relying on color.
 IconData missionLaneIcon(MissionLane lane) => switch (lane) {
   MissionLane.blocked => Icons.lock_clock_rounded,
+  MissionLane.error => Icons.error_outline_rounded,
   MissionLane.unread => Icons.mark_chat_unread_rounded,
   MissionLane.live => Icons.auto_awesome_rounded,
   MissionLane.quiet => Icons.horizontal_rule_rounded,
@@ -72,6 +79,7 @@ String missionLaneLabel(BuildContext context, MissionLane lane) {
   final l10n = context.l10n;
   return switch (lane) {
     MissionLane.blocked => l10n.missionControlStatBlocked,
+    MissionLane.error => l10n.missionControlStatError,
     MissionLane.unread => l10n.missionControlStatUnread,
     MissionLane.live => l10n.missionControlStatWorking,
     MissionLane.quiet => l10n.missionControlStatIdle,

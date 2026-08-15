@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/components/app_status_dot.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/session_ui_state_notifier.dart';
+import 'package:happy_flutter/core/services/mission_triage_storage.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dart';
 
@@ -25,6 +26,16 @@ void main() {
       );
       const entry = SessionUiEntry(unreadCount: 3);
       expect(missionLaneFor(session, entry), MissionLane.blocked);
+    });
+
+    test('an error message outranks unread and thinking', () {
+      final session = _session(id: 's1b', thinking: true);
+      const entry = SessionUiEntry(
+        unreadCount: 2,
+        lastMessageIsError: true,
+        lastMessagePreview: 'API Error: Request rejected',
+      );
+      expect(missionLaneFor(session, entry), MissionLane.error);
     });
 
     test('unread outranks thinking', () {
@@ -493,12 +504,277 @@ void main() {
       greaterThanOrEqualTo(48),
     );
   });
+
+  testWidgets('the preview outranks the activity label on the detail line', (
+    tester,
+  ) async {
+    final session = _session(id: 'preview', path: '/home/dev/p', thinking: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MissionActionRow(
+            session: session,
+            entry: const SessionUiEntry(
+              lastMessagePreview: 'Used Grep · rg mission_control',
+            ),
+            lane: MissionLane.live,
+            onTap: () {},
+            onLongPress: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('Used Grep · rg mission_control'), findsOneWidget);
+  });
+
+  testWidgets('tapping the unread pill marks the session read', (
+    tester,
+  ) async {
+    var marked = 0;
+    final session = _session(id: 'unread-pill', path: '/home/dev/p');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MissionActionRow(
+            session: session,
+            entry: const SessionUiEntry(unreadCount: 3),
+            lane: MissionLane.unread,
+            onMarkRead: () => marked++,
+            onTap: () {},
+            onLongPress: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('3 new'));
+    await tester.pump();
+
+    expect(marked, 1);
+  });
+
+  testWidgets('error rows keep two detail lines and the error color', (
+    tester,
+  ) async {
+    final session = _session(id: 'err', path: '/home/dev/p');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: MissionActionRow(
+            session: session,
+            entry: const SessionUiEntry(
+              lastMessageIsError: true,
+              lastMessagePreview: 'API Error: Request rejected after retries',
+            ),
+            lane: MissionLane.error,
+            onTap: () {},
+            onLongPress: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('API Error: Request rejected'), findsOneWidget);
+    final detail = tester.widget<Text>(
+      find.textContaining('API Error: Request rejected'),
+    );
+    expect(detail.maxLines, 2);
+  });
+
+  testWidgets('an error session joins the queue and gets its own chip', (
+    tester,
+  ) async {
+    final error = _session(id: 'err-q', path: '/home/dev/e');
+    final live = _session(id: 'live-q', thinking: true, path: '/home/dev/l');
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [error, live],
+        uiState: const SessionUiState(
+          bySessionId: {
+            'err-q': SessionUiEntry(
+              lastMessageIsError: true,
+              lastMessagePreview: 'API Error: Request rejected',
+            ),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('action-err-q'), findsOneWidget);
+    expect(find.byKey(const ValueKey('mission-filter-error')), findsOneWidget);
+  });
+
+  testWidgets('a snoozed session stays out of the focus queue', (
+    tester,
+  ) async {
+    final session = _session(id: 'snoozed', thinking: true);
+    final other = _session(id: 'awake', thinking: true);
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [session, other],
+        triage: MissionTriageState(
+          snoozedUntil: {
+            'snoozed':
+                DateTime.now().millisecondsSinceEpoch +
+                const Duration(hours: 1).inMilliseconds,
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('action-snoozed'), findsNothing);
+    expect(find.text('action-awake'), findsOneWidget);
+  });
+
+  testWidgets('a pinned session moves to the top of the queue', (
+    tester,
+  ) async {
+    final first = _session(id: 'first', thinking: true);
+    final second = _session(id: 'second', thinking: true);
+
+    await tester.pumpWidget(_app(activeSessions: [first, second]));
+    await tester.pump();
+    expect(
+      tester.getTopLeft(find.text('action-first')).dy,
+      lessThan(tester.getTopLeft(find.text('action-second')).dy),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [first, second],
+        triage: const MissionTriageState(pinnedSessions: {'second'}),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.getTopLeft(find.text('action-second')).dy,
+      lessThan(tester.getTopLeft(find.text('action-first')).dy),
+    );
+  });
+
+  testWidgets('a muted workspace is parked in the quiet drawer', (
+    tester,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final session = _session(id: 'hot', path: '/home/dev/loud');
+    final uiState = SessionUiState(
+      bySessionId: {
+        'hot': SessionUiEntry(
+          unreadCount: 1,
+          lastMessageTimestamp: now,
+        ),
+      },
+    );
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [session],
+        uiState: uiState,
+        triage: const MissionTriageState(mutedFolders: {':/home/dev/loud'}),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('dev/loud'), findsNothing);
+    expect(find.textContaining('quiet workspace'), findsOneWidget);
+
+    await tester.tap(find.textContaining('quiet workspace'));
+    await tester.pump();
+
+    expect(find.text('dev/loud'), findsOneWidget);
+    expect(find.textContaining('muted'), findsOneWidget);
+  });
+
+  testWidgets('workspace rows show lane composition, not archive counts', (
+    tester,
+  ) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final blocked = _session(
+      id: 'ws-blocked',
+      path: '/home/dev/proj',
+      agentState: AgentState(
+        requests: {'r': const RequestInfo(tool: 'Bash', createdAt: 1)},
+      ),
+    );
+    final working = _session(
+      id: 'ws-working',
+      path: '/home/dev/proj',
+      thinking: true,
+    );
+
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [blocked, working],
+        uiState: SessionUiState(
+          bySessionId: {
+            'ws-blocked': SessionUiEntry(lastMessageTimestamp: now),
+            'ws-working': SessionUiEntry(lastMessageTimestamp: now),
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('1 blocked'), findsOneWidget);
+    expect(find.textContaining('1 working'), findsOneWidget);
+    expect(find.textContaining('archived'), findsNothing);
+  });
+
+  testWidgets('a session becoming actionable after quiet is highlighted', (
+    tester,
+  ) async {
+    final quiet = _session(id: 'hl', path: '/home/dev/hl');
+
+    await tester.pumpWidget(
+      _app(activeSessions: [quiet], uiState: const SessionUiState()),
+    );
+    await tester.pump();
+    expect(find.text('action-hl'), findsNothing);
+
+    // No highlighted rows exist to assert on directly through the stub
+    // builder — assert via the builder parameter instead.
+    final highlightedFlags = <bool>[];
+    await tester.pumpWidget(
+      _app(
+        activeSessions: [quiet],
+        uiState: const SessionUiState(
+          bySessionId: {'hl': SessionUiEntry(unreadCount: 1)},
+        ),
+        onBuilt: (highlighted) => highlightedFlags.add(highlighted),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('action-hl'), findsOneWidget);
+    expect(highlightedFlags, isNotEmpty);
+    expect(highlightedFlags.last, isTrue);
+  });
 }
 
 Widget _app({
   required List<Session> activeSessions,
   SessionUiState uiState = SessionUiState.empty,
+  MissionTriageState triage = const MissionTriageState(),
   void Function(SessionFolderHeader header)? onOpenWorkspace,
+  void Function(bool highlighted)? onBuilt,
   MediaQueryData mediaQueryData = const MediaQueryData(),
 }) {
   return MaterialApp(
@@ -512,9 +788,15 @@ Widget _app({
           inactiveSessions: const [],
           machines: const {},
           uiState: uiState,
+          triage: triage,
           actionCardBuilder:
-              (session, entry, lane, {required animateActivity}) =>
-                  Text('action-${session.id}'),
+              (session, entry, lane, {
+                required animateActivity,
+                required highlighted,
+              }) {
+                onBuilt?.call(highlighted);
+                return Text('action-${session.id}');
+              },
           onOpenWorkspace: onOpenWorkspace ?? (_) {},
         ),
       ),

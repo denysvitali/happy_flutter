@@ -2707,6 +2707,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get missionControlStatBlocked => 'blocked';
 
   @override
+  String get missionControlStatError => 'error';
+
+  @override
   String get missionControlStatUnread => 'unread';
 
   @override
@@ -2714,6 +2717,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get missionControlStatIdle => 'idle';
+
+  @override
+  String get missionControlMarkRead => 'Mark read';
+
+  @override
+  String get missionControlTriage => 'Session actions';
+
+  @override
+  String get missionControlPinToTop => 'Pin to top';
+
+  @override
+  String get missionControlUnpin => 'Unpin';
+
+  @override
+  String get missionControlSnooze => 'Snooze 1 hour';
+
+  @override
+  String get missionControlUnsnooze => 'Unsnooze';
+
+  @override
+  String get missionControlMuteWorkspace => 'Workspace muted';
+
+  @override
+  String get missionControlUnmuteWorkspace => 'Workspace unmuted';
+
+  @override
+  String get missionControlMutedLabel => 'muted';
+
+  @override
+  String missionControlSessionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count sessions',
+      one: '1 session',
+    );
+    return '$_temp0';
+  }
 
   @override
   String missionControlMoreActions(int count) {

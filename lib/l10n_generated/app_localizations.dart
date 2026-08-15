@@ -4858,6 +4858,12 @@ abstract class AppLocalizations {
   /// **'blocked'**
   String get missionControlStatBlocked;
 
+  /// No description provided for @missionControlStatError.
+  ///
+  /// In en, this message translates to:
+  /// **'error'**
+  String get missionControlStatError;
+
   /// No description provided for @missionControlStatUnread.
   ///
   /// In en, this message translates to:
@@ -4875,6 +4881,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'idle'**
   String get missionControlStatIdle;
+
+  /// No description provided for @missionControlMarkRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark read'**
+  String get missionControlMarkRead;
+
+  /// No description provided for @missionControlTriage.
+  ///
+  /// In en, this message translates to:
+  /// **'Session actions'**
+  String get missionControlTriage;
+
+  /// No description provided for @missionControlPinToTop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to top'**
+  String get missionControlPinToTop;
+
+  /// No description provided for @missionControlUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin'**
+  String get missionControlUnpin;
+
+  /// No description provided for @missionControlSnooze.
+  ///
+  /// In en, this message translates to:
+  /// **'Snooze 1 hour'**
+  String get missionControlSnooze;
+
+  /// No description provided for @missionControlUnsnooze.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsnooze'**
+  String get missionControlUnsnooze;
+
+  /// No description provided for @missionControlMuteWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace muted'**
+  String get missionControlMuteWorkspace;
+
+  /// No description provided for @missionControlUnmuteWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace unmuted'**
+  String get missionControlUnmuteWorkspace;
+
+  /// No description provided for @missionControlMutedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'muted'**
+  String get missionControlMutedLabel;
+
+  /// Workspace row fallback when no lane has activity
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1 {1 session} other {{count} sessions}}'**
+  String missionControlSessionCount(int count);
 
   /// Expander for overflow action rows in Mission Control
   ///

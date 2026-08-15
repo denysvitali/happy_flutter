@@ -1172,6 +1172,82 @@ void main() {
       expect(instance.getLastMessagePreview('s1'), 'prompt');
     });
 
+    test('tool-call fallback includes the tool target hint', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'input': {'command': 'rg mission lib/'},
+          'createdAt': 1,
+        },
+      ]);
+      expect(instance.getLastMessagePreview('s1'), 'Used Bash · rg mission lib/');
+      expect(instance.getLastMessageIsError('s1'), isFalse);
+    });
+
+    test('tool-call fallback without a usable input keeps the tool name', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'WebSearch',
+          'input': {'query': 42},
+          'createdAt': 1,
+        },
+      ]);
+      expect(instance.getLastMessagePreview('s1'), 'Used WebSearch');
+    });
+
+    test('an isError text message flags the error lane', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'API Error: Request rejected',
+          'isError': true,
+          'createdAt': 1,
+        },
+      ]);
+      expect(instance.getLastMessageIsError('s1'), isTrue);
+    });
+
+    test('the API Error text prefix flags the error lane without isError', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'API Error: 529 overloaded',
+          'createdAt': 1,
+        },
+      ]);
+      expect(instance.getLastMessageIsError('s1'), isTrue);
+    });
+
+    test('a normal text message does not flag the error lane', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'All tests pass',
+          'createdAt': 1,
+        },
+      ]);
+      expect(instance.getLastMessageIsError('s1'), isFalse);
+    });
+
+    test('markSessionRead clears the unread counter', () {
+      instance.testSeedUnread('s1', 4);
+      expect(instance.getUnreadCount('s1'), 4);
+
+      instance.markSessionRead('s1');
+      expect(instance.getUnreadCount('s1'), 0);
+
+      // Idempotent — clearing an already-read session is a no-op.
+      instance.markSessionRead('s1');
+      expect(instance.getUnreadCount('s1'), 0);
+    });
+
     test('skips thinking blocks', () {
       instance.testSetSessionMessages('s1', [
         {

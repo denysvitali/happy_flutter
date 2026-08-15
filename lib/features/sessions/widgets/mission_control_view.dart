@@ -5,6 +5,7 @@ import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/services/mission_triage_storage.dart';
 import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/performance_buckets.dart';
@@ -64,12 +65,18 @@ class MissionControlView extends StatefulWidget {
     required this.onOpenWorkspace,
     super.key,
     this.scrollController,
+    this.triage = const MissionTriageState(),
+    this.onMarkRead,
+    this.onTogglePin,
+    this.onToggleSnooze,
+    this.onToggleMuteFolder,
   });
 
   final List<Session> activeSessions;
   final List<Session> inactiveSessions;
   final Map<String, Machine> machines;
   final SessionUiState uiState;
+  final MissionTriageState triage;
 
   /// Builds one session tile while preserving parent-owned navigation,
   /// selection, swipe actions, and long-press behavior.
@@ -78,11 +85,17 @@ class MissionControlView extends StatefulWidget {
     SessionUiEntry entry,
     MissionLane lane, {
     required bool animateActivity,
+    required bool highlighted,
   })
   actionCardBuilder;
 
   final void Function(SessionFolderHeader header) onOpenWorkspace;
   final ScrollController? scrollController;
+
+  final void Function(String sessionId)? onMarkRead;
+  final void Function(String sessionId)? onTogglePin;
+  final void Function(String sessionId, bool snooze)? onToggleSnooze;
+  final void Function(String folderKey)? onToggleMuteFolder;
 
   @override
   State<MissionControlView> createState() => _MissionControlViewState();
@@ -99,10 +112,22 @@ class _MissionControlViewState extends State<MissionControlView> {
   int _lastModelTraceAtMs = 0;
   int _lastSlowModelLogAtMs = 0;
 
+  /// Actionable session ids the user has already seen since the view last
+  /// showed them quiet. Rows entering the actionable set after that get a
+  /// subtle tint; the slot order itself never moves.
+  final Set<String> _seenActionIds = {};
+  bool _queueSeeded = false;
+
   static const int _telemetryThrottleMs = 30000;
 
   SessionUiEntry _entry(String id) =>
       widget.uiState.bySessionId[id] ?? SessionUiEntry.empty;
+
+  void _markSeen(String sessionId) {
+    if (_seenActionIds.add(sessionId)) {
+      setState(() {});
+    }
+  }
 
   void _selectLane(MissionLane? lane) {
     setState(() {
@@ -150,6 +175,16 @@ class _MissionControlViewState extends State<MissionControlView> {
     return _sessionSlots[a.id]!.compareTo(_sessionSlots[b.id]!);
   }
 
+  /// Queue order: pinned sessions first, then stable first-seen slots.
+  /// Pinning is the only reordering Mission Control ever does — everything
+  /// else keeps its slot so concurrent updates don't shuffle the deck.
+  int _compareQueueSlots(Session a, Session b) {
+    final pinnedA = widget.triage.isPinned(a.id) ? 0 : 1;
+    final pinnedB = widget.triage.isPinned(b.id) ? 0 : 1;
+    if (pinnedA != pinnedB) return pinnedA.compareTo(pinnedB);
+    return _compareSessionSlots(a, b);
+  }
+
   int _compareWorkspaceSlots(SessionFolderGroup a, SessionFolderGroup b) {
     return _workspaceSlots[a.header.folderKey]!.compareTo(
       _workspaceSlots[b.header.folderKey]!,
@@ -172,15 +207,22 @@ class _MissionControlViewState extends State<MissionControlView> {
       for (final lane in MissionLane.values) lane: 0,
     };
     final blocked = <Session>[];
+    final errored = <Session>[];
     final unread = <Session>[];
     final working = <Session>[];
     for (final session in widget.activeSessions) {
-      final lane = missionLaneFor(session, _entry(session.id));
+      // Snoozed sessions stay out of the queue entirely — they read as
+      // quiet until the snooze lapses or the user unsnoozes them.
+      final lane = widget.triage.isSnoozed(session.id, nowMs: now)
+          ? MissionLane.quiet
+          : missionLaneFor(session, _entry(session.id));
       lanes[session.id] = lane;
       counts[lane] = counts[lane]! + 1;
       switch (lane) {
         case MissionLane.blocked:
           blocked.add(session);
+        case MissionLane.error:
+          errored.add(session);
         case MissionLane.unread:
           unread.add(session);
         case MissionLane.live:
@@ -191,14 +233,31 @@ class _MissionControlViewState extends State<MissionControlView> {
     }
     _ensureSessionSlots(lanes);
     blocked.sort(_compareSessionSlots);
+    errored.sort(_compareSessionSlots);
     unread.sort(_compareSessionSlots);
     working.sort(_compareSessionSlots);
+
+    // Highlight tracking: the first build seeds everything currently
+    // actionable as seen; afterwards a session earns a tint by becoming
+    // actionable again after a quiet spell, and loses it on interaction.
+    if (!_queueSeeded) {
+      _queueSeeded = true;
+      lanes.forEach((id, lane) {
+        if (lane != MissionLane.quiet) _seenActionIds.add(id);
+      });
+    } else {
+      lanes.forEach((id, lane) {
+        if (lane == MissionLane.quiet) _seenActionIds.add(id);
+      });
+    }
+    bool isHighlighted(String id, MissionLane lane) =>
+        lane != MissionLane.quiet && !_seenActionIds.contains(id);
 
     final selectedLane = _selectedLane != null && counts[_selectedLane]! > 0
         ? _selectedLane
         : null;
-    final actions = [...blocked, ...unread, ...working]
-      ..sort(_compareSessionSlots);
+    final actions = [...blocked, ...errored, ...unread, ...working]
+      ..sort(_compareQueueSlots);
     final filteredActions = selectedLane == null
         ? actions
         : actions
@@ -222,6 +281,9 @@ class _MissionControlViewState extends State<MissionControlView> {
     final activeWorkspaces = <SessionFolderGroup>[];
     final quietWorkspaces = <SessionFolderGroup>[];
     for (final group in workspaces) {
+      // A muted workspace is parked in the quiet drawer no matter how hot
+      // it gets; unmuting (long-press) restores normal classification.
+      final muted = widget.triage.isMuted(group.header.folderKey);
       var hot = false;
       var recent = false;
       for (final session in group.activeSessions.followedBy(
@@ -236,7 +298,7 @@ class _MissionControlViewState extends State<MissionControlView> {
           recent = true;
         }
       }
-      if (hot || recent) {
+      if (!muted && (hot || recent)) {
         activeWorkspaces.add(group);
       } else {
         quietWorkspaces.add(group);
@@ -259,6 +321,8 @@ class _MissionControlViewState extends State<MissionControlView> {
           selectedLane ??
           (counts[MissionLane.blocked]! > 0
               ? MissionLane.blocked
+              : counts[MissionLane.error]! > 0
+              ? MissionLane.error
               : counts[MissionLane.unread]! > 0
               ? MissionLane.unread
               : MissionLane.live);
@@ -279,13 +343,20 @@ class _MissionControlViewState extends State<MissionControlView> {
               },
               children: [
                 for (final session in shownActions)
-                  KeyedSubtree(
-                    key: ValueKey('mission-action-${session.id}'),
-                    child: widget.actionCardBuilder(
-                      session,
-                      _entry(session.id),
-                      lanes[session.id]!,
-                      animateActivity: animateActivity,
+                  Listener(
+                    onPointerDown: (_) => _markSeen(session.id),
+                    child: KeyedSubtree(
+                      key: ValueKey('mission-action-${session.id}'),
+                      child: widget.actionCardBuilder(
+                        session,
+                        _entry(session.id),
+                        lanes[session.id]!,
+                        animateActivity: animateActivity,
+                        highlighted: isHighlighted(
+                          session.id,
+                          lanes[session.id]!,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -317,6 +388,8 @@ class _MissionControlViewState extends State<MissionControlView> {
             groups: visibleWorkspaces,
             lanes: lanes,
             onOpen: widget.onOpenWorkspace,
+            isMutedFolder: widget.triage.isMuted,
+            onToggleMute: widget.onToggleMuteFolder,
           ),
         );
       if (quietWorkspaces.isNotEmpty) {
@@ -409,9 +482,10 @@ int _compareWorkspacePriority(
       final lane = lanes[session.id] ?? MissionLane.quiet;
       final laneRank = switch (lane) {
         MissionLane.blocked => 0,
-        MissionLane.unread => 1,
-        MissionLane.live => 2,
-        MissionLane.quiet => 3,
+        MissionLane.error => 1,
+        MissionLane.unread => 2,
+        MissionLane.live => 3,
+        MissionLane.quiet => 4,
       };
       if (laneRank < result) result = laneRank;
     }

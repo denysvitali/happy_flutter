@@ -24,6 +24,7 @@ class SessionUiEntry {
     this.lastMessageTimestamp,
     this.lastMessagePreview,
     this.lastMessageRole,
+    this.lastMessageIsError = false,
     this.unreadCount = 0,
     this.hasOlderMessages = false,
     this.isLoadingOlderMessages = false,
@@ -35,6 +36,7 @@ class SessionUiEntry {
   final int? lastMessageTimestamp;
   final String? lastMessagePreview;
   final String? lastMessageRole;
+  final bool lastMessageIsError;
   final int unreadCount;
   final bool hasOlderMessages;
   final bool isLoadingOlderMessages;
@@ -54,6 +56,7 @@ class SessionUiEntry {
     return lastMessageTimestamp == other.lastMessageTimestamp &&
         lastMessagePreview == other.lastMessagePreview &&
         lastMessageRole == other.lastMessageRole &&
+        lastMessageIsError == other.lastMessageIsError &&
         unreadCount == other.unreadCount &&
         hasOlderMessages == other.hasOlderMessages &&
         isLoadingOlderMessages == other.isLoadingOlderMessages &&
@@ -67,6 +70,7 @@ class SessionUiEntry {
     lastMessageTimestamp,
     lastMessagePreview,
     lastMessageRole,
+    lastMessageIsError,
     unreadCount,
     hasOlderMessages,
     isLoadingOlderMessages,
@@ -143,25 +147,33 @@ class SessionUiOrdering {
 ///
 /// Preview text, usage, pagination, and readiness belong to individual rows;
 /// changing them must not rebuild and re-sort the whole dashboard. Only the
-/// timestamp and unread count affect workspace grouping or lane selection.
+/// timestamp, error flag, and unread count affect workspace grouping or lane
+/// selection.
 @immutable
 class MissionControlUiEntry {
   const MissionControlUiEntry({
     required this.lastMessageTimestamp,
     required this.unreadCount,
+    this.lastMessageIsError = false,
   });
 
   final int? lastMessageTimestamp;
   final int unreadCount;
+  final bool lastMessageIsError;
 
   @override
   bool operator ==(Object other) =>
       other is MissionControlUiEntry &&
       lastMessageTimestamp == other.lastMessageTimestamp &&
-      unreadCount == other.unreadCount;
+      unreadCount == other.unreadCount &&
+      lastMessageIsError == other.lastMessageIsError;
 
   @override
-  int get hashCode => Object.hash(lastMessageTimestamp, unreadCount);
+  int get hashCode => Object.hash(
+    lastMessageTimestamp,
+    unreadCount,
+    lastMessageIsError,
+  );
 }
 
 /// Identity-stable projection watched by the Mission Control model.
@@ -189,6 +201,7 @@ class MissionControlUiProjection {
         entry.key: SessionUiEntry(
           lastMessageTimestamp: entry.value.lastMessageTimestamp,
           unreadCount: entry.value.unreadCount,
+          lastMessageIsError: entry.value.lastMessageIsError,
         ),
     }),
   );
@@ -400,6 +413,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       missionControlEntries[session.id] = MissionControlUiEntry(
         lastMessageTimestamp: next.lastMessageTimestamp,
         unreadCount: next.unreadCount,
+        lastMessageIsError: next.lastMessageIsError,
       );
       if (!identical(next, previous)) changed++;
     }
@@ -463,6 +477,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       lastMessageTimestamp: sync.getLastMessageTimestamp(sessionId),
       lastMessagePreview: sync.getLastMessagePreview(sessionId),
       lastMessageRole: sync.getLastMessageRole(sessionId),
+      lastMessageIsError: sync.getLastMessageIsError(sessionId),
       unreadCount: sync.getUnreadCount(sessionId),
       hasOlderMessages: sync.hasOlderMessages(sessionId),
       isLoadingOlderMessages: sync.isLoadingOlderMessages(sessionId),
@@ -484,6 +499,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         : MissionControlUiEntry(
             lastMessageTimestamp: entry.lastMessageTimestamp,
             unreadCount: entry.unreadCount,
+            lastMessageIsError: entry.lastMessageIsError,
           );
     if (current == next &&
         (entry != null || !previous.bySessionId.containsKey(sessionId))) {

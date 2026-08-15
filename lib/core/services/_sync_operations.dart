@@ -137,6 +137,21 @@ extension SyncOperations on Sync {
     return Set<String>.from(_optimisticallyArchivedSessions);
   }
 
+  /// Clears the unread counter for [sessionId] without opening the chat.
+  ///
+  /// Mission Control's "mark read" triage action. Mirrors the counter
+  /// cleanup `onSessionVisible` performs when the user actually enters
+  /// the session.
+  void markSessionRead(String sessionId) {
+    final hadUnread =
+        _sessionUnreadCounts.containsKey(sessionId) ||
+        _sessionUnreadLastIncrementMs.containsKey(sessionId);
+    if (!hadUnread) return;
+    _sessionUnreadCounts.remove(sessionId);
+    _sessionUnreadLastIncrementMs.remove(sessionId);
+    _notifySessionMessagesChanged(sessionId);
+  }
+
   /// Delete a session.
   Future<bool> deleteSession(String sessionId) async {
     try {
