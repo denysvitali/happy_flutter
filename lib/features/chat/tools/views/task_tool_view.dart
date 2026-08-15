@@ -68,6 +68,22 @@ class TaskToolView extends ConsumerStatefulWidget {
     final name = KnownTools.canonicalName((tool['name'] as String?) ?? '');
     final toolId = _toolIdFor(tool);
 
+    // Every Happy MCP task tool echoes the full list back in its result
+    // ("N items, M open" followed by one `#<id> [<status>] <subject>` per
+    // row). That snapshot is authoritative for every id, status and
+    // subject, so it heals rows whose create call was never mounted.
+    if (name == 'TaskCreate' || name == 'TaskUpdate' || name == 'TaskGet') {
+      final snapshot = _happySnapshot(tool, session, eventAt);
+      if (snapshot != null) {
+        final newestKnown = existing.fold<int>(
+          0,
+          (max, e) => e.updatedAt > max ? e.updatedAt : max,
+        );
+        if (eventAt < newestKnown) return existing;
+        return snapshot;
+      }
+    }
+
     switch (name) {
       case 'TaskCreate':
         final input = WireParsers.asMap(tool['input']) ?? const {};
@@ -85,31 +101,41 @@ class TaskToolView extends ConsumerStatefulWidget {
           toolId: toolId,
         );
         final itemId = realId ?? syntheticId;
-        // Migrate: an earlier push (while the tool was still running, before
-        // the result arrived) stored this item under the synthetic id.
-        if (realId != null && existing.any((e) => e.id == syntheticId)) {
-          return existing.map((e) {
-            if (e.id != syntheticId) return e;
-            return e.copyWith(id: realId);
-          }).toList();
+        // An earlier push (while the tool was still running, before the
+        // result carried the harness id) stored this item under the
+        // synthetic id.
+        final hasSynthetic =
+            realId != null && existing.any((e) => e.id == syntheticId);
+        final hasReal = existing.any((e) => e.id == itemId);
+        if (hasSynthetic && !hasReal) {
+          // Migrate in place so the row keeps its position.
+          return existing
+              .map((e) => e.id == syntheticId ? e.copyWith(id: realId) : e)
+              .toList();
         }
+        // Both rows exist: a TaskUpdate replayed before this create already
+        // inserted a placeholder under the real id. Keep that one (it holds
+        // the newer status) and drop the synthetic duplicate.
+        final base = hasSynthetic
+            ? existing.where((e) => e.id != syntheticId).toList()
+            : existing;
         // De-dupe — but fill in the subject when a reverse-order replay
         // inserted a placeholder row from a TaskUpdate processed first.
-        if (existing.any((e) => e.id == itemId)) {
-          return existing.map((e) {
+        if (hasReal) {
+          return base.map((e) {
             if (e.id != itemId) return e;
             if (e.content != _placeholderContent(itemId)) return e;
             return e.copyWith(content: subject);
           }).toList();
         }
         return [
-          ...existing,
+          ...base,
           TodoItem(
             id: itemId,
             content: subject,
             status: _statusFromString(input['status'] as String?),
             priority: 'medium',
-            order: existing.length,
+            order: base.length,
             createdAt: eventAt,
             updatedAt: eventAt,
             sessionId: session,
@@ -185,11 +211,11 @@ class TaskToolView extends ConsumerStatefulWidget {
               WireParsers.asList(map['todos']) ??
               const [];
           parsed = _domainFromList(raw, session, eventAt);
-        } else if (result is String) {
-          // Plain-text result: one "#<id> [<status>] <subject>" per line.
-          parsed = _domainFromListText(result, session, eventAt);
         } else {
-          return existing;
+          // Plain-text result: one "#<id> [<status>] <subject>" per line.
+          final text = _resultText(result);
+          if (text == null) return existing;
+          parsed = _domainFromListText(text, session, eventAt);
         }
         // An unparseable / empty result must not clobber known tasks, and
         // neither may a snapshot older than per-item state we already hold.
@@ -204,9 +230,10 @@ class TaskToolView extends ConsumerStatefulWidget {
       case 'TaskGet':
         final result = tool['result'];
         var map = WireParsers.asMap(result);
-        if (map == null && result is String) {
+        if (map == null) {
           // Plain-text result: "Task #<id>: <subject>\nStatus: <status>\n…"
-          map = _mapFromGetResultText(result);
+          final text = _resultText(result);
+          if (text != null) map = _mapFromGetResultText(text);
         }
         if (map == null) return existing;
         final subject =
@@ -259,8 +286,12 @@ class TaskToolView extends ConsumerStatefulWidget {
 
   /// Extracts the harness-assigned task id from a TaskCreate result.
   ///
-  /// Handles both structured results (`{id: "1"}`) and the production
-  /// plain-text shape: `Task #1 created successfully: <subject>`.
+  /// Handles structured results (`{id: "1"}`) and both plain-text shapes:
+  /// `Task #1 created successfully: <subject>` (Claude Code) and
+  /// `Added #1: <subject>` (Happy MCP `todo_add`). Missing the Happy shape
+  /// filed the created row under a synthetic id, so every later
+  /// `todo_update` — which names the task by its real id — missed it and
+  /// inserted a second, subject-less `Task #<id>` row instead.
   static String? _idFromCreateResult(Map<String, dynamic> tool) {
     final result = tool['result'];
     final map = WireParsers.asMap(result);
@@ -269,11 +300,55 @@ class TaskToolView extends ConsumerStatefulWidget {
       if (id != null && id.isNotEmpty) return id;
       return null;
     }
-    if (result is String) {
-      final m = RegExp(
-        r'Task\s+#([A-Za-z0-9_-]+)\s+created',
-      ).firstMatch(result);
-      return m?.group(1);
+    final text = _resultText(result);
+    if (text == null) return null;
+    final m = RegExp(
+      r'(?:Task\s+#([A-Za-z0-9_-]+)\s+created|^Added\s+#([A-Za-z0-9_-]+)[:\s])',
+      multiLine: true,
+    ).firstMatch(text);
+    if (m == null) return null;
+    return m.group(1) ?? m.group(2);
+  }
+
+  /// Full task list echoed back by a Happy MCP task tool, or null when the
+  /// result is not one.
+  ///
+  /// `todo_add` / `todo_update` / `todo_remove` all print an authoritative
+  /// snapshot after their headline: a `N items, M open` line followed by one
+  /// `#<id> [<status>] <subject>` row per task. Consuming it keeps the list
+  /// correct even when the originating create call never mounts (the chat
+  /// list is reversed and lazily built, so older tool calls stay off-screen).
+  static List<TodoItem>? _happySnapshot(
+    Map<String, dynamic> tool,
+    String? sessionId,
+    int eventAt,
+  ) {
+    final text = _resultText(tool['result']);
+    if (text == null) return null;
+    final counts = RegExp(
+      r'^\s*\d+\s+items?,\s+\d+\s+open\s*$',
+      multiLine: true,
+    );
+    if (!counts.hasMatch(text)) return null;
+    final items = _domainFromListText(text, sessionId, eventAt);
+    return items.isEmpty ? null : items;
+  }
+
+  /// Plain-text body of a tool result, flattening the MCP content-block
+  /// shape (`[{type: text, text: ...}]`) when the backend forwards it.
+  static String? _resultText(dynamic result) {
+    if (result is String) return result;
+    if (result is List) {
+      final parts = <String>[];
+      for (final block in result) {
+        if (block is String) {
+          parts.add(block);
+        } else if (block is Map) {
+          final text = block['text'];
+          if (text is String) parts.add(text);
+        }
+      }
+      return parts.isEmpty ? null : parts.join('\n');
     }
     return null;
   }

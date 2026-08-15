@@ -676,6 +676,126 @@ void main() {
         isEmpty,
       );
     });
+
+    // Regression: the Happy MCP announces a create as "Added #1: <subject>",
+    // not "Task #1 created successfully". The id parser only knew the latter,
+    // so the created row was filed under a synthetic id and every later
+    // todo_update (which names the task by its real id) missed it and
+    // appended a second, subject-less "Task #<id>" row instead — the task
+    // list showed named rows stuck pending next to "Task #3" / "Task #4".
+    testWidgets('todo_add result id lets a later todo_update match the row', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-mcp-1',
+        'createdAt': 1000,
+        'input': {'content': 'Ship progress MCP'},
+        'result': 'Added #1: Ship progress MCP',
+      }, 's1');
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_update',
+        'toolUseId': 'call-mcp-2',
+        'createdAt': 2000,
+        'input': {'id': '1', 'status': 'completed'},
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items, hasLength(1));
+      expect(items.single.id, '1');
+      expect(items.single.content, 'Ship progress MCP');
+      expect(items.single.status, TodoState.completed);
+    });
+
+    testWidgets('todo_update snapshot heals rows whose create never mounted', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      // The chat list is reversed and lazily built, so an older todo_add
+      // can stay off-screen forever. The update's own result carries the
+      // full list, which is authoritative.
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_update',
+        'toolUseId': 'call-mcp-9',
+        'createdAt': 2000,
+        'input': {'id': '4', 'status': 'completed'},
+        'result':
+            'Updated #4 [completed] Port installer orchestration to Go\n'
+            '2 items, 1 open\n'
+            '#3 [in_progress] Design all-Go installer\n'
+            '#4 [completed] Port installer orchestration to Go',
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items, hasLength(2));
+      expect(items.map((i) => i.id), ['3', '4']);
+      expect(items.first.content, 'Design all-Go installer');
+      expect(items.first.status, TodoState.inProgress);
+      expect(items.last.content, 'Port installer orchestration to Go');
+      expect(items.last.status, TodoState.completed);
+      expect(items.map((i) => i.content), isNot(contains('Task #4')));
+    });
+
+    testWidgets('todo_add snapshot collapses a placeholder from a replay', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      // Newest tool mounts first: the update inserts a placeholder row.
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_update',
+        'toolUseId': 'call-mcp-2',
+        'createdAt': 2000,
+        'input': {'id': '1', 'status': 'completed'},
+      }, 's1');
+      expect(
+        container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!
+            .single
+            .content,
+        'Task #1',
+      );
+
+      // The older create then replays with its snapshot.
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-mcp-1',
+        'createdAt': 1000,
+        'input': {'content': 'Ship progress MCP'},
+        'result': 'Added #1: Ship progress MCP',
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items, hasLength(1));
+      expect(items.single.id, '1');
+      expect(items.single.content, 'Ship progress MCP');
+      // Status from the newer update survives the merge.
+      expect(items.single.status, TodoState.completed);
+    });
+
+    testWidgets('MCP content-block result shape is flattened', (tester) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-mcp-1',
+        'createdAt': 1000,
+        'input': {'content': 'Ship progress MCP'},
+        'result': [
+          {
+            'type': 'text',
+            'text':
+                'Added #1: Ship progress MCP\n'
+                '1 items, 1 open\n'
+                '#1 [pending] Ship progress MCP',
+          },
+        ],
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items.single.id, '1');
+      expect(items.single.content, 'Ship progress MCP');
+    });
   });
 
   group('TaskToolView — collapsed parent still drives global state', () {
