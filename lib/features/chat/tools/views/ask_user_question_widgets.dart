@@ -12,6 +12,7 @@ class QuestionSection extends StatelessWidget {
     required this.selectedOptions,
     required this.isInteractive,
     required this.onToggle,
+    this.notesController,
     super.key,
   });
   final Question question;
@@ -19,6 +20,7 @@ class QuestionSection extends StatelessWidget {
   final Set<int> selectedOptions;
   final bool isInteractive;
   final ValueChanged<int> onToggle;
+  final TextEditingController? notesController;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +125,52 @@ class QuestionSection extends StatelessWidget {
               );
             }).toList(),
           ),
+          // Optional free-text notes, carried through to the
+          // agent as `annotations[question].notes`.
+          if (notesController != null) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesController,
+              enabled: isInteractive,
+              maxLines: 2,
+              minLines: 1,
+              keyboardType: TextInputType.multiline,
+              textInputAction: TextInputAction.newline,
+              style: theme.textTheme.bodyMedium,
+              decoration: InputDecoration(
+                hintText: 'Add notes (optional)',
+                isDense: true,
+                filled: true,
+                fillColor: theme
+                    .colorScheme.surfaceContainerHigh,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.outlineVariant,
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

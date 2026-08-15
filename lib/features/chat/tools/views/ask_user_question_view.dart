@@ -54,6 +54,7 @@ class AskUserQuestionView extends ConsumerStatefulWidget {
 class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     with TickerProviderStateMixin {
   final Map<int, Set<int>> _selections = {};
+  final Map<int, TextEditingController> _notesControllers = {};
   bool _isSubmitting = false;
   bool _isSubmitted = false;
 
@@ -78,45 +79,21 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
   @override
   void dispose() {
     _pulseController.dispose();
+    for (final controller in _notesControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
-    final questions = input['questions'] as List?;
-
-    if (questions == null || questions.isEmpty) {
+    final parsedQuestions = _parseQuestions();
+    if (parsedQuestions.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final parsedQuestions = questions
-        .map((q) {
-          if (q is! Map<String, dynamic>) return null;
-          final options = (q['options'] as List?)
-                  ?.map(
-                    (o) => QuestionOption(
-                      label: o['label'] as String? ?? '',
-                      description:
-                          o['description'] as String? ?? '',
-                    ),
-                  )
-                  .toList() ??
-              [];
-
-          return Question(
-            question: q['question'] as String? ?? '',
-            header: q['header'] as String? ?? 'Question',
-            options: options,
-            multiSelect: q['multiSelect'] as bool? ?? false,
-          );
-        })
-        .whereType<Question>()
-        .toList();
-
-    if (parsedQuestions.isEmpty) {
-      return const SizedBox.shrink();
+    for (var i = 0; i < parsedQuestions.length; i++) {
+      _notesControllers.putIfAbsent(i, TextEditingController.new);
     }
 
     // Show submitted view if the user submitted locally OR if the
@@ -145,6 +122,39 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
       canInteract: canInteract,
       allAnswered: allAnswered,
     );
+  }
+
+  List<Question> _parseQuestions() {
+    final input =
+        WireParsers.asMap(widget.tool['input']) ?? {};
+    final questions = input['questions'] as List?;
+    if (questions == null || questions.isEmpty) {
+      return const <Question>[];
+    }
+
+    return questions
+        .map((q) {
+          if (q is! Map<String, dynamic>) return null;
+          final options = (q['options'] as List?)
+                  ?.map(
+                    (o) => QuestionOption(
+                      label: o['label'] as String? ?? '',
+                      description:
+                          o['description'] as String? ?? '',
+                    ),
+                  )
+                  .toList() ??
+              [];
+
+          return Question(
+            question: q['question'] as String? ?? '',
+            header: q['header'] as String? ?? 'Question',
+            options: options,
+            multiSelect: q['multiSelect'] as bool? ?? false,
+          );
+        })
+        .whereType<Question>()
+        .toList();
   }
 
   Widget _buildSubmittedView(
@@ -224,13 +234,36 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                     ),
                   ),
                   Expanded(
-                    child: Text(
-                      labels,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(
-                        color:
-                            theme.colorScheme.onSurface,
-                      ),
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          labels,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(
+                            color:
+                                theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        if (_notesControllers[qIndex]?.text
+                                .trim()
+                                .isNotEmpty ??
+                            false) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Notes: '
+                            '${_notesControllers[qIndex]!.text.trim()}',
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(
+                              color: theme
+                                  .colorScheme.onSurfaceVariant,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
@@ -314,6 +347,8 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                         optionIndex,
                         question.multiSelect,
                       ),
+                      notesController:
+                          _notesControllers[qIndex],
                     );
                   },
                 ),
@@ -503,35 +538,37 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     final input =
         WireParsers.asMap(widget.tool['input'])
             ?? {};
-    final questions =
-        input['questions'] as List? ?? [];
+    final parsedQuestions = _parseQuestions();
 
-    // Build answers map keyed by question text,
-    // matching the AskUserQuestion tool schema.
+    // Build the AskUserQuestion answer payload keyed by question
+    // text: `answers` maps each question to its selected label(s)
+    // (joined with ", " for multi-select), and `annotations` carries
+    // per-question free-text notes. Both ride through `updatedInput`
+    // so the CLI can resume the blocked turn.
     final answers = <String, String>{};
+    final annotations = <String, Map<String, String>>{};
     for (var qIdx = 0;
-        qIdx < questions.length;
+        qIdx < parsedQuestions.length;
         qIdx++) {
-      final q =
-          questions[qIdx] as Map<String, dynamic>;
+      final question = parsedQuestions[qIdx];
       final selected = _selections[qIdx];
-      if (selected == null || selected.isEmpty) {
-        continue;
+      if (selected != null && selected.isNotEmpty) {
+        final labels = selected
+            .map(
+              (i) => i < question.options.length
+                  ? question.options[i].label
+                  : '',
+            )
+            .where((l) => l.isNotEmpty)
+            .join(', ');
+        answers[question.question] = labels;
       }
-      final options = q['options'] as List? ?? [];
-      final labels = selected
-          .map(
-            (i) => i < options.length
-                ? (options[i]
-                        as Map<String, dynamic>)[
-                    'label'] as String?
-                : null,
-          )
-          .whereType<String>()
-          .join(', ');
-      final questionText =
-          q['question'] as String? ?? '';
-      answers[questionText] = labels;
+      final notes =
+          _notesControllers[qIdx]?.text.trim() ?? '';
+      if (notes.isNotEmpty) {
+        annotations[question.question] =
+            <String, String>{'notes': notes};
+      }
     }
 
     try {
@@ -549,14 +586,19 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
               updatedInput: <String, dynamic>{
                 ...input,
                 'answers': answers,
+                if (annotations.isNotEmpty)
+                  'annotations': annotations,
               },
             );
       } else {
         // Fallback: send as a chat message if there
         // is no permission to approve.
-        final lines = answers.entries
-            .map((e) => '${e.key}: ${e.value}')
-            .toList();
+        final lines = <String>[
+          ...answers.entries.map((e) => '${e.key}: ${e.value}'),
+          ...annotations.entries.map(
+            (e) => '${e.key} (notes): ${e.value['notes']}',
+          ),
+        ];
         await ref
             .read(chatActionNotifierProvider.notifier)
             .sendMessage(
