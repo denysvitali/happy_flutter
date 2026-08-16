@@ -222,7 +222,9 @@ void main() {
         expect(chips, hasLength(1));
         expect(chips.first.text, 'Online');
         expect(chips.first.showDot, isTrue);
-        expect(chips.first.pulse, isTrue);
+        // The ready/online state is steady and must not drive a 60fps
+        // pulse animation — that was the foreground battery drain.
+        expect(chips.first.pulse, isFalse);
       },
     );
 

@@ -230,7 +230,12 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         text: l10n.chatOnline,
         color: AppColors.success,
         showDot: true,
-        pulse: true,
+        // Steady state: no pulse. A pulsing dot here runs a 60fps
+        // repeating animation for as long as any ready chat is open, which
+        // was the dominant foreground battery drain (see ROADMAP "Foreground
+        // battery draw"). Pulse is reserved for transient states (thinking,
+        // permission-required) in SessionStatus.isPulsing.
+        pulse: false,
       ),
     );
   } else if (isConnecting) {
