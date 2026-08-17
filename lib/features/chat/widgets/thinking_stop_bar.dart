@@ -1,55 +1,123 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// A compact bar shown between the chat list and the input when the
-/// agent is actively thinking. Provides a one-tap **Stop** button so
-/// the user can interrupt a long-running turn without hunting through
-/// the overflow menu.
+/// What the agent is doing right now, from the chat's point of view.
+///
+/// The three states share one bar so a stop request never stacks a
+/// second live indicator on top of the "thinking" one, and never
+/// changes the chrome's height mid-turn.
+enum ChatAgentActivity {
+  /// The agent is working and can be interrupted.
+  thinking,
+
+  /// A stop request is in flight, or has been sent and is still within
+  /// the confirmation window.
+  stopping,
+
+  /// A stop request was accepted but the agent is still reporting work
+  /// past the confirmation window — the stop is unconfirmed, so the
+  /// action is offered again rather than pretending it landed.
+  stopUnconfirmed,
+}
+
+/// A compact bar shown between the chat list and the input while the
+/// agent is working. Provides a one-tap **Stop** button so the user can
+/// interrupt a long-running turn without hunting through the overflow
+/// menu, and stays mounted (same height, same layout) while the stop
+/// request is in flight.
 ///
 /// Placed in the activity-chrome stack (after TTS, before input) per
 /// the banner-priority comment in `_ChatScreenState.build`.
 class ThinkingStopBar extends StatelessWidget {
-  const ThinkingStopBar({required this.onStop, super.key});
+  const ThinkingStopBar({
+    required this.onStop,
+    this.activity = ChatAgentActivity.thinking,
+    super.key,
+  });
 
   final VoidCallback onStop;
+
+  /// Current agent activity. Drives the leading indicator, the label,
+  /// and whether the stop action is tappable.
+  final ChatAgentActivity activity;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
-        children: [
-          // Animated dot to signal live activity.
-          _PulsingDot(color: colorScheme.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Thinking\u2026',
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                color: colorScheme.onSurfaceVariant,
+    final l10n = context.l10n;
+    final stopping = activity == ChatAgentActivity.stopping;
+    final unconfirmed = activity == ChatAgentActivity.stopUnconfirmed;
+    final label = switch (activity) {
+      ChatAgentActivity.thinking => l10n.chatActivityThinking,
+      ChatAgentActivity.stopping => l10n.chatActivityStopping,
+      ChatAgentActivity.stopUnconfirmed => l10n.chatActivityStopUnconfirmed,
+    };
+    return Semantics(
+      liveRegion: true,
+      container: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: AppIconSize.sm,
+              height: AppIconSize.sm,
+              child: Center(
+                child: unconfirmed
+                    ? const Icon(
+                        Icons.error_outline_rounded,
+                        size: AppIconSize.sm,
+                        color: AppColors.warning,
+                      )
+                    // Reduced-motion aware, and the same primitive in both
+                    // live states so the row never swaps animation kinds
+                    // mid-turn. Muted while stopping: the turn is winding
+                    // down, not progressing.
+                    : _PulsingDot(
+                        color: stopping
+                            ? colorScheme.onSurfaceVariant
+                            : colorScheme.primary,
+                      ),
               ),
             ),
-          ),
-          TextButton(
-            onPressed: onStop,
-            style: TextButton.styleFrom(
-              foregroundColor: colorScheme.error,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xxs,
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppFontSize.sm,
+                  color: unconfirmed
+                      ? AppColors.warning
+                      : colorScheme.onSurfaceVariant,
+                ),
               ),
-              minimumSize: const Size(0, AppTouchTarget.min),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-            child: const Text('Stop'),
-          ),
-        ],
+            TextButton(
+              // Disabled (not removed) while the request is in flight:
+              // the row keeps its width and the greyed label confirms the
+              // tap registered, instead of the button vanishing.
+              onPressed: stopping ? null : onStop,
+              style: TextButton.styleFrom(
+                foregroundColor: colorScheme.error,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xxs,
+                ),
+                minimumSize: const Size(0, AppTouchTarget.min),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(l10n.chatActivityStop),
+            ),
+          ],
+        ),
       ),
     );
   }

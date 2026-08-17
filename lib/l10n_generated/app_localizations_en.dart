@@ -3811,6 +3811,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatStatusThinking => 'Thinking';
 
   @override
+  String get chatActivityThinking => 'Thinking…';
+
+  @override
+  String get chatActivityStopping => 'Stopping…';
+
+  @override
+  String get chatActivityStopUnconfirmed =>
+      'Stop not confirmed — still running';
+
+  @override
+  String get chatActivityStop => 'Stop';
+
+  @override
   String get chatStatusRetryQueued => 'Retry queued';
 
   @override

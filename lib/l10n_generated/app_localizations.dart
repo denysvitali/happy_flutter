@@ -6958,6 +6958,30 @@ abstract class AppLocalizations {
   /// **'Thinking'**
   String get chatStatusThinking;
 
+  /// No description provided for @chatActivityThinking.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get chatActivityThinking;
+
+  /// No description provided for @chatActivityStopping.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping…'**
+  String get chatActivityStopping;
+
+  /// No description provided for @chatActivityStopUnconfirmed.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop not confirmed — still running'**
+  String get chatActivityStopUnconfirmed;
+
+  /// No description provided for @chatActivityStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get chatActivityStop;
+
   /// No description provided for @chatStatusRetryQueued.
   ///
   /// In en, this message translates to:

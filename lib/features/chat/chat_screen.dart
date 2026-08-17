@@ -144,6 +144,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   StreamSubscription<AutoRestoreFailure>? _autoRestoreFailureSubscription;
   bool _isSending = false;
   bool _isAborting = false;
+
+  /// When the current stop request was issued (ms since epoch), or 0 when
+  /// no stop is outstanding. The abort RPC returns as soon as the daemon
+  /// accepts it, long before the agent actually stops, so the request is
+  /// latched here — otherwise the bar flips straight back to
+  /// "Thinking… [Stop]" one frame after the user taps Stop.
+  int _stopRequestedAt = 0;
+
+  /// Fires at the end of [_stopConfirmWindow] so the chrome can drop out
+  /// of "Stopping…" instead of claiming progress forever.
+  Timer? _stopConfirmTimer;
+
+  /// How long a sent stop request keeps presenting as "Stopping…" while the
+  /// agent still reports work. Past this the request is treated as
+  /// unconfirmed and the stop action is offered again.
+  static const Duration _stopConfirmWindow = Duration(seconds: 20);
   bool _isLoadingMessages = true;
   bool _loadFailed = false;
 
@@ -454,6 +470,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
     _messageRefreshDebounce?.cancel();
+    _stopConfirmTimer?.cancel();
     _paginationErrorSubscription?.cancel();
     _autoRestoreFailureSubscription?.cancel();
     _controller.dispose();
@@ -672,6 +689,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       if (sessionChanged) {
         _session = latestSession;
         _metadataJson = latestSession?.metadata?.toJson();
+        // The agent confirmed it stopped (or a fresh turn began): drop the
+        // latched stop request so a later turn can't inherit it and render
+        // as unconfirmed.
+        if (!(latestSession?.thinking ?? false)) _clearStopRequest();
       }
 
       // Re-normalize model only when the session's flavor actually changed
@@ -1319,7 +1340,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         debugMaxSeq: _debugMaxSeq,
         modelMode: resolveSessionDisplayModel(session.modelMode),
         lastMessageStreamActivityAt: _lastMessageStreamActivityAt,
-        isStopping: _isAborting,
+        isStopping: _isStopPending,
         isReconnecting: connectionStatus == ConnectionStatus.connecting,
       ),
     );
@@ -1704,27 +1725,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           canGoPrev: _ttsCanGoPrev(),
           canGoNext: _ttsCanGoNext(),
         ),
-        if (isThinking && !_isAborting) ThinkingStopBar(onStop: _abortSession),
-        if (_isAborting)
-          const Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: AppSpacing.sm),
-                Text('Stopping\u2026'),
-              ],
-            ),
-          ),
+        if (_resolveAgentActivity(isThinking) case final activity?)
+          ThinkingStopBar(activity: activity, onStop: _abortSession),
       ],
     );
+  }
+
+  /// Resolves the single live-activity state for the chat chrome, or `null`
+  /// when the agent is idle and no stop is outstanding.
+  ///
+  /// One resolver for one bar: the previous code rendered a thinking bar and
+  /// a separate stopping row from two independent conditions, which is how a
+  /// spinning typing orb ended up stacked above a bare "Stopping\u2026" line.
+  ChatAgentActivity? _resolveAgentActivity([bool? isThinking]) {
+    final thinking = isThinking ?? (_session?.thinking ?? false);
+    if (_isAborting) return ChatAgentActivity.stopping;
+    if (_stopRequestedAt == 0 || !thinking) {
+      return thinking ? ChatAgentActivity.thinking : null;
+    }
+    final elapsedMs = DateTime.now().millisecondsSinceEpoch - _stopRequestedAt;
+    return elapsedMs < _stopConfirmWindow.inMilliseconds
+        ? ChatAgentActivity.stopping
+        : ChatAgentActivity.stopUnconfirmed;
+  }
+
+  /// Whether a stop request is outstanding and still unconfirmed. Drives the
+  /// app-bar chip and suppresses the typing indicator so the chat does not
+  /// animate "working" and "stopping" at the same time.
+  bool get _isStopPending =>
+      _resolveAgentActivity() == ChatAgentActivity.stopping;
+
+  /// Arms the confirmation window after the daemon accepts a stop request.
+  void _armStopConfirmTimer() {
+    _stopConfirmTimer?.cancel();
+    _stopConfirmTimer = Timer(_stopConfirmWindow, () {
+      if (!mounted) return;
+      setState(() {});
+    });
+  }
+
+  /// Drops the outstanding stop request \u2014 the agent stopped, the request
+  /// failed, or a new turn started.
+  void _clearStopRequest() {
+    _stopConfirmTimer?.cancel();
+    _stopConfirmTimer = null;
+    _stopRequestedAt = 0;
   }
 
   ChatMachineVitals? _buildMachineVitals() {

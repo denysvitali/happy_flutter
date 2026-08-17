@@ -655,12 +655,20 @@ extension _ChatScreenActions on _ChatScreenState {
 
   Future<void> _abortSession() async {
     if (_isAborting) return;
-    setState(() => _isAborting = true);
+    setState(() {
+      _isAborting = true;
+      _stopRequestedAt = DateTime.now().millisecondsSinceEpoch;
+    });
     try {
       await ref
           .read(chatActionNotifierProvider.notifier)
           .abortSession(widget.sessionId, reason: _abortReason);
+      // Accepted by the daemon — the agent stops asynchronously, so hold
+      // the "Stopping…" presentation until it confirms or the window ends.
+      if (mounted) _armStopConfirmTimer();
     } catch (e, st) {
+      // The request never landed: don't keep claiming the turn is stopping.
+      _clearStopRequest();
       if (mounted) {
         logger.warning(
           '[ChatScreen] _abortSession failed: '
@@ -784,6 +792,11 @@ extension _ChatScreenActions on _ChatScreenState {
     final localId = ref
         .read(chatActionNotifierProvider.notifier)
         .createLocalMessageId();
+
+    // A new instruction supersedes any outstanding stop request. Without
+    // this the chrome keeps reporting the previous turn's stop while the
+    // agent works on the message that was just sent.
+    _clearStopRequest();
 
     unawaited(TtsService().stop());
 

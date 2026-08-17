@@ -120,7 +120,11 @@ extension _ChatScreenBuilders on _ChatScreenState {
         lastItem['kind'] != 'tool-call' &&
         lastItem['kind'] != 'hidden-tool-summary' &&
         lastItem['isThinking'] != true;
-    final showTypingIndicator = agentWorking && !lastIsStreamingText;
+    // A stop request is outstanding: the activity bar already says
+    // "Stopping…", so an animated typing orb above it would claim the
+    // opposite. Suppress it until the stop confirms or the window lapses.
+    final showTypingIndicator =
+        agentWorking && !lastIsStreamingText && !_isStopPending;
 
     final listView = ListView.builder(
       controller: _scrollController,
