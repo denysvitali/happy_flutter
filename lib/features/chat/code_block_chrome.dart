@@ -1,5 +1,18 @@
 part of 'code_block_widget.dart';
 
+/// Aurora-glass chrome fill for code-block strips (header, footers).
+///
+/// A static alpha lift of the glass highlight over the chrome base — no
+/// [BackdropFilter], no per-frame shader — so the strip reads as a separate
+/// translucent pane above the code surface at zero raster cost.
+Color _glassChromeFill(Color base, AppColorScheme glass) =>
+    Color.alphaBlend(glass.glassHighlight.withValues(alpha: 0.5), base);
+
+/// Resolves the ambient Aurora scheme, falling back to the dark tokens when
+/// the extension is not registered (bare-[MaterialApp] tests).
+AppColorScheme _glassOf(BuildContext context) =>
+    Theme.of(context).extension<AppColorScheme>() ?? AppColorScheme.dark();
+
 /// Header bar showing language name, wrap toggle, expand, and copy button.
 class _CodeHeader extends StatefulWidget {
   const _CodeHeader({
@@ -30,9 +43,10 @@ class _CodeHeaderState extends State<_CodeHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final headerBg = widget.codeViewer.headerBackground;
-    final hoverBg = widget.codeViewer.headerHover;
-    final dividerColor = widget.codeViewer.divider;
+    final glass = _glassOf(context);
+    final base = _hovered
+        ? widget.codeViewer.headerHover
+        : widget.codeViewer.headerBackground;
     final labelColor = widget.codeViewer.headerLabel;
     final l10n = AppLocalizations.of(context);
 
@@ -45,8 +59,13 @@ class _CodeHeaderState extends State<_CodeHeader> {
         duration: AppDuration.fast,
         height: AppTouchTarget.min - AppSpacing.sm,
         decoration: BoxDecoration(
-          color: _hovered ? hoverBg : headerBg,
-          border: Border(bottom: BorderSide(color: dividerColor)),
+          color: _glassChromeFill(base, glass),
+          border: Border(
+            bottom: BorderSide(
+              color: glass.glassBorder,
+              width: AppBorder.hairline,
+            ),
+          ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         child: Row(
@@ -69,12 +88,13 @@ class _CodeHeaderState extends State<_CodeHeader> {
                 child: Text(
                   displayName,
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.sm,
                     color: labelColor,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.3,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
                   ),
                 ),
               ),
@@ -104,7 +124,8 @@ class _CodeHeaderState extends State<_CodeHeader> {
                 color: labelColor,
                 visualDensity: VisualDensity.compact,
               ),
-            // Copy button – always visible, more discoverable on hover
+            // Copy button – quiet ghost icon; the success-green check carries
+            // the confirmation state.
             _CopyButton(
               copied: widget.copied,
               codeViewer: widget.codeViewer,
@@ -133,7 +154,10 @@ class _CodeHeaderState extends State<_CodeHeader> {
   Color _languageColor(String? lang) => colorForLanguage(lang);
 }
 
-/// Animated copy button with "Copied!" feedback.
+/// Ghost-icon copy button with "copied" feedback.
+///
+/// Icon-only: the tooltip names the action, and the confirmation flips the
+/// glyph to a success-green check. No label text keeps the header quiet.
 class _CopyButton extends StatelessWidget {
   const _CopyButton({
     required this.copied,
@@ -146,8 +170,6 @@ class _CopyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = copied ? codeViewer.successAccent : codeViewer.idleAccent;
-
     final l10n = AppLocalizations.of(context);
     return Tooltip(
       message: copied ? l10n.commonCopied : l10n.commonCopyCode,
@@ -155,33 +177,16 @@ class _CopyButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.xs),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
+          padding: const EdgeInsets.all(AppSpacing.sm),
           child: AnimatedSwitcher(
             duration: AppDuration.fast,
             switchInCurve: AppCurve.enter,
             switchOutCurve: AppCurve.exit,
-            child: Row(
+            child: Icon(
               key: ValueKey(copied),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  copied ? Icons.check_rounded : Icons.content_copy_rounded,
-                  size: AppFontSize.base,
-                  color: iconColor,
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  copied ? l10n.commonCopied : l10n.commonCopy,
-                  style: TextStyle(
-                    fontSize: AppFontSize.xs,
-                    color: iconColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+              copied ? Icons.check_rounded : Icons.content_copy_rounded,
+              size: AppFontSize.base,
+              color: copied ? codeViewer.successAccent : codeViewer.idleAccent,
             ),
           ),
         ),
@@ -214,8 +219,13 @@ class _MoreLinesFooter extends StatelessWidget {
 
     final content = Container(
       decoration: BoxDecoration(
-        color: codeViewer.headerBackground,
-        border: Border(top: BorderSide(color: codeViewer.divider)),
+        color: _glassChromeFill(codeViewer.headerBackground, _glassOf(context)),
+        border: Border(
+          top: BorderSide(
+            color: _glassOf(context).glassBorder,
+            width: AppBorder.hairline,
+          ),
+        ),
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -265,10 +275,13 @@ class _TruncatedNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final glass = _glassOf(context);
     return Container(
       decoration: BoxDecoration(
-        color: codeViewer.headerBackground,
-        border: Border(top: BorderSide(color: codeViewer.divider)),
+        color: _glassChromeFill(codeViewer.headerBackground, glass),
+        border: Border(
+          top: BorderSide(color: glass.glassBorder, width: AppBorder.hairline),
+        ),
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
@@ -323,8 +336,9 @@ class _LineNumbers extends StatelessWidget {
         style: TextStyle(
           fontFamily: 'monospace',
           fontSize: fontSize,
-          color: codeViewer.lineNumberText,
+          color: codeViewer.lineNumberText.withValues(alpha: _gutterDigitAlpha),
           height: lineHeight / fontSize,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
     );

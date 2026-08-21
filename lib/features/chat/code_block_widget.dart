@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/mmkv_storage.dart';
+import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
 import '../../core/theme/language_colors.dart';
@@ -13,6 +14,12 @@ import 'code_block_line_spans.dart';
 import 'syntax_highlighter.dart';
 
 part 'code_block_chrome.dart';
+
+/// Opacity of gutter digits: line numbers stay legible but recede behind
+/// the code they index. Shared by both gutters (joined and per-line) across
+/// the library — a `part` file can only see library-level declarations, not
+/// another class's statics.
+const double _gutterDigitAlpha = 0.72;
 
 /// App-wide soft-wrap preference for code blocks.
 ///
@@ -302,7 +309,12 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
       decoration: BoxDecoration(
         color: codeViewer.background,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: codeViewer.border),
+        // Hairline glass seam instead of the old full-strength border: the
+        // block edge reads as a pane boundary, not a drawn frame.
+        border: Border.all(
+          color: _glassOf(context).glassBorder,
+          width: AppBorder.hairline,
+        ),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(
@@ -578,8 +590,11 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                 style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: widget.fontSize,
-                  color: codeViewer.lineNumberText,
+                  color: codeViewer.lineNumberText.withValues(
+                    alpha: _gutterDigitAlpha,
+                  ),
                   height: _lineHeight / widget.fontSize,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
@@ -593,9 +608,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
             // Spans come from one tokenisation of the whole block, so
             // multi-line constructs (block comments, multi-line strings,
             // heredocs) keep their styling across the lines they span.
-            child: Text.rich(
-              TextSpan(children: spans, style: _codeTextStyle),
-            ),
+            child: Text.rich(TextSpan(children: spans, style: _codeTextStyle)),
           ),
         ),
       ],
