@@ -1,17 +1,26 @@
-import 'dart:ui' show lerpDouble;
-
 import 'package:flutter/material.dart';
-import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
+
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// A pill-shaped button that scrolls to the bottom of the
-/// chat. Enters with a scale+fade+slide animation and
-/// uses a subtle shadow for depth.
+/// Floating "jump to latest" pill above the composer while the
+/// transcript is scrolled away from the bottom.
+///
+/// Aurora-glass capsule: a translucent low-emphasis surface under a
+/// hairline glass border, lifted by the shared floating shadow, with
+/// the unread badge as its single accent-gradient element. Visibility
+/// gating stays with the parent overlay; this widget only plays a
+/// short fade-and-rise entrance (skipped entirely under reduced
+/// motion) and pops the badge when the unread count grows.
 class ScrollToBottomPill extends StatefulWidget {
   /// Creates a scroll-to-bottom pill.
-  const ScrollToBottomPill({required this.onTap, super.key, this.unreadCount});
+  const ScrollToBottomPill({
+    required this.onTap,
+    super.key,
+    this.unreadCount,
+  });
 
   /// Callback when the pill is tapped.
   final VoidCallback onTap;
@@ -25,71 +34,78 @@ class ScrollToBottomPill extends StatefulWidget {
 
 class _ScrollToBottomPillState extends State<ScrollToBottomPill>
     with TickerProviderStateMixin {
-  late final AnimationController _entryCtrl;
+  /// Translucent glass fill — opaque enough to stay readable over any
+  /// message content sliding beneath it.
+  static const double _fillAlpha = 0.92;
+  static const double _badgePopPeak = 1.28;
+  static const double _entranceRisePx = 14;
 
+  late final AnimationController _entryCtrl;
+  late final CurvedAnimation _entryCurve;
+  late final Animation<double> _entryRise;
   late final AnimationController _pulseCtrl;
   late final Animation<double> _pulseScale;
-  late final Animation<double> _pulseGlow;
-
   int? _prevUnreadCount;
+  bool _entryArmed = false;
 
   @override
   void initState() {
     super.initState();
-    // Physics-driven entry: the pill pops in on a real spring
-    // (AppSpring.standard) rather than a fixed-duration curve, so the
-    // overshoot and settle follow natural motion.
-    _entryCtrl = AnimationController.unbounded(vsync: this);
-    _entryCtrl.animateWith(SpringSimulation(AppSpring.standard, 0.0, 1.0, 0.0));
-
-    _pulseCtrl = AnimationController(vsync: this, duration: AppDuration.fast);
+    _prevUnreadCount = widget.unreadCount;
+    _entryCtrl = AnimationController(vsync: this);
+    _entryCurve = CurvedAnimation(
+      parent: _entryCtrl,
+      curve: AppCurve.standard,
+    );
+    _entryRise = Tween<double>(begin: _entranceRisePx, end: 0)
+        .animate(_entryCurve);
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: AppDuration.fast,
+    );
     _pulseScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween(
           begin: 1.0,
-          end: 1.28,
+          end: _badgePopPeak,
         ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 40,
       ),
       TweenSequenceItem(
         tween: Tween(
-          begin: 1.28,
+          begin: _badgePopPeak,
           end: 1.0,
         ).chain(CurveTween(curve: Curves.easeInOut)),
         weight: 60,
       ),
     ]).animate(_pulseCtrl);
-    _pulseGlow = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.3,
-          end: 0.7,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 40,
-      ),
-      TweenSequenceItem(
-        tween: Tween(
-          begin: 0.7,
-          end: 0.3,
-        ).chain(CurveTween(curve: Curves.easeInOut)),
-        weight: 60,
-      ),
-    ]).animate(_pulseCtrl);
+  }
 
-    _prevUnreadCount = widget.unreadCount;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entryArmed) return;
+    _entryArmed = true;
+    // Reduced motion: no entrance — the pill is simply there.
+    if (AppMotion.reduceMotion(context)) {
+      _entryCtrl.value = 1.0;
+      return;
+    }
+    _entryCtrl.duration = AppMotion.duration(context, AppDuration.fast);
+    _entryCtrl.forward();
   }
 
   @override
   void didUpdateWidget(ScrollToBottomPill oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final prev = _prevUnreadCount ?? 0;
     final next = widget.unreadCount ?? 0;
+    final prev = _prevUnreadCount ?? 0;
+    _prevUnreadCount = widget.unreadCount;
     if (next > prev && next > 0) {
       _pulseCtrl
         ..stop()
         ..forward(from: 0);
     }
-    _prevUnreadCount = widget.unreadCount;
   }
 
   @override
@@ -101,134 +117,130 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final glass =
+        theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final scrollLabel = context.l10n.chatScrollToLatest;
-    final showBadge = widget.unreadCount != null && widget.unreadCount! > 0;
+    final count = widget.unreadCount ?? 0;
+    final showBadge = count > 0;
     final unreadValue = showBadge
         ? '${widget.unreadCount} ${context.l10n.missionControlStatUnread}'
         : null;
+    final shape = BorderRadius.circular(AppRadius.pill);
 
-    return AnimatedBuilder(
-      animation: _entryCtrl,
-      builder: (context, child) {
-        // Spring value overshoots 1.0 slightly; scale and slide may
-        // follow the overshoot, but opacity must stay in range.
-        final t = _entryCtrl.value;
-        return Opacity(
-          opacity: t.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, (1 - t) * 14),
-            child: Transform.scale(
-              scale: lerpDouble(0.7, 1.0, t)!,
-              child: child,
-            ),
-          ),
-        );
-      },
-      child: Semantics(
-        label: scrollLabel,
-        value: unreadValue,
-        button: true,
-        child: Tooltip(
-          message: scrollLabel,
+    return Semantics(
+      label: scrollLabel,
+      value: unreadValue,
+      button: true,
+      child: Tooltip(
+        message: scrollLabel,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_entryCtrl, _pulseCtrl]),
+          builder: (context, child) {
+            return Opacity(
+              opacity: _entryCurve.value,
+              child: Transform.translate(
+                offset: Offset(0, _entryRise.value),
+                child: child,
+              ),
+            );
+          },
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  boxShadow: AppShadow.card,
-                ),
-                child: Material(
-                  color: cs.surfaceContainer,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: InkWell(
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      widget.onTap();
-                    },
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    child: Container(
-                      constraints: const BoxConstraints(
-                        minWidth: AppTouchTarget.min,
-                        minHeight: AppTouchTarget.min,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                        border: Border.all(
-                          color: cs.outlineVariant.withValues(alpha: 0.3),
-                          width: AppBorder.hairline,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.keyboard_double_arrow_down_rounded,
-                        size: 20,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              _buildCapsule(cs, glass, shape),
               if (showBadge)
                 Positioned(
                   top: -4,
                   right: -4,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: AppDuration.fast,
-                    curve: Curves.easeOutBack,
-                    builder: (context, entryValue, child) =>
-                        Transform.scale(scale: entryValue, child: child),
-                    child: AnimatedBuilder(
-                      animation: _pulseCtrl,
-                      builder: (context, child) => Transform.scale(
-                        scale: _pulseScale.value,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cs.primary,
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                            boxShadow: [
-                              BoxShadow(
-                                color: cs.primary.withValues(
-                                  alpha: _pulseGlow.value,
-                                ),
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 18,
-                            minHeight: 18,
-                          ),
-                          child: child,
-                        ),
-                      ),
-                      child: Text(
-                        widget.unreadCount! > 99
-                            ? '99+'
-                            : '${widget.unreadCount}',
-                        style: TextStyle(
-                          color: cs.onPrimary,
-                          fontSize: AppFontSize.xxs,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
+                  child: ScaleTransition(
+                    scale: _pulseScale,
+                    child: _buildBadge(glass, cs, count),
                   ),
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// The glass capsule body: floating shadow, translucent surface,
+  /// hairline glass rim, and the scroll chevron.
+  Widget _buildCapsule(
+    ColorScheme cs,
+    AppColorScheme glass,
+    BorderRadius shape,
+  ) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: shape,
+        boxShadow: AppShadow.floating,
+      ),
+      child: Material(
+        color: cs.surfaceContainerLow.withValues(alpha: _fillAlpha),
+        borderRadius: shape,
+        child: InkWell(
+          borderRadius: shape,
+          onTap: () {
+            HapticFeedback.lightImpact();
+            widget.onTap();
+          },
+          child: Container(
+            constraints: const BoxConstraints(
+              minWidth: AppTouchTarget.min,
+              minHeight: AppTouchTarget.min,
+            ),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: shape,
+              border: Border.all(
+                color: glass.glassBorder,
+                width: AppBorder.hairline,
+              ),
+            ),
+            child: Icon(
+              Icons.keyboard_double_arrow_down_rounded,
+              size: 20,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Accent-gradient unread counter — the pill's single saturated
+  /// element, popping once each time the count grows.
+  Widget _buildBadge(AppColorScheme glass, ColorScheme cs, int count) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        gradient: glass.accentLinearGradient,
+        boxShadow: [
+          BoxShadow(
+            color: glass.accentGradient.first.withValues(alpha: 0.45),
+            blurRadius: 8,
+            spreadRadius: 1,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: cs.onPrimary,
+          fontSize: AppFontSize.xxs,
+          fontWeight: FontWeight.w600,
+          height: 1.0,
         ),
       ),
     );
