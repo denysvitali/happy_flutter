@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
@@ -50,6 +51,11 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    // Aurora glass chrome: near-opaque surface with a hairline glass seam so
+    // content scrolling beneath reads through without a hard elevation step.
     return AppBar(
       automaticallyImplyLeading: onBackTap == null,
       leading: onBackTap == null
@@ -61,6 +67,11 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
       titleSpacing: AppSpacing.sm,
       title: _buildTitle(context, ref),
+      backgroundColor: cs.surface.withValues(alpha: 0.94),
+      surfaceTintColor: Colors.transparent,
+      shape: Border(
+        bottom: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
+      ),
       scrolledUnderElevation: 0.5,
       actions: [
         // Loop count badge — appears only when the session has loops.
@@ -117,13 +128,29 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
       behavior: HitTestBehavior.opaque,
       child: Row(
         children: [
-          SessionAvatar(
-            id: avatarId,
-            flavor: flavor,
-            size: 34,
-            showFlavorIcon: true,
-            square: true,
-            style: avatarStyle,
+          // Hairline ring frames the avatar against the glass chrome.
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color:
+                    (Theme.of(context).extension<AppColorScheme>() ??
+                            AppColorScheme.dark())
+                        .glassBorder,
+                width: AppBorder.hairline,
+              ),
+            ),
+            padding: const EdgeInsets.all(AppSpacing.xxs),
+            child: SessionAvatar(
+              id: avatarId,
+              flavor: flavor,
+              size: 34,
+              showFlavorIcon: true,
+              square: true,
+              style: avatarStyle,
+            ),
           ),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
