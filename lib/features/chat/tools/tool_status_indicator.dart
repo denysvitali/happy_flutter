@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -32,20 +33,28 @@ class ToolStatusIndicator extends StatelessWidget {
         return Semantics(
           label: context.l10n.toolStateDone,
           liveRegion: true,
-          child: Icon(
-            Icons.check_circle_rounded,
-            size: size,
+          child: _StateHalo(
             color: AppColors.success,
+            size: size,
+            child: Icon(
+              Icons.check_circle_rounded,
+              size: size,
+              color: AppColors.success,
+            ),
           ),
         );
       case ToolState.error:
         return Semantics(
           label: context.l10n.toolStateFailed,
           liveRegion: true,
-          child: Icon(
-            Icons.cancel_rounded,
-            size: size,
+          child: _StateHalo(
             color: theme.colorScheme.error,
+            size: size,
+            child: Icon(
+              Icons.cancel_rounded,
+              size: size,
+              color: theme.colorScheme.error,
+            ),
           ),
         );
       case ToolState.pending:
@@ -58,6 +67,43 @@ class ToolStatusIndicator extends StatelessWidget {
           ),
         );
     }
+  }
+}
+
+/// Soft circular halo behind a settled-state glyph.
+///
+/// Gives completed / error indicators a tinted landing pad so the row's
+/// outcome reads as material rather than a floating glyph. Pure decoration:
+/// the pinned glyphs and hit size are unchanged.
+class _StateHalo extends StatelessWidget {
+  const _StateHalo({
+    required this.color,
+    required this.size,
+    required this.child,
+  });
+
+  final Color color;
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Container(
+        width: size + 6,
+        height: size + 6,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: AppOpacity.faint),
+          border: Border.all(
+            color: color.withValues(alpha: 0.22),
+            width: AppBorder.hairline,
+          ),
+        ),
+        child: child,
+      ),
+    );
   }
 }
 
@@ -86,7 +132,7 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: AppDuration.pulse,
     );
 
     _pulseScale = Tween<double>(
@@ -124,7 +170,11 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final ringColor = theme.colorScheme.primary;
+    // The sheen ring carries the signature gradient so a running tool reads
+    // as "live" from across the room; the spinner keeps the plain primary.
+    final gradient = cs.accentLinearGradient;
 
     if (_reduceMotion ?? AppMotion.reduceMotion(context)) {
       return Icon(Icons.autorenew_rounded, size: widget.size, color: ringColor);
@@ -137,7 +187,7 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Pulsing ring
+            // Pulsing gradient ring (the "sheen")
             AnimatedBuilder(
               animation: _controller,
               builder: (context, child) {
@@ -150,9 +200,18 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
                   height: widget.size,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: ringColor, width: 2),
+                    gradient: gradient,
                   ),
                 ),
+              ),
+            ),
+            // Canvas-colored core punches the donut hole out of the ring.
+            Container(
+              width: widget.size - 4,
+              height: widget.size - 4,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.scaffoldBackgroundColor,
               ),
             ),
             // Inner spinner

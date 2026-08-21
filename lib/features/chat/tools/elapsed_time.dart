@@ -1,7 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+
+/// Default style for inline elapsed-time readouts: quiet monospace pill
+/// with tabular figures so ticking digits don't jitter the row.
+TextStyle _elapsedStyle(BuildContext context) {
+  return TextStyle(
+    fontSize: AppFontSize.xs,
+    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(
+      alpha: AppOpacity.high,
+    ),
+    fontFamily: 'monospace',
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
+}
 
 /// Shared 1-second ticker that all [ElapsedTimeWidget] and [ElapsedTime]
 /// instances subscribe to.  Without this, each tool card creates its own
@@ -79,15 +93,7 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
   Widget build(BuildContext context) {
     final startTime = widget.startTime;
     if (startTime == null) {
-      return Text(
-        '0s',
-        style: widget.style ??
-            TextStyle(
-              fontSize: AppFontSize.md,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              fontFamily: 'monospace',
-            ),
-      );
+      return Text('0s', style: widget.style ?? _elapsedStyle(context));
     }
 
     return RepaintBoundary(
@@ -100,14 +106,7 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
           );
           return Text(
             '${elapsed}s',
-            style: widget.style ??
-                TextStyle(
-                  fontSize: AppFontSize.md,
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurfaceVariant,
-                  fontFamily: 'monospace',
-                ),
+            style: widget.style ?? _elapsedStyle(context),
           );
         },
       ),
