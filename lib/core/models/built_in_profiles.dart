@@ -1,3 +1,4 @@
+import '../utils/shell_script_parser.dart' show buildAnthropicModelEnvVars;
 import 'settings.dart';
 
 /// Built-in AI backend profiles matching the daemon's profile registry
@@ -83,6 +84,106 @@ AIBackendProfile normalizeBuiltInProfileDefaults(AIBackendProfile profile) {
         : profile.defaultModelMode,
     environmentVariables: updatedEnv,
   );
+}
+
+/// Model-selection env vars that alias- and subagent-based selection
+/// consult. A profile missing any of these falls back to Claude's real
+/// model names for those selections, which third-party providers reject.
+const _modelSelectionEnvKeys = [
+  'ANTHROPIC_MODEL',
+  'ANTHROPIC_SMALL_FAST_MODEL',
+  'ANTHROPIC_DEFAULT_OPUS_MODEL',
+  'ANTHROPIC_DEFAULT_SONNET_MODEL',
+  'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  'CLAUDE_CODE_SUBAGENT_MODEL',
+];
+
+/// Backfill model-selection env vars on a saved Claude-compatible profile.
+///
+/// Profiles created before the wizard mapped every selection knob carry only
+/// `ANTHROPIC_MODEL`, so picking `sonnet`/`opus`/`haiku` or spawning a
+/// subagent resolved to Claude's real model names and got rejected by the
+/// provider. When the profile has a selected model but is missing any of
+/// [_modelSelectionEnvKeys], map the selected model onto every knob (the
+/// fast/haiku-class knobs get the small-fast value when one exists).
+/// Built-in profiles are left untouched — their defaults are curated.
+AIBackendProfile normalizeModelSelectionEnv(AIBackendProfile profile) {
+  if (!profile.compatibility.claude) return profile;
+  if (profile.isBuiltIn) {
+    // Built-ins are curated; only fill vars they never define.
+    if (_modelSelectionEnvKeys.every(
+      (key) => profile.environmentVariables.any((e) => e.name == key),
+    )) {
+      return profile;
+    }
+    // Fall through to backfill with their own selected model below.
+  }
+  final selected = AIBackendProfile.inferDefaultModelMode(
+    defaultModelMode: profile.defaultModelMode,
+    anthropicConfig: profile.anthropicConfig,
+    openaiConfig: profile.openaiConfig,
+    azureOpenAIConfig: profile.azureOpenAIConfig,
+    environmentVariables: profile.environmentVariables,
+  );
+  if (selected == null) return profile;
+
+  final existing = <String, String>{};
+  var complete = true;
+  for (final env in profile.environmentVariables) {
+    if (_modelSelectionEnvKeys.contains(env.name)) {
+      if (env.value.isEmpty && env.name != 'ANTHROPIC_MODEL') {
+        complete = false;
+      } else {
+        existing[env.name] = env.value;
+      }
+    }
+  }
+  for (final key in _modelSelectionEnvKeys) {
+    if (!existing.containsKey(key)) {
+      complete = false;
+      break;
+    }
+  }
+  if (complete) return profile;
+
+  String? fast;
+  for (final name in const [
+    'ANTHROPIC_SMALL_FAST_MODEL',
+    'ANTHROPIC_DEFAULT_SONNET_MODEL',
+    'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  ]) {
+    final v = existing[name];
+    if (v != null && v.isNotEmpty && v != selected) {
+      fast = v;
+      break;
+    }
+  }
+
+  final mapped = buildAnthropicModelEnvVars(
+    mainModel: selected,
+    fastModel: fast,
+  );
+
+  // Replace blank/incomplete entries, keep unrelated env vars as-is.
+  final updated = <EnvironmentVariable>[];
+  final seen = <String>{};
+  for (final env in profile.environmentVariables) {
+    final replacement = mapped.where((m) => m.name == env.name).toList();
+    if (replacement.isNotEmpty) {
+      if (!seen.add(env.name)) {
+        continue; // drop duplicate stale entry
+      }
+      updated.add(replacement.first);
+    } else {
+      updated.add(env);
+    }
+  }
+  for (final m in mapped) {
+    if (updated.any((e) => e.name == m.name)) continue;
+    updated.add(m);
+  }
+
+  return profile.copyWith(environmentVariables: updated);
 }
 
 /// Return the built-in [AIBackendProfile] for [id], or `null` if unknown.
@@ -302,8 +403,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
       return AIBackendProfile(
         id: 'qwen',
         name: 'Qwen (Token Plan)',
-        description:
-            'Qwen Cloud Token Plan via Anthropic-compatible interface',
+        description: 'Qwen Cloud Token Plan via Anthropic-compatible interface',
         isBuiltIn: true,
         defaultModelMode: 'qwen3.7-max',
         environmentVariables: [
