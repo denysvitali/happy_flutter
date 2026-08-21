@@ -41,10 +41,19 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     // ── Overlay ───────────────────────────────────────────────────────────
     /// Background for floating snack-bars.
     required this.snackBarBackground,
+    // ── Aurora glass ──────────────────────────────────────────────────────
+    /// Signature accent gradient (primary → secondary, 135°). Used only on
+    /// hero elements: send button, active progress fill, thinking dot,
+    /// user-bubble glow.
+    required this.accentGradient,
+    /// Hairline border for glass panels/chips.
+    required this.glassBorder,
+    /// Top-edge highlight for glass panels/chips.
+    required this.glassHighlight,
   });
 
   factory AppColorScheme.light() {
-    return const AppColorScheme(
+    return AppColorScheme(
       success: AppColors.success,
       onSuccess: Colors.white,
       successContainer: Color(0xFFDDF6E5),
@@ -73,11 +82,15 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       disabledFill: Color(0xFF94A3B8),
       // Overlay
       snackBarBackground: Color(0xFF1E293B),
+      // Aurora green/blue/violet (light)
+      accentGradient: [const Color(0xFF2563EB), Color(0xFF7C3AED)],
+      glassBorder: Colors.white.withValues(alpha: 0.35),
+      glassHighlight: Colors.white.withValues(alpha: 0.60),
     );
   }
 
   factory AppColorScheme.dark() {
-    return const AppColorScheme(
+    return AppColorScheme(
       success: AppColors.success,
       onSuccess: Color(0xFF052E16),
       successContainer: Color(0xFF123822),
@@ -106,6 +119,10 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       disabledFill: Color(0xFF94A3B8),
       // Overlay
       snackBarBackground: Color(0xFF334155),
+      // Aurora glass (dark)
+      accentGradient: [const Color(0xFF6D9EFF), Color(0xFF9F7CFF)],
+      glassBorder: Colors.white.withValues(alpha: 0.10),
+      glassHighlight: Colors.white.withValues(alpha: 0.16),
     );
   }
 
@@ -137,6 +154,20 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
   final Color disabledFill;
   // Overlay
   final Color snackBarBackground;
+  // Aurora glass
+  /// Signature accent gradient (primary → secondary). Hero elements only.
+  final List<Color> accentGradient;
+  /// Hairline border for glass panels/chips.
+  final Color glassBorder;
+  /// Top-edge highlight for glass panels/chips.
+  final Color glassHighlight;
+
+  /// Canonical 135° accent gradient built from [accentGradient].
+  LinearGradient get accentLinearGradient => LinearGradient(
+    colors: accentGradient,
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   @override
   AppColorScheme copyWith({
@@ -165,6 +196,9 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     Color? errorBorder,
     Color? disabledFill,
     Color? snackBarBackground,
+    List<Color>? accentGradient,
+    Color? glassBorder,
+    Color? glassHighlight,
   }) {
     return AppColorScheme(
       success: success ?? this.success,
@@ -192,6 +226,9 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       errorBorder: errorBorder ?? this.errorBorder,
       disabledFill: disabledFill ?? this.disabledFill,
       snackBarBackground: snackBarBackground ?? this.snackBarBackground,
+      accentGradient: accentGradient ?? this.accentGradient,
+      glassBorder: glassBorder ?? this.glassBorder,
+      glassHighlight: glassHighlight ?? this.glassHighlight,
     );
   }
 
@@ -255,6 +292,17 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
             t,
           ) ??
           snackBarBackground,
+      accentGradient: _lerpGradient(accentGradient, other.accentGradient, t),
+      glassBorder: Color.lerp(glassBorder, other.glassBorder, t) ?? glassBorder,
+      glassHighlight:
+          Color.lerp(glassHighlight, other.glassHighlight, t) ??
+          glassHighlight,
     );
+  }
+
+  static List<Color> _lerpGradient(List<Color> a, List<Color> b, double t) {
+    return List.generate(a.length.clamp(0, b.length), (i) {
+      return Color.lerp(a[i], b[i], t) ?? a[i];
+    });
   }
 }
