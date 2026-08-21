@@ -1,11 +1,172 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/models/settings.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/env_secrets.dart';
 import '../profile_setup_catalog.dart';
+
+/// Resolves the app's [AppColorScheme] extension with Material-role
+/// fallbacks for themes that do not carry the extension (bare
+/// MaterialApp tests, third-party hosts).
+extension AuroraCs on BuildContext {
+  AppColorScheme? get _aurora => Theme.of(this).extension<AppColorScheme>();
+
+  Color get textPrimary =>
+      _aurora?.textPrimary ?? Theme.of(this).colorScheme.onSurface;
+
+  Color get textSecondary =>
+      _aurora?.textSecondary ?? Theme.of(this).colorScheme.onSurfaceVariant;
+
+  Color get textMuted =>
+      _aurora?.textMuted ?? Theme.of(this).colorScheme.outline;
+
+  Color get textSubtle =>
+      _aurora?.textSubtle ?? Theme.of(this).colorScheme.outlineVariant;
+
+  List<Color> get accentGradient => _aurora?.accentGradient ??
+      [
+        Theme.of(this).colorScheme.primary,
+        Theme.of(this).colorScheme.secondary,
+      ];
+
+  Color get glassBorder =>
+      _aurora?.glassBorder ?? Theme.of(this).colorScheme.outlineVariant;
+}
+
+/// Shared glass-panel container: one calm surface per section.
+class AuroraPanel extends StatelessWidget {
+  const AuroraPanel({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerLow
+            .withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: context.glassBorder,
+          width: AppBorder.hairline,
+        ),
+        boxShadow: AppShadow.floating,
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Section header: muted icon + overline label + subtle hint below.
+class AuroraSectionHeader extends StatelessWidget {
+  const AuroraSectionHeader({
+    required this.icon,
+    required this.title,
+    required this.hint,
+    this.trailing,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String hint;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: AppIconSize.md, color: context.textSubtle),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                title.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppFontSize.xs + 1,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                  color: context.textMuted,
+                ),
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          hint,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: context.textSubtle),
+        ),
+      ],
+    );
+  }
+}
+
+/// Filled, quiet input decoration shared by every field in the editor.
+InputDecoration auroraField({
+  required BuildContext context,
+  required String labelText,
+  String? hintText,
+  Widget? suffixIcon,
+  bool alignLabelWithHint = false,
+}) {
+  return InputDecoration(
+    filled: true,
+    fillColor: Theme.of(context)
+        .colorScheme
+        .surfaceContainerHigh
+        .withValues(alpha: 0.5),
+    labelText: labelText,
+    labelStyle: TextStyle(color: context.textSubtle),
+    hintText: hintText,
+    hintStyle: TextStyle(color: context.textSubtle),
+    alignLabelWithHint: alignLabelWithHint,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.md,
+      vertical: AppSpacing.smd,
+    ),
+    border: _outline(context.glassBorder),
+    enabledBorder: _outline(context.glassBorder),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.smd),
+      borderSide: BorderSide(
+        color: context.accentGradient.first,
+        width: AppBorder.thick,
+      ),
+    ),
+    errorBorder: _outline(Theme.of(context).colorScheme.error),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.smd),
+      borderSide: BorderSide(
+        color: Theme.of(context).colorScheme.error,
+        width: AppBorder.thin,
+      ),
+    ),
+    suffixIcon: suffixIcon,
+    isDense: true,
+  );
+}
+
+OutlineInputBorder _outline(Color color) {
+  return OutlineInputBorder(
+    borderRadius: BorderRadius.circular(AppRadius.smd),
+    borderSide: BorderSide(color: color, width: AppBorder.thin),
+  );
+}
 
 /// Quick-setup template chips for choosing a pre-configured
 /// AI backend profile.
@@ -27,37 +188,33 @@ class TemplateSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.profilesQuickSetup,
-          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          l10n.profilesQuickSetupHint,
-          style: textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+    return AuroraPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AuroraSectionHeader(
+            icon: Icons.auto_awesome_outlined,
+            title: l10n.profilesQuickSetup,
+            hint: l10n.profilesQuickSetupHint,
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: profileSetupOptions
-              .map(
-                (option) => TemplateChip(
-                  label: option.label,
-                  icon: option.icon,
-                  color: colorForProfile(option.id),
-                  isSelected: selectedTemplate == option.id,
-                  onTap: () => onSelect(option.id),
-                ),
-              )
-              .toList(growable: false),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: profileSetupOptions
+                .map(
+                  (option) => TemplateChip(
+                    label: option.label,
+                    icon: option.icon,
+                    color: colorForProfile(option.id),
+                    isSelected: selectedTemplate == option.id,
+                    onTap: () => onSelect(option.id),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -81,45 +238,41 @@ class TemplateChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: isSelected
-          ? color.withValues(
-              alpha: isDark ? AppOpacity.subtle : AppOpacity.faint,
-            )
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
+      color:
+          isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: isSelected ? color : context.glassBorder,
+          width: isSelected ? AppBorder.thin : AppBorder.hairline,
+        ),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        customBorder: const StadiumBorder(),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-          child: Container(
+          child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
+              horizontal: AppSpacing.lg,
               vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? color : cs.outlineVariant,
-                width: isSelected ? AppBorder.thick : AppBorder.thin,
-              ),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: AppIconSize.md, color: color),
+                Icon(
+                  isSelected ? Icons.check_circle : icon,
+                  size: AppIconSize.md,
+                  color: isSelected ? color : context.textSecondary,
+                ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: AppFontSize.sm,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    color: isSelected ? color : cs.onSurface,
+                    fontWeight:
+                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    color: isSelected ? color : context.textPrimary,
                   ),
                 ),
               ],
@@ -160,104 +313,97 @@ class EnvVarsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.profilesEnvVarsTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          l10n.profilesEnvVarsHint,
-          style: textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+    return AuroraPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AuroraSectionHeader(
+            icon: Icons.data_object_outlined,
+            title: l10n.profilesEnvVarsTitle,
+            hint: l10n.profilesEnvVarsHint,
           ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: [
-            Tooltip(
-              message: l10n.profilesImportLabelShort,
-              child: OutlinedButton.icon(
-                onPressed: onImport,
-                icon: const Icon(Icons.paste, size: AppIconSize.md),
-                label: Text(l10n.profilesImportLabelShort),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, AppTouchTarget.comfortable),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              Tooltip(
+                message: l10n.profilesImportLabelShort,
+                child: TextButton.icon(
+                  onPressed: onImport,
+                  icon: Icon(
+                    Icons.paste,
+                    size: AppIconSize.md,
+                    color: context.textSecondary,
                   ),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
-            Tooltip(
-              message: l10n.profilesEnvAddRow,
-              child: FilledButton.icon(
-                onPressed: onAdd,
-                icon: const Icon(Icons.add, size: AppIconSize.md),
-                label: Text(l10n.profilesEnvAddRow),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, AppTouchTarget.comfortable),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
+                  label: Text(l10n.profilesImportLabelShort),
+                  style: TextButton.styleFrom(
+                    foregroundColor: context.textSecondary,
+                    minimumSize: const Size(0, AppTouchTarget.comfortable),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  visualDensity: VisualDensity.compact,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        if (envRows.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-            child: Center(
-              child: Text(
-                l10n.profilesEnvVarsEmpty,
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              Tooltip(
+                message: l10n.profilesEnvAddRow,
+                child: FilledButton.tonalIcon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add, size: AppIconSize.md),
+                  label: Text(l10n.profilesEnvAddRow),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, AppTouchTarget.comfortable),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.xs,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
+            ],
           ),
-        ...envRows.asMap().entries.map((entry) {
-          final i = entry.key;
-          final row = entry.value;
-          return Padding(
-            key: ObjectKey(row),
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: EnvVarRow(
-              row: row,
-              l10n: l10n,
-              onChanged: onChanged,
-              onRemove: () => onRemove(i),
-            ),
-          );
-        }),
-      ],
+          const SizedBox(height: AppSpacing.sm),
+          if (envRows.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              child: Center(
+                child: Text(
+                  l10n.profilesEnvVarsEmpty,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: context.textSubtle),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else
+            ...envRows.asMap().entries.map((entry) {
+              final i = entry.key;
+              final row = entry.value;
+              return Padding(
+                key: ObjectKey(row),
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: EnvVarRow(
+                  row: row,
+                  l10n: l10n,
+                  onChanged: onChanged,
+                  onRemove: () => onRemove(i),
+                ),
+              );
+            }),
+        ],
+      ),
     );
   }
 }
 
-/// A single environment-variable entry: key field with a remove
-/// button on top, value field spanning the full width below.
+/// A single environment-variable entry: monospace key field with a
+/// ghost remove button centred across both lines, value field below.
 class EnvVarRow extends StatelessWidget {
   const EnvVarRow({
     required this.row,
@@ -274,27 +420,28 @@ class EnvVarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final rowCardBg = cs.surfaceContainerLow;
     return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: rowCardBg,
+        color: Theme.of(context)
+            .colorScheme
+            .surfaceContainerHigh
+            .withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: cs.outlineVariant),
       ),
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
                   controller: row.nameCtrl,
-                  decoration: InputDecoration(
+                  decoration: auroraField(
+                    context: context,
                     labelText: l10n.profilesEnvKeyLabel,
                     hintText: l10n.profilesEnvKeyHint,
-                    isDense: true,
                   ),
                   style: const TextStyle(
                     fontFamily: 'monospace',
@@ -307,23 +454,31 @@ class EnvVarRow extends StatelessWidget {
                   textInputAction: TextInputAction.next,
                   onChanged: (_) => onChanged(),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Tooltip(
-                message: l10n.profilesEnvRemoveRow,
-                child: IconButton(
-                  icon: Icon(
-                    Icons.remove_circle_outline,
-                    size: AppIconSize.lg,
-                    color: cs.error,
-                  ),
-                  onPressed: onRemove,
-                ),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.xs),
+                ValueField(row: row),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.xs),
-          ValueField(row: row),
+          const SizedBox(width: AppSpacing.xs),
+          Tooltip(
+            message: l10n.profilesEnvRemoveRow,
+            child: IconButton(
+              icon: Icon(
+                Icons.remove_circle_outline,
+                size: AppIconSize.lg,
+                color: context.textSubtle,
+              ),
+              hoverColor: Theme.of(context)
+                  .colorScheme
+                  .error
+                  .withValues(alpha: 0.12),
+              highlightColor: Theme.of(context)
+                  .colorScheme
+                  .error
+                  .withValues(alpha: 0.16),
+              onPressed: onRemove,
+            ),
+          ),
         ],
       ),
     );
@@ -351,69 +506,51 @@ class ScriptSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          onTap: onToggle,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Row(
-              children: [
-                Icon(
+    return AuroraPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            onTap: onToggle,
+            child: AuroraSectionHeader(
+              icon: Icons.terminal_outlined,
+              title: l10n.profilesScriptTitle,
+              hint: show
+                  ? l10n.profilesScriptDescription
+                  : l10n.commonOptional,
+              trailing: Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.xs),
+                child: Icon(
                   show ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: colorScheme.onSurfaceVariant,
+                  size: AppIconSize.lg,
+                  color: context.textSubtle,
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                Expanded(
-                  child: Text(
-                    l10n.profilesScriptTitle,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Flexible(
-                  child: Text(
-                    l10n.commonOptional,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-        if (show) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            l10n.profilesScriptDescription,
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          if (show) ...[
+            const SizedBox(height: AppSpacing.md),
+            TextFormField(
+              controller: controller,
+              decoration: auroraField(
+                context: context,
+                labelText: l10n.profilesScriptLabel,
+                hintText: 'export MY_VAR=value\nsource ~/.env',
+                alignLabelWithHint: true,
+              ),
+              maxLines: 6,
+              minLines: 4,
+              autocorrect: false,
+              enableSuggestions: false,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: AppFontSize.md,
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          TextFormField(
-            controller: controller,
-            decoration: InputDecoration(
-              labelText: l10n.profilesScriptLabel,
-              hintText: 'export MY_VAR=value\nsource ~/.env',
-              border: const OutlineInputBorder(),
-              alignLabelWithHint: true,
-            ),
-            maxLines: 6,
-            autocorrect: false,
-            enableSuggestions: false,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -494,13 +631,15 @@ class _ValueFieldState extends State<ValueField> {
       maxLines: obscure ? 1 : (isSecret ? 3 : 1),
       autocorrect: false,
       enableSuggestions: false,
-      decoration: InputDecoration(
+      decoration: auroraField(
+        context: context,
         labelText: l10n.profilesEnvValueLabel,
         suffixIcon: isSecret
             ? IconButton(
                 icon: Icon(
                   obscure ? Icons.visibility_off : Icons.visibility,
                   size: AppIconSize.lg,
+                  color: context.textSubtle,
                 ),
                 tooltip: obscure
                     ? l10n.profilesEnvShowValue
@@ -511,190 +650,6 @@ class _ValueFieldState extends State<ValueField> {
             : null,
       ),
       style: const TextStyle(fontFamily: 'monospace', fontSize: AppFontSize.md),
-    );
-  }
-}
-
-/// Mutable row state for a single model entry.
-class ModelRow {
-  ModelRow({String model = ''})
-      : modelCtrl = TextEditingController(text: model);
-
-  final TextEditingController modelCtrl;
-
-  void dispose() {
-    modelCtrl.dispose();
-  }
-}
-
-/// Section for configuring the models available when this profile is selected.
-class ModelsSection extends StatelessWidget {
-  const ModelsSection({
-    required this.modelRows,
-    required this.l10n,
-    required this.textTheme,
-    required this.colorScheme,
-    required this.onAdd,
-    required this.onRemove,
-    required this.onChanged,
-    super.key,
-  });
-
-  final List<ModelRow> modelRows;
-  final AppLocalizations l10n;
-  final TextTheme textTheme;
-  final ColorScheme colorScheme;
-  final VoidCallback onAdd;
-  final void Function(int index) onRemove;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.profilesModelsTitle,
-          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          l10n.profilesModelsHint,
-          style: textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        if (modelRows.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-            child: Center(
-              child: Text(
-                l10n.profilesModelsEmpty,
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ...modelRows.asMap().entries.map((entry) {
-          final i = entry.key;
-          final row = entry.value;
-          return Padding(
-            key: ObjectKey(row),
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: row.modelCtrl,
-                    decoration: InputDecoration(
-                      labelText: l10n.profilesModelLabel,
-                      hintText: 'e.g. claude-opus-4-6',
-                      border: const OutlineInputBorder(),
-                    ),
-                    textCapitalization: TextCapitalization.words,
-                    onChanged: (_) => onChanged(),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                IconButton(
-                  icon: Icon(Icons.close, size: AppIconSize.md),
-                  tooltip: l10n.profilesModelRemove,
-                  onPressed: () => onRemove(i),
-                ),
-              ],
-            ),
-          );
-        }),
-        const SizedBox(height: AppSpacing.sm),
-        FilledButton.icon(
-          onPressed: onAdd,
-          icon: const Icon(Icons.add, size: AppIconSize.md),
-          label: Text(l10n.profilesModelAdd),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size(0, AppTouchTarget.comfortable),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xs,
-            ),
-            visualDensity: VisualDensity.compact,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Context-window size selector for a profile. Backed by a nullable token
-/// count: `null` means "provider default"; [extendedContextWindowTokens]
-/// (1M) requests the Claude Code `[1m]` extended window at send time.
-class ContextWindowSection extends StatelessWidget {
-  const ContextWindowSection({
-    required this.contextWindow,
-    required this.l10n,
-    required this.textTheme,
-    required this.colorScheme,
-    required this.onChanged,
-    super.key,
-  });
-
-  final int? contextWindow;
-  final AppLocalizations l10n;
-  final TextTheme textTheme;
-  final ColorScheme colorScheme;
-  final ValueChanged<int?> onChanged;
-
-  /// Sentinel for "provider default" in the dropdown, since a null dropdown
-  /// value reads as "no selection" and shows the hint instead.
-  static const int _defaultSentinel = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.profilesContextWindowTitle,
-          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          l10n.profilesContextWindowHint,
-          style: textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        DropdownButtonFormField<int>(
-          initialValue: contextWindow ?? _defaultSentinel,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            isDense: true,
-          ),
-          items: [
-            DropdownMenuItem(
-              value: _defaultSentinel,
-              child: Text(l10n.profilesContextWindowDefault),
-            ),
-            DropdownMenuItem(
-              value: extendedContextWindowTokens,
-              child: Text(l10n.profilesContextWindow1M),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == null) return;
-            onChanged(value == _defaultSentinel ? null : value);
-          },
-        ),
-      ],
     );
   }
 }

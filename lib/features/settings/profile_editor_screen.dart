@@ -8,9 +8,10 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/env_secrets.dart';
 import '../../core/utils/shell_script_parser.dart';
-import 'profile_setup_catalog.dart';
-import 'widgets/profile_editor_widgets.dart';
 import '../../core/utils/snack.dart';
+import 'profile_setup_catalog.dart';
+import 'widgets/profile_editor_row_state.dart';
+import 'widgets/profile_editor_widgets.dart';
 
 /// Full-screen editor for creating or editing a custom AI backend
 /// profile.
