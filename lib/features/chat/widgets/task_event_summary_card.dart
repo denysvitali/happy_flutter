@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/task_label.dart';
 
-/// Slim system-style row for a sub-agent task completion event, matching
-/// the agent-event start/progress markers so a task's lifecycle reads as
-/// one visual family in the timeline.
+/// Aurora-glass status chip for a sub-agent task completion event,
+/// sibling of the agent-event start/progress markers so a task's
+/// lifecycle reads as one visual family in the timeline.
 ///
 /// Emitted by the CLI when a `Task` / `Agent` / `Workflow` (or local
 /// async task like `local_workflow` / `local_bash`) finishes.  The wire
@@ -64,82 +65,116 @@ class TaskEventSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    // Bare-MaterialApp widget tests register no theme extension.
+    final ext = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final summary =
         data['content'] as String? ?? data['text'] as String? ?? _statusLabel();
     final transcriptDir = _transcriptDir;
     final runId = _workflowRunId;
 
     final muted = cs.onSurfaceVariant.withValues(alpha: 0.85);
-    // The icon alone carries the status color — a column of finished
-    // tasks reads as a wall of green when the label is tinted too.
-    final iconColor = _isFailed
+    // Status-as-material: the tinted tile carries the state so finished
+    // tasks read as one calm family instead of green-tinted words.
+    // Failed is deliberately louder (danger-strength border); everything
+    // else shares the quiet halo strength used by tool status rows.
+    final statusColor = _isFailed
         ? cs.error
         : _isCompleted
         ? AppColors.success
-        : muted;
-    final labelColor = _isFailed ? cs.error : muted;
+        : ext.info;
+    final borderColor = statusColor.withValues(
+      alpha: _isFailed ? 0.30 : 0.22,
+    );
     final showSummary =
         summary.isNotEmpty &&
         summary != _statusLabel() &&
         data['redundantSummary'] != true;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: EdgeInsets.symmetric(
             horizontal: AppSpacing.sm + 2,
             vertical: AppSpacing.xs,
           ),
-          // Left-aligned sibling of the task_started marker (icon ·
-          // label · title), in the same column as the tool rows so the
-          // transcript keeps one left edge.
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(_statusIcon(), size: 13, color: iconColor),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    _statusLabel(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: labelColor,
-                      fontWeight: FontWeight.w600,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              color: statusColor.withValues(alpha: AppOpacity.faint),
+              border: Border.all(
+                color: borderColor,
+                width: AppBorder.hairline,
+              ),
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xxs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: statusColor.withValues(alpha: AppOpacity.faint),
+                    border: Border.all(
+                      color: borderColor,
+                      width: AppBorder.hairline,
                     ),
                   ),
-                ],
-              ),
-              if (showSummary)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: 13 + AppSpacing.xs,
-                    top: 1,
-                  ),
-                  child: Text(
-                    // `local_bash` notifications repeat the entire shell
-                    // command as their summary; clamp so one task can't
-                    // own the screen. Title sits on its own line so a
-                    // long path cannot wrap mid-word after the prefix.
-                    compactTaskLabel(summary),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium?.copyWith(color: muted),
-                    textAlign: TextAlign.start,
+                  child: Icon(_statusIcon(), size: 12, color: statusColor),
+                ),
+                SizedBox(width: AppSpacing.xs),
+                Text(
+                  _statusLabel(),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: muted,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.1,
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
-        if (transcriptDir != null)
-          InkWell(
-            onTap: () => _copyPath(context),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xs,
+        if (showSummary)
+          Padding(
+            padding: EdgeInsets.only(
+              left: AppSpacing.sm + 2,
+              right: AppSpacing.sm + 2,
+              bottom: AppSpacing.xs,
+            ),
+            child: Text(
+              // `local_bash` notifications repeat the entire shell command
+              // as their summary; clamp so one task can't own the screen.
+              compactTaskLabel(summary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
               ),
-              child: Center(
+              textAlign: TextAlign.start,
+            ),
+          ),
+        if (transcriptDir != null)
+          Padding(
+            padding: EdgeInsets.only(
+              left: AppSpacing.sm + 2,
+              right: AppSpacing.sm + 2,
+              bottom: AppSpacing.xs,
+            ),
+            child: InkWell(
+              onTap: () => _copyPath(context),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: AppSpacing.xxs,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -154,7 +189,9 @@ class TaskEventSummaryCard extends StatelessWidget {
                         transcriptDir,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant,
-                          fontFeatures: const [FontFeature.tabularFigures()],
+                          fontFeatures: const [
+                            FontFeature.tabularFigures(),
+                          ],
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -173,14 +210,15 @@ class TaskEventSummaryCard extends StatelessWidget {
           ),
         if (runId != null && transcriptDir == null)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Center(
-              child: Text(
-                'run: $runId',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+            padding: EdgeInsets.only(
+              left: AppSpacing.sm + 2,
+              bottom: AppSpacing.xs,
+            ),
+            child: Text(
+              'run: $runId',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
           ),

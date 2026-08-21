@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/task_label.dart';
 import '../tools/known_tools.dart';
@@ -155,6 +156,12 @@ class AgentEventWidget extends StatelessWidget {
             ),
           ];
     if (_isTaskEvent) {
+      // Same aurora-chip family as TaskEventSummaryCard so a task's
+      // start marker and its completion card read as one material:
+      // tinted halo tile + hairline border, primary-neutral because
+      // failure/completion arrive through the summary card instead.
+      final cs = theme.colorScheme;
+      final borderColor = cs.primary.withValues(alpha: 0.22);
       // Status + tool on line 1; title on its own full-width line.
       // Cramming the title into the leftover strip after
       // "Task running · Bash" wrapped mid-word (`Read` / `ing …`).
@@ -166,39 +173,70 @@ class AgentEventWidget extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  _isTaskStart
-                      ? Icons.play_circle_outline_rounded
-                      : Icons.autorenew_rounded,
-                  size: 13,
-                  color: color,
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                color: cs.primary.withValues(alpha: AppOpacity.faint),
+                border: Border.all(
+                  color: borderColor,
+                  width: AppBorder.hairline,
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  _taskPhaseLabel,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w600,
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xxs,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: cs.primary.withValues(alpha: AppOpacity.faint),
+                      border: Border.all(
+                        color: borderColor,
+                        width: AppBorder.hairline,
+                      ),
+                    ),
+                    child: Icon(
+                      _isTaskStart
+                          ? Icons.play_circle_outline_rounded
+                          : Icons.autorenew_rounded,
+                      size: 12,
+                      color: cs.primary,
+                    ),
                   ),
-                ),
-                if (toolChip.isNotEmpty) ...[
-                  const SizedBox(width: AppSpacing.xs),
+                  SizedBox(width: AppSpacing.xs),
                   Text(
-                    '·',
-                    style: theme.textTheme.labelSmall?.copyWith(color: color),
+                    _taskPhaseLabel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.1,
+                    ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
-                  ...toolChip,
+                  if (toolChip.isNotEmpty) ...[
+                    SizedBox(width: AppSpacing.xs),
+                    Text(
+                      '·',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: color,
+                      ),
+                    ),
+                    SizedBox(width: AppSpacing.xs),
+                    ...toolChip,
+                  ],
                 ],
-              ],
+              ),
             ),
             if (!labelIsPhaseOnly)
               Padding(
-                padding: const EdgeInsets.only(
-                  left: 13 + AppSpacing.xs,
-                  top: 1,
+                padding: EdgeInsets.only(
+                  left: AppSpacing.sm,
+                  top: AppSpacing.xxs,
                 ),
                 child: Text(
                   titleText,
