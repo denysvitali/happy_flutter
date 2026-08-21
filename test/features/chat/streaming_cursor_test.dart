@@ -31,18 +31,11 @@ void main() {
     testWidgets('caret stem keeps its token width', (tester) async {
       await tester.pumpWidget(_app(const StreamingCursor()));
 
-      // Find all Containers inside the StreamingCursor.
-      final containers = tester.widgetList<Container>(
-        find.descendant(
-          of: find.byType(StreamingCursor),
-          matching: find.byType(Container),
-        ),
+      // The gradient caret stem is keyed explicitly so this assertion does
+      // not depend on Container traversal order inside the breathing wrapper.
+      final cursorContainer = tester.widget<Container>(
+        find.byKey(const ValueKey('streaming-cursor-stem')),
       );
-
-      // First inner container is the gradient caret stem
-      // (AppSpacing.xxxs == 3). The outer breathing wrapper has no fixed
-      // constraints; the trailing dot is a separate container.
-      final cursorContainer = containers.first;
       expect(cursorContainer.constraints?.maxWidth, 3.0);
     });
 

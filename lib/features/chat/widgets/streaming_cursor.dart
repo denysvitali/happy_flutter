@@ -108,6 +108,7 @@ class _StreamingCursorState extends State<StreamingCursor>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
+                  key: const ValueKey('streaming-cursor-stem'),
                   width: _caretWidth,
                   height: _caretHeight,
                   decoration: BoxDecoration(
