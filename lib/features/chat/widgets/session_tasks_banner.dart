@@ -3,10 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'dart:math' as math;
+
 import '../../../core/components/task_detail_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -52,39 +55,56 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Material(
-      color: cs.surfaceContainerLow.withValues(alpha: 0.96),
-      shape: Border(
-        top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.32)),
+    // Aurora glass dock: a floating capsule above the composer instead of a
+    // full-width slab, so the composer stays the hero and progress reads as
+    // material. The expanded list keeps the capsule's rounded silhouette.
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _Header(
-            completed: completed,
-            running: running,
-            total: total,
-            expanded: _expanded,
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _expanded = !_expanded);
-            },
-            onViewAll: () {
-              HapticFeedback.lightImpact();
-              context.pushNamed(
-                'tasks',
-                queryParameters: {'session': widget.sessionId},
-              );
-            },
+      child: Material(
+        color: cs.surfaceContainerLow.withValues(alpha: 0.92),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          side: BorderSide(
+            color: appCs.glassBorder,
+            width: AppBorder.hairline,
           ),
-          AnimatedSize(
-            duration: AppDuration.normal,
-            curve: AppCurve.standard,
-            child: _expanded
-                ? _TaskList(items: items, onToggle: _toggleComplete)
-                : const SizedBox.shrink(),
-          ),
-        ],
+        ),
+        elevation: AppElevation.low,
+        shadowColor: Colors.black.withValues(alpha: 0.24),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _Header(
+              completed: completed,
+              running: running,
+              total: total,
+              expanded: _expanded,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _expanded = !_expanded);
+              },
+              onViewAll: () {
+                HapticFeedback.lightImpact();
+                context.pushNamed(
+                  'tasks',
+                  queryParameters: {'session': widget.sessionId},
+                );
+              },
+            ),
+            AnimatedSize(
+              duration: AppDuration.normal,
+              curve: AppCurve.standard,
+              child: _expanded
+                  ? _TaskList(items: items, onToggle: _toggleComplete)
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -116,6 +136,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final allDone = completed == total;
     final color = allDone ? AppColors.success : cs.primary;
     final progress = total == 0 ? 0.0 : completed / total;
@@ -152,8 +173,22 @@ class _Header extends StatelessWidget {
                         Container(
                           width: 32,
                           height: 32,
+                          // All-done gets a filled success tile; active gets
+                          // the signature gradient — one glance tells you
+                          // whether the session's plan is finished.
                           decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.10),
+                            gradient: allDone
+                                ? null
+                                : LinearGradient(
+                                    colors: appCs.accentGradient,
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                            color: allDone
+                                ? AppColors.success.withValues(
+                                    alpha: AppOpacity.subtle,
+                                  )
+                                : null,
                             borderRadius: BorderRadius.circular(AppRadius.smd),
                           ),
                           child: Icon(
@@ -161,7 +196,9 @@ class _Header extends StatelessWidget {
                                 ? Icons.check_rounded
                                 : Icons.checklist_rounded,
                             size: AppIconSize.lg,
-                            color: color,
+                            color: allDone
+                                ? AppColors.success
+                                : Colors.white,
                           ),
                         ),
                         const SizedBox(width: AppSpacing.smd),
@@ -191,19 +228,10 @@ class _Header extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.xs),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.pill,
-                                ),
-                                child: LinearProgressIndicator(
-                                  key: const ValueKey('session-tasks-progress'),
-                                  value: progress,
-                                  minHeight: 3,
-                                  backgroundColor: cs.surfaceContainerHighest,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    color,
-                                  ),
-                                ),
+                              _SegmentedProgress(
+                                key: const ValueKey('session-tasks-progress'),
+                                completed: completed,
+                                total: total,
                               ),
                             ],
                           ),
@@ -253,6 +281,87 @@ class _Header extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Segmented progress meter: one pill segment per task, completed segments
+/// carry the accent gradient, the rest stay as faint outlines.
+///
+/// Exposes the same `value` contract the previous linear bar had (via
+/// [value]) so existing tests keep their handle; segments cap at 12 with an
+/// ellipsis fade for very long task lists.
+class _SegmentedProgress extends StatelessWidget {
+  const _SegmentedProgress({
+    required this.completed,
+    required this.total,
+    super.key,
+  });
+
+  final int completed;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    final visibleTotal = math.min(total, _maxSegments);
+
+    return SizedBox(
+      height: _segmentHeight + 2,
+      child: Row(
+        children: [
+          for (var i = 0; i < visibleTotal; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: _segmentGap),
+              child: _Segment(
+                filled: i < completed,
+                gradient: appCs.accentLinearGradient,
+                track: theme.colorScheme.surfaceContainerHighest,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static const int _maxSegments = 12;
+  static const double _segmentHeight = 4;
+  static const double _segmentGap = 2;
+}
+
+class _Segment extends StatelessWidget {
+  const _Segment({
+    required this.filled,
+    required this.gradient,
+    required this.track,
+  });
+
+  final bool filled;
+  final LinearGradient gradient;
+  final Color track;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!filled) {
+      return Container(
+        width: _segWidth,
+        height: _height,
+        decoration: BoxDecoration(
+          color: track.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+      );
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: const SizedBox(width: _segWidth, height: _height),
+    );
+  }
+
+  static const double _segWidth = 14;
+  static const double _height = 4;
 }
 
 class _StatusPill extends StatelessWidget {

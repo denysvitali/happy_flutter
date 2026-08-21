@@ -91,10 +91,22 @@ void main() {
 
       expect(find.text('Tasks'), findsOneWidget);
       expect(find.text('1 of 3 complete · 1 running'), findsOneWidget);
-      final progress = tester.widget<LinearProgressIndicator>(
-        find.byKey(const ValueKey('session-tasks-progress')),
-      );
-      expect(progress.value, closeTo(1 / 3, 0.001));
+      // Segmented meter: one pill per task, gradient-filled pills equal the
+      // completed count (1 of 3 here).
+      bool isSegment(Widget w) =>
+          w is DecoratedBox &&
+          (w.decoration as BoxDecoration).borderRadius != null;
+      final segments = tester.widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byKey(const ValueKey('session-tasks-progress')),
+          matching: find.byWidgetPredicate(isSegment),
+        ),
+      ).toList();
+      expect(segments.length, 3);
+      final filled = segments
+          .where((s) => (s.decoration as BoxDecoration).gradient != null)
+          .length;
+      expect(filled, 1);
       // "View all" link is visible.
       expect(find.text('View all'), findsOneWidget);
       expect(
