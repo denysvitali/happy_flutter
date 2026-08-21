@@ -261,6 +261,9 @@ class _BannerBody extends StatelessWidget {
     final isComplete = progress.running == 0 && progress.completed > 0;
     final isRunning = progress.running > 0;
 
+    // Status lives in the material, not in silhouette: the fill stays a
+    // status container while the panel geometry (radius, hairline edge,
+    // floating margin) matches the goal/issue banners.
     final Color backgroundColor;
     final Color foregroundColor;
     final IconData icon;
@@ -286,56 +289,81 @@ class _BannerBody extends StatelessWidget {
       icon = Icons.rocket_launch_rounded;
       label = l10n.subAgentBannerRunning(progress.running, progress.total);
     }
+    final dimForeground = foregroundColor.withValues(alpha: 0.8);
 
-    return Material(
-      color: backgroundColor,
-      shape: Border(
-        bottom: BorderSide(color: foregroundColor.withValues(alpha: 0.12)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
       ),
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          _openAgentsSheet(context);
-        },
-        child: SafeArea(
-          top: false,
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xsm,
-            ),
-            child: Row(
-              children: [
-                if (isRunning)
-                  const _RunningDots()
-                else
-                  Icon(icon, size: 16, color: foregroundColor),
-                const SizedBox(width: AppSpacing.xsm),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: foregroundColor,
-                      fontWeight: FontWeight.w600,
+      child: Material(
+        color: backgroundColor,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: BorderSide(
+            color: foregroundColor.withValues(alpha: 0.18),
+            width: AppBorder.hairline,
+          ),
+        ),
+        elevation: AppElevation.low,
+        shadowColor: Colors.black.withValues(alpha: 0.24),
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            _openAgentsSheet(context);
+          },
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: AppTouchTarget.min,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.smd,
+                  vertical: AppSpacing.xsm,
+                ),
+                child: Row(
+                  children: [
+                    if (isRunning)
+                      const _RunningDots()
+                    else
+                      Icon(icon, size: 16, color: foregroundColor),
+                    const SizedBox(width: AppSpacing.smd),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: foregroundColor,
+                          fontWeight: FontWeight.w600,
+                          fontFeatures: const [
+                            FontFeature.tabularFigures(),
+                          ],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      l10n.subAgentBannerTapToOpen,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: dimForeground,
+                        fontFeatures: const [
+                          FontFeature.tabularFigures(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16,
+                      color: dimForeground,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  l10n.subAgentBannerTapToOpen,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: foregroundColor.withValues(alpha: 0.8),
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: foregroundColor.withValues(alpha: 0.8),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -380,10 +408,13 @@ class _BannerBody extends StatelessWidget {
   }
 }
 
-/// Three bouncing dots shown while sub-agents are running, evoking a
+/// Three pulsing dots shown while sub-agents are running, evoking a
 /// "thinking" affordance without an explicit spinner (the sub-agents
 /// themselves report no real-time progress; a spinner would imply
 /// something local is happening).
+///
+/// Rendered only while [TaskProgress.running] > 0 — never at rest.
+/// Honors reduced-motion by freezing on a full-opacity row of dots.
 class _RunningDots extends StatefulWidget {
   const _RunningDots();
 
@@ -398,10 +429,21 @@ class _RunningDotsState extends State<_RunningDots>
   @override
   void initState() {
     super.initState();
+    // Created inert; didChangeDependencies decides whether it runs.
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduceMotion(context)) {
+      _ctrl.stop();
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat();
+    }
   }
 
   @override
@@ -414,28 +456,40 @@ class _RunningDotsState extends State<_RunningDots>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = theme.colorScheme.onPrimaryContainer;
+    final animate = _ctrl.isAnimating;
     return SizedBox(
       width: 18,
       height: 16,
       child: AnimatedBuilder(
         animation: _ctrl,
         builder: (context, _) {
+          if (!animate) {
+            // Reduced motion: static dots at full opacity.
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(3, (_) => _dot(color)),
+            );
+          }
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(3, (i) {
               final phase = (_ctrl.value * 3 - i).clamp(0.0, 1.0);
               final scale = 0.6 + 0.4 * (1.0 - (phase - 0.5).abs() * 2);
-              return Container(
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.4 + 0.6 * scale),
-                  shape: BoxShape.circle,
-                ),
-              );
+              return _dot(color, scale: scale);
             }),
           );
         },
+      ),
+    );
+  }
+
+  Widget _dot(Color color, {double scale = 1.0}) {
+    return Container(
+      width: 4,
+      height: 4,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.4 + 0.6 * scale),
+        shape: BoxShape.circle,
       ),
     );
   }
