@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../model_selection_resolver.dart';
 import 'model_mode.dart';
@@ -61,6 +62,12 @@ class ModelChip extends StatelessWidget {
                     ? cs.onSurface.withValues(alpha: 0.05)
                     : cs.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.pill),
+                border: Border.all(
+                  color: (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+                  width: AppBorder.hairline,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -159,6 +166,12 @@ class ProfileChip extends StatelessWidget {
                       ? cs.onSurface.withValues(alpha: 0.05)
                       : cs.tertiary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
+                  border: Border.all(
+                    color: (theme.extension<AppColorScheme>() ??
+                            AppColorScheme.dark())
+                        .glassBorder,
+                    width: AppBorder.hairline,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

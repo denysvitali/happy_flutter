@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 
 // Animation duration constants.
@@ -179,6 +180,7 @@ class _SendButtonState extends State<SendButton>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final l10n = AppLocalizations.of(context);
     final canSend = !widget.isSendDisabled && !widget.isSending;
 
@@ -213,10 +215,14 @@ class _SendButtonState extends State<SendButton>
             duration: AppMotion.duration(context, kBorderAnimDuration),
             width: 32,
             height: 32,
+            // Active state wears the signature gradient; disabled stays a
+            // quiet neutral disc. Foreground glyphs already use onPrimary /
+            // disabledContentOpacity, which hold contrast on both fills.
             decoration: BoxDecoration(
               shape: BoxShape.circle,
+              gradient: isActive ? appCs.accentLinearGradient : null,
               color: isActive
-                  ? cs.primary
+                  ? null
                   : cs.onSurface.withValues(
                       alpha: AppMotion.disabledContainerOpacity,
                     ),

@@ -12,6 +12,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/offline_dictation_service.dart';
+import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
 import 'send/chat_attachment_controller.dart';
@@ -702,6 +703,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Widget _buildCardInputArea(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final appCs =
+        Theme.of(context).extension<AppColorScheme>() ?? AppColorScheme.dark();
     final cardColor = cs.surfaceContainerLow;
 
     // Only the border color depends on focus state — wrap in a
@@ -710,20 +713,45 @@ class _ChatInputState extends ConsumerState<ChatInput>
     return ValueListenableBuilder<bool>(
       valueListenable: _isFocused,
       builder: (context, isFocused, child) {
-        final borderColor = isFocused
-            ? cs.primary.withValues(alpha: 0.4)
-            : cs.outlineVariant.withValues(alpha: 0.4);
-        return AnimatedContainer(
-          duration: AppMotion.duration(context, kBorderAnimDuration),
-          curve: AppCurve.standard,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: _containerRadius,
-            border: Border.all(color: borderColor, width: 0.5),
-            boxShadow: AppElevationShadow.card(Theme.of(context).brightness),
+        // Focused composer wears the signature gradient ring; unfocused keeps
+        // a hairline glass border. The ring lives in the padding band between
+        // the outer ring layer and the card, so focus never shifts layout.
+        const ringGap = 1.25;
+        return Padding(
+          padding: const EdgeInsets.all(ringGap),
+          child: AnimatedContainer(
+            duration: AppMotion.duration(context, kBorderAnimDuration),
+            curve: AppCurve.standard,
+            decoration: BoxDecoration(
+              borderRadius: _containerRadius + const BorderRadius.all(
+                Radius.circular(ringGap),
+              ),
+              gradient: isFocused ? appCs.accentLinearGradient : null,
+              color: isFocused ? null : cs.outlineVariant.withValues(alpha: 0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(ringGap),
+              child: AnimatedContainer(
+                duration: AppMotion.duration(context, kBorderAnimDuration),
+                curve: AppCurve.standard,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: _containerRadius,
+                  border: Border.all(
+                    color: isFocused
+                        ? Colors.transparent
+                        : cs.outlineVariant.withValues(alpha: 0.4),
+                    width: 0.5,
+                  ),
+                  boxShadow: AppElevationShadow.card(
+                    Theme.of(context).brightness,
+                  ),
+                ),
+                child: child,
+              ),
+            ),
           ),
-          child: child,
         );
       },
       child: Column(
