@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_color_scheme.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// View shown when the chat is empty, with staggered
-/// entrance animation and suggestion cards.
-class EmptyChatView extends StatefulWidget {
+/// View shown when the chat is empty: a quiet aurora showpiece behind
+/// the greeting plus glass suggestion affordances.
+///
+/// Static paint only — nothing here animates, so an idle chat costs
+/// zero frames.
+class EmptyChatView extends StatelessWidget {
   /// Creates an empty chat view.
   const EmptyChatView({super.key, this.onSuggestionTap});
 
@@ -13,95 +19,7 @@ class EmptyChatView extends StatefulWidget {
   final void Function(String)? onSuggestionTap;
 
   @override
-  State<EmptyChatView> createState() =>
-      _EmptyChatViewState();
-}
-
-class _EmptyChatViewState extends State<EmptyChatView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _headerOpacity;
-  late final Animation<Offset> _headerSlide;
-  final List<Animation<double>> _cardOpacities = [];
-  final List<Animation<Offset>> _cardSlides = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-
-    _headerOpacity = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(
-          0.0, 0.4,
-          curve: Curves.easeOut,
-        ),
-      ),
-    );
-    // Fractional slide: ~0.05 of the header height ≈ 12 px
-    // SlideTransition uses fractions of the child's own size.
-    _headerSlide = Tween(
-      begin: const Offset(0, 0.05),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(
-          0.0, 0.4,
-          curve: Curves.easeOutCubic,
-        ),
-      ),
-    );
-
-    // 4 suggestion cards
-    for (var i = 0; i < 4; i++) {
-      final start = 0.2 + i * 0.12;
-      final end = (start + 0.35).clamp(0.0, 1.0);
-      _cardOpacities.add(
-        Tween(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(
-            parent: _ctrl,
-            curve: Interval(
-              start, end,
-              curve: Curves.easeOut,
-            ),
-          ),
-        ),
-      );
-      // Fractional slide: ~0.12 of the card height ≈ 16 px
-      _cardSlides.add(
-        Tween(
-          begin: const Offset(0, 0.12),
-          end: Offset.zero,
-        ).animate(
-          CurvedAnimation(
-            parent: _ctrl,
-            curve: Interval(
-              start, end,
-              curve: Curves.easeOutCubic,
-            ),
-          ),
-        ),
-      );
-    }
-
-    _ctrl.forward();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     final l10n = context.l10n;
 
     final suggestions = [
@@ -127,11 +45,6 @@ class _EmptyChatViewState extends State<EmptyChatView>
       ),
     ];
 
-    // Build the static header content once; FadeTransition +
-    // SlideTransition only update their own RenderObject, the
-    // Column subtree is never rebuilt during animation ticks.
-    const headerContent = _HeaderContent();
-
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(
@@ -141,23 +54,27 @@ class _EmptyChatViewState extends State<EmptyChatView>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header section — scoped to its own opacity+slide,
-            // the static child is hoisted by each transition widget.
-            FadeTransition(
-              opacity: _headerOpacity,
-              child: SlideTransition(
-                position: _headerSlide,
-                child: headerContent,
-              ),
-            ),
+            const _AuroraHeader(),
             const SizedBox(height: AppSpacing.xxl),
-            // Suggestion cards in a 2x2 grid
+            // Responsive suggestion wrap: reflows instead of forcing a
+            // fixed grid, so wide windows never stretch a two-column row.
             ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 400,
-              ),
-              child: _buildSuggestionGrid(
-                cs, suggestions,
+              constraints: const BoxConstraints(maxWidth: 424),
+              child: Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final s in suggestions)
+                    _SuggestionCard(
+                      title: s.title,
+                      subtitle: s.subtitle,
+                      icon: s.icon,
+                      onTap: onSuggestionTap == null
+                          ? null
+                          : () => onSuggestionTap!(s.title),
+                    ),
+                ],
               ),
             ),
           ],
@@ -165,119 +82,102 @@ class _EmptyChatViewState extends State<EmptyChatView>
       ),
     );
   }
-
-  Widget _buildSuggestionGrid(
-    ColorScheme cs,
-    List<_Suggestion> suggestions,
-  ) {
-    final count = suggestions.length;
-    final rows = <Widget>[];
-
-    for (var row = 0; row < (count / 2).ceil(); row++) {
-      final children = <Widget>[];
-      for (var col = 0; col < 2; col++) {
-        final i = row * 2 + col;
-        if (i >= count) break;
-        final s = suggestions[i];
-
-        // Build the static card once; FadeTransition +
-        // SlideTransition update only their own RenderObjects
-        // — the _SuggestionCard subtree is never rebuilt on ticks.
-        final card = _SuggestionCard(
-          title: s.title,
-          subtitle: s.subtitle,
-          icon: s.icon,
-          onTap: widget.onSuggestionTap == null
-              ? null
-              : () => widget.onSuggestionTap!(s.title),
-        );
-
-        children.add(
-          Expanded(
-            child: FadeTransition(
-              opacity: _cardOpacities[i],
-              child: SlideTransition(
-                position: _cardSlides[i],
-                child: card,
-              ),
-            ),
-          ),
-        );
-        if (col == 0) {
-          children.add(
-            const SizedBox(width: AppSpacing.sm),
-          );
-        }
-      }
-      if (row > 0) {
-        rows.add(
-          const SizedBox(height: AppSpacing.sm),
-        );
-      }
-      rows.add(Row(children: children));
-    }
-
-    return Column(children: rows);
-  }
 }
 
-/// Static header content extracted as a const widget so it can be
-/// hoisted outside the animation tree and never rebuilt on ticks.
-class _HeaderContent extends StatelessWidget {
-  const _HeaderContent();
+/// Greeting block with one soft radial aurora glow behind it.
+///
+/// The glow is a pre-composited radial gradient painted once — not a
+/// ShaderMask over text and not animated — so the resting surface stays
+/// frame-free.
+class _AuroraHeader extends StatelessWidget {
+  const _AuroraHeader();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final l10n = context.l10n;
+    final appColors = theme.extension<AppColorScheme>();
+    final accent = appColors?.accentGradient;
+    final glowColor =
+        (accent != null && accent.isNotEmpty) ? accent.first : cs.primary;
 
     return Column(
       children: [
-        // Icon with gradient background
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                cs.primary.withValues(alpha: 0.12),
-                cs.tertiary.withValues(alpha: 0.08),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(
-              AppRadius.xl,
-            ),
-          ),
-          child: Icon(
-            Icons.chat_bubble_outline_rounded,
-            size: 32,
-            color: cs.primary,
+        // Static aurora glow behind the icon mark.
+        SizedBox(
+          width: 168,
+          height: 120,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 0.9,
+                      colors: [
+                        glowColor.withValues(alpha: AppOpacity.subtle),
+                        glowColor.withValues(alpha: AppOpacity.faint),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.55, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              _IconMark(accentColor: glowColor),
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
-        // Title
+        // Greeting — promoted one typographic step.
         Text(
-          l10n.chatStartConversation,
+          context.l10n.chatStartConversation,
           textAlign: TextAlign.center,
           style: theme.textTheme.titleLarge?.copyWith(
             color: cs.onSurface,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.2,
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
-        // Subtitle
         Text(
-          l10n.chatHowCanIHelpToday,
+          context.l10n.chatHowCanIHelpToday,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: cs.onSurfaceVariant
-                .withValues(alpha: 0.7),
+            color: cs.onSurfaceVariant,
+            height: 1.45,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _IconMark extends StatelessWidget {
+  const _IconMark({required this.accentColor});
+
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: AppOpacity.subtle),
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: accentColor.withValues(alpha: AppOpacity.soft),
+          width: AppBorder.hairline,
+        ),
+      ),
+      child: Icon(
+        Icons.chat_bubble_outline_rounded,
+        size: 28,
+        color: accentColor,
+      ),
     );
   }
 }
@@ -289,6 +189,8 @@ class _Suggestion {
   final IconData icon;
 }
 
+/// Glass suggestion card: hairline glass border, faint fill, hover/press
+/// tint from the accent, comfortable touch target.
 class _SuggestionCard extends StatelessWidget {
   const _SuggestionCard({
     required this.title,
@@ -306,90 +208,79 @@ class _SuggestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final appColors = theme.extension<AppColorScheme>();
+    final accent = appColors?.accentGradient;
+    final accentColor =
+        (accent != null && accent.isNotEmpty) ? accent.first : cs.primary;
+    final glassBorder = appColors?.glassBorder ?? cs.outlineVariant;
 
-    return Material(
-      color: cs.surfaceContainerHighest.withValues(
-        alpha: 0.4,
-      ),
-      borderRadius: BorderRadius.circular(
-        AppRadius.lg,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap != null
-            ? () {
-                HapticFeedback.lightImpact();
-                onTap!();
-              }
-            : null,
-        borderRadius: BorderRadius.circular(
-          AppRadius.lg,
+    return SizedBox(
+      width: 200,
+      child: Material(
+        color: cs.surfaceContainerHighest.withValues(
+          alpha: AppOpacity.subtle,
         ),
-        child: Container(
-          padding: const EdgeInsets.all(
-            AppSpacing.md,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap != null
+              ? () {
+                  HapticFeedback.lightImpact();
+                  onTap!();
+                }
+              : null,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          hoverColor: accentColor.withValues(alpha: AppOpacity.faint),
+          focusColor: accentColor.withValues(alpha: AppOpacity.faint),
+          highlightColor: accentColor.withValues(
+            alpha: AppOpacity.soft,
           ),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: cs.outlineVariant.withValues(
-                alpha: 0.15,
-              ),
-              width: AppBorder.hairline,
+          child: Container(
+            constraints: const BoxConstraints(
+              minHeight: AppTouchTarget.comfortable + AppSpacing.xl,
             ),
-            borderRadius: BorderRadius.circular(
-              AppRadius.lg,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: glassBorder,
+                width: AppBorder.hairline,
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              // Icon in a small rounded square
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(
-                    alpha: 0.1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: AppOpacity.subtle),
+                    shape: BoxShape.circle,
                   ),
-                  borderRadius:
-                      BorderRadius.circular(
-                    AppRadius.sm,
+                  child: Icon(icon, size: 18, color: accentColor),
+                ),
+                const SizedBox(height: AppSpacing.smd),
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: cs.primary,
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              // Title
-              Text(
-                title,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(
-                  color: cs.onSurface,
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(
-                height: AppSpacing.xxs,
-              ),
-              // Subtitle
-              Text(
-                subtitle,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(
-                  color: cs.onSurfaceVariant
-                      .withValues(alpha: 0.7),
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

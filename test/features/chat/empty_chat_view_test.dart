@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
@@ -112,16 +111,20 @@ void main() {
       expect(find.text('How can I help you today?'), findsOneWidget);
     });
 
-    testWidgets('cards are in a 2x2 grid layout', (tester) async {
+    testWidgets('cards flow in a responsive wrap layout', (tester) async {
       await tester.pumpWidget(
         _buildApp(child: const EmptyChatView()),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Verify we have two rows of cards (4 cards total)
-      final rows = find.byType(Row);
-      expect(rows, findsWidgets);
+      // Cards reflow in a Wrap instead of a fixed row-based grid
+      final wraps = find.byType(Wrap);
+      expect(wraps, findsOneWidget);
+      expect(
+        find.descendant(of: wraps, matching: find.byType(InkWell)),
+        findsNWidgets(4),
+      );
     });
 
     testWidgets('no crash when onSuggestionTap is null', (tester) async {
