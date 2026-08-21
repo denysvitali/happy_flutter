@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// A blinking vertical bar cursor shown at the end of a
-/// streaming assistant message.
+/// A small gradient caret shown at the end of a streaming assistant
+/// message.
 ///
-/// Fades in and out with a ~500 ms period to signal that the
-/// AI is still generating text.  Disappears once streaming ends.
+/// Aurora Glass treatment: a rounded caret (with a trailing dot) painted
+/// with the signature [AppColorScheme.accentLinearGradient], breathing on
+/// a ~1 s scale + opacity loop to signal that the AI is still generating.
+/// Disappears once streaming ends. Honors
+/// [MediaQuery.disableAnimationsOf] — when animations are disabled the
+/// caret renders static at full strength.
 ///
 /// Usage:
 /// ```dart
@@ -27,18 +32,31 @@ class StreamingCursor extends StatefulWidget {
 class _StreamingCursorState extends State<StreamingCursor>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _opacity;
+  late final Animation<double> _breath;
   bool? _animationsDisabled;
+
+  /// Caret stem width ([AppSpacing.xxxs]) and height — roughly the x-height
+  /// of the body copy it trails.
+  static const double _caretWidth = AppSpacing.xxxs;
+  static const double _caretHeight = AppFontSize.lg;
+
+  /// Trailing dot diameter.
+  static const double _dotSize = AppSpacing.xxs2;
+
+  /// Breathing floor for opacity and scale.
+  static const double _minBreath = 0.45;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: AppDuration.slower, // 500 ms half-period
-    );
+    _controller = AnimationController(vsync: this, duration: AppDuration.pulse);
 
-    _opacity = CurvedAnimation(parent: _controller, curve: AppCurve.standard);
+    // One pulse breathes down and back up (reverse repeat), so the caret
+    // never blinks out completely — it dims toward [_minBreath] and
+    // returns, once per [AppDuration.pulse].
+    _breath = Tween<double>(begin: 1.0, end: _minBreath).animate(
+      CurvedAnimation(parent: _controller, curve: AppCurve.standard),
+    );
   }
 
   @override
@@ -50,7 +68,7 @@ class _StreamingCursorState extends State<StreamingCursor>
     if (disabled) {
       _controller
         ..stop()
-        ..value = 1;
+        ..value = 0;
     } else {
       _controller.repeat(reverse: true);
     }
@@ -64,17 +82,53 @@ class _StreamingCursorState extends State<StreamingCursor>
 
   @override
   Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final appColors = theme.extension<AppColorScheme>();
+    final gradient =
+        appColors?.accentLinearGradient ??
+        LinearGradient(
+          colors:
+              appColors?.accentGradient ?? <Color>[cs.primary, cs.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        );
+
     return RepaintBoundary(
       child: FadeTransition(
-        opacity: _opacity,
-        child: Container(
-          width: 2,
-          height: 14,
-          margin: const EdgeInsets.only(left: AppSpacing.xxs),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(AppRadius.xxs),
+        opacity: _breath,
+        child: ScaleTransition(
+          alignment: Alignment.centerLeft,
+          scale: _breath,
+          child: Container(
+            // Breathing headroom so the scale never clips.
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            margin: const EdgeInsets.only(left: AppSpacing.xxs),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: _caretWidth,
+                  height: _caretHeight,
+                  decoration: BoxDecoration(
+                    gradient: gradient,
+                    borderRadius: BorderRadius.circular(AppRadius.xxs),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xxxs),
+                Container(
+                  width: _dotSize,
+                  height: _dotSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color:
+                        (appColors?.accentGradient ??
+                                <Color>[cs.primary, cs.secondary])
+                            .last,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

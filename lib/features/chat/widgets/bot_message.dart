@@ -110,6 +110,9 @@ class _BotMessageState extends State<BotMessage> {
 
     // Grouped radii: left side pinches for consecutive messages.
     final radius = _radius();
+    // Streaming rows breathe a little taller so the caret never crowds
+    // the last line; compact tool-adjacent rows stay tight.
+    final vPad = widget.isCompact ? AppSpacing.xs : AppSpacing.md;
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -119,10 +122,10 @@ class _BotMessageState extends State<BotMessage> {
           right: AppSpacing.sm,
           top: widget.isCompact
               ? 0
-              : (widget.isFirstInGroup ? AppSpacing.xs : 1),
+              : (widget.isFirstInGroup ? AppSpacing.sm : 1),
           bottom: widget.isCompact
               ? 0
-              : (widget.isLastInGroup ? AppSpacing.xs : 1),
+              : (widget.isLastInGroup ? AppSpacing.sm : 1),
         ),
         child: Semantics(
           label: widget.isStreaming
@@ -131,18 +134,24 @@ class _BotMessageState extends State<BotMessage> {
           child: Container(
             padding: EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
-              vertical: widget.isCompact ? AppSpacing.xs : AppSpacing.md,
+              vertical: vPad,
             ),
             decoration: BoxDecoration(
               color: cs.surfaceContainerLow,
               borderRadius: radius,
               border: Border.all(
                 color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
-                width: 0.5,
+                width: AppBorder.hairline,
               ),
             ),
             child: DefaultTextStyle.merge(
-              style: TextStyle(color: cs.onSurface),
+              // Assistant copy reads at the relaxed reading height and a
+              // hair under full emphasis, so prose recedes next to tool
+              // rows while headings keep their theme hierarchy.
+              style: TextStyle(
+                height: AppLineHeight.relaxed,
+                color: cs.onSurface.withValues(alpha: AppOpacity.strong),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -151,7 +160,11 @@ class _BotMessageState extends State<BotMessage> {
                     markdown: widget.text,
                     onOptionPress: widget.onOptionPress,
                   ),
-                  if (widget.isStreaming) const StreamingCursor(),
+                  if (widget.isStreaming)
+                    const Padding(
+                      padding: EdgeInsets.only(top: AppSpacing.xxxs),
+                      child: StreamingCursor(),
+                    ),
                 ],
               ),
             ),

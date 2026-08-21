@@ -28,7 +28,7 @@ void main() {
       );
     });
 
-    testWidgets('contains a Container with width 2', (tester) async {
+    testWidgets('caret stem keeps its token width', (tester) async {
       await tester.pumpWidget(_app(const StreamingCursor()));
 
       // Find all Containers inside the StreamingCursor.
@@ -39,8 +39,11 @@ void main() {
         ),
       );
 
+      // First inner container is the gradient caret stem
+      // (AppSpacing.xxxs == 3). The outer breathing wrapper has no fixed
+      // constraints; the trailing dot is a separate container.
       final cursorContainer = containers.first;
-      expect(cursorContainer.constraints?.maxWidth, 2.0);
+      expect(cursorContainer.constraints?.maxWidth, 3.0);
     });
 
     testWidgets('animation repeats (is not stopped after settle)',
