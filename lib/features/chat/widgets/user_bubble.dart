@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/components/pressable_card.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_color_scheme.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
 import 'message_focus_view.dart';
@@ -28,7 +29,9 @@ List<Map<String, dynamic>>? extractUserImageBlocks(Object? raw) {
 
 /// Right-aligned speech bubble for user messages.
 ///
-/// Uses primary color background with iMessage-style grouped radii.
+/// Aurora Glass treatment: a translucent [AppColorScheme.bubbleUser] wash
+/// over the pane surface, framed by a hairline [AppColorScheme.glassBorder]
+/// and wrapped in a thin accent-gradient rim (the signature "edge glow").
 class UserBubble extends StatefulWidget {
   const UserBubble({
     required this.text,
@@ -72,6 +75,9 @@ class UserBubble extends StatefulWidget {
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
 
+  /// Width of the accent-gradient rim around the glass fill.
+  static const double _glow = 1.25;
+
   @override
   State<UserBubble> createState() => _UserBubbleState();
 }
@@ -105,8 +111,8 @@ class _UserBubbleState extends State<UserBubble> {
   /// `interactive: false` drops the press/long-press wrapper so the same
   /// subtree can be re-rendered as the focused copy.
   Widget _row(BuildContext context, {required bool interactive}) {
-    final cs = Theme.of(context).colorScheme;
-    final color = cs.primary;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
     // Grouped radii: right side pinches for consecutive messages.
     final radius = BorderRadius.only(
@@ -116,51 +122,99 @@ class _UserBubbleState extends State<UserBubble> {
       bottomRight: widget.isLastInGroup ? UserBubble._full : UserBubble._small,
     );
 
-    Widget bubbleFor(BoxConstraints constraints) => Semantics(
-      label: 'User message: ${_truncateForLabel(widget.text)}',
-      button: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md + 2,
-          vertical: AppSpacing.sm + 2,
-        ),
-        constraints: BoxConstraints(
+    Widget bubbleFor(BoxConstraints constraints) {
+      final appColors = theme.extension<AppColorScheme>();
+      final fill = _userBubbleFill(theme, cs);
+      final onFill = _userBubbleText(theme, cs);
+      final hairline =
+          appColors?.glassBorder ?? cs.outlineVariant.withValues(
+            alpha: AppOpacity.soft,
+          );
+      final highlight =
+          appColors?.glassHighlight ?? Colors.white.withValues(
+            alpha: AppOpacity.subtle,
+          );
+
+      return Semantics(
+        label: 'User message: ${_truncateForLabel(widget.text)}',
+        button: false,
+        child: Container(
           // Cap to the incoming pane, not the window. Tablet master-detail
           // and desktop splits are far narrower than MediaQuery.size.width.
-          maxWidth: constraints.maxWidth * 0.80,
-        ),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: radius,
-          boxShadow: [
-            BoxShadow(
-              color: color.withAlpha(40),
-              blurRadius: AppSpacing.sm,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.imageBlocks != null) ...[
-              for (final block in widget.imageBlocks!)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                  child: _UserImageThumb(block: block),
+          constraints: BoxConstraints(
+            maxWidth: constraints.maxWidth * 0.80,
+          ),
+          // Accent-gradient rim: a gradient-painted shell inset by its own
+          // width so only the edge reads as a glowing border. No package,
+          // no shader mask, one extra box.
+          padding: const EdgeInsets.all(UserBubble._glow),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            gradient:
+                appColors?.accentLinearGradient ??
+                LinearGradient(
+                  colors:
+                      appColors?.accentGradient ??
+                      <Color>[cs.primary, cs.tertiary],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-            ],
-            if (widget.text.isNotEmpty)
-              MarkdownView(
-                markdown: widget.text,
-                onOptionPress: widget.onOptionPress,
-                textColor: cs.onPrimary,
+            boxShadow: [
+              BoxShadow(
+                color:
+                    (appColors?.accentGradient ?? <Color>[cs.primary])
+                        .first
+                        .withValues(alpha: AppOpacity.soft),
+                blurRadius: AppSpacing.lg,
+                offset: const Offset(0, AppSpacing.xxxs),
               ),
-          ],
+            ],
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md + 2,
+              vertical: AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              color: fill,
+              borderRadius: _inset(radius),
+              border: Border.all(color: hairline, width: AppBorder.hairline),
+            ),
+            // Top-edge glass highlight painted by the same render object —
+            // fades out over the upper third so light appears to fall on
+            // the panel.
+            foregroundDecoration: BoxDecoration(
+              borderRadius: _inset(radius),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [highlight, highlight.withValues(alpha: 0)],
+                stops: const [0, 0.4],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.imageBlocks != null) ...[
+                  for (final block in widget.imageBlocks!)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                      child: _UserImageThumb(block: block, onBubble: onFill),
+                    ),
+                ],
+                if (widget.text.isNotEmpty)
+                  MarkdownView(
+                    markdown: widget.text,
+                    onOptionPress: widget.onOptionPress,
+                    textColor: onFill,
+                  ),
+              ],
+            ),
+          ),
         ),
-      ),
-    );
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -243,6 +297,50 @@ class _UserBubbleState extends State<UserBubble> {
   }
 }
 
+/// Glass fill for the user bubble: [AppColorScheme.bubbleUser] at ~16%
+/// alpha flattened onto the pane surface. Pre-blending (instead of a
+/// translucent box) keeps every bubble one opaque decoration — cheaper to
+/// raster in long transcripts — while rendering identically over the
+/// conversation canvas nothing shows through anyway.
+Color _userBubbleFill(ThemeData theme, ColorScheme cs) {
+  final appColors = theme.extension<AppColorScheme>();
+  final bubble = appColors?.bubbleUser ?? cs.primary;
+  return Color.alphaBlend(
+    bubble.withValues(alpha: AppOpacity.soft),
+    cs.surfaceContainerLow,
+  );
+}
+
+/// Foreground that keeps WCAG-AA contrast on [_userBubbleFill]. On the
+/// deep-space Aurora canvas (dark) that is [AppColorScheme.bubbleUserText]
+/// (white on the darkened tint, >7:1). The pale light-mode glass cannot
+/// carry white text (~1.2:1), so it inverts to the accent ink itself
+/// ([AppColorScheme.bubbleUser], >5:1 on its own 16% wash) — the classic
+/// light-theme iMessage inversion, still token-only.
+Color _userBubbleText(ThemeData theme, ColorScheme cs) {
+  final appColors = theme.extension<AppColorScheme>();
+  if (theme.brightness == Brightness.dark) {
+    return appColors?.bubbleUserText ?? cs.onPrimary;
+  }
+  return appColors?.bubbleUser ?? cs.primary;
+}
+
+/// Shrinks every corner of [radius] by the gradient-rim width so the glass
+/// fill sits uniformly inside the shell instead of pooling at corners.
+BorderRadius _inset(BorderRadius radius) {
+  Radius shrink(Radius r) {
+    final x = r.x - UserBubble._glow;
+    return Radius.circular(x <= 0 ? 0 : x);
+  }
+
+  return BorderRadius.only(
+    topLeft: shrink(radius.topLeft),
+    topRight: shrink(radius.topRight),
+    bottomLeft: shrink(radius.bottomLeft),
+    bottomRight: shrink(radius.bottomRight),
+  );
+}
+
 /// Inline thumbnail for an attached image inside a [UserBubble].
 ///
 /// Base64 blocks render from memory; URL blocks (legacy markdown-image
@@ -250,15 +348,17 @@ class _UserBubbleState extends State<UserBubble> {
 /// by the offline cache show a placeholder. Tapping opens a fullscreen
 /// viewer with pinch zoom (same pattern as the session file viewer).
 class _UserImageThumb extends StatelessWidget {
-  const _UserImageThumb({required this.block});
+  const _UserImageThumb({required this.block, required this.onBubble});
 
   final Map<String, dynamic> block;
+
+  /// Bubble foreground — placeholder icon/text must match the copy.
+  final Color onBubble;
 
   static const double _maxThumbHeight = 220;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context);
     final source = block['source'];
     if (source is! Map<String, dynamic>) return const SizedBox.shrink();
@@ -275,7 +375,7 @@ class _UserImageThumb extends StatelessWidget {
           height: 72,
           width: 160,
           decoration: BoxDecoration(
-            color: cs.onPrimary.withValues(alpha: 0.12),
+            color: onBubble.withValues(alpha: AppOpacity.faint),
             borderRadius: borderRadius,
           ),
           child: Center(
@@ -284,8 +384,8 @@ class _UserImageThumb extends StatelessWidget {
               children: [
                 Icon(
                   Icons.image_not_supported_outlined,
-                  size: 16,
-                  color: cs.onPrimary.withValues(alpha: 0.7),
+                  size: AppIconSize.md,
+                  color: onBubble.withValues(alpha: AppOpacity.high),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Flexible(
@@ -293,7 +393,7 @@ class _UserImageThumb extends StatelessWidget {
                     l10n.chatImageNotCached,
                     style: TextStyle(
                       fontSize: AppFontSize.xs,
-                      color: cs.onPrimary.withValues(alpha: 0.7),
+                      color: onBubble.withValues(alpha: AppOpacity.high),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
