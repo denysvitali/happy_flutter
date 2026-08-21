@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Animated "thinking" indicator shown at the bottom of the chat
@@ -11,11 +12,14 @@ import '../../../core/theme/app_tokens.dart';
 /// living **aurora orb**: a softly morphing blob filled with a
 /// rotating brand gradient, wrapped in a drifting glow halo, with a
 /// bright spark glinting around its rim. The motion is smooth and
-/// continuous (no vertical jumping) and the palette is derived from
-/// the theme's [ColorScheme.primary] / [ColorScheme.tertiary] so it
-/// stays on-brand in both light and dark mode.
+/// continuous (no vertical jumping) and the palette comes from the
+/// theme's Aurora accent gradient ([AppColorScheme.accentGradient]) so
+/// the orb matches the activity chrome's breathing dot exactly — one
+/// accent language for everything that means "the agent is alive".
 ///
-/// A single [AnimationController] drives every animated property.
+/// A single [AnimationController] drives every animated property, and
+/// `MediaQuery.disableAnimations` swaps the whole painter out for one
+/// static accent dot — no ticker runs at all.
 class TypingIndicator extends StatefulWidget {
   const TypingIndicator({super.key});
 
@@ -32,6 +36,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
   // bubble's box so the chat layout does not shift.
   static const double _boxWidth = 46;
   static const double _boxHeight = 30;
+  static const double _staticDotSize = 13;
 
   @override
   void initState() {
@@ -49,9 +54,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
     if (_animationsDisabled == disabled) return;
     _animationsDisabled = disabled;
     if (disabled) {
-      _controller
-        ..stop()
-        ..value = 0.5;
+      _controller.stop();
     } else {
       _controller.repeat();
     }
@@ -63,9 +66,19 @@ class _TypingIndicatorState extends State<TypingIndicator>
     super.dispose();
   }
 
+  /// Aurora accent pair for this brightness, with a scheme-derived
+  /// fallback for bare-MaterialApp test hosts that register no
+  /// [AppColorScheme] extension.
+  List<Color> _accentColors(ThemeData theme) {
+    return theme.extension<AppColorScheme>()?.accentGradient ??
+        [theme.colorScheme.primary, theme.colorScheme.secondary];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final accent = _accentColors(theme);
+
     return RepaintBoundary(
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -77,18 +90,30 @@ class _TypingIndicatorState extends State<TypingIndicator>
           child: SizedBox(
             width: _boxWidth,
             height: _boxHeight,
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, _) {
-                return CustomPaint(
-                  painter: _AuroraOrbPainter(
-                    progress: _controller.value,
-                    primary: scheme.primary,
-                    tertiary: scheme.tertiary,
+            // Reduced motion: one static accent dot in the same box —
+            // zero tickers, zero painters, same footprint.
+            child: (_animationsDisabled ?? false)
+                ? Center(
+                    child: Container(
+                      width: _staticDotSize,
+                      height: _staticDotSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(colors: accent),
+                      ),
+                    ),
+                  )
+                : AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, _) {
+                      return CustomPaint(
+                        painter: _AuroraOrbPainter(
+                          progress: _controller.value,
+                          accent: accent,
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
         ),
       ),
@@ -98,23 +123,22 @@ class _TypingIndicatorState extends State<TypingIndicator>
 
 /// Paints the morphing gradient orb, its drifting glow and the
 /// orbiting spark. All motion is a pure function of [progress]
-/// (0..1) so a single animation controller is enough.
+/// (0..1) so a single animation controller is enough. [accent] is the
+/// theme's Aurora pair; the old primary/tertiary mix is gone so the
+/// orb and the thinking bar share one gradient identity.
 class _AuroraOrbPainter extends CustomPainter {
-  _AuroraOrbPainter({
-    required this.progress,
-    required this.primary,
-    required this.tertiary,
-  });
+  _AuroraOrbPainter({required this.progress, required this.accent});
 
   final double progress;
-  final Color primary;
-  final Color tertiary;
+  final List<Color> accent;
 
   static const double _baseRadius = 6.5;
   static const int _blobPoints = 32;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final first = accent.first;
+    final last = accent.last;
     final t = progress;
     final tau = 2 * math.pi;
     final center = Offset(size.width / 2, size.height / 2);
@@ -123,17 +147,24 @@ class _AuroraOrbPainter extends CustomPainter {
     final breathe = 1 + 0.05 * math.sin(tau * t * 1.3);
     final radius = _baseRadius * breathe;
 
-    _paintGlow(canvas, center, t, tau);
-    _paintBlob(canvas, center, radius, t, tau);
+    _paintGlow(canvas, center, t, tau, first, last);
+    _paintBlob(canvas, center, radius, t, tau, first, last);
     _paintSpark(canvas, center, radius, t, tau);
   }
 
-  void _paintGlow(Canvas canvas, Offset center, double t, double tau) {
+  void _paintGlow(
+    Canvas canvas,
+    Offset center,
+    double t,
+    double tau,
+    Color first,
+    Color last,
+  ) {
     final pulse = 12 + 2.5 * math.sin(tau * t);
 
     // Primary halo, centred on the orb.
     final primaryGlow = RadialGradient(
-      colors: [primary.withValues(alpha: 0.30), primary.withValues(alpha: 0)],
+      colors: [first.withValues(alpha: 0.30), first.withValues(alpha: 0)],
     );
     canvas.drawCircle(
       center,
@@ -144,19 +175,19 @@ class _AuroraOrbPainter extends CustomPainter {
         ),
     );
 
-    // Tertiary halo, drifting around the centre for an aurora feel.
+    // Second accent halo, drifting around the centre for an aurora feel.
     final drift = Offset(math.cos(tau * t) * 3, math.sin(tau * t * 0.8) * 3);
-    final tertiaryCenter = center + drift;
-    final tertiaryRadius = pulse * 0.8;
-    final tertiaryGlow = RadialGradient(
-      colors: [tertiary.withValues(alpha: 0.24), tertiary.withValues(alpha: 0)],
+    final secondaryCenter = center + drift;
+    final secondaryRadius = pulse * 0.8;
+    final secondaryGlow = RadialGradient(
+      colors: [last.withValues(alpha: 0.24), last.withValues(alpha: 0)],
     );
     canvas.drawCircle(
-      tertiaryCenter,
-      tertiaryRadius,
+      secondaryCenter,
+      secondaryRadius,
       Paint()
-        ..shader = tertiaryGlow.createShader(
-          Rect.fromCircle(center: tertiaryCenter, radius: tertiaryRadius),
+        ..shader = secondaryGlow.createShader(
+          Rect.fromCircle(center: secondaryCenter, radius: secondaryRadius),
         ),
     );
   }
@@ -167,6 +198,8 @@ class _AuroraOrbPainter extends CustomPainter {
     double radius,
     double t,
     double tau,
+    Color first,
+    Color last,
   ) {
     // Sample a wobbly radius around the circle so the blob feels
     // liquid rather than a perfect disc.
@@ -184,8 +217,8 @@ class _AuroraOrbPainter extends CustomPainter {
     });
 
     final path = Path();
-    final first = _midpoint(points.last, points.first);
-    path.moveTo(first.dx, first.dy);
+    final lead = _midpoint(points.last, points.first);
+    path.moveTo(lead.dx, lead.dy);
     for (var i = 0; i < points.length; i++) {
       final current = points[i];
       final next = points[(i + 1) % points.length];
@@ -194,11 +227,11 @@ class _AuroraOrbPainter extends CustomPainter {
     }
     path.close();
 
-    // Rotating brand gradient fill (smooth four-stop loop).
-    final mid = Color.lerp(primary, tertiary, 0.5)!;
+    // Rotating accent gradient fill (smooth four-stop loop).
+    final mid = Color.lerp(first, last, 0.5)!;
     final gradient = SweepGradient(
       transform: GradientRotation(tau * t),
-      colors: [primary, mid, tertiary, mid],
+      colors: [first, mid, last, mid],
       stops: const [0, 0.33, 0.66, 1],
     );
     final rect = Rect.fromCircle(center: center, radius: radius * 1.2);
@@ -253,8 +286,17 @@ class _AuroraOrbPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_AuroraOrbPainter old) {
-    return old.progress != progress ||
-        old.primary != primary ||
-        old.tertiary != tertiary;
+    return old.progress != progress || !old.accent.sameColors(accent);
+  }
+}
+
+extension on List<Color> {
+  bool sameColors(List<Color> other) {
+    if (identical(this, other)) return true;
+    if (length != other.length) return false;
+    for (var i = 0; i < length; i++) {
+      if (this[i] != other[i]) return false;
+    }
+    return true;
   }
 }
