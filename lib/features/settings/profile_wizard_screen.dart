@@ -6,8 +6,9 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/routing/safe_pop.dart';
-import 'profile_setup_catalog.dart';
+import '../../core/utils/shell_script_parser.dart';
 import '../../core/utils/snack.dart';
+import 'profile_setup_catalog.dart';
 
 /// Multi-step wizard for creating a new AI profile.
 /// Step 1: Choose provider
@@ -213,43 +214,29 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
       switch (_selectedProvider) {
         case 'zai':
           envVars
+            ..addAll(
+              buildAnthropicModelEnvVars(
+                mainModel:
+                    _modelCtrl.text.isNotEmpty ? _modelCtrl.text : 'glm-5.1',
+                fastModel: _smallFastModelCtrl.text.isNotEmpty
+                    ? _smallFastModelCtrl.text
+                    : null,
+              ),
+            )
             ..add(
               EnvironmentVariable(
                 name: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC',
                 value: '1',
               ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-                value: _modelCtrl.text.isNotEmpty ? _modelCtrl.text : 'glm-5.1',
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-                value: _smallFastModelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-                value: 'glm-4.5-air',
-              ),
             );
           break;
         case 'deepseek':
           envVars
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_MODEL',
-                value: _modelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-                value: 'deepseek-chat',
+            ..addAll(
+              buildAnthropicModelEnvVars(
+                mainModel: _modelCtrl.text.isNotEmpty
+                    ? _modelCtrl.text
+                    : 'deepseek-chat',
               ),
             )
             ..add(
@@ -261,34 +248,10 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           break;
         case 'minimax':
           envVars
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_MODEL',
-                value: _modelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_SMALL_FAST_MODEL',
-                value: _smallFastModelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-                value: _smallFastModelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-                value: _modelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-                value: _smallFastModelCtrl.text,
+            ..addAll(
+              buildAnthropicModelEnvVars(
+                mainModel: _modelCtrl.text,
+                fastModel: _smallFastModelCtrl.text,
               ),
             )
             ..add(
@@ -300,34 +263,10 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           break;
         case 'xiaomi-mimo':
           envVars
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_MODEL',
-                value: _modelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_SMALL_FAST_MODEL',
-                value: _smallFastModelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-                value: _smallFastModelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
-                value: _modelCtrl.text,
-              ),
-            )
-            ..add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-                value: _smallFastModelCtrl.text,
+            ..addAll(
+              buildAnthropicModelEnvVars(
+                mainModel: _modelCtrl.text,
+                fastModel: _smallFastModelCtrl.text,
               ),
             )
             ..add(
@@ -376,19 +315,14 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
             );
           break;
         default:
+          // Custom Anthropic-compatible provider (e.g. a self-hosted proxy).
+          // Map the model to every selection knob so subagents, background
+          // tasks and alias-based fallbacks all stay on this provider.
           if (_modelCtrl.text.isNotEmpty) {
-            envVars.add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_MODEL',
-                value: _modelCtrl.text,
-              ),
-            );
-          }
-          if (_smallFastModelCtrl.text.isNotEmpty) {
-            envVars.add(
-              EnvironmentVariable(
-                name: 'ANTHROPIC_SMALL_FAST_MODEL',
-                value: _smallFastModelCtrl.text,
+            envVars.addAll(
+              buildAnthropicModelEnvVars(
+                mainModel: _modelCtrl.text,
+                fastModel: _smallFastModelCtrl.text,
               ),
             );
           }

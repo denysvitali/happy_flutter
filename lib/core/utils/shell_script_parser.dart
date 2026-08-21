@@ -51,6 +51,7 @@ const _openaiModelKey = 'OPENAI_MODEL';
 
 /// Keys that should be stored as env vars (not mapped to config fields).
 const _envOnlyKeys = {
+  'ANTHROPIC_SMALL_FAST_MODEL',
   'ANTHROPIC_DEFAULT_OPUS_MODEL',
   'ANTHROPIC_DEFAULT_SONNET_MODEL',
   'ANTHROPIC_DEFAULT_HAIKU_MODEL',
@@ -58,6 +59,37 @@ const _envOnlyKeys = {
   'ANTHROPIC_DEFAULT_MODEL',
   'API_TIMEOUT_MS',
 };
+
+/// Model-selection env vars for an Anthropic-compatible provider serving
+/// [mainModel], with [fastModel] (haiku-class background/subagent work,
+/// defaults to [mainModel]) so every alias resolves to a model the
+/// provider actually serves.
+List<EnvironmentVariable> buildAnthropicModelEnvVars({
+  required String mainModel,
+  String? fastModel,
+}) {
+  final fast = (fastModel == null || fastModel.isEmpty) ? mainModel : fastModel;
+  return [
+    EnvironmentVariable(name: 'ANTHROPIC_MODEL', value: mainModel),
+    EnvironmentVariable(name: 'ANTHROPIC_SMALL_FAST_MODEL', value: fast),
+    EnvironmentVariable(
+      name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+      value: mainModel,
+    ),
+    EnvironmentVariable(
+      name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
+      value: fast,
+    ),
+    EnvironmentVariable(
+      name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+      value: fast,
+    ),
+    EnvironmentVariable(
+      name: 'CLAUDE_CODE_SUBAGENT_MODEL',
+      value: mainModel,
+    ),
+  ];
+}
 
 /// Infers which agent a profile targets from its provider environment.
 ///
