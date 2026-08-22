@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// "Show N more sub-agent messages" row.
@@ -25,6 +26,7 @@ class SidechainOrphanMore extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     // TODO(l10n): localize once the sidechain strings land in the ARB.
     final label = hiddenCount == 1
         ? 'Show 1 earlier sub-agent message'
@@ -39,8 +41,15 @@ class SidechainOrphanMore extends StatelessWidget {
           button: true,
           label: label,
           child: Material(
-            color: cs.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              side: BorderSide(
+                color: appCs.glassBorder,
+                width: AppBorder.hairline,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.pill),
               onTap: onExpand,
@@ -55,7 +64,7 @@ class SidechainOrphanMore extends StatelessWidget {
                     Icon(
                       Icons.unfold_more_rounded,
                       size: AppFontSize.sm,
-                      color: cs.onSurfaceVariant,
+                      color: cs.primary,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(

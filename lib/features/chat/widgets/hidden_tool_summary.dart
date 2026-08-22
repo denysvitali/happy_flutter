@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart';
@@ -70,13 +71,23 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
         ? '$completed of $total tools complete, $pending pending'
         : '$completed tool${completed == 1 ? '' : 's'} complete';
 
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Material(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.55,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            side: BorderSide(
+              color: appCs.glassBorder,
+              width: AppBorder.hairline,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
           // TODO(l10n): localize 'Expand tool list' / 'Collapse tool list'
           child: Semantics(
             button: true,
