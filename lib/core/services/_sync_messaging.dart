@@ -1148,8 +1148,8 @@ extension SyncMessaging on Sync {
           // global "Syncing Messages" banner on each invalidation.
           _checkpointSocketCatchUpCursor(sessionId, afterSeq);
           _messageFetchCoverage[sessionId] = (
-            requestOrder: cycleRequestOrder!,
-            verifiedAfterSeq: cycleVerifiedAfterSeq!,
+            requestOrder: cycleRequestOrder,
+            verifiedAfterSeq: cycleVerifiedAfterSeq,
           );
 
           if (processed.maxSeq > 0 &&

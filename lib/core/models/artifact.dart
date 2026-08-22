@@ -140,6 +140,9 @@ abstract class ArtifactCreateRequest with _$ArtifactCreateRequest {
 /// Request to update an existing artifact
 @freezed
 abstract class ArtifactUpdateRequest with _$ArtifactUpdateRequest {
+  // freezed forwards this constructor-level config to the generated
+  // class; json_serializable's class-only target fires regardless.
+  // ignore: invalid_annotation_target
   @JsonSerializable(includeIfNull: false)
   const factory ArtifactUpdateRequest({
     String? header, // Base64 encoded encrypted header

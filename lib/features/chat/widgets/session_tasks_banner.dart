@@ -1,9 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import 'dart:math' as math;
 
 import '../../../core/components/task_detail_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
@@ -138,8 +138,6 @@ class _Header extends StatelessWidget {
     final cs = theme.colorScheme;
     final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final allDone = completed == total;
-    final color = allDone ? AppColors.success : cs.primary;
-    final progress = total == 0 ? 0.0 : completed / total;
     final progressLabel = '$completed of $total complete';
     final detailLabel = running > 0
         ? '$progressLabel · $running running'

@@ -121,6 +121,9 @@ abstract class Permission with _$Permission {
 /// Message metadata
 @freezed
 abstract class MessageMeta with _$MessageMeta {
+  // freezed forwards this constructor-level config to the generated
+  // class; json_serializable's class-only target fires regardless.
+  // ignore: invalid_annotation_target
   @JsonSerializable(includeIfNull: false)
   const factory MessageMeta({
     String? sentFrom,

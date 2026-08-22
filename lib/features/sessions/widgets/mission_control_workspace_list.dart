@@ -4,7 +4,6 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_types.dart';
-import 'session_headers.dart' show SessionFolderGroup;
 
 /// Lazily built workspace pulse sliver used by Mission Control.
 class MissionWorkspaceList extends StatelessWidget {

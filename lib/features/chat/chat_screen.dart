@@ -73,7 +73,6 @@ import 'widgets/sidechain_orphan_more.dart';
 import 'widgets/sub_agent_status_banner.dart';
 import 'widgets/thinking_stop_bar.dart';
 import 'widgets/tts_playback_bar.dart';
-import 'widgets/typing_indicator.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
 // because Dart's library-private (`_`) visibility is required for
@@ -845,17 +844,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _updateScreenAwake();
   }
 
+  /// Window (ms) after the last message-stream change during which the
+  /// session still counts as receiving output even with `thinking` stale.
+  static const int _recentStreamActivityWindowMs = 10000;
+
+  /// Whether the agent is actively working on this session: thinking, or
+  /// streaming tool / sub-agent traffic within the recent-activity window
+  /// even though the `thinking` flag has gone stale. One definition shared
+  /// by the screen-awake timer and the live-activity bar so both surfaces
+  /// agree on "is the agent alive".
+  bool get _isAgentWorking {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final recentlyReceiving =
+        _lastMessageStreamActivityAt > 0 &&
+        now - _lastMessageStreamActivityAt < _recentStreamActivityWindowMs;
+    return (_session?.active ?? false) &&
+        ((_session?.thinking ?? false) || recentlyReceiving);
+  }
+
   void _updateScreenAwake() {
     if (!mounted) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final recentlyReceiving =
         _lastMessageStreamActivityAt > 0 &&
-        now - _lastMessageStreamActivityAt < 10000;
-    final sessionWorking =
-        (_session?.active ?? false) &&
-        ((_session?.thinking ?? false) || recentlyReceiving);
+        now - _lastMessageStreamActivityAt < _recentStreamActivityWindowMs;
     final shouldStayAwake =
-        _isChatRouteActive && (sessionWorking || TtsService().isSpeaking);
+        _isChatRouteActive && (_isAgentWorking || TtsService().isSpeaking);
     unawaited(ScreenAwakeService().setEnabled(shouldStayAwake));
 
     _screenAwakeReleaseTimer?.cancel();
@@ -863,9 +877,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         recentlyReceiving &&
         !(_session?.thinking ?? false) &&
         !TtsService().isSpeaking) {
-      final remaining = 10000 - (now - _lastMessageStreamActivityAt);
+      final remaining =
+          _recentStreamActivityWindowMs -
+          (now - _lastMessageStreamActivityAt);
       _screenAwakeReleaseTimer = Timer(
-        Duration(milliseconds: remaining.clamp(1, 10000)),
+        Duration(
+          milliseconds: remaining.clamp(1, _recentStreamActivityWindowMs),
+        ),
         _updateScreenAwake,
       );
     }
@@ -1695,7 +1713,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final pendingRequests = _session?.agentState?.requests;
     final hasPendingPermission =
         pendingRequests != null && pendingRequests.isNotEmpty;
-    final isThinking = _session?.thinking ?? false;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1725,7 +1742,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           canGoPrev: _ttsCanGoPrev(),
           canGoNext: _ttsCanGoNext(),
         ),
-        if (_resolveAgentActivity(isThinking) case final activity?)
+        if (_resolveAgentActivity() case final activity?)
           ThinkingStopBar(activity: activity, onStop: _abortSession),
       ],
     );
@@ -1737,11 +1754,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// One resolver for one bar: the previous code rendered a thinking bar and
   /// a separate stopping row from two independent conditions, which is how a
   /// spinning typing orb ended up stacked above a bare "Stopping\u2026" line.
-  ChatAgentActivity? _resolveAgentActivity([bool? isThinking]) {
-    final thinking = isThinking ?? (_session?.thinking ?? false);
+  /// [isWorking] defaults to [_isAgentWorking] so the bar also covers the
+  /// recent-stream-activity gap (tool output arriving with `thinking`
+  /// stale) that used to be the in-list typing orb's only job.
+  ChatAgentActivity? _resolveAgentActivity([bool? isWorking]) {
+    final working = isWorking ?? _isAgentWorking;
     if (_isAborting) return ChatAgentActivity.stopping;
-    if (_stopRequestedAt == 0 || !thinking) {
-      return thinking ? ChatAgentActivity.thinking : null;
+    if (_stopRequestedAt == 0 || !working) {
+      return working ? ChatAgentActivity.thinking : null;
     }
     final elapsedMs = DateTime.now().millisecondsSinceEpoch - _stopRequestedAt;
     return elapsedMs < _stopConfirmWindow.inMilliseconds
@@ -1749,9 +1769,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         : ChatAgentActivity.stopUnconfirmed;
   }
 
-  /// Whether a stop request is outstanding and still unconfirmed. Drives the
-  /// app-bar chip and suppresses the typing indicator so the chat does not
-  /// animate "working" and "stopping" at the same time.
+  /// Whether a stop request is outstanding and still unconfirmed. Drives
+  /// the app-bar chip and the activity bar so the chrome never animates
+  /// "working" and "stopping" at the same time.
   bool get _isStopPending =>
       _resolveAgentActivity() == ChatAgentActivity.stopping;
 

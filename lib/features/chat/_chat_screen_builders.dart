@@ -98,34 +98,11 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // change.
     _rebuildNeighborCache(items);
 
-    // Show a typing indicator at the bottom of the chat when the agent
-    // is actively working (thinking flag or recent stream activity) but
-    // the newest visible item is not already a streaming text bubble.
-    // This closes the "dead chat" gap between the user sending a message
-    // and the first visible agent output arriving.
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final recentlyReceiving =
-        _lastMessageStreamActivityAt > 0 &&
-        nowMs - _lastMessageStreamActivityAt < 10000;
-    final agentWorking =
-        (_session?.active ?? false) &&
-        ((_session?.thinking ?? false) || recentlyReceiving);
-    // Suppress the indicator when the newest visible item is already an
-    // agent text bubble with a streaming cursor — two indicators would
-    // be redundant.
-    final lastItem = items.isNotEmpty ? items.last : null;
-    final lastIsStreamingText =
-        lastItem != null &&
-        lastItem['role'] == 'agent' &&
-        lastItem['kind'] != 'tool-call' &&
-        lastItem['kind'] != 'hidden-tool-summary' &&
-        lastItem['isThinking'] != true;
-    // A stop request is outstanding: the activity bar already says
-    // "Stopping…", so an animated typing orb above it would claim the
-    // opposite. Suppress it until the stop confirms or the window lapses.
-    final showTypingIndicator =
-        agentWorking && !lastIsStreamingText && !_isStopPending;
-
+    // Live activity is announced by the ThinkingStopBar in the activity
+    // chrome (one resolver, one bar — see _resolveAgentActivity). The old
+    // in-list typing orb duplicated that signal: while thinking, an
+    // unlabeled animated blob floated above the newest row saying the
+    // same thing the labelled bar below the list already said.
     final listView = ListView.builder(
       controller: _scrollController,
       reverse: true,
@@ -142,26 +119,16 @@ extension _ChatScreenBuilders on _ChatScreenState {
       // and stalls on layout; building further ahead keeps the raster
       // thread fed while scrolling.
       cacheExtent: _chatListCacheExtent,
-      itemCount:
-          items.length + (showHeader ? 1 : 0) + (showTypingIndicator ? 1 : 0),
+      itemCount: items.length + (showHeader ? 1 : 0),
       findChildIndexCallback: (key) {
         if (key is! ValueKey<String>) return null;
-        final idx = keyToListIndex[key.value];
-        if (idx == null) return null;
-        // Offset by the typing indicator slot at index 0.
-        return showTypingIndicator ? idx + 1 : idx;
+        return keyToListIndex[key.value];
       },
       itemBuilder: (context, index) {
-        // Index 0 in a reversed list is the bottom — the typing
-        // indicator lives here so it appears below the newest message.
-        if (showTypingIndicator && index == 0) {
-          return const TypingIndicator(key: ValueKey('typing-indicator'));
-        }
-        final adjustedIndex = showTypingIndicator ? index - 1 : index;
         try {
           return _buildMessageItem(
             context: context,
-            index: adjustedIndex,
+            index: index,
             items: items,
             showHeader: showHeader,
             hasLocalMore: hasLocalMore,

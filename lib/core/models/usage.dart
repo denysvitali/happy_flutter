@@ -59,6 +59,9 @@ abstract class UsageResponse with _$UsageResponse {
 /// Usage query parameters
 @freezed
 abstract class UsageQueryParams with _$UsageQueryParams {
+  // freezed forwards this constructor-level config to the generated
+  // class; json_serializable's class-only target fires regardless.
+  // ignore: invalid_annotation_target
   @JsonSerializable(includeIfNull: false)
   const factory UsageQueryParams({
     String? sessionId,

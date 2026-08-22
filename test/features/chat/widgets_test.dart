@@ -5,7 +5,6 @@ import 'package:happy_flutter/features/chat/widgets/chat_loading_shimmer.dart';
 import 'package:happy_flutter/features/chat/widgets/path_chip.dart';
 import 'package:happy_flutter/features/chat/widgets/scroll_to_bottom_pill.dart';
 import 'package:happy_flutter/features/chat/widgets/session_header_chip.dart';
-import 'package:happy_flutter/features/chat/widgets/typing_indicator.dart';
 import 'package:happy_flutter/features/chat/widgets/empty_chat_view.dart';
 
 Widget _wrap(Widget child) {
@@ -138,33 +137,6 @@ void main() {
 
       final listView = tester.widget<ListView>(find.byType(ListView));
       expect(listView.reverse, isTrue);
-    });
-  });
-
-  // ── TypingIndicator ───────────────────────────────────────────────
-
-  group('TypingIndicator', () {
-    testWidgets('renders three dots', (tester) async {
-      await tester.pumpWidget(_wrap(const TypingIndicator()));
-      await tester.pump();
-
-      // Three animated containers for the dots.
-      expect(find.byType(TypingIndicator), findsOneWidget);
-    });
-
-    testWidgets('aligns to centerLeft', (tester) async {
-      await tester.pumpWidget(_wrap(const TypingIndicator()));
-      await tester.pump();
-
-      final align = tester.widget<Align>(find.byType(Align).first);
-      expect(align.alignment, Alignment.centerLeft);
-    });
-
-    testWidgets('has a RepaintBoundary', (tester) async {
-      await tester.pumpWidget(_wrap(const TypingIndicator()));
-      await tester.pump();
-
-      expect(find.byType(RepaintBoundary), findsWidgets);
     });
   });
 
