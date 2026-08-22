@@ -18,7 +18,8 @@ void main() {
     'content': text,
     if (sidechain) 'isSidechain': true,
     if (thinking) 'isThinking': true,
-    if (error) ...['isError': true, 'errorMessage': errorMessage ?? text],
+    if (error) 'isError': true,
+    if (error) 'errorMessage': errorMessage ?? text,
     if (kind != null) 'kind': kind,
   };
 
