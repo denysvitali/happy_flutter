@@ -14,6 +14,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/routing/safe_pop.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
+import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/session_utils.dart';
@@ -353,7 +354,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: theme.colorScheme.outlineVariant),
+            side: BorderSide(
+              color:
+                  (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
@@ -484,7 +490,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: theme.colorScheme.outlineVariant),
+            side: BorderSide(
+              color:
+                  (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+            ),
           ),
           child: Column(
             children: [
@@ -530,7 +541,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: theme.colorScheme.outlineVariant),
+            side: BorderSide(
+              color:
+                  (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+            ),
           ),
           child: Column(
             children: [
@@ -585,7 +601,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: theme.colorScheme.outlineVariant),
+              side: BorderSide(
+              color:
+                  (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+            ),
             ),
             child: Column(
               children: [
@@ -704,7 +725,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: theme.colorScheme.outlineVariant),
+              side: BorderSide(
+              color:
+                  (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+            ),
             ),
             child: Column(
               children: [
@@ -740,7 +766,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           color: theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: theme.colorScheme.outlineVariant),
+            side: BorderSide(
+              color:
+                  (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+            ),
           ),
           child: Column(
             children: [
@@ -777,7 +808,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             color: theme.colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: theme.colorScheme.outlineVariant),
+              side: BorderSide(
+              color:
+                  (theme.extension<AppColorScheme>() ??
+                          AppColorScheme.dark())
+                      .glassBorder,
+            ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
