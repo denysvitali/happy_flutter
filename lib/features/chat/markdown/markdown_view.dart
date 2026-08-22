@@ -10,6 +10,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/services/logger_service.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../code_block_widget.dart';
 
@@ -117,10 +118,19 @@ class _MarkdownViewState extends State<MarkdownView> {
       h5: theme.textTheme.titleMedium?.copyWith(color: widget.textColor),
       h6: theme.textTheme.titleSmall?.copyWith(color: widget.textColor),
       listBullet: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
+      // Aurora accent edge: the quote's left rule carries the signature
+      // gradient's first color instead of a gray slab.
       blockquoteDecoration: BoxDecoration(
-        color: onSurface.withValues(alpha: 0.05),
+        color: onSurface.withValues(alpha: 0.04),
         border: Border(
-          left: BorderSide(color: onSurface.withValues(alpha: 0.3), width: 4),
+          left: BorderSide(
+            color:
+                (theme.extension<AppColorScheme>() ??
+                        AppColorScheme.dark())
+                    .accentGradient
+                    .first,
+            width: 3,
+          ),
         ),
       ),
       blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
@@ -131,6 +141,12 @@ class _MarkdownViewState extends State<MarkdownView> {
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color:
+              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                  .glassBorder,
+          width: AppBorder.hairline,
+        ),
       ),
       codeblockPadding: const EdgeInsets.all(16),
       code: TextStyle(
@@ -212,9 +228,16 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
     final onSurface = theme.colorScheme.onSurface;
     return MarkdownStyleSheet.fromTheme(theme).copyWith(
       blockquoteDecoration: BoxDecoration(
-        color: onSurface.withValues(alpha: 0.05),
+        color: onSurface.withValues(alpha: 0.04),
         border: Border(
-          left: BorderSide(color: onSurface.withValues(alpha: 0.3), width: 4),
+          left: BorderSide(
+            color:
+                (theme.extension<AppColorScheme>() ??
+                        AppColorScheme.dark())
+                    .accentGradient
+                    .first,
+            width: 3,
+          ),
         ),
       ),
       blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
@@ -225,6 +248,12 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       codeblockDecoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color:
+              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                  .glassBorder,
+          width: AppBorder.hairline,
+        ),
       ),
       codeblockPadding: const EdgeInsets.all(16),
       code: TextStyle(
