@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/theme/app_color_scheme.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
 
@@ -77,14 +79,25 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
     final first = _first;
     if (first == null) return const SizedBox.shrink();
 
+    final theme = Theme.of(context);
     final l10n = context.l10n;
-    final cs = Theme.of(context).colorScheme;
+    final cs = theme.colorScheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final count = widget.requests.length;
     final toolLabel = first.value.tool;
     final subtitle = count > 1 ? '$toolLabel · +${count - 1}' : toolLabel;
 
+    // Aurora warning glass: warning-tinted fill with a hairline seam so the
+    // highest-stakes surface reads urgent without a red slab.
     return Material(
-      color: cs.errorContainer.withValues(alpha: 0.55),
+      color: Color.alphaBlend(
+        AppColors.warning.withValues(alpha: 0.14),
+        cs.surfaceContainerLow,
+      ),
+      shape: Border(
+        top: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         top: false,
         bottom: false,
@@ -95,8 +108,22 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
           ),
           child: Row(
             children: [
-              Icon(Icons.shield_outlined, size: 18, color: cs.onErrorContainer),
-              const SizedBox(width: AppSpacing.sm),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withValues(
+                    alpha: AppOpacity.subtle,
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.smd),
+                ),
+                child: Icon(
+                  Icons.shield_outlined,
+                  size: 17,
+                  color: AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.smd),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,15 +131,15 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
                   children: [
                     Text(
                       l10n.permissionRequired,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: cs.onErrorContainer,
-                        fontWeight: FontWeight.w600,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: cs.onErrorContainer.withValues(alpha: 0.85),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -130,7 +157,7 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
                 TextButton(
                   onPressed: widget.isSessionOnline ? _deny : null,
                   style: TextButton.styleFrom(
-                    foregroundColor: cs.onErrorContainer,
+                    foregroundColor: cs.onSurfaceVariant,
                     minimumSize: const Size(
                       AppTouchTarget.min,
                       AppTouchTarget.min,
