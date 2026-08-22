@@ -108,6 +108,15 @@ ModelSelectionResolution resolveModelSelection({
   final selectedProfileOwnsRawCodexModel = profileOwnsRawCodexModel(
     selectedProfile,
   );
+  // Third-party Anthropic-compatible gateways (DeepSeek, Grok proxy,
+  // MiniMax, …) serve provider-owned model slugs that neither the Claude
+  // tier catalog nor any allowlist knows. Their selections — especially
+  // `<slug>:<effort>` drafts, which would otherwise parse as Codex
+  // variants and collapse to 'default' on reopen — must survive
+  // normalization verbatim.
+  final selectedProfileOwnsRawModels =
+      selectedProfileOwnsRawCodexModel ||
+      profileUsesThirdPartyAnthropicBaseUrl(selectedProfile);
   // Models configured on the selected profile are provider-owned raw
   // strings (e.g. 'GLM-5', 'GLM-5:high') that would otherwise normalize
   // to 'default' — the pick would silently never take effect, and an
@@ -117,7 +126,7 @@ ModelSelectionResolution resolveModelSelection({
   String normalizeRaw(String raw) => ChatModelMode.normalizeRawForFlavor(
     raw,
     flavor,
-    preserveProviderOwned: selectedProfileOwnsRawCodexModel,
+    preserveProviderOwned: selectedProfileOwnsRawModels,
     allowedRawModels: profileModels,
   );
 
@@ -131,6 +140,7 @@ ModelSelectionResolution resolveModelSelection({
       ChatModelMode.fromString(raw),
       flavor,
       allowedRawModels: profileModels,
+      preserveProviderOwned: selectedProfileOwnsRawModels,
     );
   }
 

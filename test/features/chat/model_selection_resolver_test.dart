@@ -535,6 +535,67 @@ void main() {
       expect(result.resolvedRawModelString, 'default');
       expect(result.resolvedModelMode, ChatModelMode.defaultModel);
     });
+
+    test('effort-suffixed gateway draft survives reopen on a third-party '
+        'profile without a model list', () {
+      // Regression: built-in gateway profiles (DeepSeek, …) ship an empty
+      // `models` allowlist, so a saved '<slug>:<high>' draft parsed as a
+      // Codex variant and collapsed to 'default' on reopen. The next send
+      // then respawned the session with model=default and the session
+      // silently fell back to the provider's default (or sonnet).
+      final deepseek = _profile(
+        id: 'deepseek',
+        anthropicConfig: AnthropicConfig(
+          baseUrl: r'${DEEPSEEK_BASE_URL:-https://api.deepseek.com/anthropic}',
+        ),
+      );
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'deepseek-chat:high',
+        savedProfileId: 'deepseek',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: [deepseek],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'deepseek-chat:high');
+      expect(
+        result.resolvedModelMode.modeString,
+        'deepseek-chat:high',
+        reason: 'the picker selection must not collapse to default',
+      );
+      expect(result.resolvedModelMode.reasoningEffort, 'high');
+    });
+
+    test('official-profile drafts still normalize unknown slugs to default',
+        () {
+      // Preservation is scoped to profiles that actually route to a
+      // third-party gateway; an official-Anthropic profile must keep
+      // rejecting unknown slugs.
+      final official = _profile(
+        id: 'anthropic',
+        anthropicConfig: AnthropicConfig(baseUrl: 'https://api.anthropic.com'),
+      );
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'deepseek-chat:high',
+        savedProfileId: 'anthropic',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: const [],
+        builtInProfiles: [official],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'default');
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+    });
   });
 }
 

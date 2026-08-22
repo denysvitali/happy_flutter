@@ -516,6 +516,9 @@ extension _ChatScreenActions on _ChatScreenState {
       selected,
       flavor,
       allowedRawModels: _selectedProfile?.models,
+      preserveProviderOwned:
+          profileOwnsRawCodexModel(_selectedProfile) ||
+          profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
     );
     setState(() {
       _userOverrodeModelOrProfile = true;
@@ -588,7 +591,9 @@ extension _ChatScreenActions on _ChatScreenState {
         ? ChatModelMode.normalizeRawForFlavor(
             profileDefaultModelMode,
             _session?.metadata?.flavor,
-            preserveProviderOwned: profileOwnsRawCodexModel(profile),
+            preserveProviderOwned:
+                profileOwnsRawCodexModel(profile) ||
+                profileUsesThirdPartyAnthropicBaseUrl(profile),
             allowedRawModels: profile?.models,
           )
         : ChatModelMode.defaultModel.modeString;
@@ -597,6 +602,9 @@ extension _ChatScreenActions on _ChatScreenState {
             ChatModelMode.fromString(rawModelString),
             _session?.metadata?.flavor,
             allowedRawModels: profile?.models,
+            preserveProviderOwned:
+                profileOwnsRawCodexModel(profile) ||
+                profileUsesThirdPartyAnthropicBaseUrl(profile),
           )
         : ChatModelMode.defaultModel;
 

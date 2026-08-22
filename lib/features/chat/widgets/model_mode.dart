@@ -451,9 +451,18 @@ class ChatModelMode {
     ChatModelMode model,
     String? flavor, {
     List<String>? allowedRawModels,
+    bool preserveProviderOwned = false,
   }) {
     final available = availableForFlavor(flavor);
     if (available.contains(model) || (flavor == 'codex' && model.isCodex)) {
+      return model;
+    }
+    // The caller vouches that the selected profile owns this selection
+    // (a third-party Anthropic-compatible gateway serving its own model
+    // slugs). Keep it verbatim instead of collapsing to `default` — an
+    // effort suffix would otherwise parse as a Codex variant and get
+    // dropped on Claude sessions, so the pick silently never took effect.
+    if (preserveProviderOwned && flavor != 'codex' && !model.isDefault) {
       return model;
     }
     // Custom Claude models (e.g. `claude-opus-4-8`) aren't in the static
@@ -476,6 +485,9 @@ class ChatModelMode {
   /// [allowedRawModels] is the selected profile's configured model list;
   /// entries survive verbatim (including `:effort` suffixes, which would
   /// otherwise parse as Codex variants and be dropped on Claude sessions).
+  /// [preserveProviderOwned] extends that protection to selections the
+  /// allowlist does not list — used when the selected profile routes to a
+  /// third-party gateway whose models are provider-owned by definition.
   static String normalizeRawForFlavor(
     String value,
     String? flavor, {
@@ -492,7 +504,12 @@ class ChatModelMode {
       return trimmed;
     }
     final parsed = fromString(value);
-    final normalized = normalizeForFlavor(parsed, flavor);
+    final normalized = normalizeForFlavor(
+      parsed,
+      flavor,
+      allowedRawModels: allowedRawModels,
+      preserveProviderOwned: preserveProviderOwned,
+    );
     final parsedFlavor = parsed.flavor;
     if (normalized.isDefault && parsedFlavor != null) {
       return normalized.modeString;

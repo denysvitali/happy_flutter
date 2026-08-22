@@ -703,6 +703,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _modelMode,
           latestSession?.metadata?.flavor,
           allowedRawModels: _selectedProfile?.models,
+          preserveProviderOwned:
+              profileOwnsRawCodexModel(_selectedProfile) ||
+              profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
         );
         unawaited(_refreshCodexModelModes(latestSession));
       }

@@ -221,6 +221,51 @@ void main() {
         'kimi-k2.7-code',
       );
     });
+
+    test('drops provider-owned override when no profile resolved', () {
+      // A respawn without the profile env cannot reach the gateway:
+      // with no ANTHROPIC_BASE_URL the daemon rewrites unknown slugs to
+      // claude-sonnet-4-6 and the session silently runs the wrong
+      // model. Drop to an explicit default instead.
+      expect(
+        sync.testGetModelOverride(
+          agent: 'claude',
+          modelMode: 'deepseek-chat:high',
+        ),
+        'default',
+      );
+      expect(
+        sync.testGetModelOverride(agent: 'claude', modelMode: 'GLM-5'),
+        'default',
+      );
+    });
+
+    test('keeps official tier aliases without a profile', () {
+      // Tier aliases are valid against the default provider, so they
+      // survive even when the profile could not be resolved.
+      expect(
+        sync.testGetModelOverride(agent: 'claude', modelMode: 'sonnet:high'),
+        'sonnet:high',
+      );
+      expect(
+        sync.testGetModelOverride(agent: 'claude', modelMode: 'opus'),
+        'opus',
+      );
+    });
+
+    test('keeps provider-owned override with its profile', () {
+      final profile = getBuiltInProfile('deepseek');
+      expect(profile, isNotNull);
+
+      expect(
+        sync.testGetModelOverride(
+          agent: 'claude',
+          profile: profile,
+          modelMode: 'deepseek-chat:high',
+        ),
+        'deepseek-chat:high',
+      );
+    });
   });
 
   group('_normalizeModelModeForAgent', () {

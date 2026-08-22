@@ -423,6 +423,20 @@ extension SyncSpawnProfileResolution on Sync {
         ? _nonDefaultModelMode(modelMode)
         : _normalizeModelModeForAgent(modelMode, effectiveAgent);
     if (normalized != null && normalized != 'default') {
+      // A provider-owned model override whose profile could not be
+      // resolved spawns without its routing env: with no ANTHROPIC_BASE_URL
+      // the daemon rewrites unknown slugs to claude-sonnet-4-6 and the
+      // session silently runs the wrong model. Official tier aliases work
+      // without env; everything else drops to an explicit default.
+      if (effectiveAgent == 'claude' &&
+          profile == null &&
+          !_isClaudeModelAlias(normalized)) {
+        logger.warning(
+          '[spawn] dropping model override "$normalized" without a '
+          'resolved profile — it cannot reach its provider',
+        );
+        return 'default';
+      }
       return normalized;
     }
     // Keep an explicit default selection on the wire. Collapsing it to

@@ -542,6 +542,54 @@ void main() {
         'GLM-5:high',
       );
     });
+
+    test('preserveProviderOwned keeps unparseable gateway drafts on Claude '
+        'sessions', () {
+      // Built-in gateway profiles (DeepSeek, …) have an empty models
+      // allowlist, so their effort-suffixed selections only survive via
+      // explicit preservation — otherwise reopen collapses them to
+      // 'default' and the session silently changes provider behavior.
+      expect(
+        ChatModelMode.normalizeRawForFlavor(
+          'deepseek-chat:high',
+          'claude',
+          preserveProviderOwned: true,
+        ),
+        'deepseek-chat:high',
+      );
+      expect(
+        ChatModelMode.normalizeForFlavor(
+          ChatModelMode.fromString('deepseek-chat:high'),
+          'claude',
+          preserveProviderOwned: true,
+        ).modeString,
+        'deepseek-chat:high',
+      );
+
+      // Default still normalizes to default; Codex sessions are
+      // unaffected by the flag (their own branch handles it).
+      expect(
+        ChatModelMode.normalizeRawForFlavor(
+          'default',
+          'claude',
+          preserveProviderOwned: true,
+        ),
+        'default',
+      );
+      expect(
+        ChatModelMode.normalizeRawForFlavor(
+          'gpt-5.5:high',
+          'codex',
+          preserveProviderOwned: true,
+        ),
+        'gpt-5.5:high',
+      );
+      // Without the flag nothing changes for callers that don't opt in.
+      expect(
+        ChatModelMode.normalizeRawForFlavor('deepseek-chat:high', 'claude'),
+        'default',
+      );
+    });
   });
 
   group('profile-configured Claude model effort families', () {
