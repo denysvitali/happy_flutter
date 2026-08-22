@@ -52,69 +52,75 @@ class _GoalBannerBody extends StatelessWidget {
         AppSpacing.md,
         AppSpacing.xs,
       ),
-      child: Material(
-        color: cs.surfaceContainerLow.withValues(alpha: 0.92),
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
-        ),
-        elevation: AppElevation.low,
-        shadowColor: Colors.black.withValues(alpha: 0.24),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Signature accent edge — 3 px of gradient, nothing more.
-            Container(
-              width: AppBorder.accent,
-              decoration: BoxDecoration(
-                gradient: appCs.accentLinearGradient,
-              ),
+      // IntrinsicHeight gives the stretched Row a bounded height so
+      // unbounded hosts (chat column, test harness) don't get an
+      // infinite-height constraint forced into the accent edge.
+      child: IntrinsicHeight(
+        child: Material(
+          color: cs.surfaceContainerLow.withValues(alpha: 0.92),
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            side: BorderSide(
+              color: appCs.glassBorder,
+              width: AppBorder.hairline,
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.smd),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _GoalIconTile(accent: accent),
-                    const SizedBox(width: AppSpacing.smd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                'Goal',
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: cs.onSurface,
-                                  fontWeight: FontWeight.w700,
+          ),
+          elevation: AppElevation.low,
+          shadowColor: Colors.black.withValues(alpha: 0.24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Signature accent edge — 3 px of gradient, nothing more.
+              Container(
+                width: AppBorder.accent,
+                decoration: BoxDecoration(gradient: appCs.accentLinearGradient),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.smd),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _GoalIconTile(accent: accent),
+                      const SizedBox(width: AppSpacing.smd),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Goal',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: cs.onSurface,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              _StatusPill(label: goal.status, color: accent),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            goal.objective,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                              height: 1.25,
+                                const SizedBox(width: AppSpacing.xs),
+                                _StatusPill(label: goal.status, color: accent),
+                              ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: AppSpacing.xxs),
+                            Text(
+                              goal.objective,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                                height: 1.25,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
