@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -13,7 +15,9 @@ import '../../../core/utils/session_utils.dart';
 import 'mission_control_summary.dart';
 import 'mission_control_types.dart';
 import 'mission_control_workspace_list.dart';
+import 'mission_heartbeat.dart';
 import 'session_headers.dart';
+import 'stream_wall.dart';
 
 export 'mission_control_action_tile.dart' show MissionActionRow;
 export 'mission_control_types.dart'
@@ -70,6 +74,8 @@ class MissionControlView extends StatefulWidget {
     this.onTogglePin,
     this.onToggleSnooze,
     this.onToggleMuteFolder,
+    this.onOpenSession,
+    this.onPeekSession,
   });
 
   final List<Session> activeSessions;
@@ -97,9 +103,20 @@ class MissionControlView extends StatefulWidget {
   final void Function(String sessionId, bool snooze)? onToggleSnooze;
   final void Function(String folderKey)? onToggleMuteFolder;
 
+  /// Opens a session's chat from Live wire rows. Null hides the wall —
+  /// rows without navigation would be read-only decoration.
+  final void Function(String sessionId)? onOpenSession;
+
+  /// Opens the glanceable peek sheet for a session (Live wire rows and
+  /// focus-queue triage menus). Null hides those entry points.
+  final void Function(String sessionId)? onPeekSession;
+
   @override
   State<MissionControlView> createState() => _MissionControlViewState();
 }
+
+/// How long the "All clear" banner lingers after the queue drains.
+const missionControlAllClearHold = Duration(seconds: 4);
 
 class _MissionControlViewState extends State<MissionControlView> {
   bool _showAllActions = false;
@@ -118,10 +135,83 @@ class _MissionControlViewState extends State<MissionControlView> {
   final Set<String> _seenActionIds = {};
   bool _queueSeeded = false;
 
+  // Live wire: rolling buffer of cross-session change events, derived by
+  // diffing consecutive snapshots of the active sessions.
+  bool _wireSeeded = false;
+  WireSnapshot? _wirePrevious;
+  List<WireEvent> _wireEvents = [];
+
+  // All-clear moment: shown once when the focus queue drains to zero.
+  int _prevActionCount = -1;
+  bool _showAllClear = false;
+  Timer? _allClearTimer;
+
   static const int _telemetryThrottleMs = 30000;
 
   SessionUiEntry _entry(String id) =>
       widget.uiState.bySessionId[id] ?? SessionUiEntry.empty;
+
+  @override
+  void dispose() {
+    _allClearTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(MissionControlView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _observeWireEvents();
+  }
+
+  /// Diffs the previous active-session snapshot against the current one
+  /// and folds any changes into the Live wire buffer.
+  ///
+  /// Runs in [didUpdateWidget] so it never mutates state during build;
+  /// the first call only seeds the baseline, which is why opening the
+  /// board does not flood the wire with rows for existing sessions.
+  void _observeWireEvents() {
+    final next = _buildWireSnapshot();
+    if (!_wireSeeded) {
+      _wireSeeded = true;
+      _wirePrevious = next;
+      return;
+    }
+    final previous = _wirePrevious;
+    _wirePrevious = next;
+    if (previous == null) return;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final fresh = diffWireEvents(
+      previous: previous,
+      next: next,
+      nowMs: nowMs,
+    );
+    if (fresh.isEmpty) return;
+    setState(() {
+      _wireEvents = mergeWireEvents(_wireEvents, fresh, nowMs: nowMs);
+    });
+  }
+
+  WireSnapshot _buildWireSnapshot() {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final snapshot = <String, WireSessionState>{};
+    for (final session in widget.activeSessions) {
+      final entry = _entry(session.id);
+      snapshot[session.id] = WireSessionState(
+        name: getSessionName(session),
+        workspaceKey: sessionFolderKey(session),
+        live: session.presence == 'online' && session.thinking,
+        lane: widget.triage.isSnoozed(session.id, nowMs: nowMs)
+            ? MissionLane.quiet
+            : missionLaneFor(session, entry),
+        unreadCount: entry.unreadCount,
+        lastMessageAt: entry.lastMessageTimestamp,
+        preview: entry.lastMessagePreview,
+        role: entry.lastMessageRole,
+        isError: entry.lastMessageIsError,
+      );
+    }
+    return snapshot;
+  }
 
   void _markSeen(String sessionId) {
     if (_seenActionIds.add(sessionId)) {
@@ -258,6 +348,24 @@ class _MissionControlViewState extends State<MissionControlView> {
         : null;
     final actions = [...blocked, ...errored, ...unread, ...working]
       ..sort(_compareQueueSlots);
+
+    // All-clear detection: the moment the queue drains after holding
+    // items deserves a beat of positive feedback. Plain field writes
+    // only — the banner itself is scheduled post-frame.
+    if (_prevActionCount != actions.length) {
+      final drained = _prevActionCount > 0 && actions.isEmpty;
+      _prevActionCount = actions.length;
+      if (drained && !_showAllClear) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _prevActionCount > 0) return;
+          setState(() => _showAllClear = true);
+          _allClearTimer?.cancel();
+          _allClearTimer = Timer(missionControlAllClearHold, () {
+            if (mounted) setState(() => _showAllClear = false);
+          });
+        });
+      }
+    }
     final filteredActions = selectedLane == null
         ? actions
         : actions
@@ -366,6 +474,29 @@ class _MissionControlViewState extends State<MissionControlView> {
       );
     }
 
+    if (_showAllClear) {
+      slivers.add(
+        SliverToBoxAdapter(
+          child: RepaintBoundary(child: _AllClearBanner()),
+        ),
+      );
+    }
+
+    if (widget.activeSessions.isNotEmpty && widget.onOpenSession != null) {
+      slivers.add(
+        SliverToBoxAdapter(
+          child: RepaintBoundary(
+            child: StreamWallSection(
+              events: _wireEvents,
+              streamCount: widget.activeSessions.length,
+              onOpenSession: widget.onOpenSession!,
+              onPeekSession: widget.onPeekSession ?? (_) {},
+            ),
+          ),
+        ),
+      );
+    }
+
     if (activeWorkspaces.isNotEmpty || quietWorkspaces.isNotEmpty) {
       final visibleWorkspaces = [
         ...activeWorkspaces,
@@ -405,12 +536,17 @@ class _MissionControlViewState extends State<MissionControlView> {
       }
     }
 
-    return CustomScrollView(
-      controller: widget.scrollController,
-      slivers: [
-        ...slivers,
-        const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
-      ],
+    return MissionClock(
+      // One shared ticker keeps freshness pills and silence hints current
+      // for every visible row; with nothing actionable it sleeps.
+      active: actions.isNotEmpty,
+      child: CustomScrollView(
+        controller: widget.scrollController,
+        slivers: [
+          ...slivers,
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+        ],
+      ),
     );
   }
 
@@ -466,6 +602,72 @@ class _MissionControlViewState extends State<MissionControlView> {
         'elapsedMs=${duration.inMilliseconds}',
       );
     }
+  }
+}
+
+/// Transient celebration shown when the focus queue drains to zero.
+///
+/// Deliberately quiet: a scale-in check, one line of copy, gone after
+/// [missionControlAllClearHold]. No ticker, no looping animation.
+class _AllClearBanner extends StatelessWidget {
+  const _AllClearBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final reduceMotion = AppMotion.reduceMotion(context);
+    final content = Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        0,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.smd,
+      ),
+      decoration: BoxDecoration(
+        color: Color.alphaBlend(
+          cs.tertiary.withValues(alpha: 0.1),
+          cs.surfaceContainerLow,
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.verified_rounded,
+            size: AppIconSize.lg,
+            color: cs.tertiary,
+          ),
+          const SizedBox(width: AppSpacing.smd),
+          Expanded(
+            child: Text(
+              context.l10n.missionControlAllClear,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: cs.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (reduceMotion) return content;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.92, end: 1),
+      duration: AppDuration.normal,
+      curve: AppCurve.standard,
+      builder: (context, scale, child) => Transform.scale(
+        scale: scale,
+        alignment: Alignment.topCenter,
+        child: child,
+      ),
+      child: content,
+    );
   }
 }
 

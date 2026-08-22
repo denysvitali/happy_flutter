@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_types.dart';
+import 'workspace_identity.dart';
 
 /// Lazily built workspace pulse sliver used by Mission Control.
 class MissionWorkspaceList extends StatelessWidget {
@@ -129,6 +130,12 @@ class _WorkspaceTile extends StatelessWidget {
       MissionLane.unread,
       MissionLane.live,
     ].firstWhere((lane) => counts[lane]! > 0, orElse: () => MissionLane.quiet);
+    // Identity hue takes over the folder tile when nothing needs action —
+    // the quiet state that most of a large workspace list sits in. Lane
+    // colors stay semantic: blocked/error/unread/live always win.
+    final identityColor = muted || leadingLane != MissionLane.quiet
+        ? null
+        : workspaceIdentityColor(context, header.folderKey);
     // Lane composition replaces the raw "X active • Y archived" counts —
     // nobody triages by archive size, and the ambiguous dot badge was the
     // only place the leading lane was visible.
@@ -177,7 +184,9 @@ class _WorkspaceTile extends StatelessWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: missionLaneContainerColor(context, leadingLane),
+                        color: identityColor != null
+                            ? workspaceIdentityContainer(context, identityColor)
+                            : missionLaneContainerColor(context, leadingLane),
                         borderRadius: BorderRadius.circular(AppRadius.smd),
                       ),
                       child: Stack(
@@ -188,7 +197,9 @@ class _WorkspaceTile extends StatelessWidget {
                                 ? Icons.notifications_off_outlined
                                 : Icons.folder_outlined,
                             size: AppIconSize.lg,
-                            color: missionLaneColor(context, leadingLane),
+                            color:
+                                identityColor ??
+                                missionLaneColor(context, leadingLane),
                           ),
                           if (leadingLane != MissionLane.quiet && !muted)
                             Positioned(

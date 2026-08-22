@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_status_dot.dart';
@@ -10,7 +8,9 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_types.dart';
+import 'mission_heartbeat.dart';
 import 'session_cards.dart';
+import 'workspace_identity.dart';
 
 /// Two-line operational tile used by Mission Control.
 ///
@@ -34,6 +34,7 @@ class MissionActionRow extends StatelessWidget {
     this.onMarkRead,
     this.onTogglePin,
     this.onToggleSnooze,
+    this.onPeek,
   });
 
   final Session session;
@@ -55,6 +56,9 @@ class MissionActionRow extends StatelessWidget {
   final VoidCallback? onMarkRead;
   final VoidCallback? onTogglePin;
   final ValueChanged<bool>? onToggleSnooze;
+
+  /// Opens the glanceable peek sheet without navigating into the chat.
+  final VoidCallback? onPeek;
 
   @override
   Widget build(BuildContext context) {
@@ -81,15 +85,26 @@ class MissionActionRow extends StatelessWidget {
         : '$workspace  ·  $activityText';
     final since =
         entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
+    // Freshness reads the shared Mission Control clock, so the pill and
+    // glow age without any per-row timer.
+    final freshness = streamFreshness(
+      nowMs: missionNowOf(context),
+      lastActivityAt: since,
+      live: lane == MissionLane.live,
+    );
+    final silenceMs = missionNowOf(context) - since;
+    final isSilent =
+        lane == MissionLane.live &&
+        silenceMs >= missionSilentThreshold.inMilliseconds;
     final semanticOutcome = switch (lane) {
       MissionLane.blocked => context.l10n.missionControlReview,
       MissionLane.error => laneLabel,
       MissionLane.unread => context.l10n.missionControlNewCount(
         entry.unreadCount,
       ),
-      MissionLane.live => formatElapsedShort(
-        DateTime.now().millisecondsSinceEpoch - since,
-      ),
+      MissionLane.live => isSilent
+          ? context.l10n.missionControlSilent(formatSilenceShort(silenceMs))
+          : formatElapsedShort(silenceMs),
       MissionLane.quiet => laneLabel,
     };
     final name = getSessionName(session);
@@ -147,12 +162,13 @@ class MissionActionRow extends StatelessWidget {
                     _LaneTile(
                       lane: lane,
                       color: laneColor,
+                      freshness: freshness,
                       pulse:
                           animateActivity &&
                           (lane == MissionLane.blocked ||
                               lane == MissionLane.error ||
-                              lane == MissionLane.live ||
-                              status.isPulsing),
+                              status.isPulsing ||
+                              freshness == StreamFreshness.burst),
                       selected: selected,
                     ),
                     const SizedBox(width: AppSpacing.smd),
@@ -171,13 +187,35 @@ class MissionActionRow extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            detail,
-                            // The error reason is why the user is looking —
-                            // one extra line beats an elided diagnosis.
-                            maxLines: lane == MissionLane.error ? 2 : 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: detailStyle,
+                          Row(
+                            children: [
+                              if (workspace != null) ...[
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: workspaceIdentityColor(
+                                      context,
+                                      sessionFolderKey(session),
+                                    ),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.xxs),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  detail,
+                                  // The error reason is why the user is
+                                  // looking — one extra line beats an
+                                  // elided diagnosis.
+                                  maxLines:
+                                      lane == MissionLane.error ? 2 : 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: detailStyle,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -195,6 +233,7 @@ class MissionActionRow extends StatelessWidget {
                       lane: lane,
                       entry: entry,
                       since: since,
+                      live: lane == MissionLane.live,
                       onMarkRead: lane == MissionLane.unread && !selected
                           ? onMarkRead
                           : null,
@@ -208,6 +247,7 @@ class MissionActionRow extends StatelessWidget {
                         onMarkRead: onMarkRead,
                         onTogglePin: onTogglePin,
                         onToggleSnooze: onToggleSnooze,
+                        onPeek: onPeek,
                       ),
                     ] else ...[
                       const SizedBox(width: AppSpacing.xxs),
@@ -228,19 +268,24 @@ class MissionActionRow extends StatelessWidget {
   }
 
   bool get _hasOverflowMenu =>
-      onTogglePin != null || onToggleSnooze != null || onMarkRead != null;
+      onTogglePin != null ||
+      onToggleSnooze != null ||
+      onMarkRead != null ||
+      onPeek != null;
 }
 
 class _LaneTile extends StatelessWidget {
   const _LaneTile({
     required this.lane,
     required this.color,
+    required this.freshness,
     required this.pulse,
     required this.selected,
   });
 
   final MissionLane lane;
   final Color color;
+  final StreamFreshness freshness;
   final bool pulse;
   final bool selected;
 
@@ -250,7 +295,22 @@ class _LaneTile extends StatelessWidget {
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: missionLaneContainerColor(context, lane),
+        // Freshness glow: the tile brightens right after an update and
+        // decays as the stream goes quiet. Blocked/error keep their full
+        // lane container — they need the user regardless of age.
+        color: switch (lane) {
+          MissionLane.blocked ||
+          MissionLane.error => missionLaneContainerColor(context, lane),
+          _ => Color.alphaBlend(
+            color.withValues(alpha: switch (freshness) {
+              StreamFreshness.burst => 0.18,
+              StreamFreshness.fresh => 0.12,
+              StreamFreshness.silent => 0.14,
+              StreamFreshness.aging => 0.06,
+            }),
+            Theme.of(context).colorScheme.surfaceContainerLow,
+          ),
+        },
         borderRadius: BorderRadius.circular(AppRadius.smd),
       ),
       child: Stack(
@@ -278,12 +338,17 @@ class _OutcomePill extends StatelessWidget {
     required this.lane,
     required this.entry,
     required this.since,
+    required this.live,
     this.onMarkRead,
   });
 
   final MissionLane lane;
   final SessionUiEntry entry;
   final int since;
+
+  /// Whether the agent is still marked as working — gates the "silent"
+  /// stall hint, which would be nonsense on a finished session.
+  final bool live;
   final VoidCallback? onMarkRead;
 
   @override
@@ -291,13 +356,30 @@ class _OutcomePill extends StatelessWidget {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final color = missionLaneColor(context, lane);
+
+    // Live pills read the shared clock: silence age normally, and an
+    // amber "N m silent" stall hint once the stream stops updating while
+    // still claiming to work (threshold aligned with StuckAgentSentinel).
+    final silenceMs = missionNowOf(context) - since;
+    final isSilent =
+        live && silenceMs >= missionSilentThreshold.inMilliseconds;
+    final pillColor = isSilent
+        ? missionLaneColor(context, MissionLane.blocked)
+        : color;
+    final pillBg = isSilent
+        ? missionLaneContainerColor(context, MissionLane.blocked)
+        : missionLaneContainerColor(context, lane);
     final child = switch (lane) {
       MissionLane.blocked => Text(l10n.missionControlReview),
       MissionLane.error => Text(missionLaneLabel(context, lane)),
       MissionLane.unread => Text(
         l10n.missionControlNewCount(entry.unreadCount),
       ),
-      MissionLane.live => _LiveElapsedLabel(since: since),
+      MissionLane.live => Text(
+        isSilent
+            ? l10n.missionControlSilent(formatSilenceShort(silenceMs))
+            : formatElapsedShort(silenceMs),
+      ),
       MissionLane.quiet => Text(missionLaneLabel(context, lane)),
     };
     final pill = Container(
@@ -307,12 +389,12 @@ class _OutcomePill extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: missionLaneContainerColor(context, lane),
+        color: pillBg,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: DefaultTextStyle(
         style: theme.textTheme.labelSmall!.copyWith(
-          color: color,
+          color: pillColor,
           fontWeight: FontWeight.w700,
           fontSize: AppFontSize.xs,
           fontFeatures: const [FontFeature.tabularFigures()],
@@ -336,7 +418,8 @@ class _OutcomePill extends StatelessWidget {
   }
 }
 
-/// Overflow triage menu for one action row: mark read, pin, snooze.
+/// Overflow triage menu for one action row: quick look, mark read, pin,
+/// snooze.
 class _TriageMenu extends StatelessWidget {
   const _TriageMenu({
     required this.isPinned,
@@ -345,6 +428,7 @@ class _TriageMenu extends StatelessWidget {
     this.onMarkRead,
     this.onTogglePin,
     this.onToggleSnooze,
+    this.onPeek,
   });
 
   final bool isPinned;
@@ -353,6 +437,7 @@ class _TriageMenu extends StatelessWidget {
   final VoidCallback? onMarkRead;
   final VoidCallback? onTogglePin;
   final ValueChanged<bool>? onToggleSnooze;
+  final VoidCallback? onPeek;
 
   @override
   Widget build(BuildContext context) {
@@ -369,6 +454,8 @@ class _TriageMenu extends StatelessWidget {
       tooltip: l10n.missionControlTriage,
       onSelected: (action) {
         switch (action) {
+          case 'peek':
+            onPeek?.call();
           case 'read':
             onMarkRead?.call();
           case 'pin':
@@ -380,6 +467,21 @@ class _TriageMenu extends StatelessWidget {
         }
       },
       itemBuilder: (context) => [
+        if (onPeek != null)
+          PopupMenuItem(
+            value: 'peek',
+            child: Row(
+              children: [
+                Icon(
+                  Icons.visibility_outlined,
+                  size: AppIconSize.sm,
+                  color: cs.onSurfaceVariant,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(l10n.missionControlPeekQuickLook),
+              ],
+            ),
+          ),
         if (canMarkRead && onMarkRead != null)
           PopupMenuItem(
             value: 'read',
@@ -403,40 +505,5 @@ class _TriageMenu extends StatelessWidget {
           ),
       ],
     );
-  }
-}
-
-class _LiveElapsedLabel extends StatefulWidget {
-  const _LiveElapsedLabel({required this.since});
-
-  final int since;
-
-  @override
-  State<_LiveElapsedLabel> createState() => _LiveElapsedLabelState();
-}
-
-class _LiveElapsedLabelState extends State<_LiveElapsedLabel> {
-  Timer? _timer;
-  int _now = DateTime.now().millisecondsSinceEpoch;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() => _now = DateTime.now().millisecondsSinceEpoch);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(formatElapsedShort(_now - widget.since));
   }
 }

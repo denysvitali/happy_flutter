@@ -1133,6 +1133,76 @@
       }
     }
   },
+  "missionControlSilent": "{duration} silent",
+  "@missionControlSilent": {
+    "description": "Stall hint on a live stream that has not updated for at least ten minutes (e.g. \"12m silent\")",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "missionControlAllClear": "All clear",
+  "@missionControlAllClear": {
+    "description": "Momentary banner when the Mission Control focus queue becomes empty"
+  },
+  "missionControlLiveWire": "Live wire",
+  "@missionControlLiveWire": {
+    "description": "Cross-session chronological activity feed heading"
+  },
+  "missionControlLiveWireEmpty": "Watching {count} streams…",
+  "@missionControlLiveWireEmpty": {
+    "description": "Live wire placeholder before any event fires",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missionControlWireSent": "You",
+  "@missionControlWireSent": {
+    "description": "Live wire label for a message the user sent from anywhere"
+  },
+  "missionControlWireDone": "Finished",
+  "@missionControlWireDone": {
+    "description": "Live wire label for an agent that stopped working cleanly"
+  },
+  "missionControlWireJoined": "Started",
+  "@missionControlWireJoined": {
+    "description": "Live wire label for a session entering the active set"
+  },
+  "missionControlPeekQuickLook": "Quick look",
+  "@missionControlPeekQuickLook": {
+    "description": "Menu item opening the glanceable session preview sheet"
+  },
+  "missionControlPeekOpenChat": "Open chat",
+  "@missionControlPeekOpenChat": {
+    "description": "Primary action in the peek sheet — jump into the full chat"
+  },
+  "missionControlPeekStop": "Stop",
+  "@missionControlPeekStop": {
+    "description": "Destructive action in the peek sheet — abort the running agent"
+  },
+  "missionControlPeekStopRequested": "Stop requested",
+  "@missionControlPeekStopRequested": {
+    "description": "Confirmation after a stop sent from the peek sheet"
+  },
+  "missionControlPeekStopFailed": "Could not stop the agent. Try again.",
+  "@missionControlPeekStopFailed": {
+    "description": "Error when the stop request from the peek sheet failed"
+  },
+  "missionControlPeekNoMessages": "No cached messages yet — open the chat to load them.",
+  "@missionControlPeekNoMessages": {
+    "description": "Peek sheet empty state when nothing is cached locally"
+  },
+  "missionControlPeekYou": "You",
+  "@missionControlPeekYou": {
+    "description": "Role label above user bubbles in the peek sheet"
+  },
+  "missionControlPeekAgent": "Agent",
+  "@missionControlPeekAgent": {
+    "description": "Role label above agent bubbles in the peek sheet"
+  },
   "autoArchiveTitle": "Auto-Archive",
   "autoArchiveSection": "Auto-Archive",
   "autoArchiveAfterDays": "Archive after days",

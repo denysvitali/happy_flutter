@@ -4954,6 +4954,96 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1 {1 quiet workspace} other {{count} quiet workspaces}}'**
   String missionControlQuietWorkspaces(int count);
 
+  /// Stall hint on a live stream that has not updated for at least ten minutes (e.g. "12m silent")
+  ///
+  /// In en, this message translates to:
+  /// **'{duration} silent'**
+  String missionControlSilent(String duration);
+
+  /// Momentary banner when the Mission Control focus queue becomes empty
+  ///
+  /// In en, this message translates to:
+  /// **'All clear'**
+  String get missionControlAllClear;
+
+  /// Cross-session chronological activity feed heading
+  ///
+  /// In en, this message translates to:
+  /// **'Live wire'**
+  String get missionControlLiveWire;
+
+  /// Live wire placeholder before any event fires
+  ///
+  /// In en, this message translates to:
+  /// **'Watching {count} streams…'**
+  String missionControlLiveWireEmpty(int count);
+
+  /// Live wire label for a message the user sent from anywhere
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get missionControlWireSent;
+
+  /// Live wire label for an agent that stopped working cleanly
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get missionControlWireDone;
+
+  /// Live wire label for a session entering the active set
+  ///
+  /// In en, this message translates to:
+  /// **'Started'**
+  String get missionControlWireJoined;
+
+  /// Menu item opening the glanceable session preview sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Quick look'**
+  String get missionControlPeekQuickLook;
+
+  /// Primary action in the peek sheet — jump into the full chat
+  ///
+  /// In en, this message translates to:
+  /// **'Open chat'**
+  String get missionControlPeekOpenChat;
+
+  /// Destructive action in the peek sheet — abort the running agent
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get missionControlPeekStop;
+
+  /// Confirmation after a stop sent from the peek sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Stop requested'**
+  String get missionControlPeekStopRequested;
+
+  /// Error when the stop request from the peek sheet failed
+  ///
+  /// In en, this message translates to:
+  /// **'Could not stop the agent. Try again.'**
+  String get missionControlPeekStopFailed;
+
+  /// Peek sheet empty state when nothing is cached locally
+  ///
+  /// In en, this message translates to:
+  /// **'No cached messages yet — open the chat to load them.'**
+  String get missionControlPeekNoMessages;
+
+  /// Role label above user bubbles in the peek sheet
+  ///
+  /// In en, this message translates to:
+  /// **'You'**
+  String get missionControlPeekYou;
+
+  /// Role label above agent bubbles in the peek sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Agent'**
+  String get missionControlPeekAgent;
+
   /// No description provided for @autoArchiveTitle.
   ///
   /// In en, this message translates to:

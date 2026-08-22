@@ -2773,6 +2773,57 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String missionControlSilent(String duration) {
+    return '$duration silent';
+  }
+
+  @override
+  String get missionControlAllClear => 'All clear';
+
+  @override
+  String get missionControlLiveWire => 'Live wire';
+
+  @override
+  String missionControlLiveWireEmpty(int count) {
+    return 'Watching $count streams…';
+  }
+
+  @override
+  String get missionControlWireSent => 'You';
+
+  @override
+  String get missionControlWireDone => 'Finished';
+
+  @override
+  String get missionControlWireJoined => 'Started';
+
+  @override
+  String get missionControlPeekQuickLook => 'Quick look';
+
+  @override
+  String get missionControlPeekOpenChat => 'Open chat';
+
+  @override
+  String get missionControlPeekStop => 'Stop';
+
+  @override
+  String get missionControlPeekStopRequested => 'Stop requested';
+
+  @override
+  String get missionControlPeekStopFailed =>
+      'Could not stop the agent. Try again.';
+
+  @override
+  String get missionControlPeekNoMessages =>
+      'No cached messages yet — open the chat to load them.';
+
+  @override
+  String get missionControlPeekYou => 'You';
+
+  @override
+  String get missionControlPeekAgent => 'Agent';
+
+  @override
   String get autoArchiveTitle => 'Auto-Archive';
 
   @override

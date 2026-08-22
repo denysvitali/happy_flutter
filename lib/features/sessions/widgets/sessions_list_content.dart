@@ -28,6 +28,7 @@ import 'session_cards.dart';
 import 'session_dismissible.dart';
 import 'session_headers.dart';
 import 'session_list_helpers.dart';
+import 'session_peek_sheet.dart';
 import 'session_shimmer.dart';
 import 'unread_focus_cards.dart';
 
@@ -652,6 +653,25 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             animateActivity: animateActivity,
             highlighted: highlighted,
           ),
+      onOpenSession: (sessionId) {
+        final session = [
+          ...activeSessions,
+          ...inactiveSessions,
+        ].where((s) => s.id == sessionId).firstOrNull;
+        if (session != null) _navigateToChat(sessionId);
+      },
+      onPeekSession: (sessionId) {
+        final session = [
+          ...activeSessions,
+          ...inactiveSessions,
+        ].where((s) => s.id == sessionId).firstOrNull;
+        if (session == null) return;
+        showSessionPeek(
+          context,
+          session: session,
+          onOpen: () => _navigateToChat(sessionId),
+        );
+      },
       onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
   }
@@ -682,6 +702,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           onToggleSnooze: (snooze) => snooze
               ? triageNotifier.snooze(session.id)
               : triageNotifier.unsnooze(session.id),
+          onPeek: sel.isActive
+              ? null
+              : () => showSessionPeek(
+                  context,
+                  session: session,
+                  onOpen: () => _navigateToChat(session.id),
+                ),
           onTap: sel.isActive
               ? () => _onSessionTapInSelectionMode(session.id)
               : () => _navigateToChat(session.id),
