@@ -1349,8 +1349,8 @@ void main() {
       expect(result, isNull);
     });
 
-    test('builtInProfiles returns all 10 profiles', () {
-      expect(builtInProfiles.length, 10);
+    test('builtInProfiles returns all 11 profiles', () {
+      expect(builtInProfiles.length, 11);
       final ids = builtInProfiles.map((p) => p.id).toSet();
       expect(
         ids,
@@ -1365,6 +1365,7 @@ void main() {
           'openai',
           'azure-openai',
           'qwen-token-plan-codex',
+          'custom-codex-proxy',
         ]),
       );
     });
