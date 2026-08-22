@@ -544,11 +544,99 @@ void main() {
     });
   });
 
-  testWidgets('plain profile slugs render next to effort-suffixed family '
-      'and commit on tap', (tester) async {
-    // Regression: 'GLM-5' parses with no modelSlug, so when the profile
-    // list also contained 'GLM-5:high' (which has a slug) the grouped
-    // picker dropped the plain variant entirely.
+  group('profile-configured Claude model effort families', () {
+    test('providerOwnedClaudeEfforts fixes the slug and offers the CLI '
+        'effort range', () {
+      final models = ChatModelMode.providerOwnedClaudeEfforts(
+        'deepseek-v4-pro',
+      );
+
+      // First entry is the effort-less base variant (provider default).
+      expect(models.first.modeString, 'deepseek-v4-pro');
+      expect(models.first.hasEffort, isFalse);
+      expect(models.first.isCodex, isFalse);
+      expect(models.first.modelSlug, 'deepseek-v4-pro');
+
+      expect(models.map((m) => m.modeString).toList(), [
+        'deepseek-v4-pro',
+        'deepseek-v4-pro:low',
+        'deepseek-v4-pro:medium',
+        'deepseek-v4-pro:high',
+        'deepseek-v4-pro:xhigh',
+        'deepseek-v4-pro:max',
+      ]);
+      for (final m in models) {
+        expect(m.isClaude, isTrue);
+      }
+    });
+
+    test('availableForProfile expands profile models into effort families '
+        'on Claude sessions', () {
+      final models = ChatModelMode.availableForProfile(
+        flavor: 'claude',
+        claudeCompatible: true,
+        profileModels: const ['GLM-5', 'GLM-5:high'],
+      );
+
+      // Default first, then one family per unique slug — the explicit
+      // 'GLM-5:high' entry collapses into the plain slug's family.
+      expect(models.first, ChatModelMode.defaultModel);
+      final family = models.where((m) => m.modelSlug == 'GLM-5').toList();
+      expect(family.map((m) => m.modeString).toList(), [
+        'GLM-5',
+        'GLM-5:low',
+        'GLM-5:medium',
+        'GLM-5:high',
+        'GLM-5:xhigh',
+        'GLM-5:max',
+      ]);
+      expect(
+        models.map((m) => m.modelSlug).whereType<String>().toSet(),
+        {'GLM-5'},
+      );
+    });
+
+    test('fromAllowedRaw keeps effort suffixes off the Codex catalog', () {
+      final mode = ChatModelMode.fromAllowedRaw(
+        'GLM-5:high',
+        const ['GLM-5'],
+      );
+      expect(mode, isNotNull);
+      expect(mode!.modeString, 'GLM-5:high');
+      expect(mode.isCodex, isFalse);
+      expect(mode.reasoningEffort, 'high');
+
+      // Not allowlisted: no profile, unknown slug, or unknown effort.
+      expect(ChatModelMode.fromAllowedRaw('GLM-5:high', null), isNull);
+      expect(
+        ChatModelMode.fromAllowedRaw('GLM-9:high', const ['GLM-5']),
+        isNull,
+      );
+      expect(
+        ChatModelMode.fromAllowedRaw('GLM-5:v9', const ['GLM-5']),
+        isNull,
+      );
+    });
+
+    test('normalizeRawForFlavor keeps base+effort when the base slug is '
+        'allowlisted', () {
+      expect(
+        ChatModelMode.normalizeRawForFlavor(
+          'GLM-5:high',
+          'claude',
+          allowedRawModels: const ['GLM-5'],
+        ),
+        'GLM-5:high',
+      );
+    });
+  });
+
+  testWidgets('profile-configured custom models expand into an effort '
+      'family with check-and-set effort', (tester) async {
+    // Profile-configured provider models (e.g. OpenRouter slugs) used to
+    // render as flat tiles with no way to vary reasoning effort per
+    // session. They now expand into the same family + effort-slider UI
+    // the built-in tiers use.
     tester.view.physicalSize = const Size(800, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -587,16 +675,25 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    // The plain slug is visible as its own tile even though the grouped
-    // family ('GLM 5') is also present.
+    // Both configured entries collapse into ONE 'GLM-5' family exposing
+    // the full effort range (Auto .. Max).
     expect(find.text('GLM-5'), findsOneWidget);
-    expect(find.text('GLM 5'), findsOneWidget);
+    expect(find.byType(Slider), findsOneWidget);
+    expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Low'), findsOneWidget);
+    expect(find.text('Medium'), findsOneWidget);
+    expect(find.text('High'), findsOneWidget);
+    expect(find.text('XHigh'), findsOneWidget);
+    expect(find.text('Max'), findsOneWidget);
 
+    // Tapping the family commits its effort-less base variant.
     await tester.tap(find.text('GLM-5'));
     await tester.pumpAndSettle();
-
-    // Sheet pops and the exact raw string is committed.
     expect(selected, 'GLM-5');
-    expect(find.text('GLM-5'), findsNothing);
+
+    // Dragging the slider onto the High stop emits slug:effort.
+    await tester.drag(find.byType(Slider), const Offset(500, 0));
+    await tester.pumpAndSettle();
+    expect(selected, 'GLM-5:high');
   });
 }

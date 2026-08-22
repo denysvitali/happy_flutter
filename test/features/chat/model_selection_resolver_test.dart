@@ -484,6 +484,40 @@ void main() {
       expect(options, contains(result.resolvedModelMode));
     });
 
+    test('effort pick on a base-only profile model survives restore', () {
+      // The picker offers slug:effort variants for every configured
+      // model. A draft saved as 'GLM-5:high' must restore even though
+      // the profile lists only the plain slug — it used to parse as a
+      // Codex variant and normalize to 'default'.
+      final profile = _profile(id: 'glm', models: ['GLM-5']);
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: 'GLM-5:high',
+        savedProfileId: 'glm',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: [profile],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedRawModelString, 'GLM-5:high');
+      expect(result.resolvedModelMode.modeString, 'GLM-5:high');
+      expect(result.resolvedModelMode.reasoningEffort, 'high');
+      expect(result.resolvedModelMode.isCodex, isFalse);
+
+      // The restored selection must be one of the picker's options so
+      // it highlights on reopen.
+      final options = ChatModelMode.availableForProfile(
+        flavor: 'claude',
+        claudeCompatible: true,
+        profileModels: profile.models,
+      );
+      expect(options, contains(result.resolvedModelMode));
+    });
+
     test('unknown saved model without a profile still normalizes to '
         'default', () {
       final result = resolveModelSelection(

@@ -265,12 +265,15 @@ class ChatModelMode {
           ? const [defaultModel]
           : codexModels;
     }
-    // Profile has custom models configured — use those instead of
-    // the hardcoded flavor catalog.
+    // Profile has custom models configured — expand each into an
+    // effort family so the user can check and set the reasoning
+    // effort per session (same pattern as [providerOwnedCodexEfforts]).
+    // Entries that differ only by a `:effort` suffix collapse into
+    // one family.
     if (profileModels != null && profileModels.isNotEmpty) {
       return [
         defaultModel,
-        for (final model in profileModels) ChatModelMode.fromString(model),
+        ..._expandProfileModelFamilies(profileModels),
       ];
     }
     final baseModels = availableForFlavor(flavor);
@@ -305,6 +308,82 @@ class ChatModelMode {
         ),
     ];
   }
+
+  /// Builds picker options for a profile-configured custom model on a
+  /// Claude-compatible session (e.g. an OpenRouter slug from the
+  /// profile's model list).
+  ///
+  /// Mirrors [providerOwnedCodexEfforts]: the first entry is the
+  /// effort-less base variant (the provider's own default), followed by
+  /// one entry per [claudeEfforts]. Selecting an effort emits the
+  /// wire-format `slug:effort` string, which the daemon maps to the
+  /// CLI's `--effort` flag.
+  static List<ChatModelMode> providerOwnedClaudeEfforts(String rawModel) {
+    final slug = _stripEffortSuffix(rawModel.trim());
+    if (slug.isEmpty) return const [];
+    return [
+      ChatModelMode.custom(slug: slug),
+      for (final effort in claudeEfforts)
+        ChatModelMode.custom(slug: slug, effort: effort),
+    ];
+  }
+
+  /// Expands a profile's configured model list into effort families,
+  /// deduping slugs that differ only by an effort suffix.
+  static List<ChatModelMode> _expandProfileModelFamilies(
+    List<String> models,
+  ) {
+    final families = <ChatModelMode>[];
+    final seenSlugs = <String>{};
+    for (final raw in models) {
+      final slug = _stripEffortSuffix(raw.trim());
+      if (slug.isEmpty || !seenSlugs.add(slug)) continue;
+      families.addAll(providerOwnedClaudeEfforts(slug));
+    }
+    return families;
+  }
+
+  /// Parses a raw string from a profile's configured model list into its
+  /// picker representation, keeping a trailing `:effort` suffix as
+  /// [reasoningEffort] instead of misreading it as a Codex catalog
+  /// variant. Returns null when the string is not allowlisted — neither
+  /// verbatim nor as a known-effort suffix on an allowlisted base slug.
+  ///
+  /// The returned mode keeps the raw string verbatim as its
+  /// [modeString] so saved drafts round-trip byte-for-byte.
+  static ChatModelMode? fromAllowedRaw(String? raw, List<String>? allowed) {
+    final trimmed = raw?.trim();
+    if (trimmed == null ||
+        trimmed.isEmpty ||
+        allowed == null ||
+        allowed.isEmpty) {
+      return null;
+    }
+    final base = _stripEffortSuffix(trimmed);
+    final hasEffortSuffix = base != trimmed;
+    final baseAllowed = _isAllowedRawModel(base, allowed);
+    if (!baseAllowed && !_isAllowedRawModel(trimmed, allowed)) {
+      return null;
+    }
+    final effort = hasEffortSuffix
+        ? trimmed.substring(base.length + 1)
+        : null;
+    return ChatModelMode._(
+      // Same shape as [ChatModelMode.custom]: "slug Effort" reads better
+      // in chips than the raw wire string.
+      label: effort != null ? '$base ${_capitalizeEffort(effort)}' : base,
+      modeString: trimmed,
+      modelSlug: base,
+      reasoningEffort: effort,
+      flavor: 'claude',
+    );
+  }
+
+  /// Whether [raw] is a valid selection against a profile's configured
+  /// model list: verbatim, or `base:effort` with an allowlisted base and
+  /// a known effort level.
+  static bool isAllowedRawSelection(String raw, List<String>? allowed) =>
+      fromAllowedRaw(raw, allowed) != null;
 
   /// Drops a trailing `:effort` suffix from a provider-owned model string
   /// so the base slug can be reused across effort variants. Only known
@@ -385,7 +464,7 @@ class ChatModelMode {
       return model;
     }
     if (flavor != 'codex' &&
-        _isAllowedRawModel(model.modeString, allowedRawModels)) {
+        isAllowedRawSelection(model.modeString, allowedRawModels)) {
       return model;
     }
     return defaultModel;
@@ -409,7 +488,7 @@ class ChatModelMode {
         !isKnownCodexModelString(trimmed)) {
       return defaultModel.modeString;
     }
-    if (_isAllowedRawModel(trimmed, allowedRawModels)) {
+    if (isAllowedRawSelection(trimmed, allowedRawModels)) {
       return trimmed;
     }
     final parsed = fromString(value);

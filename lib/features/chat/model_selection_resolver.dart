@@ -121,11 +121,18 @@ ModelSelectionResolution resolveModelSelection({
     allowedRawModels: profileModels,
   );
 
-  ChatModelMode normalizeModel(String raw) => ChatModelMode.normalizeForFlavor(
-    ChatModelMode.fromString(raw),
-    flavor,
-    allowedRawModels: profileModels,
-  );
+  ChatModelMode normalizeModel(String raw) {
+    // Profile-configured models are provider-owned raw strings; a
+    // trailing ':effort' must restore as reasoning effort, not parse
+    // as a Codex catalog variant that normalization would drop.
+    final allowed = ChatModelMode.fromAllowedRaw(raw, profileModels);
+    if (allowed != null) return allowed;
+    return ChatModelMode.normalizeForFlavor(
+      ChatModelMode.fromString(raw),
+      flavor,
+      allowedRawModels: profileModels,
+    );
+  }
 
   // Priority: saved draft > session model > profile default > settings
   // default.
