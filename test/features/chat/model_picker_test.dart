@@ -590,17 +590,13 @@ void main() {
         'GLM-5:xhigh',
         'GLM-5:max',
       ]);
-      expect(
-        models.map((m) => m.modelSlug).whereType<String>().toSet(),
-        {'GLM-5'},
-      );
+      expect(models.map((m) => m.modelSlug).whereType<String>().toSet(), {
+        'GLM-5',
+      });
     });
 
     test('fromAllowedRaw keeps effort suffixes off the Codex catalog', () {
-      final mode = ChatModelMode.fromAllowedRaw(
-        'GLM-5:high',
-        const ['GLM-5'],
-      );
+      final mode = ChatModelMode.fromAllowedRaw('GLM-5:high', const ['GLM-5']);
       expect(mode, isNotNull);
       expect(mode!.modeString, 'GLM-5:high');
       expect(mode.isCodex, isFalse);
@@ -612,10 +608,7 @@ void main() {
         ChatModelMode.fromAllowedRaw('GLM-9:high', const ['GLM-5']),
         isNull,
       );
-      expect(
-        ChatModelMode.fromAllowedRaw('GLM-5:v9', const ['GLM-5']),
-        isNull,
-      );
+      expect(ChatModelMode.fromAllowedRaw('GLM-5:v9', const ['GLM-5']), isNull);
     });
 
     test('normalizeRawForFlavor keeps base+effort when the base slug is '
@@ -692,7 +685,10 @@ void main() {
     expect(selected, 'GLM-5');
 
     // Dragging the slider onto the High stop emits slug:effort.
-    await tester.drag(find.byType(Slider), const Offset(500, 0));
+    // tester.drag starts at the Slider's center; a short rightward drag
+    // lands between the High stop (0.5–0.7 of the track) without
+    // overshooting into XHigh/Max at the clamped right edge.
+    await tester.drag(find.byType(Slider), const Offset(75, 0));
     await tester.pumpAndSettle();
     expect(selected, 'GLM-5:high');
   });
