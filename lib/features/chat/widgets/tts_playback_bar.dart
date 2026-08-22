@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/tts_service.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
@@ -89,15 +90,21 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     return Material(
-      // Subtle primary tint so the bar reads as an active, persistent
-      // control rather than blending into the chat surface.
-      color: Color.alphaBlend(
-        cs.primary.withValues(alpha: 0.08),
-        cs.surfaceContainerHighest,
+      // Glass capsule: near-opaque surface with a hairline seam so the
+      // active playback control floats over the chat without a hard slab.
+      color: cs.surfaceContainerLow.withValues(alpha: 0.92),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        side: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
       ),
+      clipBehavior: Clip.antiAlias,
+      elevation: AppElevation.low,
+      shadowColor: Colors.black.withValues(alpha: 0.18),
       child: SafeArea(
         top: false,
         bottom: false,
@@ -240,8 +247,22 @@ class _PulsingSpeakerState extends State<_PulsingSpeaker>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1100),
-  )..repeat(reverse: true);
+    duration: AppDuration.pulse,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // The pulse marks active speech; honor reduced motion with a static
+    // ring at full strength instead of a looping animation.
+    if (AppMotion.reduceMotion(context)) {
+      _ctrl
+        ..stop()
+        ..value = 0;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
 
   @override
   void dispose() {
