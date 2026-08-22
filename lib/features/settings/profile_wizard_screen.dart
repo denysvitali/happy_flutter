@@ -128,6 +128,12 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         _smallFastModelCtrl.text = 'qwen3.6-flash';
         _timeoutCtrl.text = '3000000';
         break;
+      case 'custom-codex-proxy':
+        _baseUrlCtrl.text = '';
+        _modelCtrl.text = '';
+        _smallFastModelCtrl.text = '';
+        _timeoutCtrl.text = '600000';
+        break;
     }
   }
 
@@ -164,6 +170,45 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
       envVars.add(
         EnvironmentVariable(name: 'API_TIMEOUT_MS', value: _timeoutCtrl.text),
       );
+    } else if (_selectedProvider == 'custom-codex-proxy') {
+      // OpenAI-compatible gateway for Codex, plus the optional provider
+      // definition overrides the daemon maps onto -c model_providers flags.
+      envVars
+        ..add(
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: _baseUrlCtrl.text,
+          ),
+        )
+        ..add(
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: _apiKeyCtrl.text),
+        )
+        ..add(
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: _modelCtrl.text),
+        )
+        ..add(
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_ENV_KEY',
+            value: 'OPENAI_API_KEY',
+          ),
+        )
+        ..add(
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_WIRE_API',
+            value: 'chat',
+          ),
+        )
+        ..add(
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_NAME',
+            value: '',
+          ),
+        );
+      if (_timeoutCtrl.text.isNotEmpty) {
+        envVars.add(
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: _timeoutCtrl.text),
+        );
+      }
     } else if (_selectedProvider == 'azure-openai') {
       envVars
         ..add(

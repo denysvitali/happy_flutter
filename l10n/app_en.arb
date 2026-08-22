@@ -1657,6 +1657,7 @@
   "profilesQuickSetup": "Quick Setup",
   "profilesCompatibleAgents": "Compatible agents",
   "profilesCompatibleAgentsHint": "Choose which agents can use this profile",
+  "profilesCodexProviderEnvHint": "Codex sessions route through OPENAI_BASE_URL as a custom provider. Optional overrides in the variables below: HAPPY_CODEX_PROVIDER_ENV_KEY names the variable holding your API key (default OPENAI_API_KEY), HAPPY_CODEX_PROVIDER_WIRE_API selects the protocol — chat for OpenAI-compatible gateways or responses for Codex-native ones (default responses) — and HAPPY_CODEX_PROVIDER_NAME sets a display name.",
   "profilesModelsTitle": "Models",
   "profilesModelsHint": "Models available when this profile is selected",
   "profilesModelLabel": "Model identifier",

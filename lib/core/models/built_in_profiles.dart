@@ -18,6 +18,7 @@ const _builtInIds = [
   'openai',
   'azure-openai',
   'qwen-token-plan-codex',
+  'custom-codex-proxy',
 ];
 
 /// All built-in profile IDs in display order.
@@ -581,6 +582,56 @@ AIBackendProfile? getBuiltInProfile(String id) {
           EnvironmentVariable(
             name: 'API_TIMEOUT_MS',
             value: r'${QWEN_API_TIMEOUT_MS:-3000000}',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+          pi: false,
+        ),
+      );
+
+    case 'custom-codex-proxy':
+      return AIBackendProfile(
+        id: 'custom-codex-proxy',
+        name: 'Custom Codex Proxy',
+        description:
+            'Any OpenAI-compatible gateway for Codex (base URL required)',
+        isBuiltIn: true,
+        defaultModelMode: 'default',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: r'${CUSTOM_CODEX_BASE_URL:-}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_API_KEY',
+            value: r'${CUSTOM_CODEX_API_KEY:-}',
+          ),
+          EnvironmentVariable(
+            name: 'OPENAI_MODEL',
+            value: r'${CUSTOM_CODEX_MODEL:-}',
+          ),
+          // Optional Codex provider-definition overrides (daemon
+          // codexProviderArgs): env_key names the variable carrying the API
+          // key, wire_api selects chat (OpenAI-compatible) or responses
+          // (Codex-native). Empty values keep the daemon defaults.
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_ENV_KEY',
+            value: r'${CUSTOM_CODEX_ENV_KEY:-OPENAI_API_KEY}',
+          ),
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_WIRE_API',
+            value: r'${CUSTOM_CODEX_WIRE_API:-chat}',
+          ),
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_NAME',
+            value: r'${CUSTOM_CODEX_PROVIDER_NAME:-}',
+          ),
+          EnvironmentVariable(
+            name: 'API_TIMEOUT_MS',
+            value: r'${CUSTOM_CODEX_API_TIMEOUT_MS:-600000}',
           ),
         ],
         compatibility: const ProfileCompatibility(

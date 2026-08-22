@@ -466,6 +466,13 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                     ),
                   ],
                 ),
+                if (_compatibility.codex) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    l10n.profilesCodexProviderEnvHint,
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                ],
               ],
             ),
           ),

@@ -103,4 +103,60 @@ void main() {
       expect(templateEnv.containsKey('OPENAI_API_KEY'), isTrue);
     });
   });
+
+  group('custom-codex-proxy built-in profile', () {
+    final profile = getBuiltInProfile('custom-codex-proxy');
+
+    test('is a codex-only built-in listed for display', () {
+      expect(profile, isNotNull);
+      expect(profile!.isBuiltIn, isTrue);
+      expect(profile.compatibility.codex, isTrue);
+      expect(profile.compatibility.claude, isFalse);
+      expect(profile.compatibility.gemini, isFalse);
+      expect(builtInProfileIds, contains('custom-codex-proxy'));
+      expect(resolveProfile('custom-codex-proxy', const []), isNotNull);
+    });
+
+    test(
+      'carries the optional Codex provider-definition overrides the daemon '
+      'translates into -c model_providers flags',
+      () {
+        final env = {
+          for (final e in profile!.environmentVariables) e.name: e.value,
+        };
+
+        // Base URL is required but has no default — an unconfigured profile
+        // must not route codex anywhere.
+        expect(_envDefault(env['OPENAI_BASE_URL']!), '');
+
+        // env_key override defaults to OPENAI_API_KEY; wire_api defaults to
+        // chat (OpenAI-compatible gateways); name override stays empty so
+        // the daemon keeps its own default display name.
+        expect(
+          _envDefault(env['HAPPY_CODEX_PROVIDER_ENV_KEY']!),
+          'OPENAI_API_KEY',
+        );
+        expect(_envDefault(env['HAPPY_CODEX_PROVIDER_WIRE_API']!), 'chat');
+        expect(_envDefault(env['HAPPY_CODEX_PROVIDER_NAME']!), '');
+      },
+    );
+
+    test('catalog and wizard entries mirror the built-in profile', () {
+      final option = profileSetupOption('custom-codex-proxy');
+      expect(option, isNotNull);
+
+      final template = profileSetupTemplate('custom-codex-proxy');
+      expect(template, isNotNull);
+      expect(template!.compatibility.codex, isTrue);
+      expect(template.compatibility.claude, isFalse);
+      final templateEnv = {
+        for (final e in template.environmentVariables) e.name: e.value,
+      };
+      // The wizard template seeds editable plain values; the overrides are
+      // present so users can flip them in the editor.
+      expect(templateEnv.containsKey('OPENAI_BASE_URL'), isTrue);
+      expect(templateEnv['HAPPY_CODEX_PROVIDER_ENV_KEY'], 'OPENAI_API_KEY');
+      expect(templateEnv['HAPPY_CODEX_PROVIDER_WIRE_API'], 'chat');
+    });
+  });
 }

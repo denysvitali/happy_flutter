@@ -109,6 +109,14 @@ ProfileSetupOption? _profileSetupOptionForId(String id) {
         icon: Icons.generating_tokens,
         apiKeyLabel: 'Qwen API Key',
       );
+    case 'custom-codex-proxy':
+      return const ProfileSetupOption(
+        id: 'custom-codex-proxy',
+        label: 'Custom Codex Proxy',
+        shortDescription: 'Any OpenAI-compatible gateway',
+        icon: Icons.settings_ethernet,
+        apiKeyLabel: 'Proxy API Key',
+      );
     default:
       return null;
   }
@@ -425,6 +433,36 @@ AIBackendProfile? profileSetupTemplate(String id) {
             value: 'qwen3.7-max',
           ),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '3000000'),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+        ),
+      );
+    case 'custom-codex-proxy':
+      return AIBackendProfile(
+        id: 'custom-codex-proxy',
+        name: 'Custom Codex Proxy',
+        description:
+            'Any OpenAI-compatible gateway for Codex (base URL required)',
+        environmentVariables: [
+          EnvironmentVariable(name: 'OPENAI_BASE_URL', value: ''),
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: ''),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: ''),
+          // Optional Codex provider-definition overrides; see
+          // built_in_profiles.dart. Empty values keep the daemon defaults
+          // (env_key=OPENAI_API_KEY, wire_api=responses).
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_ENV_KEY',
+            value: 'OPENAI_API_KEY',
+          ),
+          EnvironmentVariable(
+            name: 'HAPPY_CODEX_PROVIDER_WIRE_API',
+            value: 'chat',
+          ),
+          EnvironmentVariable(name: 'HAPPY_CODEX_PROVIDER_NAME', value: ''),
+          EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,

@@ -4177,6 +4177,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose which agents can use this profile';
 
   @override
+  String get profilesCodexProviderEnvHint =>
+      'Codex sessions route through OPENAI_BASE_URL as a custom provider. Optional overrides in the variables below: HAPPY_CODEX_PROVIDER_ENV_KEY names the variable holding your API key (default OPENAI_API_KEY), HAPPY_CODEX_PROVIDER_WIRE_API selects the protocol — chat for OpenAI-compatible gateways or responses for Codex-native ones (default responses) — and HAPPY_CODEX_PROVIDER_NAME sets a display name.';
+
+  @override
   String get profilesModelsTitle => 'Models';
 
   @override
