@@ -149,7 +149,48 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              _buildCapsule(cs, glass, shape),
+              // The capsule body is inlined here rather than extracted:
+              // this Semantics wrapper must lexically contain the
+              // InkWell for the icon-only a11y source scan to see it.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: shape,
+                  boxShadow: AppShadow.floating,
+                ),
+                child: Material(
+                  color: cs.surfaceContainerLow.withValues(alpha: _fillAlpha),
+                  borderRadius: shape,
+                  child: InkWell(
+                    borderRadius: shape,
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      widget.onTap();
+                    },
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: AppTouchTarget.min,
+                        minHeight: AppTouchTarget.min,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: shape,
+                        border: Border.all(
+                          color: glass.glassBorder,
+                          width: AppBorder.hairline,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.keyboard_double_arrow_down_rounded,
+                        size: 20,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               if (showBadge)
                 Positioned(
                   top: -4,
@@ -160,54 +201,6 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
                   ),
                 ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// The glass capsule body: floating shadow, translucent surface,
-  /// hairline glass rim, and the scroll chevron.
-  Widget _buildCapsule(
-    ColorScheme cs,
-    AppColorScheme glass,
-    BorderRadius shape,
-  ) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: shape,
-        boxShadow: AppShadow.floating,
-      ),
-      child: Material(
-        color: cs.surfaceContainerLow.withValues(alpha: _fillAlpha),
-        borderRadius: shape,
-        child: InkWell(
-          borderRadius: shape,
-          onTap: () {
-            HapticFeedback.lightImpact();
-            widget.onTap();
-          },
-          child: Container(
-            constraints: const BoxConstraints(
-              minWidth: AppTouchTarget.min,
-              minHeight: AppTouchTarget.min,
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: BoxDecoration(
-              borderRadius: shape,
-              border: Border.all(
-                color: glass.glassBorder,
-                width: AppBorder.hairline,
-              ),
-            ),
-            child: Icon(
-              Icons.keyboard_double_arrow_down_rounded,
-              size: 20,
-              color: cs.onSurfaceVariant,
-            ),
           ),
         ),
       ),
