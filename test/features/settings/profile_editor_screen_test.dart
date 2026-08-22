@@ -236,6 +236,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // The env section starts below the fold on a phone-size viewport
+      // (the codex provider hint makes the agent-compatibility card
+      // taller), and the lazy ListView has not built it yet — drag the
+      // form until the row exists before measuring.
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'OPENAI_API_KEY'),
+        100,
+        // Every TextField embeds its own Scrollable; drag the main
+        // form ListView (the first in tree order).
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       final keyTop = tester.getTopLeft(find.text('Key')).dy;
       final valueTop = tester.getTopLeft(find.text('Value')).dy;
 

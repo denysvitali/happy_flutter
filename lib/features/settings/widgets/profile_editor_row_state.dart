@@ -160,6 +160,9 @@ class ContextWindowSection extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<int>(
             initialValue: contextWindow ?? _defaultSentinel,
+            // Bound the selected item to the available width — without
+            // this the intrinsic-size row overflows narrow phones.
+            isExpanded: true,
             dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
             decoration: auroraField(
               context: context,
