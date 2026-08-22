@@ -1482,6 +1482,21 @@ what you have, you must use the options mode.
       }
       if (kind == 'agent-event') continue;
       if (msg['isThinking'] == true) continue;
+      // Synthetic agent API errors render as error cards carrying the
+      // human-readable failure in errorMessage — feed the error lane
+      // from them instead of skipping to an older message.
+      if (kind == 'error') {
+        final errorText = msg['errorMessage'] as String?;
+        if (msgRole == MessageRole.agent &&
+            errorText != null &&
+            errorText.trim().isNotEmpty) {
+          preview = _cleanPreviewText(errorText.trim());
+          role = msgRole;
+          isError = true;
+          break;
+        }
+        continue;
+      }
       final text = (msg['content'] ?? msg['text']) as String?;
       if (text != null && text.trim().isNotEmpty) {
         preview = _cleanPreviewText(text.trim());

@@ -33,6 +33,55 @@ void _emitUnrenderedAgentEvent({
   });
 }
 
+/// Emits an agent-role error card for a fatal CLI/API failure and
+/// registers its text in [emittedErrorKeys].
+///
+/// Returns false when an identical error text was already emitted in this
+/// batch: for fatal API failures the CLI emits BOTH a synthetic assistant
+/// turn and a terminal `result` envelope carrying the same message, and the
+/// user must see one failure, not two.
+bool _emitAgentErrorCard({
+  required String id,
+  required String? localId,
+  required int seq,
+  required int createdAt,
+  required String errorType,
+  required String text,
+  required Map<String, dynamic> outerContent,
+  required ({bool isSidechain, String? uuid, String? parentUuid}) meta,
+  String? parentToolUseId,
+  String? agentId,
+  Map<String, dynamic> debugData = const <String, dynamic>{},
+  required List<Map<String, dynamic>> messages,
+  Set<String>? emittedErrorKeys,
+}) {
+  final key = text.trim().toLowerCase();
+  if (key.isEmpty) return false;
+  if (emittedErrorKeys != null) {
+    if (emittedErrorKeys.contains(key)) return false;
+    emittedErrorKeys.add(key);
+  }
+  messages.add({
+    'id': id,
+    'localId': localId,
+    'seq': seq,
+    'createdAt': createdAt,
+    'role': 'agent',
+    'kind': 'error',
+    'errorType': errorType,
+    'errorMessage': text,
+    'isError': true,
+    'debugData': debugData,
+    'raw': outerContent,
+    if (meta.isSidechain) 'isSidechain': true,
+    'uuid': ?meta.uuid,
+    'parentUuid': ?meta.parentUuid,
+    'parentToolUseId': ?parentToolUseId,
+    'agentId': ?agentId,
+  });
+  return true;
+}
+
 void _processOutputContent({
   required String id,
   required String? localId,
@@ -45,6 +94,7 @@ void _processOutputContent({
   required List<Map<String, dynamic>> toolResults,
   required List<Map<String, dynamic>> usageUpdates,
   List<String>? droppedReasons,
+  Set<String>? emittedErrorKeys,
 }) {
   final data = WireParsers.asMap(nestedContent['data']);
   if (data == null) {
@@ -118,6 +168,30 @@ void _processOutputContent({
 
     final rawAgentMsg = data['message'];
     final agentMsg = WireParsers.asMap(rawAgentMsg);
+
+    // Fatal API failure synthesized as an assistant turn — render one
+    // error card instead of a regular assistant bubble (see
+    // [_syntheticAssistantError]).
+    final syntheticError = _syntheticAssistantError(data);
+    if (syntheticError != null) {
+      _emitAgentErrorCard(
+        id: id,
+        localId: localId,
+        seq: seq,
+        createdAt: createdAt,
+        errorType: syntheticError.type,
+        text: syntheticError.text,
+        outerContent: outerContent,
+        meta: meta,
+        parentToolUseId: parentToolUseId,
+        agentId: agentId,
+        debugData: syntheticError.debug,
+        messages: messages,
+        emittedErrorKeys: emittedErrorKeys,
+      );
+      return;
+    }
+
     if (agentMsg == null) {
       if (rawAgentMsg is String && rawAgentMsg.isNotEmpty) {
         messages.add({
@@ -460,6 +534,42 @@ void _processOutputContent({
     }
 
     if (handled) return;
+
+    // Fatal CLI failures arrive as a terminal result envelope with a
+    // human-readable `result` string (e.g. model_not_found). Render it
+    // as an error card instead of falling through to the unsupported-
+    // dataType chip. Duplicates of an already-emitted synthetic assistant
+    // error card are suppressed via [emittedErrorKeys].
+    final isFatalResult = data['is_error'] == true || data['isError'] == true;
+    if (isFatalResult) {
+      final resultText = data['result'];
+      if (resultText is String && resultText.trim().isNotEmpty) {
+        final subtype = data['subtype'] as String?;
+        _emitAgentErrorCard(
+          id: id,
+          localId: localId,
+          seq: seq,
+          createdAt: createdAt,
+          errorType: switch (data['terminal_reason'] ?? subtype) {
+            final String reason => reason,
+            _ => 'execution_error',
+          },
+          text: resultText,
+          outerContent: outerContent,
+          meta: meta,
+          parentToolUseId: parentToolUseId,
+          agentId: agentId,
+          debugData: <String, dynamic>{
+            if (subtype != null) 'subtype': subtype,
+            if (data['api_error_status'] != null)
+              'apiErrorStatus': data['api_error_status'],
+          },
+          messages: messages,
+          emittedErrorKeys: emittedErrorKeys,
+        );
+        return;
+      }
+    }
   }
 
   if (dataType == DataType.user) {
@@ -648,6 +758,60 @@ String _webSearchState(String? status) {
     'failed' || 'error' => 'error',
     _ => 'running',
   };
+}
+
+/// Detects the synthetic assistant turn Claude CLI emits when an API call
+/// fails fatally (unknown model on a third-party gateway, revoked access,
+/// ...). Reproduced shape (claude 2.1.239, OpenRouter 404):
+///
+/// ```json
+/// {"type":"assistant","error":"model_not_found",
+///  "is_api_error_message":true,"request_id":"req_…",
+///  "message":{"role":"assistant","model":"<synthetic>",
+///             "content":[{"type":"text","text":"There's an issue with
+///             the selected model (…). …"}]}}
+/// ```
+///
+/// The envelope renders through the normal text-block path, so without
+/// this check the fatal failure looks like a regular assistant reply.
+({String type, String text, Map<String, dynamic> debug})?
+_syntheticAssistantError(Map<String, dynamic> data) {
+  final errorField = data['error'];
+  final hasErrorField = errorField is String && errorField.isNotEmpty;
+  final isFlagged =
+      data['is_api_error_message'] == true ||
+      data['is_api_error'] == true ||
+      hasErrorField;
+  if (!isFlagged) return null;
+
+  final agentMsg = WireParsers.asMap(data['message']);
+  final content = agentMsg?['content'] ?? data['content'];
+  final String? text;
+  if (content is List) {
+    text = _extractTextFromContentBlocks(
+      content.whereType<Map<String, dynamic>>().toList(),
+    );
+  } else if (content is String && content.isNotEmpty) {
+    text = content;
+  } else if (agentMsg == null &&
+      data['message'] is String &&
+      (data['message'] as String).isNotEmpty) {
+    text = data['message'] as String;
+  } else {
+    text = null;
+  }
+  if (text == null || text.trim().isEmpty) return null;
+
+  return (
+    type: hasErrorField ? errorField as String : 'api_error',
+    text: text,
+    debug: <String, dynamic>{
+      if (agentMsg?['model'] != null) 'model': agentMsg!['model'],
+      if (data['request_id'] != null) 'requestId': data['request_id'],
+      if (data['api_error_status'] != null)
+        'apiErrorStatus': data['api_error_status'],
+    },
+  );
 }
 
 Map<String, dynamic> _webSearchInput(Map<String, dynamic> data) {

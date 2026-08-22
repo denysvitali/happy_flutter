@@ -1242,6 +1242,47 @@ void main() {
       expect(instance.getLastMessageIsError('s1'), isFalse);
     });
 
+    test('an agent error card feeds the preview and the error lane', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'error',
+          'errorType': 'model_not_found',
+          'errorMessage':
+              "There's an issue with the selected model "
+              '(vendor/ling-3.0-flash:free).',
+          'isError': true,
+          'createdAt': 1,
+        },
+      ]);
+      expect(
+        instance.getLastMessagePreview('s1'),
+        contains('issue with the selected model'),
+      );
+      expect(instance.getLastMessageRole('s1'), 'agent');
+      expect(instance.getLastMessageIsError('s1'), isTrue);
+    });
+
+    test('a system decryption-error card does not become the preview', () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'user',
+          'kind': 'text',
+          'content': 'hello there',
+          'createdAt': 1,
+        },
+        {
+          'role': 'system',
+          'kind': 'error',
+          'errorType': 'decryption_failed',
+          'errorMessage': 'Failed to decrypt message',
+          'createdAt': 2,
+        },
+      ]);
+      expect(instance.getLastMessagePreview('s1'), 'hello there');
+      expect(instance.getLastMessageIsError('s1'), isFalse);
+    });
+
     test('markSessionRead clears the unread counter', () {
       instance.testSeedUnread('s1', 4);
       expect(instance.getUnreadCount('s1'), 4);

@@ -215,6 +215,10 @@ ProcessedMessages processDecryptedMessages({
   final toolResults = <Map<String, dynamic>>[];
   final usageUpdates = <Map<String, dynamic>>[];
   final droppedReasons = <String>[];
+  // Dedupes fatal CLI/API error cards within one batch: the CLI emits the
+  // same failure text as a synthetic assistant turn AND a terminal result
+  // envelope (see _syntheticAssistantError).
+  final emittedErrorKeys = <String>{};
   var maxSeq = -1;
   var undecryptableRendered = 0;
 
@@ -325,6 +329,7 @@ ProcessedMessages processDecryptedMessages({
           toolResults: toolResults,
           usageUpdates: usageUpdates,
           droppedReasons: droppedReasons,
+          emittedErrorKeys: emittedErrorKeys,
         );
       } else if (contentType == 'event') {
         _processEventContent(
