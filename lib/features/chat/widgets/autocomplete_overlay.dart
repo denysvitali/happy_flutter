@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_color_scheme.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Represents a single autocomplete suggestion
@@ -59,12 +61,18 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
     if (widget.selectedIndex < 0) return;
 
     final scrollOffset = widget.selectedIndex * widget.itemHeight;
+    // Keep the reveal within the ≤150ms highlight budget; snap instantly
+    // when reduced motion is requested.
     _scrollController.animateTo(
       scrollOffset,
-      duration: const Duration(milliseconds: 100),
+      duration: AppMotion.duration(context, _highlightDuration),
       curve: Curves.easeOut,
     );
   }
+
+  static const Duration _highlightDuration = Duration(
+    milliseconds: 150,
+  );
 
   @override
   void dispose() {
@@ -79,40 +87,78 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
     }
 
     final theme = Theme.of(context);
+    final appScheme =
+        theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    final glassBorder = appScheme.glassBorder;
+    final glassHighlight = appScheme.glassHighlight;
     final effectivePadding =
         widget.padding ?? const EdgeInsets.symmetric(horizontal: 8);
 
+    // Floating aurora-glass popover: near-opaque translucent fill, hairline
+    // glass border, top-edge highlight and a floating shadow. The highlight
+    // is painted as a thin inner top strip so the panel reads as lit glass.
     return Container(
       constraints: BoxConstraints(maxHeight: widget.maxHeight),
-      child: Material(
-        elevation: 8,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        color: theme.colorScheme.surface,
-        child: ClipRRect(
-          clipBehavior: Clip.hardEdge,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Scrollbar(
-            controller: _scrollController,
-            child: ListView.separated(
-              controller: _scrollController,
-              padding: effectivePadding,
-              itemCount: widget.suggestions.length,
-              separatorBuilder: (context, index) => Divider(
-                height: 1,
-                color: theme.dividerColor.withValues(alpha: 0.5),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh.withValues(alpha: 0.97),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: glassBorder, width: AppBorder.hairline),
+        boxShadow: AppShadow.floating,
+      ),
+      child: ClipRRect(
+        clipBehavior: Clip.hardEdge,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Stack(
+          children: [
+            // Top-edge glass highlight.
+            Positioned(
+              left: AppSpacing.xxs,
+              right: AppSpacing.xxs,
+              top: 0,
+              child: Container(
+                height: AppBorder.thin,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      glassHighlight.withValues(alpha: 0),
+                      glassHighlight,
+                      glassHighlight.withValues(alpha: 0),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
               ),
-              itemBuilder: (context, index) {
-                final suggestion = widget.suggestions[index];
-                final isSelected = index == widget.selectedIndex;
-
-                return _SuggestionItem(
-                  suggestion: suggestion,
-                  isSelected: isSelected,
-                  onTap: () => widget.onSelect(index),
-                );
-              },
             ),
-          ),
+            Material(
+              type: MaterialType.transparency,
+              child: Scrollbar(
+                controller: _scrollController,
+                child: ListView.separated(
+                  controller: _scrollController,
+                  padding: effectivePadding,
+                  itemCount: widget.suggestions.length,
+                  separatorBuilder: (context, index) => Divider(
+                    height: 1,
+                    color: theme.dividerColor.withValues(alpha: 0.5),
+                  ),
+                  itemBuilder: (context, index) {
+                    final suggestion = widget.suggestions[index];
+                    final isSelected = index == widget.selectedIndex;
+
+                    return _SuggestionItem(
+                      suggestion: suggestion,
+                      isSelected: isSelected,
+                      accentGradient: appScheme.accentLinearGradient,
+                      reduceMotion: AppMotion.reduceMotion(context),
+                      onTap: () => widget.onSelect(index),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -123,30 +169,60 @@ class _SuggestionItem extends StatelessWidget {
   const _SuggestionItem({
     required this.suggestion,
     required this.isSelected,
+    required this.accentGradient,
+    required this.reduceMotion,
     required this.onTap,
   });
   final AutocompleteSuggestion suggestion;
   final bool isSelected;
+  final LinearGradient accentGradient;
+  final bool reduceMotion;
   final VoidCallback onTap;
+
+  static const Duration _highlightDuration = Duration(milliseconds: 150);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Highlight transitions stay within the ≤150ms budget and snap to the
+    // end state immediately under reduced motion.
+    final highlightDuration = reduceMotion
+        ? Duration.zero
+        : _highlightDuration;
 
     return Material(
-      color: isSelected
-          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.3)
-          : Colors.transparent,
+      type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
-        child: Container(
+        child: AnimatedContainer(
+          duration: highlightDuration,
+          curve: Curves.easeOut,
           height: 56,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? theme.colorScheme.primary.withValues(
+                    alpha: AppOpacity.faint,
+                  )
+                : null,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
             vertical: AppSpacing.sm,
           ),
           child: Row(
             children: [
+              // Selected-row leading edge: 2px accent gradient bar.
+              AnimatedContainer(
+                duration: highlightDuration,
+                curve: Curves.easeOut,
+                width: isSelected ? AppBorder.thick : 0,
+                margin: const EdgeInsets.only(right: AppSpacing.smd),
+                decoration: BoxDecoration(
+                  gradient: accentGradient,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
               // Icon
               _buildIcon(context),
               const SizedBox(width: AppSpacing.md),
