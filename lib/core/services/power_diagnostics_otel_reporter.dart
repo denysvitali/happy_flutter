@@ -58,6 +58,10 @@ class PowerDiagnosticsOtelReporter {
     int delta = 1,
     Map<String, String> attributes = const {},
   }) {
+    // Web builds never initialize OTel (see OpenTelemetryService.initialize);
+    // bail before the uninitialized SDK raises per call. Pre-init bumps on
+    // native already failed inside the try below, so nothing new is dropped.
+    if (!OpenTelemetryService().isInitialized) return;
     try {
       final counter = _counters.putIfAbsent(
         name,

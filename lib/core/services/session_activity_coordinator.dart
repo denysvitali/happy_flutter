@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../models/session.dart';
 import 'live_activity_service.dart';
 import 'logger_service.dart';
@@ -69,7 +71,12 @@ class SessionActivityCoordinator {
         .where((domain) => domain == SyncDomain.sessions)
         .listen((_) => _reconcile(sync));
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(_refreshInterval, (_) => _reconcile(sync));
+    // Web notifications are hard no-ops (NotificationService returns early
+    // on kIsWeb), so the periodic elapsed-time refresh is pure allocation
+    // churn there. The domain-change subscription above still reconciles.
+    if (!kIsWeb) {
+      _refreshTimer = Timer.periodic(_refreshInterval, (_) => _reconcile(sync));
+    }
   }
 
   /// Stop watching and cancel any active activity notifications.

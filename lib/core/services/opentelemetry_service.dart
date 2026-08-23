@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
     show Counter, Histogram;
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
     hide Logger, LogLevel;
@@ -141,6 +141,12 @@ class OpenTelemetryService {
   }
 
   Future<void> initialize() async {
+    // Web builds never initialize telemetry: the collector sends no CORS
+    // headers, so every browser export dies at preflight after paying for
+    // full protobuf serialization, while the SDK's 1s log / 5s span / 30s
+    // metric batch timers run for the life of the page regardless. Leaving
+    // [_initialized] false turns every public entry below into a no-op.
+    if (kIsWeb) return;
     if (_initialized) return;
     final existing = _initializeFuture;
     if (existing != null) return existing;

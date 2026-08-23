@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../models/session.dart';
 import 'logger_service.dart';
 import 'notification_service.dart';
@@ -97,8 +99,14 @@ class StuckAgentSentinel {
     _messagesSub?.cancel();
     _messagesSub = sync.onSessionMessagesChanged.listen(recordProgress);
     _checkTimer?.cancel();
+    // Web cannot show local notifications (NotificationService no-ops on
+    // kIsWeb), so the safety-net walk is stretched to 5 minutes there; the
+    // event sources above still reconcile on real progress changes.
+    final effectiveInterval = kIsWeb
+        ? const Duration(minutes: 5)
+        : _checkInterval;
     _checkTimer = Timer.periodic(
-      _checkInterval,
+      effectiveInterval,
       (_) => reconcile(sync.sessions.values),
     );
   }
