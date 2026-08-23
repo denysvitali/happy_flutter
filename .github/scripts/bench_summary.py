@@ -21,9 +21,13 @@ def parse_log(path: Path) -> list[dict[str, str]]:
     )
     rows = []
     for raw in path.read_text(errors='replace').splitlines():
-        if not raw.startswith('BENCH|'):
+        # flutter test's expanded reporter can prefix interleaved output
+        # (e.g. `Shell: BENCH|...` from tearDownAll after a suite closes),
+        # so match BENCH| anywhere in the line.
+        idx = raw.find('BENCH|')
+        if idx < 0:
             continue
-        parts = raw.split('|')
+        parts = raw[idx:].split('|')
         if len(parts) != len(fields) + 1:
             print(f'::warning::malformed BENCH line ({len(parts)} fields): {raw}',
                   file=sys.stderr)

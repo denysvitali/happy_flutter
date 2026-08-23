@@ -55,7 +55,6 @@ void main() {
       () async {
     const sessionId = 'bench-ingest';
     const batch = 100;
-    var round = 0;
     // Keep any inline-path HTTP fallback from leaving the mock backend
     // (mirrors the integration suite's guard).
     sync.testFetchMessagesOverride =
@@ -64,17 +63,19 @@ void main() {
               'hasMore': false,
             };
 
+    // Seed once; every round appends contiguously onto the growing
+    // transcript so the inline path sees a gap-free chain (a per-round
+    // reset would make the cursor logic schedule endless catch-up
+    // fetches against the always-empty override).
+    _seedSession(sync, sessionId, lastSeq: 0, visible: true);
+    var injected = 0;
+
     Future<double> injectRound() async {
-      final base = round++ * batch;
-      _seedSession(
-        sync,
-        sessionId,
-        lastSeq: base,
-        visible: true,
-      );
+      final base = injected;
       final messages = makeTranscript(batch);
       for (var i = 0; i < messages.length; i++) {
         messages[i]['seq'] = base + i + 1;
+        messages[i]['id'] = 'bench-ingest-$base-$i';
       }
       final watch = Stopwatch()..start();
       for (final m in messages) {
@@ -84,7 +85,8 @@ void main() {
           'message': m,
         }));
       }
-      await _waitForMessageCount(sync, sessionId, base + batch);
+      injected += batch;
+      await _waitForMessageCount(sync, sessionId, injected);
       watch.stop();
       return watch.elapsedMicroseconds / 1000.0;
     }
@@ -92,7 +94,7 @@ void main() {
     await reporter.measureTimed(
       'socket_inline_ingest_100',
       injectRound,
-      iterations: 8,
+      iterations: 6,
       warmup: 2,
       opsPerIteration: batch,
     );
@@ -106,7 +108,18 @@ void main() {
   test('REST fetch: single page of 500 encrypted messages', () async {
     const sessionId = 'bench-fetch';
     const pageSize = 500;
-    server.stubSessions(<Session>[_wireSession(sessionId)]);
+    // Register the session in the catalog with a lastSeq above the page:
+    // with no catalog entry the cursor reads 0 == serverLastSeq(0) and
+    // fetchMessages exits as up-to-date without ever hitting the wire.
+    final catalogSession = _wireSession(sessionId, lastSeq: pageSize);
+    server.stubSessions(<Session>[catalogSession]);
+    _seedSession(
+      sync,
+      sessionId,
+      lastSeq: 0,
+      visible: false,
+      sessionLastSeq: pageSize,
+    );
 
     final page = makeTranscript(pageSize);
     var fetchedAtLeastOnce = false;
@@ -164,8 +177,9 @@ void _seedSession(
   String sessionId, {
   required int lastSeq,
   required bool visible,
+  int sessionLastSeq = 10,
 }) {
-  sync.testSessions[sessionId] = _wireSession(sessionId);
+  sync.testSessions[sessionId] = _wireSession(sessionId, lastSeq: sessionLastSeq);
   sync.testSetSessionMessages(sessionId, <Map<String, dynamic>>[]);
   sync.testSetSessionLastSeq(sessionId, lastSeq);
   if (visible) {
@@ -176,7 +190,7 @@ void _seedSession(
   );
 }
 
-Session _wireSession(String id) {
+Session _wireSession(String id, {int lastSeq = 10}) {
   return Session(
     id: id,
     seq: 1,
@@ -188,7 +202,7 @@ Session _wireSession(String id) {
     agentStateVersion: 1,
     thinking: false,
     presence: 'online',
-    lastSeq: 10,
+    lastSeq: lastSeq,
   );
 }
 
