@@ -414,7 +414,10 @@ extension SyncSessionOperations on Sync {
         '[createSession] spawn webhook timeout for '
         'machine=$machineId path=$resolvedPath — waiting for late session',
       );
-      await Future<void>.delayed(const Duration(seconds: 5));
+      await Future<void>.delayed(
+        Sync.testWebhookTimeoutRecoveryDelayOverride ??
+            const Duration(seconds: 5),
+      );
       _forceFullFetchNext = true;
       await refreshSessions();
 
@@ -461,11 +464,13 @@ extension SyncSessionOperations on Sync {
     required String machineId,
     required String path,
   }) async {
-    const retryDelays = <Duration>[
-      Duration.zero,
-      Duration(milliseconds: 250),
-      Duration(milliseconds: 750),
-    ];
+    final retryDelays =
+        Sync.testSpawnHydrateRetryDelaysOverride ??
+        const <Duration>[
+          Duration.zero,
+          Duration(milliseconds: 250),
+          Duration(milliseconds: 750),
+        ];
 
     for (final delay in retryDelays) {
       if (delay > Duration.zero) {

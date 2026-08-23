@@ -72,6 +72,14 @@ class _FakeEncryption implements Encryption {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Scaled-down (10x) send budgets so the readiness wait still runs its
+/// real timer path — including the "spawned sends are exempt from the
+/// POST-window clamp" branch — without burning 15 s per test. Ratios match
+/// production: wait 15 s / deadline 12 s / POST window 6 s.
+const int _kTestSpawnWaitMs = 1500;
+const Duration _kTestSendDeadline = Duration(milliseconds: 1200);
+const Duration _kTestSendMinPostWindow = Duration(milliseconds: 600);
+
 void _stubAllSyncs(Sync instance) {
   instance.sessionsSync = InvalidateSync(() async {});
   instance.settingsSync = InvalidateSync(() async {});
@@ -171,6 +179,9 @@ void main() {
     dynamic capturedRequestData;
 
     setUp(() async {
+      Sync.testRecentlySpawnedWaitMsOverride = _kTestSpawnWaitMs;
+      Sync.testSendDeadlineOverride = _kTestSendDeadline;
+      Sync.testSendMinPostWindowOverride = _kTestSendMinPostWindow;
       instance = Sync();
       _stubAllSyncs(instance);
       instance.testIsInitialized = true;
@@ -245,6 +256,7 @@ void main() {
     });
 
     tearDown(() async {
+      Sync.testResetTimingOverrides();
       ApiClient().dispose();
       messageOutbox.dispose();
       messageOutbox.testStorage = MMKVStorage.testConstructor();
@@ -267,7 +279,7 @@ void main() {
       expect(captures, hasLength(1));
       final capture = captures.single;
       expect(capture['sessionId'], 'sess-spawn');
-      expect(capture['waitMs'], Sync.recentlySpawnedWaitMs);
+      expect(capture['waitMs'], _kTestSpawnWaitMs);
       expect(capture['recentlySpawned'], isTrue);
       expect(capture['spawnedAt'], isA<int>());
     });
@@ -297,10 +309,12 @@ void main() {
       // The ordinary 12 s send deadline reserves 6 s for the POST, so
       // clamping the readiness wait into it caps the wait at 6 s — a
       // pod that needs >10 s to come up could never be waited for, and
-      // every spawn-then-send raised a bogus spawn-timeout alarm.
+      // every spawn-then-send raised a bogus spawn-timeout alarm. The
+      // scaled budgets above keep the same shape: a clamped wait would
+      // stop at 600 ms, an exempt one runs the full 1 500 ms.
       expect(
         stopwatch.elapsedMilliseconds,
-        greaterThanOrEqualTo(Sync.recentlySpawnedWaitMs - 1500),
+        greaterThanOrEqualTo(_kTestSpawnWaitMs - 150),
         reason:
             'the readiness wait must not be clamped below '
             'Sync.recentlySpawnedWaitMs for a freshly-spawned session',
@@ -308,9 +322,9 @@ void main() {
 
       // And the telemetry must report what was actually waited.
       final capture = instance.testSpawnReadinessTimeoutCaptures.single;
-      expect(capture['waitMs'], Sync.recentlySpawnedWaitMs);
-      expect(capture['requestedWaitMs'], Sync.recentlySpawnedWaitMs);
-    }, timeout: const Timeout(Duration(seconds: 90)));
+      expect(capture['waitMs'], _kTestSpawnWaitMs);
+      expect(capture['requestedWaitMs'], _kTestSpawnWaitMs);
+    }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('does NOT emit a spawn-timeout capture when the session becomes '
         'ready during the wait', () async {
