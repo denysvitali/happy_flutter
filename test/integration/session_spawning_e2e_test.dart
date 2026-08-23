@@ -28,6 +28,13 @@ import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 /// Uses fake encryption and machine RPC overrides to avoid real network calls
 /// while testing the full logic path.
 void main() {
+  // Shrink the real-timer budgets every test in this file would otherwise
+  // wait through (15 s spawn-readiness wait, 1 s hydration retries, 5 s
+  // webhook-timeout recovery). Attempt counts and code paths are unchanged;
+  // only the wall-clock between them is.
+  setUp(_useFastSpawnTimings);
+  tearDown(Sync.testResetTimingOverrides);
+
   group('createSession E2E flow', () {
     late Sync sync;
     late _FakeEncryption encryption;
@@ -2408,4 +2415,16 @@ class _AlwaysSuccessApiInterceptor extends Interceptor {
     }
     return null;
   }
+}
+
+void _useFastSpawnTimings() {
+  Sync.testRecentlySpawnedWaitMsOverride = 500;
+  Sync.testSpawnHydrateRetryDelaysOverride = const <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 5),
+    Duration(milliseconds: 15),
+  ];
+  Sync.testWebhookTimeoutRecoveryDelayOverride = const Duration(
+    milliseconds: 20,
+  );
 }
