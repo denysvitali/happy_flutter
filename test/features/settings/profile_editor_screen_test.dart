@@ -156,9 +156,10 @@ void main() {
         ],
       );
 
-      await tester.pumpWidget(
-        buildSubject(existing: profile, size: const Size(800, 1600)),
-      );
+      await tester.pumpWidget(buildSubject(existing: profile));
+      await tester.pumpAndSettle();
+
+      await tester.drag(find.byType(ListView).first, const Offset(0, -1000));
       await tester.pumpAndSettle();
 
       expect(find.text('Codex providers'), findsOneWidget);
