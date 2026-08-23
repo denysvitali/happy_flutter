@@ -4,6 +4,7 @@ import '../../../../core/components/tool_view_buttons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/ansi_parser.dart';
+import '../../../../core/utils/ansi_span_cache.dart';
 
 /// Boxed `stdout` / `stderr` / `error` section used by every shell-style tool
 /// view (Claude `Bash`, Codex `bash`, Gemini `execute`, MCP exec).
@@ -89,7 +90,13 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
       height: AppLineHeight.relaxed,
     );
     if (_lastDefaultStyle != defaultStyle) {
-      _parsedSpans = AnsiParser.parse(_visibleText, defaultStyle: defaultStyle);
+      // Memoized: while a session streams, every output tick invalidates
+      // the local guard and re-parses the whole visible window; identical
+      // (visible text, style) pairs now reuse cached spans instead.
+      _parsedSpans = AnsiSpanCache.instance.parse(
+        _visibleText,
+        defaultStyle: defaultStyle,
+      );
       _lastDefaultStyle = defaultStyle;
     }
 

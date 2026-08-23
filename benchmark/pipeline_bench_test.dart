@@ -9,6 +9,7 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/ansi_span_cache.dart';
 
 import 'bench_runner.dart';
 import 'fixtures.dart';
@@ -111,5 +112,37 @@ void main() {
     );
     expect(len, greaterThan(0));
     expect(len, lessThan(output.length));
+  });
+
+  test('ANSI parse of a 20KB tool output (memoized warm hit)', () {
+    final output = ansiToolOutput(20000);
+    // Warm the entry so every measured iteration is a cache hit — the
+    // steady state of a rebuilt tool view whose output did not change.
+    final warmed = AnsiSpanCache.instance.parse(output);
+    var spans = 0;
+    reporter.measureSync(
+      'ansi_parse_20kb_cached_hit',
+      () {
+        spans = AnsiSpanCache.instance.parse(output).length;
+      },
+      iterations: 100,
+    );
+    expect(spans, warmed.length);
+  });
+
+  test('ANSI memoized parse under streaming growth (miss per tick)', () {
+    var output = ansiToolOutput(20000);
+    var spans = 0;
+    reporter.measureSync(
+      'ansi_parse_20kb_cached_miss_growing',
+      () {
+        // Output grows every iteration like a streaming tool result:
+        // length changes -> guaranteed miss -> reparse + store.
+        output += '\x1b[32mstreaming tick line\x1b[0m\n';
+        spans = AnsiSpanCache.instance.parse(output).length;
+      },
+      iterations: 40,
+    );
+    expect(spans, greaterThan(0));
   });
 }

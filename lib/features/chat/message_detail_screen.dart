@@ -9,6 +9,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
 import '../../core/utils/ansi_parser.dart';
+import '../../core/utils/ansi_span_cache.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/command_utils.dart';
 import '../../core/wire/wire_parsers.dart';
@@ -1140,7 +1141,13 @@ class _PagedAnsiTextState extends State<_PagedAnsiText> {
     final start = _page * _payloadPageSize;
     final end = (start + _payloadPageSize).clamp(0, widget.content.length);
     final pageText = widget.content.substring(start, end);
-    final spans = AnsiParser.parse(pageText, defaultStyle: widget.style);
+    // Memoized: this build method has no change guard, so theme or
+    // inherited rebuilds re-ran a full ANSI parse of the page on every
+    // tick; identical (page, style) pairs now reuse cached spans.
+    final spans = AnsiSpanCache.instance.parse(
+      pageText,
+      defaultStyle: widget.style,
+    );
     final text = SelectableText.rich(
       TextSpan(children: spans),
       style: widget.style,
