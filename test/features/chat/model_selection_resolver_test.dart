@@ -518,6 +518,49 @@ void main() {
       expect(options, contains(result.resolvedModelMode));
     });
 
+    test(
+      'Codex profile model survives restore and is offered by the picker',
+      () {
+        final profile = _profile(
+          id: 'venice',
+          compatibility: const ProfileCompatibility(
+            claude: false,
+            codex: true,
+            gemini: false,
+            pi: false,
+          ),
+          models: const ['venice/stealth-ox-alpha'],
+        );
+
+        final result = resolveModelSelection(
+          savedPermissionMode: null,
+          savedModelMode: 'venice/stealth-ox-alpha:high',
+          savedProfileId: 'venice',
+          sessionModelMode: null,
+          sessionPermissionMode: null,
+          flavor: 'codex',
+          settingsProfiles: [profile],
+          builtInProfiles: const [],
+          lastUsedModelMode: null,
+        );
+
+        expect(result.resolvedRawModelString, 'venice/stealth-ox-alpha:high');
+        expect(
+          result.resolvedModelMode.modeString,
+          'venice/stealth-ox-alpha:high',
+        );
+        expect(result.resolvedModelMode.isCodex, isTrue);
+        expect(
+          ChatModelMode.availableForProfile(
+            flavor: 'codex',
+            claudeCompatible: false,
+            profileModels: profile.models,
+          ),
+          contains(result.resolvedModelMode),
+        );
+      },
+    );
+
     test('unknown saved model without a profile still normalizes to '
         'default', () {
       final result = resolveModelSelection(

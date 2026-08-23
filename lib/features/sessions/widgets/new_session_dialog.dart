@@ -15,7 +15,7 @@ import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../chat/model_selection_resolver.dart'
-    show profileUsesThirdPartyAnthropicBaseUrl;
+    show profileOwnsRawCodexModel, profileUsesThirdPartyAnthropicBaseUrl;
 import '../../chat/widgets/model_mode.dart';
 
 enum NewSessionCreateBlocker {
@@ -624,6 +624,12 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         final candidate = ChatModelMode.normalizeRawForFlavor(
           lastUsedModelMode,
           _selectedAgent,
+          preserveProviderOwned:
+              (_selectedAgent == 'codex' &&
+                  profileOwnsRawCodexModel(selectedProfile)) ||
+              (_selectedAgent == 'claude' &&
+                  profileUsesThirdPartyAnthropicBaseUrl(selectedProfile)),
+          allowedRawModels: selectedProfile?.models,
         );
         final thirdParty =
             _selectedAgent == 'claude' &&

@@ -134,7 +134,11 @@ ModelSelectionResolution resolveModelSelection({
     // Profile-configured models are provider-owned raw strings; a
     // trailing ':effort' must restore as reasoning effort, not parse
     // as a Codex catalog variant that normalization would drop.
-    final allowed = ChatModelMode.fromAllowedRaw(raw, profileModels);
+    final allowed = ChatModelMode.fromAllowedRaw(
+      raw,
+      profileModels,
+      flavor: flavor,
+    );
     if (allowed != null) return allowed;
     return ChatModelMode.normalizeForFlavor(
       ChatModelMode.fromString(raw),
@@ -189,6 +193,9 @@ ModelSelectionResolution resolveModelSelection({
 
 bool profileOwnsRawCodexModel(AIBackendProfile? profile) {
   if (profile == null || !profile.compatibility.codex) return false;
+  if (profile.codexProviders.isNotEmpty || profile.models.isNotEmpty) {
+    return true;
+  }
   if (profile.azureOpenAIConfig != null) return true;
   if (_envValue(profile, 'AZURE_OPENAI_ENDPOINT') != null ||
       _envValue(profile, 'AZURE_OPENAI_DEPLOYMENT_NAME') != null) {

@@ -254,6 +254,18 @@ class ChatModelMode {
     String? providerOwnedCodexModel,
     List<String>? profileModels,
   }) {
+    // An explicit profile model list is authoritative for every flavor.
+    // Codex's live catalog only contains models known to the local Codex
+    // installation, so consulting it first hides provider-specific entries
+    // configured by the user.
+    if (profileModels != null && profileModels.isNotEmpty) {
+      return [
+        defaultModel,
+        ...(flavor == 'codex'
+            ? _expandProfileCodexModelFamilies(profileModels)
+            : _expandProfileModelFamilies(profileModels)),
+      ];
+    }
     if (flavor == 'codex') {
       final owned = providerOwnedCodexModel?.trim();
       if (owned != null &&
@@ -264,17 +276,6 @@ class ChatModelMode {
       return codexModels == null || codexModels.isEmpty
           ? const [defaultModel]
           : codexModels;
-    }
-    // Profile has custom models configured — expand each into an
-    // effort family so the user can check and set the reasoning
-    // effort per session (same pattern as [providerOwnedCodexEfforts]).
-    // Entries that differ only by a `:effort` suffix collapse into
-    // one family.
-    if (profileModels != null && profileModels.isNotEmpty) {
-      return [
-        defaultModel,
-        ..._expandProfileModelFamilies(profileModels),
-      ];
     }
     final baseModels = availableForFlavor(flavor);
     if (claudeCompatible && allowClaudeAliases) return baseModels;
@@ -330,7 +331,20 @@ class ChatModelMode {
 
   /// Expands a profile's configured model list into effort families,
   /// deduping slugs that differ only by an effort suffix.
-  static List<ChatModelMode> _expandProfileModelFamilies(
+  static List<ChatModelMode> _expandProfileModelFamilies(List<String> models) {
+    final families = <ChatModelMode>[];
+    final seenSlugs = <String>{};
+    for (final raw in models) {
+      final slug = _stripEffortSuffix(raw.trim());
+      if (slug.isEmpty || !seenSlugs.add(slug)) continue;
+      families.addAll(providerOwnedClaudeEfforts(slug));
+    }
+    return families;
+  }
+
+  /// Expands a profile's configured model list into Codex effort families.
+  /// Entries that differ only by a `:effort` suffix collapse into one family.
+  static List<ChatModelMode> _expandProfileCodexModelFamilies(
     List<String> models,
   ) {
     final families = <ChatModelMode>[];
@@ -338,7 +352,7 @@ class ChatModelMode {
     for (final raw in models) {
       final slug = _stripEffortSuffix(raw.trim());
       if (slug.isEmpty || !seenSlugs.add(slug)) continue;
-      families.addAll(providerOwnedClaudeEfforts(slug));
+      families.addAll(providerOwnedCodexEfforts(slug));
     }
     return families;
   }
@@ -351,7 +365,11 @@ class ChatModelMode {
   ///
   /// The returned mode keeps the raw string verbatim as its
   /// [modeString] so saved drafts round-trip byte-for-byte.
-  static ChatModelMode? fromAllowedRaw(String? raw, List<String>? allowed) {
+  static ChatModelMode? fromAllowedRaw(
+    String? raw,
+    List<String>? allowed, {
+    String? flavor,
+  }) {
     final trimmed = raw?.trim();
     if (trimmed == null ||
         trimmed.isEmpty ||
@@ -365,9 +383,7 @@ class ChatModelMode {
     if (!baseAllowed && !_isAllowedRawModel(trimmed, allowed)) {
       return null;
     }
-    final effort = hasEffortSuffix
-        ? trimmed.substring(base.length + 1)
-        : null;
+    final effort = hasEffortSuffix ? trimmed.substring(base.length + 1) : null;
     return ChatModelMode._(
       // Same shape as [ChatModelMode.custom]: "slug Effort" reads better
       // in chips than the raw wire string.
@@ -375,15 +391,18 @@ class ChatModelMode {
       modeString: trimmed,
       modelSlug: base,
       reasoningEffort: effort,
-      flavor: 'claude',
+      flavor: flavor == 'codex' ? 'codex' : 'claude',
     );
   }
 
   /// Whether [raw] is a valid selection against a profile's configured
   /// model list: verbatim, or `base:effort` with an allowlisted base and
   /// a known effort level.
-  static bool isAllowedRawSelection(String raw, List<String>? allowed) =>
-      fromAllowedRaw(raw, allowed) != null;
+  static bool isAllowedRawSelection(
+    String raw,
+    List<String>? allowed, {
+    String? flavor,
+  }) => fromAllowedRaw(raw, allowed, flavor: flavor) != null;
 
   /// Drops a trailing `:effort` suffix from a provider-owned model string
   /// so the base slug can be reused across effort variants. Only known
@@ -443,10 +462,9 @@ class ChatModelMode {
   /// Normalizes a model selection so it is valid for the session flavor.
   ///
   /// [allowedRawModels] is the selected profile's configured model list
-  /// (see [availableForProfile]); entries in it are valid selections for a
-  /// Claude-compatible session even though they parse as unknown/provider
-  /// strings. Codex sessions never offer profile models, so the allowlist
-  /// is ignored for `codex`.
+  /// (see [availableForProfile]); entries in it are valid selections for the
+  /// selected session flavor even though they may parse as unknown/provider
+  /// strings.
   static ChatModelMode normalizeForFlavor(
     ChatModelMode model,
     String? flavor, {
@@ -457,6 +475,12 @@ class ChatModelMode {
     if (available.contains(model) || (flavor == 'codex' && model.isCodex)) {
       return model;
     }
+    final allowed = fromAllowedRaw(
+      model.modeString,
+      allowedRawModels,
+      flavor: flavor,
+    );
+    if (allowed != null) return allowed;
     // The caller vouches that the selected profile owns this selection
     // (a third-party Anthropic-compatible gateway serving its own model
     // slugs). Keep it verbatim instead of collapsing to `default` — an
@@ -472,10 +496,6 @@ class ChatModelMode {
         model.isCustom) {
       return model;
     }
-    if (flavor != 'codex' &&
-        isAllowedRawSelection(model.modeString, allowedRawModels)) {
-      return model;
-    }
     return defaultModel;
   }
 
@@ -484,7 +504,7 @@ class ChatModelMode {
   ///
   /// [allowedRawModels] is the selected profile's configured model list;
   /// entries survive verbatim (including `:effort` suffixes, which would
-  /// otherwise parse as Codex variants and be dropped on Claude sessions).
+  /// otherwise parse as a different flavor's variants and be dropped).
   /// [preserveProviderOwned] extends that protection to selections the
   /// allowlist does not list — used when the selected profile routes to a
   /// third-party gateway whose models are provider-owned by definition.
@@ -495,13 +515,13 @@ class ChatModelMode {
     List<String>? allowedRawModels,
   }) {
     final trimmed = value.trim();
+    if (isAllowedRawSelection(trimmed, allowedRawModels, flavor: flavor)) {
+      return trimmed;
+    }
     if (flavor == 'codex' &&
         !preserveProviderOwned &&
         !isKnownCodexModelString(trimmed)) {
       return defaultModel.modeString;
-    }
-    if (isAllowedRawSelection(trimmed, allowedRawModels)) {
-      return trimmed;
     }
     final parsed = fromString(value);
     final normalized = normalizeForFlavor(

@@ -272,6 +272,9 @@ extension SyncSpawnProfileResolution on Sync {
 
   bool _isCustomCodexProfile(AIBackendProfile? profile) {
     if (profile == null) return false;
+    if (profile.codexProviders.isNotEmpty || profile.models.isNotEmpty) {
+      return true;
+    }
     if (profile.azureOpenAIConfig != null) return true;
     if (_profileEnvValue(profile, 'AZURE_OPENAI_ENDPOINT') != null ||
         _profileEnvValue(profile, 'AZURE_OPENAI_DEPLOYMENT_NAME') != null) {

@@ -502,10 +502,10 @@ void main() {
       );
     });
 
-    test('allowlist does not leak into Codex sessions', () {
-      // A plain provider slug parses with no flavor; on a Codex session
-      // it must still normalize to default even when allowlisted —
-      // profile models are only offered for Claude-compatible sessions.
+    test('allowlist keeps profile models on Codex sessions', () {
+      // A plain provider slug parses with no flavor; the selected profile
+      // supplies the missing Codex flavor for both the picker and the wire
+      // model selection.
       final picked = ChatModelMode.fromString('GLM-5');
       expect(
         ChatModelMode.normalizeForFlavor(
@@ -513,7 +513,7 @@ void main() {
           'codex',
           allowedRawModels: const ['GLM-5'],
         ),
-        ChatModelMode.defaultModel,
+        picked,
       );
       expect(
         ChatModelMode.normalizeRawForFlavor(
@@ -521,7 +521,7 @@ void main() {
           'codex',
           allowedRawModels: const ['GLM-5:high'],
         ),
-        'default',
+        'GLM-5:high',
       );
     });
 
@@ -643,12 +643,39 @@ void main() {
       });
     });
 
+    test('availableForProfile expands profile models into Codex effort '
+        'families', () {
+      final models = ChatModelMode.availableForProfile(
+        flavor: 'codex',
+        claudeCompatible: false,
+        codexModels: const [ChatModelMode.defaultModel],
+        profileModels: const ['venice/stealth-ox-alpha'],
+      );
+
+      expect(models.first, ChatModelMode.defaultModel);
+      expect(models.map((m) => m.modeString).toList(), [
+        'default',
+        'venice/stealth-ox-alpha',
+        'venice/stealth-ox-alpha:low',
+        'venice/stealth-ox-alpha:medium',
+        'venice/stealth-ox-alpha:high',
+      ]);
+      expect(models.skip(1).every((m) => m.isCodex), isTrue);
+    });
+
     test('fromAllowedRaw keeps effort suffixes off the Codex catalog', () {
       final mode = ChatModelMode.fromAllowedRaw('GLM-5:high', const ['GLM-5']);
       expect(mode, isNotNull);
       expect(mode!.modeString, 'GLM-5:high');
       expect(mode.isCodex, isFalse);
       expect(mode.reasoningEffort, 'high');
+
+      final codexMode = ChatModelMode.fromAllowedRaw('GLM-5:high', const [
+        'GLM-5',
+      ], flavor: 'codex');
+      expect(codexMode, isNotNull);
+      expect(codexMode!.isCodex, isTrue);
+      expect(codexMode.reasoningEffort, 'high');
 
       // Not allowlisted: no profile, unknown slug, or unknown effort.
       expect(ChatModelMode.fromAllowedRaw('GLM-5:high', null), isNull);

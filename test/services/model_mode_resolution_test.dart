@@ -222,6 +222,44 @@ void main() {
       );
     });
 
+    test('passes models for a configured Codex provider definition', () {
+      final profile = AIBackendProfile(
+        id: 'venice-codex',
+        name: 'Venice Codex',
+        codexModelProvider: 'llm-proxy',
+        codexProviders: [
+          CodexProviderConfig(
+            id: 'llm-proxy',
+            baseUrl: 'https://proxy.example/v1',
+            envKey: 'LLM_PROXY_API_KEY',
+          ),
+        ],
+        models: const ['venice/stealth-ox-alpha'],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+        ),
+      );
+
+      expect(
+        sync.testNormalizeModelModeForAgentWithProfile(
+          'venice/stealth-ox-alpha',
+          'codex',
+          profile,
+        ),
+        'venice/stealth-ox-alpha',
+      );
+      expect(
+        sync.testGetModelOverride(
+          agent: 'codex',
+          profile: profile,
+          modelMode: 'venice/stealth-ox-alpha:high',
+        ),
+        'venice/stealth-ox-alpha:high',
+      );
+    });
+
     test('drops provider-owned override when no profile resolved', () {
       // A respawn without the profile env cannot reach the gateway:
       // with no ANTHROPIC_BASE_URL the daemon rewrites unknown slugs to
