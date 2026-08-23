@@ -185,8 +185,9 @@ class SessionOrderingProjection {
 class TabletSessionSelectionProjection {
   const TabletSessionSelectionProjection._({
     required this.sessionIds,
+    required Set<String> allSessionIds,
     required this.revision,
-  });
+  }) : _allSessionIds = allSessionIds;
 
   factory TabletSessionSelectionProjection.fromSessions(
     Map<String, Session> sessions,
@@ -199,20 +200,35 @@ class TabletSessionSelectionProjection {
     final sessionIds = candidates
         .map((session) => session.id)
         .toList(growable: false);
+    final allSessionIds = Set<String>.unmodifiable(sessions.keys);
     return TabletSessionSelectionProjection._(
       sessionIds: List<String>.unmodifiable(sessionIds),
-      revision: Object.hashAll(sessionIds),
+      allSessionIds: allSessionIds,
+      revision: Object.hash(
+        Object.hashAll(sessionIds),
+        Object.hashAllUnordered(allSessionIds),
+      ),
     );
   }
 
+  /// Live (non-archived) sessions, most recently active first. These are the
+  /// only candidates for *automatic* selection.
   final List<String> sessionIds;
+
+  /// Every session in the collection, archived included. An explicit user
+  /// selection stays valid as long as the session exists at all — archiving
+  /// it must never hand the detail pane to a different session.
+  final Set<String> _allSessionIds;
   final int revision;
+
+  bool contains(String sessionId) => _allSessionIds.contains(sessionId);
 
   @override
   bool operator ==(Object other) =>
       other is TabletSessionSelectionProjection &&
       other.revision == revision &&
-      listEquals(other.sessionIds, sessionIds);
+      listEquals(other.sessionIds, sessionIds) &&
+      setEquals(other._allSessionIds, _allSessionIds);
 
   @override
   int get hashCode => revision;

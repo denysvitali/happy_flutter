@@ -25,9 +25,13 @@ import 'package:happy_flutter/core/models/provider_usage.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/ui/tab_bar/tab_bar.dart' show AppTab;
+import 'package:happy_flutter/features/chat/chat_screen.dart';
 import 'package:happy_flutter/features/sessions/sessions_screen.dart';
 import 'package:happy_flutter/features/sessions/widgets/new_session_dialog.dart';
+import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
+import 'package:happy_flutter/features/sessions/widgets/sessions_list_content.dart';
 
 class _StubAuthNotifier extends AuthStateNotifier {
   @override
@@ -42,8 +46,16 @@ class _StubSettingsNotifier extends SettingsNotifier {
 }
 
 class _StubSessionsNotifier extends SessionsNotifier {
+  _StubSessionsNotifier([this._initial = const {}]);
+
+  final Map<String, Session> _initial;
+
   @override
-  Map<String, Session> build() => const {};
+  Map<String, Session> build() => SessionCollectionSnapshot(_initial);
+
+  void publish(Map<String, Session> sessions) {
+    state = SessionCollectionSnapshot(sessions);
+  }
   @override
   void loadFromSync() {}
   @override
@@ -110,7 +122,29 @@ class _StubProviderUsageNotifier extends ProviderUsageNotifier {
   Future<void> refreshUsage() async {}
 }
 
-Widget _app() {
+Session _session(String id, {required int activeAt, bool archived = false}) {
+  return Session(
+    id: id,
+    seq: 1,
+    createdAt: activeAt,
+    updatedAt: activeAt,
+    active: !archived,
+    activeAt: activeAt,
+    metadataVersion: 1,
+    agentStateVersion: 1,
+    thinking: false,
+    archived: archived,
+    presence: 'offline',
+    metadata: const Metadata(
+      path: '/home/dev/app',
+      machineId: 'm1',
+      host: 'm1-host',
+      homeDir: '/home/dev',
+    ),
+  );
+}
+
+Widget _app({Map<String, Session> sessions = const {}}) {
   // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
   // so the harness must sit under a router like production does.
   final router = GoRouter(
@@ -120,7 +154,9 @@ Widget _app() {
     overrides: [
       authStateNotifierProvider.overrideWith(_StubAuthNotifier.new),
       settingsNotifierProvider.overrideWith(_StubSettingsNotifier.new),
-      sessionsNotifierProvider.overrideWith(_StubSessionsNotifier.new),
+      sessionsNotifierProvider.overrideWith(
+        () => _StubSessionsNotifier(sessions),
+      ),
       machinesNotifierProvider.overrideWith(_StubMachinesNotifier.new),
       connectionNotifierProvider.overrideWith(_StubConnectionNotifier.new),
       networkNotifierProvider.overrideWith(_StubNetworkNotifier.new),
@@ -147,15 +183,21 @@ Widget _app() {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const recordChannel = MethodChannel('com.llfbandit.record/messages');
+  const ttsChannel = MethodChannel('flutter_tts');
 
   setUpAll(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(recordChannel, (call) async => null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(ttsChannel, (call) async => 1);
   });
 
-  tearDownAll(() {
+  tearDownAll(() async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(recordChannel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(ttsChannel, null);
+    await TtsService().dispose();
   });
 
   void setTabletLandscape(WidgetTester tester) {
@@ -170,8 +212,11 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  Future<void> pumpScreen(WidgetTester tester) async {
-    await tester.pumpWidget(_app());
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    Map<String, Session> sessions = const {},
+  }) async {
+    await tester.pumpWidget(_app(sessions: sessions));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -267,5 +312,82 @@ void main() {
     expect(find.byType(ResizableSplitView), findsNothing);
     expect(find.byType(NoSessionSelectedView), findsNothing);
     expect(find.byType(AppSidebar), findsNothing);
+  });
+
+  group('master-detail selection', () {
+    final live = _session('live', activeAt: 2000);
+    final archived = _session('archived', activeAt: 1000, archived: true);
+
+    testWidgets('auto-selects the most recent live session on entry', (
+      tester,
+    ) async {
+      setTabletLandscape(tester);
+      await pumpScreen(tester, sessions: {live.id: live, archived.id: archived});
+
+      final chat = tester.widget<ChatScreen>(find.byType(ChatScreen));
+      expect(chat.sessionId, 'live');
+    });
+
+    testWidgets('tapping an archived session opens that session, not the '
+        'most recent live one', (tester) async {
+      setTabletLandscape(tester);
+      await pumpScreen(tester, sessions: {live.id: live, archived.id: archived});
+
+      final list = tester.widget<SessionsListContent>(
+        find.byType(SessionsListContent),
+      );
+      list.onSessionTap!('archived');
+      // Several frames: the auto-selection guard runs in a post-frame
+      // callback, so a regression only shows up one frame later.
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      final chat = tester.widget<ChatScreen>(find.byType(ChatScreen));
+      expect(chat.sessionId, 'archived');
+      expect(chat.key, const ValueKey<String>('archived'));
+    });
+
+    testWidgets('a selection that leaves the collection falls back to the '
+        'most recent live session', (tester) async {
+      setTabletLandscape(tester);
+      await pumpScreen(tester, sessions: {live.id: live, archived.id: archived});
+      final list = tester.widget<SessionsListContent>(
+        find.byType(SessionsListContent),
+      );
+      list.onSessionTap!('archived');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        tester.widget<ChatScreen>(find.byType(ChatScreen)).sessionId,
+        'archived',
+      );
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(SessionsScreen)),
+      );
+      final notifier =
+          container.read(sessionsNotifierProvider.notifier)
+              as _StubSessionsNotifier;
+      notifier.publish({live.id: live});
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(
+        tester.widget<ChatScreen>(find.byType(ChatScreen)).sessionId,
+        'live',
+      );
+    });
+  });
+
+  test('TabletSessionSelectionProjection knows archived sessions', () {
+    final projection = TabletSessionSelectionProjection.fromSessions({
+      'live': _session('live', activeAt: 2000),
+      'archived': _session('archived', activeAt: 1000, archived: true),
+    });
+    expect(projection.sessionIds, ['live']);
+    expect(projection.contains('live'), isTrue);
+    expect(projection.contains('archived'), isTrue);
+    expect(projection.contains('gone'), isFalse);
   });
 }
