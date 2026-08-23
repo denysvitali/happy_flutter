@@ -103,7 +103,7 @@ void main() {
         'name': 'Read',
         'input': {'file_path': '/repo/lib/a.dart'},
       });
-      expect(summary, '/repo/lib/a.dart');
+      expect(summary, 'Used Read · /repo/lib/a.dart');
     });
 
     test('falls back to the bare tool name', () {

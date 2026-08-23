@@ -16,8 +16,16 @@ void main() {
   ) async {
     late Color captured;
     await tester.pumpWidget(
+      // ThemeData(brightness:) no longer propagates the brightness to
+      // Theme.of(context) on recent Flutter builds — build the scheme
+      // explicitly so the dark branch of [workspaceIdentityColor] runs.
       MaterialApp(
-        theme: ThemeData(brightness: brightness),
+        theme: ThemeData.from(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF6750A4),
+            brightness: brightness,
+          ),
+        ),
         home: Builder(
           builder: (context) {
             captured = hueOf(context, key);
@@ -73,6 +81,7 @@ void main() {
     final color = HSLColor.fromAHSL(1, 210, 0.6, 0.42).toColor();
     // The container helper needs a context only for the surface color, so
     // assert on the blend math it performs via a plain alpha check.
-    expect(color.withValues(alpha: 0.16).alpha, closeTo(0.16, 1e-9));
+    // `.a` is the 0-1 component; the legacy `.alpha` getter is 0-255.
+    expect(color.withValues(alpha: 0.16).a, closeTo(0.16, 1e-9));
   });
 }
