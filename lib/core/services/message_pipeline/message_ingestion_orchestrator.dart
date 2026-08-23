@@ -132,6 +132,27 @@ extension SyncMessagePipeline on Sync {
     }
   }
 
+  void _releaseInlineDedupKeys(String sessionId, List<String> keys) {
+    for (final key in keys) {
+      _releaseInlineDedupKey(sessionId, key);
+    }
+  }
+
+  /// Dedup keys carried by a normalized batch. Coalesced socket drains
+  /// use the `dedupKeys` list; single-event callers may still carry the
+  /// singular `dedupKey`.
+  List<String> _metadataDedupKeys(Map<String, dynamic> metadata) {
+    final list = metadata['dedupKeys'];
+    if (list is List) {
+      return list.whereType<String>().toList();
+    }
+    final single = metadata['dedupKey'];
+    if (single is String && single.isNotEmpty) {
+      return <String>[single];
+    }
+    return const <String>[];
+  }
+
   /// Collects the `id` of every just-appended message so the sidechain
   /// grouper's `changedIds` fast-path can skip a full re-walk when the
   /// batch carries nothing sidechain-relevant. Returns an empty set when
@@ -266,11 +287,83 @@ extension SyncMessagePipeline on Sync {
     );
   }
 
-  Future<void> ingestFromSocket(MessageIngressEvent event) async {
-    final normalized = normalizeSocketIngress(event);
+  Future<void> ingestFromSocket(MessageIngressEvent event) {
+    return ingestFromSocketBatch(<MessageIngressEvent>[event]);
+  }
+
+  /// Drains a coalesced list of inline socket events for one session as a
+  /// single pipeline invocation per visibility group: one decrypt batch,
+  /// one `_upsertSessionMessages` merge, one data-changed notification
+  /// wave. Arrival order is preserved end to end.
+  ///
+  /// Events are split into consecutive groups sharing visibility and
+  /// notification flags, so a session becoming visible (or hidden)
+  /// mid-burst keeps its per-event notification semantics — visible
+  /// events notify the messages domain only, background events also
+  /// notify sessions.
+  Future<void> ingestFromSocketBatch(List<MessageIngressEvent> events) async {
+    var index = 0;
+    while (index < events.length) {
+      final lead = events[index];
+      var end = index + 1;
+      while (end < events.length &&
+          events[end].isVisibleSession == lead.isVisibleSession &&
+          events[end].notifySessionsDomain == lead.notifySessionsDomain) {
+        end++;
+      }
+      await _ingestSocketGroup(events.sublist(index, end));
+      index = end;
+    }
+  }
+
+  Future<void> _ingestSocketGroup(List<MessageIngressEvent> events) async {
+    final lead = events.first;
+    final sessionId = lead.sessionId;
+    final traceId = lead.traceId ?? _newTraceId(sessionId, 's');
+    final messages = <Map<String, dynamic>>[];
+    final dedupKeys = <String>[];
+    for (final event in events) {
+      final rawPayloadMap = WireParsers.asMap(event.rawPayload);
+      final embedded = rawPayloadMap == null
+          ? const <String, dynamic>{}
+          : WireParsers.asMap(rawPayloadMap['message']) ?? rawPayloadMap;
+      if (embedded.isNotEmpty) {
+        messages.add(embedded);
+        final key = event.metadata['dedupKey'];
+        if (key is String && key.isNotEmpty) dedupKeys.add(key);
+      }
+    }
+    _logPipelineStage(
+      traceId,
+      sessionId,
+      MessagePipelineStage.raw,
+      'accepted',
+      <String, dynamic>{'source': 'socket', 'events': events.length},
+    );
+    _logPipelineStage(
+      traceId,
+      sessionId,
+      MessagePipelineStage.normalized,
+      messages.isEmpty ? 'empty' : 'ok',
+      <String, dynamic>{
+        'count': messages.length,
+        'isVisibleSession': lead.isVisibleSession,
+      },
+    );
+
+    final normalized = NormalizedMessageBatch(
+      source: MessagePipelineSource.socket,
+      sessionId: sessionId,
+      messages: messages,
+      traceId: traceId,
+      metadata: <String, dynamic>{
+        'isVisibleSession': lead.isVisibleSession,
+        'dedupKeys': dedupKeys,
+      },
+    );
     final processed = await _processMessageBatch(
       normalized: normalized,
-      notifySessionsDomain: event.notifySessionsDomain,
+      notifySessionsDomain: lead.notifySessionsDomain,
       emitSessionNotification: true,
       applyMutations: true,
     );
@@ -291,8 +384,8 @@ extension SyncMessagePipeline on Sync {
       // grep depends on.
       final skipped = errorMessage == _encryptionMissingReason;
       _logPipelineStage(
-        normalized.traceId,
-        normalized.sessionId,
+        traceId,
+        sessionId,
         MessagePipelineStage.notified,
         skipped ? 'skipped' : 'error',
         <String, dynamic>{
@@ -303,8 +396,8 @@ extension SyncMessagePipeline on Sync {
       );
     } else {
       _logPipelineStage(
-        normalized.traceId,
-        normalized.sessionId,
+        traceId,
+        sessionId,
         MessagePipelineStage.notified,
         'ok',
         <String, dynamic>{'source': 'socket'},
@@ -334,11 +427,11 @@ extension SyncMessagePipeline on Sync {
   }) async {
     final sessionId = normalized.sessionId;
     final traceId = normalized.traceId;
-    final dedupKey = normalized.metadata['dedupKey'] as String?;
+    final dedupKeys = _metadataDedupKeys(normalized.metadata);
 
     try {
       if (normalized.messages.isEmpty) {
-        _releaseInlineDedupKey(sessionId, dedupKey);
+        _releaseInlineDedupKeys(sessionId, dedupKeys);
         _logPipelineStage(
           traceId,
           sessionId,
@@ -359,7 +452,7 @@ extension SyncMessagePipeline on Sync {
 
       final sessionEncryption = encryption.getSessionEncryption(sessionId);
       if (sessionEncryption == null) {
-        _releaseInlineDedupKey(sessionId, dedupKey);
+        _releaseInlineDedupKeys(sessionId, dedupKeys);
         // A session this client has never fetched legitimately has no
         // encryption context yet — the socket simply beat the catalogue
         // fetch that carries the DEK. Recovery below pulls it and the
@@ -535,7 +628,7 @@ extension SyncMessagePipeline on Sync {
       }
 
       if (shouldNotify || processed.messages.isNotEmpty) {
-        _releaseInlineDedupKey(sessionId, dedupKey);
+        _releaseInlineDedupKeys(sessionId, dedupKeys);
         _advanceSeqCursor(sessionId, processed.maxSeq);
         if (emitSessionNotification) {
           _notifySessionMessagesChanged(sessionId);
@@ -550,7 +643,7 @@ extension SyncMessagePipeline on Sync {
         // events). Still advance the cursor so gap detection stays correct,
         // but skip the UI notification to avoid rebuild churn during
         // high-frequency streaming.
-        _releaseInlineDedupKey(sessionId, dedupKey);
+        _releaseInlineDedupKeys(sessionId, dedupKeys);
         _advanceSeqCursor(sessionId, processed.maxSeq);
       }
 
@@ -577,7 +670,7 @@ extension SyncMessagePipeline on Sync {
         traceId: traceId,
       );
     } catch (error, stack) {
-      _releaseInlineDedupKey(sessionId, dedupKey);
+      _releaseInlineDedupKeys(sessionId, dedupKeys);
       messagesSync[sessionId]?.invalidate();
       // Emit the structured `[pipeline]` breadcrumb first so Loki greps
       // for `outcome=(error|dropped)` capture the failure under the

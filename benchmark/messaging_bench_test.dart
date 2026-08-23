@@ -105,6 +105,50 @@ void main() {
         reason: 'ingest bench must have merged its batch');
   });
 
+  test(
+      'socket inline ingest: 500-message burst into a fresh visible session',
+      () async {
+    const sessionId = 'bench-ingest-500';
+    const burst = 500;
+    sync.testFetchMessagesOverride =
+        (_, __, ___) async => <String, dynamic>{
+              'messages': <Map<String, dynamic>>[],
+              'hasMore': false,
+            };
+
+    _seedSession(sync, sessionId, lastSeq: 0, visible: true);
+
+    final messages = makeTranscript(burst);
+    for (var i = 0; i < messages.length; i++) {
+      messages[i]['seq'] = i + 1;
+      messages[i]['id'] = 'bench-ingest-500-$i';
+    }
+    final watch = Stopwatch()..start();
+    for (final m in messages) {
+      unawaited(sync.handleUpdate(<String, dynamic>{
+        't': 'new-message',
+        'sid': sessionId,
+        'message': m,
+      }));
+    }
+    await _waitForMessageCount(sync, sessionId, burst);
+    watch.stop();
+    final elapsedMs = watch.elapsedMicroseconds / 1000.0;
+
+    final resident = sync.testSessionMessages(sessionId);
+    expect(resident!.length, greaterThanOrEqualTo(burst),
+        reason: 'burst bench must have merged its whole burst');
+    // Report through the same timed-scenario shape so the job summary
+    // pipeline picks the number up.
+    await reporter.measureTimed(
+      'socket_inline_ingest_500_burst',
+      () async => elapsedMs,
+      iterations: 1,
+      warmup: 0,
+      opsPerIteration: burst,
+    );
+  });
+
   test('REST fetch: first-load tail page of 200 encrypted messages',
       () async {
     const sessionId = 'bench-fetch';

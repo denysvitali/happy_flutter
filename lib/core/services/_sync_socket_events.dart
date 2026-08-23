@@ -494,23 +494,26 @@ extension SyncSocketEvents on Sync {
         // (which form a parentUuid chain) are always upserted and grouped
         // in arrival order.  Without this, concurrent decryptions can
         // finish out of order, breaking the chain and leaving messages
-        // orphaned outside their parent Task.
-        _inlineProcessor.enqueue(
+        // orphaned outside their parent Task. The batch form additionally
+        // coalesces everything currently queued for this session into one
+        // pipeline invocation — one decrypt batch, one
+        // `_upsertSessionMessages` merge, one notification wave — instead
+        // of one whole-list copy per event over a burst.
+        _inlineProcessor.enqueueBatch<MessageIngressEvent>(
           sessionId,
-          () => ingestFromSocket(
-            MessageIngressEvent(
-              source: MessagePipelineSource.socket,
-              sessionId: sessionId,
-              rawPayload: embeddedMessage,
-              traceId: _newTraceIdForSocketMessage(sessionId, embeddedMessage),
-              metadata: <String, dynamic>{
-                'mode': 'embedded',
-                'dedupKey': inlineDedupKey,
-              },
-              isVisibleSession: true,
-              notifySessionsDomain: false,
-            ),
+          MessageIngressEvent(
+            source: MessagePipelineSource.socket,
+            sessionId: sessionId,
+            rawPayload: embeddedMessage,
+            traceId: _newTraceIdForSocketMessage(sessionId, embeddedMessage),
+            metadata: <String, dynamic>{
+              'mode': 'embedded',
+              'dedupKey': inlineDedupKey,
+            },
+            isVisibleSession: true,
+            notifySessionsDomain: false,
           ),
+          ingestFromSocketBatch,
         );
       } else {
         // Visible session with no embedded message — HTTP fetch.
@@ -574,22 +577,21 @@ extension SyncSocketEvents on Sync {
       // Process the embedded message inline (decrypt + store) so it
       // is immediately available when the user opens this session.
       if (embeddedMessage != null) {
-        _inlineProcessor.enqueue(
+        _inlineProcessor.enqueueBatch<MessageIngressEvent>(
           sessionId,
-          () => ingestFromSocket(
-            MessageIngressEvent(
-              source: MessagePipelineSource.socket,
-              sessionId: sessionId,
-              rawPayload: embeddedMessage,
-              traceId: _newTraceIdForSocketMessage(sessionId, embeddedMessage),
-              metadata: <String, dynamic>{
-                'mode': 'embedded',
-                'dedupKey': inlineDedupKey,
-              },
-              isVisibleSession: false,
-              notifySessionsDomain: true,
-            ),
+          MessageIngressEvent(
+            source: MessagePipelineSource.socket,
+            sessionId: sessionId,
+            rawPayload: embeddedMessage,
+            traceId: _newTraceIdForSocketMessage(sessionId, embeddedMessage),
+            metadata: <String, dynamic>{
+              'mode': 'embedded',
+              'dedupKey': inlineDedupKey,
+            },
+            isVisibleSession: false,
+            notifySessionsDomain: true,
           ),
+          ingestFromSocketBatch,
         );
       } else {
         // No embedded message — mark pending for HTTP fetch on

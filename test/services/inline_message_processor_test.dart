@@ -115,4 +115,172 @@ void main() {
       expect(processor.contains('unknown'), isFalse);
     });
   });
+
+  group('InlineMessageProcessor.enqueueBatch coalescing', () {
+    test(
+      'items enqueued in one synchronous burst drain as ONE list '
+      'in arrival order',
+      () async {
+      final calls = <List<String>>[];
+      processor.enqueueBatch<String>(
+        's1',
+        'a',
+        (items) async => calls.add(items),
+      );
+      processor.enqueueBatch<String>(
+        's1',
+        'b',
+        (items) async => calls.add(items),
+      );
+      processor.enqueueBatch<String>(
+        's1',
+        'c',
+        (items) async => calls.add(items),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      // One drain consumed all three buffered items in FIFO order.
+      expect(calls, [
+        ['a', 'b', 'c'],
+      ]);
+      expect(processor.contains('s1'), isFalse);
+    });
+
+    test(
+      'items arriving during a drain land in a follow-up drain, '
+      'still in arrival order',
+      () async {
+      final calls = <List<String>>[];
+      var firstDrainStarted = false;
+      final gate = Completer<void>();
+
+      Future<void> process(List<String> items) async {
+        calls.add(items);
+        if (!firstDrainStarted) {
+          firstDrainStarted = true;
+          await gate.future;
+        }
+      }
+
+      processor.enqueueBatch<String>('s1', 'a', process);
+      // Yield so the first drain starts and suspends inside `process`.
+      await Future<void>.delayed(Duration.zero);
+      expect(firstDrainStarted, isTrue);
+
+      // Arrive while the first drain is still awaiting.
+      processor.enqueueBatch<String>('s1', 'b', process);
+      processor.enqueueBatch<String>('s1', 'c', process);
+      // Nothing may run concurrently for this session.
+      expect(calls.length, 1);
+
+      gate.complete();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(calls, [
+        ['a'],
+        ['b', 'c'],
+      ]);
+      expect(processor.contains('s1'), isFalse);
+    });
+
+    test(
+      'an item arriving just before the queue entry is removed is not '
+      'stranded',
+      () async {
+      final calls = <List<String>>[];
+      Future<void> process(List<String> items) async {
+        calls.add(items);
+      }
+
+      // First drain consumes 'a'; while its follow-up loop iterations
+      // are pending, 'b' arrives and must be drained too.
+      processor.enqueueBatch<String>('s1', 'a', process);
+      await Future<void>.delayed(Duration.zero);
+      processor.enqueueBatch<String>('s1', 'b', process);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(calls, [
+        ['a'],
+        ['b'],
+      ]);
+      expect(processor.contains('s1'), isFalse);
+    });
+
+    test('a throwing process call does not strand later items', () async {
+      final calls = <List<String>>[];
+      Future<void> process(List<String> items) async {
+        if (calls.isEmpty) {
+          calls.add(items);
+          throw Exception('boom');
+        }
+        calls.add(items);
+      }
+
+      processor.enqueueBatch<String>('s1', 'a', process);
+      await Future<void>.delayed(Duration.zero);
+      processor.enqueueBatch<String>('s1', 'b', process);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(calls, [
+        ['a'],
+        ['b'],
+      ]);
+    });
+
+    test('clearSession discards buffered-but-unstarted items', () async {
+      final calls = <List<String>>[];
+      final started = Completer<void>();
+      Future<void> process(List<String> items) async {
+        calls.add(items);
+        await started.future;
+      }
+
+      processor.enqueueBatch<String>('s1', 'a', process);
+      await Future<void>.delayed(Duration.zero);
+      // Buffered while the first batch is mid-flight.
+      processor.enqueueBatch<String>('s1', 'b', process);
+
+      processor.clearSession('s1');
+      started.complete();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(calls, [
+        ['a'],
+      ]);
+    });
+
+    test('sessions drain concurrently and independently', () async {
+      final order = <String>[];
+      final c1 = Completer<void>();
+      final c2 = Completer<void>();
+
+      Future<void> s1Process(List<String> _) async {
+        await c1.future;
+        order.add('s1');
+      }
+
+      Future<void> s2Process(List<String> _) async {
+        await c2.future;
+        order.add('s2');
+      }
+
+      processor.enqueueBatch<String>('s1', 'a', s1Process);
+      processor.enqueueBatch<String>('s2', 'x', s2Process);
+      await Future<void>.delayed(Duration.zero);
+
+      c2.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(order, ['s2']);
+
+      c1.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(order, ['s2', 's1']);
+    });
+  });
 }

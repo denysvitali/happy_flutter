@@ -13,6 +13,18 @@ import 'package:flutter/foundation.dart';
 class InlineMessageProcessor {
   final Map<String, Future<void>> _queue = {};
 
+  /// Coalescing buffers for [enqueueBatch], keyed by sessionId. Items
+  /// accumulate here while a batch drain is scheduled or running; each
+  /// drain swaps out the whole list so mid-drain arrivals are picked up
+  /// by the next iteration instead of racing the current batch.
+  final Map<String, List<Object>> _batches = {};
+
+  /// Sessions with a batch drain scheduled or running. Guard against two
+  /// concurrent drains for one session. Removed synchronously together
+  /// with the final empty-buffer check so an enqueue can never fall into
+  /// a gap between "drain decided to stop" and "drain deregistered".
+  final Set<String> _activeBatches = {};
+
   /// Enqueue a processing task for [sessionId].
   ///
   /// If there is already a pending task for this session,
@@ -42,18 +54,69 @@ class InlineMessageProcessor {
     _queue[sessionId] = current;
   }
 
+  /// Enqueue [item] into the coalescing batch for [sessionId].
+  ///
+  /// All items buffered for the session are delivered to [process] in
+  /// arrival order as ONE list per drain. A burst enqueued within one
+  /// event-loop turn produces exactly one [process] invocation; items
+  /// arriving while a drain is awaiting [process] are consumed by the
+  /// same drain's follow-up iterations (never concurrently), so FIFO
+  /// order and exactly-once delivery hold under any interleaving.
+  /// Cross-session batches run concurrently.
+  void enqueueBatch<T>(
+    String sessionId,
+    T item,
+    Future<void> Function(List<T> items) process,
+  ) {
+    (_batches[sessionId] ??= <Object>[]).add(item as Object);
+    if (!_activeBatches.add(sessionId)) {
+      return; // A drain is scheduled or running and will pick this up.
+    }
+    scheduleMicrotask(() {
+      unawaited(_runBatchDrain(sessionId, process));
+    });
+  }
+
+  Future<void> _runBatchDrain<T>(
+    String sessionId,
+    Future<void> Function(List<T> items) process,
+  ) async {
+    try {
+      while (true) {
+        final pending = _batches.remove(sessionId);
+        if (pending == null || pending.isEmpty) break;
+        try {
+          await process(pending.cast<T>());
+        } catch (_) {
+          // Caller owns error handling; keep draining later waves.
+        }
+        // Loop again so arrivals during `process` join this drain rather
+        // than racing a second concurrent one.
+      }
+    } finally {
+      _activeBatches.remove(sessionId);
+    }
+  }
+
   /// Clear the queue for [sessionId].
+  ///
+  /// Buffered-but-unstarted batch items are discarded (a deleted or
+  /// re-opened session re-fetches them authoritatively); an in-flight
+  /// batch still finishes, but finds nothing further queued.
   void clearSession(String sessionId) {
     _queue.remove(sessionId);
+    _batches.remove(sessionId);
   }
 
   /// Clear all queues (for suspend/shutdown).
   void clear() {
     _queue.clear();
+    _batches.clear();
   }
 
   /// Whether a queue entry exists for [sessionId].
-  bool contains(String sessionId) => _queue.containsKey(sessionId);
+  bool contains(String sessionId) =>
+      _queue.containsKey(sessionId) || _batches.containsKey(sessionId);
 
   /// The number of sessions with active queues.
   @visibleForTesting
