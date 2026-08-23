@@ -159,6 +159,13 @@ void main() {
       await tester.pumpWidget(buildSubject(existing: profile));
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextFormField, 'llm-proxy'),
+        100,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
       expect(find.text('Codex providers'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'llm-proxy'), findsOneWidget);
       expect(
