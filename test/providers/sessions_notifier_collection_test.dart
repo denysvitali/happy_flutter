@@ -88,7 +88,10 @@ void main() {
 
     test('a counter bump with identical entries keeps the same state', () {
       sync.testIsInitialized = true;
-      sync.testSessions.addAll({'a': buildSession('a'), 'b': buildSession('b')});
+      sync.testSessions.addAll({
+        'a': buildSession('a'),
+        'b': buildSession('b'),
+      });
       sync.testNotifyDataChanged();
 
       final notifier = container.read(sessionsNotifierProvider.notifier);
@@ -97,7 +100,10 @@ void main() {
 
       sync.testNotifyDataChanged();
       notifier.loadFromSync();
-      expect(identical(container.read(sessionsNotifierProvider), first), isTrue);
+      expect(
+        identical(container.read(sessionsNotifierProvider), first),
+        isTrue,
+      );
     });
 
     test('an unchanged sessions counter is a no-op even with new data', () {
@@ -113,7 +119,10 @@ void main() {
       // not observe the new map.
       sync.testSessions['b'] = buildSession('b');
       notifier.loadFromSync();
-      expect(identical(container.read(sessionsNotifierProvider), first), isTrue);
+      expect(
+        identical(container.read(sessionsNotifierProvider), first),
+        isTrue,
+      );
       expect(first.keys, ['a']);
     });
 
@@ -208,8 +217,7 @@ void main() {
         InterceptorsWrapper(
           onRequest: (options, handler) {
             const prefix = '/v1/sessions/';
-            if (options.method == 'DELETE' &&
-                options.path.startsWith(prefix)) {
+            if (options.method == 'DELETE' && options.path.startsWith(prefix)) {
               final id = options.path.substring(prefix.length);
               deleteRequests.add(id);
               if (throwIds.contains(id)) {
@@ -257,7 +265,10 @@ void main() {
 
       final ok = await notifier.optimisticDelete('a');
       expect(ok, isFalse);
-      expect(identical(container.read(sessionsNotifierProvider), before), isTrue);
+      expect(
+        identical(container.read(sessionsNotifierProvider), before),
+        isTrue,
+      );
     });
 
     test('transport failure restores the exact prior snapshot', () async {
@@ -268,7 +279,10 @@ void main() {
 
       final ok = await notifier.optimisticDelete('a');
       expect(ok, isFalse);
-      expect(identical(container.read(sessionsNotifierProvider), before), isTrue);
+      expect(
+        identical(container.read(sessionsNotifierProvider), before),
+        isTrue,
+      );
     });
 
     test('the row is gone while the request is in flight', () async {
@@ -280,7 +294,10 @@ void main() {
       // Yield once so the pre-request cleanup step (no-op for non-k8s
       // sessions) has resolved and the optimistic publish has run.
       await Future<void>.delayed(Duration.zero);
-      expect(container.read(sessionsNotifierProvider).containsKey('a'), isFalse);
+      expect(
+        container.read(sessionsNotifierProvider).containsKey('a'),
+        isFalse,
+      );
       await pending;
     });
 
@@ -329,7 +346,10 @@ void main() {
       notifier.setSessions([buildSession('a')]);
       final before = container.read(sessionsNotifierProvider);
       expect(await notifier.optimisticBatchDelete(const []), 0);
-      expect(identical(container.read(sessionsNotifierProvider), before), isTrue);
+      expect(
+        identical(container.read(sessionsNotifierProvider), before),
+        isTrue,
+      );
       expect(deleteRequests, isEmpty);
     });
 
