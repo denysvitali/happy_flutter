@@ -105,49 +105,57 @@ void main() {
         reason: 'ingest bench must have merged its batch');
   });
 
-  test('REST fetch: single page of 500 encrypted messages', () async {
+  test('REST fetch: first-load tail page of 200 encrypted messages',
+      () async {
     const sessionId = 'bench-fetch';
-    const pageSize = 500;
-    // Register the session in the catalog with a lastSeq above the page:
+    // Production chat-open shape: a session's first load tail-loads only
+    // the newest Sync.initialLoad (200 on mobile) rows — window starts at
+    // lastSeq - initialLoad regardless of history size. Stub a longer
+    // history behind that window and measure exactly the 200-row page.
+    const tailRows = 200; // Sync.initialLoad on mobile
+    const historyRows = 600;
+    // Register the session in the catalog with a lastSeq above the cursor:
     // with no catalog entry the cursor reads 0 == serverLastSeq(0) and
     // fetchMessages exits as up-to-date without ever hitting the wire.
-    final catalogSession = _wireSession(sessionId, lastSeq: pageSize);
+    final catalogSession = _wireSession(sessionId, lastSeq: historyRows);
     server.stubSessions(<Session>[catalogSession]);
     _seedSession(
       sync,
       sessionId,
       lastSeq: 0,
-      visible: false,
-      sessionLastSeq: pageSize,
+      visible: true,
+      sessionLastSeq: historyRows,
     );
 
-    final page = makeTranscript(pageSize);
+    final history = makeTranscript(historyRows);
     var fetchedAtLeastOnce = false;
 
     Future<double> fetchRound() async {
-      // Reset cursor and resident rows so every iteration re-downloads
-      // and re-processes the full page through decrypt + upsert.
-      sync.testSetSessionLastSeq(sessionId, 0);
-      sync.testSetSessionMessages(
-          sessionId, <Map<String, dynamic>>[]);
+      // Full per-round reset (rows, cursor, content signatures, probe
+      // state) so every iteration is a genuine first-load tail through
+      // decrypt + upsert.
+      sync.testClearSessionMessageState(sessionId);
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
       server.clearStubbedData();
-      server.stubMessages(sessionId, page);
+      server.stubMessages(sessionId, history);
       final watch = Stopwatch()..start();
       await sync.fetchMessages(sessionId);
       // fetchMessages is Future<void>; completion is proven by the rows
       // being resident (poll granularity adds ~2ms of measured noise).
-      await _waitForMessageCount(sync, sessionId, pageSize);
+      await _waitForMessageCount(sync, sessionId, tailRows);
       watch.stop();
       fetchedAtLeastOnce = true;
       return watch.elapsedMicroseconds / 1000.0;
     }
 
     await reporter.measureTimed(
-      'rest_fetch_page_500',
+      'rest_fetch_tail_200',
       fetchRound,
       iterations: 12,
       warmup: 2,
-      opsPerIteration: pageSize,
+      opsPerIteration: tailRows,
     );
 
     expect(fetchedAtLeastOnce, isTrue);
