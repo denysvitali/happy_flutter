@@ -189,6 +189,34 @@ extension SyncMessagingMerge on Sync {
     }
   }
 
+  /// Prunes signature entries for exactly [dropped] rows that fell off
+  /// the window head during a pure-append trim.
+  ///
+  /// Same prune step [_applySessionContentSignatureDelta] performs, minus
+  /// the O(window) live-key walk: the append fast path has no eviction
+  /// sites of its own, so the caller can name the removed rows exactly.
+  /// Removing a base wire ID still aliased by a surviving row is safe —
+  /// a missing signature only costs one redundant re-decrypt at the next
+  /// fetch, while a stale signature would wrongly skip the merge.
+  void _pruneSessionContentSignaturePrefix(
+    String sessionId,
+    List<Map<String, dynamic>> dropped,
+  ) {
+    final signatures = _sessionContentSignatures[sessionId];
+    if (signatures == null || signatures.isEmpty || dropped.isEmpty) {
+      return;
+    }
+    for (final message in dropped) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty) continue;
+      signatures.remove(id);
+      final baseId = _stripOutputSuffix(id);
+      if (baseId != null && baseId != id) {
+        signatures.remove(baseId);
+      }
+    }
+  }
+
   void _updateSessionContentSignatures(
     String sessionId,
     List<Map<String, dynamic>> messages,
@@ -911,9 +939,15 @@ extension SyncMessagingMerge on Sync {
       if (trimmed.length == appended.length) {
         _updateSessionContentSignatures(sessionId, messages);
       } else {
-        // Rows fell off the head — prune them instead of re-fingerprinting
-        // the whole window.
-        _applySessionContentSignatureDelta(sessionId, messages);
+        // Rows fell off the head. The append fast path performs no other
+        // removals, so the trimmed prefix is the exact set of rows that
+        // left the window — prune its keys directly instead of walking
+        // the whole list to rediscover them.
+        _pruneSessionContentSignaturePrefix(
+          sessionId,
+          appended.sublist(0, appended.length - maxMessages),
+        );
+        _updateSessionContentSignatures(sessionId, messages);
       }
       _ensureFirstLoadedSeq(sessionId);
       return;

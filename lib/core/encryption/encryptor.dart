@@ -1,4 +1,5 @@
 import 'dart:isolate';
+import 'dart:math' show min;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -236,9 +237,37 @@ class AES256Encryption implements Encryptor {
         decodeFailures: const [],
       );
     }
-    // Isolates are not supported on web — use main-thread decryption.
+    // Isolates are not supported on web — decrypt on the main thread in
+    // chunks with an event-loop turn between them. Pure-Dart AES-GCM plus
+    // utf8/jsonDecode over a whole socket batch is otherwise one long
+    // synchronous block (sync-completing futures never reach the event
+    // loop); chunking bounds each block to a few items so streaming
+    // batches cannot starve the frame that must paint them. Mirrors the
+    // per-item yields in CryptoSecretBox.decryptBatchInIsolate. Output is
+    // identical to a single batch call: same value order, with
+    // decode-failure indices rebased from chunk-local to batch-absolute.
     if (kIsWeb) {
-      return AesGcmEncryption.decryptEncodedBatch(encoded, _secretKey);
+      const webChunkSize = 8;
+      final values = List<dynamic>.filled(encoded.length, null);
+      final decodeFailures = <int>[];
+      for (var start = 0; start < encoded.length; start += webChunkSize) {
+        final end = min(start + webChunkSize, encoded.length);
+        if (start > 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+        final chunk = await AesGcmEncryption.decryptEncodedBatch(
+          encoded.sublist(start, end),
+          _secretKey,
+        );
+        values.setRange(start, end, chunk.values);
+        for (final index in chunk.decodeFailures) {
+          decodeFailures.add(start + index);
+        }
+      }
+      return EncodedDecryptResult(
+        values: values,
+        decodeFailures: decodeFailures,
+      );
     }
     EncodedDecryptResult result;
     try {

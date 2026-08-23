@@ -5,6 +5,15 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import '../encryption/message_processor.dart';
 import 'failure_telemetry.dart';
 
+/// Rows processed per inline chunk before yielding to the event loop.
+///
+/// On web (no isolate support) and for sub-isolate-threshold batches,
+/// processing runs on the main thread. Chunked with a
+/// `Future.delayed(Duration.zero)` between chunks — the same pattern as
+/// CryptoSecretBox.decryptBatchInIsolate's per-item yields — so a long
+/// page cannot hold the frame hostage.
+const int _inlineChunkSize = 8;
+
 Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
   required List<dynamic> decryptedJsonList,
   required List<Map<String, dynamic>> wireMessages,
@@ -12,10 +21,11 @@ Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
   required List<bool> wasEncrypted,
   required bool useIsolate,
 }) async {
-  // Isolates are not supported on web — use main-thread processing.
+  // Isolates are not supported on web — use main-thread processing,
+  // chunked so the UI can render between chunks.
   if (!useIsolate || kIsWeb) {
     return _counted(
-      processDecryptedMessages(
+      await _processInlineChunked(
         decryptedJsonList: decryptedJsonList,
         wireMessages: wireMessages,
         sessionId: sessionId,
@@ -33,6 +43,61 @@ Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
         wasEncrypted: wasEncrypted,
       );
     }),
+  );
+}
+
+/// Inline counterpart of [processDecryptedMessages] that processes
+/// [_inlineChunkSize] rows per event-loop turn and merges the chunk
+/// results in order.
+///
+/// Merged fields match a single whole-batch call exactly: messages,
+/// toolResults, usageUpdates, and droppedReasons concatenate in input
+/// order, maxSeq is the max across chunks, and
+/// undecryptableRenderedCount sums. The one difference is the scope of
+/// the within-batch fatal-error-card dedupe (`emittedErrorKeys` inside
+/// [processDecryptedMessages]): it spans a chunk instead of the whole
+/// batch, so an identical error card straddling a chunk boundary can
+/// render twice.
+Future<ProcessedMessages> _processInlineChunked({
+  required List<dynamic> decryptedJsonList,
+  required List<Map<String, dynamic>> wireMessages,
+  required String sessionId,
+  required List<bool> wasEncrypted,
+}) async {
+  final messages = <Map<String, dynamic>>[];
+  final toolResults = <Map<String, dynamic>>[];
+  final usageUpdates = <Map<String, dynamic>>[];
+  final droppedReasons = <String>[];
+  var maxSeq = -1;
+  var undecryptableRenderedCount = 0;
+
+  for (var start = 0; start < wireMessages.length; start += _inlineChunkSize) {
+    var end = start + _inlineChunkSize;
+    if (end > wireMessages.length) end = wireMessages.length;
+    if (start > 0) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    final result = processDecryptedMessages(
+      decryptedJsonList: decryptedJsonList.sublist(start, end),
+      wireMessages: wireMessages.sublist(start, end),
+      sessionId: sessionId,
+      wasEncrypted: wasEncrypted.sublist(start, end),
+    );
+    messages.addAll(result.messages);
+    toolResults.addAll(result.toolResults);
+    usageUpdates.addAll(result.usageUpdates);
+    droppedReasons.addAll(result.droppedReasons);
+    if (result.maxSeq > maxSeq) maxSeq = result.maxSeq;
+    undecryptableRenderedCount += result.undecryptableRenderedCount;
+  }
+
+  return ProcessedMessages(
+    messages: messages,
+    toolResults: toolResults,
+    usageUpdates: usageUpdates,
+    maxSeq: maxSeq,
+    droppedReasons: droppedReasons,
+    undecryptableRenderedCount: undecryptableRenderedCount,
   );
 }
 
