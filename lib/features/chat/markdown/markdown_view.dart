@@ -201,8 +201,12 @@ class _MarkdownViewState extends State<MarkdownView> {
     // rebuild every block. Render a bounded plain-text tail instead; the
     // real MarkdownBody is built once when streaming completes.
     if (widget.isStreaming) {
+      // Plain Text, not SelectableText: a selectable field is its own
+      // semantics boundary, which would detach the bubble's
+      // "AI response streaming" label from the merged node, and it claims
+      // tap/long-press gestures mid-stream.
       return RepaintBoundary(
-        child: SelectableText(
+        child: Text(
           _streamingTail(markdown),
           style: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
         ),
