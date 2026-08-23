@@ -50,6 +50,11 @@ class SessionStatus {
   final int statusDotColor;
 
   /// Whether the status indicator should pulse/animate.
+  ///
+  /// Only genuinely transitional states pulse (currently thinking).
+  /// At-rest states (waiting, permissionRequired, disconnected) stay
+  /// static — color and shape already encode them, and a repeating
+  /// controller per row burns frames even when the list is covered.
   final bool isPulsing;
 }
 
@@ -71,7 +76,9 @@ SessionStatus getSessionStatus(Session session) {
     );
   }
 
-  // Check if permission is required
+  // Check if permission is required. At-rest state: the warning color
+  // and the ringed indicator shape already carry it, so the dot stays
+  // static instead of ticking per frame while the user is away.
   if (hasPermissions) {
     return SessionStatus(
       state: SessionState.permissionRequired,
@@ -80,7 +87,6 @@ SessionStatus getSessionStatus(Session session) {
       shouldShowStatus: true,
       statusColor: AppColors.warning.toARGB32(),
       statusDotColor: AppColors.warning.toARGB32(),
-      isPulsing: true,
     );
   }
 

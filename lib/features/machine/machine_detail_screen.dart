@@ -313,7 +313,6 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                   trailing: AppStatusDot(
                     color: isOnline ? AppColors.success : cs.onSurfaceVariant,
                     size: 8,
-                    pulse: isOnline,
                   ),
                 ),
                 if (metadata?.daemonLastKnownStatus != null)
@@ -616,7 +615,7 @@ class _StatusBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AppStatusDot(color: statusColor, size: 10, pulse: isOnline),
+          AppStatusDot(color: statusColor, size: 10),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -1035,11 +1034,8 @@ class _SessionRow extends StatelessWidget {
               if (isOnline)
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.xs),
-                  child: AppStatusDot(
-                    color: AppColors.success,
-                    size: 7,
-                    pulse: true,
-                  ),
+                  // Steady online state: static green dot.
+                  child: AppStatusDot(color: AppColors.success, size: 7),
                 ),
               Icon(Icons.chevron_right, size: 20, color: cs.onSurfaceVariant),
             ],

@@ -233,8 +233,8 @@ List<ChatAppBarStatusChip> buildChatStatusChips({
         // Steady state: no pulse. A pulsing dot here runs a 60fps
         // repeating animation for as long as any ready chat is open, which
         // was the dominant foreground battery drain (see ROADMAP "Foreground
-        // battery draw"). Pulse is reserved for transient states (thinking,
-        // permission-required) in SessionStatus.isPulsing.
+        // battery draw"). Pulse is reserved for transient states (thinking)
+        // in SessionStatus.isPulsing.
         pulse: false,
       ),
     );

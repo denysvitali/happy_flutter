@@ -9,9 +9,12 @@ import '../models/friend.dart';
 /// a friend's [Avatar], conveying their current presence.
 ///
 /// Color mapping:
-/// - [FriendPresence.online]  → [AppColors.success] (green), pulsing
-/// - [FriendPresence.away]    → [AppColors.warning] (orange), no pulse
-/// - [FriendPresence.offline] → muted grey, no pulse
+/// - [FriendPresence.online]  → [AppColors.success] (green)
+/// - [FriendPresence.away]    → [AppColors.warning] (orange)
+/// - [FriendPresence.offline] → muted grey
+///
+/// Presence is an at-rest state, so every dot is static; the pulse
+/// loop is reserved for transitional connection states.
 ///
 /// The dot is framed with a small white/surface ring so it remains
 /// legible on any avatar background.
@@ -35,7 +38,8 @@ class FriendAvatarWithStatus extends StatelessWidget {
     final ringWidth = 2.0;
 
     final (dotColor, pulse) = switch (friend.presence) {
-      FriendPresence.online => (AppColors.success, true),
+      // Online never pulses — see the class docs for the policy.
+      FriendPresence.online => (AppColors.success, false),
       FriendPresence.away => (AppColors.warning, false),
       FriendPresence.offline => (cs.onSurfaceVariant.withValues(alpha: 0.35),
           false),

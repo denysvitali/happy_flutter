@@ -152,13 +152,13 @@ class _MachinesList extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     AppStatusDot(
+                      // Online is steady state — no pulse loop per row.
                       color: machine.isOnline
                           ? AppColors.success
                           : Theme.of(context).colorScheme.onSurface.withValues(
                               alpha: AppOpacity.medium,
                             ),
                       size: AppSpacing.sm,
-                      pulse: machine.isOnline,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     if (deletingIds.contains(machine.id))

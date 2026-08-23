@@ -97,7 +97,8 @@ void main() {
       expect(status.isConnected, isTrue);
       expect(status.statusText, 'Permission required');
       expect(status.shouldShowStatus, isTrue);
-      expect(status.isPulsing, isTrue);
+      // Steady state — pulse is reserved for transitional states (thinking).
+      expect(status.isPulsing, isFalse);
       expect(
         status.statusColor,
         AppColors.warning.toARGB32(),

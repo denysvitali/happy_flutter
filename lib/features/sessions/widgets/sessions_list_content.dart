@@ -308,7 +308,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     // rendered widget also preserves the outgoing route during slide
     // transitions instead of flashing an empty sessions pane.
     if (!_isVisible) {
-      return _retainedVisibleTree ?? const SizedBox.shrink();
+      final retained = _retainedVisibleTree;
+      if (retained == null) return const SizedBox.shrink();
+      // Same TickerMode wrapper as _retainVisibleTree, so the element
+      // at this slot keeps its identity across cover/uncover and only
+      // `enabled` flips. Disabled here, hidden-tab and covered-route
+      // tickers (status-dot pulses, stagger/shimmer animations,
+      // progress spinners) stop ticking instead of repainting per
+      // frame behind the covering surface.
+      return TickerMode(enabled: false, child: retained);
     }
 
     final hideInactive = ref.watch(
@@ -437,7 +445,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
 
   Widget _retainVisibleTree(Widget tree) {
     _retainedVisibleTree = tree;
-    return tree;
+    // Wrap the tree in TickerMode on both the visible and covered
+    // build paths so the wrapper element survives the transition; only
+    // `enabled` flips. `_isVisible` is always true here (build returns
+    // early when covered) but is used for symmetry with the covered
+    // branch above.
+    return TickerMode(enabled: _isVisible, child: tree);
   }
 
   Widget _buildSearchEmptyState(BuildContext context) {
@@ -598,8 +611,12 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   ) {
     final entry = uiState.bySessionId[sessionId] ?? SessionUiEntry.empty;
     if (entry.unreadCount > 0) return true;
+    // Attention routing is independent of dot animation: thinking and
+    // permission-required rows stay in this section even though their
+    // dots are now static (isPulsing only covers thinking).
     final status = getSessionStatus(session);
-    return status.isPulsing;
+    return status.state == SessionState.thinking ||
+        status.state == SessionState.permissionRequired;
   }
 
   Widget _buildMissionControlView(

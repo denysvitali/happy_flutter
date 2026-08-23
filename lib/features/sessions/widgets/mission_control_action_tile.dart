@@ -163,11 +163,13 @@ class MissionActionRow extends StatelessWidget {
                       lane: lane,
                       color: laneColor,
                       freshness: freshness,
+                      // Blocked/error are at-rest lanes: their full
+                      // container color and outcome pill already demand
+                      // attention, so only real agent activity and the
+                      // brief post-update burst animate.
                       pulse:
                           animateActivity &&
-                          (lane == MissionLane.blocked ||
-                              lane == MissionLane.error ||
-                              status.isPulsing ||
+                          (status.isPulsing ||
                               freshness == StreamFreshness.burst),
                       selected: selected,
                     ),
