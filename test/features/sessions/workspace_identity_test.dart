@@ -16,21 +16,24 @@ void main() {
   ) async {
     late Color captured;
     await tester.pumpWidget(
-      // ThemeData(brightness:) no longer propagates the brightness to
-      // Theme.of(context) on recent Flutter builds — build the scheme
-      // explicitly so the dark branch of [workspaceIdentityColor] runs.
+      // Explicit inner [Theme]: ThemeData brightness propagation through
+      // MaterialApp proved unreliable across Flutter builds — the direct
+      // override keeps the light/dark branches of
+      // [workspaceIdentityColor] deterministic.
       MaterialApp(
-        theme: ThemeData.from(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF6750A4),
-            brightness: brightness,
+        home: Theme(
+          data: ThemeData.from(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF6750A4),
+              brightness: brightness,
+            ),
           ),
-        ),
-        home: Builder(
-          builder: (context) {
-            captured = hueOf(context, key);
-            return const SizedBox.shrink();
-          },
+          child: Builder(
+            builder: (context) {
+              captured = hueOf(context, key);
+              return const SizedBox.shrink();
+            },
+          ),
         ),
       ),
     );

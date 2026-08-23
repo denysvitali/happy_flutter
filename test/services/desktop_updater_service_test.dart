@@ -45,9 +45,13 @@ void main() {
     });
 
     test('semver outranks build number', () {
-      final current = DesktopReleaseInfo.parse('v1.0.0-99999')!;
+      // A huge build suffix must not beat a higher semver part.
+      final current = DesktopReleaseInfo.parse('v1.0.1-1')!;
+      expect(
+        DesktopReleaseInfo.parse('v1.0.0-99999')! > current,
+        isFalse,
+      );
       expect(DesktopReleaseInfo.parse('v1.1.0')! > current, isTrue);
-      expect(DesktopReleaseInfo.parse('v1.0.9-99999')! > current, isFalse);
     });
   });
 
