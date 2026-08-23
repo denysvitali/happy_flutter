@@ -4251,7 +4251,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profilesCodexProviderEnvHint =>
-      'Codex sessions route through OPENAI_BASE_URL as a custom provider. Optional overrides in the variables below: HAPPY_CODEX_PROVIDER_ENV_KEY names the variable holding your API key (default OPENAI_API_KEY), HAPPY_CODEX_PROVIDER_WIRE_API selects the protocol — chat for OpenAI-compatible gateways or responses for Codex-native ones (default responses) — and HAPPY_CODEX_PROVIDER_NAME sets a display name.';
+      'Codex sessions can use the provider definitions below. Environment variables remain available for advanced or legacy configurations.';
+
+  @override
+  String get profilesCodexProvidersTitle => 'Codex providers';
+
+  @override
+  String get profilesCodexProvidersHint =>
+      'Add model_providers entries for Codex-compatible gateways. Keys stay in the environment variable named below.';
+
+  @override
+  String get profilesCodexDefaultProviderLabel =>
+      'Default provider ID (optional)';
+
+  @override
+  String get profilesCodexDefaultProviderHint =>
+      'Uses the first provider when empty';
+
+  @override
+  String get profilesCodexProviderIdLabel => 'Provider ID';
+
+  @override
+  String get profilesCodexProviderIdHint => 'e.g. llm-proxy';
+
+  @override
+  String get profilesCodexProviderIdInvalid =>
+      'Use only letters, numbers, hyphens, and underscores';
+
+  @override
+  String get profilesCodexProviderNameLabel => 'Display name (optional)';
+
+  @override
+  String get profilesCodexProviderNameHint => 'e.g. LLM Proxy';
+
+  @override
+  String get profilesCodexProviderBaseUrlLabel => 'Base URL';
+
+  @override
+  String get profilesCodexProviderBaseUrlHint => 'https://gateway.example/v1';
+
+  @override
+  String get profilesCodexProviderEnvKeyLabel => 'API key environment variable';
+
+  @override
+  String get profilesCodexProviderEnvKeyHint => 'LLM_PROXY_API_KEY';
+
+  @override
+  String get profilesCodexProviderEnvKeyInvalid =>
+      'Use an uppercase environment variable name';
+
+  @override
+  String get profilesCodexProviderWireApiLabel => 'Wire API';
+
+  @override
+  String get profilesCodexProviderResponses => 'Responses API';
+
+  @override
+  String get profilesCodexProviderChat => 'Chat Completions';
+
+  @override
+  String get profilesCodexProviderAdd => 'Add provider';
+
+  @override
+  String get profilesCodexProviderRemove => 'Remove provider';
+
+  @override
+  String get profilesCodexProvidersEmpty => 'No Codex providers configured';
 
   @override
   String get profilesModelsTitle => 'Models';

@@ -196,6 +196,12 @@ AIBackendProfile _$AIBackendProfileFromJson(
   tmuxConfig: json['tmuxConfig'] == null
       ? null
       : TmuxConfig.fromJson(json['tmuxConfig'] as Map<String, dynamic>),
+  codexModelProvider: json['codexModelProvider'] as String?,
+  codexProviders:
+      (json['codexProviders'] as List<dynamic>?)
+          ?.map((e) => CodexProviderConfig.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
   startupBashScript: json['startupBashScript'] as String?,
   environmentVariables:
       (json['environmentVariables'] as List<dynamic>?)
@@ -230,6 +236,8 @@ Map<String, dynamic> _$AIBackendProfileToJson(AIBackendProfile instance) =>
       'azureOpenAIConfig': instance.azureOpenAIConfig?.toJson(),
       'togetherAIConfig': instance.togetherAIConfig?.toJson(),
       'tmuxConfig': instance.tmuxConfig?.toJson(),
+      'codexModelProvider': instance.codexModelProvider,
+      'codexProviders': instance.codexProviders.map((e) => e.toJson()).toList(),
       'startupBashScript': instance.startupBashScript,
       'environmentVariables': instance.environmentVariables
           .map((e) => e.toJson())
@@ -310,6 +318,25 @@ Map<String, dynamic> _$TmuxConfigToJson(TmuxConfig instance) =>
       'tmpDir': instance.tmpDir,
       'updateEnvironment': instance.updateEnvironment,
     };
+
+CodexProviderConfig _$CodexProviderConfigFromJson(Map<String, dynamic> json) =>
+    CodexProviderConfig(
+      id: json['id'] as String,
+      name: json['name'] as String?,
+      baseUrl: json['baseUrl'] as String,
+      envKey: json['envKey'] as String? ?? 'OPENAI_API_KEY',
+      wireApi: json['wireApi'] as String? ?? 'responses',
+    );
+
+Map<String, dynamic> _$CodexProviderConfigToJson(
+  CodexProviderConfig instance,
+) => <String, dynamic>{
+  'id': instance.id,
+  'name': instance.name,
+  'baseUrl': instance.baseUrl,
+  'envKey': instance.envKey,
+  'wireApi': instance.wireApi,
+};
 
 EnvironmentVariable _$EnvironmentVariableFromJson(Map<String, dynamic> json) =>
     EnvironmentVariable(

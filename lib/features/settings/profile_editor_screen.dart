@@ -53,8 +53,10 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
   late final TextEditingController _scriptCtrl;
+  late final TextEditingController _defaultCodexProviderCtrl;
   late final List<EnvRow> _envRows;
   late final List<ModelRow> _modelRows;
+  late final List<CodexProviderRow> _codexProviderRows;
   AIBackendProfile? _profile;
   late ProfileCompatibility _compatibility;
   int? _contextWindow;
@@ -71,10 +73,24 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _nameCtrl = TextEditingController(text: p?.name ?? '');
     _descCtrl = TextEditingController(text: p?.description ?? '');
     _scriptCtrl = TextEditingController(text: p?.startupBashScript ?? '');
+    _defaultCodexProviderCtrl = TextEditingController(
+      text: p?.codexModelProvider ?? '',
+    );
     _envRows = (p?.environmentVariables ?? [])
         .map((e) => EnvRow(name: e.name, value: e.value))
         .toList();
     _modelRows = (p?.models ?? []).map((m) => ModelRow(model: m)).toList();
+    _codexProviderRows = (p?.codexProviders ?? [])
+        .map(
+          (provider) => CodexProviderRow(
+            id: provider.id,
+            name: provider.name ?? '',
+            baseUrl: provider.baseUrl,
+            envKey: provider.envKey,
+            protocol: provider.wireApi,
+          ),
+        )
+        .toList();
     _contextWindow = p?.contextWindow;
     _showScript = p?.startupBashScript?.isNotEmpty ?? false;
   }
@@ -93,10 +109,14 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _scriptCtrl.dispose();
+    _defaultCodexProviderCtrl.dispose();
     for (final r in _envRows) {
       r.dispose();
     }
     for (final r in _modelRows) {
+      r.dispose();
+    }
+    for (final r in _codexProviderRows) {
       r.dispose();
     }
     super.dispose();
@@ -121,6 +141,17 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     setState(() {
       _modelRows[index].dispose();
       _modelRows.removeAt(index);
+    });
+  }
+
+  void _addCodexProviderRow() {
+    setState(() => _codexProviderRows.add(CodexProviderRow()));
+  }
+
+  void _removeCodexProviderRow(int index) {
+    setState(() {
+      _codexProviderRows[index].dispose();
+      _codexProviderRows.removeAt(index);
     });
   }
 
@@ -272,6 +303,25 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         .where((m) => m.isNotEmpty)
         .toList();
 
+    final codexProviders = _codexProviderRows
+        .where(
+          (row) =>
+              row.idCtrl.text.trim().isNotEmpty &&
+              row.baseUrlCtrl.text.trim().isNotEmpty,
+        )
+        .map(
+          (row) => CodexProviderConfig(
+            id: row.idCtrl.text.trim(),
+            name: row.nameCtrl.text.trim().isEmpty
+                ? null
+                : row.nameCtrl.text.trim(),
+            baseUrl: row.baseUrlCtrl.text.trim(),
+            envKey: row.envKeyCtrl.text.trim(),
+            wireApi: row.wireApi,
+          ),
+        )
+        .toList();
+
     final now = DateTime.now().millisecondsSinceEpoch;
     final existing = _profile;
     final updated = AIBackendProfile(
@@ -282,6 +332,10 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
           ? _scriptCtrl.text.trim()
           : null,
       environmentVariables: envVars,
+      codexModelProvider: _defaultCodexProviderCtrl.text.trim().isEmpty
+          ? null
+          : _defaultCodexProviderCtrl.text.trim(),
+      codexProviders: codexProviders,
       defaultModelMode:
           AIBackendProfile.inferDefaultModelMode(
             environmentVariables: envVars,
@@ -491,6 +545,22 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
               onChanged: () => setState(() {}),
             ),
           ),
+
+          if (_compatibility.codex) ...[
+            const SizedBox(height: AppSpacing.md),
+            AppCard(
+              child: CodexProvidersSection(
+                providerRows: _codexProviderRows,
+                defaultProviderController: _defaultCodexProviderCtrl,
+                l10n: l10n,
+                textTheme: tt,
+                colorScheme: cs,
+                onAdd: _addCodexProviderRow,
+                onRemove: _removeCodexProviderRow,
+                onChanged: () => setState(() {}),
+              ),
+            ),
+          ],
 
           const SizedBox(height: AppSpacing.md),
 

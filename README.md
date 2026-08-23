@@ -79,6 +79,16 @@ lib/
 - **Navigation**: GoRouter
 - **UI**: Material Design 3 with custom design tokens
 
+## Codex provider profiles
+
+Codex profiles can define one or more OpenAI-compatible providers from the
+profile editor. Add the provider ID, base URL, wire API, and the environment
+variable name that contains its key; add that key as a profile environment
+variable and select the default provider. The app forwards these definitions
+to the machine that starts the Codex session, so provider credentials remain
+environment variables rather than being written into Codex command-line
+arguments.
+
 ## Setup Instructions
 
 ### Prerequisites

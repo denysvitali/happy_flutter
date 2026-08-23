@@ -603,6 +603,8 @@ class AIBackendProfile {
     this.azureOpenAIConfig,
     this.togetherAIConfig,
     this.tmuxConfig,
+    this.codexModelProvider,
+    this.codexProviders = const [],
     this.startupBashScript,
     this.environmentVariables = const [],
     this.defaultSessionType,
@@ -632,6 +634,12 @@ class AIBackendProfile {
   final AzureOpenAIConfig? azureOpenAIConfig;
   final TogetherAIConfig? togetherAIConfig;
   final TmuxConfig? tmuxConfig;
+
+  /// Provider id selected through Codex's `model_provider` setting.
+  final String? codexModelProvider;
+
+  /// Custom Codex `model_providers.<id>` definitions for this profile.
+  final List<CodexProviderConfig> codexProviders;
   final String? startupBashScript;
   final List<EnvironmentVariable> environmentVariables;
   final String? defaultSessionType;
@@ -707,6 +715,8 @@ class AIBackendProfile {
       'azureOpenAIConfig': azureOpenAIConfig?.toJsonWithoutApiKey(),
       'togetherAIConfig': togetherAIConfig?.toJsonWithoutApiKey(),
       'tmuxConfig': tmuxConfig?.toJson(),
+      'codexModelProvider': codexModelProvider,
+      'codexProviders': codexProviders.map((e) => e.toJson()).toList(),
       'startupBashScript': startupBashScript,
       'environmentVariables': environmentVariables
           .map((e) => e.toJson())
@@ -733,6 +743,8 @@ class AIBackendProfile {
     AzureOpenAIConfig? azureOpenAIConfig,
     TogetherAIConfig? togetherAIConfig,
     TmuxConfig? tmuxConfig,
+    String? codexModelProvider,
+    List<CodexProviderConfig>? codexProviders,
     String? startupBashScript,
     List<EnvironmentVariable>? environmentVariables,
     String? defaultSessionType,
@@ -755,6 +767,10 @@ class AIBackendProfile {
       azureOpenAIConfig: azureOpenAIConfig ?? this.azureOpenAIConfig,
       togetherAIConfig: togetherAIConfig ?? this.togetherAIConfig,
       tmuxConfig: tmuxConfig ?? this.tmuxConfig,
+      codexModelProvider: codexModelProvider ?? this.codexModelProvider,
+      codexProviders: codexProviders != null
+          ? List<CodexProviderConfig>.from(codexProviders)
+          : List<CodexProviderConfig>.from(this.codexProviders),
       startupBashScript: startupBashScript ?? this.startupBashScript,
       environmentVariables: environmentVariables != null
           ? List<EnvironmentVariable>.from(environmentVariables)
@@ -866,6 +882,33 @@ class TmuxConfig {
   final bool? updateEnvironment;
 
   Map<String, dynamic> toJson() => _$TmuxConfigToJson(this);
+}
+
+/// A custom Codex `model_providers.<id>` definition.
+///
+/// API credentials are intentionally not part of this model. [envKey] names
+/// the environment variable Codex should read, while the profile's ordinary
+/// environment-variable list supplies that variable to the daemon.
+@JsonSerializable()
+class CodexProviderConfig {
+  CodexProviderConfig({
+    required this.id,
+    required this.baseUrl,
+    this.name,
+    this.envKey = 'OPENAI_API_KEY',
+    this.wireApi = 'responses',
+  });
+
+  factory CodexProviderConfig.fromJson(Map<String, dynamic> json) =>
+      _$CodexProviderConfigFromJson(json);
+
+  final String id;
+  final String? name;
+  final String baseUrl;
+  final String envKey;
+  final String wireApi;
+
+  Map<String, dynamic> toJson() => _$CodexProviderConfigToJson(this);
 }
 
 @JsonSerializable()

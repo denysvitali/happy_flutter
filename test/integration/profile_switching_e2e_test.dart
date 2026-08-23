@@ -541,6 +541,15 @@ void main() {
             EnvironmentVariable(name: 'OPENAI_MODEL', value: 'kimi-k2.7-code'),
             EnvironmentVariable(name: 'OPENAI_API_KEY', value: 'sk-test'),
           ],
+          codexModelProvider: 'llm-proxy',
+          codexProviders: [
+            CodexProviderConfig(
+              id: 'llm-proxy',
+              name: 'LLM Proxy',
+              baseUrl: 'http://llm-proxy.k2.k8s.best/v1',
+              envKey: 'LLM_PROXY_API_KEY',
+            ),
+          ],
           compatibility: const ProfileCompatibility(
             claude: false,
             codex: true,
@@ -578,6 +587,19 @@ void main() {
         expect(envVars, isNotNull);
         expect(envVars!['OPENAI_MODEL'], 'kimi-k2.7-code');
         expect(envVars['OPENAI_BASE_URL'], 'https://api.kimi.com/coding/v1');
+        final providers = jsonDecode(
+          envVars['HAPPY_CODEX_PROVIDERS'] as String,
+        );
+        expect(providers, [
+          {
+            'id': 'llm-proxy',
+            'name': 'LLM Proxy',
+            'baseUrl': 'http://llm-proxy.k2.k8s.best/v1',
+            'envKey': 'LLM_PROXY_API_KEY',
+            'wireApi': 'responses',
+          },
+        ]);
+        expect(envVars['HAPPY_CODEX_MODEL_PROVIDER'], 'llm-proxy');
       },
     );
 
@@ -1603,7 +1625,6 @@ void main() {
       expect(envVars!.containsKey('OPENAI_MODEL'), isFalse);
       expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
     });
-
 
     test(
       'profile switch replaces the process with new env and backend',

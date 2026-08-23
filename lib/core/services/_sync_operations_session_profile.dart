@@ -107,6 +107,16 @@ extension SyncSpawnProfileResolution on Sync {
       }
     }
 
+    if (profile.codexProviders.isNotEmpty) {
+      envVars[codexProvidersEnvironmentKey] = encodeCodexProviders(
+        profile.codexProviders,
+      );
+      final selectedProvider = profile.codexModelProvider?.trim();
+      if (selectedProvider != null && selectedProvider.isNotEmpty) {
+        envVars[codexModelProviderEnvironmentKey] = selectedProvider;
+      }
+    }
+
     return envVars;
   }
 

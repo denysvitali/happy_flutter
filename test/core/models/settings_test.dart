@@ -179,6 +179,38 @@ void main() {
     });
   });
 
+  group('AIBackendProfile Codex providers', () {
+    test('serializes and restores provider definitions', () {
+      final profile = AIBackendProfile(
+        id: 'custom-codex',
+        name: 'Custom Codex',
+        codexModelProvider: 'llm-proxy',
+        codexProviders: [
+          CodexProviderConfig(
+            id: 'llm-proxy',
+            name: 'LLM Proxy',
+            baseUrl: 'http://llm-proxy.k2.k8s.best/v1',
+            envKey: 'LLM_PROXY_API_KEY',
+            wireApi: 'responses',
+          ),
+        ],
+      );
+
+      final restored = AIBackendProfile.fromJson(profile.toJson());
+
+      expect(restored.codexModelProvider, 'llm-proxy');
+      expect(restored.codexProviders, hasLength(1));
+      expect(restored.codexProviders.single.id, 'llm-proxy');
+      expect(restored.codexProviders.single.name, 'LLM Proxy');
+      expect(
+        restored.codexProviders.single.baseUrl,
+        'http://llm-proxy.k2.k8s.best/v1',
+      );
+      expect(restored.codexProviders.single.envKey, 'LLM_PROXY_API_KEY');
+      expect(restored.codexProviders.single.wireApi, 'responses');
+    });
+  });
+
   group('Pi agent profile bucketing', () {
     test('normalizeAgentKey routes pi to its own bucket', () {
       expect(normalizeAgentKey('pi'), 'pi');

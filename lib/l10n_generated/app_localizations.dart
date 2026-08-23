@@ -7789,8 +7789,128 @@ abstract class AppLocalizations {
   /// No description provided for @profilesCodexProviderEnvHint.
   ///
   /// In en, this message translates to:
-  /// **'Codex sessions route through OPENAI_BASE_URL as a custom provider. Optional overrides in the variables below: HAPPY_CODEX_PROVIDER_ENV_KEY names the variable holding your API key (default OPENAI_API_KEY), HAPPY_CODEX_PROVIDER_WIRE_API selects the protocol — chat for OpenAI-compatible gateways or responses for Codex-native ones (default responses) — and HAPPY_CODEX_PROVIDER_NAME sets a display name.'**
+  /// **'Codex sessions can use the provider definitions below. Environment variables remain available for advanced or legacy configurations.'**
   String get profilesCodexProviderEnvHint;
+
+  /// No description provided for @profilesCodexProvidersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex providers'**
+  String get profilesCodexProvidersTitle;
+
+  /// No description provided for @profilesCodexProvidersHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model_providers entries for Codex-compatible gateways. Keys stay in the environment variable named below.'**
+  String get profilesCodexProvidersHint;
+
+  /// No description provided for @profilesCodexDefaultProviderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Default provider ID (optional)'**
+  String get profilesCodexDefaultProviderLabel;
+
+  /// No description provided for @profilesCodexDefaultProviderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses the first provider when empty'**
+  String get profilesCodexDefaultProviderHint;
+
+  /// No description provided for @profilesCodexProviderIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Provider ID'**
+  String get profilesCodexProviderIdLabel;
+
+  /// No description provided for @profilesCodexProviderIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. llm-proxy'**
+  String get profilesCodexProviderIdHint;
+
+  /// No description provided for @profilesCodexProviderIdInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use only letters, numbers, hyphens, and underscores'**
+  String get profilesCodexProviderIdInvalid;
+
+  /// No description provided for @profilesCodexProviderNameLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name (optional)'**
+  String get profilesCodexProviderNameLabel;
+
+  /// No description provided for @profilesCodexProviderNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. LLM Proxy'**
+  String get profilesCodexProviderNameHint;
+
+  /// No description provided for @profilesCodexProviderBaseUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get profilesCodexProviderBaseUrlLabel;
+
+  /// No description provided for @profilesCodexProviderBaseUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://gateway.example/v1'**
+  String get profilesCodexProviderBaseUrlHint;
+
+  /// No description provided for @profilesCodexProviderEnvKeyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API key environment variable'**
+  String get profilesCodexProviderEnvKeyLabel;
+
+  /// No description provided for @profilesCodexProviderEnvKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'LLM_PROXY_API_KEY'**
+  String get profilesCodexProviderEnvKeyHint;
+
+  /// No description provided for @profilesCodexProviderEnvKeyInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Use an uppercase environment variable name'**
+  String get profilesCodexProviderEnvKeyInvalid;
+
+  /// No description provided for @profilesCodexProviderWireApiLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Wire API'**
+  String get profilesCodexProviderWireApiLabel;
+
+  /// No description provided for @profilesCodexProviderResponses.
+  ///
+  /// In en, this message translates to:
+  /// **'Responses API'**
+  String get profilesCodexProviderResponses;
+
+  /// No description provided for @profilesCodexProviderChat.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat Completions'**
+  String get profilesCodexProviderChat;
+
+  /// No description provided for @profilesCodexProviderAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add provider'**
+  String get profilesCodexProviderAdd;
+
+  /// No description provided for @profilesCodexProviderRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove provider'**
+  String get profilesCodexProviderRemove;
+
+  /// No description provided for @profilesCodexProvidersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No Codex providers configured'**
+  String get profilesCodexProvidersEmpty;
 
   /// No description provided for @profilesModelsTitle.
   ///
