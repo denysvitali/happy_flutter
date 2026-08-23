@@ -2,7 +2,39 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-13
+**Last Updated**: 2026-08-23
+
+### Web build performance sweep, 2026-08-23
+
+User report: the deployed web build spins the fans while a tab sits open. A
+16-agent audit + fix pass found three independent burn sources. **Idle:**
+OpenTelemetry initialized unconditionally on web, arming 1s/5s/30s SDK export
+timers — and every export dies at CORS preflight (the collector sends no
+`access-control-allow-origin`), so web telemetry was pure waste; OTel init is
+now skipped on web (Sentry/GlitchTip unaffected), the session-activity 15s
+timer is native-only and the stuck-agent sentinel drops to 5-minute cadence.
+Steady-state UI kept animating forever: permission-required dots pulsed on
+retained session trees behind routes (`TickerMode` now mutes covered
+subtrees; `isPulsing` is thinking-only), machine/friend "online" dots pulsed,
+the ask-a-question card ran an infinite blurred-boxShadow glow (now a finite
+3-cycle intro), and empty states/auth gradients looped unbounded (now finite
+or reduced-motion-gated). **Streaming:** on web `compute()` runs inline, so
+every delta re-parsed whole markdown documents and re-tokenized whole code
+blocks while poisoning the shared syntax LRU — streaming rows now render a
+bounded plain-text tail and settle to full markdown/highlighting after growth
+stops; the sub-agent banner/builder double transcript walk per socket event
+shares one revision-keyed projection; web batch decrypt/process yield between
+8-row chunks instead of one long synchronous block. **Churn:** the reconnect
+watchdog redialed forever with an 8-fetch cascade per reconnect — backoff now
+caps at 600s and recovery is outage-proportional (short outages refresh
+critical domains only; web skips the push-token sync it can't use); the
+message cache no longer decrypt+re-encrypts identical windows every page load
+(`pw` pipeline marker) and the ~2MB sessions blob is sharded per-session in
+IndexedDB with batched decode. Deliberately not done: repeat-visit payload
+caching (Flutter 3.41's service worker is a deprecated self-unregistering
+shim — needs a hand-written SW or non-Pages hosting), CanvasKit→skwasm
+renderer A/B, and WebCrypto-backed AES-GCM (needs async seam through sync
+call sites).
 
 ### Cross-platform trust and interaction audit, 2026-08-08
 
