@@ -709,6 +709,20 @@ what you have, you must use the options mode.
   /// flaky transport cannot keep the radio awake with repeated catalog fetches.
   static const int _reconnectGlobalInvalidationCooldownMs = 60 * 1000;
 
+  /// Socket outages shorter than this recover on reconnect with only the
+  /// critical catalogs (sessions + machines); outages at least this long,
+  /// or with an untracked start, also refresh the deferred/background
+  /// domains (settings, profile, purchases, native update, git status).
+  /// A flapping connection must not re-fetch settings and purchases every
+  /// 60 seconds; a five-minute outage plausibly missed server-side
+  /// changes in them.
+  static const int _reconnectLongOutageThresholdMs = 5 * 60 * 1000;
+
+  /// Timestamp of the last connected → not-connected transition observed
+  /// by the status listener. Null while connected or when no transition
+  /// has been seen this process; drives [_reconnectLongOutageThresholdMs].
+  int? _socketDisconnectedAtMs;
+
   /// Base delay before phase-1 (deferred) syncs fire after phase-0
   /// (sessions). Was `Duration.zero` — fired on the very next event-loop
   /// tick, which meant every global invalidation queued sessions, machines,

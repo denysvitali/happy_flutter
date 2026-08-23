@@ -14,6 +14,35 @@ import 'opentelemetry_service.dart';
 
 const String _cacheCiphertextMarker = '_happyAtRestCiphertext';
 
+/// Marks a stored ciphertext envelope as written by the current cache
+/// preparation pipeline (sanitize + trim + strip).
+///
+/// Without it, a stored-already-protected window was decrypted and
+/// re-encrypted on every fresh page load whenever the round-tripped
+/// content hashed differently from its re-prepared form. Presence of the
+/// marker means the stored window is trusted as canonical and the load
+/// path only seeds dirty-tracking state instead of queueing a rewrite.
+/// Absence (older builds) keeps the legacy behavior exactly once, then
+/// the rewritten envelope carries the marker.
+const String _cachePipelineWrittenMarker = 'pw';
+
+/// Messages processed between event-loop yields inside the workers.
+///
+/// On web, `compute()` runs its callback inline on the UI isolate, so the
+/// awaited boundaries below are what let pending frame callbacks run
+/// between chunks of a ≤200-message window instead of blocking several
+/// frames with one whole-blob encode/decode. Native isolates treat the
+/// delay as an inexpensive scheduling step.
+const int _cacheWorkerChunkMessages = 25;
+
+/// Yields to the event loop once per [_cacheWorkerChunkMessages] items.
+Future<void> _yieldAfterChunk(int completedItems) async {
+  if (completedItems == 0 || completedItems % _cacheWorkerChunkMessages != 0) {
+    return;
+  }
+  await Future<void>.delayed(Duration.zero);
+}
+
 /// Cache window prepared for persistence.
 class _PreparedCacheWindow {
   const _PreparedCacheWindow({
@@ -40,6 +69,31 @@ _PreparedCacheWindow _prepareMessageCacheWindow(
     messages: sanitized,
     originalCount: messages.length,
     hash: MessageCacheService._computeCacheWindowHash(sanitized),
+    prepareMs: prepareWatch.elapsedMilliseconds,
+  );
+}
+
+/// Chunked twin of [_prepareMessageCacheWindow] for the web workers:
+/// identical output, but the sanitize and hash loops yield to the event
+/// loop every [_cacheWorkerChunkMessages] rows.
+Future<_PreparedCacheWindow> _prepareMessageCacheWindowAsync(
+  List<Map<String, dynamic>> messages,
+) async {
+  final prepareWatch = Stopwatch()..start();
+  final withoutSynthetics = MessageCacheService.stripOrphanSynthetics(messages);
+  final trimmed = MessageCacheService._trimToCacheWindow(withoutSynthetics);
+  final sanitized = <Map<String, dynamic>>[];
+  for (var i = 0; i < trimmed.length; i++) {
+    sanitized.add(_sanitizeCacheMessageTree(trimmed[i]));
+    await _yieldAfterChunk(i + 1);
+  }
+  final hash = await MessageCacheService._computeCacheWindowHashAsync(
+    sanitized,
+  );
+  return _PreparedCacheWindow(
+    messages: sanitized,
+    originalCount: messages.length,
+    hash: hash,
     prepareMs: prepareWatch.elapsedMilliseconds,
   );
 }
@@ -72,18 +126,27 @@ Map<String, dynamic> _sanitizeCacheMessageTree(
 ///
 /// Must stay top-level and take only sendable POD arguments — a closure
 /// capturing `this` here reintroduces the "Isolate unsendable Future"
-/// production bug (ROADMAP, 7b69d1b).
-Map<String, dynamic> _prepareAndProtectMessageCacheJson(
+/// production bug (ROADMAP, 7b69d1b). On web the body runs on the UI
+/// isolate, so the prepare and per-row encode loops yield between chunks;
+/// the AES envelope stays a single call because its byte format is pinned.
+Future<Map<String, dynamic>> _prepareAndProtectMessageCacheJson(
   Map<String, dynamic> request,
-) {
+) async {
   final protectionKey = request['protectionKey'] as Uint8List;
   try {
     final messages = (request['messages'] as List<dynamic>)
         .cast<Map<String, dynamic>>();
     final associatedData = request['associatedData'] as String;
-    final prepared = _prepareMessageCacheWindow(messages);
+    final prepared = await _prepareMessageCacheWindowAsync(messages);
+    // Encoding row by row and joining is byte-identical to encoding the
+    // whole list at once, but lets the UI breathe between rows on web.
+    final encodedRows = <String>[];
+    for (var i = 0; i < prepared.messages.length; i++) {
+      encodedRows.add(jsonEncode(prepared.messages[i]));
+      await _yieldAfterChunk(i + 1);
+    }
     final protected = protectAtRestPayloadForWorker(
-      jsonEncode(prepared.messages),
+      '[${encodedRows.join(',')}]',
       associatedData: associatedData,
       key: protectionKey,
     );
@@ -91,7 +154,10 @@ Map<String, dynamic> _prepareAndProtectMessageCacheJson(
       'encodedMarker': protected == null
           ? null
           : jsonEncode(<Map<String, dynamic>>[
-              <String, dynamic>{_cacheCiphertextMarker: protected},
+              <String, dynamic>{
+                _cacheCiphertextMarker: protected,
+                _cachePipelineWrittenMarker: true,
+              },
             ]),
       'originalCount': prepared.originalCount,
       'savedCount': prepared.messages.length,
@@ -105,9 +171,13 @@ Map<String, dynamic> _prepareAndProtectMessageCacheJson(
 }
 
 /// Top-level isolate worker for cache read parsing and decryption.
-Map<String, dynamic> _decodeAndPrepareMessageCacheJson(
+///
+/// Like [_prepareAndProtectMessageCacheJson], chunked with event-loop
+/// yields so a fresh page load cannot block several frames decoding one
+/// session window on web.
+Future<Map<String, dynamic>> _decodeAndPrepareMessageCacheJson(
   Map<String, dynamic> request,
-) {
+) async {
   final raw = request['readNative'] == true
       ? readSessionMessagesEncodedInWorker(request['sessionId'] as String)
       : request['raw'] as String?;
@@ -125,17 +195,28 @@ Map<String, dynamic> _decodeAndPrepareMessageCacheJson(
       }
       outerMessages.add(Map<String, dynamic>.from(item));
     }
+    final storedEnvelope = outerMessages.length == 1
+        ? outerMessages.single
+        : null;
     final storedWasProtected =
-        outerMessages.length == 1 &&
-        outerMessages.single[_cacheCiphertextMarker] is String;
+        storedEnvelope != null &&
+        storedEnvelope[_cacheCiphertextMarker] is String;
+    final writtenByCurrentPipeline =
+        storedEnvelope != null &&
+        storedWasProtected &&
+        storedEnvelope[_cachePipelineWrittenMarker] == true;
 
     late final List<Map<String, dynamic>> decoded;
     if (storedWasProtected) {
       if (protectionKey == null) {
         return <String, dynamic>{'status': 'key_unavailable'};
       }
+      // Separate the outer parse from the synchronous decrypt + inner
+      // decode pair; both are single-shot because their formats are
+      // pinned, but the gap in between lets queued frame work run.
+      await Future<void>.delayed(Duration.zero);
       final plaintext = unprotectAtRestPayloadForWorker(
-        outerMessages.single[_cacheCiphertextMarker]! as String,
+        storedEnvelope[_cacheCiphertextMarker]! as String,
         associatedData: request['associatedData'] as String,
         key: protectionKey,
       );
@@ -147,26 +228,33 @@ Map<String, dynamic> _decodeAndPrepareMessageCacheJson(
         return <String, dynamic>{'status': 'malformed'};
       }
       decoded = <Map<String, dynamic>>[];
-      for (final item in inner) {
+      for (var i = 0; i < inner.length; i++) {
+        final item = inner[i];
         if (item is! Map) {
           return <String, dynamic>{'status': 'malformed'};
         }
         decoded.add(Map<String, dynamic>.from(item));
+        await _yieldAfterChunk(i + 1);
       }
     } else {
       decoded = outerMessages;
     }
 
-    final decodedHash = MessageCacheService._computeCacheWindowHash(decoded);
-    final prepared = _prepareMessageCacheWindow(decoded);
+    final decodedHash = await MessageCacheService._computeCacheWindowHashAsync(
+      decoded,
+    );
+    final prepared = await _prepareMessageCacheWindowAsync(decoded);
     return <String, dynamic>{
       'status': 'ok',
       'messages': prepared.messages,
       'hash': prepared.hash,
       'storedWasProtected': storedWasProtected,
+      // A window written by this pipeline version is canonical; only
+      // legacy envelopes (no marker) still pay the content-diff rewrite.
       'needsRewrite':
-          decoded.length != prepared.messages.length ||
-          decodedHash != prepared.hash,
+          !writtenByCurrentPipeline &&
+          (decoded.length != prepared.messages.length ||
+              decodedHash != prepared.hash),
     };
   } catch (_) {
     return <String, dynamic>{'status': 'malformed'};
@@ -1097,7 +1185,10 @@ class MessageCacheService {
     );
     if (protected == null) return null;
     return jsonEncode(<Map<String, dynamic>>[
-      <String, dynamic>{_cacheCiphertextMarker: protected},
+      <String, dynamic>{
+        _cacheCiphertextMarker: protected,
+        _cachePipelineWrittenMarker: true,
+      },
     ]);
   }
 
@@ -1111,23 +1202,32 @@ class MessageCacheService {
 
   /// Compute a lightweight hash of the persisted cache window.
   static int _computeCacheWindowHash(List<Map<String, dynamic>> messages) {
-    if (messages.isEmpty) return 0;
     var hash = messages.length;
-    for (var i = 0; i < messages.length; i++) {
-      final m = messages[i];
-      final id = m['id'];
-      final seq = m['seq'];
-      final state = m['state'];
-      final sendStatus = m['sendStatus'];
-      final content = m['content'];
-      final contentHash = _contentFingerprint(content);
-      hash = _combineHash(hash, _contentFingerprint(id));
-      hash = _combineHash(hash, _contentFingerprint(seq));
-      hash = _combineHash(hash, _contentFingerprint(state));
-      hash = _combineHash(hash, _contentFingerprint(sendStatus));
-      hash = _combineHash(hash, contentHash);
+    for (final m in messages) {
+      hash = _hashCacheWindowRow(hash, m);
     }
     return hash;
+  }
+
+  /// Chunked twin of [_computeCacheWindowHash] for the web workers.
+  static Future<int> _computeCacheWindowHashAsync(
+    List<Map<String, dynamic>> messages,
+  ) async {
+    var hash = messages.length;
+    for (var i = 0; i < messages.length; i++) {
+      hash = _hashCacheWindowRow(hash, messages[i]);
+      await _yieldAfterChunk(i + 1);
+    }
+    return hash;
+  }
+
+  static int _hashCacheWindowRow(int hash, Map<String, dynamic> m) {
+    var combined = hash;
+    combined = _combineHash(combined, _contentFingerprint(m['id']));
+    combined = _combineHash(combined, _contentFingerprint(m['seq']));
+    combined = _combineHash(combined, _contentFingerprint(m['state']));
+    combined = _combineHash(combined, _contentFingerprint(m['sendStatus']));
+    return _combineHash(combined, _contentFingerprint(m['content']));
   }
 
   /// Bounded fingerprint for message content.

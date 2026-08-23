@@ -9,7 +9,23 @@ part of 'sync_service.dart';
 /// exponential curve never got past its first few steps and the
 /// steady-state cost of a sustained outage was ~2 dials every 15s — per
 /// device, in lockstep across the fleet after a server restart.
-const int _reconnectWatchdogMaxDelayMs = 120 * 1000;
+const int _reconnectWatchdogMaxDelayMs = 600 * 1000;
+
+/// Un-jittered watchdog delays for consecutive exhausted rounds, indexed
+/// by the 0-based attempt counter: 15s → 30s → 60s → 120s → 300s, then the
+/// [_reconnectWatchdogMaxDelayMs] hard cap. The old doubling ladder capped
+/// at 120s, which still meant one dial round every ~2 minutes FOREVER on
+/// a visibly open web tab (a visible tab never suspends), each round
+/// rebuilding a Socket.IO Manager and arming the recovery cascade. The
+/// extended tail keeps a bounded worst-case recovery (~10 min) while
+/// making a multi-hour server outage nearly free.
+const List<int> _reconnectWatchdogLadderMs = <int>[
+  15 * 1000,
+  30 * 1000,
+  60 * 1000,
+  120 * 1000,
+  300 * 1000,
+];
 
 /// Fraction of the base delay added as random jitter, so devices that
 /// dropped together (server restart, carrier blip) do not redial in
@@ -19,13 +35,10 @@ const double _reconnectWatchdogJitterRatio = 0.25;
 final Random _reconnectWatchdogRandom = Random();
 
 /// Un-jittered watchdog delay for a 0-based [attempt]:
-/// 15s, 30s, 60s, 120s, 120s…
+/// 15s, 30s, 60s, 120s, 300s, 600s cap…
 int _reconnectWatchdogBaseDelayMs(int attempt) {
-  var delay = Sync._reconnectWatchdogDelayMs;
-  for (var i = 0; i < attempt; i++) {
-    if (delay >= _reconnectWatchdogMaxDelayMs) break;
-    delay *= 2;
-  }
+  final index = attempt.clamp(0, _reconnectWatchdogLadderMs.length - 1);
+  final delay = _reconnectWatchdogLadderMs[index];
   return delay > _reconnectWatchdogMaxDelayMs
       ? _reconnectWatchdogMaxDelayMs
       : delay;
@@ -220,6 +233,16 @@ extension SyncLifecycle on Sync {
     // The isBackgrounded check is in InvalidateSync._run() before
     // await _action().
     InvalidateSync.isBackgrounded = false;
+
+    // A resume means the world changed under the watchdog: the tab became
+    // visible again, or NetworkMonitorService observed connectivity coming
+    // back — both enter through here. Reset the escalation counter so the
+    // next outage probes fast instead of inheriting a long-outage delay.
+    // suspend() already resets it on the way down; on web a VISIBLE tab
+    // never suspends, so without this reset a tab that sat through an
+    // outage would stay pinned at the 600s cap even after the user came
+    // back and the network healed.
+    _reconnectWatchdogAttempt = 0;
 
     final socketDisconnectWasDeferred = _deferredSocketDisconnectTimer != null;
     _deferredSocketDisconnectTimer?.cancel();
@@ -779,13 +802,14 @@ extension SyncLifecycle on Sync {
   /// Each call resets the timer so reconnect-exhausted events and
   /// resume() don't stack timers.
   ///
-  /// The re-arm period BACKS OFF (15s, 30s, 60s, 120s cap) with jitter.
-  /// A flat period meant a sustained outage cost ~8 dials/minute forever,
-  /// each one resetting the Socket.IO Manager's own backoff to zero, and
-  /// the lack of jitter synchronised every device on the fleet after a
-  /// server restart.  [resetBackoff] restarts the curve for deliberate
-  /// user/lifecycle-driven reconnects, where a fast first probe is worth
-  /// it.
+  /// The re-arm period BACKS OFF (15s → 30s → 60s → 120s → 300s, then a
+  /// 600s hard cap) with jitter. A flat period meant a sustained outage
+  /// cost ~8 dials/minute forever, each one resetting the Socket.IO
+  /// Manager's own backoff to zero, and the lack of jitter synchronised
+  /// every device on the fleet after a server restart. [resetBackoff]
+  /// restarts the curve for deliberate user/lifecycle-driven reconnects,
+  /// where a fast first probe is worth it; resume() also resets it because
+  /// visibility or connectivity returning changes the picture entirely.
   ///
   /// [assumeDisconnected] arms the watchdog even when the socket still
   /// reports [ConnectionStatus.connected]. The zombie path in [resume]
@@ -944,6 +968,7 @@ extension SyncLifecycle on Sync {
     _reconnectWatchdogTimer?.cancel();
     _reconnectWatchdogTimer = null;
     _reconnectWatchdogAttempt = 0;
+    _socketDisconnectedAtMs = null;
     _resumeBatchTimer?.cancel();
     _resumeBatchTimer = null;
     _resumeConversationProgressSafetyTimer?.cancel();

@@ -100,10 +100,44 @@ extension SyncSocketEvents on Sync {
         reconnectNowMs,
         resumeHttpFallbackRecentlyFired: resumeHttpFallbackRecentlyFired,
       )) {
-        reconnectReason = _forceFullFetchNext
-            ? 'forced_full_fetch'
-            : 'global_invalidation';
-        _invalidateAllSyncs(force: true);
+        // Recovery is proportional to the outage it recovers from. A
+        // blip only invalidates sessions + machines (the visible chat's
+        // message fetch runs below on every reconnect); the settings/
+        // profile/purchases/nativeUpdate/gitStatus cascade is reserved
+        // for outages that lasted long enough to plausibly have missed
+        // server-side changes. An untracked start (status change
+        // observed before this clock existed) conservatively counts as
+        // long. The 60s cooldown gate above still applies to every
+        // branch.
+        final disconnectedAtMs = _socketDisconnectedAtMs;
+        final shortOutage =
+            disconnectedAtMs != null &&
+            reconnectNowMs - disconnectedAtMs <
+                Sync._reconnectLongOutageThresholdMs;
+        if (_forceFullFetchNext) {
+          reconnectReason = 'forced_full_fetch';
+          _invalidateAllSyncs(force: true);
+        } else if (shortOutage) {
+          reconnectReason = 'short_outage_critical';
+          _invalidateAllSyncs(force: true, phase: Sync._criticalSyncPhase);
+          machinesSync.invalidate();
+        } else if (kIsWeb) {
+          // Web has no push token to refresh — NotificationService
+          // no-ops there — so the long-outage cascade skips it and runs
+          // the remaining domains directly instead of through the
+          // phase timers.
+          reconnectReason = 'long_outage_web_no_push';
+          _invalidateAllSyncs(force: true, phase: Sync._criticalSyncPhase);
+          machinesSync.invalidate();
+          settingsSync.invalidate();
+          profileSync.invalidate();
+          purchasesSync.invalidate();
+          nativeUpdateSync.invalidate();
+          sessionGitStatusSync.invalidate();
+        } else {
+          reconnectReason = 'global_invalidation';
+          _invalidateAllSyncs(force: true);
+        }
       } else {
         reconnectReason = 'cooldown_throttled';
         logger.debug(
@@ -211,8 +245,10 @@ extension SyncSocketEvents on Sync {
       },
     );
     _unsubscribeSocketStatus = socketIoClient.onStatusChange((status) {
+      final wasConnected = _connectionStatus == ConnectionStatus.connected;
       _connectionStatus = status;
       if (status == ConnectionStatus.connected) {
+        _socketDisconnectedAtMs = null;
         // Brownout recovery (audit 2026-08-03): the retry budget is
         // shorter than the observed server stalls, so sends queued when
         // the socket dropped dead-lettered while the outage was still
@@ -220,6 +256,12 @@ extension SyncSocketEvents on Sync {
         // failure may now deliver — re-arm those entries. Permanent
         // rejections stay dead for the user to retry by hand.
         unawaited(messageOutbox.reviveTransientDead());
+      } else if (wasConnected) {
+        // Anchor for reconnect-proportional recovery: how long the
+        // current outage has lasted when the reconnected handler runs.
+        // Only connected -> not-connected transitions start the clock, so
+        // the cold-start dial never counts as an outage.
+        _socketDisconnectedAtMs = DateTime.now().millisecondsSinceEpoch;
       }
     });
   }
