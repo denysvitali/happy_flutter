@@ -32,6 +32,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/widgets/desktop_update_banner.dart';
 import '../../core/widgets/offline_banner.dart';
 import '../../core/widgets/sync_progress_bar.dart';
 import '../../core/wire/wire_parsers.dart';
@@ -1586,6 +1587,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return Column(
       children: [
         const OfflineBanner(),
+        const DesktopUpdateBanner(),
         // Sticky sub-agent status banner. Re-renders on every
         // sync.onDataChanged tick via its own StatefulWidget so the
         // running/total counts stay current without invalidating the

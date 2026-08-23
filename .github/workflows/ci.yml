@@ -694,10 +694,23 @@ jobs:
 
       - name: Bundle release archive
         run: |
-          cp scripts/install-linux.sh assets/icon/app_icon.png \
-            build/linux/x64/release/bundle/
-          chmod +x build/linux/x64/release/bundle/install-linux.sh
-          cd build/linux/x64/release/bundle
+          SEMVER=${{ steps.build_meta.outputs.SEMVER }}
+          BUILD_NUMBER=${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          BUNDLE=build/linux/x64/release/bundle
+          cp scripts/install-linux.sh scripts/update-linux.sh \
+            assets/icon/app_icon.png "$BUNDLE/"
+          chmod +x "$BUNDLE/install-linux.sh" "$BUNDLE/update-linux.sh"
+          # Stamp the update manifest so the in-app updater and
+          # update-linux.sh can compare installed vs latest builds.
+          cat > "$BUNDLE/manifest.json" <<EOF
+          {
+            "name": "happy_flutter",
+            "version": "$SEMVER",
+            "buildNumber": $BUILD_NUMBER,
+            "channel": "stable"
+          }
+          EOF
+          cd "$BUNDLE"
           tar -czf ../../../../../happy-flutter-linux-x64.tar.gz .
 
       - name: Upload Linux x64 Bundle

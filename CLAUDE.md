@@ -302,6 +302,7 @@ For non-URL data (e.g., `message-detail`), pass `Map<String, dynamic>` via `stat
 | `MessageOutbox` | Failed sends in MMKV, exponential backoff 1s→30s, max 3 retries |
 | `FrameMetricsService` | Aggregated build/raster/total frame metrics and frozen-frame reporting |
 | `StuckAgentSentinel` | Actionable alert for off-screen thinking sessions with no progress |
+| `DesktopUpdaterService` | Linux self-updater: GitHub Releases check (startup + 6h), auto-download, atomic bundle swap, restart prompt; mirrors `scripts/update-linux.sh` |
 
 **Repository migration:** Sessions, machines, settings, artifacts, messages,
 and workflows expose Riverpod-injectable repositories. Some concrete

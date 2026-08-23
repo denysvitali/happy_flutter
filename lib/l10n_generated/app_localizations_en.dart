@@ -2035,6 +2035,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateBannerTapToUpdatePlayStore => 'Tap to update in Play Store';
 
   @override
+  String desktopUpdateAvailable(String version) {
+    return 'Version $version is available';
+  }
+
+  @override
+  String get desktopUpdateDownload => 'Download';
+
+  @override
+  String get desktopUpdateDownloading => 'Downloading update…';
+
+  @override
+  String desktopUpdateDownloadingProgress(int progress) {
+    return 'Downloading update… $progress%';
+  }
+
+  @override
+  String get desktopUpdateReady => 'Update installed — restart to apply';
+
+  @override
+  String get desktopUpdateRestart => 'Restart now';
+
+  @override
   String changelogVersion(int version) {
     return 'Version $version';
   }

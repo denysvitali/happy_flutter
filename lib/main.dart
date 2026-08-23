@@ -20,6 +20,7 @@ import 'core/i18n/app_localizations.dart';
 import 'core/providers/app_providers.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/app_visibility_coordinator.dart';
+import 'core/services/desktop_updater_service.dart';
 import 'core/services/frame_metrics_service.dart';
 import 'core/services/logger_service.dart';
 import 'core/services/network_monitor_service.dart';
@@ -351,13 +352,24 @@ Future<void> _deferredInit() async {
     }
   }());
 
+  // Desktop self-updater (Linux installs under $XDG_DATA_HOME). Arms its
+  // own startup + periodic release checks; internally no-ops on other
+  // platforms. Fire-and-forget — the first check is delayed 20s so it
+  // never competes with cold-start network traffic.
+  unawaited(() async {
+    try {
+      DesktopUpdaterService.shared.start();
+    } catch (e) {
+      logger.warning('[DesktopUpdater] start failed: $e');
+    }
+  }());
+
   // Firebase push notifications — not needed for first screen.
   // Use unawaited() so this never blocks _deferredInit from completing.
   // Firebase can take 1-3s on first init; keeping it off the critical
   // path saves ~2s on cold/warm start.  Errors are caught and logged
   // inside _initializeOptionalFirebase so they never propagate.
-  unawaited(() async {
-    final firebaseSpan = transaction.startChild(
+  unawaited(() async {    final firebaseSpan = transaction.startChild(
       'app.deferredInit.firebase',
       description: 'Initialize optional Firebase services',
     );

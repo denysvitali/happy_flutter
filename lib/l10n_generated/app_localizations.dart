@@ -3706,6 +3706,42 @@ abstract class AppLocalizations {
   /// **'Tap to update in Play Store'**
   String get updateBannerTapToUpdatePlayStore;
 
+  /// Desktop self-updater: a newer release was found
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} is available'**
+  String desktopUpdateAvailable(String version);
+
+  /// No description provided for @desktopUpdateDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get desktopUpdateDownload;
+
+  /// No description provided for @desktopUpdateDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update…'**
+  String get desktopUpdateDownloading;
+
+  /// Desktop self-updater download progress
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading update… {progress}%'**
+  String desktopUpdateDownloadingProgress(int progress);
+
+  /// No description provided for @desktopUpdateReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Update installed — restart to apply'**
+  String get desktopUpdateReady;
+
+  /// No description provided for @desktopUpdateRestart.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart now'**
+  String get desktopUpdateRestart;
+
   /// Changelog version header
   ///
   /// In en, this message translates to:

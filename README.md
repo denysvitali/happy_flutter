@@ -138,6 +138,33 @@ tar -xzf happy-flutter-linux-x64.tar.gz
 This installs the app under `~/.local/share/happy_flutter`, provides
 `~/.local/bin/happy_flutter`, and adds it to desktop launchers.
 
+#### Auto-updates
+
+Local installs keep themselves current, both while the app is running and in
+the background:
+
+- **In-app updater** (`lib/core/services/desktop_updater_service.dart`) —
+  checks GitHub Releases ~20s after launch and every 6h. Newer builds are
+  downloaded automatically; a slim banner on the sessions/chat screens offers
+  a one-tap "Restart now" once the swap is staged.
+- **Background timer** — `install-linux.sh` arms a systemd user timer
+  (`happy-flutter-updater.timer`, every 12h) that runs the bundled
+  `update-linux.sh`. Pass `--no-autoupdate` to skip it. Both updaters share
+  an flock so they never race.
+
+Updates are applied via an atomic directory swap: the install path never
+changes, so launchers, the `~/.local/bin/happy_flutter` symlink, and any
+running process stay valid mid-update. Installed version metadata lives in
+`manifest.json` inside the bundle (stamped by CI at archive time).
+
+Other installer flags:
+
+```bash
+./install-linux.sh --uninstall    # remove app, units and desktop entry
+HAPPY_UPDATE_REPO=you/happy_fork update-linux.sh   # custom release feed
+update-linux.sh --check           # exit 10 when an update is available
+```
+
 ## Project Structure
 
 ### Design Tokens

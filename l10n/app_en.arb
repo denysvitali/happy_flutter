@@ -733,6 +733,28 @@
   "updateBannerNativeUpdateAvailable": "App Update Available",
   "updateBannerTapToUpdateAppStore": "Tap to update in App Store",
   "updateBannerTapToUpdatePlayStore": "Tap to update in Play Store",
+  "desktopUpdateAvailable": "Version {version} is available",
+  "@desktopUpdateAvailable": {
+    "description": "Desktop self-updater: a newer release was found",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "desktopUpdateDownload": "Download",
+  "desktopUpdateDownloading": "Downloading update…",
+  "desktopUpdateDownloadingProgress": "Downloading update… {progress}%",
+  "@desktopUpdateDownloadingProgress": {
+    "description": "Desktop self-updater download progress",
+    "placeholders": {
+      "progress": {
+        "type": "int"
+      }
+    }
+  },
+  "desktopUpdateReady": "Update installed — restart to apply",
+  "desktopUpdateRestart": "Restart now",
   "changelogVersion": "Version {version}",
   "changelogNoEntriesAvailable": "No changelog entries available.",
   "@changelogVersion": {
