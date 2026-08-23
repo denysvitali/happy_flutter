@@ -77,12 +77,6 @@ List<RouteBase> get settingsRoutes => [
       ),
     ),
     GoRoute(
-      path: '/settings/theme',
-      name: 'theme',
-      pageBuilder: (context, state) =>
-          _slidePage(const AuthGate(child: ThemeSettingsScreen()), state),
-    ),
-    GoRoute(
       path: '/settings/voice',
       name: 'voice',
       pageBuilder: (context, state) =>

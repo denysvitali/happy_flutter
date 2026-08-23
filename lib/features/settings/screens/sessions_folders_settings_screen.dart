@@ -164,6 +164,7 @@ class _FolderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return ListTile(
       leading: const Icon(Icons.folder_outlined),
       title: Text(folder),
@@ -173,12 +174,12 @@ class _FolderTile extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => _showRenameDialog(context),
-            tooltip: 'Rename',
+            tooltip: l10n.commonRename,
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: onDelete,
-            tooltip: 'Delete',
+            tooltip: l10n.commonDelete,
           ),
         ],
       ),

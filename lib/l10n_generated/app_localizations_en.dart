@@ -18,12 +18,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appVersion => 'Version';
 
   @override
-  String get appLoading => 'Loading...';
-
-  @override
-  String get appRetry => 'Retry';
-
-  @override
   String get commonCancel => 'Cancel';
 
   @override
@@ -31,9 +25,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commonAdd => 'Add';
-
-  @override
-  String get commonOk => 'OK';
 
   @override
   String get commonYes => 'Yes';
@@ -51,9 +42,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonSave => 'Save';
 
   @override
-  String get commonSaveAs => 'Save As';
-
-  @override
   String get commonDelete => 'Delete';
 
   @override
@@ -69,53 +57,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonError => 'Error';
 
   @override
-  String get commonSuccess => 'Success';
-
-  @override
   String get commonCopy => 'Copy';
 
   @override
   String get commonCopied => 'Copied';
 
   @override
-  String get commonLogout => 'Logout';
-
-  @override
-  String get commonDiscard => 'Discard';
-
-  @override
   String get commonOptional => 'optional';
-
-  @override
-  String get commonScanning => 'Scanning...';
-
-  @override
-  String get commonUrlPlaceholder => 'https://example.com';
-
-  @override
-  String get commonHome => 'Home';
-
-  @override
-  String get commonMessage => 'Message';
-
-  @override
-  String get commonFiles => 'Files';
-
-  @override
-  String get commonFileViewer => 'File Viewer';
 
   @override
   String get commonLoading => 'Loading...';
 
   @override
   String get commonDeleteConfirmTitle => 'Confirm Deletion';
-
-  @override
-  String get commonDeleteConfirmMessage =>
-      'Are you sure you want to delete this?';
-
-  @override
-  String get tabsSessions => 'Terminals';
 
   @override
   String get tabsSettings => 'Settings';
@@ -142,46 +96,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusOffline => 'Offline';
 
   @override
-  String get statusActiveNow => 'Active now';
-
-  @override
   String get statusUnknown => 'Unknown';
 
   @override
   String get statusPermissionRequired => 'Permission required';
-
-  @override
-  String statusLastSeen(String time) {
-    return 'Last seen $time';
-  }
-
-  @override
-  String get timeJustNow => 'just now';
-
-  @override
-  String timeMinutesAgo(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count minutes ago',
-      one: '1 minute ago',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String timeHoursAgo(num count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count hours ago',
-      one: '1 hour ago',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get authTitle => 'Authenticate';
 
   @override
   String get authAccessDenied => 'Access denied';
@@ -190,54 +108,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authAuthenticationFailed => 'Authentication failed';
 
   @override
-  String get authEnterSecretKey => 'Please enter a secret key';
-
-  @override
-  String get authInvalidSecretKey =>
-      'Invalid secret key. Please check and try again.';
-
-  @override
-  String get authRestoreAccount => 'Restore Account';
-
-  @override
-  String get authEnterUrlManually => 'Enter URL manually';
-
-  @override
-  String get authPasteAuthUrl =>
-      'Paste the authentication URL from your terminal';
-
-  @override
-  String get authAuthenticateTerminal => 'Authenticate Terminal';
-
-  @override
-  String get authAuthenticateWithUrlPaste =>
-      'Authenticate Terminal with URL paste';
-
-  @override
-  String get authCameraPermissionsRequired =>
-      'Camera permissions are required to scan QR codes';
-
-  @override
-  String get authExchangingTokens => 'Exchanging tokens...';
-
-  @override
-  String get authClaudeAuthSuccess => 'Successfully connected to Claude';
-
-  @override
-  String get welcomeTitle => 'Codex and Claude Code mobile client';
-
-  @override
-  String get welcomeSubtitle =>
-      'End-to-end encrypted and your account is stored only on your device.';
-
-  @override
   String get welcomeCreateAccount => 'Create account';
 
   @override
   String get welcomeLinkOrRestoreAccount => 'Link or restore account';
-
-  @override
-  String get welcomeLoginWithMobileApp => 'Login with mobile app';
 
   @override
   String get sessionTitle => 'Sessions';
@@ -246,14 +120,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionNewSession => 'New Session';
 
   @override
-  String get sessionStartNewToGetStarted =>
-      'Start a new session to get started';
-
-  @override
   String get sessionNoSessionsYet => 'No sessions yet';
-
-  @override
-  String get sessionActiveSessions => 'Active';
 
   @override
   String get sessionHistory => 'History';
@@ -269,15 +136,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionPathHint => 'Enter path';
-
-  @override
-  String get sessionInitialMessage => 'Initial message';
-
-  @override
-  String get sessionInitialMessageHint => 'What would you like to work on?';
-
-  @override
-  String get sessionInputPlaceholder => 'Type a message ...';
 
   @override
   String get chatStopCurrentTask => 'Stop current task';
@@ -300,12 +158,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not stop the agent process. It may still be running.';
 
   @override
-  String get sessionStartSession => 'Start Session';
-
-  @override
-  String get sessionStarting => 'Starting session...';
-
-  @override
   String get newSessionPhaseCheckingMachine => 'Checking machine…';
 
   @override
@@ -325,21 +177,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newSessionPhaseFinalizing => 'Finalizing session…';
 
   @override
-  String get sessionStarted => 'Session Started';
-
-  @override
-  String get sessionStartedMessage =>
-      'The session has been started successfully.';
-
-  @override
-  String get sessionFailedToStart =>
-      'Failed to start session. Make sure the daemon is running on the target machine.';
-
-  @override
-  String get sessionTimeout =>
-      'Session startup timed out. The machine may be slow or the daemon may not be responding.';
-
-  @override
   String get sessionNotConnectedToServer =>
       'Not connected to server. Check your internet connection.';
 
@@ -352,26 +189,11 @@ class AppLocalizationsEn extends AppLocalizations {
       'Please select a directory to start the session in';
 
   @override
-  String get sessionTypeTitle => 'Session Type';
-
-  @override
-  String get sessionTypeSimple => 'Simple';
-
-  @override
-  String get sessionTypeWorktree => 'Worktree';
-
-  @override
-  String get sessionTypeComingSoon => 'Coming soon';
-
-  @override
   String get newSessionTitle => 'New Session';
 
   @override
   String get newSessionNoMachinesFound =>
       'No machines found. Start a Happy session on your computer first.';
-
-  @override
-  String get newSessionAllMachinesOffline => 'All machines appear offline';
 
   @override
   String get newSessionMachineUnreachable =>
@@ -486,205 +308,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeAuthComplete => 'Complete';
 
   @override
-  String get newSessionMachineDetails => 'View machine details →';
-
-  @override
-  String get newSessionDirectoryDoesNotExist => 'Directory Not Found';
-
-  @override
-  String newSessionCreateDirectoryConfirm(Object directory) {
-    return 'The directory $directory does not exist. Do you want to create it?';
-  }
-
-  @override
-  String get newSessionSessionSpawningFailed =>
-      'Session spawning failed - no session ID returned.';
-
-  @override
   String get sessionHistoryTitle => 'Sessions';
-
-  @override
-  String get sessionHistoryEmpty => 'No sessions found';
-
-  @override
-  String get sessionHistoryToday => 'Today';
-
-  @override
-  String get sessionHistoryYesterday => 'Yesterday';
-
-  @override
-  String sessionHistoryDaysAgo(num count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count days ago',
-      one: '1 day ago',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get sessionHistoryViewAll => 'View all sessions';
 
   @override
   String get sessionInfoTitle => 'Session Info';
 
   @override
-  String get sessionInfoHappySessionId => 'Happy Session ID';
-
-  @override
-  String get sessionInfoClaudeCodeSessionId => 'Claude Code Session ID';
-
-  @override
-  String get sessionInfoAiProvider => 'AI Provider';
-
-  @override
-  String get sessionInfoConnectionStatus => 'Connection Status';
-
-  @override
-  String get sessionInfoCreated => 'Created';
-
-  @override
-  String get sessionInfoLastUpdated => 'Last Updated';
-
-  @override
-  String get sessionInfoSequence => 'Sequence';
-
-  @override
-  String get sessionInfoMetadata => 'Metadata';
-
-  @override
-  String get sessionInfoHost => 'Host';
-
-  @override
-  String get sessionInfoPath => 'Path';
-
-  @override
-  String get sessionInfoOperatingSystem => 'Operating System';
-
-  @override
-  String get sessionInfoProcessId => 'Process ID';
-
-  @override
-  String get sessionInfoCliVersion => 'CLI Version';
-
-  @override
-  String get sessionInfoAgentState => 'Agent State';
-
-  @override
-  String get sessionInfoControlledByUser => 'Controlled by User';
-
-  @override
-  String get sessionInfoPendingRequests => 'Pending Requests';
-
-  @override
-  String get sessionInfoActivity => 'Activity';
-
-  @override
   String get sessionInfoThinking => 'Thinking';
 
   @override
-  String get sessionInfoThinkingSince => 'Thinking Since';
-
-  @override
-  String get sessionInfoCliVersionOutdated => 'CLI Update Required';
-
-  @override
-  String sessionInfoCliVersionOutdatedMessage(
-    Object currentVersion,
-    Object requiredVersion,
-  ) {
-    return 'Version $currentVersion installed. Update to $requiredVersion or later';
-  }
-
-  @override
-  String get sessionInfoUpdateCliInstructions =>
-      'Please run npm install -g happy-coder@latest';
-
-  @override
-  String get sessionInfoQuickActions => 'Quick Actions';
-
-  @override
-  String get sessionInfoViewMachine => 'View Machine';
-
-  @override
-  String get sessionInfoViewMachineSubtitle =>
-      'View machine details and sessions';
-
-  @override
-  String get sessionInfoKillSession => 'Kill Session';
-
-  @override
-  String get sessionInfoKillSessionConfirm =>
-      'Are you sure you want to terminate this session?';
-
-  @override
-  String get sessionInfoKillSessionSubtitle =>
-      'Immediately terminate the session';
-
-  @override
-  String get sessionInfoArchiveSession => 'Archive Session';
-
-  @override
-  String get sessionInfoArchiveSessionConfirm =>
-      'Are you sure you want to archive this session?';
-
-  @override
-  String get sessionInfoArchiveSessionSubtitle =>
-      'Archive this session and stop it';
-
-  @override
-  String get sessionInfoDeleteSession => 'Delete Session';
-
-  @override
-  String get sessionInfoDeleteSessionSubtitle =>
-      'Permanently remove this session';
-
-  @override
-  String get sessionInfoDeleteSessionConfirm => 'Delete Session Permanently?';
-
-  @override
-  String get sessionInfoDeleteSessionWarning =>
-      'This action cannot be undone. All messages and data associated with this session will be permanently deleted.';
-
-  @override
-  String get sessionInfoCopySessionId => 'Copy Session ID';
-
-  @override
-  String get sessionInfoCopyMetadata => 'Copy Metadata';
-
-  @override
-  String get sessionInfoSessionIdCopied => 'Session ID copied to clipboard';
-
-  @override
   String get sessionInfoMetadataCopied => 'Metadata copied to clipboard';
-
-  @override
-  String get sessionInfoCopyFailed => 'Failed to copy to clipboard';
-
-  @override
-  String get sessionInfoHappyHome => 'Happy Home';
-
-  @override
-  String get sessionInfoFailedToKillSession => 'Failed to kill session';
-
-  @override
-  String get sessionInfoFailedToArchiveSession => 'Failed to archive session';
-
-  @override
-  String get sessionInfoFailedToDeleteSession => 'Failed to delete session';
-
-  @override
-  String get sessionInfoSessionDeleted => 'Session deleted successfully';
-
-  @override
-  String machineTitle(int count) {
-    return 'Machine';
-  }
-
-  @override
-  String get machineLaunchNewSessionInDirectory =>
-      'Launch New Session in Directory';
 
   @override
   String get machineOfflineUnableToSpawn =>
@@ -701,16 +334,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get machineStatus => 'Status';
 
   @override
-  String get machineStopDaemon => 'Stop Daemon';
-
-  @override
   String get machineLastKnownPid => 'Last Known PID';
-
-  @override
-  String get machineLastKnownHttpPort => 'Last Known HTTP Port';
-
-  @override
-  String get machineStartedAt => 'Started At';
 
   @override
   String get machineCliVersion => 'CLI Version';
@@ -733,17 +357,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get machineCompatibilityCopied => 'Update command copied';
 
   @override
-  String get machineDaemonStateVersion => 'Daemon State Version';
-
-  @override
-  String machineActiveSessions(Object count) {
-    return 'Active Sessions ($count)';
-  }
-
-  @override
-  String get machineMachineGroup => 'Machine';
-
-  @override
   String get machineHost => 'Host';
 
   @override
@@ -753,54 +366,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get machineUsername => 'Username';
 
   @override
-  String get machineHomeDirectory => 'Home Directory';
-
-  @override
   String get machinePlatform => 'Platform';
 
   @override
   String get machineArchitecture => 'Architecture';
 
   @override
-  String get machineLastSeen => 'Last Seen';
-
-  @override
-  String get machineNever => 'Never';
-
-  @override
-  String get machineMetadataVersion => 'Metadata Version';
-
-  @override
-  String get machineUntitledSession => 'Untitled Session';
-
-  @override
-  String get machineBack => 'Back';
-
-  @override
   String get machineShowLess => 'Show less';
 
   @override
-  String machineShowAll(Object count) {
-    return 'Show all ($count paths)';
-  }
-
-  @override
-  String get machineEnterCustomPath => 'Enter custom path';
-
-  @override
-  String get machineOfflineUnableToSpawnNew =>
-      'Unable to spawn new session, offline';
-
-  @override
-  String chatTitle(String toolName) {
-    return 'Chat';
-  }
-
-  @override
   String get chatStartConversation => 'Start a conversation';
-
-  @override
-  String get chatSendMessageToBegin => 'Send a message to begin';
 
   @override
   String get chatSessionSettings => 'Session settings';
@@ -819,21 +394,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatThinking => 'Claude is thinking...';
 
   @override
-  String chatToolRunning(Object toolName) {
-    return 'Running: $toolName';
-  }
-
-  @override
   String get settingsTitle => 'Settings';
-
-  @override
-  String get settingsConnectedAccounts => 'Connected Accounts';
-
-  @override
-  String get settingsConnectAccount => 'Connect account';
-
-  @override
-  String get settingsGithub => 'GitHub';
 
   @override
   String get settingsMachines => 'Machines';
@@ -852,6 +413,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsFeatures => 'Features';
 
   @override
+  String get settingsHubToolsTitle => 'Agents & Tools';
+
+  @override
+  String get workflowPresetsTitle => 'Workflow presets';
+
+  @override
+  String get workflowPresetsDescription =>
+      'Presets update existing app settings and can be adjusted later.';
+
+  @override
+  String get workflowPresetFocusTitle => 'Focus';
+
+  @override
+  String get workflowPresetFocusSubtitle =>
+      'Quiet chat, compact sessions, unread-first navigation';
+
+  @override
+  String get workflowPresetVoiceTitle => 'Voice';
+
+  @override
+  String get workflowPresetVoiceSubtitle =>
+      'Speech on, inline context, mission-control browsing';
+
+  @override
+  String get workflowPresetLowNoiseTitle => 'Low noise';
+
+  @override
+  String get workflowPresetLowNoiseSubtitle =>
+      'Hide tool chatter and inactive work by default';
+
+  @override
+  String get workflowPresetDebugTitle => 'Debug';
+
+  @override
+  String get workflowPresetDebugSubtitle =>
+      'Show internals, tool calls, todos, and developer logging';
+
+  @override
+  String get workflowPresetActiveSuffix => '- Active';
+
+  @override
+  String get workflowPresetAppliedSnack => 'preset applied';
+
+  @override
   String get settingsAccount => 'Account';
 
   @override
@@ -861,40 +466,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppearance => 'Appearance';
 
   @override
-  String get settingsAppearanceSubtitle => 'Customize how the app looks';
-
-  @override
-  String get settingsVoiceAssistant => 'Voice Assistant';
-
-  @override
-  String get settingsVoiceAssistantSubtitle =>
-      'Configure voice interaction preferences';
-
-  @override
-  String get settingsFeaturesTitle => 'Features';
-
-  @override
   String get settingsFeaturesSubtitle => 'Enable or disable app features';
 
   @override
   String get settingsDeveloper => 'Developer';
 
   @override
-  String get settingsDeveloperTools => 'Developer Tools';
-
-  @override
   String get settingsAbout => 'About';
-
-  @override
-  String get settingsAboutFooter =>
-      'Happy Coder is a Codex and Claude Code mobile client. It\'s fully end-to-end encrypted and your account is stored only on your device. Not affiliated with Anthropic.';
-
-  @override
-  String get settingsWhatsNew => 'What\'s New';
-
-  @override
-  String get settingsWhatsNewSubtitle =>
-      'See the latest updates and improvements';
 
   @override
   String get settingsReportIssue => 'Report an Issue';
@@ -906,29 +484,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTermsOfService => 'Terms of Service';
 
   @override
-  String get settingsEula => 'EULA';
-
-  @override
-  String get settingsSupportUs => 'Support us';
-
-  @override
-  String get settingsSupportUsSubtitlePro => 'Thank you for your support!';
-
-  @override
-  String get settingsSupportUsSubtitle => 'Support project development';
-
-  @override
-  String get settingsScanQrCodeToAuthenticate => 'Scan QR code to authenticate';
-
-  @override
-  String settingsGithubConnected(Object login) {
-    return 'Connected as @$login';
-  }
-
-  @override
-  String get settingsConnectGithubAccount => 'Connect your GitHub account';
-
-  @override
   String get settingsUsage => 'Usage';
 
   @override
@@ -938,10 +493,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsProfiles => 'Profiles';
 
   @override
-  String get settingsProfilesSubtitle =>
-      'Manage environment variable profiles for sessions';
-
-  @override
   String get settingsSignOut => 'Sign out';
 
   @override
@@ -949,307 +500,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to sign out? Make sure you have backed up your secret key!';
 
   @override
-  String get settingsLanguage => 'Language';
-
-  @override
-  String get settingsLanguageSubtitle =>
-      'Choose your preferred language for the app interface';
-
-  @override
-  String get settingsLanguageCurrent => 'Current Language';
-
-  @override
-  String get settingsLanguageAutomatic => 'Automatic';
-
-  @override
-  String get settingsLanguageAutomaticSubtitle => 'Detect from device settings';
-
-  @override
-  String get settingsLanguageNeedsRestart => 'Language Changed';
-
-  @override
-  String get settingsLanguageNeedsRestartMessage =>
-      'The app needs to restart to apply the new language setting.';
-
-  @override
-  String get settingsLanguageRestartNow => 'Restart Now';
-
-  @override
-  String get settingsLanguageSearchPlaceholder => 'Search languages...';
-
-  @override
-  String get settingsAppearanceTheme => 'Theme';
-
-  @override
-  String get settingsAppearanceThemeSubtitle =>
-      'Choose your preferred color scheme';
-
-  @override
-  String get settingsAppearanceThemeAdaptive => 'Adaptive';
-
-  @override
-  String get settingsAppearanceThemeAdaptiveSubtitle => 'Match system settings';
-
-  @override
-  String get settingsAppearanceThemeLight => 'Light';
-
-  @override
-  String get settingsAppearanceThemeLightSubtitle => 'Always use light theme';
-
-  @override
-  String get settingsAppearanceThemeDark => 'Dark';
-
-  @override
-  String get settingsAppearanceThemeDarkSubtitle => 'Always use dark theme';
-
-  @override
-  String get settingsAppearanceDisplay => 'Display';
-
-  @override
-  String get settingsAppearanceDisplaySubtitle => 'Control layout and spacing';
-
-  @override
-  String get settingsAppearanceInlineToolCalls => 'Inline Tool Calls';
-
-  @override
-  String get settingsAppearanceInlineToolCallsSubtitle =>
-      'Display tool calls directly in chat messages';
-
-  @override
-  String get settingsAppearanceExpandTodoLists => 'Expand Todo Lists';
-
-  @override
-  String get settingsAppearanceExpandTodoListsSubtitle =>
-      'Show all todos instead of just changes';
-
-  @override
-  String get settingsAppearanceShowLineNumbersInDiffs =>
-      'Show Line Numbers in Diffs';
-
-  @override
-  String get settingsAppearanceShowLineNumbersInDiffsSubtitle =>
-      'Display line numbers in code diffs';
-
-  @override
-  String get settingsAppearanceShowLineNumbersInToolViews =>
-      'Show Line Numbers in Tool Views';
-
-  @override
-  String get settingsAppearanceShowLineNumbersInToolViewsSubtitle =>
-      'Display line numbers in tool view diffs';
-
-  @override
-  String get settingsAppearanceWrapLinesInDiffs => 'Wrap Lines in Diffs';
-
-  @override
-  String get settingsAppearanceWrapLinesInDiffsSubtitle =>
-      'Wrap long lines instead of horizontal scrolling in diff views';
-
-  @override
-  String get settingsAppearanceAlwaysShowContextSize =>
-      'Always Show Context Size';
-
-  @override
-  String get settingsAppearanceAlwaysShowContextSizeSubtitle =>
-      'Display context usage even when not near limit';
-
-  @override
-  String get settingsAppearanceAvatarStyle => 'Avatar Style';
-
-  @override
-  String get settingsAppearanceAvatarStyleSubtitle =>
-      'Choose session avatar appearance';
-
-  @override
-  String get settingsAppearanceAvatarStylePixelated => 'Pixelated';
-
-  @override
-  String get settingsAppearanceAvatarStyleGradient => 'Gradient';
-
-  @override
-  String get settingsAppearanceAvatarStyleBrutalist => 'Brutalist';
-
-  @override
-  String get settingsAppearanceShowFlavorIcons => 'Show AI Provider Icons';
-
-  @override
-  String get settingsAppearanceShowFlavorIconsSubtitle =>
-      'Display AI provider icons on session avatars';
-
-  @override
-  String get settingsAppearanceCompactSessionView => 'Compact Session View';
-
-  @override
-  String get settingsAppearanceCompactSessionViewSubtitle =>
-      'Show active sessions in a more compact layout';
-
-  @override
-  String get settingsFeaturesExperiments => 'Experiments';
-
-  @override
-  String get settingsFeaturesExperimentsSubtitle =>
-      'Enable experimental features that are still in development. These features may be unstable or change without notice.';
-
-  @override
-  String get settingsFeaturesExperimentalFeatures => 'Experimental Features';
-
-  @override
-  String get settingsFeaturesExperimentalFeaturesEnabled =>
-      'Experimental features enabled';
-
-  @override
-  String get settingsFeaturesExperimentalFeaturesDisabled =>
-      'Using stable features only';
-
-  @override
-  String get settingsFeaturesWebFeatures => 'Web Features';
-
-  @override
-  String get settingsFeaturesWebFeaturesSubtitle =>
-      'Features available only in the web version of the app.';
-
-  @override
-  String get settingsFeaturesEnterToSend => 'Enter to Send';
-
-  @override
-  String get settingsFeaturesEnterToSendEnabled =>
-      'Press Enter to send (Shift+Enter for a new line)';
-
-  @override
-  String get settingsFeaturesEnterToSendDisabled => 'Enter inserts a new line';
-
-  @override
-  String get settingsFeaturesCommandPalette => 'Command Palette';
-
-  @override
-  String get settingsFeaturesCommandPaletteEnabled => 'Press ⌘K to open';
-
-  @override
-  String get settingsFeaturesCommandPaletteDisabled =>
-      'Quick command access disabled';
-
-  @override
-  String get settingsFeaturesMarkdownCopyV2 => 'Markdown Copy v2';
-
-  @override
-  String get settingsFeaturesMarkdownCopyV2Subtitle =>
-      'Long press opens copy modal';
-
-  @override
-  String get settingsFeaturesHideInactiveSessions => 'Hide inactive sessions';
-
-  @override
-  String get settingsFeaturesHideInactiveSessionsSubtitle =>
-      'Show only active chats in your list';
-
-  @override
-  String get settingsFeaturesEnhancedSessionWizard => 'Enhanced Session Wizard';
-
-  @override
-  String get settingsFeaturesEnhancedSessionWizardEnabled =>
-      'Profile-first session launcher active';
-
-  @override
-  String get settingsFeaturesEnhancedSessionWizardDisabled =>
-      'Using standard session launcher';
-
-  @override
-  String get settingsAccountTitle => 'Account Settings';
-
-  @override
-  String get settingsAccountStatus => 'Status';
-
-  @override
-  String get settingsAccountStatusActive => 'Active';
-
-  @override
-  String get settingsAccountStatusNotAuthenticated => 'Not Authenticated';
-
-  @override
-  String get settingsAccountAnonymousId => 'Anonymous ID';
-
-  @override
-  String get settingsAccountPublicId => 'Public ID';
-
-  @override
-  String get settingsAccountNotAvailable => 'Not available';
-
-  @override
-  String get settingsAccountLinkNewDevice => 'Link New Device';
-
-  @override
-  String get settingsAccountLinkNewDeviceSubtitle =>
-      'Scan QR code to link device';
-
-  @override
-  String get settingsAccountProfile => 'Profile';
-
-  @override
-  String get settingsAccountName => 'Name';
-
-  @override
-  String get settingsAccountGithub => 'GitHub';
-
-  @override
-  String get settingsAccountTapToDisconnect => 'Tap to disconnect';
-
-  @override
-  String get settingsAccountServer => 'Server';
-
-  @override
-  String get settingsAccountBackup => 'Backup';
-
-  @override
-  String get settingsAccountBackupDescription =>
-      'Your secret key is the only way to recover your account. Save it in a secure place like a password manager.';
-
-  @override
-  String get settingsAccountSecretKey => 'Secret Key';
-
-  @override
-  String get settingsAccountTapToReveal => 'Tap to reveal';
-
-  @override
-  String get settingsAccountTapToHide => 'Tap to hide';
-
-  @override
-  String get settingsAccountSecretKeyLabel => 'SECRET KEY (TAP TO COPY)';
-
-  @override
-  String get settingsAccountSecretKeyCopied =>
-      'Secret key copied to clipboard. Store it in a safe place!';
-
-  @override
-  String get settingsAccountSecretKeyCopyFailed => 'Failed to copy secret key';
-
-  @override
-  String get settingsAccountPrivacy => 'Privacy';
-
-  @override
-  String get settingsAccountPrivacyDescription =>
-      'Help improve the app by sharing anonymous usage data. No personal information is collected.';
-
-  @override
-  String get settingsAccountAnalytics => 'Analytics';
-
-  @override
-  String get settingsAccountAnalyticsDisabled => 'No data is shared';
-
-  @override
-  String get settingsAccountAnalyticsEnabled =>
-      'Anonymous usage data is shared';
-
-  @override
   String get settingsAccountDangerZone => 'Danger Zone';
-
-  @override
-  String get settingsAccountLogout => 'Logout';
-
-  @override
-  String get settingsAccountLogoutSubtitle => 'Sign out and clear local data';
-
-  @override
-  String get settingsServerTitle => 'Server Configuration';
 
   @override
   String get settingsServerUrl => 'Server URL';
@@ -1258,390 +509,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsServerUrlLabel => 'Please enter a server URL';
 
   @override
-  String get settingsServerNotValidHappyServer => 'Not a valid Happy Server';
-
-  @override
-  String get settingsServerChangeServer => 'Change Server';
-
-  @override
-  String get settingsServerContinueWithServer => 'Continue with this server?';
-
-  @override
   String get settingsServerResetToDefault => 'Reset to Default';
-
-  @override
-  String get settingsServerResetServerDefault => 'Reset server to default?';
-
-  @override
-  String get settingsServerValidating => 'Validating...';
-
-  @override
-  String get settingsServerValidatingServer => 'Validating server...';
-
-  @override
-  String get settingsServerServerReturnedError => 'Server returned an error';
-
-  @override
-  String get settingsServerFailedToConnectToServer =>
-      'Failed to connect to server';
-
-  @override
-  String get settingsServerCurrentlyUsingCustomServer =>
-      'Currently using custom server';
-
-  @override
-  String get settingsServerCustomServerUrlLabel => 'Custom Server URL';
-
-  @override
-  String get settingsServerAdvancedFeatureFooter =>
-      'This is an advanced feature. Only change the server if you know what you\'re doing. You will need to log out and log in again after changing servers.';
-
-  @override
-  String get settingsVoiceTitle => 'Voice Assistant';
-
-  @override
-  String get settingsVoiceLanguage => 'Language';
-
-  @override
-  String get settingsVoiceLanguageSubtitle =>
-      'Choose your preferred language for voice assistant interactions. This setting syncs across all your devices.';
-
-  @override
-  String get settingsVoicePreferredLanguage => 'Preferred Language';
-
-  @override
-  String get settingsVoicePreferredLanguageSubtitle =>
-      'Language used for voice assistant responses';
-
-  @override
-  String get settingsVoiceLanguageSearchPlaceholder => 'Search languages...';
-
-  @override
-  String get settingsVoiceLanguageSearchTitle => 'Languages';
-
-  @override
-  String settingsVoiceLanguageFooter(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count languages',
-      one: '1 language',
-    );
-    return '$_temp0 available';
-  }
-
-  @override
-  String get settingsVoiceLanguageAutoDetect => 'Auto-detect';
-
-  @override
-  String get settingsProfilesTitle => 'Profiles';
-
-  @override
-  String get settingsProfilesNoProfile => 'No Profile';
-
-  @override
-  String get settingsProfilesNoProfileDescription =>
-      'Use default environment settings';
-
-  @override
-  String get settingsProfilesDefaultModel => 'Default Model';
-
-  @override
-  String get settingsProfilesAddProfile => 'Add Profile';
-
-  @override
-  String get settingsProfilesProfileName => 'Profile Name';
-
-  @override
-  String get settingsProfilesEnterName => 'Enter profile name';
-
-  @override
-  String get settingsProfilesBaseUrl => 'Base URL';
-
-  @override
-  String get settingsProfilesAuthToken => 'Auth Token';
-
-  @override
-  String get settingsProfilesEnterToken => 'Enter auth token';
-
-  @override
-  String get settingsProfilesModel => 'Model';
-
-  @override
-  String get settingsProfilesTmuxSession => 'Tmux Session';
-
-  @override
-  String get settingsProfilesEnterTmuxSession => 'Enter tmux session name';
-
-  @override
-  String get settingsProfilesTmuxTempDir => 'Tmux Temp Directory';
-
-  @override
-  String get settingsProfilesEnterTmuxTempDir => 'Enter temp directory path';
-
-  @override
-  String get settingsProfilesTmuxUpdateEnvironment =>
-      'Update environment automatically';
-
-  @override
-  String get settingsProfilesNameRequired => 'Profile name is required';
-
-  @override
-  String settingsProfilesDeleteConfirm(String name) {
-    return 'Are you sure you want to delete the profile \"$name\"?';
-  }
-
-  @override
-  String get settingsProfilesEditProfile => 'Edit Profile';
-
-  @override
-  String get settingsProfilesAddProfileTitle => 'Add New Profile';
-
-  @override
-  String get settingsProfilesDeleteTitle => 'Delete Profile';
-
-  @override
-  String settingsProfilesDeleteMessage(Object name) {
-    return 'Are you sure you want to delete \"$name\"? This action cannot be undone.';
-  }
-
-  @override
-  String get settingsProfilesDeleteConfirmAction => 'Delete';
-
-  @override
-  String get settingsProfilesDeleteCancel => 'Cancel';
-
-  @override
-  String get settingsUsageTitle => 'Usage';
-
-  @override
-  String get settingsUsageToday => 'Today';
-
-  @override
-  String get settingsUsageLast7Days => 'Last 7 days';
-
-  @override
-  String get settingsUsageLast30Days => 'Last 30 days';
-
-  @override
-  String get settingsUsageTotalTokens => 'Total Tokens';
-
-  @override
-  String get settingsUsageTotalCost => 'Total Cost';
-
-  @override
-  String get settingsUsageTokens => 'Tokens';
-
-  @override
-  String get settingsUsageCost => 'Cost';
-
-  @override
-  String get settingsUsageUsageOverTime => 'Usage over time';
-
-  @override
-  String get settingsUsageByModel => 'By Model';
-
-  @override
-  String get settingsUsageNoData => 'No usage data available';
-
-  @override
-  String get settingsDeveloperTitle => 'Developer';
-
-  @override
-  String settingsDeveloperVersion(String version) {
-    return 'Version $version';
-  }
-
-  @override
-  String get settingsDeveloperCopyDebugInfo => 'Copy Debug Info';
-
-  @override
-  String get settingsDeveloperDebugInfoCopied =>
-      'Debug info copied to clipboard';
-
-  @override
-  String get errorsNetworkError => 'Network error occurred';
-
-  @override
-  String get errorsServerError => 'Server error occurred';
-
-  @override
-  String get errorsUnknownError => 'An unknown error occurred';
-
-  @override
-  String get errorsConnectionTimeout => 'Connection timed out';
-
-  @override
-  String get errorsAuthenticationFailed => 'Authentication failed';
-
-  @override
-  String get errorsPermissionDenied => 'Permission denied';
-
-  @override
-  String get errorsFileNotFound => 'File not found';
-
-  @override
-  String get errorsInvalidFormat => 'Invalid format';
-
-  @override
-  String get errorsOperationFailed => 'Operation failed';
-
-  @override
-  String get errorsTryAgain => 'Please try again';
-
-  @override
-  String get errorsContactSupport => 'Contact support if the problem persists';
-
-  @override
-  String get errorsSessionNotFound => 'Session not found';
-
-  @override
-  String get errorsVoiceSessionFailed => 'Failed to start voice session';
-
-  @override
-  String get errorsVoiceServiceUnavailable =>
-      'Voice service is temporarily unavailable';
-
-  @override
-  String get errorsOauthInitializationFailed =>
-      'Failed to initialize OAuth flow';
-
-  @override
-  String get errorsTokenStorageFailed =>
-      'Failed to store authentication tokens';
-
-  @override
-  String get errorsOauthStateMismatch =>
-      'Security validation failed. Please try again';
-
-  @override
-  String get errorsTokenExchangeFailed =>
-      'Failed to exchange authorization code';
-
-  @override
-  String get errorsOauthAuthorizationDenied => 'Authorization was denied';
-
-  @override
-  String get errorsWebViewLoadFailed => 'Failed to load authentication page';
-
-  @override
-  String get errorsFailedToLoadProfile => 'Failed to load user profile';
-
-  @override
-  String get errorsUserNotFound => 'User not found';
-
-  @override
-  String get errorsSessionDeleted => 'Session has been deleted';
-
-  @override
-  String get errorsSessionDeletedDescription =>
-      'This session has been permanently removed';
-
-  @override
-  String errorsFieldError(String field, String reason) {
-    return '$field: $reason';
-  }
-
-  @override
-  String errorsValidationError(String field, int min, int max) {
-    return '$field must be between $min and $max';
-  }
-
-  @override
-  String errorsRetryIn(int seconds) {
-    String _temp0 = intl.Intl.pluralLogic(
-      seconds,
-      locale: localeName,
-      other: '$seconds seconds',
-      one: '1 second',
-    );
-    return 'Retry in $_temp0';
-  }
-
-  @override
-  String errorsErrorWithCode(Object code, Object message) {
-    return '$message (Error $code)';
-  }
-
-  @override
-  String errorsDisconnectServiceFailed(Object service) {
-    return 'Failed to disconnect $service';
-  }
-
-  @override
-  String errorsConnectServiceFailed(Object service) {
-    return 'Failed to connect $service. Please try again.';
-  }
-
-  @override
-  String get errorsSearchFailed => 'Search failed. Please try again.';
-
-  @override
-  String get terminalWebBrowserRequired => 'Web Browser Required';
-
-  @override
-  String get terminalWebBrowserRequiredDescription =>
-      'Terminal connection links can only be opened in a web browser for security reasons. Please use the QR code scanner or open this link on a computer.';
-
-  @override
-  String get terminalProcessingConnection => 'Processing connection...';
-
-  @override
-  String get terminalInvalidConnectionLink => 'Invalid Connection Link';
-
-  @override
-  String get terminalInvalidConnectionLinkDescription =>
-      'The connection link is missing or invalid. Please check the URL and try again.';
-
-  @override
-  String get terminalConnectTerminal => 'Connect Terminal';
-
-  @override
-  String get terminalRequestDescription =>
-      'A terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.';
-
-  @override
-  String get terminalConnectionDetails => 'Connection Details';
-
-  @override
-  String get terminalPublicKey => 'Public Key';
-
-  @override
-  String get terminalEncryption => 'Encryption';
-
-  @override
-  String get terminalEndToEndEncrypted => 'End-to-end encrypted';
-
-  @override
-  String get terminalAcceptConnection => 'Accept Connection';
-
-  @override
-  String get terminalConnecting => 'Connecting...';
-
-  @override
-  String get terminalReject => 'Reject';
-
-  @override
-  String get terminalSecurity => 'Security';
-
-  @override
-  String get terminalSecurityFooter =>
-      'This connection link was processed securely in your browser and was never sent to any server. Your private data will remain secure and only you can decrypt the messages.';
-
-  @override
-  String get terminalSecurityFooterDevice =>
-      'This connection was processed securely on your device and was never sent to any server. Your private data will remain secure and only you can decrypt the messages.';
-
-  @override
-  String get terminalClientSideProcessing => 'Client-Side Processing';
-
-  @override
-  String get terminalLinkProcessedLocally =>
-      'Link processed locally in browser';
-
-  @override
-  String get terminalLinkProcessedOnDevice =>
-      'Link processed locally on device';
 
   @override
   String get sidebarSessionsTitle => 'Terminals';
@@ -1659,9 +527,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sidebarStatusError => 'Error';
 
   @override
-  String get commandPalettePlaceholder => 'Type a command or search...';
-
-  @override
   String get commandPaletteSemanticsLabel => 'Command palette';
 
   @override
@@ -1669,30 +534,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commandPaletteTryDifferentSearch => 'Try a different search term';
-
-  @override
-  String get toolViewInput => 'Input';
-
-  @override
-  String get toolViewOutput => 'Output';
-
-  @override
-  String get toolViewDescription => 'Description';
-
-  @override
-  String get toolViewInputParams => 'Input Parameters';
-
-  @override
-  String get toolViewError => 'Error';
-
-  @override
-  String get toolViewCompleted => 'Tool completed successfully';
-
-  @override
-  String get toolViewNoOutput => 'No output was produced';
-
-  @override
-  String get toolViewRunning => 'Tool is running...';
 
   @override
   String get toolStateApprovalNeeded => 'Approval needed';
@@ -1738,253 +579,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Use the details button to view input & output';
 
   @override
-  String get toolViewRawJsonDevMode => 'Raw JSON (Dev Mode)';
-
-  @override
-  String get toolNamesTask => 'Task';
-
-  @override
-  String get toolNamesTerminal => 'Terminal';
-
-  @override
-  String get toolNamesSearchFiles => 'Search Files';
-
-  @override
-  String get toolNamesSearch => 'Search';
-
-  @override
-  String get toolNamesSearchContent => 'Search Content';
-
-  @override
-  String get toolNamesListFiles => 'List Files';
-
-  @override
-  String get toolNamesPlanProposal => 'Plan proposal';
-
-  @override
-  String get toolNamesReadFile => 'Read File';
-
-  @override
-  String get toolNamesEditFile => 'Edit File';
-
-  @override
-  String get toolNamesWriteFile => 'Write File';
-
-  @override
-  String get toolNamesFetchUrl => 'Fetch URL';
-
-  @override
-  String get toolNamesReadNotebook => 'Read Notebook';
-
-  @override
-  String get toolNamesEditNotebook => 'Edit Notebook';
-
-  @override
-  String get toolNamesTodoList => 'Todo List';
-
-  @override
-  String get toolNamesWebSearch => 'Web Search';
-
-  @override
-  String get toolNamesReasoning => 'Reasoning';
-
-  @override
-  String get toolNamesApplyChanges => 'Update file';
-
-  @override
-  String get toolNamesViewDiff => 'Current file changes';
-
-  @override
-  String get toolNamesQuestion => 'Question';
-
-  @override
-  String toolDescTerminalCmd(String cmd) {
-    return 'Terminal(cmd: $cmd)';
-  }
-
-  @override
-  String toolDescSearchPattern(Object pattern) {
-    return 'Search(pattern: $pattern)';
-  }
-
-  @override
-  String toolDescSearchPath(Object basename) {
-    return 'Search(path: $basename)';
-  }
-
-  @override
-  String toolDescFetchUrlHost(Object host) {
-    return 'Fetch URL(url: $host)';
-  }
-
-  @override
-  String toolDescEditNotebookMode(Object mode, Object path) {
-    return 'Edit Notebook(file: $path, mode: $mode)';
-  }
-
-  @override
-  String toolDescTodoListCount(Object count) {
-    return 'Todo List(count: $count)';
-  }
-
-  @override
-  String toolDescWebSearchQuery(Object query) {
-    return 'Web Search(query: $query)';
-  }
-
-  @override
-  String toolDescGrepPattern(Object pattern) {
-    return 'grep(pattern: $pattern)';
-  }
-
-  @override
-  String toolDescMultiEditEdits(Object count, Object path) {
-    return '$path ($count edits)';
-  }
-
-  @override
-  String toolDescReadingFile(Object file) {
-    return 'Reading $file';
-  }
-
-  @override
-  String toolDescWritingFile(Object file) {
-    return 'Writing $file';
-  }
-
-  @override
-  String toolDescModifyingFile(Object file) {
-    return 'Modifying $file';
-  }
-
-  @override
-  String toolDescModifyingFiles(Object count) {
-    return 'Modifying $count files';
-  }
-
-  @override
-  String toolDescModifyingMultipleFiles(Object count, Object file) {
-    return '$file and $count more';
-  }
-
-  @override
-  String get toolDescShowingDiff => 'Showing changes';
-
-  @override
-  String get filesSearchPlaceholder => 'Search files...';
-
-  @override
-  String get filesDetachedHead => 'detached HEAD';
-
-  @override
-  String filesSummary(Object staged, Object unstaged) {
-    return '$staged staged • $unstaged unstaged';
-  }
-
-  @override
-  String get filesNotRepo => 'Not a git repository';
-
-  @override
-  String get filesNotUnderGit =>
-      'This directory is not under git version control';
-
-  @override
-  String get filesSearching => 'Searching files...';
-
-  @override
-  String get filesNoFilesFound => 'No files found';
-
-  @override
-  String get filesNoFilesInProject => 'No files in project';
-
-  @override
-  String get filesTryDifferentTerm => 'Try a different search term';
-
-  @override
-  String filesSearchResults(int count) {
-    return 'Search Results ($count)';
-  }
-
-  @override
-  String get filesProjectRoot => 'Project root';
-
-  @override
-  String filesStagedChanges(Object count) {
-    return 'Staged Changes ($count)';
-  }
-
-  @override
-  String filesUnstagedChanges(Object count) {
-    return 'Unstaged Changes ($count)';
-  }
-
-  @override
-  String filesLoadingFile(Object fileName) {
-    return 'Loading $fileName...';
-  }
-
-  @override
-  String get filesBinaryFile => 'Binary File';
-
-  @override
-  String get filesCannotDisplayBinary => 'Cannot display binary file content';
-
-  @override
-  String get filesDiff => 'Diff';
-
-  @override
-  String get filesFile => 'File';
-
-  @override
-  String get filesFileEmpty => 'File is empty';
-
-  @override
-  String get filesNoChanges => 'No changes to display';
-
-  @override
-  String get profileUserProfile => 'User Profile';
-
-  @override
-  String get profileDetails => 'Details';
-
-  @override
-  String get profileFirstName => 'First Name';
-
-  @override
-  String get profileLastName => 'Last Name';
-
-  @override
-  String get profileUsername => 'Username';
-
-  @override
-  String get profileStatus => 'Status';
-
-  @override
-  String get agentPermissionModeTitle => 'PERMISSION MODE';
-
-  @override
-  String get agentPermissionModeDefault => 'Default';
-
-  @override
-  String get agentPermissionModeAcceptEdits => 'Accept Edits';
-
-  @override
-  String get agentPermissionModePlan => 'Plan Mode';
-
-  @override
-  String get agentPermissionModeBypassPermissions => 'Yolo Mode';
-
-  @override
-  String get agentPermissionModeBadgeAcceptAllEdits => 'Accept All Edits';
-
-  @override
-  String get agentPermissionModeBadgeBypassAllPermissions =>
-      'Bypass All Permissions';
-
-  @override
-  String get agentPermissionModeBadgePlanMode => 'Plan Mode';
-
-  @override
   String get agentAgentClaude => 'Claude';
 
   @override
@@ -1992,47 +586,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get agentAgentGemini => 'Gemini';
-
-  @override
-  String get agentModelTitle => 'MODEL';
-
-  @override
-  String get agentModelConfigureInCli => 'Configure models in CLI settings';
-
-  @override
-  String agentContextRemaining(int percent) {
-    return '$percent% left';
-  }
-
-  @override
-  String get agentSuggestionFileLabel => 'FILE';
-
-  @override
-  String get agentSuggestionFolderLabel => 'FOLDER';
-
-  @override
-  String get agentNoMachinesAvailable => 'No machines';
-
-  @override
-  String get updateBannerUpdateAvailable => 'Update available';
-
-  @override
-  String get updateBannerPressToApply => 'Press to apply the update';
-
-  @override
-  String get updateBannerWhatsNew => 'What\'s new';
-
-  @override
-  String get updateBannerSeeLatest => 'See the latest updates and improvements';
-
-  @override
-  String get updateBannerNativeUpdateAvailable => 'App Update Available';
-
-  @override
-  String get updateBannerTapToUpdateAppStore => 'Tap to update in App Store';
-
-  @override
-  String get updateBannerTapToUpdatePlayStore => 'Tap to update in Play Store';
 
   @override
   String desktopUpdateAvailable(String version) {
@@ -2057,95 +610,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get desktopUpdateRestart => 'Restart now';
 
   @override
-  String changelogVersion(int version) {
-    return 'Version $version';
-  }
-
-  @override
   String get changelogNoEntriesAvailable => 'No changelog entries available.';
-
-  @override
-  String get modalsAuthenticateTerminal => 'Authenticate Terminal';
-
-  @override
-  String get modalsPasteUrlFromTerminal =>
-      'Paste the authentication URL from your terminal';
-
-  @override
-  String get modalsDeviceLinkedSuccessfully => 'Device linked successfully';
-
-  @override
-  String get modalsTerminalConnectedSuccessfully =>
-      'Terminal connected successfully';
-
-  @override
-  String get modalsInvalidAuthUrl => 'Invalid authentication URL';
-
-  @override
-  String get modalsDeveloperMode => 'Developer Mode';
-
-  @override
-  String get modalsDeveloperModeEnabled => 'Developer mode enabled';
-
-  @override
-  String get modalsDeveloperModeDisabled => 'Developer mode disabled';
-
-  @override
-  String get modalsDisconnectGithub => 'Disconnect GitHub';
-
-  @override
-  String get modalsDisconnectGithubConfirm =>
-      'Are you sure you want to disconnect your GitHub account?';
-
-  @override
-  String modalsDisconnectService(String service) {
-    return 'Disconnect $service';
-  }
-
-  @override
-  String modalsDisconnectServiceConfirm(Object service) {
-    return 'Are you sure you want to disconnect $service from your account?';
-  }
-
-  @override
-  String get modalsDisconnect => 'Disconnect';
-
-  @override
-  String get modalsFailedToConnectTerminal => 'Failed to connect terminal';
-
-  @override
-  String get modalsCameraPermissionsRequiredToConnectTerminal =>
-      'Camera permissions are required to connect terminal';
-
-  @override
-  String get modalsFailedToLinkDevice => 'Failed to link device';
-
-  @override
-  String get navigationConnectTerminal => 'Connect Terminal';
-
-  @override
-  String get navigationLinkNewDevice => 'Link New Device';
-
-  @override
-  String get navigationRestoreWithSecretKey => 'Restore with Secret Key';
-
-  @override
-  String get navigationWhatsNew => 'What\'s New';
-
-  @override
-  String get emptyMainScreenReadyToCode => 'Ready to code?';
-
-  @override
-  String get emptyMainScreenInstallCli => 'Install the Happy CLI';
-
-  @override
-  String get emptyMainScreenRunIt => 'Run it';
-
-  @override
-  String get emptyMainScreenScanQrCode => 'Scan the QR code';
-
-  @override
-  String get emptyMainScreenOpenCamera => 'Open Camera';
 
   @override
   String get emptySessionsFirstTimeTitle => 'Get started with Happy';
@@ -2183,103 +648,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Your previous sessions have ended. Start a new one to keep coding.';
 
   @override
-  String get reviewEnjoyingApp => 'Enjoying the app?';
-
-  @override
-  String get reviewFeedbackPrompt => 'We\'d love to hear your feedback!';
-
-  @override
-  String get reviewYesILoveIt => 'Yes, I love it!';
-
-  @override
-  String get reviewNotReally => 'Not really';
-
-  @override
-  String itemsCopiedToClipboard(String label) {
-    return '$label copied to clipboard';
-  }
-
-  @override
-  String messageSwitchedToMode(String mode) {
-    return 'Switched to $mode mode';
-  }
-
-  @override
-  String get messageUnknownEvent => 'Unknown event';
-
-  @override
-  String messageUsageLimitUntil(Object time) {
-    return 'Usage limit reached until $time';
-  }
-
-  @override
-  String get messageUnknownTime => 'unknown time';
-
-  @override
-  String get codexPermissionsYesForSession =>
-      'Yes, and don\'t ask for a session';
-
-  @override
-  String get codexPermissionsStopAndExplain => 'Stop, and explain what to do';
-
-  @override
-  String get claudePermissionsYesAllowAllEdits =>
-      'Yes, allow all edits during this session';
-
-  @override
-  String get claudePermissionsYesForTool =>
-      'Yes, don\'t ask again for this tool';
-
-  @override
-  String get claudePermissionsNoTellClaude => 'No, and provide feedback';
-
-  @override
-  String get textSelectionSelectText => 'Select text range';
-
-  @override
-  String get textSelectionTitle => 'Select Text';
-
-  @override
-  String get textSelectionNoTextProvided => 'No text provided';
-
-  @override
-  String get textSelectionTextNotFound => 'Text not found or expired';
-
-  @override
-  String get textSelectionTextCopied => 'Text copied to clipboard';
-
-  @override
   String get textSelectionFailedToCopy => 'Failed to copy text to clipboard';
-
-  @override
-  String get textSelectionNoTextToCopy => 'No text available to copy';
-
-  @override
-  String get markdownCodeCopied => 'Code copied';
-
-  @override
-  String get markdownCopyFailed => 'Copy failed';
-
-  @override
-  String get markdownMermaidRenderFailed => 'Failed to render mermaid diagram';
 
   @override
   String get artifactsTitle => 'Artifacts';
 
   @override
-  String get artifactsCountSingular => '1 artifact';
-
-  @override
-  String artifactsCountPlural(int count) {
-    return '$count artifacts';
-  }
-
-  @override
   String get artifactsEmpty => 'No artifacts yet';
-
-  @override
-  String get artifactsEmptyDescription =>
-      'Create your first artifact to get started';
 
   @override
   String get artifactsNew => 'New Artifact';
@@ -2288,95 +663,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get artifactsEdit => 'Edit Artifact';
 
   @override
-  String get artifactsDelete => 'Delete';
-
-  @override
-  String get artifactsUpdateError =>
-      'Failed to update artifact. Please try again.';
-
-  @override
-  String get artifactsNotFound => 'Artifact not found';
-
-  @override
-  String get artifactsDiscardChanges => 'Discard changes?';
-
-  @override
-  String get artifactsDiscardChangesDescription =>
-      'You have unsaved changes. Are you sure you want to discard them?';
-
-  @override
   String get artifactsDeleteConfirm => 'Delete artifact?';
-
-  @override
-  String get artifactsDeleteConfirmDescription =>
-      'This action cannot be undone';
 
   @override
   String get artifactsTitleLabel => 'TITLE';
 
   @override
-  String get artifactsTitlePlaceholder => 'Enter a title for your artifact';
-
-  @override
-  String get artifactsBodyLabel => 'CONTENT';
-
-  @override
-  String get artifactsBodyPlaceholder => 'Write your content here...';
-
-  @override
-  String get artifactsEmptyFieldsError => 'Please enter a title or content';
-
-  @override
-  String get artifactsCreateError =>
-      'Failed to create artifact. Please try again.';
-
-  @override
-  String get artifactsSave => 'Save';
-
-  @override
-  String get artifactsSaving => 'Saving...';
-
-  @override
-  String get artifactsLoading => 'Loading artifacts...';
-
-  @override
-  String get artifactsError => 'Failed to load artifact';
-
-  @override
-  String get usageToday => 'Today';
-
-  @override
-  String get usageLast7Days => 'Last 7 days';
-
-  @override
-  String get usageLast30Days => 'Last 30 days';
-
-  @override
-  String get usageTotalTokens => 'Total Tokens';
-
-  @override
-  String get usageTotalCost => 'Total Cost';
-
-  @override
-  String get usageTokens => 'Tokens';
-
-  @override
-  String get usageCost => 'Cost';
-
-  @override
-  String get usageUsageOverTime => 'Usage over time';
-
-  @override
-  String get usageByModel => 'By Model';
-
-  @override
-  String get usageNoData => 'No usage data available';
-
-  @override
   String get offlineBannerNoConnection => 'No internet connection';
-
-  @override
-  String get offlineBannerReconnecting => 'Reconnecting...';
 
   @override
   String get offlineBannerLiveUpdatesDisconnected =>
@@ -2432,9 +725,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get a11ySettingsRowOff => 'Off';
 
   @override
-  String get commonVersion => 'Version';
-
-  @override
   String get commonDone => 'Done';
 
   @override
@@ -2468,24 +758,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonCmd => 'Cmd';
 
   @override
-  String get authSubtitle => 'Scan QR code to connect';
-
-  @override
-  String get authScanQR => 'Scan QR Code';
-
-  @override
-  String get authEnterToken => 'Enter Token Manually';
-
-  @override
-  String get authServerUrlHint => 'Server URL';
-
-  @override
-  String get authTokenHint => 'Authentication Token';
-
-  @override
-  String get authConnect => 'Connect';
-
-  @override
   String get authConnecting => 'Connecting...';
 
   @override
@@ -2495,16 +767,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authServerConnectionError => 'Cannot connect to server';
 
   @override
-  String get sessionsTitle => 'Sessions';
-
-  @override
   String get sessionsNew => 'New Session';
-
-  @override
-  String get sessionsEmpty => 'No sessions yet';
-
-  @override
-  String get sessionsCreateFirst => 'Create your first session to get started';
 
   @override
   String get sessionsToday => 'Today';
@@ -2595,9 +858,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsGrok => 'Grok';
 
   @override
-  String get sessionsType => 'Type';
-
-  @override
   String get sessionsAgent => 'Agent';
 
   @override
@@ -2678,35 +938,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sessionsViewStyleMissionControl => 'Mission Control';
-
-  @override
-  String get missionControlWorkspaces => 'Workspaces';
-
-  @override
-  String get missionControlAllQuiet =>
-      'All quiet — nothing needs you right now';
-
-  @override
-  String missionControlNeedsYou(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count sessions need you',
-      one: '1 session needs you',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String missionControlWorkingNow(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count agents working now',
-      one: '1 agent working now',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get missionControlFocusQueue => 'Focus queue';
@@ -2878,6 +1109,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoArchiveDays => 'days';
 
   @override
+  String get autoArchiveIdleNever => 'Never';
+
+  @override
+  String get autoArchiveIdle30Min => '30 min';
+
+  @override
+  String get autoArchiveIdle2Hours => '2 hours';
+
+  @override
+  String get autoArchiveIdle8Hours => '8 hours';
+
+  @override
+  String get autoArchiveIdle1Day => '1 day';
+
+  @override
+  String get autoArchiveIdle7Days => '7 days';
+
+  @override
   String get sessionsRecentTitle => 'Recent Sessions';
 
   @override
@@ -2972,12 +1221,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Search completed — result pages are not included in the transcript.';
 
   @override
-  String get messageDetailShare => 'Share';
-
-  @override
-  String get messageDetailBookmark => 'Bookmark';
-
-  @override
   String get messageFocusSelectText => 'Select text';
 
   @override
@@ -3014,24 +1257,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsGroupByDate => 'Group by date';
 
   @override
-  String get pickSelectMachine => 'Select Machine';
-
-  @override
-  String get pickSelectProfile => 'Select Profile';
-
-  @override
-  String get pickSelectPath => 'Select Path';
-
-  @override
-  String get pickNoMachinesAvailable => 'No machines available';
-
-  @override
-  String get pickRecent => 'Recent';
-
-  @override
-  String get pickAllMachines => 'All Machines';
-
-  @override
   String get chatInputHint => 'Message...';
 
   @override
@@ -3064,9 +1289,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatInputProfileDefaultSubtitle => 'Server-configured defaults';
 
   @override
-  String get chatEmpty => 'Start a conversation';
-
-  @override
   String get chatSend => 'Send';
 
   @override
@@ -3088,46 +1310,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatCopyMessage => 'Copy';
 
   @override
-  String get chatDeleteMessage => 'Delete';
-
-  @override
-  String get chatClearSession => 'Clear Session';
-
-  @override
-  String get chatConfirmClear => 'Are you sure you want to clear this session?';
-
-  @override
-  String get chatActionConfirm => 'Confirm Action';
-
-  @override
-  String get chatActionReject => 'Reject';
-
-  @override
-  String get chatActionAccept => 'Accept';
-
-  @override
   String get chatChat => 'Chat';
 
   @override
-  String get chatChatLoading => 'Loading...';
-
-  @override
   String get chatFailedToLoadMessages => 'Failed to load messages';
-
-  @override
-  String get settingsTheme => 'Theme';
-
-  @override
-  String get settingsThemeLight => 'Light';
-
-  @override
-  String get settingsThemeDark => 'Dark';
-
-  @override
-  String get settingsThemeSystem => 'System';
-
-  @override
-  String get noLanguagesFound => 'No languages found';
 
   @override
   String get settingsServer => 'Server';
@@ -3137,12 +1323,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsVoice => 'Voice';
-
-  @override
-  String get settingsLogout => 'Logout';
-
-  @override
-  String get settingsLogoutConfirm => 'Are you sure you want to logout?';
 
   @override
   String get settingsLogs => 'Logs';
@@ -3315,11 +1495,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get codexUsageDoesNotExpire => 'Does not expire';
 
   @override
-  String codexUsageExpiresAt(String time) {
-    return 'Expires $time';
-  }
-
-  @override
   String codexUsageExpiresInDays(int days, String date) {
     String _temp0 = intl.Intl.pluralLogic(
       days,
@@ -3348,9 +1523,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get codexUsageSelectMachine => 'Machine';
-
-  @override
-  String get claudeLimitsResetsAt => 'Resets';
 
   @override
   String get claudeLimitsExtraUsage => 'Extra Usage';
@@ -3406,12 +1578,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get claudeLimitsSelectMachine => 'Machine';
 
   @override
-  String get featuresExperiments => 'Experiments';
-
-  @override
-  String get featuresExperimentsDesc => 'Try experimental features';
-
-  @override
   String get settingsServerResetSuccess => 'Server URL reset to default';
 
   @override
@@ -3421,40 +1587,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsServerSaveVerify => 'Save & Verify';
 
   @override
-  String get settingsOnline => 'Online';
-
-  @override
-  String get settingsOffline => 'Offline';
-
-  @override
   String get toolViewFullContent => 'View full content';
-
-  @override
-  String get toolEdit => 'Edit';
-
-  @override
-  String get toolRead => 'Read';
-
-  @override
-  String get toolWrite => 'Write';
-
-  @override
-  String get toolBash => 'Bash';
-
-  @override
-  String get toolGlob => 'Glob';
-
-  @override
-  String get toolGrep => 'Grep';
-
-  @override
-  String get toolLs => 'List Files';
-
-  @override
-  String get toolPatch => 'Patch';
-
-  @override
-  String get toolDiff => 'Diff';
 
   @override
   String get toolSectionDiff => 'DIFF';
@@ -3463,37 +1596,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get toolSectionContent => 'CONTENT';
 
   @override
-  String get toolSectionCommand => 'COMMAND';
-
-  @override
   String get toolSectionReading => 'Reading';
 
   @override
   String get toolSectionWriting => 'Writing';
-
-  @override
-  String get toolSectionInput => 'INPUT';
-
-  @override
-  String get toolSectionOutput => 'OUTPUT';
-
-  @override
-  String get toolTask => 'Task';
-
-  @override
-  String get toolTodo => 'Todo';
-
-  @override
-  String get toolWebFetch => 'Web Fetch';
-
-  @override
-  String get toolWebSearch => 'Web Search';
-
-  @override
-  String get toolExitPlan => 'Exit Plan';
-
-  @override
-  String get toolAskUser => 'Ask User';
 
   @override
   String get permissionAllow => 'Allow';
@@ -3518,22 +1624,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionYes => 'Yes';
 
   @override
-  String get permissionDefault => 'Default';
-
-  @override
-  String get permissionAcceptEdits => 'Accept Edits';
-
-  @override
-  String get permissionPlan => 'Plan Mode';
-
-  @override
   String get permissionYolo => 'YOLO';
 
   @override
   String get permissionReadOnly => 'Read Only';
-
-  @override
-  String get permissionSafeYolo => 'Safe Yolo';
 
   @override
   String get permissionRequired => 'Permission required';
@@ -3662,15 +1756,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authSignIn => 'Sign In';
 
   @override
-  String get errorGeneric => 'Something went wrong';
-
-  @override
-  String get errorNetwork => 'Network error. Please check your connection.';
-
-  @override
-  String get errorServer => 'Server error. Please try again later.';
-
-  @override
   String get errorNotFound => 'Not found';
 
   @override
@@ -3678,24 +1763,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appearanceTheme => 'Theme';
-
-  @override
-  String get appearanceThemeAdaptive => 'Adaptive';
-
-  @override
-  String get appearanceThemeAdaptiveDesc => 'Match system settings';
-
-  @override
-  String get appearanceThemeLight => 'Light';
-
-  @override
-  String get appearanceThemeLightDesc => 'Always use light theme';
-
-  @override
-  String get appearanceThemeDark => 'Dark';
-
-  @override
-  String get appearanceThemeDarkDesc => 'Always use dark theme';
 
   @override
   String appearanceThemeApplied(String theme) {
@@ -3743,25 +1810,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsExpandTodos => 'Expand Todos';
 
   @override
-  String get settingsShowLineNumbers => 'Show Line Numbers';
-
-  @override
-  String get settingsCompactSessionView => 'Compact Session View';
-
-  @override
   String get settingsShowFlavorIcons => 'Show Flavor Icons';
 
   @override
   String get settingsAvatarStyle => 'Avatar Style';
-
-  @override
-  String get settingsWrapLinesInDiffs => 'Wrap Lines in Diffs';
-
-  @override
-  String get userProfileTitle => 'User Profile';
-
-  @override
-  String get userNotFound => 'User not found';
 
   @override
   String get accountAccountSettings => 'Account Settings';
@@ -3846,15 +1898,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountThisDevice => 'This Device';
-
-  @override
-  String get settingsCertificates => 'Certificates';
-
-  @override
-  String get settingsUserCaCertificates => 'User CA Certificates';
-
-  @override
-  String get settingsNoUserCertificates => 'No user certificates installed';
 
   @override
   String get chatOnline => 'Online';
@@ -3967,9 +2010,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsClaudeCode => 'Claude Code';
 
   @override
-  String get settingsConnected => 'Connected';
-
-  @override
   String get settingsTextToSpeech => 'Text-to-Speech';
 
   @override
@@ -4070,9 +2110,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get developerModeEnabledDesc => 'Enabled - Debug tools are visible';
 
   @override
-  String get developerNotYetImplemented => 'Not yet implemented';
-
-  @override
   String get developerClearCacheAction => 'Clear';
 
   @override
@@ -4169,9 +2206,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profilesDefaultDescription => 'Use default configuration';
-
-  @override
-  String get profilesCustomTitle => 'Custom Profiles';
 
   @override
   String get profilesProfileName => 'Profile Name';
@@ -4429,36 +2463,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceDefaultEngineSubtitle => 'Use system default';
 
   @override
+  String get voiceUseOfflineTitle => 'Use offline voice';
+
+  @override
+  String get voiceUseOfflineSubtitle =>
+      'High-quality on-device TTS via sherpa-onnx. Falls back to system TTS while the model downloads or if generation fails.';
+
+  @override
+  String get voiceTestTtsPhrase => 'Hello! Text to speech is working.';
+
+  @override
+  String get voiceOfflineVoicesTitle => 'Offline voices';
+
+  @override
+  String get voiceDictationModelsTitle => 'Dictation models';
+
+  @override
+  String get voiceInstalledLabel => 'installed';
+
+  @override
+  String get voiceDownloadStatusReady => 'ready';
+
+  @override
+  String get voiceDownloadStatusDownloading => 'downloading…';
+
+  @override
+  String get voiceDownloadStatusFailed => 'download failed';
+
+  @override
+  String get voiceDownloadStatusNotDownloaded => 'not downloaded';
+
+  @override
+  String get voiceDownloadFailedRetrySuffix => ' · download failed, tap retry';
+
+  @override
+  String get voiceDownloadNotDownloadedSuffix => ' · not downloaded';
+
+  @override
   String get voiceSelectLanguageTitle => 'Select Language';
 
   @override
   String voiceLanguagesCount(int count) {
     return '$count languages available';
   }
-
-  @override
-  String get claudeConnectTitle => 'Connect Claude API';
-
-  @override
-  String get claudeConnectTerminalTitle => 'Connect Claude';
-
-  @override
-  String get claudeConnectManualLabel => 'MANUAL API KEY ENTRY';
-
-  @override
-  String get claudeConnectApiKeyLabel => 'API Key';
-
-  @override
-  String get claudeConnectApiKeyHint => 'sk-ant-...';
-
-  @override
-  String get claudeConnectBaseUrlLabel => 'Base URL (optional)';
-
-  @override
-  String get claudeConnectBaseUrlHint => 'https://api.anthropic.com';
-
-  @override
-  String get claudeConnectButton => 'Connect';
 
   @override
   String get sessionFilesTitle => 'Files';
@@ -4703,24 +2750,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonGoHome => 'Go Home';
 
   @override
-  String get commonPressBackAgainToExit => 'Press back again to exit';
-
-  @override
-  String get commonUnsavedChanges => 'Unsaved Changes';
-
-  @override
-  String get commonLeave => 'Leave';
-
-  @override
-  String get commonStay => 'Stay';
-
-  @override
-  String get commonUnsentMessage => 'Unsent Message';
-
-  @override
-  String get commonOperationInProgress => 'Operation In Progress';
-
-  @override
   String get terminalEnterCommand => 'Enter command...';
 
   @override
@@ -4761,12 +2790,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commandAccountSubtitle => 'Manage your account';
-
-  @override
-  String get commandConnectDeviceTitle => 'Connect Device';
-
-  @override
-  String get commandConnectDeviceSubtitle => 'Connect a new device via web';
 
   @override
   String get commandArtifactsTitle => 'Artifacts';
@@ -4830,27 +2853,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSuggestionReviewPr => 'Review PR';
 
   @override
-  String get pickRecentPaths => 'Recent Paths';
-
-  @override
-  String get pickSuggestedPaths => 'Suggested Paths';
-
-  @override
-  String get pickProfileNone => 'None';
-
-  @override
-  String get pickProfileNoneDesc => 'Use default configuration';
-
-  @override
-  String get pickProfileBuiltInSection => 'BUILT-IN';
-
-  @override
-  String get pickProfileCustomSection => 'CUSTOM';
-
-  @override
-  String get pickProfileCustomDescription => 'Custom profile';
-
-  @override
   String get agentFallbackDescription => 'Agent';
 
   @override
@@ -4882,12 +2884,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subAgentBannerTapToOpen => 'Tap to view';
-
-  @override
-  String get subAgentBannerIcon => 'Sub-agents';
-
-  @override
-  String get fileViewerNoContent => 'No content available';
 
   @override
   String get artifactsJustNow => 'Just now';
@@ -4955,9 +2951,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String dateTimeYesterday(String time) {
     return 'Yesterday at $time';
   }
-
-  @override
-  String get userFallbackName => 'this user';
 
   @override
   String get commandCategoryRecentSessions => 'Recent Sessions';
@@ -5065,10 +3058,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get artifactsNoResultsSubtitle => 'Try a different search term.';
 
   @override
-  String get authConnectionError =>
-      'Connection failed. Please check your server URL and try again.';
-
-  @override
   String get authDeviceLinkedSuccess => 'Device linked successfully!';
 
   @override
@@ -5152,9 +3141,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatLastSeenJustNow => 'Last seen just now';
 
   @override
-  String get chatPermissionRequired => 'Permission required';
-
-  @override
   String get chatSuggestionDebugIssueDesc => 'Find and fix a bug in your code';
 
   @override
@@ -5173,22 +3159,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get claudeCodeLimitsSubtitle =>
       'Rate limits for Claude Code on your machines';
-
-  @override
-  String get claudeConnectCliInfo =>
-      'API key management is handled via the CLI. Run: happy connect claude';
-
-  @override
-  String get claudeConnectDisclaimer =>
-      'Your API key is stored locally on this device only.';
-
-  @override
-  String get claudeConnectManualDesc =>
-      'Alternatively, enter your Anthropic API key directly.';
-
-  @override
-  String get claudeConnectTerminalSubtitle =>
-      'Run the following command in your terminal:';
 
   @override
   String get claudeLimitsNoMachinesSubtitle =>
@@ -5213,20 +3183,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Make sure Codex has run on the selected machine and Python 3 is available';
 
   @override
-  String get commonOperationInProgressConfirm =>
-      'An operation is in progress. Are you sure you want to leave?';
-
-  @override
   String get commonUnsavedChangesContent =>
       'You have unsaved changes. Are you sure you want to leave?';
-
-  @override
-  String get commonUnsavedChangesMessage =>
-      'You have unsaved changes. Are you sure you want to leave?';
-
-  @override
-  String get commonUnsentMessageConfirm =>
-      'You have an unsent message. Are you sure you want to leave?';
 
   @override
   String get developerClearCacheConfirm =>
@@ -5277,16 +3235,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get featuresCompactModeDesc => 'Reduce spacing in chat messages';
 
   @override
-  String get featuresEnhancedSessionWizard => 'Enhanced Session Wizard';
-
-  @override
-  String get featuresEnhancedSessionWizardDesc =>
-      'Use the improved session creation flow';
-
-  @override
-  String get featuresExperimentalTitle => 'Experimental Features';
-
-  @override
   String get featuresHideInactiveSessions => 'Hide Inactive Sessions';
 
   @override
@@ -5299,9 +3247,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get featuresWrapLinesInDiffsDesc => 'Wrap long lines in diff views';
-
-  @override
-  String get fileViewerContentError => 'The file content could not be loaded.';
 
   @override
   String get machineLastKnownStatus => 'Last Known Status';
@@ -5327,13 +3272,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Permission expired \\u2014 session was restarted';
 
   @override
-  String get pickPathHint => 'Enter path (e.g. /home/user/projects)';
-
-  @override
-  String get pickProfileChooseBackend =>
-      'Choose an AI backend profile for your session.';
-
-  @override
   String get profilesAddProfileSubtitle =>
       'Start from scratch with empty configuration';
 
@@ -5356,6 +3294,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get profilesImportNoVars =>
       'No environment variables found in the script.';
+
+  @override
+  String get profilesSelectToEdit => 'Select a profile to edit';
+
+  @override
+  String get profilesImportedFallbackName => 'Imported Profile';
+
+  @override
+  String get profilesCopySuffix => ' (Copy)';
 
   @override
   String get profilesQuickSetupHint =>
@@ -5402,16 +3349,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsNoSearchResults => 'No sessions match your search';
 
   @override
-  String get settingsClaudeDisconnected => 'Claude disconnected';
-
-  @override
-  String get settingsCompactSessionViewSubtitle =>
-      'Use smaller cards for sessions';
-
-  @override
-  String get settingsConfigureVoice => 'Configure ElevenLabs voice';
-
-  @override
   String get settingsConfigureVoiceAssistant => 'Configure voice assistant';
 
   @override
@@ -5419,12 +3356,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDeveloperTapToEnable => 'Open developer options';
-
-  @override
-  String get settingsGitHubDisconnected => 'GitHub disconnected';
-
-  @override
-  String get settingsNotConnected => 'Not connected';
 
   @override
   String get settingsServerResetConfirm =>
@@ -5436,10 +3367,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsTextToSpeechSubtitle => 'Read assistant messages aloud';
-
-  @override
-  String get settingsUserCertificatesInstalled =>
-      'User certificates are installed';
 
   @override
   String get settingsVoiceSettings => 'Voice Settings';
@@ -5468,9 +3395,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get terminalNoMachines =>
       'No machines connected. Start the Happy CLI on a machine first.';
-
-  @override
-  String get terminalOutputPending => '[output pending]';
 
   @override
   String get terminalNoMachineConnected => 'No machine is connected.';
@@ -5521,11 +3445,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String chatLastSeenDays(int days) {
     return 'Last seen ${days}d ago';
-  }
-
-  @override
-  String chatFailedToClear(String error) {
-    return 'Failed to clear: $error';
   }
 
   @override
@@ -5609,92 +3528,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String settingsFailedToDisconnect(String error) {
-    return 'Failed to disconnect: $error';
-  }
-
-  @override
-  String settingsConnectedAs(String login) {
-    return 'Connected as @$login';
-  }
-
-  @override
-  String settingsFailedToStartOAuth(String error) {
-    return 'Failed to start OAuth: $error';
-  }
-
-  @override
   String appearanceThemeBasedOnDevice(String mode) {
     return 'Based on your device\'s $mode appearance setting.';
   }
-
-  @override
-  String get smartFeaturesTitle => 'Smart Features';
-
-  @override
-  String get smartFeaturesSection => 'On-device AI';
-
-  @override
-  String get smartFeaturesEnabled => 'Enable Smart Features';
-
-  @override
-  String get smartFeaturesEnabledDesc =>
-      'Enable on-device AI features for smarter session ranking and auto-generated tags';
-
-  @override
-  String get smartFeaturesStatus => 'Status';
-
-  @override
-  String get smartFeaturesReady => 'Model ready';
-
-  @override
-  String get smartFeaturesUnavailable => 'Model not loaded';
-
-  @override
-  String get smartFeaturesUnavailableDesc =>
-      'Download the on-device AI model below to power session ranking and auto-tags. Until then, simple heuristics are used.';
-
-  @override
-  String get smartFeaturesModelSection => 'On-device model';
-
-  @override
-  String get smartFeaturesModelNotDownloaded => 'Not downloaded';
-
-  @override
-  String get smartFeaturesModelReady => 'Downloaded and ready';
-
-  @override
-  String get smartFeaturesDownloadModel => 'Download model';
-
-  @override
-  String smartFeaturesDownloadModelDesc(String size) {
-    return 'Downloads the Gemma model ($size). Wi-Fi strongly recommended.';
-  }
-
-  @override
-  String smartFeaturesDownloading(int percent) {
-    return 'Downloading… $percent%';
-  }
-
-  @override
-  String get smartFeaturesDownloadFailed => 'Download failed. Tap to retry.';
-
-  @override
-  String get smartFeaturesLoadingModel => 'Loading model…';
-
-  @override
-  String get semanticSearchTitle => 'Semantic Search';
-
-  @override
-  String get semanticSearchDesc =>
-      'Rank sessions by semantic similarity to your query';
-
-  @override
-  String get autoTagsTitle => 'Auto Tags';
-
-  @override
-  String get autoTagsDesc =>
-      'Automatically generate tags for sessions based on content';
 
   @override
   String get friendsTitle => 'Friends';
@@ -5717,9 +3553,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providersTitle => 'Providers';
-
-  @override
-  String get providersUsageSectionTitle => 'Usage';
 
   @override
   String get providersConnectedAccounts => 'Connected accounts';
@@ -5770,13 +3603,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get providersAddAccountFailed => 'Failed to save account';
 
   @override
-  String get providersRemoveAccount => 'Remove account';
-
-  @override
   String get providersRemoveAccountFailed => 'Failed to remove account';
-
-  @override
-  String get providersLongPressToRemove => 'Long-press to select';
 
   @override
   String providersSelectedCount(int count) {
@@ -5814,9 +3641,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get providersNoUsageData => 'No usage data available';
-
-  @override
-  String get providersSubscription => 'Subscription';
 
   @override
   String get providersTypeLabel => 'Provider';
@@ -6277,10 +4101,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Add a server to make new tools available to Claude Code on this machine.';
 
   @override
-  String get mcpLoadFailed =>
-      'Couldn\'t read the MCP configuration from this machine';
-
-  @override
   String get mcpSaveFailed => 'Couldn\'t save the MCP server';
 
   @override
@@ -6510,9 +4330,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sandboxSaveFailed => 'Could not save the sandbox policy';
-
-  @override
-  String get sandboxLoadFailed => 'Could not load the sandbox policy';
 
   @override
   String get sandboxNetworkPublic =>
@@ -6747,11 +4564,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get connectionDiagnosticsCheckingService => 'Checking…';
-
-  @override
-  String connectionDiagnosticsServiceDegraded(String components) {
-    return 'Degraded: $components';
-  }
 
   @override
   String get connectionDiagnosticsServiceDegradedSafe =>

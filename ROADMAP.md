@@ -582,7 +582,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | API | Done | All endpoints with 250+ tests |
 | Sessions | Done | Date headers ("Today", "Yesterday"), session cards, status indicators |
 | Session Creation | Done | Optimistic placeholder, 60s `_sessionSpawnedAt` registry, 3-attempt recovery in `sendMessage` |
-| Settings | Done | Theme, language, voice, features, profiles, usage, developer, server, machines, changelog, Claude Connect (21 screens) |
+| Settings | Done | Language, voice, agents & tools, features, profiles, usage, developer, machines, changelog, Claude Connect; declarative hub with search; theme picker inline; server settings reachable from the hub (20 screens) |
 | Tool Rendering | Done | 29 tool-specific views (incl. Codex MCP prompt view), KnownTools registry (60+ variants), PermissionFooter, elapsed time, auto-collapse, tool error display |
 | Logging | Done | `LoggerService` (5000-entry circular buffer), `DevLogsScreen` (filter/search/copy/clear), Sentry forwarding, `RemoteLogger`, `ErrorBoundary`, `ErrorSnackbarManager` |
 | UI Components | Done | Shimmer loading, command palette, diff view, tab bar, avatars, status bar theming |

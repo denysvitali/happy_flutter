@@ -5,121 +5,12 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/utils/voice_languages.dart';
 
-class _VoiceLanguageOption {
-  const _VoiceLanguageOption({
-    required this.code,
-    required this.name,
-    required this.nativeName,
-  });
-  final String code;
-  final String name;
-  final String nativeName;
-}
-
-const _voiceLanguages = <_VoiceLanguageOption>[
-  _VoiceLanguageOption(
-    code: '',
-    name: 'Auto-detect',
-    nativeName: '',
-  ),
-  _VoiceLanguageOption(
-    code: 'en',
-    name: 'English',
-    nativeName: 'English',
-  ),
-  _VoiceLanguageOption(
-    code: 'es',
-    name: 'Spanish',
-    nativeName: 'Espanol',
-  ),
-  _VoiceLanguageOption(
-    code: 'fr',
-    name: 'French',
-    nativeName: 'Francais',
-  ),
-  _VoiceLanguageOption(
-    code: 'de',
-    name: 'German',
-    nativeName: 'Deutsch',
-  ),
-  _VoiceLanguageOption(
-    code: 'it',
-    name: 'Italian',
-    nativeName: 'Italiano',
-  ),
-  _VoiceLanguageOption(
-    code: 'pt',
-    name: 'Portuguese',
-    nativeName: 'Portugues',
-  ),
-  _VoiceLanguageOption(
-    code: 'pl',
-    name: 'Polish',
-    nativeName: 'Polski',
-  ),
-  _VoiceLanguageOption(
-    code: 'nl',
-    name: 'Dutch',
-    nativeName: 'Nederlands',
-  ),
-  _VoiceLanguageOption(
-    code: 'ru',
-    name: 'Russian',
-    nativeName: 'Russkij',
-  ),
-  _VoiceLanguageOption(
-    code: 'ja',
-    name: 'Japanese',
-    nativeName: 'Nihongo',
-  ),
-  _VoiceLanguageOption(
-    code: 'zh',
-    name: 'Chinese (Simplified)',
-    nativeName: 'Zhongwen',
-  ),
-  _VoiceLanguageOption(
-    code: 'ko',
-    name: 'Korean',
-    nativeName: 'Hangugeo',
-  ),
-  _VoiceLanguageOption(
-    code: 'ar',
-    name: 'Arabic',
-    nativeName: 'Arabi',
-  ),
-  _VoiceLanguageOption(
-    code: 'hi',
-    name: 'Hindi',
-    nativeName: 'Hindi',
-  ),
-  _VoiceLanguageOption(
-    code: 'sv',
-    name: 'Swedish',
-    nativeName: 'Svenska',
-  ),
-  _VoiceLanguageOption(
-    code: 'da',
-    name: 'Danish',
-    nativeName: 'Dansk',
-  ),
-  _VoiceLanguageOption(
-    code: 'fi',
-    name: 'Finnish',
-    nativeName: 'Suomi',
-  ),
-  _VoiceLanguageOption(
-    code: 'tr',
-    name: 'Turkish',
-    nativeName: 'Turkce',
-  ),
-  _VoiceLanguageOption(
-    code: 'uk',
-    name: 'Ukrainian',
-    nativeName: 'Ukrainska',
-  ),
-];
-
+/// Picker for the voice assistant language. Sources its entries from
+/// the shared catalog in `core/utils/voice_languages.dart` (the same
+/// list used by chat/TTS) and persists the selection under the
+/// `voiceAssistantLanguage` settings key.
 class VoiceLanguageSettingsScreen
     extends ConsumerStatefulWidget {
   const VoiceLanguageSettingsScreen({super.key});
@@ -135,23 +26,21 @@ class _VoiceLanguageSettingsScreenState
   String _searchQuery = '';
   bool _isPopping = false;
 
-  List<_VoiceLanguageOption> get _filtered {
-    if (_searchQuery.isEmpty) {
-      return _voiceLanguages;
+  List<VoiceLanguage> get _filtered =>
+      searchVoiceLanguages(_searchQuery);
+
+  /// Secondary line for a row: the native script when it differs from
+  /// the English name, otherwise the region (so the English/Spanish/
+  /// … variants stay distinguishable). Empty for auto-detect.
+  String _subtitleFor(VoiceLanguage lang) {
+    if (lang.nativeName.isNotEmpty &&
+        lang.nativeName != lang.name) {
+      return lang.nativeName;
     }
-    final query = _searchQuery.toLowerCase();
-    return _voiceLanguages.where((lang) {
-      return lang.name.toLowerCase().contains(query) ||
-          lang.nativeName
-              .toLowerCase()
-              .contains(query) ||
-          lang.code.toLowerCase().contains(query);
-    }).toList();
+    return lang.region ?? '';
   }
 
-  Future<void> _selectLanguage(
-    _VoiceLanguageOption lang,
-  ) async {
+  Future<void> _selectLanguage(VoiceLanguage lang) async {
     if (_isPopping) return;
     _isPopping = true;
     try {
@@ -254,7 +143,7 @@ class _VoiceLanguageSettingsScreenState
   }
 
   List<Widget> _buildLanguageList(
-    List<_VoiceLanguageOption> languages,
+    List<VoiceLanguage> languages,
     String selectedCode,
   ) {
     final cs = Theme.of(context).colorScheme;
@@ -264,6 +153,7 @@ class _VoiceLanguageSettingsScreenState
     for (var i = 0; i < languages.length; i++) {
       final lang = languages[i];
       final isSelected = selectedCode == lang.code;
+      final subtitle = _subtitleFor(lang);
 
       if (i > 0) {
         widgets.add(
@@ -310,12 +200,12 @@ class _VoiceLanguageSettingsScreenState
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      if (lang.nativeName.isNotEmpty) ...[
+                      if (subtitle.isNotEmpty) ...[
                         const SizedBox(
                           height: AppSpacing.xxs,
                         ),
                         Text(
-                          lang.nativeName,
+                          subtitle,
                           style: theme
                               .textTheme.bodySmall
                               ?.copyWith(

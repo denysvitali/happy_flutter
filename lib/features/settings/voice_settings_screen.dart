@@ -7,9 +7,9 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/services/offline_tts_service.dart';
 import '../../core/services/tts_service.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
+import 'widgets/voice_status_subtitles.dart';
 
 class VoiceSettingsScreen extends ConsumerStatefulWidget {
   const VoiceSettingsScreen({super.key});
@@ -79,11 +79,8 @@ class _VoiceSettingsScreenState
               ),
               SettingsToggleRow(
                 icon: Icons.cloud_off_outlined,
-                title: 'Use offline voice',
-                subtitle:
-                    'High-quality on-device TTS via sherpa-onnx. '
-                    'Falls back to system TTS while the model '
-                    'downloads or if generation fails.',
+                title: l10n.voiceUseOfflineTitle,
+                subtitle: l10n.voiceUseOfflineSubtitle,
                 value: ttsUseOffline,
                 onChanged: (value) => ref
                     .read(settingsNotifierProvider.notifier)
@@ -103,7 +100,7 @@ class _VoiceSettingsScreenState
                     engine: ttsEngine,
                   );
                   await tts.speak(
-                    'Hello! Text to speech is working.',
+                    l10n.voiceTestTtsPhrase,
                     useOffline: ttsUseOffline,
                     offlineVoiceId:
                         ref.read(settingsNotifierProvider).ttsVoiceId,
@@ -148,7 +145,7 @@ class _VoiceSettingsScreenState
                 ),
                 ..._engines.map((engine) {
                   final engineName =
-                      engine['name'] ?? 'Unknown';
+                      engine['name'] ?? l10n.statusUnknown;
                   final engineId =
                       engine['identifier'] ?? '';
                   final isSelected =
@@ -265,31 +262,33 @@ class _OfflineVoicesNavRowState
     return ValueListenableBuilder<Map<String, OfflineTtsStatus>>(
       valueListenable: TtsService().offlineVoiceStatuses,
       builder: (context, statuses, _) {
+        final l10n = AppLocalizations.of(context);
+        final statusStrings = DownloadStatusStrings(
+          ready: l10n.voiceDownloadStatusReady,
+          downloading: l10n.voiceDownloadStatusDownloading,
+          failed: l10n.voiceDownloadStatusFailed,
+          notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
+          failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
+          notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+        );
         final status = statuses[active.id] ?? OfflineTtsStatus.notDownloaded;
         final readyCount = statuses.values
             .where((s) => s == OfflineTtsStatus.ready)
             .length;
-        final subtitle = StringBuffer(active.displayName);
-        switch (status) {
-          case OfflineTtsStatus.ready:
-            subtitle.write(' · ready');
-            break;
-          case OfflineTtsStatus.downloading:
-            subtitle.write(' · downloading…');
-            break;
-          case OfflineTtsStatus.failed:
-            subtitle.write(' · download failed');
-            break;
-          case OfflineTtsStatus.notDownloaded:
-            subtitle.write(' · not downloaded');
-            break;
-        }
+        final subtitle = StringBuffer(active.displayName)
+          ..write(' · ')
+          ..write(downloadStatusLabel(
+            ready: status == OfflineTtsStatus.ready,
+            downloading: status == OfflineTtsStatus.downloading,
+            failed: status == OfflineTtsStatus.failed,
+            strings: statusStrings,
+          ));
         if (readyCount > 0) {
-          subtitle.write(' · $readyCount installed');
+          subtitle.write(' · $readyCount ${l10n.voiceInstalledLabel}');
         }
         return SettingsNavRow(
           icon: Icons.library_music_outlined,
-          title: 'Offline voices',
+          title: l10n.voiceOfflineVoicesTitle,
           subtitle: subtitle.toString(),
           onTap: () => context.pushNamed('voice-offline'),
         );
@@ -332,205 +331,38 @@ class _OfflineSttModelsNavRowState
     return ValueListenableBuilder<Map<String, OfflineSttStatus>>(
       valueListenable: service.statuses,
       builder: (context, statuses, _) {
+        final l10n = AppLocalizations.of(context);
+        final statusStrings = DownloadStatusStrings(
+          ready: l10n.voiceDownloadStatusReady,
+          downloading: l10n.voiceDownloadStatusDownloading,
+          failed: l10n.voiceDownloadStatusFailed,
+          notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
+          failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
+          notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+        );
         final status =
             statuses[active.id] ?? OfflineSttStatus.notDownloaded;
         final readyCount = statuses.values
             .where((s) => s == OfflineSttStatus.ready)
             .length;
-        final subtitle = StringBuffer(active.displayName);
-        switch (status) {
-          case OfflineSttStatus.ready:
-            subtitle.write(' · ready');
-            break;
-          case OfflineSttStatus.downloading:
-            subtitle.write(' · downloading…');
-            break;
-          case OfflineSttStatus.failed:
-            subtitle.write(' · download failed');
-            break;
-          case OfflineSttStatus.notDownloaded:
-            subtitle.write(' · not downloaded');
-            break;
-        }
+        final subtitle = StringBuffer(active.displayName)
+          ..write(' · ')
+          ..write(downloadStatusLabel(
+            ready: status == OfflineSttStatus.ready,
+            downloading: status == OfflineSttStatus.downloading,
+            failed: status == OfflineSttStatus.failed,
+            strings: statusStrings,
+          ));
         if (readyCount > 0) {
-          subtitle.write(' · $readyCount installed');
+          subtitle.write(' · $readyCount ${l10n.voiceInstalledLabel}');
         }
         return SettingsNavRow(
           icon: Icons.mic_none_outlined,
-          title: 'Dictation models',
+          title: l10n.voiceDictationModelsTitle,
           subtitle: subtitle.toString(),
           onTap: () => context.pushNamed('offline-stt-models'),
         );
       },
     );
-  }
-}
-
-class VoiceLanguageSelectionScreen
-    extends ConsumerStatefulWidget {
-  const VoiceLanguageSelectionScreen({super.key});
-
-  @override
-  ConsumerState<VoiceLanguageSelectionScreen>
-      createState() =>
-          _VoiceLanguageSelectionScreenState();
-}
-
-class _VoiceLanguageSelectionScreenState
-    extends ConsumerState<VoiceLanguageSelectionScreen> {
-  String _searchQuery = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final filteredLanguages =
-        searchVoiceLanguages(_searchQuery);
-    final cs = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          AppLocalizations.of(context)
-              .voiceSelectLanguageTitle,
-        ),
-        actions: [
-          if (_searchQuery.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.clear),
-              tooltip: AppLocalizations.of(context).commonClearSearch,
-              onPressed: () {
-                setState(() {
-                  _searchQuery = '';
-                });
-              },
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.lg,
-            ),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)
-                    .searchLanguages,
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: cs.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.smd,
-                  ),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.lg,
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl,
-              vertical: AppSpacing.xs,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                AppLocalizations.of(context)
-                    .voiceLanguagesCount(
-                  filteredLanguages.length,
-                ),
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: filteredLanguages.length,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl,
-              ),
-              itemBuilder: (context, index) {
-                final language = filteredLanguages[index];
-                final isSelected =
-                    _isLanguageSelected(language);
-
-                return Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: AppSpacing.xs,
-                  ),
-                  child: Card(
-                    key: ValueKey(language.code),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.md,
-                      ),
-                      side: BorderSide(
-                        color: cs.outlineVariant,
-                      ),
-                    ),
-                    child: SettingsRow(
-                      icon: Icons.language,
-                      iconColor: AppColors.iosBlue,
-                      title: language.displayName,
-                      subtitle: language.subtitle,
-                      trailing: isSelected
-                          ? Icon(
-                              Icons
-                                  .check_circle_rounded,
-                              size: AppSpacing.xl,
-                              color: cs.primary,
-                            )
-                          : Icon(
-                              Icons.chevron_right,
-                              size: AppSpacing.xl,
-                              color:
-                                  cs.onSurface.withValues(
-                                alpha: AppOpacity.medium,
-                              ),
-                            ),
-                      onTap: () =>
-                          _selectLanguage(language),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool _isLanguageSelected(VoiceLanguage language) {
-    final currentState =
-        ref.read(settingsNotifierProvider);
-    final currentCode =
-        currentState.voiceAssistantLanguage ?? '';
-    return currentCode == language.code;
-  }
-
-  void _selectLanguage(VoiceLanguage language) {
-    ref
-        .read(settingsNotifierProvider.notifier)
-        .updateSetting(
-          'voiceAssistantLanguage',
-          language.code.isEmpty ? null : language.code,
-        );
-    Navigator.pop(context);
   }
 }

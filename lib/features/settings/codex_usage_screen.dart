@@ -1,287 +1,242 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/components/app_empty_state.dart';
-import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/codex_usage_summary.dart';
-import '../../core/models/machine.dart';
-import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
-import 'widgets/machine_picker.dart';
+import 'widgets/machine_usage_scaffold.dart';
 
-class CodexUsageScreen extends ConsumerStatefulWidget {
+class CodexUsageScreen extends StatelessWidget {
   const CodexUsageScreen({super.key});
 
   @override
-  ConsumerState<CodexUsageScreen> createState() => _CodexUsageScreenState();
-}
-
-class _CodexUsageScreenState extends ConsumerState<CodexUsageScreen> {
-  String? _selectedMachineId;
-  CodexUsageSummary? _report;
-  bool _isLoading = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    Future<void>.microtask(_autoSelectMachine);
-  }
-
-  void _autoSelectMachine() {
-    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
-    final machines = ref.read(machinesNotifierProvider).values.toList()
-      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
-    final online = machines.where((machine) => machine.isOnline).toList();
-    final target = online.isNotEmpty ? online.first : null;
-    if (target != null) {
-      setState(() => _selectedMachineId = target.id);
-      _loadUsage(target.id);
-    }
-  }
-
-  Future<void> _loadUsage(String machineId) async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-      _report = null;
-    });
-
-    final response = await Sync().machineGetCodexUsage(machineId: machineId);
-    final resetCredits = response.success
-        ? await Sync().machineGetCodexResetCredits(machineId: machineId)
-        : null;
-
-    if (!mounted) return;
-
-    if (!response.success || response.data == null) {
-      setState(() {
-        _error = response.error ?? 'Unknown error';
-        _isLoading = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _report = resetCredits == null
-          ? response.data
-          : response.data!.withResetCredits(resetCredits);
-      _isLoading = false;
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final machines = ref.watch(machinesNotifierProvider);
+    return MachineUsageScaffold<CodexUsageSummary>(
+      title: l10n.codexUsageTitle,
+      pickerTitle: l10n.codexUsageSelectMachine,
+      noMachinesIcon: Icons.code,
+      noMachinesTitle: l10n.codexUsageNoMachines,
+      noMachinesSubtitle: l10n.codexUsageNoMachinesSubtitle,
+      emptyIcon: Icons.code,
+      emptyTitle: l10n.codexUsageNotAvailable,
+      emptySubtitle: l10n.codexUsageNotAvailableSubtitle,
+      fetch: (machineId) async {
+        final response = await Sync().machineGetCodexUsage(
+          machineId: machineId,
+        );
+        final resetCredits = response.success
+            ? await Sync().machineGetCodexResetCredits(machineId: machineId)
+            : null;
 
-    if (machines.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: Text(l10n.codexUsageTitle)),
-        body: AppEmptyState(
-          icon: Icons.code,
-          title: l10n.codexUsageNoMachines,
-          subtitle: l10n.codexUsageNoMachinesSubtitle,
-        ),
-      );
-    }
+        if (!response.success || response.data == null) {
+          return MachineUsageSnapshot<CodexUsageSummary>.error(
+            response.error ?? 'Unknown error',
+          );
+        }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.codexUsageTitle)),
-      body: _isLoading
-          ? const AppLoadingIndicator()
-          : _error != null
-          ? MachineScopedEmptyBody(
-              machines: machines,
-              selectedMachineId: _selectedMachineId,
-              onMachineChanged: (id) {
-                setState(() => _selectedMachineId = id);
-                if (id != null) _loadUsage(id);
-              },
-              pickerTitle: l10n.codexUsageSelectMachine,
-              icon: Icons.error_outline,
-              title: l10n.codexUsageNotAvailable,
-              subtitle: _error!,
-              onRetry: () {
-                if (_selectedMachineId != null) {
-                  _loadUsage(_selectedMachineId!);
-                }
-              },
-            )
-          : _report != null
-          ? _CodexUsageBody(
-              machines: machines,
-              selectedMachineId: _selectedMachineId,
-              report: _report!,
-              onMachineChanged: (id) {
-                setState(() => _selectedMachineId = id);
-                if (id != null) _loadUsage(id);
-              },
-            )
-          : MachineScopedEmptyBody(
-              machines: machines,
-              selectedMachineId: _selectedMachineId,
-              onMachineChanged: (id) {
-                setState(() => _selectedMachineId = id);
-                if (id != null) _loadUsage(id);
-              },
-              pickerTitle: l10n.codexUsageSelectMachine,
-              icon: Icons.code,
-              title: l10n.codexUsageNotAvailable,
-              subtitle: l10n.codexUsageNotAvailableSubtitle,
-            ),
-    );
-  }
-}
+        return MachineUsageSnapshot<CodexUsageSummary>.data(
+          resetCredits == null
+              ? response.data!
+              : response.data!.withResetCredits(resetCredits),
+        );
+      },
+      contentBuilder: (context, report) {
+        final l10n = AppLocalizations.of(context);
 
-class _CodexUsageBody extends StatelessWidget {
-  const _CodexUsageBody({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.report,
-    required this.onMachineChanged,
-  });
-
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final CodexUsageSummary report;
-  final ValueChanged<String?> onMachineChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-
-    return ListView(
-      padding: AppScreenPadding.settings,
-      children: [
-        MachinePicker(
-          machines: machines,
-          selectedMachineId: selectedMachineId,
-          onChanged: onMachineChanged,
-          sectionTitle: l10n.codexUsageSelectMachine,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        SettingsSection(
-          title: l10n.codexUsageAccount,
-          children: [
-            _CodexUsageStatRow(
-              icon: Icons.alternate_email,
-              title: l10n.codexUsageEmail,
-              value: report.email ?? '-',
-              iconColor: AppColors.info,
-            ),
-            _CodexUsageStatRow(
-              icon: Icons.workspace_premium_outlined,
-              title: l10n.codexUsagePlan,
-              value: report.planType ?? '-',
-              iconColor: AppColors.success,
-            ),
-          ],
-        ),
-        if (report.rateLimit != null) ...[
-          const SizedBox(height: AppSpacing.lg),
+        return [
           SettingsSection(
-            title: l10n.codexUsageSessionLimits,
+            title: l10n.codexUsageAccount,
             children: [
-              _CodexUsageBooleanRow(
-                icon: Icons.check_circle_outline,
-                title: l10n.codexUsageCreditsAvailable,
-                value: report.rateLimit!.allowed,
+              UsageStatRow(
+                icon: Icons.alternate_email,
+                title: l10n.codexUsageEmail,
+                value: report.email ?? '-',
                 iconColor: AppColors.info,
               ),
-              if (report.rateLimit!.primaryWindow != null)
-                _CodexUsageWindowRow(
-                  icon: Icons.schedule,
-                  title: l10n.codexUsageFiveHourWindow,
-                  window: report.rateLimit!.primaryWindow!,
-                  iconColor: AppColors.warning,
-                ),
-              if (report.rateLimit!.secondaryWindow != null)
-                _CodexUsageWindowRow(
-                  icon: Icons.date_range_outlined,
-                  title: l10n.codexUsageWeeklyWindow,
-                  window: report.rateLimit!.secondaryWindow!,
-                  iconColor: AppColors.success,
-                ),
-            ],
-          ),
-        ],
-        if (report.codeReviewRateLimit != null) ...[
-          const SizedBox(height: AppSpacing.lg),
-          SettingsSection(
-            title: l10n.codexUsageCodeReview,
-            children: [
-              _CodexUsageBooleanRow(
-                icon: Icons.rate_review_outlined,
-                title: l10n.codexUsageCreditsAvailable,
-                value: report.codeReviewRateLimit!.allowed,
-                iconColor: AppColors.info,
-              ),
-              if (report.codeReviewRateLimit!.primaryWindow != null)
-                _CodexUsageWindowRow(
-                  icon: Icons.schedule,
-                  title: l10n.codexUsagePrimaryWindow,
-                  window: report.codeReviewRateLimit!.primaryWindow!,
-                  iconColor: AppColors.warning,
-                ),
-              if (report.codeReviewRateLimit!.secondaryWindow != null)
-                _CodexUsageWindowRow(
-                  icon: Icons.date_range_outlined,
-                  title: l10n.codexUsageSecondaryWindow,
-                  window: report.codeReviewRateLimit!.secondaryWindow!,
-                  iconColor: AppColors.success,
-                ),
-            ],
-          ),
-        ],
-        if (report.resetCredits != null) ...[
-          const SizedBox(height: AppSpacing.lg),
-          _CodexResetCreditsSection(resetCredits: report.resetCredits!),
-        ],
-        for (final additionalLimit in report.additionalRateLimits) ...[
-          if (additionalLimit.rateLimit != null) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _CodexUsageRateLimitSection(
-              title: additionalLimit.displayName,
-              rateLimit: additionalLimit.rateLimit!,
-              windowTitles: _CodexUsageWindowTitles(
-                primary: l10n.codexUsagePrimaryWindow,
-                secondary: l10n.codexUsageSecondaryWindow,
-              ),
-              leadingIcon: Icons.auto_awesome,
-            ),
-          ],
-        ],
-        if (report.credits != null) ...[
-          const SizedBox(height: AppSpacing.lg),
-          SettingsSection(
-            title: l10n.codexUsageCredits,
-            children: [
-              _CodexUsageBooleanRow(
-                icon: Icons.account_balance_wallet_outlined,
-                title: l10n.codexUsageCreditsAvailable,
-                value: report.credits!.hasCredits,
-                iconColor: AppColors.info,
-              ),
-              _CodexUsageStatRow(
-                icon: Icons.payments_outlined,
-                title: l10n.codexUsageCreditsBalance,
-                value: report.credits!.unlimited
-                    ? l10n.codexUsageUnlimited
-                    : (report.credits!.balance ?? '-'),
+              UsageStatRow(
+                icon: Icons.workspace_premium_outlined,
+                title: l10n.codexUsagePlan,
+                value: report.planType ?? '-',
                 iconColor: AppColors.success,
               ),
             ],
           ),
-        ],
-      ],
+          if (report.rateLimit != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            SettingsSection(
+              title: l10n.codexUsageSessionLimits,
+              children: [
+                _CodexUsageBooleanRow(
+                  icon: Icons.check_circle_outline,
+                  title: l10n.codexUsageCreditsAvailable,
+                  value: report.rateLimit!.allowed,
+                  iconColor: AppColors.info,
+                ),
+                if (report.rateLimit!.primaryWindow != null)
+                  UsageWindowRow(
+                    icon: Icons.schedule,
+                    title: l10n.codexUsageFiveHourWindow,
+                    percent: report
+                        .rateLimit!
+                        .primaryWindow!
+                        .usedPercent
+                        .toDouble(),
+                    iconColor: AppColors.warning,
+                    footer: _windowFooter(
+                      context,
+                      report.rateLimit!.primaryWindow!,
+                    ),
+                  ),
+                if (report.rateLimit!.secondaryWindow != null)
+                  UsageWindowRow(
+                    icon: Icons.date_range_outlined,
+                    title: l10n.codexUsageWeeklyWindow,
+                    percent: report
+                        .rateLimit!
+                        .secondaryWindow!
+                        .usedPercent
+                        .toDouble(),
+                    iconColor: AppColors.success,
+                    footer: _windowFooter(
+                      context,
+                      report.rateLimit!.secondaryWindow!,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (report.codeReviewRateLimit != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            SettingsSection(
+              title: l10n.codexUsageCodeReview,
+              children: [
+                _CodexUsageBooleanRow(
+                  icon: Icons.rate_review_outlined,
+                  title: l10n.codexUsageCreditsAvailable,
+                  value: report.codeReviewRateLimit!.allowed,
+                  iconColor: AppColors.info,
+                ),
+                if (report.codeReviewRateLimit!.primaryWindow != null)
+                  UsageWindowRow(
+                    icon: Icons.schedule,
+                    title: l10n.codexUsagePrimaryWindow,
+                    percent: report
+                        .codeReviewRateLimit!
+                        .primaryWindow!
+                        .usedPercent
+                        .toDouble(),
+                    iconColor: AppColors.warning,
+                    footer: _windowFooter(
+                      context,
+                      report.codeReviewRateLimit!.primaryWindow!,
+                    ),
+                  ),
+                if (report.codeReviewRateLimit!.secondaryWindow != null)
+                  UsageWindowRow(
+                    icon: Icons.date_range_outlined,
+                    title: l10n.codexUsageSecondaryWindow,
+                    percent: report
+                        .codeReviewRateLimit!
+                        .secondaryWindow!
+                        .usedPercent
+                        .toDouble(),
+                    iconColor: AppColors.success,
+                    footer: _windowFooter(
+                      context,
+                      report.codeReviewRateLimit!.secondaryWindow!,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (report.resetCredits != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _CodexResetCreditsSection(resetCredits: report.resetCredits!),
+          ],
+          for (final additionalLimit in report.additionalRateLimits) ...[
+            if (additionalLimit.rateLimit != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _CodexUsageRateLimitSection(
+                title: additionalLimit.displayName,
+                rateLimit: additionalLimit.rateLimit!,
+                windowTitles: _CodexUsageWindowTitles(
+                  primary: l10n.codexUsagePrimaryWindow,
+                  secondary: l10n.codexUsageSecondaryWindow,
+                ),
+                leadingIcon: Icons.auto_awesome,
+              ),
+            ],
+          ],
+          if (report.credits != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            SettingsSection(
+              title: l10n.codexUsageCredits,
+              children: [
+                _CodexUsageBooleanRow(
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: l10n.codexUsageCreditsAvailable,
+                  value: report.credits!.hasCredits,
+                  iconColor: AppColors.info,
+                ),
+                UsageStatRow(
+                  icon: Icons.payments_outlined,
+                  title: l10n.codexUsageCreditsBalance,
+                  value: report.credits!.unlimited
+                      ? l10n.codexUsageUnlimited
+                      : (report.credits!.balance ?? '-'),
+                  iconColor: AppColors.success,
+                ),
+              ],
+            ),
+          ],
+        ];
+      },
     );
   }
+}
+
+/// Footer line under a [UsageWindowRow]: the localized absolute reset
+/// time when known, else a "Resets in …" duration.
+Widget? _windowFooter(BuildContext context, CodexUsageWindow window) {
+  final description = _formatResetDescription(context, window);
+  if (description == null) return null;
+  final theme = Theme.of(context);
+  return Text(
+    description,
+    style: theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    ),
+  );
+}
+
+String? _formatResetDescription(
+  BuildContext context,
+  CodexUsageWindow window,
+) {
+  final expiresAt = window.expiresAt?.toLocal();
+  if (expiresAt != null) {
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final formatted = DateFormat.yMMMd(locale).add_jm().format(expiresAt);
+    return AppLocalizations.of(context).codexUsageResetsAt(formatted);
+  }
+
+  final seconds = window.resetAfterSeconds;
+  if (seconds == null) return null;
+  if (seconds <= 0) return null;
+  final dur = Duration(seconds: seconds);
+  if (dur.inHours >= 24) {
+    final days = dur.inDays;
+    return 'Resets in ${days}d ${dur.inHours % 24}h';
+  }
+  if (dur.inHours >= 1) {
+    return 'Resets in ${dur.inHours}h '
+        '${dur.inMinutes % 60}m';
+  }
+  return 'Resets in ${dur.inMinutes}m';
 }
 
 class _CodexResetCreditsSection extends StatelessWidget {
@@ -298,14 +253,14 @@ class _CodexResetCreditsSection extends StatelessWidget {
     return SettingsSection(
       title: l10n.codexUsageLimitResets,
       children: [
-        _CodexUsageStatRow(
+        UsageStatRow(
           icon: Icons.restart_alt,
           title: l10n.codexUsageResetsAvailable,
           value: resetCredits.availableCount.toString(),
           iconColor: AppColors.info,
         ),
         for (final credit in available)
-          _CodexUsageStatRow(
+          UsageStatRow(
             icon: Icons.event_outlined,
             title: (credit.title?.trim().isNotEmpty ?? false)
                 ? credit.title!
@@ -368,63 +323,22 @@ class _CodexUsageRateLimitSection extends StatelessWidget {
           iconColor: AppColors.info,
         ),
         if (rateLimit.primaryWindow != null)
-          _CodexUsageWindowRow(
+          UsageWindowRow(
             icon: Icons.schedule,
             title: windowTitles.primary,
-            window: rateLimit.primaryWindow!,
+            percent: rateLimit.primaryWindow!.usedPercent.toDouble(),
             iconColor: AppColors.warning,
+            footer: _windowFooter(context, rateLimit.primaryWindow!),
           ),
         if (rateLimit.secondaryWindow != null)
-          _CodexUsageWindowRow(
+          UsageWindowRow(
             icon: Icons.date_range_outlined,
             title: windowTitles.secondary,
-            window: rateLimit.secondaryWindow!,
+            percent: rateLimit.secondaryWindow!.usedPercent.toDouble(),
             iconColor: AppColors.success,
+            footer: _windowFooter(context, rateLimit.secondaryWindow!),
           ),
       ],
-    );
-  }
-}
-
-
-
-class _CodexUsageStatRow extends StatelessWidget {
-  const _CodexUsageStatRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.iconColor,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final cs = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: iconColor),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(child: Text(title, style: textTheme.bodyMedium)),
-          Text(
-            value,
-            style: textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: cs.onSurface,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -445,121 +359,11 @@ class _CodexUsageBooleanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return _CodexUsageStatRow(
+    return UsageStatRow(
       icon: icon,
       title: title,
       value: value ? l10n.commonYes : l10n.commonNo,
       iconColor: iconColor,
     );
-  }
-}
-
-class _CodexUsageWindowRow extends StatelessWidget {
-  const _CodexUsageWindowRow({
-    required this.icon,
-    required this.title,
-    required this.window,
-    required this.iconColor,
-  });
-
-  final IconData icon;
-  final String title;
-  final CodexUsageWindow window;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final percent = window.usedPercent.clamp(0, 100);
-    final fraction = percent / 100.0;
-    final resetDescription = _formatResetDescription(context, window);
-
-    final Color barColor;
-    if (percent >= 90) {
-      barColor = AppColors.error;
-    } else if (percent >= 70) {
-      barColor = AppColors.warning;
-    } else {
-      barColor = AppColors.success;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.smd,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: iconColor),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Text(
-                '$percent%',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: barColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.xs),
-            child: LinearProgressIndicator(
-              value: fraction,
-              minHeight: 6,
-              backgroundColor: cs.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-          if (resetDescription != null) ...[
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              resetDescription,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  String? _formatResetDescription(
-    BuildContext context,
-    CodexUsageWindow window,
-  ) {
-    final expiresAt = window.expiresAt?.toLocal();
-    if (expiresAt != null) {
-      final locale = Localizations.localeOf(context).toLanguageTag();
-      final formatted = DateFormat.yMMMd(locale).add_jm().format(expiresAt);
-      return AppLocalizations.of(context).codexUsageResetsAt(formatted);
-    }
-
-    final seconds = window.resetAfterSeconds;
-    if (seconds == null) return null;
-    if (seconds <= 0) return null;
-    final dur = Duration(seconds: seconds);
-    if (dur.inHours >= 24) {
-      final days = dur.inDays;
-      return 'Resets in ${days}d ${dur.inHours % 24}h';
-    }
-    if (dur.inHours >= 1) {
-      return 'Resets in ${dur.inHours}h '
-          '${dur.inMinutes % 60}m';
-    }
-    return 'Resets in ${dur.inMinutes}m';
   }
 }

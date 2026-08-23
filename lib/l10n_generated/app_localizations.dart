@@ -112,18 +112,6 @@ abstract class AppLocalizations {
   /// **'Version'**
   String get appVersion;
 
-  /// No description provided for @appLoading.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading...'**
-  String get appLoading;
-
-  /// No description provided for @appRetry.
-  ///
-  /// In en, this message translates to:
-  /// **'Retry'**
-  String get appRetry;
-
   /// Common cancel button
   ///
   /// In en, this message translates to:
@@ -141,12 +129,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add'**
   String get commonAdd;
-
-  /// No description provided for @commonOk.
-  ///
-  /// In en, this message translates to:
-  /// **'OK'**
-  String get commonOk;
 
   /// No description provided for @commonYes.
   ///
@@ -178,12 +160,6 @@ abstract class AppLocalizations {
   /// **'Save'**
   String get commonSave;
 
-  /// No description provided for @commonSaveAs.
-  ///
-  /// In en, this message translates to:
-  /// **'Save As'**
-  String get commonSaveAs;
-
   /// No description provided for @commonDelete.
   ///
   /// In en, this message translates to:
@@ -214,12 +190,6 @@ abstract class AppLocalizations {
   /// **'Error'**
   String get commonError;
 
-  /// No description provided for @commonSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Success'**
-  String get commonSuccess;
-
   /// No description provided for @commonCopy.
   ///
   /// In en, this message translates to:
@@ -232,59 +202,11 @@ abstract class AppLocalizations {
   /// **'Copied'**
   String get commonCopied;
 
-  /// No description provided for @commonLogout.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout'**
-  String get commonLogout;
-
-  /// No description provided for @commonDiscard.
-  ///
-  /// In en, this message translates to:
-  /// **'Discard'**
-  String get commonDiscard;
-
   /// No description provided for @commonOptional.
   ///
   /// In en, this message translates to:
   /// **'optional'**
   String get commonOptional;
-
-  /// No description provided for @commonScanning.
-  ///
-  /// In en, this message translates to:
-  /// **'Scanning...'**
-  String get commonScanning;
-
-  /// No description provided for @commonUrlPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'https://example.com'**
-  String get commonUrlPlaceholder;
-
-  /// No description provided for @commonHome.
-  ///
-  /// In en, this message translates to:
-  /// **'Home'**
-  String get commonHome;
-
-  /// No description provided for @commonMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Message'**
-  String get commonMessage;
-
-  /// No description provided for @commonFiles.
-  ///
-  /// In en, this message translates to:
-  /// **'Files'**
-  String get commonFiles;
-
-  /// No description provided for @commonFileViewer.
-  ///
-  /// In en, this message translates to:
-  /// **'File Viewer'**
-  String get commonFileViewer;
 
   /// No description provided for @commonLoading.
   ///
@@ -297,18 +219,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm Deletion'**
   String get commonDeleteConfirmTitle;
-
-  /// No description provided for @commonDeleteConfirmMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete this?'**
-  String get commonDeleteConfirmMessage;
-
-  /// No description provided for @tabsSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Terminals'**
-  String get tabsSessions;
 
   /// No description provided for @tabsSettings.
   ///
@@ -358,12 +268,6 @@ abstract class AppLocalizations {
   /// **'Offline'**
   String get statusOffline;
 
-  /// No description provided for @statusActiveNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Active now'**
-  String get statusActiveNow;
-
   /// No description provided for @statusUnknown.
   ///
   /// In en, this message translates to:
@@ -375,36 +279,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Permission required'**
   String get statusPermissionRequired;
-
-  /// Last-seen timestamp
-  ///
-  /// In en, this message translates to:
-  /// **'Last seen {time}'**
-  String statusLastSeen(String time);
-
-  /// No description provided for @timeJustNow.
-  ///
-  /// In en, this message translates to:
-  /// **'just now'**
-  String get timeJustNow;
-
-  /// Time ago in minutes
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1 {1 minute ago} other {{count} minutes ago}}'**
-  String timeMinutesAgo(int count);
-
-  /// No description provided for @timeHoursAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1 {1 hour ago} other {{count} hours ago}}'**
-  String timeHoursAgo(num count);
-
-  /// Authentication screen title
-  ///
-  /// In en, this message translates to:
-  /// **'Authenticate'**
-  String get authTitle;
 
   /// No description provided for @authAccessDenied.
   ///
@@ -418,78 +292,6 @@ abstract class AppLocalizations {
   /// **'Authentication failed'**
   String get authAuthenticationFailed;
 
-  /// No description provided for @authEnterSecretKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter a secret key'**
-  String get authEnterSecretKey;
-
-  /// No description provided for @authInvalidSecretKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid secret key. Please check and try again.'**
-  String get authInvalidSecretKey;
-
-  /// No description provided for @authRestoreAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore Account'**
-  String get authRestoreAccount;
-
-  /// No description provided for @authEnterUrlManually.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter URL manually'**
-  String get authEnterUrlManually;
-
-  /// No description provided for @authPasteAuthUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Paste the authentication URL from your terminal'**
-  String get authPasteAuthUrl;
-
-  /// No description provided for @authAuthenticateTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Authenticate Terminal'**
-  String get authAuthenticateTerminal;
-
-  /// No description provided for @authAuthenticateWithUrlPaste.
-  ///
-  /// In en, this message translates to:
-  /// **'Authenticate Terminal with URL paste'**
-  String get authAuthenticateWithUrlPaste;
-
-  /// No description provided for @authCameraPermissionsRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Camera permissions are required to scan QR codes'**
-  String get authCameraPermissionsRequired;
-
-  /// No description provided for @authExchangingTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'Exchanging tokens...'**
-  String get authExchangingTokens;
-
-  /// No description provided for @authClaudeAuthSuccess.
-  ///
-  /// In en, this message translates to:
-  /// **'Successfully connected to Claude'**
-  String get authClaudeAuthSuccess;
-
-  /// No description provided for @welcomeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Codex and Claude Code mobile client'**
-  String get welcomeTitle;
-
-  /// No description provided for @welcomeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'End-to-end encrypted and your account is stored only on your device.'**
-  String get welcomeSubtitle;
-
   /// No description provided for @welcomeCreateAccount.
   ///
   /// In en, this message translates to:
@@ -501,12 +303,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Link or restore account'**
   String get welcomeLinkOrRestoreAccount;
-
-  /// No description provided for @welcomeLoginWithMobileApp.
-  ///
-  /// In en, this message translates to:
-  /// **'Login with mobile app'**
-  String get welcomeLoginWithMobileApp;
 
   /// Sessions screen title
   ///
@@ -520,23 +316,11 @@ abstract class AppLocalizations {
   /// **'New Session'**
   String get sessionNewSession;
 
-  /// No description provided for @sessionStartNewToGetStarted.
-  ///
-  /// In en, this message translates to:
-  /// **'Start a new session to get started'**
-  String get sessionStartNewToGetStarted;
-
   /// No description provided for @sessionNoSessionsYet.
   ///
   /// In en, this message translates to:
   /// **'No sessions yet'**
   String get sessionNoSessionsYet;
-
-  /// No description provided for @sessionActiveSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get sessionActiveSessions;
 
   /// No description provided for @sessionHistory.
   ///
@@ -567,24 +351,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter path'**
   String get sessionPathHint;
-
-  /// No description provided for @sessionInitialMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Initial message'**
-  String get sessionInitialMessage;
-
-  /// No description provided for @sessionInitialMessageHint.
-  ///
-  /// In en, this message translates to:
-  /// **'What would you like to work on?'**
-  String get sessionInitialMessageHint;
-
-  /// No description provided for @sessionInputPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Type a message ...'**
-  String get sessionInputPlaceholder;
 
   /// No description provided for @chatStopCurrentTask.
   ///
@@ -622,18 +388,6 @@ abstract class AppLocalizations {
   /// **'Could not stop the agent process. It may still be running.'**
   String get chatStopAgentProcessFailure;
 
-  /// No description provided for @sessionStartSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Start Session'**
-  String get sessionStartSession;
-
-  /// No description provided for @sessionStarting.
-  ///
-  /// In en, this message translates to:
-  /// **'Starting session...'**
-  String get sessionStarting;
-
   /// No description provided for @newSessionPhaseCheckingMachine.
   ///
   /// In en, this message translates to:
@@ -670,30 +424,6 @@ abstract class AppLocalizations {
   /// **'Finalizing session…'**
   String get newSessionPhaseFinalizing;
 
-  /// No description provided for @sessionStarted.
-  ///
-  /// In en, this message translates to:
-  /// **'Session Started'**
-  String get sessionStarted;
-
-  /// No description provided for @sessionStartedMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'The session has been started successfully.'**
-  String get sessionStartedMessage;
-
-  /// No description provided for @sessionFailedToStart.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to start session. Make sure the daemon is running on the target machine.'**
-  String get sessionFailedToStart;
-
-  /// No description provided for @sessionTimeout.
-  ///
-  /// In en, this message translates to:
-  /// **'Session startup timed out. The machine may be slow or the daemon may not be responding.'**
-  String get sessionTimeout;
-
   /// No description provided for @sessionNotConnectedToServer.
   ///
   /// In en, this message translates to:
@@ -712,30 +442,6 @@ abstract class AppLocalizations {
   /// **'Please select a directory to start the session in'**
   String get sessionNoPathSelected;
 
-  /// No description provided for @sessionTypeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Session Type'**
-  String get sessionTypeTitle;
-
-  /// No description provided for @sessionTypeSimple.
-  ///
-  /// In en, this message translates to:
-  /// **'Simple'**
-  String get sessionTypeSimple;
-
-  /// No description provided for @sessionTypeWorktree.
-  ///
-  /// In en, this message translates to:
-  /// **'Worktree'**
-  String get sessionTypeWorktree;
-
-  /// No description provided for @sessionTypeComingSoon.
-  ///
-  /// In en, this message translates to:
-  /// **'Coming soon'**
-  String get sessionTypeComingSoon;
-
   /// No description provided for @newSessionTitle.
   ///
   /// In en, this message translates to:
@@ -747,12 +453,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No machines found. Start a Happy session on your computer first.'**
   String get newSessionNoMachinesFound;
-
-  /// No description provided for @newSessionAllMachinesOffline.
-  ///
-  /// In en, this message translates to:
-  /// **'All machines appear offline'**
-  String get newSessionAllMachinesOffline;
 
   /// No description provided for @newSessionMachineUnreachable.
   ///
@@ -958,65 +658,11 @@ abstract class AppLocalizations {
   /// **'Complete'**
   String get claudeAuthComplete;
 
-  /// No description provided for @newSessionMachineDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'View machine details →'**
-  String get newSessionMachineDetails;
-
-  /// No description provided for @newSessionDirectoryDoesNotExist.
-  ///
-  /// In en, this message translates to:
-  /// **'Directory Not Found'**
-  String get newSessionDirectoryDoesNotExist;
-
-  /// No description provided for @newSessionCreateDirectoryConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'The directory {directory} does not exist. Do you want to create it?'**
-  String newSessionCreateDirectoryConfirm(Object directory);
-
-  /// No description provided for @newSessionSessionSpawningFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Session spawning failed - no session ID returned.'**
-  String get newSessionSessionSpawningFailed;
-
   /// No description provided for @sessionHistoryTitle.
   ///
   /// In en, this message translates to:
   /// **'Sessions'**
   String get sessionHistoryTitle;
-
-  /// No description provided for @sessionHistoryEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'No sessions found'**
-  String get sessionHistoryEmpty;
-
-  /// No description provided for @sessionHistoryToday.
-  ///
-  /// In en, this message translates to:
-  /// **'Today'**
-  String get sessionHistoryToday;
-
-  /// No description provided for @sessionHistoryYesterday.
-  ///
-  /// In en, this message translates to:
-  /// **'Yesterday'**
-  String get sessionHistoryYesterday;
-
-  /// No description provided for @sessionHistoryDaysAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1 {1 day ago} other {{count} days ago}}'**
-  String sessionHistoryDaysAgo(num count);
-
-  /// No description provided for @sessionHistoryViewAll.
-  ///
-  /// In en, this message translates to:
-  /// **'View all sessions'**
-  String get sessionHistoryViewAll;
 
   /// No description provided for @sessionInfoTitle.
   ///
@@ -1024,290 +670,17 @@ abstract class AppLocalizations {
   /// **'Session Info'**
   String get sessionInfoTitle;
 
-  /// No description provided for @sessionInfoHappySessionId.
-  ///
-  /// In en, this message translates to:
-  /// **'Happy Session ID'**
-  String get sessionInfoHappySessionId;
-
-  /// No description provided for @sessionInfoClaudeCodeSessionId.
-  ///
-  /// In en, this message translates to:
-  /// **'Claude Code Session ID'**
-  String get sessionInfoClaudeCodeSessionId;
-
-  /// No description provided for @sessionInfoAiProvider.
-  ///
-  /// In en, this message translates to:
-  /// **'AI Provider'**
-  String get sessionInfoAiProvider;
-
-  /// No description provided for @sessionInfoConnectionStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection Status'**
-  String get sessionInfoConnectionStatus;
-
-  /// No description provided for @sessionInfoCreated.
-  ///
-  /// In en, this message translates to:
-  /// **'Created'**
-  String get sessionInfoCreated;
-
-  /// No description provided for @sessionInfoLastUpdated.
-  ///
-  /// In en, this message translates to:
-  /// **'Last Updated'**
-  String get sessionInfoLastUpdated;
-
-  /// No description provided for @sessionInfoSequence.
-  ///
-  /// In en, this message translates to:
-  /// **'Sequence'**
-  String get sessionInfoSequence;
-
-  /// No description provided for @sessionInfoMetadata.
-  ///
-  /// In en, this message translates to:
-  /// **'Metadata'**
-  String get sessionInfoMetadata;
-
-  /// No description provided for @sessionInfoHost.
-  ///
-  /// In en, this message translates to:
-  /// **'Host'**
-  String get sessionInfoHost;
-
-  /// No description provided for @sessionInfoPath.
-  ///
-  /// In en, this message translates to:
-  /// **'Path'**
-  String get sessionInfoPath;
-
-  /// No description provided for @sessionInfoOperatingSystem.
-  ///
-  /// In en, this message translates to:
-  /// **'Operating System'**
-  String get sessionInfoOperatingSystem;
-
-  /// No description provided for @sessionInfoProcessId.
-  ///
-  /// In en, this message translates to:
-  /// **'Process ID'**
-  String get sessionInfoProcessId;
-
-  /// No description provided for @sessionInfoCliVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'CLI Version'**
-  String get sessionInfoCliVersion;
-
-  /// No description provided for @sessionInfoAgentState.
-  ///
-  /// In en, this message translates to:
-  /// **'Agent State'**
-  String get sessionInfoAgentState;
-
-  /// No description provided for @sessionInfoControlledByUser.
-  ///
-  /// In en, this message translates to:
-  /// **'Controlled by User'**
-  String get sessionInfoControlledByUser;
-
-  /// No description provided for @sessionInfoPendingRequests.
-  ///
-  /// In en, this message translates to:
-  /// **'Pending Requests'**
-  String get sessionInfoPendingRequests;
-
-  /// No description provided for @sessionInfoActivity.
-  ///
-  /// In en, this message translates to:
-  /// **'Activity'**
-  String get sessionInfoActivity;
-
   /// No description provided for @sessionInfoThinking.
   ///
   /// In en, this message translates to:
   /// **'Thinking'**
   String get sessionInfoThinking;
 
-  /// No description provided for @sessionInfoThinkingSince.
-  ///
-  /// In en, this message translates to:
-  /// **'Thinking Since'**
-  String get sessionInfoThinkingSince;
-
-  /// No description provided for @sessionInfoCliVersionOutdated.
-  ///
-  /// In en, this message translates to:
-  /// **'CLI Update Required'**
-  String get sessionInfoCliVersionOutdated;
-
-  /// No description provided for @sessionInfoCliVersionOutdatedMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Version {currentVersion} installed. Update to {requiredVersion} or later'**
-  String sessionInfoCliVersionOutdatedMessage(
-    Object currentVersion,
-    Object requiredVersion,
-  );
-
-  /// No description provided for @sessionInfoUpdateCliInstructions.
-  ///
-  /// In en, this message translates to:
-  /// **'Please run npm install -g happy-coder@latest'**
-  String get sessionInfoUpdateCliInstructions;
-
-  /// No description provided for @sessionInfoQuickActions.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick Actions'**
-  String get sessionInfoQuickActions;
-
-  /// No description provided for @sessionInfoViewMachine.
-  ///
-  /// In en, this message translates to:
-  /// **'View Machine'**
-  String get sessionInfoViewMachine;
-
-  /// No description provided for @sessionInfoViewMachineSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'View machine details and sessions'**
-  String get sessionInfoViewMachineSubtitle;
-
-  /// No description provided for @sessionInfoKillSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Kill Session'**
-  String get sessionInfoKillSession;
-
-  /// No description provided for @sessionInfoKillSessionConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to terminate this session?'**
-  String get sessionInfoKillSessionConfirm;
-
-  /// No description provided for @sessionInfoKillSessionSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Immediately terminate the session'**
-  String get sessionInfoKillSessionSubtitle;
-
-  /// No description provided for @sessionInfoArchiveSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Archive Session'**
-  String get sessionInfoArchiveSession;
-
-  /// No description provided for @sessionInfoArchiveSessionConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to archive this session?'**
-  String get sessionInfoArchiveSessionConfirm;
-
-  /// No description provided for @sessionInfoArchiveSessionSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Archive this session and stop it'**
-  String get sessionInfoArchiveSessionSubtitle;
-
-  /// No description provided for @sessionInfoDeleteSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Session'**
-  String get sessionInfoDeleteSession;
-
-  /// No description provided for @sessionInfoDeleteSessionSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Permanently remove this session'**
-  String get sessionInfoDeleteSessionSubtitle;
-
-  /// No description provided for @sessionInfoDeleteSessionConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Session Permanently?'**
-  String get sessionInfoDeleteSessionConfirm;
-
-  /// No description provided for @sessionInfoDeleteSessionWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'This action cannot be undone. All messages and data associated with this session will be permanently deleted.'**
-  String get sessionInfoDeleteSessionWarning;
-
-  /// No description provided for @sessionInfoCopySessionId.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy Session ID'**
-  String get sessionInfoCopySessionId;
-
-  /// No description provided for @sessionInfoCopyMetadata.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy Metadata'**
-  String get sessionInfoCopyMetadata;
-
-  /// No description provided for @sessionInfoSessionIdCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Session ID copied to clipboard'**
-  String get sessionInfoSessionIdCopied;
-
   /// No description provided for @sessionInfoMetadataCopied.
   ///
   /// In en, this message translates to:
   /// **'Metadata copied to clipboard'**
   String get sessionInfoMetadataCopied;
-
-  /// No description provided for @sessionInfoCopyFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to copy to clipboard'**
-  String get sessionInfoCopyFailed;
-
-  /// No description provided for @sessionInfoHappyHome.
-  ///
-  /// In en, this message translates to:
-  /// **'Happy Home'**
-  String get sessionInfoHappyHome;
-
-  /// No description provided for @sessionInfoFailedToKillSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to kill session'**
-  String get sessionInfoFailedToKillSession;
-
-  /// No description provided for @sessionInfoFailedToArchiveSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to archive session'**
-  String get sessionInfoFailedToArchiveSession;
-
-  /// No description provided for @sessionInfoFailedToDeleteSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to delete session'**
-  String get sessionInfoFailedToDeleteSession;
-
-  /// No description provided for @sessionInfoSessionDeleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Session deleted successfully'**
-  String get sessionInfoSessionDeleted;
-
-  /// Machine screen title
-  ///
-  /// In en, this message translates to:
-  /// **'Machine'**
-  String machineTitle(int count);
-
-  /// No description provided for @machineLaunchNewSessionInDirectory.
-  ///
-  /// In en, this message translates to:
-  /// **'Launch New Session in Directory'**
-  String get machineLaunchNewSessionInDirectory;
 
   /// No description provided for @machineOfflineUnableToSpawn.
   ///
@@ -1333,29 +706,11 @@ abstract class AppLocalizations {
   /// **'Status'**
   String get machineStatus;
 
-  /// No description provided for @machineStopDaemon.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop Daemon'**
-  String get machineStopDaemon;
-
   /// No description provided for @machineLastKnownPid.
   ///
   /// In en, this message translates to:
   /// **'Last Known PID'**
   String get machineLastKnownPid;
-
-  /// No description provided for @machineLastKnownHttpPort.
-  ///
-  /// In en, this message translates to:
-  /// **'Last Known HTTP Port'**
-  String get machineLastKnownHttpPort;
-
-  /// No description provided for @machineStartedAt.
-  ///
-  /// In en, this message translates to:
-  /// **'Started At'**
-  String get machineStartedAt;
 
   /// No description provided for @machineCliVersion.
   ///
@@ -1390,24 +745,6 @@ abstract class AppLocalizations {
   /// **'Update command copied'**
   String get machineCompatibilityCopied;
 
-  /// No description provided for @machineDaemonStateVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Daemon State Version'**
-  String get machineDaemonStateVersion;
-
-  /// No description provided for @machineActiveSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Active Sessions ({count})'**
-  String machineActiveSessions(Object count);
-
-  /// No description provided for @machineMachineGroup.
-  ///
-  /// In en, this message translates to:
-  /// **'Machine'**
-  String get machineMachineGroup;
-
   /// No description provided for @machineHost.
   ///
   /// In en, this message translates to:
@@ -1426,12 +763,6 @@ abstract class AppLocalizations {
   /// **'Username'**
   String get machineUsername;
 
-  /// No description provided for @machineHomeDirectory.
-  ///
-  /// In en, this message translates to:
-  /// **'Home Directory'**
-  String get machineHomeDirectory;
-
   /// No description provided for @machinePlatform.
   ///
   /// In en, this message translates to:
@@ -1444,77 +775,17 @@ abstract class AppLocalizations {
   /// **'Architecture'**
   String get machineArchitecture;
 
-  /// No description provided for @machineLastSeen.
-  ///
-  /// In en, this message translates to:
-  /// **'Last Seen'**
-  String get machineLastSeen;
-
-  /// No description provided for @machineNever.
-  ///
-  /// In en, this message translates to:
-  /// **'Never'**
-  String get machineNever;
-
-  /// No description provided for @machineMetadataVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Metadata Version'**
-  String get machineMetadataVersion;
-
-  /// No description provided for @machineUntitledSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Untitled Session'**
-  String get machineUntitledSession;
-
-  /// No description provided for @machineBack.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
-  String get machineBack;
-
   /// No description provided for @machineShowLess.
   ///
   /// In en, this message translates to:
   /// **'Show less'**
   String get machineShowLess;
 
-  /// No description provided for @machineShowAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Show all ({count} paths)'**
-  String machineShowAll(Object count);
-
-  /// No description provided for @machineEnterCustomPath.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter custom path'**
-  String get machineEnterCustomPath;
-
-  /// No description provided for @machineOfflineUnableToSpawnNew.
-  ///
-  /// In en, this message translates to:
-  /// **'Unable to spawn new session, offline'**
-  String get machineOfflineUnableToSpawnNew;
-
-  /// Chat screen title
-  ///
-  /// In en, this message translates to:
-  /// **'Chat'**
-  String chatTitle(String toolName);
-
   /// No description provided for @chatStartConversation.
   ///
   /// In en, this message translates to:
   /// **'Start a conversation'**
   String get chatStartConversation;
-
-  /// No description provided for @chatSendMessageToBegin.
-  ///
-  /// In en, this message translates to:
-  /// **'Send a message to begin'**
-  String get chatSendMessageToBegin;
 
   /// No description provided for @chatSessionSettings.
   ///
@@ -1546,35 +817,11 @@ abstract class AppLocalizations {
   /// **'Claude is thinking...'**
   String get chatThinking;
 
-  /// No description provided for @chatToolRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Running: {toolName}'**
-  String chatToolRunning(Object toolName);
-
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:
   /// **'Settings'**
   String get settingsTitle;
-
-  /// No description provided for @settingsConnectedAccounts.
-  ///
-  /// In en, this message translates to:
-  /// **'Connected Accounts'**
-  String get settingsConnectedAccounts;
-
-  /// No description provided for @settingsConnectAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect account'**
-  String get settingsConnectAccount;
-
-  /// No description provided for @settingsGithub.
-  ///
-  /// In en, this message translates to:
-  /// **'GitHub'**
-  String get settingsGithub;
 
   /// No description provided for @settingsMachines.
   ///
@@ -1606,6 +853,84 @@ abstract class AppLocalizations {
   /// **'Features'**
   String get settingsFeatures;
 
+  /// No description provided for @settingsHubToolsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Agents & Tools'**
+  String get settingsHubToolsTitle;
+
+  /// No description provided for @workflowPresetsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Workflow presets'**
+  String get workflowPresetsTitle;
+
+  /// No description provided for @workflowPresetsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Presets update existing app settings and can be adjusted later.'**
+  String get workflowPresetsDescription;
+
+  /// No description provided for @workflowPresetFocusTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus'**
+  String get workflowPresetFocusTitle;
+
+  /// No description provided for @workflowPresetFocusSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet chat, compact sessions, unread-first navigation'**
+  String get workflowPresetFocusSubtitle;
+
+  /// No description provided for @workflowPresetVoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get workflowPresetVoiceTitle;
+
+  /// No description provided for @workflowPresetVoiceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Speech on, inline context, mission-control browsing'**
+  String get workflowPresetVoiceSubtitle;
+
+  /// No description provided for @workflowPresetLowNoiseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Low noise'**
+  String get workflowPresetLowNoiseTitle;
+
+  /// No description provided for @workflowPresetLowNoiseSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide tool chatter and inactive work by default'**
+  String get workflowPresetLowNoiseSubtitle;
+
+  /// No description provided for @workflowPresetDebugTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Debug'**
+  String get workflowPresetDebugTitle;
+
+  /// No description provided for @workflowPresetDebugSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show internals, tool calls, todos, and developer logging'**
+  String get workflowPresetDebugSubtitle;
+
+  /// No description provided for @workflowPresetActiveSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'- Active'**
+  String get workflowPresetActiveSuffix;
+
+  /// No description provided for @workflowPresetAppliedSnack.
+  ///
+  /// In en, this message translates to:
+  /// **'preset applied'**
+  String get workflowPresetAppliedSnack;
+
   /// No description provided for @settingsAccount.
   ///
   /// In en, this message translates to:
@@ -1624,30 +949,6 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get settingsAppearance;
 
-  /// No description provided for @settingsAppearanceSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Customize how the app looks'**
-  String get settingsAppearanceSubtitle;
-
-  /// No description provided for @settingsVoiceAssistant.
-  ///
-  /// In en, this message translates to:
-  /// **'Voice Assistant'**
-  String get settingsVoiceAssistant;
-
-  /// No description provided for @settingsVoiceAssistantSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Configure voice interaction preferences'**
-  String get settingsVoiceAssistantSubtitle;
-
-  /// No description provided for @settingsFeaturesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Features'**
-  String get settingsFeaturesTitle;
-
   /// No description provided for @settingsFeaturesSubtitle.
   ///
   /// In en, this message translates to:
@@ -1660,35 +961,11 @@ abstract class AppLocalizations {
   /// **'Developer'**
   String get settingsDeveloper;
 
-  /// No description provided for @settingsDeveloperTools.
-  ///
-  /// In en, this message translates to:
-  /// **'Developer Tools'**
-  String get settingsDeveloperTools;
-
   /// No description provided for @settingsAbout.
   ///
   /// In en, this message translates to:
   /// **'About'**
   String get settingsAbout;
-
-  /// No description provided for @settingsAboutFooter.
-  ///
-  /// In en, this message translates to:
-  /// **'Happy Coder is a Codex and Claude Code mobile client. It\'s fully end-to-end encrypted and your account is stored only on your device. Not affiliated with Anthropic.'**
-  String get settingsAboutFooter;
-
-  /// No description provided for @settingsWhatsNew.
-  ///
-  /// In en, this message translates to:
-  /// **'What\'s New'**
-  String get settingsWhatsNew;
-
-  /// No description provided for @settingsWhatsNewSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'See the latest updates and improvements'**
-  String get settingsWhatsNewSubtitle;
 
   /// No description provided for @settingsReportIssue.
   ///
@@ -1708,48 +985,6 @@ abstract class AppLocalizations {
   /// **'Terms of Service'**
   String get settingsTermsOfService;
 
-  /// No description provided for @settingsEula.
-  ///
-  /// In en, this message translates to:
-  /// **'EULA'**
-  String get settingsEula;
-
-  /// No description provided for @settingsSupportUs.
-  ///
-  /// In en, this message translates to:
-  /// **'Support us'**
-  String get settingsSupportUs;
-
-  /// No description provided for @settingsSupportUsSubtitlePro.
-  ///
-  /// In en, this message translates to:
-  /// **'Thank you for your support!'**
-  String get settingsSupportUsSubtitlePro;
-
-  /// No description provided for @settingsSupportUsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Support project development'**
-  String get settingsSupportUsSubtitle;
-
-  /// No description provided for @settingsScanQrCodeToAuthenticate.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan QR code to authenticate'**
-  String get settingsScanQrCodeToAuthenticate;
-
-  /// No description provided for @settingsGithubConnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Connected as @{login}'**
-  String settingsGithubConnected(Object login);
-
-  /// No description provided for @settingsConnectGithubAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect your GitHub account'**
-  String get settingsConnectGithubAccount;
-
   /// No description provided for @settingsUsage.
   ///
   /// In en, this message translates to:
@@ -1768,12 +1003,6 @@ abstract class AppLocalizations {
   /// **'Profiles'**
   String get settingsProfiles;
 
-  /// No description provided for @settingsProfilesSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Manage environment variable profiles for sessions'**
-  String get settingsProfilesSubtitle;
-
   /// No description provided for @settingsSignOut.
   ///
   /// In en, this message translates to:
@@ -1786,551 +1015,11 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to sign out? Make sure you have backed up your secret key!'**
   String get settingsSignOutConfirm;
 
-  /// No description provided for @settingsLanguage.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
-  String get settingsLanguage;
-
-  /// No description provided for @settingsLanguageSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose your preferred language for the app interface'**
-  String get settingsLanguageSubtitle;
-
-  /// No description provided for @settingsLanguageCurrent.
-  ///
-  /// In en, this message translates to:
-  /// **'Current Language'**
-  String get settingsLanguageCurrent;
-
-  /// No description provided for @settingsLanguageAutomatic.
-  ///
-  /// In en, this message translates to:
-  /// **'Automatic'**
-  String get settingsLanguageAutomatic;
-
-  /// No description provided for @settingsLanguageAutomaticSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Detect from device settings'**
-  String get settingsLanguageAutomaticSubtitle;
-
-  /// No description provided for @settingsLanguageNeedsRestart.
-  ///
-  /// In en, this message translates to:
-  /// **'Language Changed'**
-  String get settingsLanguageNeedsRestart;
-
-  /// No description provided for @settingsLanguageNeedsRestartMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'The app needs to restart to apply the new language setting.'**
-  String get settingsLanguageNeedsRestartMessage;
-
-  /// No description provided for @settingsLanguageRestartNow.
-  ///
-  /// In en, this message translates to:
-  /// **'Restart Now'**
-  String get settingsLanguageRestartNow;
-
-  /// No description provided for @settingsLanguageSearchPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Search languages...'**
-  String get settingsLanguageSearchPlaceholder;
-
-  /// No description provided for @settingsAppearanceTheme.
-  ///
-  /// In en, this message translates to:
-  /// **'Theme'**
-  String get settingsAppearanceTheme;
-
-  /// No description provided for @settingsAppearanceThemeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose your preferred color scheme'**
-  String get settingsAppearanceThemeSubtitle;
-
-  /// No description provided for @settingsAppearanceThemeAdaptive.
-  ///
-  /// In en, this message translates to:
-  /// **'Adaptive'**
-  String get settingsAppearanceThemeAdaptive;
-
-  /// No description provided for @settingsAppearanceThemeAdaptiveSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Match system settings'**
-  String get settingsAppearanceThemeAdaptiveSubtitle;
-
-  /// No description provided for @settingsAppearanceThemeLight.
-  ///
-  /// In en, this message translates to:
-  /// **'Light'**
-  String get settingsAppearanceThemeLight;
-
-  /// No description provided for @settingsAppearanceThemeLightSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Always use light theme'**
-  String get settingsAppearanceThemeLightSubtitle;
-
-  /// No description provided for @settingsAppearanceThemeDark.
-  ///
-  /// In en, this message translates to:
-  /// **'Dark'**
-  String get settingsAppearanceThemeDark;
-
-  /// No description provided for @settingsAppearanceThemeDarkSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Always use dark theme'**
-  String get settingsAppearanceThemeDarkSubtitle;
-
-  /// No description provided for @settingsAppearanceDisplay.
-  ///
-  /// In en, this message translates to:
-  /// **'Display'**
-  String get settingsAppearanceDisplay;
-
-  /// No description provided for @settingsAppearanceDisplaySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Control layout and spacing'**
-  String get settingsAppearanceDisplaySubtitle;
-
-  /// No description provided for @settingsAppearanceInlineToolCalls.
-  ///
-  /// In en, this message translates to:
-  /// **'Inline Tool Calls'**
-  String get settingsAppearanceInlineToolCalls;
-
-  /// No description provided for @settingsAppearanceInlineToolCallsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Display tool calls directly in chat messages'**
-  String get settingsAppearanceInlineToolCallsSubtitle;
-
-  /// No description provided for @settingsAppearanceExpandTodoLists.
-  ///
-  /// In en, this message translates to:
-  /// **'Expand Todo Lists'**
-  String get settingsAppearanceExpandTodoLists;
-
-  /// No description provided for @settingsAppearanceExpandTodoListsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Show all todos instead of just changes'**
-  String get settingsAppearanceExpandTodoListsSubtitle;
-
-  /// No description provided for @settingsAppearanceShowLineNumbersInDiffs.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Line Numbers in Diffs'**
-  String get settingsAppearanceShowLineNumbersInDiffs;
-
-  /// No description provided for @settingsAppearanceShowLineNumbersInDiffsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Display line numbers in code diffs'**
-  String get settingsAppearanceShowLineNumbersInDiffsSubtitle;
-
-  /// No description provided for @settingsAppearanceShowLineNumbersInToolViews.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Line Numbers in Tool Views'**
-  String get settingsAppearanceShowLineNumbersInToolViews;
-
-  /// No description provided for @settingsAppearanceShowLineNumbersInToolViewsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Display line numbers in tool view diffs'**
-  String get settingsAppearanceShowLineNumbersInToolViewsSubtitle;
-
-  /// No description provided for @settingsAppearanceWrapLinesInDiffs.
-  ///
-  /// In en, this message translates to:
-  /// **'Wrap Lines in Diffs'**
-  String get settingsAppearanceWrapLinesInDiffs;
-
-  /// No description provided for @settingsAppearanceWrapLinesInDiffsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Wrap long lines instead of horizontal scrolling in diff views'**
-  String get settingsAppearanceWrapLinesInDiffsSubtitle;
-
-  /// No description provided for @settingsAppearanceAlwaysShowContextSize.
-  ///
-  /// In en, this message translates to:
-  /// **'Always Show Context Size'**
-  String get settingsAppearanceAlwaysShowContextSize;
-
-  /// No description provided for @settingsAppearanceAlwaysShowContextSizeSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Display context usage even when not near limit'**
-  String get settingsAppearanceAlwaysShowContextSizeSubtitle;
-
-  /// No description provided for @settingsAppearanceAvatarStyle.
-  ///
-  /// In en, this message translates to:
-  /// **'Avatar Style'**
-  String get settingsAppearanceAvatarStyle;
-
-  /// No description provided for @settingsAppearanceAvatarStyleSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose session avatar appearance'**
-  String get settingsAppearanceAvatarStyleSubtitle;
-
-  /// No description provided for @settingsAppearanceAvatarStylePixelated.
-  ///
-  /// In en, this message translates to:
-  /// **'Pixelated'**
-  String get settingsAppearanceAvatarStylePixelated;
-
-  /// No description provided for @settingsAppearanceAvatarStyleGradient.
-  ///
-  /// In en, this message translates to:
-  /// **'Gradient'**
-  String get settingsAppearanceAvatarStyleGradient;
-
-  /// No description provided for @settingsAppearanceAvatarStyleBrutalist.
-  ///
-  /// In en, this message translates to:
-  /// **'Brutalist'**
-  String get settingsAppearanceAvatarStyleBrutalist;
-
-  /// No description provided for @settingsAppearanceShowFlavorIcons.
-  ///
-  /// In en, this message translates to:
-  /// **'Show AI Provider Icons'**
-  String get settingsAppearanceShowFlavorIcons;
-
-  /// No description provided for @settingsAppearanceShowFlavorIconsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Display AI provider icons on session avatars'**
-  String get settingsAppearanceShowFlavorIconsSubtitle;
-
-  /// No description provided for @settingsAppearanceCompactSessionView.
-  ///
-  /// In en, this message translates to:
-  /// **'Compact Session View'**
-  String get settingsAppearanceCompactSessionView;
-
-  /// No description provided for @settingsAppearanceCompactSessionViewSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Show active sessions in a more compact layout'**
-  String get settingsAppearanceCompactSessionViewSubtitle;
-
-  /// No description provided for @settingsFeaturesExperiments.
-  ///
-  /// In en, this message translates to:
-  /// **'Experiments'**
-  String get settingsFeaturesExperiments;
-
-  /// No description provided for @settingsFeaturesExperimentsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable experimental features that are still in development. These features may be unstable or change without notice.'**
-  String get settingsFeaturesExperimentsSubtitle;
-
-  /// No description provided for @settingsFeaturesExperimentalFeatures.
-  ///
-  /// In en, this message translates to:
-  /// **'Experimental Features'**
-  String get settingsFeaturesExperimentalFeatures;
-
-  /// No description provided for @settingsFeaturesExperimentalFeaturesEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Experimental features enabled'**
-  String get settingsFeaturesExperimentalFeaturesEnabled;
-
-  /// No description provided for @settingsFeaturesExperimentalFeaturesDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Using stable features only'**
-  String get settingsFeaturesExperimentalFeaturesDisabled;
-
-  /// No description provided for @settingsFeaturesWebFeatures.
-  ///
-  /// In en, this message translates to:
-  /// **'Web Features'**
-  String get settingsFeaturesWebFeatures;
-
-  /// No description provided for @settingsFeaturesWebFeaturesSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Features available only in the web version of the app.'**
-  String get settingsFeaturesWebFeaturesSubtitle;
-
-  /// No description provided for @settingsFeaturesEnterToSend.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter to Send'**
-  String get settingsFeaturesEnterToSend;
-
-  /// No description provided for @settingsFeaturesEnterToSendEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Press Enter to send (Shift+Enter for a new line)'**
-  String get settingsFeaturesEnterToSendEnabled;
-
-  /// No description provided for @settingsFeaturesEnterToSendDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter inserts a new line'**
-  String get settingsFeaturesEnterToSendDisabled;
-
-  /// No description provided for @settingsFeaturesCommandPalette.
-  ///
-  /// In en, this message translates to:
-  /// **'Command Palette'**
-  String get settingsFeaturesCommandPalette;
-
-  /// No description provided for @settingsFeaturesCommandPaletteEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Press ⌘K to open'**
-  String get settingsFeaturesCommandPaletteEnabled;
-
-  /// No description provided for @settingsFeaturesCommandPaletteDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Quick command access disabled'**
-  String get settingsFeaturesCommandPaletteDisabled;
-
-  /// No description provided for @settingsFeaturesMarkdownCopyV2.
-  ///
-  /// In en, this message translates to:
-  /// **'Markdown Copy v2'**
-  String get settingsFeaturesMarkdownCopyV2;
-
-  /// No description provided for @settingsFeaturesMarkdownCopyV2Subtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Long press opens copy modal'**
-  String get settingsFeaturesMarkdownCopyV2Subtitle;
-
-  /// No description provided for @settingsFeaturesHideInactiveSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Hide inactive sessions'**
-  String get settingsFeaturesHideInactiveSessions;
-
-  /// No description provided for @settingsFeaturesHideInactiveSessionsSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Show only active chats in your list'**
-  String get settingsFeaturesHideInactiveSessionsSubtitle;
-
-  /// No description provided for @settingsFeaturesEnhancedSessionWizard.
-  ///
-  /// In en, this message translates to:
-  /// **'Enhanced Session Wizard'**
-  String get settingsFeaturesEnhancedSessionWizard;
-
-  /// No description provided for @settingsFeaturesEnhancedSessionWizardEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Profile-first session launcher active'**
-  String get settingsFeaturesEnhancedSessionWizardEnabled;
-
-  /// No description provided for @settingsFeaturesEnhancedSessionWizardDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Using standard session launcher'**
-  String get settingsFeaturesEnhancedSessionWizardDisabled;
-
-  /// No description provided for @settingsAccountTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Account Settings'**
-  String get settingsAccountTitle;
-
-  /// No description provided for @settingsAccountStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Status'**
-  String get settingsAccountStatus;
-
-  /// No description provided for @settingsAccountStatusActive.
-  ///
-  /// In en, this message translates to:
-  /// **'Active'**
-  String get settingsAccountStatusActive;
-
-  /// No description provided for @settingsAccountStatusNotAuthenticated.
-  ///
-  /// In en, this message translates to:
-  /// **'Not Authenticated'**
-  String get settingsAccountStatusNotAuthenticated;
-
-  /// No description provided for @settingsAccountAnonymousId.
-  ///
-  /// In en, this message translates to:
-  /// **'Anonymous ID'**
-  String get settingsAccountAnonymousId;
-
-  /// No description provided for @settingsAccountPublicId.
-  ///
-  /// In en, this message translates to:
-  /// **'Public ID'**
-  String get settingsAccountPublicId;
-
-  /// No description provided for @settingsAccountNotAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Not available'**
-  String get settingsAccountNotAvailable;
-
-  /// No description provided for @settingsAccountLinkNewDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'Link New Device'**
-  String get settingsAccountLinkNewDevice;
-
-  /// No description provided for @settingsAccountLinkNewDeviceSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan QR code to link device'**
-  String get settingsAccountLinkNewDeviceSubtitle;
-
-  /// No description provided for @settingsAccountProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'Profile'**
-  String get settingsAccountProfile;
-
-  /// No description provided for @settingsAccountName.
-  ///
-  /// In en, this message translates to:
-  /// **'Name'**
-  String get settingsAccountName;
-
-  /// No description provided for @settingsAccountGithub.
-  ///
-  /// In en, this message translates to:
-  /// **'GitHub'**
-  String get settingsAccountGithub;
-
-  /// No description provided for @settingsAccountTapToDisconnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to disconnect'**
-  String get settingsAccountTapToDisconnect;
-
-  /// No description provided for @settingsAccountServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Server'**
-  String get settingsAccountServer;
-
-  /// No description provided for @settingsAccountBackup.
-  ///
-  /// In en, this message translates to:
-  /// **'Backup'**
-  String get settingsAccountBackup;
-
-  /// No description provided for @settingsAccountBackupDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Your secret key is the only way to recover your account. Save it in a secure place like a password manager.'**
-  String get settingsAccountBackupDescription;
-
-  /// No description provided for @settingsAccountSecretKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Secret Key'**
-  String get settingsAccountSecretKey;
-
-  /// No description provided for @settingsAccountTapToReveal.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to reveal'**
-  String get settingsAccountTapToReveal;
-
-  /// No description provided for @settingsAccountTapToHide.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to hide'**
-  String get settingsAccountTapToHide;
-
-  /// No description provided for @settingsAccountSecretKeyLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'SECRET KEY (TAP TO COPY)'**
-  String get settingsAccountSecretKeyLabel;
-
-  /// No description provided for @settingsAccountSecretKeyCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Secret key copied to clipboard. Store it in a safe place!'**
-  String get settingsAccountSecretKeyCopied;
-
-  /// No description provided for @settingsAccountSecretKeyCopyFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to copy secret key'**
-  String get settingsAccountSecretKeyCopyFailed;
-
-  /// No description provided for @settingsAccountPrivacy.
-  ///
-  /// In en, this message translates to:
-  /// **'Privacy'**
-  String get settingsAccountPrivacy;
-
-  /// No description provided for @settingsAccountPrivacyDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Help improve the app by sharing anonymous usage data. No personal information is collected.'**
-  String get settingsAccountPrivacyDescription;
-
-  /// No description provided for @settingsAccountAnalytics.
-  ///
-  /// In en, this message translates to:
-  /// **'Analytics'**
-  String get settingsAccountAnalytics;
-
-  /// No description provided for @settingsAccountAnalyticsDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'No data is shared'**
-  String get settingsAccountAnalyticsDisabled;
-
-  /// No description provided for @settingsAccountAnalyticsEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Anonymous usage data is shared'**
-  String get settingsAccountAnalyticsEnabled;
-
   /// No description provided for @settingsAccountDangerZone.
   ///
   /// In en, this message translates to:
   /// **'Danger Zone'**
   String get settingsAccountDangerZone;
-
-  /// No description provided for @settingsAccountLogout.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout'**
-  String get settingsAccountLogout;
-
-  /// No description provided for @settingsAccountLogoutSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Sign out and clear local data'**
-  String get settingsAccountLogoutSubtitle;
-
-  /// No description provided for @settingsServerTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Server Configuration'**
-  String get settingsServerTitle;
 
   /// No description provided for @settingsServerUrl.
   ///
@@ -2344,671 +1033,11 @@ abstract class AppLocalizations {
   /// **'Please enter a server URL'**
   String get settingsServerUrlLabel;
 
-  /// No description provided for @settingsServerNotValidHappyServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Not a valid Happy Server'**
-  String get settingsServerNotValidHappyServer;
-
-  /// No description provided for @settingsServerChangeServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Change Server'**
-  String get settingsServerChangeServer;
-
-  /// No description provided for @settingsServerContinueWithServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue with this server?'**
-  String get settingsServerContinueWithServer;
-
   /// No description provided for @settingsServerResetToDefault.
   ///
   /// In en, this message translates to:
   /// **'Reset to Default'**
   String get settingsServerResetToDefault;
-
-  /// No description provided for @settingsServerResetServerDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Reset server to default?'**
-  String get settingsServerResetServerDefault;
-
-  /// No description provided for @settingsServerValidating.
-  ///
-  /// In en, this message translates to:
-  /// **'Validating...'**
-  String get settingsServerValidating;
-
-  /// No description provided for @settingsServerValidatingServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Validating server...'**
-  String get settingsServerValidatingServer;
-
-  /// No description provided for @settingsServerServerReturnedError.
-  ///
-  /// In en, this message translates to:
-  /// **'Server returned an error'**
-  String get settingsServerServerReturnedError;
-
-  /// No description provided for @settingsServerFailedToConnectToServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to connect to server'**
-  String get settingsServerFailedToConnectToServer;
-
-  /// No description provided for @settingsServerCurrentlyUsingCustomServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Currently using custom server'**
-  String get settingsServerCurrentlyUsingCustomServer;
-
-  /// No description provided for @settingsServerCustomServerUrlLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom Server URL'**
-  String get settingsServerCustomServerUrlLabel;
-
-  /// No description provided for @settingsServerAdvancedFeatureFooter.
-  ///
-  /// In en, this message translates to:
-  /// **'This is an advanced feature. Only change the server if you know what you\'re doing. You will need to log out and log in again after changing servers.'**
-  String get settingsServerAdvancedFeatureFooter;
-
-  /// No description provided for @settingsVoiceTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Voice Assistant'**
-  String get settingsVoiceTitle;
-
-  /// No description provided for @settingsVoiceLanguage.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
-  String get settingsVoiceLanguage;
-
-  /// No description provided for @settingsVoiceLanguageSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose your preferred language for voice assistant interactions. This setting syncs across all your devices.'**
-  String get settingsVoiceLanguageSubtitle;
-
-  /// No description provided for @settingsVoicePreferredLanguage.
-  ///
-  /// In en, this message translates to:
-  /// **'Preferred Language'**
-  String get settingsVoicePreferredLanguage;
-
-  /// No description provided for @settingsVoicePreferredLanguageSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Language used for voice assistant responses'**
-  String get settingsVoicePreferredLanguageSubtitle;
-
-  /// No description provided for @settingsVoiceLanguageSearchPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Search languages...'**
-  String get settingsVoiceLanguageSearchPlaceholder;
-
-  /// No description provided for @settingsVoiceLanguageSearchTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Languages'**
-  String get settingsVoiceLanguageSearchTitle;
-
-  /// Voice language selection footer
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1 {1 language} other {{count} languages}} available'**
-  String settingsVoiceLanguageFooter(int count);
-
-  /// No description provided for @settingsVoiceLanguageAutoDetect.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto-detect'**
-  String get settingsVoiceLanguageAutoDetect;
-
-  /// No description provided for @settingsProfilesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Profiles'**
-  String get settingsProfilesTitle;
-
-  /// No description provided for @settingsProfilesNoProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'No Profile'**
-  String get settingsProfilesNoProfile;
-
-  /// No description provided for @settingsProfilesNoProfileDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Use default environment settings'**
-  String get settingsProfilesNoProfileDescription;
-
-  /// No description provided for @settingsProfilesDefaultModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Default Model'**
-  String get settingsProfilesDefaultModel;
-
-  /// No description provided for @settingsProfilesAddProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'Add Profile'**
-  String get settingsProfilesAddProfile;
-
-  /// No description provided for @settingsProfilesProfileName.
-  ///
-  /// In en, this message translates to:
-  /// **'Profile Name'**
-  String get settingsProfilesProfileName;
-
-  /// No description provided for @settingsProfilesEnterName.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter profile name'**
-  String get settingsProfilesEnterName;
-
-  /// No description provided for @settingsProfilesBaseUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Base URL'**
-  String get settingsProfilesBaseUrl;
-
-  /// No description provided for @settingsProfilesAuthToken.
-  ///
-  /// In en, this message translates to:
-  /// **'Auth Token'**
-  String get settingsProfilesAuthToken;
-
-  /// No description provided for @settingsProfilesEnterToken.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter auth token'**
-  String get settingsProfilesEnterToken;
-
-  /// No description provided for @settingsProfilesModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Model'**
-  String get settingsProfilesModel;
-
-  /// No description provided for @settingsProfilesTmuxSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Tmux Session'**
-  String get settingsProfilesTmuxSession;
-
-  /// No description provided for @settingsProfilesEnterTmuxSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter tmux session name'**
-  String get settingsProfilesEnterTmuxSession;
-
-  /// No description provided for @settingsProfilesTmuxTempDir.
-  ///
-  /// In en, this message translates to:
-  /// **'Tmux Temp Directory'**
-  String get settingsProfilesTmuxTempDir;
-
-  /// No description provided for @settingsProfilesEnterTmuxTempDir.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter temp directory path'**
-  String get settingsProfilesEnterTmuxTempDir;
-
-  /// No description provided for @settingsProfilesTmuxUpdateEnvironment.
-  ///
-  /// In en, this message translates to:
-  /// **'Update environment automatically'**
-  String get settingsProfilesTmuxUpdateEnvironment;
-
-  /// No description provided for @settingsProfilesNameRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Profile name is required'**
-  String get settingsProfilesNameRequired;
-
-  /// Profile deletion confirmation
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete the profile \"{name}\"?'**
-  String settingsProfilesDeleteConfirm(String name);
-
-  /// No description provided for @settingsProfilesEditProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit Profile'**
-  String get settingsProfilesEditProfile;
-
-  /// No description provided for @settingsProfilesAddProfileTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Add New Profile'**
-  String get settingsProfilesAddProfileTitle;
-
-  /// No description provided for @settingsProfilesDeleteTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete Profile'**
-  String get settingsProfilesDeleteTitle;
-
-  /// No description provided for @settingsProfilesDeleteMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to delete \"{name}\"? This action cannot be undone.'**
-  String settingsProfilesDeleteMessage(Object name);
-
-  /// No description provided for @settingsProfilesDeleteConfirmAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete'**
-  String get settingsProfilesDeleteConfirmAction;
-
-  /// No description provided for @settingsProfilesDeleteCancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get settingsProfilesDeleteCancel;
-
-  /// No description provided for @settingsUsageTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Usage'**
-  String get settingsUsageTitle;
-
-  /// No description provided for @settingsUsageToday.
-  ///
-  /// In en, this message translates to:
-  /// **'Today'**
-  String get settingsUsageToday;
-
-  /// No description provided for @settingsUsageLast7Days.
-  ///
-  /// In en, this message translates to:
-  /// **'Last 7 days'**
-  String get settingsUsageLast7Days;
-
-  /// No description provided for @settingsUsageLast30Days.
-  ///
-  /// In en, this message translates to:
-  /// **'Last 30 days'**
-  String get settingsUsageLast30Days;
-
-  /// No description provided for @settingsUsageTotalTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'Total Tokens'**
-  String get settingsUsageTotalTokens;
-
-  /// No description provided for @settingsUsageTotalCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Total Cost'**
-  String get settingsUsageTotalCost;
-
-  /// No description provided for @settingsUsageTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'Tokens'**
-  String get settingsUsageTokens;
-
-  /// No description provided for @settingsUsageCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Cost'**
-  String get settingsUsageCost;
-
-  /// No description provided for @settingsUsageUsageOverTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Usage over time'**
-  String get settingsUsageUsageOverTime;
-
-  /// No description provided for @settingsUsageByModel.
-  ///
-  /// In en, this message translates to:
-  /// **'By Model'**
-  String get settingsUsageByModel;
-
-  /// No description provided for @settingsUsageNoData.
-  ///
-  /// In en, this message translates to:
-  /// **'No usage data available'**
-  String get settingsUsageNoData;
-
-  /// No description provided for @settingsDeveloperTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Developer'**
-  String get settingsDeveloperTitle;
-
-  /// Developer settings version display
-  ///
-  /// In en, this message translates to:
-  /// **'Version {version}'**
-  String settingsDeveloperVersion(String version);
-
-  /// No description provided for @settingsDeveloperCopyDebugInfo.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy Debug Info'**
-  String get settingsDeveloperCopyDebugInfo;
-
-  /// No description provided for @settingsDeveloperDebugInfoCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Debug info copied to clipboard'**
-  String get settingsDeveloperDebugInfoCopied;
-
-  /// No description provided for @errorsNetworkError.
-  ///
-  /// In en, this message translates to:
-  /// **'Network error occurred'**
-  String get errorsNetworkError;
-
-  /// No description provided for @errorsServerError.
-  ///
-  /// In en, this message translates to:
-  /// **'Server error occurred'**
-  String get errorsServerError;
-
-  /// No description provided for @errorsUnknownError.
-  ///
-  /// In en, this message translates to:
-  /// **'An unknown error occurred'**
-  String get errorsUnknownError;
-
-  /// No description provided for @errorsConnectionTimeout.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection timed out'**
-  String get errorsConnectionTimeout;
-
-  /// No description provided for @errorsAuthenticationFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Authentication failed'**
-  String get errorsAuthenticationFailed;
-
-  /// No description provided for @errorsPermissionDenied.
-  ///
-  /// In en, this message translates to:
-  /// **'Permission denied'**
-  String get errorsPermissionDenied;
-
-  /// No description provided for @errorsFileNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'File not found'**
-  String get errorsFileNotFound;
-
-  /// No description provided for @errorsInvalidFormat.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid format'**
-  String get errorsInvalidFormat;
-
-  /// No description provided for @errorsOperationFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Operation failed'**
-  String get errorsOperationFailed;
-
-  /// No description provided for @errorsTryAgain.
-  ///
-  /// In en, this message translates to:
-  /// **'Please try again'**
-  String get errorsTryAgain;
-
-  /// No description provided for @errorsContactSupport.
-  ///
-  /// In en, this message translates to:
-  /// **'Contact support if the problem persists'**
-  String get errorsContactSupport;
-
-  /// No description provided for @errorsSessionNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Session not found'**
-  String get errorsSessionNotFound;
-
-  /// No description provided for @errorsVoiceSessionFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to start voice session'**
-  String get errorsVoiceSessionFailed;
-
-  /// No description provided for @errorsVoiceServiceUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Voice service is temporarily unavailable'**
-  String get errorsVoiceServiceUnavailable;
-
-  /// No description provided for @errorsOauthInitializationFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to initialize OAuth flow'**
-  String get errorsOauthInitializationFailed;
-
-  /// No description provided for @errorsTokenStorageFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to store authentication tokens'**
-  String get errorsTokenStorageFailed;
-
-  /// No description provided for @errorsOauthStateMismatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Security validation failed. Please try again'**
-  String get errorsOauthStateMismatch;
-
-  /// No description provided for @errorsTokenExchangeFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to exchange authorization code'**
-  String get errorsTokenExchangeFailed;
-
-  /// No description provided for @errorsOauthAuthorizationDenied.
-  ///
-  /// In en, this message translates to:
-  /// **'Authorization was denied'**
-  String get errorsOauthAuthorizationDenied;
-
-  /// No description provided for @errorsWebViewLoadFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load authentication page'**
-  String get errorsWebViewLoadFailed;
-
-  /// No description provided for @errorsFailedToLoadProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load user profile'**
-  String get errorsFailedToLoadProfile;
-
-  /// No description provided for @errorsUserNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'User not found'**
-  String get errorsUserNotFound;
-
-  /// No description provided for @errorsSessionDeleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Session has been deleted'**
-  String get errorsSessionDeleted;
-
-  /// No description provided for @errorsSessionDeletedDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'This session has been permanently removed'**
-  String get errorsSessionDeletedDescription;
-
-  /// Field validation error
-  ///
-  /// In en, this message translates to:
-  /// **'{field}: {reason}'**
-  String errorsFieldError(String field, String reason);
-
-  /// Validation error with min/max
-  ///
-  /// In en, this message translates to:
-  /// **'{field} must be between {min} and {max}'**
-  String errorsValidationError(String field, int min, int max);
-
-  /// Retry countdown message
-  ///
-  /// In en, this message translates to:
-  /// **'Retry in {seconds, plural, =1 {1 second} other {{seconds} seconds}}'**
-  String errorsRetryIn(int seconds);
-
-  /// No description provided for @errorsErrorWithCode.
-  ///
-  /// In en, this message translates to:
-  /// **'{message} (Error {code})'**
-  String errorsErrorWithCode(Object code, Object message);
-
-  /// No description provided for @errorsDisconnectServiceFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to disconnect {service}'**
-  String errorsDisconnectServiceFailed(Object service);
-
-  /// No description provided for @errorsConnectServiceFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to connect {service}. Please try again.'**
-  String errorsConnectServiceFailed(Object service);
-
-  /// No description provided for @errorsSearchFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Search failed. Please try again.'**
-  String get errorsSearchFailed;
-
-  /// No description provided for @terminalWebBrowserRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Web Browser Required'**
-  String get terminalWebBrowserRequired;
-
-  /// No description provided for @terminalWebBrowserRequiredDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Terminal connection links can only be opened in a web browser for security reasons. Please use the QR code scanner or open this link on a computer.'**
-  String get terminalWebBrowserRequiredDescription;
-
-  /// No description provided for @terminalProcessingConnection.
-  ///
-  /// In en, this message translates to:
-  /// **'Processing connection...'**
-  String get terminalProcessingConnection;
-
-  /// No description provided for @terminalInvalidConnectionLink.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid Connection Link'**
-  String get terminalInvalidConnectionLink;
-
-  /// No description provided for @terminalInvalidConnectionLinkDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'The connection link is missing or invalid. Please check the URL and try again.'**
-  String get terminalInvalidConnectionLinkDescription;
-
-  /// No description provided for @terminalConnectTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect Terminal'**
-  String get terminalConnectTerminal;
-
-  /// No description provided for @terminalRequestDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'A terminal is requesting to connect to your Happy Coder account. This will allow the terminal to send and receive messages securely.'**
-  String get terminalRequestDescription;
-
-  /// No description provided for @terminalConnectionDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection Details'**
-  String get terminalConnectionDetails;
-
-  /// No description provided for @terminalPublicKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Public Key'**
-  String get terminalPublicKey;
-
-  /// No description provided for @terminalEncryption.
-  ///
-  /// In en, this message translates to:
-  /// **'Encryption'**
-  String get terminalEncryption;
-
-  /// No description provided for @terminalEndToEndEncrypted.
-  ///
-  /// In en, this message translates to:
-  /// **'End-to-end encrypted'**
-  String get terminalEndToEndEncrypted;
-
-  /// No description provided for @terminalAcceptConnection.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept Connection'**
-  String get terminalAcceptConnection;
-
-  /// No description provided for @terminalConnecting.
-  ///
-  /// In en, this message translates to:
-  /// **'Connecting...'**
-  String get terminalConnecting;
-
-  /// No description provided for @terminalReject.
-  ///
-  /// In en, this message translates to:
-  /// **'Reject'**
-  String get terminalReject;
-
-  /// No description provided for @terminalSecurity.
-  ///
-  /// In en, this message translates to:
-  /// **'Security'**
-  String get terminalSecurity;
-
-  /// No description provided for @terminalSecurityFooter.
-  ///
-  /// In en, this message translates to:
-  /// **'This connection link was processed securely in your browser and was never sent to any server. Your private data will remain secure and only you can decrypt the messages.'**
-  String get terminalSecurityFooter;
-
-  /// No description provided for @terminalSecurityFooterDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'This connection was processed securely on your device and was never sent to any server. Your private data will remain secure and only you can decrypt the messages.'**
-  String get terminalSecurityFooterDevice;
-
-  /// No description provided for @terminalClientSideProcessing.
-  ///
-  /// In en, this message translates to:
-  /// **'Client-Side Processing'**
-  String get terminalClientSideProcessing;
-
-  /// No description provided for @terminalLinkProcessedLocally.
-  ///
-  /// In en, this message translates to:
-  /// **'Link processed locally in browser'**
-  String get terminalLinkProcessedLocally;
-
-  /// No description provided for @terminalLinkProcessedOnDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'Link processed locally on device'**
-  String get terminalLinkProcessedOnDevice;
 
   /// No description provided for @sidebarSessionsTitle.
   ///
@@ -3040,12 +1069,6 @@ abstract class AppLocalizations {
   /// **'Error'**
   String get sidebarStatusError;
 
-  /// No description provided for @commandPalettePlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Type a command or search...'**
-  String get commandPalettePlaceholder;
-
   /// No description provided for @commandPaletteSemanticsLabel.
   ///
   /// In en, this message translates to:
@@ -3063,54 +1086,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try a different search term'**
   String get commandPaletteTryDifferentSearch;
-
-  /// No description provided for @toolViewInput.
-  ///
-  /// In en, this message translates to:
-  /// **'Input'**
-  String get toolViewInput;
-
-  /// No description provided for @toolViewOutput.
-  ///
-  /// In en, this message translates to:
-  /// **'Output'**
-  String get toolViewOutput;
-
-  /// No description provided for @toolViewDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Description'**
-  String get toolViewDescription;
-
-  /// No description provided for @toolViewInputParams.
-  ///
-  /// In en, this message translates to:
-  /// **'Input Parameters'**
-  String get toolViewInputParams;
-
-  /// No description provided for @toolViewError.
-  ///
-  /// In en, this message translates to:
-  /// **'Error'**
-  String get toolViewError;
-
-  /// No description provided for @toolViewCompleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Tool completed successfully'**
-  String get toolViewCompleted;
-
-  /// No description provided for @toolViewNoOutput.
-  ///
-  /// In en, this message translates to:
-  /// **'No output was produced'**
-  String get toolViewNoOutput;
-
-  /// No description provided for @toolViewRunning.
-  ///
-  /// In en, this message translates to:
-  /// **'Tool is running...'**
-  String get toolViewRunning;
 
   /// No description provided for @toolStateApprovalNeeded.
   ///
@@ -3196,420 +1171,6 @@ abstract class AppLocalizations {
   /// **'Use the details button to view input & output'**
   String get toolDetailsButtonHint;
 
-  /// No description provided for @toolViewRawJsonDevMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Raw JSON (Dev Mode)'**
-  String get toolViewRawJsonDevMode;
-
-  /// No description provided for @toolNamesTask.
-  ///
-  /// In en, this message translates to:
-  /// **'Task'**
-  String get toolNamesTask;
-
-  /// No description provided for @toolNamesTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Terminal'**
-  String get toolNamesTerminal;
-
-  /// No description provided for @toolNamesSearchFiles.
-  ///
-  /// In en, this message translates to:
-  /// **'Search Files'**
-  String get toolNamesSearchFiles;
-
-  /// No description provided for @toolNamesSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get toolNamesSearch;
-
-  /// No description provided for @toolNamesSearchContent.
-  ///
-  /// In en, this message translates to:
-  /// **'Search Content'**
-  String get toolNamesSearchContent;
-
-  /// No description provided for @toolNamesListFiles.
-  ///
-  /// In en, this message translates to:
-  /// **'List Files'**
-  String get toolNamesListFiles;
-
-  /// No description provided for @toolNamesPlanProposal.
-  ///
-  /// In en, this message translates to:
-  /// **'Plan proposal'**
-  String get toolNamesPlanProposal;
-
-  /// No description provided for @toolNamesReadFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Read File'**
-  String get toolNamesReadFile;
-
-  /// No description provided for @toolNamesEditFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit File'**
-  String get toolNamesEditFile;
-
-  /// No description provided for @toolNamesWriteFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Write File'**
-  String get toolNamesWriteFile;
-
-  /// No description provided for @toolNamesFetchUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Fetch URL'**
-  String get toolNamesFetchUrl;
-
-  /// No description provided for @toolNamesReadNotebook.
-  ///
-  /// In en, this message translates to:
-  /// **'Read Notebook'**
-  String get toolNamesReadNotebook;
-
-  /// No description provided for @toolNamesEditNotebook.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit Notebook'**
-  String get toolNamesEditNotebook;
-
-  /// No description provided for @toolNamesTodoList.
-  ///
-  /// In en, this message translates to:
-  /// **'Todo List'**
-  String get toolNamesTodoList;
-
-  /// No description provided for @toolNamesWebSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Web Search'**
-  String get toolNamesWebSearch;
-
-  /// No description provided for @toolNamesReasoning.
-  ///
-  /// In en, this message translates to:
-  /// **'Reasoning'**
-  String get toolNamesReasoning;
-
-  /// No description provided for @toolNamesApplyChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Update file'**
-  String get toolNamesApplyChanges;
-
-  /// No description provided for @toolNamesViewDiff.
-  ///
-  /// In en, this message translates to:
-  /// **'Current file changes'**
-  String get toolNamesViewDiff;
-
-  /// No description provided for @toolNamesQuestion.
-  ///
-  /// In en, this message translates to:
-  /// **'Question'**
-  String get toolNamesQuestion;
-
-  /// Terminal tool description
-  ///
-  /// In en, this message translates to:
-  /// **'Terminal(cmd: {cmd})'**
-  String toolDescTerminalCmd(String cmd);
-
-  /// No description provided for @toolDescSearchPattern.
-  ///
-  /// In en, this message translates to:
-  /// **'Search(pattern: {pattern})'**
-  String toolDescSearchPattern(Object pattern);
-
-  /// No description provided for @toolDescSearchPath.
-  ///
-  /// In en, this message translates to:
-  /// **'Search(path: {basename})'**
-  String toolDescSearchPath(Object basename);
-
-  /// No description provided for @toolDescFetchUrlHost.
-  ///
-  /// In en, this message translates to:
-  /// **'Fetch URL(url: {host})'**
-  String toolDescFetchUrlHost(Object host);
-
-  /// No description provided for @toolDescEditNotebookMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit Notebook(file: {path}, mode: {mode})'**
-  String toolDescEditNotebookMode(Object mode, Object path);
-
-  /// No description provided for @toolDescTodoListCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Todo List(count: {count})'**
-  String toolDescTodoListCount(Object count);
-
-  /// No description provided for @toolDescWebSearchQuery.
-  ///
-  /// In en, this message translates to:
-  /// **'Web Search(query: {query})'**
-  String toolDescWebSearchQuery(Object query);
-
-  /// No description provided for @toolDescGrepPattern.
-  ///
-  /// In en, this message translates to:
-  /// **'grep(pattern: {pattern})'**
-  String toolDescGrepPattern(Object pattern);
-
-  /// No description provided for @toolDescMultiEditEdits.
-  ///
-  /// In en, this message translates to:
-  /// **'{path} ({count} edits)'**
-  String toolDescMultiEditEdits(Object count, Object path);
-
-  /// No description provided for @toolDescReadingFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Reading {file}'**
-  String toolDescReadingFile(Object file);
-
-  /// No description provided for @toolDescWritingFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Writing {file}'**
-  String toolDescWritingFile(Object file);
-
-  /// No description provided for @toolDescModifyingFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Modifying {file}'**
-  String toolDescModifyingFile(Object file);
-
-  /// No description provided for @toolDescModifyingFiles.
-  ///
-  /// In en, this message translates to:
-  /// **'Modifying {count} files'**
-  String toolDescModifyingFiles(Object count);
-
-  /// No description provided for @toolDescModifyingMultipleFiles.
-  ///
-  /// In en, this message translates to:
-  /// **'{file} and {count} more'**
-  String toolDescModifyingMultipleFiles(Object count, Object file);
-
-  /// No description provided for @toolDescShowingDiff.
-  ///
-  /// In en, this message translates to:
-  /// **'Showing changes'**
-  String get toolDescShowingDiff;
-
-  /// No description provided for @filesSearchPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Search files...'**
-  String get filesSearchPlaceholder;
-
-  /// No description provided for @filesDetachedHead.
-  ///
-  /// In en, this message translates to:
-  /// **'detached HEAD'**
-  String get filesDetachedHead;
-
-  /// No description provided for @filesSummary.
-  ///
-  /// In en, this message translates to:
-  /// **'{staged} staged • {unstaged} unstaged'**
-  String filesSummary(Object staged, Object unstaged);
-
-  /// No description provided for @filesNotRepo.
-  ///
-  /// In en, this message translates to:
-  /// **'Not a git repository'**
-  String get filesNotRepo;
-
-  /// No description provided for @filesNotUnderGit.
-  ///
-  /// In en, this message translates to:
-  /// **'This directory is not under git version control'**
-  String get filesNotUnderGit;
-
-  /// No description provided for @filesSearching.
-  ///
-  /// In en, this message translates to:
-  /// **'Searching files...'**
-  String get filesSearching;
-
-  /// No description provided for @filesNoFilesFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No files found'**
-  String get filesNoFilesFound;
-
-  /// No description provided for @filesNoFilesInProject.
-  ///
-  /// In en, this message translates to:
-  /// **'No files in project'**
-  String get filesNoFilesInProject;
-
-  /// No description provided for @filesTryDifferentTerm.
-  ///
-  /// In en, this message translates to:
-  /// **'Try a different search term'**
-  String get filesTryDifferentTerm;
-
-  /// File search results count
-  ///
-  /// In en, this message translates to:
-  /// **'Search Results ({count})'**
-  String filesSearchResults(int count);
-
-  /// No description provided for @filesProjectRoot.
-  ///
-  /// In en, this message translates to:
-  /// **'Project root'**
-  String get filesProjectRoot;
-
-  /// No description provided for @filesStagedChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Staged Changes ({count})'**
-  String filesStagedChanges(Object count);
-
-  /// No description provided for @filesUnstagedChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Unstaged Changes ({count})'**
-  String filesUnstagedChanges(Object count);
-
-  /// No description provided for @filesLoadingFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading {fileName}...'**
-  String filesLoadingFile(Object fileName);
-
-  /// No description provided for @filesBinaryFile.
-  ///
-  /// In en, this message translates to:
-  /// **'Binary File'**
-  String get filesBinaryFile;
-
-  /// No description provided for @filesCannotDisplayBinary.
-  ///
-  /// In en, this message translates to:
-  /// **'Cannot display binary file content'**
-  String get filesCannotDisplayBinary;
-
-  /// No description provided for @filesDiff.
-  ///
-  /// In en, this message translates to:
-  /// **'Diff'**
-  String get filesDiff;
-
-  /// No description provided for @filesFile.
-  ///
-  /// In en, this message translates to:
-  /// **'File'**
-  String get filesFile;
-
-  /// No description provided for @filesFileEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'File is empty'**
-  String get filesFileEmpty;
-
-  /// No description provided for @filesNoChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'No changes to display'**
-  String get filesNoChanges;
-
-  /// No description provided for @profileUserProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'User Profile'**
-  String get profileUserProfile;
-
-  /// No description provided for @profileDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Details'**
-  String get profileDetails;
-
-  /// No description provided for @profileFirstName.
-  ///
-  /// In en, this message translates to:
-  /// **'First Name'**
-  String get profileFirstName;
-
-  /// No description provided for @profileLastName.
-  ///
-  /// In en, this message translates to:
-  /// **'Last Name'**
-  String get profileLastName;
-
-  /// No description provided for @profileUsername.
-  ///
-  /// In en, this message translates to:
-  /// **'Username'**
-  String get profileUsername;
-
-  /// No description provided for @profileStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Status'**
-  String get profileStatus;
-
-  /// No description provided for @agentPermissionModeTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'PERMISSION MODE'**
-  String get agentPermissionModeTitle;
-
-  /// No description provided for @agentPermissionModeDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Default'**
-  String get agentPermissionModeDefault;
-
-  /// No description provided for @agentPermissionModeAcceptEdits.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept Edits'**
-  String get agentPermissionModeAcceptEdits;
-
-  /// No description provided for @agentPermissionModePlan.
-  ///
-  /// In en, this message translates to:
-  /// **'Plan Mode'**
-  String get agentPermissionModePlan;
-
-  /// No description provided for @agentPermissionModeBypassPermissions.
-  ///
-  /// In en, this message translates to:
-  /// **'Yolo Mode'**
-  String get agentPermissionModeBypassPermissions;
-
-  /// No description provided for @agentPermissionModeBadgeAcceptAllEdits.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept All Edits'**
-  String get agentPermissionModeBadgeAcceptAllEdits;
-
-  /// No description provided for @agentPermissionModeBadgeBypassAllPermissions.
-  ///
-  /// In en, this message translates to:
-  /// **'Bypass All Permissions'**
-  String get agentPermissionModeBadgeBypassAllPermissions;
-
-  /// No description provided for @agentPermissionModeBadgePlanMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Plan Mode'**
-  String get agentPermissionModeBadgePlanMode;
-
   /// No description provided for @agentAgentClaude.
   ///
   /// In en, this message translates to:
@@ -3627,84 +1188,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Gemini'**
   String get agentAgentGemini;
-
-  /// No description provided for @agentModelTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'MODEL'**
-  String get agentModelTitle;
-
-  /// No description provided for @agentModelConfigureInCli.
-  ///
-  /// In en, this message translates to:
-  /// **'Configure models in CLI settings'**
-  String get agentModelConfigureInCli;
-
-  /// Context usage remaining
-  ///
-  /// In en, this message translates to:
-  /// **'{percent}% left'**
-  String agentContextRemaining(int percent);
-
-  /// No description provided for @agentSuggestionFileLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'FILE'**
-  String get agentSuggestionFileLabel;
-
-  /// No description provided for @agentSuggestionFolderLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'FOLDER'**
-  String get agentSuggestionFolderLabel;
-
-  /// No description provided for @agentNoMachinesAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'No machines'**
-  String get agentNoMachinesAvailable;
-
-  /// No description provided for @updateBannerUpdateAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Update available'**
-  String get updateBannerUpdateAvailable;
-
-  /// No description provided for @updateBannerPressToApply.
-  ///
-  /// In en, this message translates to:
-  /// **'Press to apply the update'**
-  String get updateBannerPressToApply;
-
-  /// No description provided for @updateBannerWhatsNew.
-  ///
-  /// In en, this message translates to:
-  /// **'What\'s new'**
-  String get updateBannerWhatsNew;
-
-  /// No description provided for @updateBannerSeeLatest.
-  ///
-  /// In en, this message translates to:
-  /// **'See the latest updates and improvements'**
-  String get updateBannerSeeLatest;
-
-  /// No description provided for @updateBannerNativeUpdateAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'App Update Available'**
-  String get updateBannerNativeUpdateAvailable;
-
-  /// No description provided for @updateBannerTapToUpdateAppStore.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to update in App Store'**
-  String get updateBannerTapToUpdateAppStore;
-
-  /// No description provided for @updateBannerTapToUpdatePlayStore.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap to update in Play Store'**
-  String get updateBannerTapToUpdatePlayStore;
 
   /// Desktop self-updater: a newer release was found
   ///
@@ -3742,167 +1225,11 @@ abstract class AppLocalizations {
   /// **'Restart now'**
   String get desktopUpdateRestart;
 
-  /// Changelog version header
-  ///
-  /// In en, this message translates to:
-  /// **'Version {version}'**
-  String changelogVersion(int version);
-
   /// No description provided for @changelogNoEntriesAvailable.
   ///
   /// In en, this message translates to:
   /// **'No changelog entries available.'**
   String get changelogNoEntriesAvailable;
-
-  /// No description provided for @modalsAuthenticateTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Authenticate Terminal'**
-  String get modalsAuthenticateTerminal;
-
-  /// No description provided for @modalsPasteUrlFromTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Paste the authentication URL from your terminal'**
-  String get modalsPasteUrlFromTerminal;
-
-  /// No description provided for @modalsDeviceLinkedSuccessfully.
-  ///
-  /// In en, this message translates to:
-  /// **'Device linked successfully'**
-  String get modalsDeviceLinkedSuccessfully;
-
-  /// No description provided for @modalsTerminalConnectedSuccessfully.
-  ///
-  /// In en, this message translates to:
-  /// **'Terminal connected successfully'**
-  String get modalsTerminalConnectedSuccessfully;
-
-  /// No description provided for @modalsInvalidAuthUrl.
-  ///
-  /// In en, this message translates to:
-  /// **'Invalid authentication URL'**
-  String get modalsInvalidAuthUrl;
-
-  /// No description provided for @modalsDeveloperMode.
-  ///
-  /// In en, this message translates to:
-  /// **'Developer Mode'**
-  String get modalsDeveloperMode;
-
-  /// No description provided for @modalsDeveloperModeEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Developer mode enabled'**
-  String get modalsDeveloperModeEnabled;
-
-  /// No description provided for @modalsDeveloperModeDisabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Developer mode disabled'**
-  String get modalsDeveloperModeDisabled;
-
-  /// No description provided for @modalsDisconnectGithub.
-  ///
-  /// In en, this message translates to:
-  /// **'Disconnect GitHub'**
-  String get modalsDisconnectGithub;
-
-  /// No description provided for @modalsDisconnectGithubConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to disconnect your GitHub account?'**
-  String get modalsDisconnectGithubConfirm;
-
-  /// Disconnect service dialog
-  ///
-  /// In en, this message translates to:
-  /// **'Disconnect {service}'**
-  String modalsDisconnectService(String service);
-
-  /// No description provided for @modalsDisconnectServiceConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to disconnect {service} from your account?'**
-  String modalsDisconnectServiceConfirm(Object service);
-
-  /// No description provided for @modalsDisconnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Disconnect'**
-  String get modalsDisconnect;
-
-  /// No description provided for @modalsFailedToConnectTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to connect terminal'**
-  String get modalsFailedToConnectTerminal;
-
-  /// No description provided for @modalsCameraPermissionsRequiredToConnectTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Camera permissions are required to connect terminal'**
-  String get modalsCameraPermissionsRequiredToConnectTerminal;
-
-  /// No description provided for @modalsFailedToLinkDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to link device'**
-  String get modalsFailedToLinkDevice;
-
-  /// No description provided for @navigationConnectTerminal.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect Terminal'**
-  String get navigationConnectTerminal;
-
-  /// No description provided for @navigationLinkNewDevice.
-  ///
-  /// In en, this message translates to:
-  /// **'Link New Device'**
-  String get navigationLinkNewDevice;
-
-  /// No description provided for @navigationRestoreWithSecretKey.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore with Secret Key'**
-  String get navigationRestoreWithSecretKey;
-
-  /// No description provided for @navigationWhatsNew.
-  ///
-  /// In en, this message translates to:
-  /// **'What\'s New'**
-  String get navigationWhatsNew;
-
-  /// No description provided for @emptyMainScreenReadyToCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Ready to code?'**
-  String get emptyMainScreenReadyToCode;
-
-  /// No description provided for @emptyMainScreenInstallCli.
-  ///
-  /// In en, this message translates to:
-  /// **'Install the Happy CLI'**
-  String get emptyMainScreenInstallCli;
-
-  /// No description provided for @emptyMainScreenRunIt.
-  ///
-  /// In en, this message translates to:
-  /// **'Run it'**
-  String get emptyMainScreenRunIt;
-
-  /// No description provided for @emptyMainScreenScanQrCode.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan the QR code'**
-  String get emptyMainScreenScanQrCode;
-
-  /// No description provided for @emptyMainScreenOpenCamera.
-  ///
-  /// In en, this message translates to:
-  /// **'Open Camera'**
-  String get emptyMainScreenOpenCamera;
 
   /// No description provided for @emptySessionsFirstTimeTitle.
   ///
@@ -3964,149 +1291,11 @@ abstract class AppLocalizations {
   /// **'Your previous sessions have ended. Start a new one to keep coding.'**
   String get emptySessionsReturningSubtitle;
 
-  /// No description provided for @reviewEnjoyingApp.
-  ///
-  /// In en, this message translates to:
-  /// **'Enjoying the app?'**
-  String get reviewEnjoyingApp;
-
-  /// No description provided for @reviewFeedbackPrompt.
-  ///
-  /// In en, this message translates to:
-  /// **'We\'d love to hear your feedback!'**
-  String get reviewFeedbackPrompt;
-
-  /// No description provided for @reviewYesILoveIt.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes, I love it!'**
-  String get reviewYesILoveIt;
-
-  /// No description provided for @reviewNotReally.
-  ///
-  /// In en, this message translates to:
-  /// **'Not really'**
-  String get reviewNotReally;
-
-  /// Copy toast message
-  ///
-  /// In en, this message translates to:
-  /// **'{label} copied to clipboard'**
-  String itemsCopiedToClipboard(String label);
-
-  /// Permission mode switch message
-  ///
-  /// In en, this message translates to:
-  /// **'Switched to {mode} mode'**
-  String messageSwitchedToMode(String mode);
-
-  /// No description provided for @messageUnknownEvent.
-  ///
-  /// In en, this message translates to:
-  /// **'Unknown event'**
-  String get messageUnknownEvent;
-
-  /// No description provided for @messageUsageLimitUntil.
-  ///
-  /// In en, this message translates to:
-  /// **'Usage limit reached until {time}'**
-  String messageUsageLimitUntil(Object time);
-
-  /// No description provided for @messageUnknownTime.
-  ///
-  /// In en, this message translates to:
-  /// **'unknown time'**
-  String get messageUnknownTime;
-
-  /// No description provided for @codexPermissionsYesForSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes, and don\'t ask for a session'**
-  String get codexPermissionsYesForSession;
-
-  /// No description provided for @codexPermissionsStopAndExplain.
-  ///
-  /// In en, this message translates to:
-  /// **'Stop, and explain what to do'**
-  String get codexPermissionsStopAndExplain;
-
-  /// No description provided for @claudePermissionsYesAllowAllEdits.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes, allow all edits during this session'**
-  String get claudePermissionsYesAllowAllEdits;
-
-  /// No description provided for @claudePermissionsYesForTool.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes, don\'t ask again for this tool'**
-  String get claudePermissionsYesForTool;
-
-  /// No description provided for @claudePermissionsNoTellClaude.
-  ///
-  /// In en, this message translates to:
-  /// **'No, and provide feedback'**
-  String get claudePermissionsNoTellClaude;
-
-  /// No description provided for @textSelectionSelectText.
-  ///
-  /// In en, this message translates to:
-  /// **'Select text range'**
-  String get textSelectionSelectText;
-
-  /// No description provided for @textSelectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Text'**
-  String get textSelectionTitle;
-
-  /// No description provided for @textSelectionNoTextProvided.
-  ///
-  /// In en, this message translates to:
-  /// **'No text provided'**
-  String get textSelectionNoTextProvided;
-
-  /// No description provided for @textSelectionTextNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Text not found or expired'**
-  String get textSelectionTextNotFound;
-
-  /// No description provided for @textSelectionTextCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Text copied to clipboard'**
-  String get textSelectionTextCopied;
-
   /// No description provided for @textSelectionFailedToCopy.
   ///
   /// In en, this message translates to:
   /// **'Failed to copy text to clipboard'**
   String get textSelectionFailedToCopy;
-
-  /// No description provided for @textSelectionNoTextToCopy.
-  ///
-  /// In en, this message translates to:
-  /// **'No text available to copy'**
-  String get textSelectionNoTextToCopy;
-
-  /// No description provided for @markdownCodeCopied.
-  ///
-  /// In en, this message translates to:
-  /// **'Code copied'**
-  String get markdownCodeCopied;
-
-  /// No description provided for @markdownCopyFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy failed'**
-  String get markdownCopyFailed;
-
-  /// No description provided for @markdownMermaidRenderFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to render mermaid diagram'**
-  String get markdownMermaidRenderFailed;
 
   /// No description provided for @artifactsTitle.
   ///
@@ -4114,29 +1303,11 @@ abstract class AppLocalizations {
   /// **'Artifacts'**
   String get artifactsTitle;
 
-  /// No description provided for @artifactsCountSingular.
-  ///
-  /// In en, this message translates to:
-  /// **'1 artifact'**
-  String get artifactsCountSingular;
-
-  /// Artifact count plural form
-  ///
-  /// In en, this message translates to:
-  /// **'{count} artifacts'**
-  String artifactsCountPlural(int count);
-
   /// No description provided for @artifactsEmpty.
   ///
   /// In en, this message translates to:
   /// **'No artifacts yet'**
   String get artifactsEmpty;
-
-  /// No description provided for @artifactsEmptyDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Create your first artifact to get started'**
-  String get artifactsEmptyDescription;
 
   /// No description provided for @artifactsNew.
   ///
@@ -4150,47 +1321,11 @@ abstract class AppLocalizations {
   /// **'Edit Artifact'**
   String get artifactsEdit;
 
-  /// No description provided for @artifactsDelete.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete'**
-  String get artifactsDelete;
-
-  /// No description provided for @artifactsUpdateError.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to update artifact. Please try again.'**
-  String get artifactsUpdateError;
-
-  /// No description provided for @artifactsNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Artifact not found'**
-  String get artifactsNotFound;
-
-  /// No description provided for @artifactsDiscardChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Discard changes?'**
-  String get artifactsDiscardChanges;
-
-  /// No description provided for @artifactsDiscardChangesDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'You have unsaved changes. Are you sure you want to discard them?'**
-  String get artifactsDiscardChangesDescription;
-
   /// No description provided for @artifactsDeleteConfirm.
   ///
   /// In en, this message translates to:
   /// **'Delete artifact?'**
   String get artifactsDeleteConfirm;
-
-  /// No description provided for @artifactsDeleteConfirmDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'This action cannot be undone'**
-  String get artifactsDeleteConfirmDescription;
 
   /// No description provided for @artifactsTitleLabel.
   ///
@@ -4198,131 +1333,11 @@ abstract class AppLocalizations {
   /// **'TITLE'**
   String get artifactsTitleLabel;
 
-  /// No description provided for @artifactsTitlePlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter a title for your artifact'**
-  String get artifactsTitlePlaceholder;
-
-  /// No description provided for @artifactsBodyLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'CONTENT'**
-  String get artifactsBodyLabel;
-
-  /// No description provided for @artifactsBodyPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Write your content here...'**
-  String get artifactsBodyPlaceholder;
-
-  /// No description provided for @artifactsEmptyFieldsError.
-  ///
-  /// In en, this message translates to:
-  /// **'Please enter a title or content'**
-  String get artifactsEmptyFieldsError;
-
-  /// No description provided for @artifactsCreateError.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to create artifact. Please try again.'**
-  String get artifactsCreateError;
-
-  /// No description provided for @artifactsSave.
-  ///
-  /// In en, this message translates to:
-  /// **'Save'**
-  String get artifactsSave;
-
-  /// No description provided for @artifactsSaving.
-  ///
-  /// In en, this message translates to:
-  /// **'Saving...'**
-  String get artifactsSaving;
-
-  /// No description provided for @artifactsLoading.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading artifacts...'**
-  String get artifactsLoading;
-
-  /// No description provided for @artifactsError.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to load artifact'**
-  String get artifactsError;
-
-  /// No description provided for @usageToday.
-  ///
-  /// In en, this message translates to:
-  /// **'Today'**
-  String get usageToday;
-
-  /// No description provided for @usageLast7Days.
-  ///
-  /// In en, this message translates to:
-  /// **'Last 7 days'**
-  String get usageLast7Days;
-
-  /// No description provided for @usageLast30Days.
-  ///
-  /// In en, this message translates to:
-  /// **'Last 30 days'**
-  String get usageLast30Days;
-
-  /// No description provided for @usageTotalTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'Total Tokens'**
-  String get usageTotalTokens;
-
-  /// No description provided for @usageTotalCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Total Cost'**
-  String get usageTotalCost;
-
-  /// No description provided for @usageTokens.
-  ///
-  /// In en, this message translates to:
-  /// **'Tokens'**
-  String get usageTokens;
-
-  /// No description provided for @usageCost.
-  ///
-  /// In en, this message translates to:
-  /// **'Cost'**
-  String get usageCost;
-
-  /// No description provided for @usageUsageOverTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Usage over time'**
-  String get usageUsageOverTime;
-
-  /// No description provided for @usageByModel.
-  ///
-  /// In en, this message translates to:
-  /// **'By Model'**
-  String get usageByModel;
-
-  /// No description provided for @usageNoData.
-  ///
-  /// In en, this message translates to:
-  /// **'No usage data available'**
-  String get usageNoData;
-
   /// No description provided for @offlineBannerNoConnection.
   ///
   /// In en, this message translates to:
   /// **'No internet connection'**
   String get offlineBannerNoConnection;
-
-  /// No description provided for @offlineBannerReconnecting.
-  ///
-  /// In en, this message translates to:
-  /// **'Reconnecting...'**
-  String get offlineBannerReconnecting;
 
   /// No description provided for @offlineBannerLiveUpdatesDisconnected.
   ///
@@ -4390,12 +1405,6 @@ abstract class AppLocalizations {
   /// **'Off'**
   String get a11ySettingsRowOff;
 
-  /// No description provided for @commonVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Version'**
-  String get commonVersion;
-
   /// No description provided for @commonDone.
   ///
   /// In en, this message translates to:
@@ -4462,42 +1471,6 @@ abstract class AppLocalizations {
   /// **'Cmd'**
   String get commonCmd;
 
-  /// No description provided for @authSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan QR code to connect'**
-  String get authSubtitle;
-
-  /// No description provided for @authScanQR.
-  ///
-  /// In en, this message translates to:
-  /// **'Scan QR Code'**
-  String get authScanQR;
-
-  /// No description provided for @authEnterToken.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter Token Manually'**
-  String get authEnterToken;
-
-  /// No description provided for @authServerUrlHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Server URL'**
-  String get authServerUrlHint;
-
-  /// No description provided for @authTokenHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Authentication Token'**
-  String get authTokenHint;
-
-  /// No description provided for @authConnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect'**
-  String get authConnect;
-
   /// No description provided for @authConnecting.
   ///
   /// In en, this message translates to:
@@ -4516,29 +1489,11 @@ abstract class AppLocalizations {
   /// **'Cannot connect to server'**
   String get authServerConnectionError;
 
-  /// No description provided for @sessionsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Sessions'**
-  String get sessionsTitle;
-
   /// No description provided for @sessionsNew.
   ///
   /// In en, this message translates to:
   /// **'New Session'**
   String get sessionsNew;
-
-  /// No description provided for @sessionsEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'No sessions yet'**
-  String get sessionsEmpty;
-
-  /// No description provided for @sessionsCreateFirst.
-  ///
-  /// In en, this message translates to:
-  /// **'Create your first session to get started'**
-  String get sessionsCreateFirst;
 
   /// No description provided for @sessionsToday.
   ///
@@ -4708,12 +1663,6 @@ abstract class AppLocalizations {
   /// **'Grok'**
   String get sessionsGrok;
 
-  /// No description provided for @sessionsType.
-  ///
-  /// In en, this message translates to:
-  /// **'Type'**
-  String get sessionsType;
-
   /// No description provided for @sessionsAgent.
   ///
   /// In en, this message translates to:
@@ -4833,30 +1782,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mission Control'**
   String get sessionsViewStyleMissionControl;
-
-  /// No description provided for @missionControlWorkspaces.
-  ///
-  /// In en, this message translates to:
-  /// **'Workspaces'**
-  String get missionControlWorkspaces;
-
-  /// No description provided for @missionControlAllQuiet.
-  ///
-  /// In en, this message translates to:
-  /// **'All quiet — nothing needs you right now'**
-  String get missionControlAllQuiet;
-
-  /// Mission Control summary for sessions requiring attention
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1 {1 session needs you} other {{count} sessions need you}}'**
-  String missionControlNeedsYou(int count);
-
-  /// Mission Control summary for actively working agents
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1 {1 agent working now} other {{count} agents working now}}'**
-  String missionControlWorkingNow(int count);
 
   /// No description provided for @missionControlFocusQueue.
   ///
@@ -5140,6 +2065,42 @@ abstract class AppLocalizations {
   /// **'days'**
   String get autoArchiveDays;
 
+  /// No description provided for @autoArchiveIdleNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get autoArchiveIdleNever;
+
+  /// No description provided for @autoArchiveIdle30Min.
+  ///
+  /// In en, this message translates to:
+  /// **'30 min'**
+  String get autoArchiveIdle30Min;
+
+  /// No description provided for @autoArchiveIdle2Hours.
+  ///
+  /// In en, this message translates to:
+  /// **'2 hours'**
+  String get autoArchiveIdle2Hours;
+
+  /// No description provided for @autoArchiveIdle8Hours.
+  ///
+  /// In en, this message translates to:
+  /// **'8 hours'**
+  String get autoArchiveIdle8Hours;
+
+  /// No description provided for @autoArchiveIdle1Day.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day'**
+  String get autoArchiveIdle1Day;
+
+  /// No description provided for @autoArchiveIdle7Days.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get autoArchiveIdle7Days;
+
   /// No description provided for @sessionsRecentTitle.
   ///
   /// In en, this message translates to:
@@ -5326,18 +2287,6 @@ abstract class AppLocalizations {
   /// **'Search completed — result pages are not included in the transcript.'**
   String get webSearchNoResultsNote;
 
-  /// No description provided for @messageDetailShare.
-  ///
-  /// In en, this message translates to:
-  /// **'Share'**
-  String get messageDetailShare;
-
-  /// No description provided for @messageDetailBookmark.
-  ///
-  /// In en, this message translates to:
-  /// **'Bookmark'**
-  String get messageDetailBookmark;
-
   /// No description provided for @messageFocusSelectText.
   ///
   /// In en, this message translates to:
@@ -5410,42 +2359,6 @@ abstract class AppLocalizations {
   /// **'Group by date'**
   String get sessionsGroupByDate;
 
-  /// No description provided for @pickSelectMachine.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Machine'**
-  String get pickSelectMachine;
-
-  /// No description provided for @pickSelectProfile.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Profile'**
-  String get pickSelectProfile;
-
-  /// No description provided for @pickSelectPath.
-  ///
-  /// In en, this message translates to:
-  /// **'Select Path'**
-  String get pickSelectPath;
-
-  /// No description provided for @pickNoMachinesAvailable.
-  ///
-  /// In en, this message translates to:
-  /// **'No machines available'**
-  String get pickNoMachinesAvailable;
-
-  /// No description provided for @pickRecent.
-  ///
-  /// In en, this message translates to:
-  /// **'Recent'**
-  String get pickRecent;
-
-  /// No description provided for @pickAllMachines.
-  ///
-  /// In en, this message translates to:
-  /// **'All Machines'**
-  String get pickAllMachines;
-
   /// No description provided for @chatInputHint.
   ///
   /// In en, this message translates to:
@@ -5494,12 +2407,6 @@ abstract class AppLocalizations {
   /// **'Server-configured defaults'**
   String get chatInputProfileDefaultSubtitle;
 
-  /// No description provided for @chatEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Start a conversation'**
-  String get chatEmpty;
-
   /// No description provided for @chatSend.
   ///
   /// In en, this message translates to:
@@ -5542,89 +2449,17 @@ abstract class AppLocalizations {
   /// **'Copy'**
   String get chatCopyMessage;
 
-  /// No description provided for @chatDeleteMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete'**
-  String get chatDeleteMessage;
-
-  /// No description provided for @chatClearSession.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear Session'**
-  String get chatClearSession;
-
-  /// No description provided for @chatConfirmClear.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to clear this session?'**
-  String get chatConfirmClear;
-
-  /// No description provided for @chatActionConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Confirm Action'**
-  String get chatActionConfirm;
-
-  /// No description provided for @chatActionReject.
-  ///
-  /// In en, this message translates to:
-  /// **'Reject'**
-  String get chatActionReject;
-
-  /// No description provided for @chatActionAccept.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept'**
-  String get chatActionAccept;
-
   /// No description provided for @chatChat.
   ///
   /// In en, this message translates to:
   /// **'Chat'**
   String get chatChat;
 
-  /// No description provided for @chatChatLoading.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading...'**
-  String get chatChatLoading;
-
   /// No description provided for @chatFailedToLoadMessages.
   ///
   /// In en, this message translates to:
   /// **'Failed to load messages'**
   String get chatFailedToLoadMessages;
-
-  /// No description provided for @settingsTheme.
-  ///
-  /// In en, this message translates to:
-  /// **'Theme'**
-  String get settingsTheme;
-
-  /// No description provided for @settingsThemeLight.
-  ///
-  /// In en, this message translates to:
-  /// **'Light'**
-  String get settingsThemeLight;
-
-  /// No description provided for @settingsThemeDark.
-  ///
-  /// In en, this message translates to:
-  /// **'Dark'**
-  String get settingsThemeDark;
-
-  /// No description provided for @settingsThemeSystem.
-  ///
-  /// In en, this message translates to:
-  /// **'System'**
-  String get settingsThemeSystem;
-
-  /// No description provided for @noLanguagesFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No languages found'**
-  String get noLanguagesFound;
 
   /// No description provided for @settingsServer.
   ///
@@ -5643,18 +2478,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Voice'**
   String get settingsVoice;
-
-  /// No description provided for @settingsLogout.
-  ///
-  /// In en, this message translates to:
-  /// **'Logout'**
-  String get settingsLogout;
-
-  /// No description provided for @settingsLogoutConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'Are you sure you want to logout?'**
-  String get settingsLogoutConfirm;
 
   /// No description provided for @settingsLogs.
   ///
@@ -5980,12 +2803,6 @@ abstract class AppLocalizations {
   /// **'Does not expire'**
   String get codexUsageDoesNotExpire;
 
-  /// No description provided for @codexUsageExpiresAt.
-  ///
-  /// In en, this message translates to:
-  /// **'Expires {time}'**
-  String codexUsageExpiresAt(String time);
-
   /// No description provided for @codexUsageExpiresInDays.
   ///
   /// In en, this message translates to:
@@ -6027,12 +2844,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Machine'**
   String get codexUsageSelectMachine;
-
-  /// No description provided for @claudeLimitsResetsAt.
-  ///
-  /// In en, this message translates to:
-  /// **'Resets'**
-  String get claudeLimitsResetsAt;
 
   /// No description provided for @claudeLimitsExtraUsage.
   ///
@@ -6136,18 +2947,6 @@ abstract class AppLocalizations {
   /// **'Machine'**
   String get claudeLimitsSelectMachine;
 
-  /// No description provided for @featuresExperiments.
-  ///
-  /// In en, this message translates to:
-  /// **'Experiments'**
-  String get featuresExperiments;
-
-  /// No description provided for @featuresExperimentsDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Try experimental features'**
-  String get featuresExperimentsDesc;
-
   /// No description provided for @settingsServerResetSuccess.
   ///
   /// In en, this message translates to:
@@ -6166,77 +2965,11 @@ abstract class AppLocalizations {
   /// **'Save & Verify'**
   String get settingsServerSaveVerify;
 
-  /// No description provided for @settingsOnline.
-  ///
-  /// In en, this message translates to:
-  /// **'Online'**
-  String get settingsOnline;
-
-  /// No description provided for @settingsOffline.
-  ///
-  /// In en, this message translates to:
-  /// **'Offline'**
-  String get settingsOffline;
-
   /// No description provided for @toolViewFullContent.
   ///
   /// In en, this message translates to:
   /// **'View full content'**
   String get toolViewFullContent;
-
-  /// No description provided for @toolEdit.
-  ///
-  /// In en, this message translates to:
-  /// **'Edit'**
-  String get toolEdit;
-
-  /// No description provided for @toolRead.
-  ///
-  /// In en, this message translates to:
-  /// **'Read'**
-  String get toolRead;
-
-  /// No description provided for @toolWrite.
-  ///
-  /// In en, this message translates to:
-  /// **'Write'**
-  String get toolWrite;
-
-  /// No description provided for @toolBash.
-  ///
-  /// In en, this message translates to:
-  /// **'Bash'**
-  String get toolBash;
-
-  /// No description provided for @toolGlob.
-  ///
-  /// In en, this message translates to:
-  /// **'Glob'**
-  String get toolGlob;
-
-  /// No description provided for @toolGrep.
-  ///
-  /// In en, this message translates to:
-  /// **'Grep'**
-  String get toolGrep;
-
-  /// No description provided for @toolLs.
-  ///
-  /// In en, this message translates to:
-  /// **'List Files'**
-  String get toolLs;
-
-  /// No description provided for @toolPatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Patch'**
-  String get toolPatch;
-
-  /// No description provided for @toolDiff.
-  ///
-  /// In en, this message translates to:
-  /// **'Diff'**
-  String get toolDiff;
 
   /// No description provided for @toolSectionDiff.
   ///
@@ -6250,12 +2983,6 @@ abstract class AppLocalizations {
   /// **'CONTENT'**
   String get toolSectionContent;
 
-  /// No description provided for @toolSectionCommand.
-  ///
-  /// In en, this message translates to:
-  /// **'COMMAND'**
-  String get toolSectionCommand;
-
   /// No description provided for @toolSectionReading.
   ///
   /// In en, this message translates to:
@@ -6267,54 +2994,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Writing'**
   String get toolSectionWriting;
-
-  /// No description provided for @toolSectionInput.
-  ///
-  /// In en, this message translates to:
-  /// **'INPUT'**
-  String get toolSectionInput;
-
-  /// No description provided for @toolSectionOutput.
-  ///
-  /// In en, this message translates to:
-  /// **'OUTPUT'**
-  String get toolSectionOutput;
-
-  /// No description provided for @toolTask.
-  ///
-  /// In en, this message translates to:
-  /// **'Task'**
-  String get toolTask;
-
-  /// No description provided for @toolTodo.
-  ///
-  /// In en, this message translates to:
-  /// **'Todo'**
-  String get toolTodo;
-
-  /// No description provided for @toolWebFetch.
-  ///
-  /// In en, this message translates to:
-  /// **'Web Fetch'**
-  String get toolWebFetch;
-
-  /// No description provided for @toolWebSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Web Search'**
-  String get toolWebSearch;
-
-  /// No description provided for @toolExitPlan.
-  ///
-  /// In en, this message translates to:
-  /// **'Exit Plan'**
-  String get toolExitPlan;
-
-  /// No description provided for @toolAskUser.
-  ///
-  /// In en, this message translates to:
-  /// **'Ask User'**
-  String get toolAskUser;
 
   /// No description provided for @permissionAllow.
   ///
@@ -6358,24 +3037,6 @@ abstract class AppLocalizations {
   /// **'Yes'**
   String get permissionYes;
 
-  /// No description provided for @permissionDefault.
-  ///
-  /// In en, this message translates to:
-  /// **'Default'**
-  String get permissionDefault;
-
-  /// No description provided for @permissionAcceptEdits.
-  ///
-  /// In en, this message translates to:
-  /// **'Accept Edits'**
-  String get permissionAcceptEdits;
-
-  /// No description provided for @permissionPlan.
-  ///
-  /// In en, this message translates to:
-  /// **'Plan Mode'**
-  String get permissionPlan;
-
   /// No description provided for @permissionYolo.
   ///
   /// In en, this message translates to:
@@ -6387,12 +3048,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read Only'**
   String get permissionReadOnly;
-
-  /// No description provided for @permissionSafeYolo.
-  ///
-  /// In en, this message translates to:
-  /// **'Safe Yolo'**
-  String get permissionSafeYolo;
 
   /// No description provided for @permissionRequired.
   ///
@@ -6646,24 +3301,6 @@ abstract class AppLocalizations {
   /// **'Sign In'**
   String get authSignIn;
 
-  /// No description provided for @errorGeneric.
-  ///
-  /// In en, this message translates to:
-  /// **'Something went wrong'**
-  String get errorGeneric;
-
-  /// No description provided for @errorNetwork.
-  ///
-  /// In en, this message translates to:
-  /// **'Network error. Please check your connection.'**
-  String get errorNetwork;
-
-  /// No description provided for @errorServer.
-  ///
-  /// In en, this message translates to:
-  /// **'Server error. Please try again later.'**
-  String get errorServer;
-
   /// No description provided for @errorNotFound.
   ///
   /// In en, this message translates to:
@@ -6681,42 +3318,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Theme'**
   String get appearanceTheme;
-
-  /// No description provided for @appearanceThemeAdaptive.
-  ///
-  /// In en, this message translates to:
-  /// **'Adaptive'**
-  String get appearanceThemeAdaptive;
-
-  /// No description provided for @appearanceThemeAdaptiveDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Match system settings'**
-  String get appearanceThemeAdaptiveDesc;
-
-  /// No description provided for @appearanceThemeLight.
-  ///
-  /// In en, this message translates to:
-  /// **'Light'**
-  String get appearanceThemeLight;
-
-  /// No description provided for @appearanceThemeLightDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Always use light theme'**
-  String get appearanceThemeLightDesc;
-
-  /// No description provided for @appearanceThemeDark.
-  ///
-  /// In en, this message translates to:
-  /// **'Dark'**
-  String get appearanceThemeDark;
-
-  /// No description provided for @appearanceThemeDarkDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Always use dark theme'**
-  String get appearanceThemeDarkDesc;
 
   /// No description provided for @appearanceThemeApplied.
   ///
@@ -6802,18 +3403,6 @@ abstract class AppLocalizations {
   /// **'Expand Todos'**
   String get settingsExpandTodos;
 
-  /// No description provided for @settingsShowLineNumbers.
-  ///
-  /// In en, this message translates to:
-  /// **'Show Line Numbers'**
-  String get settingsShowLineNumbers;
-
-  /// No description provided for @settingsCompactSessionView.
-  ///
-  /// In en, this message translates to:
-  /// **'Compact Session View'**
-  String get settingsCompactSessionView;
-
   /// No description provided for @settingsShowFlavorIcons.
   ///
   /// In en, this message translates to:
@@ -6825,24 +3414,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Avatar Style'**
   String get settingsAvatarStyle;
-
-  /// No description provided for @settingsWrapLinesInDiffs.
-  ///
-  /// In en, this message translates to:
-  /// **'Wrap Lines in Diffs'**
-  String get settingsWrapLinesInDiffs;
-
-  /// No description provided for @userProfileTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'User Profile'**
-  String get userProfileTitle;
-
-  /// No description provided for @userNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'User not found'**
-  String get userNotFound;
 
   /// No description provided for @accountAccountSettings.
   ///
@@ -7011,24 +3582,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This Device'**
   String get accountThisDevice;
-
-  /// No description provided for @settingsCertificates.
-  ///
-  /// In en, this message translates to:
-  /// **'Certificates'**
-  String get settingsCertificates;
-
-  /// No description provided for @settingsUserCaCertificates.
-  ///
-  /// In en, this message translates to:
-  /// **'User CA Certificates'**
-  String get settingsUserCaCertificates;
-
-  /// No description provided for @settingsNoUserCertificates.
-  ///
-  /// In en, this message translates to:
-  /// **'No user certificates installed'**
-  String get settingsNoUserCertificates;
 
   /// No description provided for @chatOnline.
   ///
@@ -7234,12 +3787,6 @@ abstract class AppLocalizations {
   /// **'Claude Code'**
   String get settingsClaudeCode;
 
-  /// No description provided for @settingsConnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Connected'**
-  String get settingsConnected;
-
   /// No description provided for @settingsTextToSpeech.
   ///
   /// In en, this message translates to:
@@ -7432,12 +3979,6 @@ abstract class AppLocalizations {
   /// **'Enabled - Debug tools are visible'**
   String get developerModeEnabledDesc;
 
-  /// No description provided for @developerNotYetImplemented.
-  ///
-  /// In en, this message translates to:
-  /// **'Not yet implemented'**
-  String get developerNotYetImplemented;
-
   /// No description provided for @developerClearCacheAction.
   ///
   /// In en, this message translates to:
@@ -7629,12 +4170,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Use default configuration'**
   String get profilesDefaultDescription;
-
-  /// No description provided for @profilesCustomTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom Profiles'**
-  String get profilesCustomTitle;
 
   /// No description provided for @profilesProfileName.
   ///
@@ -8128,6 +4663,78 @@ abstract class AppLocalizations {
   /// **'Use system default'**
   String get voiceDefaultEngineSubtitle;
 
+  /// No description provided for @voiceUseOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Use offline voice'**
+  String get voiceUseOfflineTitle;
+
+  /// No description provided for @voiceUseOfflineSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'High-quality on-device TTS via sherpa-onnx. Falls back to system TTS while the model downloads or if generation fails.'**
+  String get voiceUseOfflineSubtitle;
+
+  /// No description provided for @voiceTestTtsPhrase.
+  ///
+  /// In en, this message translates to:
+  /// **'Hello! Text to speech is working.'**
+  String get voiceTestTtsPhrase;
+
+  /// No description provided for @voiceOfflineVoicesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline voices'**
+  String get voiceOfflineVoicesTitle;
+
+  /// No description provided for @voiceDictationModelsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictation models'**
+  String get voiceDictationModelsTitle;
+
+  /// No description provided for @voiceInstalledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'installed'**
+  String get voiceInstalledLabel;
+
+  /// No description provided for @voiceDownloadStatusReady.
+  ///
+  /// In en, this message translates to:
+  /// **'ready'**
+  String get voiceDownloadStatusReady;
+
+  /// No description provided for @voiceDownloadStatusDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'downloading…'**
+  String get voiceDownloadStatusDownloading;
+
+  /// No description provided for @voiceDownloadStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'download failed'**
+  String get voiceDownloadStatusFailed;
+
+  /// No description provided for @voiceDownloadStatusNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'not downloaded'**
+  String get voiceDownloadStatusNotDownloaded;
+
+  /// No description provided for @voiceDownloadFailedRetrySuffix.
+  ///
+  /// In en, this message translates to:
+  /// **' · download failed, tap retry'**
+  String get voiceDownloadFailedRetrySuffix;
+
+  /// No description provided for @voiceDownloadNotDownloadedSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **' · not downloaded'**
+  String get voiceDownloadNotDownloadedSuffix;
+
   /// No description provided for @voiceSelectLanguageTitle.
   ///
   /// In en, this message translates to:
@@ -8139,54 +4746,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} languages available'**
   String voiceLanguagesCount(int count);
-
-  /// No description provided for @claudeConnectTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect Claude API'**
-  String get claudeConnectTitle;
-
-  /// No description provided for @claudeConnectTerminalTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect Claude'**
-  String get claudeConnectTerminalTitle;
-
-  /// No description provided for @claudeConnectManualLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'MANUAL API KEY ENTRY'**
-  String get claudeConnectManualLabel;
-
-  /// No description provided for @claudeConnectApiKeyLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'API Key'**
-  String get claudeConnectApiKeyLabel;
-
-  /// No description provided for @claudeConnectApiKeyHint.
-  ///
-  /// In en, this message translates to:
-  /// **'sk-ant-...'**
-  String get claudeConnectApiKeyHint;
-
-  /// No description provided for @claudeConnectBaseUrlLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Base URL (optional)'**
-  String get claudeConnectBaseUrlLabel;
-
-  /// No description provided for @claudeConnectBaseUrlHint.
-  ///
-  /// In en, this message translates to:
-  /// **'https://api.anthropic.com'**
-  String get claudeConnectBaseUrlHint;
-
-  /// No description provided for @claudeConnectButton.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect'**
-  String get claudeConnectButton;
 
   /// No description provided for @sessionFilesTitle.
   ///
@@ -8656,42 +5215,6 @@ abstract class AppLocalizations {
   /// **'Go Home'**
   String get commonGoHome;
 
-  /// No description provided for @commonPressBackAgainToExit.
-  ///
-  /// In en, this message translates to:
-  /// **'Press back again to exit'**
-  String get commonPressBackAgainToExit;
-
-  /// No description provided for @commonUnsavedChanges.
-  ///
-  /// In en, this message translates to:
-  /// **'Unsaved Changes'**
-  String get commonUnsavedChanges;
-
-  /// No description provided for @commonLeave.
-  ///
-  /// In en, this message translates to:
-  /// **'Leave'**
-  String get commonLeave;
-
-  /// No description provided for @commonStay.
-  ///
-  /// In en, this message translates to:
-  /// **'Stay'**
-  String get commonStay;
-
-  /// No description provided for @commonUnsentMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'Unsent Message'**
-  String get commonUnsentMessage;
-
-  /// No description provided for @commonOperationInProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'Operation In Progress'**
-  String get commonOperationInProgress;
-
   /// No description provided for @terminalEnterCommand.
   ///
   /// In en, this message translates to:
@@ -8775,18 +5298,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Manage your account'**
   String get commandAccountSubtitle;
-
-  /// No description provided for @commandConnectDeviceTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect Device'**
-  String get commandConnectDeviceTitle;
-
-  /// No description provided for @commandConnectDeviceSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Connect a new device via web'**
-  String get commandConnectDeviceSubtitle;
 
   /// No description provided for @commandArtifactsTitle.
   ///
@@ -8902,48 +5413,6 @@ abstract class AppLocalizations {
   /// **'Review PR'**
   String get chatSuggestionReviewPr;
 
-  /// No description provided for @pickRecentPaths.
-  ///
-  /// In en, this message translates to:
-  /// **'Recent Paths'**
-  String get pickRecentPaths;
-
-  /// No description provided for @pickSuggestedPaths.
-  ///
-  /// In en, this message translates to:
-  /// **'Suggested Paths'**
-  String get pickSuggestedPaths;
-
-  /// No description provided for @pickProfileNone.
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get pickProfileNone;
-
-  /// No description provided for @pickProfileNoneDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Use default configuration'**
-  String get pickProfileNoneDesc;
-
-  /// No description provided for @pickProfileBuiltInSection.
-  ///
-  /// In en, this message translates to:
-  /// **'BUILT-IN'**
-  String get pickProfileBuiltInSection;
-
-  /// No description provided for @pickProfileCustomSection.
-  ///
-  /// In en, this message translates to:
-  /// **'CUSTOM'**
-  String get pickProfileCustomSection;
-
-  /// No description provided for @pickProfileCustomDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom profile'**
-  String get pickProfileCustomDescription;
-
   /// No description provided for @agentFallbackDescription.
   ///
   /// In en, this message translates to:
@@ -8997,18 +5466,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap to view'**
   String get subAgentBannerTapToOpen;
-
-  /// No description provided for @subAgentBannerIcon.
-  ///
-  /// In en, this message translates to:
-  /// **'Sub-agents'**
-  String get subAgentBannerIcon;
-
-  /// No description provided for @fileViewerNoContent.
-  ///
-  /// In en, this message translates to:
-  /// **'No content available'**
-  String get fileViewerNoContent;
 
   /// No description provided for @artifactsJustNow.
   ///
@@ -9099,12 +5556,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Yesterday at {time}'**
   String dateTimeYesterday(String time);
-
-  /// No description provided for @userFallbackName.
-  ///
-  /// In en, this message translates to:
-  /// **'this user'**
-  String get userFallbackName;
 
   /// No description provided for @commandCategoryRecentSessions.
   ///
@@ -9292,12 +5743,6 @@ abstract class AppLocalizations {
   /// **'Try a different search term.'**
   String get artifactsNoResultsSubtitle;
 
-  /// No description provided for @authConnectionError.
-  ///
-  /// In en, this message translates to:
-  /// **'Connection failed. Please check your server URL and try again.'**
-  String get authConnectionError;
-
   /// No description provided for @authDeviceLinkedSuccess.
   ///
   /// In en, this message translates to:
@@ -9448,12 +5893,6 @@ abstract class AppLocalizations {
   /// **'Last seen just now'**
   String get chatLastSeenJustNow;
 
-  /// No description provided for @chatPermissionRequired.
-  ///
-  /// In en, this message translates to:
-  /// **'Permission required'**
-  String get chatPermissionRequired;
-
   /// No description provided for @chatSuggestionDebugIssueDesc.
   ///
   /// In en, this message translates to:
@@ -9489,30 +5928,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rate limits for Claude Code on your machines'**
   String get claudeCodeLimitsSubtitle;
-
-  /// No description provided for @claudeConnectCliInfo.
-  ///
-  /// In en, this message translates to:
-  /// **'API key management is handled via the CLI. Run: happy connect claude'**
-  String get claudeConnectCliInfo;
-
-  /// No description provided for @claudeConnectDisclaimer.
-  ///
-  /// In en, this message translates to:
-  /// **'Your API key is stored locally on this device only.'**
-  String get claudeConnectDisclaimer;
-
-  /// No description provided for @claudeConnectManualDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Alternatively, enter your Anthropic API key directly.'**
-  String get claudeConnectManualDesc;
-
-  /// No description provided for @claudeConnectTerminalSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Run the following command in your terminal:'**
-  String get claudeConnectTerminalSubtitle;
 
   /// No description provided for @claudeLimitsNoMachinesSubtitle.
   ///
@@ -9550,29 +5965,11 @@ abstract class AppLocalizations {
   /// **'Make sure Codex has run on the selected machine and Python 3 is available'**
   String get codexUsageNotAvailableSubtitle;
 
-  /// No description provided for @commonOperationInProgressConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'An operation is in progress. Are you sure you want to leave?'**
-  String get commonOperationInProgressConfirm;
-
   /// No description provided for @commonUnsavedChangesContent.
   ///
   /// In en, this message translates to:
   /// **'You have unsaved changes. Are you sure you want to leave?'**
   String get commonUnsavedChangesContent;
-
-  /// No description provided for @commonUnsavedChangesMessage.
-  ///
-  /// In en, this message translates to:
-  /// **'You have unsaved changes. Are you sure you want to leave?'**
-  String get commonUnsavedChangesMessage;
-
-  /// No description provided for @commonUnsentMessageConfirm.
-  ///
-  /// In en, this message translates to:
-  /// **'You have an unsent message. Are you sure you want to leave?'**
-  String get commonUnsentMessageConfirm;
 
   /// No description provided for @developerClearCacheConfirm.
   ///
@@ -9658,24 +6055,6 @@ abstract class AppLocalizations {
   /// **'Reduce spacing in chat messages'**
   String get featuresCompactModeDesc;
 
-  /// No description provided for @featuresEnhancedSessionWizard.
-  ///
-  /// In en, this message translates to:
-  /// **'Enhanced Session Wizard'**
-  String get featuresEnhancedSessionWizard;
-
-  /// No description provided for @featuresEnhancedSessionWizardDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Use the improved session creation flow'**
-  String get featuresEnhancedSessionWizardDesc;
-
-  /// No description provided for @featuresExperimentalTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Experimental Features'**
-  String get featuresExperimentalTitle;
-
   /// No description provided for @featuresHideInactiveSessions.
   ///
   /// In en, this message translates to:
@@ -9699,12 +6078,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Wrap long lines in diff views'**
   String get featuresWrapLinesInDiffsDesc;
-
-  /// No description provided for @fileViewerContentError.
-  ///
-  /// In en, this message translates to:
-  /// **'The file content could not be loaded.'**
-  String get fileViewerContentError;
 
   /// No description provided for @machineLastKnownStatus.
   ///
@@ -9742,18 +6115,6 @@ abstract class AppLocalizations {
   /// **'Permission expired \\u2014 session was restarted'**
   String get permissionExpiredRestarted;
 
-  /// No description provided for @pickPathHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Enter path (e.g. /home/user/projects)'**
-  String get pickPathHint;
-
-  /// No description provided for @pickProfileChooseBackend.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose an AI backend profile for your session.'**
-  String get pickProfileChooseBackend;
-
   /// No description provided for @profilesAddProfileSubtitle.
   ///
   /// In en, this message translates to:
@@ -9789,6 +6150,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No environment variables found in the script.'**
   String get profilesImportNoVars;
+
+  /// No description provided for @profilesSelectToEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a profile to edit'**
+  String get profilesSelectToEdit;
+
+  /// No description provided for @profilesImportedFallbackName.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported Profile'**
+  String get profilesImportedFallbackName;
+
+  /// No description provided for @profilesCopySuffix.
+  ///
+  /// In en, this message translates to:
+  /// **' (Copy)'**
+  String get profilesCopySuffix;
 
   /// No description provided for @profilesQuickSetupHint.
   ///
@@ -9862,24 +6241,6 @@ abstract class AppLocalizations {
   /// **'No sessions match your search'**
   String get sessionsNoSearchResults;
 
-  /// No description provided for @settingsClaudeDisconnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Claude disconnected'**
-  String get settingsClaudeDisconnected;
-
-  /// No description provided for @settingsCompactSessionViewSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Use smaller cards for sessions'**
-  String get settingsCompactSessionViewSubtitle;
-
-  /// No description provided for @settingsConfigureVoice.
-  ///
-  /// In en, this message translates to:
-  /// **'Configure ElevenLabs voice'**
-  String get settingsConfigureVoice;
-
   /// No description provided for @settingsConfigureVoiceAssistant.
   ///
   /// In en, this message translates to:
@@ -9898,18 +6259,6 @@ abstract class AppLocalizations {
   /// **'Open developer options'**
   String get settingsDeveloperTapToEnable;
 
-  /// No description provided for @settingsGitHubDisconnected.
-  ///
-  /// In en, this message translates to:
-  /// **'GitHub disconnected'**
-  String get settingsGitHubDisconnected;
-
-  /// No description provided for @settingsNotConnected.
-  ///
-  /// In en, this message translates to:
-  /// **'Not connected'**
-  String get settingsNotConnected;
-
   /// No description provided for @settingsServerResetConfirm.
   ///
   /// In en, this message translates to:
@@ -9927,12 +6276,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read assistant messages aloud'**
   String get settingsTextToSpeechSubtitle;
-
-  /// No description provided for @settingsUserCertificatesInstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'User certificates are installed'**
-  String get settingsUserCertificatesInstalled;
 
   /// No description provided for @settingsVoiceSettings.
   ///
@@ -9981,12 +6324,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No machines connected. Start the Happy CLI on a machine first.'**
   String get terminalNoMachines;
-
-  /// No description provided for @terminalOutputPending.
-  ///
-  /// In en, this message translates to:
-  /// **'[output pending]'**
-  String get terminalOutputPending;
 
   /// No description provided for @terminalNoMachineConnected.
   ///
@@ -10054,12 +6391,6 @@ abstract class AppLocalizations {
   /// **'Last seen {days}d ago'**
   String chatLastSeenDays(int days);
 
-  /// No description provided for @chatFailedToClear.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to clear: {error}'**
-  String chatFailedToClear(String error);
-
   /// No description provided for @devLogsCopied.
   ///
   /// In en, this message translates to:
@@ -10120,149 +6451,11 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete \"{name}\"?'**
   String profilesDeleteConfirm(String name);
 
-  /// No description provided for @settingsFailedToDisconnect.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to disconnect: {error}'**
-  String settingsFailedToDisconnect(String error);
-
-  /// No description provided for @settingsConnectedAs.
-  ///
-  /// In en, this message translates to:
-  /// **'Connected as @{login}'**
-  String settingsConnectedAs(String login);
-
-  /// No description provided for @settingsFailedToStartOAuth.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to start OAuth: {error}'**
-  String settingsFailedToStartOAuth(String error);
-
   /// No description provided for @appearanceThemeBasedOnDevice.
   ///
   /// In en, this message translates to:
   /// **'Based on your device\'s {mode} appearance setting.'**
   String appearanceThemeBasedOnDevice(String mode);
-
-  /// No description provided for @smartFeaturesTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Smart Features'**
-  String get smartFeaturesTitle;
-
-  /// No description provided for @smartFeaturesSection.
-  ///
-  /// In en, this message translates to:
-  /// **'On-device AI'**
-  String get smartFeaturesSection;
-
-  /// No description provided for @smartFeaturesEnabled.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Smart Features'**
-  String get smartFeaturesEnabled;
-
-  /// No description provided for @smartFeaturesEnabledDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable on-device AI features for smarter session ranking and auto-generated tags'**
-  String get smartFeaturesEnabledDesc;
-
-  /// No description provided for @smartFeaturesStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Status'**
-  String get smartFeaturesStatus;
-
-  /// No description provided for @smartFeaturesReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Model ready'**
-  String get smartFeaturesReady;
-
-  /// No description provided for @smartFeaturesUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'Model not loaded'**
-  String get smartFeaturesUnavailable;
-
-  /// No description provided for @smartFeaturesUnavailableDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Download the on-device AI model below to power session ranking and auto-tags. Until then, simple heuristics are used.'**
-  String get smartFeaturesUnavailableDesc;
-
-  /// No description provided for @smartFeaturesModelSection.
-  ///
-  /// In en, this message translates to:
-  /// **'On-device model'**
-  String get smartFeaturesModelSection;
-
-  /// No description provided for @smartFeaturesModelNotDownloaded.
-  ///
-  /// In en, this message translates to:
-  /// **'Not downloaded'**
-  String get smartFeaturesModelNotDownloaded;
-
-  /// No description provided for @smartFeaturesModelReady.
-  ///
-  /// In en, this message translates to:
-  /// **'Downloaded and ready'**
-  String get smartFeaturesModelReady;
-
-  /// No description provided for @smartFeaturesDownloadModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Download model'**
-  String get smartFeaturesDownloadModel;
-
-  /// No description provided for @smartFeaturesDownloadModelDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Downloads the Gemma model ({size}). Wi-Fi strongly recommended.'**
-  String smartFeaturesDownloadModelDesc(String size);
-
-  /// No description provided for @smartFeaturesDownloading.
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading… {percent}%'**
-  String smartFeaturesDownloading(int percent);
-
-  /// No description provided for @smartFeaturesDownloadFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Download failed. Tap to retry.'**
-  String get smartFeaturesDownloadFailed;
-
-  /// No description provided for @smartFeaturesLoadingModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Loading model…'**
-  String get smartFeaturesLoadingModel;
-
-  /// No description provided for @semanticSearchTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Semantic Search'**
-  String get semanticSearchTitle;
-
-  /// No description provided for @semanticSearchDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Rank sessions by semantic similarity to your query'**
-  String get semanticSearchDesc;
-
-  /// No description provided for @autoTagsTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto Tags'**
-  String get autoTagsTitle;
-
-  /// No description provided for @autoTagsDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Automatically generate tags for sessions based on content'**
-  String get autoTagsDesc;
 
   /// No description provided for @friendsTitle.
   ///
@@ -10305,12 +6498,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Providers'**
   String get providersTitle;
-
-  /// No description provided for @providersUsageSectionTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Usage'**
-  String get providersUsageSectionTitle;
 
   /// No description provided for @providersConnectedAccounts.
   ///
@@ -10372,23 +6559,11 @@ abstract class AppLocalizations {
   /// **'Failed to save account'**
   String get providersAddAccountFailed;
 
-  /// No description provided for @providersRemoveAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Remove account'**
-  String get providersRemoveAccount;
-
   /// No description provided for @providersRemoveAccountFailed.
   ///
   /// In en, this message translates to:
   /// **'Failed to remove account'**
   String get providersRemoveAccountFailed;
-
-  /// No description provided for @providersLongPressToRemove.
-  ///
-  /// In en, this message translates to:
-  /// **'Long-press to select'**
-  String get providersLongPressToRemove;
 
   /// No description provided for @providersSelectedCount.
   ///
@@ -10425,12 +6600,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No usage data available'**
   String get providersNoUsageData;
-
-  /// No description provided for @providersSubscription.
-  ///
-  /// In en, this message translates to:
-  /// **'Subscription'**
-  String get providersSubscription;
 
   /// No description provided for @providersTypeLabel.
   ///
@@ -11133,12 +7302,6 @@ abstract class AppLocalizations {
   /// **'Add a server to make new tools available to Claude Code on this machine.'**
   String get mcpNoServersSubtitle;
 
-  /// Error shown when the mcp-list RPC fails
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t read the MCP configuration from this machine'**
-  String get mcpLoadFailed;
-
   /// Error shown when the mcp-set RPC fails
   ///
   /// In en, this message translates to:
@@ -11559,12 +7722,6 @@ abstract class AppLocalizations {
   /// **'Could not save the sandbox policy'**
   String get sandboxSaveFailed;
 
-  /// Fallback error when the sandbox read fails
-  ///
-  /// In en, this message translates to:
-  /// **'Could not load the sandbox policy'**
-  String get sandboxLoadFailed;
-
   /// Describes the public egress mode
   ///
   /// In en, this message translates to:
@@ -11948,12 +8105,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking…'**
   String get connectionDiagnosticsCheckingService;
-
-  /// No description provided for @connectionDiagnosticsServiceDegraded.
-  ///
-  /// In en, this message translates to:
-  /// **'Degraded: {components}'**
-  String connectionDiagnosticsServiceDegraded(String components);
 
   /// No description provided for @connectionDiagnosticsServiceDegradedSafe.
   ///

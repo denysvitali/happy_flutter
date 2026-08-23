@@ -45,8 +45,8 @@ class _AutoArchiveSettingsScreenState extends State<AutoArchiveSettingsScreen> {
                     _update(_settings.copyWith(autoArchiveAfterDays: v)),
               ),
               _IdleArchiveRow(
-                title: 'Idle auto-archive',
-                subtitle: 'Hide inactive sessions after this long',
+                title: l10n.autoArchiveIdleAfterDays,
+                subtitle: l10n.autoArchiveIdleAfterDaysDesc,
                 value: _settings.autoArchiveIdleAfterDays,
                 onChanged: (v) =>
                     _update(_settings.copyWith(autoArchiveIdleAfterDays: v)),
@@ -121,25 +121,29 @@ class _IdleArchiveRow extends StatelessWidget {
     required this.onChanged,
   });
 
-  static const _options = <({int? value, String label})>[
-    (value: null, label: 'Never'),
-    (value: -30, label: '30 min'),
-    (value: -120, label: '2 hours'),
-    (value: -480, label: '8 hours'),
-    (value: 1, label: '1 day'),
-    (value: 7, label: '7 days'),
-  ];
+  static const _optionValues = <int?>[null, -30, -120, -480, 1, 7];
 
   final String title;
   final String subtitle;
   final int? value;
   final void Function(int?) onChanged;
 
+  String _label(AppLocalizations l10n, int? optionValue) {
+    return switch (optionValue) {
+      null => l10n.autoArchiveIdleNever,
+      -30 => l10n.autoArchiveIdle30Min,
+      -120 => l10n.autoArchiveIdle2Hours,
+      -480 => l10n.autoArchiveIdle8Hours,
+      1 => l10n.autoArchiveIdle1Day,
+      7 => l10n.autoArchiveIdle7Days,
+      _ => '',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    final effectiveValue = _options.any((option) => option.value == value)
-        ? value
-        : null;
+    final l10n = AppLocalizations.of(context);
+    final effectiveValue = _optionValues.contains(value) ? value : null;
 
     return ListTile(
       leading: const Icon(Icons.hourglass_bottom_outlined),
@@ -149,10 +153,10 @@ class _IdleArchiveRow extends StatelessWidget {
         value: effectiveValue,
         underline: const SizedBox(),
         items: [
-          for (final option in _options)
+          for (final optionValue in _optionValues)
             DropdownMenuItem<int?>(
-              value: option.value,
-              child: Text(option.label),
+              value: optionValue,
+              child: Text(_label(l10n, optionValue)),
             ),
         ],
         onChanged: onChanged,

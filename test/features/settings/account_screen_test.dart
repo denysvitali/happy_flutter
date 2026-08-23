@@ -60,13 +60,18 @@ void main() {
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
     });
 
-    testWidgets('renders profile section with default loading state', (
+    testWidgets('renders profile header with fallback identity', (
       tester,
     ) async {
       await _pumpAccountScreen(tester);
 
-      expect(find.text('PROFILE'), findsOneWidget);
-      expect(find.text('Loading...'), findsOneWidget);
+      // ProfileHeader falls back to the app name and tagline when no
+      // profile has loaded yet.
+      expect(find.text('Happy'), findsOneWidget);
+      expect(
+        find.text('Secure mobile companion for your sessions'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('renders profile section with user display name', (
@@ -83,7 +88,7 @@ void main() {
       expect(find.text('John Doe'), findsOneWidget);
     });
 
-    testWidgets('renders profile section with GitHub email', (tester) async {
+    testWidgets('renders profile header with GitHub bio', (tester) async {
       final profile = Profile(
         id: 'test-id',
         github: GitHubProfile(
@@ -92,18 +97,22 @@ void main() {
           name: 'John Doe',
           avatarUrl: 'https://example.com/avatar.png',
           email: 'john@example.com',
+          bio: 'Building Happy',
         ),
       );
 
       await _pumpAccountScreen(tester, profile: profile);
 
-      expect(find.text('john@example.com'), findsOneWidget);
+      expect(find.text('Building Happy'), findsOneWidget);
     });
 
-    testWidgets('renders default avatar when no avatar URL', (tester) async {
+    testWidgets('renders initial avatar when no avatar URL', (tester) async {
       await _pumpAccountScreen(tester);
 
-      expect(find.byIcon(Icons.person), findsOneWidget);
+      // ProfileHeader falls back to an initial-letter avatar for the
+      // fallback display name "Happy".
+      expect(find.byType(CircleAvatar), findsOneWidget);
+      expect(find.text('H'), findsOneWidget);
     });
 
     testWidgets('renders backup key section', (tester) async {

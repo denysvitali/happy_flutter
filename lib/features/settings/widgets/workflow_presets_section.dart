@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/components/settings_section.dart';
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/snack.dart';
@@ -34,12 +35,12 @@ class WorkflowPresetsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
     return SettingsSection(
-      title: 'Workflow presets',
-      description:
-          'Presets update existing app settings and can be adjusted later.',
+      title: l10n.workflowPresetsTitle,
+      description: l10n.workflowPresetsDescription,
       children: [
-        for (final preset in _workflowPresets)
+        for (final preset in _workflowPresets(l10n))
           _buildPresetRow(context, ref, preset),
       ],
     );
@@ -51,12 +52,15 @@ class WorkflowPresetsSection extends ConsumerWidget {
     _WorkflowPreset preset,
   ) {
     final active = _presetMatches(preset);
+    final l10n = AppLocalizations.of(context);
 
     return SettingsRow(
       icon: preset.icon,
       iconColor: active ? AppColors.success : null,
       title: preset.title,
-      subtitle: active ? '${preset.subtitle} - Active' : preset.subtitle,
+      subtitle: active
+          ? '${preset.subtitle} ${l10n.workflowPresetActiveSuffix}'
+          : preset.subtitle,
       trailing: Icon(
         active ? Icons.check_circle : Icons.flash_on_outlined,
         color: active
@@ -95,7 +99,8 @@ class WorkflowPresetsSection extends ConsumerWidget {
     final notifier = ref.read(settingsNotifierProvider.notifier);
     await notifier.applySettings(Map<String, dynamic>.from(preset.values));
     if (!context.mounted) return;
-    context.showSnack('${preset.title} preset applied');
+    final l10n = AppLocalizations.of(context);
+    context.showSnack('${preset.title} ${l10n.workflowPresetAppliedSnack}');
   }
 }
 
@@ -113,10 +118,10 @@ class _WorkflowPreset {
   final Map<String, Object> values;
 }
 
-const _workflowPresets = [
+List<_WorkflowPreset> _workflowPresets(AppLocalizations l10n) => [
   _WorkflowPreset(
-    title: 'Focus',
-    subtitle: 'Quiet chat, compact sessions, unread-first navigation',
+    title: l10n.workflowPresetFocusTitle,
+    subtitle: l10n.workflowPresetFocusSubtitle,
     icon: Icons.center_focus_strong,
     values: {
       'hideToolCalls': true,
@@ -128,8 +133,8 @@ const _workflowPresets = [
     },
   ),
   _WorkflowPreset(
-    title: 'Voice',
-    subtitle: 'Speech on, inline context, mission-control browsing',
+    title: l10n.workflowPresetVoiceTitle,
+    subtitle: l10n.workflowPresetVoiceSubtitle,
     icon: Icons.record_voice_over,
     values: {
       'ttsEnabled': true,
@@ -139,8 +144,8 @@ const _workflowPresets = [
     },
   ),
   _WorkflowPreset(
-    title: 'Low noise',
-    subtitle: 'Hide tool chatter and inactive work by default',
+    title: l10n.workflowPresetLowNoiseTitle,
+    subtitle: l10n.workflowPresetLowNoiseSubtitle,
     icon: Icons.notifications_paused_outlined,
     values: {
       'hideToolCalls': true,
@@ -151,8 +156,8 @@ const _workflowPresets = [
     },
   ),
   _WorkflowPreset(
-    title: 'Debug',
-    subtitle: 'Show internals, tool calls, todos, and developer logging',
+    title: l10n.workflowPresetDebugTitle,
+    subtitle: l10n.workflowPresetDebugSubtitle,
     icon: Icons.bug_report_outlined,
     values: {
       'developerModeEnabled': true,

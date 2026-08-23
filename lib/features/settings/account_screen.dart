@@ -6,11 +6,11 @@ import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/profile.dart';
 import '../../core/providers/app_providers.dart';
-import '../../core/theme/app_tokens.dart';
 import '../../core/routing/safe_pop.dart';
-import '../../core/widgets/network_avatar_image.dart';
+import '../../core/theme/app_tokens.dart';
 import 'helpers/account_dialogs.dart';
 import 'widgets/connected_accounts_section.dart';
+import 'widgets/profile_header.dart';
 
 /// Account management screen
 class AccountScreen extends ConsumerWidget {
@@ -32,7 +32,10 @@ class AccountScreen extends ConsumerWidget {
       body: ListView(
         padding: AppScreenPadding.settings,
         children: [
-          buildProfileSection(context, ref),
+          // Same summary widget as the settings hub; no tap target
+          // here (onTap: null) since this is already the account
+          // screen.
+          ProfileHeader(profile: ref.watch(profileNotifierProvider)),
           const SizedBox(height: AppSpacing.xxl),
           buildBackupSection(context),
           const SizedBox(height: AppSpacing.xxl),
@@ -43,61 +46,6 @@ class AccountScreen extends ConsumerWidget {
           buildServicesSection(context),
         ],
       ),
-    );
-  }
-
-  Widget buildProfileSection(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileNotifierProvider);
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return SettingsSection(
-      title: context.l10n.accountProfile,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          child: Row(
-            children: [
-              if (profile?.avatarUrl != null)
-                NetworkAvatarImage(
-                  url: profile!.avatarUrl!,
-                  size: 36,
-                  fallback: SettingsIconContainer(
-                    icon: Icons.person,
-                    color: cs.primary,
-                  ),
-                )
-              else
-                SettingsIconContainer(icon: Icons.person, color: cs.primary),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      profile?.displayName ?? 'Loading...',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      profile?.github?.email ?? 'Not loaded',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/components/settings_section.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
@@ -87,8 +88,42 @@ Widget _buildApp(
   );
 }
 
+/// Same provider wiring as [_buildApp], but hosted under a real
+/// [GoRouter] so navigation assertions can run.
+Widget _buildRouterApp(Settings initialSettings) {
+  final router = GoRouter(
+    initialLocation: '/settings',
+    routes: [
+      GoRoute(
+        path: '/settings',
+        builder: (_, _) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/settings/server',
+        builder: (_, _) =>
+            const Scaffold(body: Text('Server settings placeholder')),
+      ),
+    ],
+  );
+  return ProviderScope(
+    overrides: [
+      settingsNotifierProvider.overrideWith(
+        () => _TestSettingsNotifier(initialSettings),
+      ),
+      machinesNotifierProvider.overrideWith(
+        () => _TestMachinesNotifier(const {}),
+      ),
+    ],
+    child: MaterialApp.router(
+      routerConfig: router,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+    ),
+  );
+}
+
 void main() {
-  testWidgets('uses a compact account row and puts search before settings', (
+  testWidgets('uses a compact account header and puts search before status', (
     tester,
   ) async {
     await tester.pumpWidget(_buildApp(Settings()));
@@ -104,7 +139,26 @@ void main() {
     expect(searchY, lessThan(statusY));
   });
 
-  testWidgets('search filters settings sections', (tester) async {
+  testWidgets('account section is gone; danger zone keeps sign out', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildApp(Settings()));
+    await tester.pumpAndSettle();
+
+    // The old one-row Account section is fully replaced by ProfileHeader
+    // and the status block's account-recovery row.
+    expect(find.text('Account Settings'), findsNothing);
+    // The only remaining "Account"-titled section is the danger zone.
+    expect(find.text('ACCOUNT'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Sign out'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Sign out'), findsOneWidget);
+  });
+
+  testWidgets('search filters sections down to matching rows', (tester) async {
     await tester.pumpWidget(_buildApp(Settings()));
     await tester.pumpAndSettle();
 
@@ -113,8 +167,46 @@ void main() {
     await tester.enterText(find.byType(TextField), 'server');
     await tester.pumpAndSettle();
 
+    // Infrastructure keeps only the rows matching "server".
     expect(find.text('Server URL'), findsOneWidget);
+    expect(find.textContaining('MCP Servers'), findsWidgets);
+    expect(find.text('Sandbox'), findsNothing);
+    expect(find.text('Machines'), findsNothing);
+    // Non-matching blocks are dropped entirely.
     expect(find.text('Sync needs attention'), findsNothing);
+  });
+
+  testWidgets('row-level search surfaces a single subtitle match', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_buildApp(Settings()));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'archive');
+    await tester.pumpAndSettle();
+
+    // Only the auto-archive row survives inside Sessions (title and
+    // subtitle both render the same string).
+    expect(find.text('SESSIONS'), findsOneWidget);
+    expect(find.text('Auto-Archive'), findsNWidgets(2));
+    expect(find.text('Session Folders'), findsNothing);
+    expect(find.text('Session view style'), findsNothing);
+    expect(find.text('STATUS'), findsNothing);
+  });
+
+  testWidgets('server row opens the server-settings route', (tester) async {
+    await tester.pumpWidget(_buildRouterApp(Settings()));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Server URL'),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Server URL'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Server settings placeholder'), findsOneWidget);
   });
 
   testWidgets('workflow preset applies existing settings', (tester) async {

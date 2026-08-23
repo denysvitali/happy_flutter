@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/settings_section.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/offline_tts_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_tokens.dart';
+import 'widgets/voice_status_subtitles.dart';
 
 /// Manage downloadable Piper voices for offline TTS.
 ///
@@ -251,13 +253,20 @@ class _VoiceRow extends StatelessWidget {
     if (voice.sizeLabel.isNotEmpty) {
       subtitle.write(' · ${voice.sizeLabel}');
     }
-    if (isFailed) {
-      subtitle.write(' · download failed, tap retry');
-    } else if (isDownloading) {
-      subtitle.write(' · downloading…');
-    } else if (!isReady) {
-      subtitle.write(' · not downloaded');
-    }
+    final l10n = AppLocalizations.of(context);
+    subtitle.write(downloadStatusSuffix(
+      ready: isReady,
+      downloading: isDownloading,
+      failed: isFailed,
+      strings: DownloadStatusStrings(
+        ready: l10n.voiceDownloadStatusReady,
+        downloading: l10n.voiceDownloadStatusDownloading,
+        failed: l10n.voiceDownloadStatusFailed,
+        notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
+        failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
+        notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+      ),
+    ));
 
     final IconData leadingIcon;
     final Color? leadingColor;

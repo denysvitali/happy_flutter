@@ -659,6 +659,21 @@ AIBackendProfile? resolveProfile(
   return getBuiltInProfile(id);
 }
 
+/// Merges [customProfiles] with [builtInProfiles], deduplicating by id
+/// (custom entries win).
+List<AIBackendProfile> effectiveProfiles(
+  List<AIBackendProfile> customProfiles,
+) {
+  final seen = <String>{};
+  final resolved = <AIBackendProfile>[];
+  for (final profile in [...customProfiles, ...builtInProfiles]) {
+    if (seen.add(profile.id)) {
+      resolved.add(profile);
+    }
+  }
+  return resolved;
+}
+
 /// Resolve the selected profile ID for an agent.
 ///
 /// Newer settings store selections in [Settings.lastUsedProfilesByAgent].

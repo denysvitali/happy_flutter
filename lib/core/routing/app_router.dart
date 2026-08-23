@@ -48,7 +48,6 @@ import '../../features/settings/screens/auto_archive_settings_screen.dart';
 import '../../features/settings/screens/sessions_folders_settings_screen.dart';
 import '../../features/settings/server_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
-import '../../features/settings/theme_settings_screen.dart';
 import '../../features/settings/usage_screen.dart';
 import '../../features/settings/voice_language_settings_screen.dart';
 import '../../features/settings/voice_settings_screen.dart';

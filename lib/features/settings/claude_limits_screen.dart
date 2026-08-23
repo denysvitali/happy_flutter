@@ -1,20 +1,18 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/components/app_empty_state.dart';
 import '../../core/components/app_loading_indicator.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/claude_local_usage.dart';
 import '../../core/models/claude_usage_limits.dart';
-import '../../core/models/machine.dart';
-import '../../core/providers/app_providers.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
-import 'widgets/machine_picker.dart';
+import 'widgets/machine_usage_scaffold.dart';
 import 'widgets/token_usage_chart.dart';
 
 /// Screen showing Claude Code rate limits fetched from a connected
@@ -23,15 +21,11 @@ class ClaudeLimitsScreen extends ConsumerStatefulWidget {
   const ClaudeLimitsScreen({super.key});
 
   @override
-  ConsumerState<ClaudeLimitsScreen> createState() => _ClaudeLimitsScreenState();
+  ConsumerState<ClaudeLimitsScreen> createState() =>
+      _ClaudeLimitsScreenState();
 }
 
 class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
-  String? _selectedMachineId;
-  ClaudeUsageLimits? _limits;
-  bool _isLoading = false;
-  String? _error;
-
   // Local-usage state (scraped from ~/.claude/stats-cache.json).
   // Loaded in parallel with the OAuth limits; failures here do NOT
   // block the OAuth limits from rendering.
@@ -40,67 +34,68 @@ class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
   String? _localError;
 
   @override
-  void initState() {
-    super.initState();
-    Future<void>.microtask(() {
-      _autoSelectMachine();
-    });
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return MachineUsageScaffold<ClaudeUsageLimits>(
+      title: l10n.claudeLimitsTitle,
+      pickerTitle: l10n.claudeLimitsSelectMachine,
+      noMachinesIcon: Icons.computer,
+      noMachinesTitle: l10n.claudeLimitsNoMachines,
+      noMachinesSubtitle: l10n.claudeLimitsNoMachinesSubtitle,
+      emptyIcon: Icons.speed,
+      emptyTitle: l10n.claudeLimitsNotAvailable,
+      emptySubtitle: l10n.claudeLimitsNotAvailableSubtitle,
+      fetch: _fetch,
+      actionsBuilder: (controller) => [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: l10n.claudeLocalUsageRefresh,
+          onPressed: controller.selectedMachineId == null
+              ? null
+              : controller.refresh,
+        ),
+      ],
+      contentBuilder: (context, limits) => _buildSections(context, limits),
+    );
   }
 
-  void _autoSelectMachine() {
-    final machineSortNow = DateTime.now().millisecondsSinceEpoch;
-    final machines = ref.read(machinesNotifierProvider).values.toList()
-      ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
-    final online = machines.where((machine) => machine.isOnline).toList();
-    final target = online.isNotEmpty ? online.first : null;
-    if (target != null) {
-      setState(() => _selectedMachineId = target.id);
-      _loadAll(target.id);
-    }
-  }
+  /// Fetch round for the shared scaffold. Starts the local-usage side
+  /// load first so both requests fly in parallel, then resolves with the
+  /// OAuth limits; a local-usage failure never blocks this result.
+  Future<MachineUsageSnapshot<ClaudeUsageLimits>> _fetch(
+    String machineId,
+  ) async {
+    unawaited(_loadLocalUsage(machineId));
 
-  Future<void> _loadAll(String machineId) async {
-    setState(() {
-      _isLoading = true;
-      _isLoadingLocal = true;
-      _error = null;
-      _localError = null;
-      _limits = null;
-      _localUsage = null;
-    });
-    await Future.wait([_loadLimits(machineId), _loadLocalUsage(machineId)]);
-  }
-
-  Future<void> _loadLimits(String machineId) async {
     final response = await Sync().machineGetClaudeUsageLimits(
       machineId: machineId,
     );
 
-    if (!mounted) return;
-
     if (!response.success || response.data == null) {
-      setState(() {
-        _error = response.error ?? 'Unknown error';
-        _isLoading = false;
-      });
-      return;
+      return MachineUsageSnapshot<ClaudeUsageLimits>.error(
+        response.error ?? 'Unknown error',
+      );
     }
 
     try {
       final json = jsonDecode(response.data!) as Map<String, dynamic>;
-      setState(() {
-        _limits = ClaudeUsageLimits.fromJson(json);
-        _isLoading = false;
-      });
+      return MachineUsageSnapshot<ClaudeUsageLimits>.data(
+        ClaudeUsageLimits.fromJson(json),
+      );
     } catch (e) {
-      setState(() {
-        _error = 'Failed to parse response: $e';
-        _isLoading = false;
-      });
+      return MachineUsageSnapshot<ClaudeUsageLimits>.error(
+        'Failed to parse response: $e',
+      );
     }
   }
 
   Future<void> _loadLocalUsage(String machineId) async {
+    setState(() {
+      _isLoadingLocal = true;
+      _localError = null;
+      _localUsage = null;
+    });
+
     final response = await Sync().machineGetClaudeLocalUsage(
       machineId: machineId,
     );
@@ -129,105 +124,7 @@ class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final machines = ref.watch(machinesNotifierProvider);
-
-    if (machines.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: Text(l10n.claudeLimitsTitle)),
-        body: AppEmptyState(
-          icon: Icons.computer,
-          title: l10n.claudeLimitsNoMachines,
-          subtitle: l10n.claudeLimitsNoMachinesSubtitle,
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.claudeLimitsTitle),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: l10n.claudeLocalUsageRefresh,
-            onPressed: _selectedMachineId == null
-                ? null
-                : () => _loadAll(_selectedMachineId!),
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const AppLoadingIndicator()
-          : _error != null
-          ? MachineScopedEmptyBody(
-              machines: machines,
-              selectedMachineId: _selectedMachineId,
-              onMachineChanged: (id) {
-                setState(() => _selectedMachineId = id);
-                if (id != null) _loadAll(id);
-              },
-              pickerTitle: l10n.claudeLimitsSelectMachine,
-              icon: Icons.error_outline,
-              title: l10n.claudeLimitsNotAvailable,
-              subtitle: _error!,
-              onRetry: () {
-                if (_selectedMachineId != null) {
-                  _loadAll(_selectedMachineId!);
-                }
-              },
-            )
-          : _limits != null
-          ? _LimitsBody(
-              machines: machines,
-              selectedMachineId: _selectedMachineId,
-              limits: _limits!,
-              localUsage: _localUsage,
-              isLoadingLocal: _isLoadingLocal,
-              localError: _localError,
-              onMachineChanged: (id) {
-                setState(() => _selectedMachineId = id);
-                if (id != null) _loadAll(id);
-              },
-            )
-          : MachineScopedEmptyBody(
-              machines: machines,
-              selectedMachineId: _selectedMachineId,
-              onMachineChanged: (id) {
-                setState(() => _selectedMachineId = id);
-                if (id != null) _loadAll(id);
-              },
-              pickerTitle: l10n.claudeLimitsSelectMachine,
-              icon: Icons.speed,
-              title: l10n.claudeLimitsNotAvailable,
-              subtitle: l10n.claudeLimitsNotAvailableSubtitle,
-            ),
-    );
-  }
-}
-
-class _LimitsBody extends StatelessWidget {
-  const _LimitsBody({
-    required this.machines,
-    required this.selectedMachineId,
-    required this.limits,
-    required this.localUsage,
-    required this.isLoadingLocal,
-    required this.localError,
-    required this.onMachineChanged,
-  });
-
-  final Map<String, Machine> machines;
-  final String? selectedMachineId;
-  final ClaudeUsageLimits limits;
-  final ClaudeLocalUsage? localUsage;
-  final bool isLoadingLocal;
-  final String? localError;
-  final ValueChanged<String?> onMachineChanged;
-
-  @override
-  Widget build(BuildContext context) {
+  List<Widget> _buildSections(BuildContext context, ClaudeUsageLimits limits) {
     final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
     final windows = limits.activeWindows;
@@ -241,128 +138,58 @@ class _LimitsBody extends StatelessWidget {
         ? null
         : '\$${usedCredits.toStringAsFixed(2)}';
 
-    return ListView(
-      padding: AppScreenPadding.settings,
-      children: [
-        MachinePicker(
-          machines: machines,
-          selectedMachineId: selectedMachineId,
-          onChanged: onMachineChanged,
-          sectionTitle: l10n.claudeLimitsSelectMachine,
+    return [
+      if (windows.isNotEmpty)
+        SettingsSection(
+          title: l10n.claudeLimitsUsage,
+          children: [
+            for (final (label, window) in windows)
+              UsageWindowRow(
+                title: label,
+                percent: window.utilization,
+                footer: _usageWindowFooter(context, window),
+              ),
+          ],
         ),
+      if (extraUsage != null && extraUsage.isEnabled) ...[
         const SizedBox(height: AppSpacing.lg),
-        if (windows.isNotEmpty)
-          SettingsSection(
-            title: l10n.claudeLimitsUsage,
-            children: [
-              for (final (label, window) in windows)
-                _UsageWindowRow(label: label, window: window),
-            ],
-          ),
-        if (extraUsage != null && extraUsage.isEnabled) ...[
-          const SizedBox(height: AppSpacing.lg),
-          SettingsSection(
-            title: l10n.claudeLimitsExtraUsage,
-            children: [
-              if (monthlyLimitLabel != null)
-                _StatRow(
-                  icon: Icons.credit_card,
-                  title: l10n.claudeLimitsMonthlyLimit,
-                  value: monthlyLimitLabel,
-                  iconColor: cs.primary,
-                ),
-              if (usedCreditsLabel != null)
-                _StatRow(
-                  icon: Icons.receipt_long,
-                  title: l10n.claudeLimitsUsedCredits,
-                  value: usedCreditsLabel,
-                  iconColor: AppColors.warning,
-                ),
-            ],
-          ),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        _LocalUsageSection(
-          usage: localUsage,
-          isLoading: isLoadingLocal,
-          error: localError,
+        SettingsSection(
+          title: l10n.claudeLimitsExtraUsage,
+          children: [
+            if (monthlyLimitLabel != null)
+              ContainerUsageStatRow(
+                icon: Icons.credit_card,
+                title: l10n.claudeLimitsMonthlyLimit,
+                value: monthlyLimitLabel,
+                iconColor: cs.primary,
+              ),
+            if (usedCreditsLabel != null)
+              ContainerUsageStatRow(
+                icon: Icons.receipt_long,
+                title: l10n.claudeLimitsUsedCredits,
+                value: usedCreditsLabel,
+                iconColor: AppColors.warning,
+              ),
+          ],
         ),
       ],
-    );
-  }
-}
-
-
-
-class _UsageWindowRow extends StatelessWidget {
-  const _UsageWindowRow({required this.label, required this.window});
-
-  final String label;
-  final ClaudeUsageWindow window;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final resetsIn = _formatResetsAt(window.resetsAt);
-
-    // Pick colour based on utilization.
-    final Color barColor;
-    if (window.utilization >= 90) {
-      barColor = AppColors.error;
-    } else if (window.utilization >= 70) {
-      barColor = AppColors.warning;
-    } else {
-      barColor = AppColors.success;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.smd,
+      const SizedBox(height: AppSpacing.lg),
+      _LocalUsageSection(
+        usage: _localUsage,
+        isLoading: _isLoadingLocal,
+        error: _localError,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              Text(
-                '${window.utilization.toStringAsFixed(0)}%',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: barColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.xs),
-            child: LinearProgressIndicator(
-              value: window.fraction,
-              minHeight: 6,
-              backgroundColor: cs.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-          if (resetsIn != null) ...[
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              resetsIn,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ],
+    ];
+  }
+
+  Widget? _usageWindowFooter(BuildContext context, ClaudeUsageWindow window) {
+    final resetsIn = _formatResetsAt(window.resetsAt);
+    if (resetsIn == null) return null;
+    final theme = Theme.of(context);
+    return Text(
+      resetsIn,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }
@@ -381,53 +208,6 @@ class _UsageWindowRow extends StatelessWidget {
       return 'Resets in ${diff.inHours}h ${diff.inMinutes % 60}m';
     }
     return 'Resets in ${diff.inMinutes}m';
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  const _StatRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.iconColor,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          SettingsIconContainer(icon: icon, color: iconColor),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -497,7 +277,7 @@ class _LocalUsageSection extends StatelessWidget {
       final u = usage!;
       // Total row.
       children.add(
-        _StatRow(
+        ContainerUsageStatRow(
           icon: Icons.functions,
           title: l10n.claudeLocalUsageTotal,
           value:

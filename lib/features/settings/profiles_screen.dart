@@ -44,14 +44,14 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       ref.read(settingsNotifierProvider),
       selectedAgent,
     );
-    final effectiveProfiles = _effectiveProfiles(customProfiles);
-    final claudeProfiles = effectiveProfiles
+    final allProfiles = effectiveProfiles(customProfiles);
+    final claudeProfiles = allProfiles
         .where((profile) => profile.compatibility.supportsAgent('claude'))
         .toList();
-    final codexProfiles = effectiveProfiles
+    final codexProfiles = allProfiles
         .where((profile) => profile.compatibility.supportsAgent('codex'))
         .toList();
-    final geminiProfiles = effectiveProfiles
+    final geminiProfiles = allProfiles
         .where((profile) => profile.compatibility.supportsAgent('gemini'))
         .toList();
 
@@ -61,7 +61,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     // built-in customisation reset), drop the selection so the empty
     // state is shown instead of an editor with stale state.
     if (_selectedProfileId != null &&
-        !effectiveProfiles.any((p) => p.id == _selectedProfileId)) {
+        !allProfiles.any((p) => p.id == _selectedProfileId)) {
       _selectedProfileId = null;
     }
 
@@ -145,26 +145,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                       embedded: true,
                       onClose: () => setState(() => _selectedProfileId = null),
                     ),
-              emptyDetail: const TabletDetailEmpty(
+              emptyDetail: TabletDetailEmpty(
                 icon: Icons.person_outline,
-                message: 'Select a profile to edit',
+                message: l10n.profilesSelectToEdit,
               ),
             )
           : master,
     );
-  }
-
-  List<AIBackendProfile> _effectiveProfiles(
-    List<AIBackendProfile> customProfiles,
-  ) {
-    final seen = <String>{};
-    final resolved = <AIBackendProfile>[];
-    for (final profile in [...customProfiles, ...builtInProfiles]) {
-      if (seen.add(profile.id)) {
-        resolved.add(profile);
-      }
-    }
-    return resolved;
   }
 
   Widget _buildAgentSection({
@@ -379,7 +366,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       return;
     }
 
-    final name = _deriveProfileName(result);
+    final name = _deriveProfileName(
+      result,
+      l10n.profilesImportedFallbackName,
+    );
     final profile = buildProfileFromEnvVars(name, result);
 
     final settings = ref.read(settingsNotifierProvider);
@@ -423,10 +413,13 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     }
   }
 
-  String _deriveProfileName(ShellScriptParseResult result) {
+  String _deriveProfileName(
+    ShellScriptParseResult result,
+    String fallbackName,
+  ) {
     // Secret variables are skipped so a pasted credential can never
     // become the (unmasked) profile name.
-    return suggestProfileName(result.envVars) ?? 'Imported Profile';
+    return suggestProfileName(result.envVars) ?? fallbackName;
   }
 
   void _confirmDeleteProfile(
@@ -487,7 +480,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final now = DateTime.now().millisecondsSinceEpoch;
     final duplicate = AIBackendProfile(
       id: 'custom_$now',
-      name: '${profile.name} (Copy)',
+      name:
+          '${profile.name}${AppLocalizations.of(context).profilesCopySuffix}',
       description: profile.description,
       startupBashScript: profile.startupBashScript,
       environmentVariables: profile.environmentVariables

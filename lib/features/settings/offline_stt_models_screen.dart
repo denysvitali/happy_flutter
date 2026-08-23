@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/components/settings_section.dart';
+import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
+import 'widgets/voice_status_subtitles.dart';
 
 /// Manage downloadable offline speech-to-text models for dictation.
 ///
@@ -236,6 +238,13 @@ String _tierLabel(String tier) {
   }
 }
 
+/// Keep the first line short enough for a list subtitle.
+String? _shortErrorDetail(Object? error) {
+  final err = error?.toString();
+  if (err == null || err.isEmpty) return null;
+  return err.length > 90 ? '${err.substring(0, 90)}…' : err;
+}
+
 void unawaitedSafe(Future<void> future) {
   // Local helper so we don't import dart:async just for unawaited.
   future.ignore();
@@ -274,20 +283,22 @@ class _ModelRow extends StatelessWidget {
     if (model.sizeLabel.isNotEmpty) {
       subtitle.write(' · ${model.sizeLabel}');
     }
-    if (isFailed) {
-      final err = lastError?.toString();
-      if (err != null && err.isNotEmpty) {
-        // Keep the first line short enough for a list subtitle.
-        final short = err.length > 90 ? '${err.substring(0, 90)}…' : err;
-        subtitle.write(' · $short');
-      } else {
-        subtitle.write(' · download failed, tap retry');
-      }
-    } else if (isDownloading) {
-      subtitle.write(' · ${progress?.label ?? 'downloading…'}');
-    } else if (!isReady) {
-      subtitle.write(' · not downloaded');
-    }
+    final l10n = AppLocalizations.of(context);
+    subtitle.write(downloadStatusSuffix(
+      ready: isReady,
+      downloading: isDownloading,
+      failed: isFailed,
+      strings: DownloadStatusStrings(
+        ready: l10n.voiceDownloadStatusReady,
+        downloading: l10n.voiceDownloadStatusDownloading,
+        failed: l10n.voiceDownloadStatusFailed,
+        notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
+        failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
+        notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+      ),
+      failureDetail: _shortErrorDetail(lastError),
+      downloadingLabel: progress?.label,
+    ));
 
     final IconData leadingIcon;
     final Color? leadingColor;
