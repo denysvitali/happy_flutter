@@ -12,6 +12,7 @@
 
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/message_cache_service.dart';
@@ -67,7 +68,10 @@ void main() {
     late Sync instance;
 
     setUp(() {
-      instance = createTestSync();
+      instance = createTestSync()
+        // The singleton keeps 250ms trailing-edge notify timers across
+        // tests; drop them so each test observes only its own emits.
+        ..testResetDataChangeDebounce();
     });
 
     Session makeSession(String id) {
@@ -114,43 +118,45 @@ void main() {
     });
 
     test('domain-scoped emit reaches onDomainChanged but NOT '
-        'global onDataChanged', () async {
-      const sessionId = 'sess-scoped';
-      instance.testSessions[sessionId] = makeSession(sessionId);
+        'global onDataChanged', () {
+      fakeAsync((async) {
+        const sessionId = 'sess-scoped';
+        instance.testSessions[sessionId] = makeSession(sessionId);
 
-      var globalEmits = 0;
-      var sessionsDomainEmits = 0;
-      final globalSub = instance.onDataChanged.listen((_) => globalEmits++);
-      final domainSub = instance.onDomainChanged
-          .where((d) => d == SyncDomain.sessions)
-          .listen((_) => sessionsDomainEmits++);
+        var globalEmits = 0;
+        var sessionsDomainEmits = 0;
+        final globalSub = instance.onDataChanged.listen((_) => globalEmits++);
+        final domainSub = instance.onDomainChanged
+            .where((d) => d == SyncDomain.sessions)
+            .listen((_) => sessionsDomainEmits++);
 
-      // Triggers _notifyDataChanged({SyncDomain.sessions}).
-      instance.handleEphemeralUpdate({
-        't': 'activity',
-        'id': sessionId,
-        'thinking': true,
-        'active': true,
+        // Triggers _notifyDataChanged({SyncDomain.sessions}).
+        instance.handleEphemeralUpdate({
+          't': 'activity',
+          'id': sessionId,
+          'thinking': true,
+          'active': true,
+        });
+
+        // Drain beyond any debounce window (virtual clock).
+        async.elapse(const Duration(milliseconds: 350));
+
+        expect(
+          sessionsDomainEmits,
+          greaterThanOrEqualTo(1),
+          reason: 'onDomainChanged(sessions) must fire',
+        );
+        expect(
+          globalEmits,
+          0,
+          reason:
+              'scoped emit must NOT wake the global onDataChanged firehose '
+              '— that would defeat domain scoping',
+        );
+
+        globalSub.cancel();
+        domainSub.cancel();
       });
-
-      // Drain beyond any debounce window.
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-
-      expect(
-        sessionsDomainEmits,
-        greaterThanOrEqualTo(1),
-        reason: 'onDomainChanged(sessions) must fire',
-      );
-      expect(
-        globalEmits,
-        0,
-        reason:
-            'scoped emit must NOT wake the global onDataChanged firehose '
-            '— that would defeat domain scoping',
-      );
-
-      await globalSub.cancel();
-      await domainSub.cancel();
     });
 
     test('dataChangeCounter ticks for scoped emits even though the '
@@ -185,19 +191,33 @@ void main() {
       MessageCacheService().debugSetStorage = storage;
       addTearDown(MessageCacheService().debugResetStorage);
 
+      // Same debounce-vs-ceiling geometry as production (2000ms / 15000ms)
+      // scaled down so the contract runs on a real clock in under a second
+      // instead of ~16.5s. The tick interval stays well below the debounce.
+      const debounceMs = 100;
+      const maxDelayMs = 800;
+      const tickMs = 10;
+      SyncTestHelpers.testSetSaveMessagesTiming(
+        debounceMs: debounceMs,
+        maxDelayMs: maxDelayMs,
+      );
+      addTearDown(SyncTestHelpers.testResetSaveMessagesTiming);
+
       instance.testSetSessionMessages(sessionId, [
         {'id': 'm-1', 'seq': 1, 'role': 'user', 'content': 'hi'},
       ]);
 
-      // Continuously reschedule the save every 100ms — well below
-      // the 2000ms debounce.  Without the max-delay ceiling, the
-      // 2s timer would reset on every call and the save would
-      // never fire while we keep tapping it.
+      // Continuously reschedule the save every tick — well below the
+      // debounce.  Without the max-delay ceiling, the debounce timer would
+      // reset on every call and the save would never fire while we keep
+      // tapping it.
       instance.testScheduleSaveMessages(sessionId);
       expect(instance.testHasPendingSaveTimer(sessionId), isTrue);
 
-      for (var i = 0; i < 165; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 100));
+      // Keep tapping for ~110% of the ceiling.
+      const ticks = maxDelayMs * 11 ~/ 10 ~/ tickMs;
+      for (var i = 0; i < ticks; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: tickMs));
         // Append a message each tick to simulate streaming tokens.
         instance.testSetSessionMessages(sessionId, [
           for (var k = 0; k <= i; k++)
@@ -206,8 +226,15 @@ void main() {
         instance.testScheduleSaveMessages(sessionId);
       }
 
-      // After ~16.5s of constant rescheduling the cache MUST have been
-      // flushed at least once because of the 15s ceiling.
+      // The ceiling has fired by now; the async write runs in a worker, so
+      // give it a bounded moment to land instead of asserting mid-flight.
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (storage.saveCount == 0 && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+
+      // After sustained rescheduling beyond the ceiling the cache MUST
+      // have been flushed at least once because of the max-delay ceiling.
       expect(
         storage.saveCount,
         greaterThanOrEqualTo(1),
@@ -289,50 +316,52 @@ void main() {
     );
 
     test('domain-scoped emits across multiple sessions only wake the '
-        'sessions domain subscriber', () async {
-      var sessionsDomainEmits = 0;
-      var messagesDomainEmits = 0;
-      var globalEmits = 0;
-      final globalSub = instance.onDataChanged.listen((_) => globalEmits++);
-      final sessionsSub = instance.onDomainChanged
-          .where((d) => d == SyncDomain.sessions)
-          .listen((_) => sessionsDomainEmits++);
-      final messagesSub = instance.onDomainChanged
-          .where((d) => d == SyncDomain.messages)
-          .listen((_) => messagesDomainEmits++);
+        'sessions domain subscriber', () {
+      fakeAsync((async) {
+        var sessionsDomainEmits = 0;
+        var messagesDomainEmits = 0;
+        var globalEmits = 0;
+        final globalSub = instance.onDataChanged.listen((_) => globalEmits++);
+        final sessionsSub = instance.onDomainChanged
+            .where((d) => d == SyncDomain.sessions)
+            .listen((_) => sessionsDomainEmits++);
+        final messagesSub = instance.onDomainChanged
+            .where((d) => d == SyncDomain.messages)
+            .listen((_) => messagesDomainEmits++);
 
-      for (var i = 0; i < 5; i++) {
-        final id = 'sess-multi-$i';
-        instance.testSessions[id] = makeSession(id);
-        instance.handleEphemeralUpdate({
-          't': 'activity',
-          'id': id,
-          'thinking': i.isEven,
-          'active': true,
-        });
-      }
+        for (var i = 0; i < 5; i++) {
+          final id = 'sess-multi-$i';
+          instance.testSessions[id] = makeSession(id);
+          instance.handleEphemeralUpdate({
+            't': 'activity',
+            'id': id,
+            'thinking': i.isEven,
+            'active': true,
+          });
+        }
 
-      await Future<void>.delayed(const Duration(milliseconds: 400));
+        async.elapse(const Duration(milliseconds: 400));
 
-      expect(sessionsDomainEmits, greaterThanOrEqualTo(1));
-      expect(
-        messagesDomainEmits,
-        0,
-        reason:
-            'a sessions-only update must not wake messages-domain '
-            'subscribers',
-      );
-      expect(
-        globalEmits,
-        0,
-        reason:
-            '5 scoped emits must produce 0 firehose wakeups; this is '
-            'the core perf win',
-      );
+        expect(sessionsDomainEmits, greaterThanOrEqualTo(1));
+        expect(
+          messagesDomainEmits,
+          0,
+          reason:
+              'a sessions-only update must not wake messages-domain '
+              'subscribers',
+        );
+        expect(
+          globalEmits,
+          0,
+          reason:
+              '5 scoped emits must produce 0 firehose wakeups; this is '
+              'the core perf win',
+        );
 
-      await globalSub.cancel();
-      await sessionsSub.cancel();
-      await messagesSub.cancel();
+        globalSub.cancel();
+        sessionsSub.cancel();
+        messagesSub.cancel();
+      });
     });
   });
 }

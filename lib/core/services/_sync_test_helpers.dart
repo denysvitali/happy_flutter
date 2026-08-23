@@ -352,6 +352,42 @@ extension SyncTestHelpers on Sync {
   bool testHasPendingSaveTimer(String sessionId) =>
       _saveMsgsDebounceTimers.containsKey(sessionId);
 
+  /// Test helper: cancel every pending data-change / domain-change
+  /// debounce timer so trailing-edge emissions leaked by a previous test
+  /// on the shared singleton cannot fire into (or swallow) the next
+  /// test's notifications. Mirrors the timer clears in `shutdown()`.
+  @visibleForTesting
+  void testResetDataChangeDebounce() {
+    _dataChangeDebounceTimer?.cancel();
+    _dataChangeDebounceTimer = null;
+    _dataChangePendingTrailing = false;
+    for (final timer in _domainChangeDebounceTimers.values) {
+      timer.cancel();
+    }
+    _domainChangeDebounceTimers.clear();
+    _domainChangePendingTrailing.clear();
+  }
+
+  /// Test helper: shrink the message-cache save debounce and max-delay
+  /// ceiling so the "save fires under sustained streaming" contract can
+  /// run on a real clock in well under a second instead of ~16 s.
+  /// Pair with [testResetSaveMessagesTiming] in `tearDown`.
+  @visibleForTesting
+  static void testSetSaveMessagesTiming({
+    required int debounceMs,
+    required int maxDelayMs,
+  }) {
+    SyncSocket._saveMsgsDebounceMs = debounceMs;
+    SyncSocket._saveMsgsMaxDelayMs = maxDelayMs;
+  }
+
+  /// Test helper: restore the production save debounce / ceiling.
+  @visibleForTesting
+  static void testResetSaveMessagesTiming() {
+    SyncSocket._saveMsgsDebounceMs = SyncSocket._saveMsgsDebounceMsDefault;
+    SyncSocket._saveMsgsMaxDelayMs = SyncSocket._saveMsgsMaxDelayMsDefault;
+  }
+
   /// Test helper: invoke [_flushPendingMessageSaves] so the lifecycle
   /// flush behaviour can be asserted in isolation.
   @visibleForTesting
