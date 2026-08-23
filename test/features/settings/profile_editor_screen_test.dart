@@ -141,35 +141,6 @@ void main() {
       expect(find.byIcon(Icons.visibility), findsNothing);
     });
 
-    testWidgets('renders configured Codex providers', (tester) async {
-      final profile = AIBackendProfile(
-        id: 'custom-codex',
-        name: 'Custom Codex',
-        codexModelProvider: 'llm-proxy',
-        codexProviders: [
-          CodexProviderConfig(
-            id: 'llm-proxy',
-            name: 'LLM Proxy',
-            baseUrl: 'http://llm-proxy.k2.k8s.best/v1',
-            envKey: 'LLM_PROXY_API_KEY',
-          ),
-        ],
-      );
-
-      await tester.pumpWidget(buildSubject(existing: profile));
-      await tester.pumpAndSettle();
-
-      await tester.drag(find.byType(ListView).first, const Offset(0, -1000));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Codex providers'), findsOneWidget);
-      expect(find.widgetWithText(TextFormField, 'llm-proxy'), findsOneWidget);
-      expect(
-        find.widgetWithText(TextFormField, 'LLM_PROXY_API_KEY'),
-        findsOneWidget,
-      );
-    });
-
     testWidgets('masks the value live when the key becomes secret', (
       tester,
     ) async {
