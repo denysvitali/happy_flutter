@@ -211,6 +211,65 @@ class AES256Encryption implements Encryptor {
     ];
   }
 
+  /// Decode-and-decrypt a batch of base64 envelopes in a background
+  /// isolate.
+  ///
+  /// Worker-side extension of [decryptInIsolate]: the caller passes raw
+  /// base64 ciphertext strings (the wire envelope's `c` field) and
+  /// receives decoded JSON bodies. Base64 decoding and the version-byte
+  /// strip happen inside the worker too, so a large page no longer spends
+  /// caller-isolate time on either. Wire format is untouched: items are
+  /// `base64(0x00 || nonce || ct || tag)` exactly as produced by
+  /// [encrypt] / [encryptInIsolate].
+  ///
+  /// Per-item null/failure semantics match the old two-step pipeline
+  /// ([decrypt] over [Base64Utils.decode]-ed bytes); base64 decode
+  /// failures are reported separately via
+  /// [EncodedDecryptResult.decodeFailures] so callers can keep their
+  /// decode-site diagnostics.
+  Future<EncodedDecryptResult> decryptEncodedInIsolate(
+    List<String> encoded,
+  ) async {
+    if (encoded.isEmpty) {
+      return EncodedDecryptResult(
+        values: const [],
+        decodeFailures: const [],
+      );
+    }
+    // Isolates are not supported on web — use main-thread decryption.
+    if (kIsWeb) {
+      return AesGcmEncryption.decryptEncodedBatch(encoded, _secretKey);
+    }
+    EncodedDecryptResult result;
+    try {
+      // Hoist `_secretKey` into a local so the closure captures only
+      // sendable data — see [decryptInIsolate].
+      final keyLocal = _secretKey;
+      result = await Isolate.run(
+        () => AesGcmEncryption.decryptEncodedBatch(encoded, keyLocal),
+      );
+    } catch (e, stack) {
+      // Isolate spawn failed (e.g. certain test environments).
+      // Fall back to main-thread decryption.
+      logger.warning('AES256Encryption: isolate spawn failed, '
+          'falling back to main-thread decrypt', e, stack);
+      return AesGcmEncryption.decryptEncodedBatch(encoded, _secretKey);
+    }
+    final decodeFailed = Set<int>.of(result.decodeFailures);
+    var failCount = 0;
+    for (var i = 0; i < encoded.length; i++) {
+      if (decodeFailed.contains(i)) continue;
+      if (result.values[i] == null) failCount++;
+    }
+    if (failCount > 0) {
+      logger.warning(
+        'AES256Encryption.decryptEncodedInIsolate: $failCount of '
+        '${encoded.length} items failed to decrypt',
+      );
+    }
+    return result;
+  }
+
   /// Release any cached platform resources.
   void dispose() {
     AesGcmEncryption.evictCachedKey(_secretKey);

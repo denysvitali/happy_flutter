@@ -82,6 +82,88 @@ String _messageContentSignature(dynamic contentRaw) {
   return 'raw:${contentRaw?.hashCode ?? 0}';
 }
 
+/// Classifies a message content value in a single pass.
+///
+/// Supports the old JSON-wrapper format `{'t': 'encrypted', 'c': ...}`,
+/// JSON-encoded wrapper strings, JSON-encoded bare base64 strings, and
+/// raw base64 strings — the exact union of shapes the previous two-pass
+/// pipeline accepted.
+///
+/// - [Classification.wasEncrypted]: the flag `processDecryptedMessages`
+///   consumes (drives the undecryptable-bubble vs silent-drop decision).
+/// - [Classification.routeToDecrypt]: whether the row enters the decrypt
+///   batch.
+/// - [Classification.b64]: ciphertext payload when routed to decrypt.
+/// - [Classification.passthrough]: caller-facing content for rows that
+///   are not routed to decrypt.
+///
+/// The two flags intentionally diverge for strings holding *valid JSON*
+/// of a non-map/non-string shape (e.g. `'[1,2,3]'`): the historical
+/// classifier reported them as plain content while the decrypt router
+/// still attempted them as base64 — a guaranteed decode failure that is
+/// preserved verbatim rather than silently promoted to pass-through.
+typedef Classification = ({
+  bool wasEncrypted,
+  bool routeToDecrypt,
+  String b64,
+  dynamic passthrough,
+});
+
+Classification _classifyContent(dynamic contentRaw) {
+  if (contentRaw is Map<String, dynamic>) {
+    final encrypted = contentRaw['t'] == 'encrypted';
+    return (
+      wasEncrypted: encrypted,
+      routeToDecrypt: encrypted,
+      b64: encrypted ? contentRaw['c'] as String? ?? '' : '',
+      passthrough: contentRaw,
+    );
+  }
+  if (contentRaw is String && contentRaw.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(contentRaw);
+      if (decoded is Map<String, dynamic>) {
+        final encrypted = decoded['t'] == 'encrypted';
+        return (
+          wasEncrypted: encrypted,
+          routeToDecrypt: encrypted,
+          b64: encrypted ? decoded['c'] as String? ?? '' : '',
+          passthrough: decoded,
+        );
+      }
+      if (decoded is String) {
+        // JSON-encoded bare base64 string.
+        return (
+          wasEncrypted: true,
+          routeToDecrypt: true,
+          b64: decoded,
+          passthrough: decoded,
+        );
+      }
+      return (
+        wasEncrypted: false,
+        routeToDecrypt: true,
+        b64: contentRaw,
+        passthrough: contentRaw,
+      );
+    } catch (_) {
+      // Not JSON — treat as raw base64 string.
+      return (
+        wasEncrypted: true,
+        routeToDecrypt: true,
+        b64: contentRaw,
+        passthrough: contentRaw,
+      );
+    }
+  }
+  return (
+    wasEncrypted: false,
+    routeToDecrypt: false,
+    b64: '',
+    passthrough: contentRaw,
+  );
+}
+
 /// Session-specific encryption management
 class SessionEncryption {
   SessionEncryption({
@@ -112,8 +194,23 @@ class SessionEncryption {
   Future<List<DecryptedMessage?>> decryptMessages(
     List<Map<String, dynamic>> messages,
   ) async {
+    return (await _decryptMessagesPass(messages)).results;
+  }
+
+  /// Single classification + cache + decrypt pass over a page.
+  ///
+  /// Everything the caller isolate computes per row happens exactly once:
+  /// content classification (which also yields the `wasEncrypted` flags
+  /// consumed by [processDecryptedMessages]), the cache-key signature,
+  /// and the base64 payload extraction for rows that need decryption —
+  /// the previous pipeline computed all three twice per decrypted row.
+  Future<({List<DecryptedMessage?> results, List<bool> wasEncrypted})>
+      _decryptMessagesPass(List<Map<String, dynamic>> messages) async {
     final results = List<DecryptedMessage?>.filled(messages.length, null);
-    final toDecrypt = <({int index, Map<String, dynamic> message})>[];
+    final wasEncrypted = List<bool>.filled(messages.length, false);
+    final toDecrypt =
+        <({int index, Map<String, dynamic> message, String cacheKey,
+            String b64})>[];
 
     // Failure counters are aggregated across the whole batch and emitted
     // once at the end.  A rotated key fails every message on a 500-message
@@ -130,6 +227,9 @@ class SessionEncryption {
         continue;
       }
 
+      final classified = _classifyContent(message['content']);
+      wasEncrypted[i] = classified.wasEncrypted;
+
       // Check cache first
       final cacheKey = _messageCacheKey(message);
       if (cacheKey.isNotEmpty) {
@@ -145,28 +245,13 @@ class SessionEncryption {
         }
       }
 
-      final contentRaw = message['content'];
-      var content = contentRaw is Map<String, dynamic> ? contentRaw : null;
-      // Fallback: if content is a JSON string, try decoding it
-      if (content == null && contentRaw is String) {
-        try {
-          final decoded = jsonDecode(contentRaw);
-          if (decoded is Map<String, dynamic>) {
-            content = decoded;
-          } else if (decoded is String) {
-            // JSON-encoded bare base64 string — use decoded value
-            content = {'t': 'encrypted', 'c': decoded};
-          }
-        } catch (_) {
-          // Not valid JSON — handled below
-        }
-      }
-      // New server format: content is the raw base64 encrypted string
-      if (content == null && contentRaw is String && contentRaw.isNotEmpty) {
-        content = {'t': 'encrypted', 'c': contentRaw};
-      }
-      if (content != null && content['t'] == 'encrypted') {
-        toDecrypt.add((index: i, message: message));
+      if (classified.routeToDecrypt) {
+        toDecrypt.add((
+          index: i,
+          message: message,
+          cacheKey: cacheKey,
+          b64: classified.b64,
+        ));
       } else {
         // Not encrypted — pass through the wire content so that
         // processDecryptedMessages can handle it normally instead
@@ -176,7 +261,7 @@ class SessionEncryption {
           id: message['id'] as String? ?? '',
           seq: message['seq'] as int? ?? 0,
           localId: message['localId'] as String?,
-          content: content ?? contentRaw,
+          content: classified.passthrough,
           createdAt: _parseCreatedAt(message['createdAt']),
         );
         if (cacheKey.isNotEmpty) {
@@ -187,30 +272,41 @@ class SessionEncryption {
 
     // Batch decrypt uncached messages
     if (toDecrypt.isNotEmpty) {
-      final encrypted = <Uint8List>[];
-      for (final item in toDecrypt) {
-        final b64 = _base64FromContent(item.message['content']);
-        try {
-          encrypted.add(Base64Utils.decode(b64, Encoding.base64));
-        } on FormatException {
-          final codes = b64.codeUnits.take(10).toList();
-          logger.warning(
-            '[decryptMessages] base64 decode failed '
-            'id=${item.message['id']} '
-            'len=${b64.length} codes=$codes',
-          );
-          encrypted.add(Uint8List(0));
-        }
-      }
-
       List<dynamic> decrypted;
 
       // AES-256-GCM (pure Dart, no platform channels) runs in a
-      // background isolate. NaCl/libsodium (FFI) stays on the
-      // main isolate.
+      // background isolate — now including the base64 decode and
+      // version-byte strip, so the caller hands off raw ciphertext
+      // strings only. NaCl/libsodium (FFI) stays on the main isolate
+      // and decodes inline.
       if (_decryptor is AES256Encryption) {
-        decrypted = await _decryptor.decryptInIsolate(encrypted);
+        final encoded = <String>[for (final item in toDecrypt) item.b64];
+        final result = await _decryptor.decryptEncodedInIsolate(encoded);
+        decrypted = result.values;
+        for (final idx in result.decodeFailures) {
+          final failedB64 = toDecrypt[idx].b64;
+          final codes = failedB64.codeUnits.take(10).toList();
+          logger.warning(
+            '[decryptMessages] base64 decode failed '
+            'id=${toDecrypt[idx].message['id']} '
+            'len=${failedB64.length} codes=$codes',
+          );
+        }
       } else {
+        final encrypted = <Uint8List>[];
+        for (final item in toDecrypt) {
+          try {
+            encrypted.add(Base64Utils.decode(item.b64, Encoding.base64));
+          } on FormatException {
+            final codes = item.b64.codeUnits.take(10).toList();
+            logger.warning(
+              '[decryptMessages] base64 decode failed '
+              'id=${item.message['id']} '
+              'len=${item.b64.length} codes=$codes',
+            );
+            encrypted.add(Uint8List(0));
+          }
+        }
         // Tag this NaCl batch with a session-scoped diagnostic key so
         // Sentry only captures one failure per (session, fingerprint)
         // when a stale key invalidates the whole fetch.
@@ -232,9 +328,8 @@ class SessionEncryption {
             content: decryptedData,
             createdAt: _parseCreatedAt(item.message['createdAt']),
           );
-          final cacheKey = _messageCacheKey(item.message);
-          if (cacheKey.isNotEmpty) {
-            _cache.setCachedMessage(cacheKey, result);
+          if (item.cacheKey.isNotEmpty) {
+            _cache.setCachedMessage(item.cacheKey, result);
           }
           results[item.index] = result;
         } else {
@@ -246,9 +341,8 @@ class SessionEncryption {
             content: null,
             createdAt: _parseCreatedAt(item.message['createdAt']),
           );
-          final cacheKey = _messageCacheKey(item.message);
-          if (cacheKey.isNotEmpty) {
-            _cache.setCachedMessage(cacheKey, result);
+          if (item.cacheKey.isNotEmpty) {
+            _cache.setCachedMessage(item.cacheKey, result);
           }
           results[item.index] = result;
         }
@@ -269,7 +363,7 @@ class SessionEncryption {
       count: cachedFailures,
     );
 
-    return results;
+    return (results: results, wasEncrypted: wasEncrypted);
   }
 
   /// Decrypt messages **and** run message processing in a single
@@ -282,46 +376,20 @@ class SessionEncryption {
     List<Map<String, dynamic>> messages,
     String sessionId,
   ) async {
-    // Single pass: decrypt messages and extract the wasEncrypted flag
-    // in one go.  The previous implementation did two full passes over
-    // the message list — one to build wireData, one inside
-    // decryptMessages().  Now decryptMessages() is the only heavy pass.
-    final wasEncryptedList = <bool>[];
-    for (final msg in messages) {
-      if (msg.isEmpty) {
-        wasEncryptedList.add(false);
-        continue;
-      }
-      final contentRaw = msg['content'];
-      var isEncrypted = false;
-      if (contentRaw is Map<String, dynamic>) {
-        isEncrypted = contentRaw['t'] == 'encrypted';
-      } else if (contentRaw is String && contentRaw.isNotEmpty) {
-        try {
-          final decoded = jsonDecode(contentRaw);
-          isEncrypted =
-              decoded is Map<String, dynamic> && decoded['t'] == 'encrypted';
-          if (!isEncrypted && decoded is String) {
-            isEncrypted = true; // bare base64 string
-          }
-        } catch (_) {
-          isEncrypted = true; // raw base64 string
-        }
-      }
-      wasEncryptedList.add(isEncrypted);
-    }
+    // One pass classifies every row and decrypts the encrypted ones;
+    // the wasEncrypted flags come out of that same pass instead of the
+    // separate full-page scan the pipeline used to run first.
+    final pass = await _decryptMessagesPass(messages);
 
-    final decryptedList = await decryptMessages(messages);
-    final contentList = <dynamic>[];
-    for (final dm in decryptedList) {
-      contentList.add(dm?.content);
-    }
+    final contentList = <dynamic>[
+      for (final dm in pass.results) dm?.content,
+    ];
 
     return processDecryptedMessagesWithIsolation(
       decryptedJsonList: contentList,
       wireMessages: messages,
       sessionId: sessionId,
-      wasEncrypted: wasEncryptedList,
+      wasEncrypted: pass.wasEncrypted,
       useIsolate: _decryptor is AES256Encryption && messages.length >= 20,
     );
   }

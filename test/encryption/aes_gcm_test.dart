@@ -1,3 +1,4 @@
+import 'dart:convert' show base64Decode, base64Encode;
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
@@ -646,6 +647,215 @@ void main() {
         expect(decrypted, equals(record));
       });
     });
+
+    group('Encoded batch decrypt path (base64 decode in the worker)', () {
+      test('roundtrips a 500-row mixed batch including 20KB bodies',
+          () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final items = <dynamic>[];
+        for (var i = 0; i < 500; i++) {
+          if (i % 10 == 0) {
+            // ~20KB ANSI-free tool result body.
+            items.add(<String, dynamic>{
+              'role': 'user',
+              'content': <String, dynamic>{
+                'type': 'tool_result',
+                'tool_use_id': 'toolu_$i',
+                'output': _filler(20000),
+                'isError': false,
+              },
+            });
+          } else if (i % 3 == 0) {
+            items.add(<String, dynamic>{
+              'role': 'assistant',
+              'content': <String, dynamic>{
+                'type': 'text',
+                'text': _filler(1000),
+              },
+            });
+          } else {
+            items.add(<String, dynamic>{
+              'role': 'user',
+              'content': <String, dynamic>{
+                'type': 'text',
+                'text': 'short $i',
+              },
+            });
+          }
+        }
+        final encoded =
+            await _encryptToEncodedStrings(encryptor, items);
+
+        // Production wire shape: base64 payload starts with the 0x00
+        // version byte, then [12-byte nonce][ciphertext][16-byte tag].
+        for (final s in encoded) {
+          final blob = base64Decode(s);
+          expect(blob[0], 0);
+          expect(blob.length,
+              greaterThanOrEqualTo(AesGcmEncryption.nonceSize +
+                  AesGcmEncryption.authTagSize,),);
+        }
+
+        final result = await AES256Encryption(key)
+            .decryptEncodedInIsolate(encoded);
+        expect(result.decodeFailures, isEmpty);
+        expect(result.values.length, items.length);
+        for (var i = 0; i < items.length; i++) {
+          expect(result.values[i], equals(items[i]),
+              reason: 'row $i must roundtrip through the worker path',);
+        }
+      });
+
+      test('old byte path and new encoded path produce identical results',
+          () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final items = <dynamic>[
+          {'message': 'one'},
+          'two',
+          {'nested': {'list': [1, 2, 3]}},
+          _filler(2048),
+        ];
+        final blobs = await encryptor.encrypt(items);
+
+        final bytesResult =
+            await AES256Encryption(key).decryptInIsolate(blobs);
+        final encodedResult = await AES256Encryption(key)
+            .decryptEncodedInIsolate(
+                <String>[for (final b in blobs) base64Encode(b)],);
+
+        expect(encodedResult.decodeFailures, isEmpty);
+        expect(encodedResult.values, equals(bytesResult));
+      });
+
+      test('malformed base64 lands in decodeFailures, batch survives',
+          () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final good = await encryptor.encrypt([
+          {'message': 'survivor'},
+        ]);
+        final encoded = <String>[
+          base64Encode(good.first),
+          'definitely not base64!!!',
+        ];
+
+        final result = await AES256Encryption(key)
+            .decryptEncodedInIsolate(encoded);
+
+        expect(result.decodeFailures, [1]);
+        expect(result.values[0], equals({'message': 'survivor'}));
+        expect(result.values[1], isNull);
+      });
+
+      test('wrong version byte yields null outside decodeFailures',
+          () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final blobs = await encryptor.encrypt([
+          {'message': 'v0'},
+        ]);
+
+        final tampered = Uint8List.fromList(blobs.first);
+        tampered[0] = 7; // unknown version byte
+
+        final result = await AES256Encryption(key)
+            .decryptEncodedInIsolate(<String>[base64Encode(tampered)]);
+
+        expect(result.decodeFailures, isEmpty);
+        expect(result.values, [isNull]);
+      });
+
+      test('tampered ciphertext and tag return null without throwing',
+          () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final blobs = await encryptor.encrypt([
+          {'message': 'integrity'},
+        ]);
+
+        Uint8List corruptAt(int index) {
+          final copy = Uint8List.fromList(blobs.first);
+          copy[index] ^= 0xFF;
+          return copy;
+        }
+
+        final midCorrupt = corruptAt(blobs.first.length ~/ 2);
+        final tagCorrupt = corruptAt(blobs.first.length - 1);
+
+        final result = await AES256Encryption(key)
+            .decryptEncodedInIsolate(<String>[
+          base64Encode(midCorrupt),
+          base64Encode(tagCorrupt),
+        ]);
+
+        expect(result.decodeFailures, isEmpty);
+        expect(result.values, [isNull, isNull]);
+      });
+
+      test('empty input returns empty result', () async {
+        final result = await AES256Encryption(_generateKey())
+            .decryptEncodedInIsolate(const <String>[]);
+        expect(result.values, isEmpty);
+        expect(result.decodeFailures, isEmpty);
+      });
+    });
+
+    group('SessionEncryption uses the encoded worker path', () {
+      test('fresh page decrypts; warm cache returns identical instances',
+          () async {
+        final key = _generateKey();
+        final cache = EncryptionCache();
+        final sessionEncryption = SessionEncryption(
+          sessionId: 'encoded-path',
+          encryptor: AES256Encryption(key),
+          decryptor: AES256Encryption(key),
+          cache: cache,
+        );
+        final messages = <Map<String, dynamic>>[];
+        for (var i = 0; i < 5; i++) {
+          final plain = <String, dynamic>{
+            'role': 'user',
+            'content': <String, dynamic>{
+              'type': 'text',
+              'text': 'message $i',
+            },
+          };
+          // AES256Encryption.encrypt prepends the version byte — the
+          // exact wire row the encoded worker path consumes.
+          final encrypted = await AES256Encryption(key).encrypt([plain]);
+          final blob = encrypted.first;
+          messages.add(<String, dynamic>{
+            'id': 'm-$i',
+            'seq': i + 1,
+            'content': <String, dynamic>{
+              't': 'encrypted',
+              'c': base64Encode(blob),
+            },
+            'createdAt': 1700000000000 + i * 1000,
+          });
+        }
+
+        final first =
+            await sessionEncryption.decryptMessages(messages);
+        expect(first.length, 5);
+        for (final dm in first) {
+          expect(dm, isNotNull);
+          expect(dm!.content, isNotNull);
+        }
+        expect(cache.getStats()['messages'], 5);
+
+        // Second pass must be served entirely from cache: identical
+        // DecryptedMessage instances come back.
+        final second =
+            await sessionEncryption.decryptMessages(messages);
+        for (var i = 0; i < first.length; i++) {
+          expect(identical(first[i], second[i]), isTrue,
+              reason: 'row $i must be served from the message cache',);
+        }
+      });
+    });
   });
 }
 
@@ -657,4 +867,33 @@ Uint8List _generateKey() {
     key[i] = random.nextInt(256);
   }
   return key;
+}
+
+/// Deterministic ASCII filler of roughly [chars] characters.
+String _filler(int chars) {
+  const words = [
+    'session', 'artifact', 'machine', 'profile', 'sync', 'message',
+    'cache', 'socket', 'retry', 'outbox', 'workspace', 'agent',
+  ];
+  final buf = StringBuffer();
+  var len = 0;
+  var i = 0;
+  while (len < chars) {
+    final w = words[i % words.length];
+    buf.write('$w ');
+    len += w.length + 1;
+    i++;
+  }
+  final s = buf.toString();
+  return s.substring(0, chars <= s.length - 1 ? chars : s.length - 1);
+}
+
+/// Encrypts [items] with the production version-byte format and returns
+/// the base64 envelope strings the encoded worker path consumes.
+Future<List<String>> _encryptToEncodedStrings(
+  AES256Encryption encryptor,
+  List<dynamic> items,
+) async {
+  final blobs = await encryptor.encrypt(items);
+  return <String>[for (final b in blobs) base64Encode(b)];
 }

@@ -319,6 +319,73 @@ class AesGcmEncryption {
     return results;
   }
 
+  /// Batch-decrypt base64-encoded envelopes, owning the base64 decode and
+  /// the version-byte strip as well.
+  ///
+  /// Worker-side counterpart of [decryptBatch] so callers hand off raw
+  /// ciphertext strings and receive decoded JSON bodies without paying
+  /// base64 decode or envelope splitting on their own isolate. Designed
+  /// to run inside [Isolate.run] — creates its own cipher and key, no
+  /// logger access (see [decryptBatch]).
+  ///
+  /// Each item is `base64(0x00 || nonce || ct || tag)` exactly as
+  /// produced by `AES256Encryption.encrypt`. Per-item outcomes mirror the
+  /// previous caller-side pipeline (`Base64Utils.decode` +
+  /// `AES256Encryption.decryptInIsolate`):
+  /// - unparseable base64 → index recorded in
+  ///   [EncodedDecryptResult.decodeFailures], value stays null;
+  /// - empty blob or first byte != 0x00 (version byte) → null value;
+  /// - short payload, MAC failure, or invalid JSON → null value.
+  static Future<EncodedDecryptResult> decryptEncodedBatch(
+    List<String> items,
+    Uint8List secretKey,
+  ) async {
+    final cipher = AesGcm.with256bits();
+    final key = await cipher.newSecretKeyFromBytes(secretKey);
+    final values = List<dynamic>.filled(items.length, null);
+    final decodeFailures = <int>[];
+    for (var i = 0; i < items.length; i++) {
+      Uint8List bytes;
+      try {
+        bytes = Base64Utils.decode(items[i], Encoding.base64);
+      } on FormatException {
+        decodeFailures.add(i);
+        continue;
+      }
+      if (bytes.isEmpty || bytes[0] != 0) {
+        // Missing or unknown version byte — the same drop rule
+        // AES256Encryption.decryptInIsolate applies before spawning.
+        continue;
+      }
+      final payload = bytes.sublist(1);
+      try {
+        if (payload.length < nonceSize + authTagSize) {
+          continue;
+        }
+        final nonce = payload.sublist(0, nonceSize);
+        final ciphertext = payload.sublist(
+          nonceSize,
+          payload.length - authTagSize,
+        );
+        final tag = payload.sublist(payload.length - authTagSize);
+        final box = SecretBox(
+          ciphertext,
+          nonce: nonce,
+          mac: Mac(tag),
+        );
+        final decrypted = await cipher.decrypt(box, secretKey: key);
+        values[i] = jsonDecode(utf8.decode(decrypted));
+      } catch (_) {
+        // MAC failure or undecodable body — null, like [decryptBatch].
+        continue;
+      }
+    }
+    return EncodedDecryptResult(
+      values: values,
+      decodeFailures: decodeFailures,
+    );
+  }
+
   /// Validate that data is AES-256-GCM encrypted (has correct format).
   static bool isAesGcmEncrypted(Uint8List data) {
     // Minimum size: 12 (IV) + 0 (ciphertext) + 16 (auth tag) = 28
@@ -327,4 +394,24 @@ class AesGcmEncryption {
     }
     return true;
   }
+}
+
+/// Outcome of [AesGcmEncryption.decryptEncodedBatch].
+///
+/// Plain lists of sendable values — crosses isolate boundaries safely.
+class EncodedDecryptResult {
+  EncodedDecryptResult({
+    required this.values,
+    required this.decodeFailures,
+  });
+
+  /// Decoded JSON bodies aligned with the input strings; null wherever
+  /// decryption did not produce a usable body.
+  final List<dynamic> values;
+
+  /// Indices whose base64 payload could not be decoded at all. Callers
+  /// use these to reproduce the decode-failure diagnostics that used to
+  /// be emitted at the decode site; every other null value is a crypto
+  /// or body-decode failure.
+  final List<int> decodeFailures;
 }
