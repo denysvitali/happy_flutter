@@ -131,6 +131,16 @@ class _ToolViewState extends ConsumerState<ToolView>
   ToolState? _prevState;
   late int _toolSignature;
 
+  // Memoized MCP header-summary inputs, keyed by [_toolSignature].
+  // [mcpResultSummary] JSON-decodes the full tool output; recomputing the
+  // chain on every build made each visible MCP row pay O(payload) main-thread
+  // parsing per streaming tick (the same cost [SmartOutputContainer] already
+  // hoists into a `late final`).
+  int? _mcpSummarySignature;
+  String? _mcpText;
+  McpExecResult? _mcpExec;
+  String? _mcpSummary;
+
   late final AnimationController _chevronController;
   late final Animation<double> _chevronAnim;
 
@@ -554,14 +564,21 @@ class _ToolViewState extends ConsumerState<ToolView>
 
     // MCP results carry no per-tool view, so the collapsed row would say
     // nothing at all about what came back. Summarize the payload shape
-    // ("4 items", "29 traces") inline next to the title.
-    final mcpText = isMCP ? mcpToolTextResult(toolResult) : null;
-    final mcpExec = isMCP && mcpText == null
-        ? McpExecResult.tryParse(toolResult)
-        : null;
+    // ("4 items", "29 traces") inline next to the title. Computed once per
+    // tool-content change, not per build — see [_mcpSummarySignature].
+    if (_mcpSummarySignature != _toolSignature) {
+      _mcpText = isMCP ? mcpToolTextResult(toolResult) : null;
+      _mcpExec = isMCP && _mcpText == null
+          ? McpExecResult.tryParse(toolResult)
+          : null;
+      _mcpSummary = (_mcpText == null) ? null : mcpResultSummary(_mcpText!);
+      _mcpSummarySignature = _toolSignature;
+    }
+    final mcpText = isMCP ? _mcpText : null;
+    final mcpExec = isMCP && mcpText == null ? _mcpExec : null;
     if (status == null && subtitle == null) {
       if (mcpText != null) {
-        status = mcpResultSummary(mcpText);
+        status = _mcpSummary;
       } else if (mcpExec?.exitCode != null) {
         status = 'exit ${mcpExec!.exitCode}';
       }

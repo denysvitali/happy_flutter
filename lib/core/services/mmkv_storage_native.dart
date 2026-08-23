@@ -680,6 +680,21 @@ class MMKVStorage {
     return null;
   }
 
+  /// Raw JSON string for the sessions cache, without decoding.
+  ///
+  /// Lets [SessionsCacheStorage.getSessionsCacheAsync] move the
+  /// potentially large parse (~200 session records) off the UI isolate
+  /// during cold start while keeping the cheap native string read here.
+  String? getSessionsCacheRawJson() {
+    if (!_initialized) return null;
+    try {
+      return _mmkv?.decodeString(_StorageKeys.sessionsCache);
+    } catch (e) {
+      logger.warning('MMKV: Failed to read sessions cache: $e');
+      return null;
+    }
+  }
+
   void saveSessionsCache(Map<String, dynamic> cache) {
     if (!_initialized) return;
     try {

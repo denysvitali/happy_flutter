@@ -148,6 +148,28 @@ visible chat's authoritative HTTP message probe now runs in parallel with the
 sessions-catalog refresh instead of waiting behind it; a second post-catalog
 probe preserves convergence for messages created during the first request.
 
+### UI-isolate hot-path sweep, 2026-08-23
+
+A static audit of `lib/` found the remaining main-thread hot spots now that
+sessions collection, message cache, and socket ingest are already workerized.
+Three fixes shipped: **(1)** send-path encryption — `SessionEncryption`
+encrypt helpers for AES sessions now run through a new
+`AES256Encryption.encryptInIsolate` / `AesGcmEncryption.encryptBatch`
+(mirroring the existing decrypt isolates; NaCl FFI stays inline), so a large
+pasted payload no longer jsonEncodes+encrypts on the frame that must paint
+the optimistic bubble; **(2)** cold-start sessions-cache decode — the native
+`getSessionsCacheAsync` no longer synchronously parses up to ~200 cached
+session records on the UI isolate; the MMKV string read stays inline and the
+parse moves to a `compute()` worker with inline fallback; **(3)** MCP tool
+header summaries in `ToolView` are memoized per render signature instead of
+re-running full `jsonDecode` of the tool result on every streaming tick.
+Wire format is unchanged (version byte + nonce+ct+tag), pinned by new
+round-trip tests in `test/encryption/aes_gcm_test.dart`. Accepted as-is:
+suspend-flush durability fence (bounded by design) and the folder-detail
+eager list (only reachable after opening a folder). Re-baseline send
+preparation phase and tap-to-first-frame histograms once this reaches
+production.
+
 ### Live performance remediation, 2026-08-08
 
 The next live sweep found a localized server incident that dominated perceived

@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/aes_gcm.dart';
 import 'package:happy_flutter/core/encryption/base64.dart';
+import 'package:happy_flutter/core/encryption/encryption_cache.dart';
+import 'package:happy_flutter/core/encryption/encryptor.dart';
+import 'package:happy_flutter/core/encryption/session_encryption.dart';
 
 void main() {
   group('AesGcmEncryption - True AES-256-GCM Encryption', () {
@@ -520,6 +523,127 @@ void main() {
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
+      });
+    });
+
+    group('Isolate encryption path (send path off the UI isolate)', () {
+      test('encryptBatch output layout is consumed by decryptBatch',
+          () async {
+        final secretKey = _generateKey();
+        final items = <dynamic>[
+          {'message': 'one'},
+          'two',
+          3,
+          ['four'],
+        ];
+
+        final encrypted = await AesGcmEncryption.encryptBatch(
+          items,
+          secretKey,
+        );
+        expect(encrypted.length, items.length);
+        for (final blob in encrypted) {
+          // [12-byte nonce][ciphertext][16-byte auth tag], no version byte.
+          expect(blob.length,
+              greaterThanOrEqualTo(AesGcmEncryption.nonceSize +
+                  AesGcmEncryption.authTagSize,),);
+        }
+
+        final decrypted = await AesGcmEncryption.decryptBatch(
+          encrypted,
+          secretKey,
+        );
+        expect(decrypted, equals(items));
+      });
+
+      test('encryptBatch rejects wrong key size like encrypt', () async {
+        final wrongKey = Uint8List(16); // Too short
+
+        expect(
+          () => AesGcmEncryption.encryptBatch(['data'], wrongKey),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('encryptInIsolate roundtrips through decryptInIsolate', () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final items = <dynamic>[
+          {
+            'role': 'user',
+            'content': 'Hello from the send path',
+            'meta': {'localId': 'abc123'},
+          },
+          {'nested': {'list': [1, 2, 3]}},
+        ];
+
+        final encrypted = await encryptor.encryptInIsolate(items);
+
+        // Same wire shape as encrypt(): leading version byte 0 per item.
+        expect(encrypted.length, items.length);
+        for (final blob in encrypted) {
+          expect(blob[0], 0);
+        }
+
+        final decrypted = await encryptor.decryptInIsolate(encrypted);
+        expect(decrypted, equals(items));
+      });
+
+      test('encryptInIsolate output decrypts on the main thread', () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final original = {'message': 'cross-isolate parity'};
+
+        final encrypted = await encryptor.encryptInIsolate([original]);
+        final decrypted = await AesGcmEncryption.decrypt(
+          encrypted.first.sublist(1), // strip version byte
+          key,
+        );
+
+        expect(decrypted, equals(original));
+      });
+
+      test('main-thread encrypt output decrypts through decryptInIsolate '
+          '(reverse parity)', () async {
+        final key = _generateKey();
+        final encryptor = AES256Encryption(key);
+        final original = {'message': 'fallback parity'};
+
+        final encrypted = await encryptor.encrypt([original]);
+        final decrypted = await encryptor.decryptInIsolate(encrypted);
+
+        expect(decrypted, equals([original]));
+      });
+
+      test('encryptInIsolate with empty batch returns empty', () async {
+        final encryptor = AES256Encryption(_generateKey());
+        expect(await encryptor.encryptInIsolate([]), isEmpty);
+      });
+
+      test('encryptRawRecord stays wire-compatible across the isolate hop',
+          () async {
+        final key = _generateKey();
+        final sessionEncryption = SessionEncryption(
+          sessionId: 'test-session',
+          encryptor: AES256Encryption(key),
+          decryptor: AES256Encryption(key),
+          cache: EncryptionCache(),
+        );
+        final record = {
+          'type': 'user',
+          'text': 'one tap, one logical message',
+        };
+
+        // Production send path: base64(version-byte + nonce+ct+tag).
+        final encoded = await sessionEncryption.encryptRawRecord(record);
+        final blob = Base64Utils.decode(encoded, Encoding.base64);
+        expect(blob[0], 0);
+
+        final decrypted = await AesGcmEncryption.decrypt(
+          blob.sublist(1),
+          key,
+        );
+        expect(decrypted, equals(record));
       });
     });
   });

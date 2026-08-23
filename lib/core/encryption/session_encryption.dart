@@ -335,15 +335,28 @@ class SessionEncryption {
     return results[0];
   }
 
+  /// Encrypt a small batch of payloads, off the UI isolate when the session
+  /// is backed by the pure-Dart AES-256-GCM encryptor. The send path
+  /// JSON-encodes and encrypts the full message payload here; without the
+  /// isolate hop a large pasted log would block the frame that paints the
+  /// optimistic bubble. NaCl (FFI) stays main-thread, matching decrypt.
+  Future<List<Uint8List>> _encryptItems(List<dynamic> data) {
+    final encryptor = _encryptor;
+    if (encryptor is AES256Encryption) {
+      return encryptor.encryptInIsolate(data);
+    }
+    return encryptor.encrypt(data);
+  }
+
   /// Encrypt raw record
   Future<String> encryptRawRecord(Map<String, dynamic> record) async {
-    final encrypted = await _encryptor.encrypt([record]);
+    final encrypted = await _encryptItems([record]);
     return Base64Utils.encode(encrypted[0], Encoding.base64);
   }
 
   /// Encrypt raw data
   Future<String> encryptRaw(dynamic data) async {
-    final encrypted = await _encryptor.encrypt([data]);
+    final encrypted = await _encryptItems([data]);
     return Base64Utils.encode(encrypted[0], Encoding.base64);
   }
 
@@ -374,7 +387,7 @@ class SessionEncryption {
 
   /// Encrypt metadata
   Future<String> encryptMetadata(Map<String, dynamic> metadata) async {
-    final encrypted = await _encryptor.encrypt([metadata]);
+    final encrypted = await _encryptItems([metadata]);
     return Base64Utils.encode(encrypted[0], Encoding.base64);
   }
 
@@ -434,7 +447,7 @@ class SessionEncryption {
 
   /// Encrypt agent state
   Future<String> encryptAgentState(Map<String, dynamic> state) async {
-    final encrypted = await _encryptor.encrypt([state]);
+    final encrypted = await _encryptItems([state]);
     return Base64Utils.encode(encrypted[0], Encoding.base64);
   }
 

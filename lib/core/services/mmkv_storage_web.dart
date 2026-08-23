@@ -539,6 +539,16 @@ class MMKVStorage {
     return null;
   }
 
+  /// Raw JSON string for the sessions cache, without decoding.
+  ///
+  /// API parity with the native implementation (used by
+  /// [SessionsCacheStorage.getSessionsCacheAsync]); unused on web where
+  /// the sessions cache lives in IndexedDB.
+  String? getSessionsCacheRawJson() {
+    if (!_initialized) return null;
+    return _cache[_Keys.sessionsCache];
+  }
+
   void saveSessionsCache(Map<String, dynamic> cache) {
     if (!_initialized) return;
     _persist(_Keys.sessionsCache, jsonEncode(cache));

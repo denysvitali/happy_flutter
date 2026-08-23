@@ -185,6 +185,48 @@ class AesGcmEncryption {
     _secretKeyCache.remove(base64.encode(secretKey));
   }
 
+  /// Batch-encrypt items with AES-256-GCM without using static caches.
+  ///
+  /// Designed to run inside [Isolate.run] — creates its own cipher and key
+  /// instances. Each input is any JSON-encodable value; it is JSON-encoded
+  /// here so the encode cost moves off the calling isolate too. Each output
+  /// is `[12-byte nonce][ciphertext][16-byte auth tag]` (no version byte),
+  /// the exact layout [decryptBatch] consumes.
+  ///
+  /// JSON-encode failures propagate: encryption has no null-tolerant
+  /// fallback contract — a non-encodable payload is a caller bug that must
+  /// surface as a failed send, not a silently dropped one.
+  static Future<List<Uint8List>> encryptBatch(
+    List<dynamic> items,
+    Uint8List secretKey,
+  ) async {
+    final cipher = AesGcm.with256bits();
+    final key = await cipher.newSecretKeyFromBytes(secretKey);
+    final random = Random.secure();
+    final results = <Uint8List>[];
+    for (final item in items) {
+      final dataBytes = utf8.encode(jsonEncode(item));
+      final nonce = Uint8List(nonceSize);
+      for (var i = 0; i < nonceSize; i++) {
+        nonce[i] = random.nextInt(256);
+      }
+      final secretBox = await cipher.encrypt(
+        dataBytes,
+        secretKey: key,
+        nonce: nonce,
+      );
+      final cipherText = secretBox.cipherText;
+      final macBytes = secretBox.mac.bytes;
+      results.add(
+        Uint8List(nonce.length + cipherText.length + macBytes.length)
+          ..setAll(0, nonce)
+          ..setAll(nonce.length, cipherText)
+          ..setAll(nonce.length + cipherText.length, macBytes),
+      );
+    }
+    return results;
+  }
+
   /// Batch-decrypt AES-256-GCM items without using static caches.
   ///
   /// Designed to run inside [Isolate.run] — creates its own cipher

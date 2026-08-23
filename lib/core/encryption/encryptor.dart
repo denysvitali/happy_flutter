@@ -176,6 +176,41 @@ class AES256Encryption implements Encryptor {
     return results;
   }
 
+  /// Encrypt a batch of items in a background isolate.
+  ///
+  /// Mirror of [decryptInIsolate]: AES-256-GCM is pure-Dart crypto with no
+  /// platform channels or FFI, so it is fully isolate-safe. On web (no
+  /// isolate support) or when spawning fails, falls back to main-thread
+  /// [encrypt]. Returns items prefixed with the same version byte as
+  /// [encrypt].
+  Future<List<Uint8List>> encryptInIsolate(List<dynamic> data) async {
+    if (data.isEmpty) return const [];
+    // Isolates are not supported on web — use main-thread encryption.
+    if (kIsWeb) return encrypt(data);
+    List<Uint8List> encrypted;
+    try {
+      // Hoist `_secretKey` into a local so the closure captures only
+      // sendable Uint8Lists — never `this`. See [decryptInIsolate] for
+      // the production "object is unsendable" failure mode this avoids.
+      final keyLocal = _secretKey;
+      encrypted = await Isolate.run(
+        () => AesGcmEncryption.encryptBatch(data, keyLocal),
+      );
+    } catch (e, stack) {
+      // Isolate spawn failed (e.g. certain test environments).
+      // Fall back to main-thread encryption.
+      logger.warning('AES256Encryption: isolate spawn failed, '
+          'falling back to main-thread encrypt', e, stack);
+      return encrypt(data);
+    }
+    return [
+      for (final item in encrypted)
+        Uint8List(item.length + 1)
+          ..[0] = 0 // version byte, matching React Native format
+          ..setAll(1, item),
+    ];
+  }
+
   /// Release any cached platform resources.
   void dispose() {
     AesGcmEncryption.evictCachedKey(_secretKey);
