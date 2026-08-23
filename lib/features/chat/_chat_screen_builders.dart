@@ -148,9 +148,10 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // Skip the fade while the sticky sub-agent banner is up — the
     // 28 px mask plus the banner's former 60% fill printed a ghost
     // first row under "N of N sub-agents running".
-    final bannerVisible = AgentsListSheet.computeTaskProgress(
-      widget.sessionId,
-    ).hasTasks;
+    //
+    // Reads the projection the banner already computed instead of
+    // re-walking the transcript on every pane rebuild.
+    final bannerVisible = AgentsListSheet.hasVisibleTasks(widget.sessionId);
     final fadedList = ScrollEdgeFade(
       topExtent: bannerVisible ? 0 : 28,
       // Drag/fling state gates the programmatic scroll corrections so they

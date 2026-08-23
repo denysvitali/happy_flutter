@@ -91,6 +91,12 @@ class _MessageWidgetState extends State<MessageWidget>
   Widget? _cachedBody;
   int? _cachedBodySignature;
 
+  // Fast-path guards for [_buildCachedBody]: the row map and messages
+  // list instances behind the cached body, plus the O(1) input hash.
+  Map<String, dynamic>? _cachedMessageData;
+  List<Map<String, dynamic>>? _cachedMessagesList;
+  int? _cachedConfigHash;
+
   @override
   void initState() {
     super.initState();
@@ -142,6 +148,25 @@ class _MessageWidgetState extends State<MessageWidget>
     // on every rebuild but the bubble's rendered output depends only on
     // whether a callback is present, not on which closure instance it is.
     final msg = widget.messageData;
+
+    // Fast path ahead of the O(content) signature walk below. Every real
+    // message mutation replaces Sync's unmodifiable view list (tool
+    // results, sidechain grouping, and merges all invalidate the view),
+    // so an identical row map inside an identical list proves this row's
+    // content is unchanged; combined with unchanged cheap inputs the full
+    // signature below would compare equal. Any miss falls through to the
+    // exact prior computation.
+    final configHash = _configSignature(msg);
+    if (_cachedBody != null &&
+        configHash == _cachedConfigHash &&
+        identical(msg, _cachedMessageData) &&
+        identical(widget.messages, _cachedMessagesList)) {
+      return _cachedBody!;
+    }
+    _cachedConfigHash = configHash;
+    _cachedMessageData = msg;
+    _cachedMessagesList = widget.messages;
+
     final messageId = canonicalMessageIdentityKey(
       msg,
       fallback: msg['key'] as String? ?? '',
@@ -151,26 +176,9 @@ class _MessageWidgetState extends State<MessageWidget>
         ? 0
         : compactMessageListRenderSignature(widget.messages!);
     final signature = Object.hash(
-      messageId,
-      msg['kind'],
-      msg['role'],
-      msg['name'],
-      msg['sendStatus'],
-      msg['sendSlow'],
-      _codexDeliveryMode(msg['raw']),
-      msg['isThinking'],
-      msg['updatedAt'] ?? msg['createdAt'],
+      configHash,
       rowSignature,
       relatedMessagesSignature,
-      widget.sessionId,
-      widget.isSessionOnline,
-      widget.isFromCurrentUser,
-      widget.isFirstInGroup,
-      widget.isLastInGroup,
-      widget.isStreaming,
-      widget.isCompact,
-      widget.onOptionPress != null,
-      widget.onRetry != null,
     );
 
     if (_cachedBody != null && _cachedBodySignature == signature) {
@@ -333,6 +341,31 @@ class _MessageWidgetState extends State<MessageWidget>
             ),
     );
   }
+
+  /// O(1) half of the body cache key: stable identifiers and widget-level
+  /// flags. Hashed together with the content signatures in
+  /// [_buildCachedBody] so the expensive per-row walk only runs when one
+  /// of these cheap inputs changes or its identity fast path misses.
+  int _configSignature(Map<String, dynamic> msg) => Object.hash(
+    canonicalMessageIdentityKey(msg, fallback: msg['key'] as String? ?? ''),
+    msg['kind'],
+    msg['role'],
+    msg['name'],
+    msg['sendStatus'],
+    msg['sendSlow'],
+    _codexDeliveryMode(msg['raw']),
+    msg['isThinking'],
+    msg['updatedAt'] ?? msg['createdAt'],
+    widget.sessionId,
+    widget.isSessionOnline,
+    widget.isFromCurrentUser,
+    widget.isFirstInGroup,
+    widget.isLastInGroup,
+    widget.isStreaming,
+    widget.isCompact,
+    widget.onOptionPress != null,
+    widget.onRetry != null,
+  );
 
   static String? _codexDeliveryMode(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;

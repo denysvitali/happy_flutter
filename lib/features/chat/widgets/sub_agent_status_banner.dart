@@ -116,6 +116,10 @@ class _SubAgentStatusBannerStatefulState
     return AgentsListSheet.computeProjection(widget.sessionId);
   }
 
+  /// Re-resolves the projection for this session. [computeProjection]
+  /// keys its cache by the session's message revision, so an event that
+  /// did not move the revision hands back the previous object and this
+  /// is a no-op — no span reconciliation, no rebuild.
   void _refreshProjection() {
     final next = _resolveProjection();
     if (identical(next, _projection)) return;
@@ -207,7 +211,7 @@ class _SubAgentStatusBannerStatefulState
     _emitTelemetryIfNeeded(progress);
     _lastSeenProgress = progress;
     _lastSeenTotal = progress.total;
-    return _BannerBody(progress: progress, sessionId: widget.sessionId);
+    return _BannerBody(projection: _projection, sessionId: widget.sessionId);
   }
 
   /// Emits a Sentry breadcrumb when the total sub-agent count changes.
@@ -248,15 +252,19 @@ class _SubAgentStatusBannerStatefulState
 /// Visible body of the banner. Stateless so a single build renders the
 /// styled strip; the parent handles subscription/lifecycle.
 class _BannerBody extends StatelessWidget {
-  const _BannerBody({required this.progress, required this.sessionId});
+  const _BannerBody({required this.projection, required this.sessionId});
 
-  final TaskProgress progress;
+  /// Full projection the banner last computed. Shared with
+  /// [AgentsListSheet] on tap so opening the sheet reuses these exact
+  /// rows and counters instead of re-walking the transcript.
+  final AgentSessionProjection projection;
   final String sessionId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = context.l10n;
+    final progress = projection.progress;
     final hasErrors = progress.error > 0;
     final isComplete = progress.running == 0 && progress.completed > 0;
     final isRunning = progress.running > 0;
@@ -379,10 +387,10 @@ class _BannerBody extends StatelessWidget {
           type: 'subagent_banner_tapped',
           data: {
             'sessionId': sessionId,
-            'total': progress.total,
-            'running': progress.running,
-            'completed': progress.completed,
-            'error': progress.error,
+            'total': projection.progress.total,
+            'running': projection.progress.running,
+            'completed': projection.progress.completed,
+            'error': projection.progress.error,
           },
         ),
       );
@@ -399,6 +407,7 @@ class _BannerBody extends StatelessWidget {
       ),
       builder: (sheetContext) => AgentsListSheet(
         sessionId: sessionId,
+        initialProjection: projection,
         onAgentTap: (agent, navigationId) {
           Navigator.of(sheetContext).pop();
           context.push('/chat/$sessionId/agent/$navigationId', extra: agent);

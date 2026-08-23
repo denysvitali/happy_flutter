@@ -93,6 +93,12 @@ class AgentSessionProjectionCache {
     }
     return projection;
   }
+
+  /// Returns the most recently computed projection for [sessionId]
+  /// without recomputing it or touching recency order, or null when
+  /// nothing has been projected yet.
+  AgentSessionProjection? peek(String sessionId) =>
+      _entries[sessionId]?.projection;
 }
 
 String? _taskEventDescription(Map<String, dynamic> msg) {
@@ -168,7 +174,12 @@ class _TaskEventAgent {
 
 /// Bottom sheet showing all active/running Task agents in the session.
 class AgentsListSheet extends StatelessWidget {
-  const AgentsListSheet({required this.sessionId, this.onAgentTap, super.key});
+  const AgentsListSheet({
+    required this.sessionId,
+    this.onAgentTap,
+    this.initialProjection,
+    super.key,
+  });
 
   final String sessionId;
 
@@ -180,6 +191,12 @@ class AgentsListSheet extends StatelessWidget {
   /// dropped when the modal is popped.
   final void Function(Map<String, dynamic> agent, String navigationId)?
   onAgentTap;
+
+  /// Pre-computed projection to render instead of calling
+  /// [computeProjection] during build. The sticky status banner already
+  /// holds the projection for its session; passing it here renders the
+  /// exact same instance instead of re-deriving rows from the transcript.
+  final AgentSessionProjection? initialProjection;
 
   static final AgentSessionProjectionCache _projectionCache =
       AgentSessionProjectionCache();
@@ -369,6 +386,20 @@ class AgentsListSheet extends StatelessWidget {
     return computeProjection(sessionId).progress;
   }
 
+  /// Whether the sticky status banner would currently show for
+  /// [sessionId], read from the most recently computed projection.
+  ///
+  /// Chrome like the chat list's top fade needs this bit on every pane
+  /// rebuild; walking the transcript for it would repeat the banner's
+  /// work. The banner keeps a warm projection per session and every
+  /// [computeProjection] call refreshes it, so this stays in lockstep
+  /// with what is actually rendered. Falls back to one computation when
+  /// no projection exists yet (banner not mounted).
+  static bool hasVisibleTasks(String sessionId) {
+    final cached = _projectionCache.peek(sessionId);
+    return (cached ?? computeProjection(sessionId)).progress.hasTasks;
+  }
+
   /// Extracts all Task/Agent tools from the session messages.
   ///
   /// Walks both the flat message list and nested `children` arrays
@@ -390,7 +421,7 @@ class AgentsListSheet extends StatelessWidget {
     final cs = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
 
-    final projection = computeProjection(sessionId);
+    final projection = initialProjection ?? computeProjection(sessionId);
     final agents = projection.agents;
     final progress = projection.progress;
 
