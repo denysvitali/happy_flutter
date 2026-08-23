@@ -322,8 +322,8 @@ Map<String, dynamic> _$TmuxConfigToJson(TmuxConfig instance) =>
 CodexProviderConfig _$CodexProviderConfigFromJson(Map<String, dynamic> json) =>
     CodexProviderConfig(
       id: json['id'] as String,
-      name: json['name'] as String?,
       baseUrl: json['baseUrl'] as String,
+      name: json['name'] as String?,
       envKey: json['envKey'] as String? ?? 'OPENAI_API_KEY',
       wireApi: json['wireApi'] as String? ?? 'responses',
     );
