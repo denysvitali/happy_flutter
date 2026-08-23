@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 
@@ -621,6 +621,13 @@ class NotificationService {
   // -----------------------------------------------------------
   // Notification response handling
   // -----------------------------------------------------------
+
+  /// Feeds a platform notification response through the production tap
+  /// handler so tests can pin "notification for session X opens session X"
+  /// against an injected router.
+  @visibleForTesting
+  void debugHandleNotificationResponse(NotificationResponse response) =>
+      _onNotificationResponse(response);
 
   void _onNotificationResponse(NotificationResponse response) {
     final actionId = response.actionId;
