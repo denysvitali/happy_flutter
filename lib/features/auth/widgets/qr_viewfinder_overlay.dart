@@ -35,16 +35,15 @@ class QRViewfinderOverlay extends StatefulWidget {
   final double strokeWidth;
 
   @override
-  State<QRViewfinderOverlay> createState() =>
-      _QRViewfinderOverlayState();
+  State<QRViewfinderOverlay> createState() => _QRViewfinderOverlayState();
 }
 
-class _QRViewfinderOverlayState
-    extends State<QRViewfinderOverlay>
+class _QRViewfinderOverlayState extends State<QRViewfinderOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _opacity;
   late final Animation<double> _scale;
+  bool _reduceMotion = true;
 
   @override
   void initState() {
@@ -56,44 +55,70 @@ class _QRViewfinderOverlayState
 
     _opacity = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0.55, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween(
+          begin: 0.55,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 50,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.55)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 1.0,
+          end: 0.55,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 50,
       ),
     ]).animate(_controller);
 
     _scale = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 0.96, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween(
+          begin: 0.96,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 50,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 0.96)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 1.0,
+          end: 0.96,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 50,
       ),
     ]).animate(_controller);
+  }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = AppMotion.reduceMotion(context);
+    if (reduceMotion == _reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    _syncController();
+  }
+
+  void _syncController() {
+    if (_reduceMotion) {
+      // Static brackets — never run the polling pulse loop.
+      if (_controller.isAnimating) {
+        _controller.stop();
+      }
+      return;
+    }
     if (widget.isActive) {
-      _controller.repeat();
+      if (!_controller.isAnimating) {
+        _controller.repeat();
+      }
+    } else if (_controller.isAnimating) {
+      _controller.stop();
+      _controller.animateTo(0.0, duration: AppDuration.normal);
     }
   }
 
   @override
   void didUpdateWidget(QRViewfinderOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isActive && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (!widget.isActive && _controller.isAnimating) {
-      _controller.stop();
-      _controller.animateTo(0.0, duration: AppDuration.normal);
-    }
+    _syncController();
   }
 
   @override
@@ -104,28 +129,28 @@ class _QRViewfinderOverlayState
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        widget.color ?? Theme.of(context).colorScheme.primary;
+    final color = widget.color ?? Theme.of(context).colorScheme.primary;
+
+    final brackets = SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: CustomPaint(
+        painter: _CornerBracketsPainter(
+          color: color,
+          bracketLength: widget.bracketLength,
+          strokeWidth: widget.strokeWidth,
+        ),
+      ),
+    );
+
+    if (_reduceMotion) return brackets;
 
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
         return Transform.scale(
           scale: _scale.value,
-          child: Opacity(
-            opacity: _opacity.value,
-            child: SizedBox(
-              width: widget.size,
-              height: widget.size,
-              child: CustomPaint(
-                painter: _CornerBracketsPainter(
-                  color: color,
-                  bracketLength: widget.bracketLength,
-                  strokeWidth: widget.strokeWidth,
-                ),
-              ),
-            ),
-          ),
+          child: Opacity(opacity: _opacity.value, child: brackets),
         );
       },
     );
@@ -159,55 +184,23 @@ class _CornerBracketsPainter extends CustomPainter {
 
     // Top-left
     canvas
-      ..drawLine(
-        Offset(0, bl),
-        const Offset(0, 0),
-        paint,
-      )
-      ..drawLine(
-        const Offset(0, 0),
-        Offset(bl, 0),
-        paint,
-      );
+      ..drawLine(Offset(0, bl), const Offset(0, 0), paint)
+      ..drawLine(const Offset(0, 0), Offset(bl, 0), paint);
 
     // Top-right
     canvas
-      ..drawLine(
-        Offset(w - bl, 0),
-        Offset(w, 0),
-        paint,
-      )
-      ..drawLine(
-        Offset(w, 0),
-        Offset(w, bl),
-        paint,
-      );
+      ..drawLine(Offset(w - bl, 0), Offset(w, 0), paint)
+      ..drawLine(Offset(w, 0), Offset(w, bl), paint);
 
     // Bottom-left
     canvas
-      ..drawLine(
-        Offset(0, h - bl),
-        Offset(0, h),
-        paint,
-      )
-      ..drawLine(
-        Offset(0, h),
-        Offset(bl, h),
-        paint,
-      );
+      ..drawLine(Offset(0, h - bl), Offset(0, h), paint)
+      ..drawLine(Offset(0, h), Offset(bl, h), paint);
 
     // Bottom-right
     canvas
-      ..drawLine(
-        Offset(w - bl, h),
-        Offset(w, h),
-        paint,
-      )
-      ..drawLine(
-        Offset(w, h),
-        Offset(w, h - bl),
-        paint,
-      );
+      ..drawLine(Offset(w - bl, h), Offset(w, h), paint)
+      ..drawLine(Offset(w, h), Offset(w, h - bl), paint);
   }
 
   @override

@@ -10,10 +10,7 @@ import '../../../core/theme/app_tokens.dart';
 /// Wraps [child] in a subtly animated two-hue gradient
 /// that shifts slowly to add depth to the landing screen.
 class AnimatedGradientBackground extends StatefulWidget {
-  const AnimatedGradientBackground({
-    required this.child,
-    super.key,
-  });
+  const AnimatedGradientBackground({required this.child, super.key});
 
   final Widget child;
 
@@ -22,10 +19,10 @@ class AnimatedGradientBackground extends StatefulWidget {
       _AnimatedGradientBackgroundState();
 }
 
-class _AnimatedGradientBackgroundState
-    extends State<AnimatedGradientBackground>
+class _AnimatedGradientBackgroundState extends State<AnimatedGradientBackground>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  bool _reduceMotion = true;
 
   @override
   void initState() {
@@ -33,7 +30,20 @@ class _AnimatedGradientBackgroundState
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = AppMotion.reduceMotion(context);
+    if (reduceMotion == _reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    if (_reduceMotion) {
+      _ctrl.stop();
+    } else {
+      _ctrl.repeat(reverse: true);
+    }
   }
 
   @override
@@ -46,32 +56,49 @@ class _AnimatedGradientBackgroundState
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final base = scheme.surface;
-    final hintA =
-        Color.lerp(base, scheme.primary, 0.03)!;
-    final hintB =
-        Color.lerp(base, scheme.primary, 0.07)!;
+    final hintA = Color.lerp(base, scheme.primary, 0.03)!;
+    final hintB = Color.lerp(base, scheme.primary, 0.07)!;
 
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (ctx, child) {
-        final t =
-            (math.sin(_ctrl.value * math.pi) + 1) / 2;
-        final topColor =
-            Color.lerp(hintA, hintB, t)!;
-        final bottomColor =
-            Color.lerp(hintB, hintA, t)!;
-        return Container(
+    if (_reduceMotion) {
+      // Static gradient — no controller ticks at all.
+      return RepaintBoundary(
+        child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [topColor, bottomColor],
+              colors: [hintA, hintB],
             ),
           ),
-          child: child,
-        );
-      },
-      child: widget.child,
+          child: widget.child,
+        ),
+      );
+    }
+
+    return RepaintBoundary(
+      // The boundary caps every gradient tick to this subtree so the
+      // rest of the auth screen never repaints while it shifts.
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (ctx, child) {
+          final t = (math.sin(_ctrl.value * math.pi) + 1) / 2;
+          final topColor = Color.lerp(hintA, hintB, t)!;
+          final bottomColor = Color.lerp(hintB, hintA, t)!;
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [topColor, bottomColor],
+              ),
+            ),
+            child: child,
+          );
+        },
+        // Cached layer for the form so per-tick repaints do not
+        // re-record the login content itself.
+        child: RepaintBoundary(child: widget.child),
+      ),
     );
   }
 }
@@ -95,8 +122,7 @@ class StatusBanner extends StatefulWidget {
   final VoidCallback? onDismiss;
 
   @override
-  State<StatusBanner> createState() =>
-      _StatusBannerState();
+  State<StatusBanner> createState() => _StatusBannerState();
 }
 
 class _StatusBannerState extends State<StatusBanner>
@@ -108,21 +134,12 @@ class _StatusBannerState extends State<StatusBanner>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: AppDuration.normal,
-    );
-    _slide = Tween<double>(begin: -0.15, end: 0.0)
-        .animate(
-      CurvedAnimation(
-        parent: _ctrl,
-        curve: AppCurve.enter,
-      ),
-    );
-    _fade = CurvedAnimation(
-      parent: _ctrl,
-      curve: AppCurve.enter,
-    );
+    _ctrl = AnimationController(vsync: this, duration: AppDuration.normal);
+    _slide = Tween<double>(
+      begin: -0.15,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: AppCurve.enter));
+    _fade = CurvedAnimation(parent: _ctrl, curve: AppCurve.enter);
     _ctrl.forward();
   }
 
@@ -137,18 +154,14 @@ class _StatusBannerState extends State<StatusBanner>
     final scheme = Theme.of(context).colorScheme;
     final isError =
         widget.color == scheme.error ||
-            (widget.color.r * 255.0).round().clamp(0, 255) >
-                200;
+        (widget.color.r * 255.0).round().clamp(0, 255) > 200;
 
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (ctx, child) {
         return FractionalTranslation(
           translation: Offset(0, _slide.value),
-          child: Opacity(
-            opacity: _fade.value,
-            child: child,
-          ),
+          child: Opacity(opacity: _fade.value, child: child),
         );
       },
       child: Container(
@@ -156,64 +169,41 @@ class _StatusBannerState extends State<StatusBanner>
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.md,
         ),
-        margin: const EdgeInsets.only(
-          bottom: AppSpacing.lg,
-        ),
+        margin: const EdgeInsets.only(bottom: AppSpacing.lg),
         decoration: BoxDecoration(
-          color: widget.color.withValues(
-            alpha: AppOpacity.faint,
-          ),
+          color: widget.color.withValues(alpha: AppOpacity.faint),
           border: Border.all(
-            color: widget.color.withValues(
-              alpha: AppOpacity.medium,
-            ),
+            color: widget.color.withValues(alpha: AppOpacity.medium),
           ),
-          borderRadius: BorderRadius.circular(
-            AppRadius.md,
-          ),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Row(
           children: [
             if (widget.isLoading)
-              AppLoadingIndicator(
-                size: 18,
-                strokeWidth: 2,
-                color: widget.color,
-              )
+              AppLoadingIndicator(size: 18, strokeWidth: 2, color: widget.color)
             else if (widget.icon != null)
               Container(
                 width: AppSpacing.xxxl,
                 height: AppSpacing.xxxl,
                 decoration: BoxDecoration(
-                  color: widget.color.withValues(
-                    alpha: AppOpacity.subtle,
-                  ),
+                  color: widget.color.withValues(alpha: AppOpacity.subtle),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  widget.icon,
-                  color: widget.color,
-                  size: 18,
-                ),
+                child: Icon(widget.icon, color: widget.color, size: 18),
               ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (isError)
                     Padding(
-                      padding:
-                          const EdgeInsets.only(
-                        bottom: AppSpacing.xxs,
-                      ),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
                       child: Text(
                         context.l10n.commonError,
                         style: TextStyle(
-                          fontWeight:
-                              FontWeight.w600,
+                          fontWeight: FontWeight.w600,
                           color: widget.color,
                           fontSize: AppFontSize.sm,
                           letterSpacing: 0.3,
@@ -224,10 +214,7 @@ class _StatusBannerState extends State<StatusBanner>
                     widget.message,
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
-                      color: widget.color
-                          .withValues(
-                        alpha: AppOpacity.high,
-                      ),
+                      color: widget.color.withValues(alpha: AppOpacity.high),
                       fontSize: AppFontSize.md,
                       height: AppLineHeight.normal,
                     ),
@@ -237,14 +224,9 @@ class _StatusBannerState extends State<StatusBanner>
             ),
             if (widget.onDismiss != null)
               IconButton(
-                icon: const Icon(
-                  Icons.close_rounded,
-                  size: AppSpacing.lg,
-                ),
+                icon: const Icon(Icons.close_rounded, size: AppSpacing.lg),
                 tooltip: context.l10n.commonDismiss,
-                color: widget.color.withValues(
-                  alpha: AppOpacity.half,
-                ),
+                color: widget.color.withValues(alpha: AppOpacity.half),
                 onPressed: widget.onDismiss,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(
@@ -273,6 +255,7 @@ class PulsingDot extends StatefulWidget {
 class _PulsingDotState extends State<PulsingDot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  bool _reduceMotion = true;
 
   @override
   void initState() {
@@ -280,7 +263,20 @@ class _PulsingDotState extends State<PulsingDot>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = AppMotion.reduceMotion(context);
+    if (reduceMotion == _reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    if (_reduceMotion) {
+      _ctrl.stop();
+    } else {
+      _ctrl.repeat(reverse: true);
+    }
   }
 
   @override
@@ -291,23 +287,21 @@ class _PulsingDotState extends State<PulsingDot>
 
   @override
   Widget build(BuildContext context) {
+    final dot = Container(
+      width: AppSpacing.sm,
+      height: AppSpacing.sm,
+      decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+    );
+
+    if (_reduceMotion) return dot;
+
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (ctx, child) {
         final opacity = 0.4 + (_ctrl.value * 0.6);
-        return Opacity(
-          opacity: opacity,
-          child: child,
-        );
+        return Opacity(opacity: opacity, child: child);
       },
-      child: Container(
-        width: AppSpacing.sm,
-        height: AppSpacing.sm,
-        decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-        ),
-      ),
+      child: dot,
     );
   }
 }

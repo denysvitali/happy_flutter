@@ -9,8 +9,9 @@ const double _kMaxWidth = 360;
 /// Displays an icon, title, and optional subtitle for empty list states.
 ///
 /// The icon sits inside a gradient-tinted rounded container with a
-/// subtle breathing scale animation to feel alive. Title uses
-/// [TextTheme.titleMedium]; subtitle uses [TextTheme.bodyMedium].
+/// brief breathing scale animation to feel alive (it settles after a
+/// couple of cycles so an idle screen never animates forever). Title
+/// uses [TextTheme.titleMedium]; subtitle uses [TextTheme.bodyMedium].
 class AppEmptyState extends StatefulWidget {
   /// Creates an empty-state placeholder.
   const AppEmptyState({
@@ -39,9 +40,15 @@ class AppEmptyState extends StatefulWidget {
 
 class _AppEmptyStateState extends State<AppEmptyState>
     with SingleTickerProviderStateMixin {
+  /// Breaths played before the icon settles at rest scale. Empty states
+  /// can sit on screen indefinitely; an endless breathing loop would
+  /// repaint the whole state for as long as it is visible.
+  static const int _kBreathCycles = 2;
+
   late final AnimationController _breathe;
   late final Animation<double> _scale;
   bool _reduceMotion = false;
+  int _breathsDone = 0;
 
   @override
   void initState() {
@@ -59,10 +66,7 @@ class _AppEmptyStateState extends State<AppEmptyState>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final mediaQuery = MediaQuery.maybeOf(context);
-    final reduceMotion =
-        (mediaQuery?.disableAnimations ?? false) ||
-        (mediaQuery?.accessibleNavigation ?? false);
+    final reduceMotion = AppMotion.reduceMotion(context);
     if (_reduceMotion == reduceMotion) return;
     _reduceMotion = reduceMotion;
     if (_reduceMotion) {
@@ -70,8 +74,18 @@ class _AppEmptyStateState extends State<AppEmptyState>
         ..stop()
         ..value = 0.0;
     } else {
-      _breathe.repeat(reverse: true);
+      _runBreath();
     }
+  }
+
+  void _runBreath() {
+    _breathe.forward().whenComplete(() {
+      _breathe.reverse().whenComplete(() {
+        _breathsDone++;
+        if (!mounted || _breathsDone >= _kBreathCycles) return;
+        _runBreath();
+      });
+    });
   }
 
   @override

@@ -179,9 +179,8 @@ class TodoView extends ConsumerStatefulWidget {
         .map((t) {
           final item = WireParsers.asMap(t);
           if (item == null) return null;
-          final text = item['content'] as String? ??
-              item['text'] as String? ??
-              '';
+          final text =
+              item['content'] as String? ?? item['text'] as String? ?? '';
           final completed = item['completed'] == true;
           final status =
               item['status'] as String? ??
@@ -239,6 +238,9 @@ class _TodoViewState extends ConsumerState<TodoView> {
 
     final completed = _todos.where((t) => t.isCompleted).length;
     final total = _todos.length;
+    // Only the newest in-progress row pulses — one icon is a cheap
+    // highlight; every row pulsing forever in an old transcript is not.
+    final activeIndex = _todos.indexWhere((t) => t.isInProgress);
 
     return ToolSectionView(
       child: Column(
@@ -251,8 +253,8 @@ class _TodoViewState extends ConsumerState<TodoView> {
             child: _CountSummary(completed: completed, total: total),
           ),
           // Task items
-          ..._todos.map(
-            (todo) => AnimatedSwitcher(
+          ..._todos.asMap().entries.map(
+            (entry) => AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               transitionBuilder: (child, animation) => FadeTransition(
                 opacity: animation,
@@ -260,10 +262,11 @@ class _TodoViewState extends ConsumerState<TodoView> {
               ),
               child: _TodoRow(
                 key: ValueKey(
-                  '${todo.id ?? todo.content}'
-                  '_${todo.status}',
+                  '${entry.value.id ?? entry.value.content}'
+                  '_${entry.value.status}',
                 ),
-                todo: todo,
+                todo: entry.value,
+                pulsing: entry.key == activeIndex,
               ),
             ),
           ),
@@ -310,9 +313,13 @@ class _CountSummary extends StatelessWidget {
 
 /// A single todo row with status icon and text.
 class _TodoRow extends StatelessWidget {
-  const _TodoRow({required this.todo, super.key});
+  const _TodoRow({required this.todo, this.pulsing = false, super.key});
 
   final TodoViewItem todo;
+
+  /// Whether the status icon plays the pulse animation. Only one row per
+  /// list pulses; the rest render a static highlighted icon.
+  final bool pulsing;
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +342,13 @@ class _TodoRow extends StatelessWidget {
         color: statusColor,
       );
     } else if (todo.isInProgress) {
-      statusIcon = _PulsingIcon(color: statusColor);
+      statusIcon = pulsing && !AppMotion.reduceMotion(context)
+          ? _PulsingIcon(color: statusColor)
+          : Icon(
+              Icons.radio_button_checked_rounded,
+              size: 18,
+              color: statusColor,
+            );
     } else {
       statusIcon = Icon(
         Icons.check_box_outline_blank_rounded,

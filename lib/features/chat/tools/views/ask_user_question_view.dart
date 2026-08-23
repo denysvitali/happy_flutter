@@ -8,7 +8,6 @@ import 'ask_user_question_widgets.dart';
 
 /// Question option model.
 class QuestionOption {
-
   QuestionOption({required this.label, required this.description});
   final String label;
   final String description;
@@ -16,7 +15,6 @@ class QuestionOption {
 
 /// Question model.
 class Question {
-
   Question({
     required this.question,
     required this.header,
@@ -31,12 +29,13 @@ class Question {
 
 /// View for displaying AskUserQuestion tool with interactive options.
 class AskUserQuestionView extends ConsumerStatefulWidget {
-
   const AskUserQuestionView({
-    required this.tool, super.key,
+    required this.tool,
+    super.key,
     this.metadata,
     this.sessionId,
   });
+
   /// The tool data.
   final Map<String, dynamic> tool;
 
@@ -58,6 +57,14 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
   bool _isSubmitting = false;
   bool _isSubmitted = false;
 
+  /// Attention pulses played before the card settles into its static
+  /// highlighted state. Repeating forever would repaint an animated
+  /// blurred BoxShadow every frame for as long as the agent waits for
+  /// an answer — the canonical walk-away-idle state.
+  static const int _kPulseCycles = 3;
+
+  int _pulseCyclesDone = 0;
+  bool _pulseStarted = false;
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
 
@@ -67,13 +74,31 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
     );
+    _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_pulseStarted) return;
+    _pulseStarted = true;
+    if (AppMotion.reduceMotion(context)) {
+      // Skip straight to the settled highlighted state.
+      _pulseController.value = 1.0;
+      return;
+    }
+    _runPulseCycle();
+  }
+
+  void _runPulseCycle() {
+    _pulseController.forward(from: 0).whenComplete(() {
+      _pulseCyclesDone++;
+      if (!mounted || _pulseCyclesDone >= _kPulseCycles) return;
+      _runPulseCycle();
+    });
   }
 
   @override
@@ -99,19 +124,15 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     // Show submitted view if the user submitted locally OR if the
     // server already resolved the permission (e.g. loaded from sync,
     // widget rebuild after submit, or auto-approve).
-    final existingPerm =
-        WireParsers.asMap(widget.tool['permission']);
-    final permStatus =
-        existingPerm?['status'] as String?;
-    final alreadyResolved = permStatus != null &&
-        permStatus != 'pending';
+    final existingPerm = WireParsers.asMap(widget.tool['permission']);
+    final permStatus = existingPerm?['status'] as String?;
+    final alreadyResolved = permStatus != null && permStatus != 'pending';
     if (_isSubmitted || alreadyResolved) {
       return _buildSubmittedView(context, parsedQuestions);
     }
 
     final canInteract = !_isSubmitting;
-    final allAnswered =
-        parsedQuestions.asMap().entries.every((e) {
+    final allAnswered = parsedQuestions.asMap().entries.every((e) {
       final s = _selections[e.key];
       return s != null && s.isNotEmpty;
     });
@@ -125,8 +146,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
   }
 
   List<Question> _parseQuestions() {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final questions = input['questions'] as List?;
     if (questions == null || questions.isEmpty) {
       return const <Question>[];
@@ -135,12 +155,12 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     return questions
         .map((q) {
           if (q is! Map<String, dynamic>) return null;
-          final options = (q['options'] as List?)
+          final options =
+              (q['options'] as List?)
                   ?.map(
                     (o) => QuestionOption(
                       label: o['label'] as String? ?? '',
-                      description:
-                          o['description'] as String? ?? '',
+                      description: o['description'] as String? ?? '',
                     ),
                   )
                   .toList() ??
@@ -157,10 +177,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
         .toList();
   }
 
-  Widget _buildSubmittedView(
-    BuildContext context,
-    List<Question> questions,
-  ) {
+  Widget _buildSubmittedView(BuildContext context, List<Question> questions) {
     final theme = Theme.of(context);
 
     return Container(
@@ -174,8 +191,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: theme.colorScheme.outlineVariant
-              .withValues(alpha: 80 / 255),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 80 / 255),
         ),
       ),
       child: Column(
@@ -192,8 +208,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
               const SizedBox(width: AppSpacing.xsm),
               Text(
                 'Answered',
-                style: theme.textTheme.labelMedium
-                    ?.copyWith(
+                style: theme.textTheme.labelMedium?.copyWith(
                   color: theme.colorScheme.primary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -207,58 +222,44 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
             final selected = _selections[qIndex];
             final labels = selected != null
                 ? selected
-                    .map(
-                      (i) => i < q.options.length
-                          ? q.options[i].label
-                          : '',
-                    )
-                    .where((l) => l.isNotEmpty)
-                    .join(', ')
+                      .map(
+                        (i) => i < q.options.length ? q.options[i].label : '',
+                      )
+                      .where((l) => l.isNotEmpty)
+                      .join(', ')
                 : '-';
 
             return Padding(
-              padding: EdgeInsets.only(
-                top: qIndex > 0 ? 6 : 0,
-              ),
+              padding: EdgeInsets.only(top: qIndex > 0 ? 6 : 0),
               child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '${q.header}: ',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: theme
-                          .colorScheme.onSurfaceVariant,
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           labels,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(
-                            color:
-                                theme.colorScheme.onSurface,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
-                        if (_notesControllers[qIndex]?.text
-                                .trim()
-                                .isNotEmpty ??
+                        if (_notesControllers[qIndex]?.text.trim().isNotEmpty ??
                             false) ...[
                           const SizedBox(height: 2),
                           Text(
                             'Notes: '
                             '${_notesControllers[qIndex]!.text.trim()}',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(
-                              color: theme
-                                  .colorScheme.onSurfaceVariant,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -287,17 +288,14 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     return AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, child) {
-        final glowAlpha =
-            (12 + (_pulseAnimation.value * 20)).round();
-        final borderAlpha =
-            (80 + (_pulseAnimation.value * 80)).round();
+        final glowAlpha = (12 + (_pulseAnimation.value * 20)).round();
+        final borderAlpha = (80 + (_pulseAnimation.value * 80)).round();
 
         return Container(
           width: double.infinity,
           margin: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color:
-                theme.colorScheme.surfaceContainerLow,
+            color: theme.colorScheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: primary.withValues(alpha: borderAlpha / 255),
@@ -324,42 +322,32 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
 
           // Questions
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-                12, 12, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                ...questions.asMap().entries.map(
-                  (entry) {
-                    final qIndex = entry.key;
-                    final question = entry.value;
-                    return QuestionSection(
-                      question: question,
-                      questionIndex: qIndex,
-                      selectedOptions:
-                          _selections[qIndex] ?? {},
-                      isInteractive: canInteract,
-                      onToggle: (optionIndex) =>
-                          _handleToggle(
-                        qIndex,
-                        optionIndex,
-                        question.multiSelect,
-                      ),
-                      notesController:
-                          _notesControllers[qIndex],
-                    );
-                  },
-                ),
+                ...questions.asMap().entries.map((entry) {
+                  final qIndex = entry.key;
+                  final question = entry.value;
+                  return QuestionSection(
+                    question: question,
+                    questionIndex: qIndex,
+                    selectedOptions: _selections[qIndex] ?? {},
+                    isInteractive: canInteract,
+                    onToggle: (optionIndex) => _handleToggle(
+                      qIndex,
+                      optionIndex,
+                      question.multiSelect,
+                    ),
+                    notesController: _notesControllers[qIndex],
+                  );
+                }),
 
                 // Submit button
                 if (canInteract) ...[
                   const SizedBox(height: 4),
-                  _buildSubmitButton(
-                    context,
-                    allAnswered: allAnswered,
-                  ),
+                  _buildSubmitButton(context, allAnswered: allAnswered),
                 ],
               ],
             ),
@@ -375,15 +363,10 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: primary.withValues(alpha: 18 / 255),
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(15),
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
       ),
       child: Row(
         children: [
@@ -398,23 +381,17 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                 width: 1,
               ),
             ),
-            child: Icon(
-              Icons.help_rounded,
-              size: 18,
-              color: primary,
-            ),
+            child: Icon(Icons.help_rounded, size: 18, color: primary),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Input needed',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     color: primary,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.1,
@@ -422,20 +399,15 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                 ),
                 Text(
                   'Please choose an option below',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(
-                    color:
-                        primary.withValues(alpha: 180 / 255),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: primary.withValues(alpha: 180 / 255),
                   ),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: primary.withValues(alpha: 25 / 255),
               borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -459,19 +431,13 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     );
   }
 
-  Widget _buildSubmitButton(
-    BuildContext context, {
-    required bool allAnswered,
-  }) {
+  Widget _buildSubmitButton(BuildContext context, {required bool allAnswered}) {
     final theme = Theme.of(context);
 
     return Align(
       alignment: Alignment.centerRight,
       child: FilledButton.icon(
-        onPressed:
-            allAnswered && !_isSubmitting
-                ? _handleSubmit
-                : null,
+        onPressed: allAnswered && !_isSubmitting ? _handleSubmit : null,
         icon: _isSubmitting
             ? SizedBox(
                 width: 16,
@@ -481,38 +447,24 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                   color: theme.colorScheme.onPrimary,
                 ),
               )
-            : const Icon(
-                Icons.send_rounded,
-                size: 16,
-              ),
-        label: Text(
-          _isSubmitting ? 'Submitting...' : 'Submit',
-        ),
+            : const Icon(Icons.send_rounded, size: 16),
+        label: Text(_isSubmitting ? 'Submitting...' : 'Submit'),
         style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 8,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
-          backgroundColor:
-              allAnswered && !_isSubmitting
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.outlineVariant,
+          backgroundColor: allAnswered && !_isSubmitting
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant,
         ),
       ),
     );
   }
 
-  void _handleToggle(
-    int questionIndex,
-    int optionIndex,
-    bool multiSelect,
-  ) {
+  void _handleToggle(int questionIndex, int optionIndex, bool multiSelect) {
     setState(() {
-      final current =
-          _selections[questionIndex] ?? <int>{};
+      final current = _selections[questionIndex] ?? <int>{};
       if (multiSelect) {
         if (current.contains(optionIndex)) {
           current.remove(optionIndex);
@@ -535,9 +487,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
       _isSubmitting = true;
     });
 
-    final input =
-        WireParsers.asMap(widget.tool['input'])
-            ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final parsedQuestions = _parseQuestions();
 
     // Build the AskUserQuestion answer payload keyed by question
@@ -547,33 +497,27 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
     // so the CLI can resume the blocked turn.
     final answers = <String, String>{};
     final annotations = <String, Map<String, String>>{};
-    for (var qIdx = 0;
-        qIdx < parsedQuestions.length;
-        qIdx++) {
+    for (var qIdx = 0; qIdx < parsedQuestions.length; qIdx++) {
       final question = parsedQuestions[qIdx];
       final selected = _selections[qIdx];
       if (selected != null && selected.isNotEmpty) {
         final labels = selected
             .map(
-              (i) => i < question.options.length
-                  ? question.options[i].label
-                  : '',
+              (i) =>
+                  i < question.options.length ? question.options[i].label : '',
             )
             .where((l) => l.isNotEmpty)
             .join(', ');
         answers[question.question] = labels;
       }
-      final notes =
-          _notesControllers[qIdx]?.text.trim() ?? '';
+      final notes = _notesControllers[qIdx]?.text.trim() ?? '';
       if (notes.isNotEmpty) {
-        annotations[question.question] =
-            <String, String>{'notes': notes};
+        annotations[question.question] = <String, String>{'notes': notes};
       }
     }
 
     try {
-      final permission = WireParsers.asMap(
-            widget.tool['permission']);
+      final permission = WireParsers.asMap(widget.tool['permission']);
       final permId = permission?['id'] as String?;
       if (permId != null) {
         // Include answers in updatedInput so the CLI
@@ -586,8 +530,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
               updatedInput: <String, dynamic>{
                 ...input,
                 'answers': answers,
-                if (annotations.isNotEmpty)
-                  'annotations': annotations,
+                if (annotations.isNotEmpty) 'annotations': annotations,
               },
             );
       } else {
@@ -601,10 +544,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
         ];
         await ref
             .read(chatActionNotifierProvider.notifier)
-            .sendMessage(
-              widget.sessionId!,
-              lines.join('\n'),
-            );
+            .sendMessage(widget.sessionId!, lines.join('\n'));
       }
       // Only mark as submitted after the RPC/message
       // actually succeeds — if the CLI agent has
@@ -632,11 +572,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
           setState(() => _isSubmitted = true);
         }
       } else {
-        logger.warning(
-          'Failed to submit answer: $e',
-          e,
-          st,
-        );
+        logger.warning('Failed to submit answer: $e', e, st);
         // Don't set _isSubmitted — show the
         // interactive view again so the user can
         // retry or see that submission failed.
