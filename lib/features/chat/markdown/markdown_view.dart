@@ -21,6 +21,10 @@ typedef OptionPressedCallback = void Function(String option);
 /// built-in horizontal table scroller when the table exceeds its viewport.
 const TableColumnWidth _scrollableTableColumnWidth = IntrinsicColumnWidth();
 
+/// Maximum characters shown as plain text while streaming; older content
+/// collapses into a leading ellipsis until the message completes.
+const int _streamingTailChars = 4000;
+
 /// A widget that renders markdown content with full formatting support.
 ///
 /// Supports:
@@ -32,6 +36,10 @@ const TableColumnWidth _scrollableTableColumnWidth = IntrinsicColumnWidth();
 /// when the theme or [textColor] changes. This prevents [MarkdownBody] from
 /// re-parsing the document on every parent rebuild (e.g. sync events).
 ///
+/// While [isStreaming] is true, the document is rendered as plain text so
+/// each delta does not re-parse the whole growing document; the formatted
+/// render appears once streaming completes.
+///
 /// [ExtensionSet], [blockSyntaxes], and [builders] are static constants
 /// shared across all instances to avoid allocations.
 class MarkdownView extends StatefulWidget {
@@ -41,6 +49,7 @@ class MarkdownView extends StatefulWidget {
     super.key,
     this.onOptionPress,
     this.textColor,
+    this.isStreaming = false,
   });
 
   /// The raw markdown text to render.
@@ -51,6 +60,12 @@ class MarkdownView extends StatefulWidget {
 
   /// Optional text color override for the markdown content.
   final Color? textColor;
+
+  /// Whether the source message is still receiving deltas. While true, the
+  /// body renders as a bounded plain-text tail instead of a parsed
+  /// [MarkdownBody] — the growing string defeats the widget cache below and
+  /// would otherwise re-parse the whole document on every delta.
+  final bool isStreaming;
 
   @override
   State<MarkdownView> createState() => _MarkdownViewState();
@@ -81,7 +96,8 @@ class _MarkdownViewState extends State<MarkdownView> {
       _builders = null;
       _cachedBody = null;
     }
-    if (widget.markdown != oldWidget.markdown) {
+    if (widget.markdown != oldWidget.markdown ||
+        widget.isStreaming != oldWidget.isStreaming) {
       _cachedBody = null;
     }
   }
@@ -180,6 +196,19 @@ class _MarkdownViewState extends State<MarkdownView> {
 
     final markdown = widget.markdown;
 
+    // Streaming deltas grow the string every tick, so the cache below can
+    // never hit and each rebuild would re-parse the entire document and
+    // rebuild every block. Render a bounded plain-text tail instead; the
+    // real MarkdownBody is built once when streaming completes.
+    if (widget.isStreaming) {
+      return RepaintBoundary(
+        child: SelectableText(
+          _streamingTail(markdown),
+          style: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
+        ),
+      );
+    }
+
     // Reuse the previously built MarkdownBody when both the markdown
     // content and the styling inputs are unchanged. MarkdownBody parses
     // its data string on every build, so caching the widget short-circuits
@@ -201,6 +230,14 @@ class _MarkdownViewState extends State<MarkdownView> {
     _cachedBody = body;
     _cachedBodyMarkdown = markdown;
     return body;
+  }
+
+  /// Last [_streamingTailChars] characters of [markdown], prefixed with an
+  /// ellipsis when older content was dropped. The full document renders
+  /// once streaming completes.
+  String _streamingTail(String markdown) {
+    if (markdown.length <= _streamingTailChars) return markdown;
+    return '…${markdown.substring(markdown.length - _streamingTailChars)}';
   }
 }
 

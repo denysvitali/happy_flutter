@@ -159,6 +159,7 @@ class _BotMessageState extends State<BotMessage> {
                   MarkdownView(
                     markdown: widget.text,
                     onOptionPress: widget.onOptionPress,
+                    isStreaming: widget.isStreaming,
                   ),
                   if (widget.isStreaming)
                     const Padding(
