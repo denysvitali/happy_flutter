@@ -45,8 +45,22 @@ List<RouteBase> get shellRoutes => [
         if (sessionId == null) {
           return _missingPathParameterPage(state, 'sessionId');
         }
+        // go_router keys the page by the route *pattern*
+        // (`/chat/:sessionId`), so `go('/chat/B')` while `/chat/A` is
+        // current reuses A's route and swaps the child in place. ChatScreen
+        // seeds messages, visibility and sync subscriptions in initState
+        // from `widget.sessionId`; without a per-session key it would keep
+        // A's state while `widget.sessionId` reads B — the user "opens" B
+        // but sees and acts on A. Every imperative `goNamed('chat')`
+        // (command palette, notification tap, send redirect, new-session
+        // dialog) hits that path.
         return _slidePage(
-          AuthGate(child: ChatScreen(sessionId: sessionId)),
+          AuthGate(
+            child: ChatScreen(
+              key: ValueKey<String>('chat:$sessionId'),
+              sessionId: sessionId,
+            ),
+          ),
           state,
         );
       },
