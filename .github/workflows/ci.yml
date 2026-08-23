@@ -344,6 +344,62 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  benchmarks:
+    name: Mocked-backend benchmarks
+    # Informational: measures client-side hot paths against the Dio-interceptor
+    # mock backend (benchmark/). Not part of quality-gate — numbers are JIT-mode
+    # relative indicators, so a noisy run must never block a release.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Flutter
+        uses: ./.github/actions/setup-flutter
+        with:
+          # Analyze is the single trusted host-SDK cache writer.
+          cache-write: 'false'
+
+      - name: Cache pub package downloads
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: >-
+            pub-v3-${{ runner.os }}-${{ runner.arch }}-${{
+            hashFiles('.mise.toml', 'pubspec.lock') }}
+          restore-keys: |
+            pub-v3-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Get dependencies
+        run: mise exec -- flutter pub get
+
+      - name: Run benchmarks
+        run: |
+          set +e
+          mise exec -- flutter test --no-pub --concurrency=1 \
+            --reporter=expanded benchmark/ 2>&1 | tee bench-output.log
+          status=${PIPESTATUS[0]}
+          set -e
+          # Summarize even on failure so partial results are visible.
+          python3 .github/scripts/bench_summary.py bench-output.log \
+            benchmark-results.csv >> "$GITHUB_STEP_SUMMARY" || true
+          exit "$status"
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results-${{ github.run_id }}
+          path: |
+            bench-output.log
+            benchmark-results.csv
+          retention-days: 90
+          if-no-files-found: warn
+
   quality-gate:
     name: Quality Gate
     needs: [analyze, build-ios, codegen, test, golden]
