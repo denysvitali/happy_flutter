@@ -194,19 +194,22 @@ SettingsSectionSpec _infrastructureSectionSpec(
   return SettingsSectionSpec(
     title: hasMachines ? l10n.settingsMachines : l10n.settingsServer,
     rows: [
-      if (hasMachines) ...[
+      if (hasMachines)
         NavRouteRowSpec(
           icon: Icons.computer_outlined,
           title: l10n.settingsMachines,
           subtitle: firstMachineSubtitle,
           route: 'machines',
         ),
-        NavRouteRowSpec(
-          icon: Icons.extension_outlined,
-          title: l10n.settingsMcpServers,
-          subtitle: l10n.settingsMcpServersSubtitle,
-          route: 'mcp-servers',
-        ),
+      // MCP servers are account-level configuration, not machine-scoped,
+      // so this row stays visible even with no machines linked.
+      NavRouteRowSpec(
+        icon: Icons.extension_outlined,
+        title: l10n.settingsMcpServers,
+        subtitle: l10n.settingsMcpServersSubtitle,
+        route: 'mcp-servers',
+      ),
+      if (hasMachines)
         NavRouteRowSpec(
           icon: Icons.shield_outlined,
           title: l10n.settingsSandbox,
@@ -216,7 +219,6 @@ SettingsSectionSpec _infrastructureSectionSpec(
           route: 'sandbox',
           enabled: sandboxAvailable,
         ),
-      ],
       // Plain sync MMKV read at build time; the richer verify/save/reset
       // editor lives behind the 'server-settings' route.
       NavRouteRowSpec(

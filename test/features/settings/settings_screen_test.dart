@@ -100,6 +100,9 @@ Widget _buildRouterApp(Settings initialSettings) {
       ),
       GoRoute(
         path: '/settings/server',
+        // NavRouteRowSpec taps call context.pushNamed, so the harness
+        // route must carry the same name the real router registers.
+        name: 'server-settings',
         builder: (_, _) =>
             const Scaffold(body: Text('Server settings placeholder')),
       ),
@@ -148,13 +151,15 @@ void main() {
     // The old one-row Account section is fully replaced by ProfileHeader
     // and the status block's account-recovery row.
     expect(find.text('Account Settings'), findsNothing);
-    // The only remaining "Account"-titled section is the danger zone.
-    expect(find.text('ACCOUNT'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Sign out'),
       400,
       scrollable: find.byType(Scrollable).first,
     );
+    // The only remaining "Account"-titled section is the danger zone.
+    // Assert after scrolling: the hub is a lazy ListView and the
+    // bottom DangerZone block is not built until it is scrolled in.
+    expect(find.text('ACCOUNT'), findsOneWidget);
     expect(find.text('Sign out'), findsOneWidget);
   });
 
