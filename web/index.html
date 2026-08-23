@@ -34,8 +34,10 @@
     <link rel="manifest" href="manifest.json">
     <title>Happy</title>
 
-    <!-- Load sodium first, without blocking document parsing. -->
-    <script src="sodium.js" defer=""></script>
+    <!-- Load sodium first, without blocking document parsing; low priority
+         keeps the 931KB bundle from competing with main.dart.js on cold loads
+         (the Dart side awaits global sodium.ready during auth restore). -->
+    <script src="sodium.js" defer="" fetchpriority="low"></script>
     <script src="flutter_bootstrap.js" defer=""></script>
   </head>
   <body>
