@@ -22,6 +22,14 @@ import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 ///
 /// Uses a Dio interceptor to control HTTP outcomes without a real server.
 void main() {
+  // The real exponential-backoff scheduler still drives every attempt;
+  // only the wall-clock between attempts is scaled down (1 s/2 s/4 s →
+  // 200 ms/400 ms/800 ms). Attempt counts and status transitions are
+  // unchanged. The first retry must still land after the 100 ms
+  // onSessionMessagesChanged debounce so 'pending' stays observable.
+  setUp(() => MessageOutbox.testRetryDelayScale = 0.2);
+  tearDown(() => MessageOutbox.testRetryDelayScale = 1.0);
+
   group('message send failure and status tracking', () {
     late Sync sync;
     late _FakeEncryption encryption;
@@ -103,9 +111,14 @@ void main() {
         await sync.lastCompleteSendFuture;
 
         // After _completeSend throws, the message is queued in the outbox
-        // with 'pending' status. We wait for all retries to exhaust.
-        // Backoff: ~1 s, ~2 s, ~4 s → ~7 s total, cap with jitter.
-        await Future<void>.delayed(const Duration(milliseconds: 8500));
+        // with 'pending' status. Wait for all retries to exhaust
+        // (backoff 1 s, 2 s, 4 s — scaled by testRetryDelayScale).
+        await _waitUntil(
+          () => _firstSendStatus(sync, 'sess-1') == 'failed',
+          reason:
+              'Message should be marked failed after '
+              'outbox exhausts all retries',
+        );
 
         final msgs = sync.testSessionMessages('sess-1');
         expect(msgs, isNotNull);
@@ -182,7 +195,10 @@ void main() {
 
       // After _completeSend fails, the outbox fires
       // 'pending' via its onStatusChanged callback.
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await _waitUntil(
+        () => statuses.contains('pending'),
+        reason: 'Outbox should fire pending after initial send failure',
+      );
       expect(
         statuses,
         contains('pending'),
@@ -387,8 +403,12 @@ void main() {
       await sync.sendMessage('sess-3', 'First attempt');
       await sync.lastCompleteSendFuture;
 
-      // Allow async outbox status callbacks to settle.
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      // Allow async outbox status callbacks to settle: the failed send
+      // enqueues its entry (unawaited) after the complete-send future.
+      await _waitUntil(
+        () => _firstSendStatus(sync, 'sess-3') == 'pending',
+        reason: 'failed send should be queued in the outbox as pending',
+      );
 
       // Verify that the first send failed and the message
       // is queued.
@@ -437,7 +457,10 @@ void main() {
         'second logical message', () async {
       await sync.sendMessage('sess-3', 'Retry me');
       await sync.lastCompleteSendFuture;
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await _waitUntil(
+        () => _firstSendStatus(sync, 'sess-3') == 'pending',
+        reason: 'failed send should be queued in the outbox as pending',
+      );
 
       final failedMsgs = sync.testSessionMessages('sess-3');
       expect(failedMsgs, isNotNull);
@@ -462,7 +485,11 @@ void main() {
         originalLocalId,
       );
       expect(retryResult.outcome, MessageRetryOutcome.queued);
-      await Future<void>.delayed(const Duration(milliseconds: 1400));
+      // The queued retry fires after one (scaled) backoff delay.
+      await _waitUntil(
+        () => _firstSendStatus(sync, 'sess-3') == 'sent',
+        reason: 'queued retry should deliver after the backoff delay',
+      );
 
       final msgsAfterRetry = sync.testSessionMessages('sess-3');
       expect(msgsAfterRetry, isNotNull);
@@ -557,7 +584,10 @@ void main() {
         'the original failed message', () async {
       await sync.sendMessage('sess-3', 'continue');
       await sync.lastCompleteSendFuture;
-      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await _waitUntil(
+        () => _firstSendStatus(sync, 'sess-3') == 'pending',
+        reason: 'failed send should be queued in the outbox as pending',
+      );
 
       final msgsAfterFail = sync.testSessionMessages('sess-3');
       expect(msgsAfterFail, isNotNull);
@@ -608,6 +638,29 @@ void main() {
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
+
+/// Polls [condition] every 5 ms until it holds, failing with [reason] if it
+/// has not within [timeout]. Replaces fixed "let it settle" sleeps so the
+/// test resumes the moment the awaited state is reached.
+Future<void> _waitUntil(
+  bool Function() condition, {
+  required String reason,
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('$reason (not observed within $timeout)');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
+
+String? _firstSendStatus(Sync sync, String sessionId) {
+  final msgs = sync.testSessionMessages(sessionId);
+  if (msgs == null || msgs.isEmpty) return null;
+  return msgs.first['sendStatus'] as String?;
+}
 
 /// Stub all 13 InvalidateSync fields to no-ops.
 void _stubAllSyncs(Sync instance) {
