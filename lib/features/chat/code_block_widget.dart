@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -10,6 +12,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/theme/code_viewer_theme.dart';
 import '../../core/theme/language_colors.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/syntax_cache.dart';
 import 'code_block_line_spans.dart';
 import 'syntax_highlighter.dart';
 
@@ -111,6 +114,7 @@ class CodeBlockWidget extends StatefulWidget {
     this.maxVisibleLines = 12,
     this.allowExpand = true,
     this.fullScreen = false,
+    this.isStreaming = false,
   });
 
   /// The source code to display.
@@ -145,6 +149,11 @@ class CodeBlockWidget extends StatefulWidget {
   /// The full-screen reader owns the viewport, so it may scroll freely.
   final bool fullScreen;
 
+  /// Explicit streaming marker from the caller. While true (or while the
+  /// content is detected to be append-growing), only a bounded plain-text
+  /// tail renders; full tokenization runs once streaming settles.
+  final bool isStreaming;
+
   @override
   State<CodeBlockWidget> createState() => _CodeBlockWidgetState();
 }
@@ -152,6 +161,10 @@ class CodeBlockWidget extends StatefulWidget {
 class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   static const int _maxDisplayedCodeUnits = 100000;
   static const int _maxDisplayedLines = 2000;
+
+  /// How long content must stop growing before an append-detected stream is
+  /// considered complete and the full block is tokenized.
+  static const Duration _streamSettleDelay = Duration(milliseconds: 2000);
 
   /// Approximate advance width of a monospace glyph relative to font size.
   /// Used to size the line-number gutter in wrapped mode.
@@ -171,6 +184,20 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   /// Memoised wrapped-mode spans and the brightness they were built for.
   List<List<TextSpan>>? _cachedLineSpans;
   bool? _cachedSpansDark;
+
+  /// Whether the block is believed to be mid-stream. While true the block
+  /// renders a bounded plain-text tail ([syntaxStreamingTailUnits]) without
+  /// touching the shared token cache; the highlighted full block is built
+  /// once streaming ends. See [didUpdateWidget] for how this is detected.
+  bool _streaming = false;
+  Timer? _settleTimer;
+
+  /// Memoised inline wrapped-line count and the inputs it was measured
+  /// against, so unchanged blocks do not relayout on every rebuild.
+  int? _wrappedInlineCount;
+  double? _wrappedCountWidth;
+  double? _wrappedCountFontSize;
+  double? _wrappedCountScale;
 
   // Explicit, non-primary controller so the full-screen reader scrolls
   // independently of the ambient PrimaryScrollController.
@@ -201,11 +228,13 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     _vController = ScrollController();
     _hController = ScrollController();
     CodeBlockWrapPreference.ensureLoaded();
+    _streaming = widget.isStreaming;
     _updateDisplayCode();
   }
 
   @override
   void dispose() {
+    _settleTimer?.cancel();
     _vController.dispose();
     _hController.dispose();
     super.dispose();
@@ -214,22 +243,77 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   @override
   void didUpdateWidget(CodeBlockWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
+    var invalidate = false;
     if (oldWidget.code != widget.code ||
         oldWidget.language != widget.language) {
-      _updateDisplayCode();
+      invalidate = true;
     }
+    if (widget.isStreaming || oldWidget.isStreaming) {
+      // Explicit signal from the caller wins.
+      _settleTimer?.cancel();
+      if (_streaming != widget.isStreaming) invalidate = true;
+      _streaming = widget.isStreaming;
+    } else if (_grewByAppend(oldWidget)) {
+      // No explicit signal: infer streaming from append-only growth and
+      // stay on the cheap path until growth quiets down.
+      if (!_streaming) invalidate = true;
+      _streaming = true;
+      _armSettleTimer();
+    } else if (_streaming) {
+      _settleTimer?.cancel();
+      _streaming = false;
+      invalidate = true;
+    }
+    if (invalidate) _updateDisplayCode();
+  }
+
+  /// Whether [widget.code] is [oldWidget.code] plus appended characters —
+  /// the shape of a streaming delta.
+  bool _grewByAppend(CodeBlockWidget oldWidget) =>
+      widget.code.length > oldWidget.code.length &&
+      widget.code.startsWith(oldWidget.code);
+
+  void _armSettleTimer() {
+    _settleTimer?.cancel();
+    _settleTimer = Timer(_streamSettleDelay, () {
+      _settleTimer = null;
+      if (!mounted || !_streaming) return;
+      setState(() {
+        _streaming = false;
+        _updateDisplayCode();
+      });
+    });
   }
 
   void _updateDisplayCode() {
-    _displayCode = _truncateForDisplay(widget.code);
-    _isTruncated = _displayCode.length != widget.code.length;
+    var code = widget.code;
+    if (_streaming && code.length > syntaxStreamingTailUnits) {
+      // Mid-stream the growing block must not re-tokenize (and evict the
+      // shared token cache) on every delta; render a bounded plain tail,
+      // matching MarkdownView's streaming behavior, and swap in the
+      // highlighted full block once streaming ends.
+      code = '…${code.substring(code.length - syntaxStreamingTailUnits)}';
+    }
+    _displayCode = _truncateForDisplay(code);
+    _isTruncated = !_streaming && _displayCode.length != code.length;
     _displayLines = _displayCode.split('\n');
     _cachedLineSpans = null;
+    _wrappedInlineCount = null;
   }
 
   /// Per-logical-line spans for wrapped mode, tokenised once for the whole
   /// block and memoised until the code, language, or palette changes.
   List<TextSpan> _lineSpans(bool isDark, int index) {
+    if (_streaming) {
+      // Streaming snapshots must not enter the shared token cache (see
+      // SyntaxTokenCache.get), so wrapped mode renders plain spans instead
+      // of going through buildCodeLineSpans; full styling returns when the
+      // stream settles.
+      final line = _displayLines[index];
+      return line.isEmpty
+          ? const <TextSpan>[TextSpan(text: ' ')]
+          : <TextSpan>[TextSpan(text: line)];
+    }
     if (_cachedLineSpans == null || _cachedSpansDark != isDark) {
       _cachedLineSpans = buildCodeLineSpans(
         code: _displayCode,
@@ -411,6 +495,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
                   isDarkMode: isDark,
                   fontSize: widget.fontSize,
                   lineHeight: _lineHeight,
+                  isStreaming: _streaming,
                 ),
               ),
             ),
@@ -527,8 +612,10 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
   ///
   /// Measures real wrapping with a [TextPainter] rather than estimating from
   /// character counts, so the footer's hidden-line count is exact for any
-  /// font. The first logical line is always rendered, even when it alone
-  /// overflows the budget.
+  /// font; the result is memoised against the content (reset in
+  /// [_updateDisplayCode]), width, font size, and text scale so unchanged
+  /// blocks skip relayout entirely. The first logical line is always
+  /// rendered, even when it alone overflows the budget.
   int _wrappedInlineLineCount(BuildContext context, double maxWidth) {
     if (!maxWidth.isFinite) return _visibleLineCount;
     final gutter = widget.showLineNumbers
@@ -537,9 +624,42 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
     final codeWidth = maxWidth - gutter - AppSpacing.lg;
     if (codeWidth <= 0) return 1;
 
+    final scaler =
+        MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling;
+    // TextScaler instances lack value equality; compare a resolved probe.
+    final scale = scaler.scale(10) / 10;
+    if (!_streaming &&
+        _wrappedInlineCount != null &&
+        _wrappedCountWidth == codeWidth &&
+        _wrappedCountFontSize == widget.fontSize &&
+        _wrappedCountScale == scale) {
+      return _wrappedInlineCount!;
+    }
+    // While streaming the content changes every tick, so exact per-line
+    // TextPainter measurement would relayout the visible window on every
+    // delta. A character-count estimate keeps those frames cheap; it is
+    // replaced by exact metrics once the stream settles. The estimate may
+    // be off by one visual row until then — the clip bounds the height.
+    final count = _streaming
+        ? _estimateWrappedInlineCount(scale, codeWidth)
+        : _measureWrappedInlineCount(context, scaler, codeWidth);
+    if (!_streaming) {
+      _wrappedInlineCount = count;
+      _wrappedCountWidth = codeWidth;
+      _wrappedCountFontSize = widget.fontSize;
+      _wrappedCountScale = scale;
+    }
+    return count;
+  }
+
+  int _measureWrappedInlineCount(
+    BuildContext context,
+    TextScaler scaler,
+    double codeWidth,
+  ) {
     final painter = TextPainter(
       textDirection: Directionality.of(context),
-      textScaler: MediaQuery.maybeTextScalerOf(context) ?? TextScaler.noScaling,
+      textScaler: scaler,
     );
     final budget = widget.maxVisibleLines;
     var rows = 0;
@@ -559,6 +679,24 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
       if (rows >= budget) break;
     }
     painter.dispose();
+    return count;
+  }
+
+  /// Character-count estimate of the wrapped-row budget for streaming
+  /// frames; stops as soon as the budget is reached.
+  int _estimateWrappedInlineCount(double scale, double codeWidth) {
+    final advance = widget.fontSize * _monospaceAdvanceRatio * scale;
+    final budget = widget.maxVisibleLines;
+    var rows = 0;
+    var count = 0;
+    for (final line in _displayLines) {
+      final cols = line.isEmpty ? 1 : line.length;
+      final lineRows = (cols * advance / codeWidth).ceil();
+      if (count > 0 && rows + lineRows > budget) break;
+      rows += lineRows;
+      count++;
+      if (rows >= budget) break;
+    }
     return count;
   }
 

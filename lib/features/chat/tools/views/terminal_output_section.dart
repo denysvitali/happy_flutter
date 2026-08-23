@@ -46,6 +46,10 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
   // Track the style used to build _parsedSpans so we can avoid re-parsing
   // when only unrelated parts of the tree rebuild.
   TextStyle? _lastDefaultStyle;
+  // Full output with ANSI escapes stripped, for the copy button. Stripping
+  // is a regex sweep over the whole output; recompute only when the output
+  // actually changes, not on every build while the tool view streams.
+  late String _strippedOutput;
 
   void _recomputeVisibleText() {
     final lines = widget.output.split('\n');
@@ -56,6 +60,7 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
         : lines.take(widget.maxLines).toList();
     _visibleText = visibleLines.join('\n');
     _lastDefaultStyle = null;
+    _strippedOutput = AnsiParser.strip(widget.output);
   }
 
   @override
@@ -159,10 +164,7 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                ToolViewCopyButton(
-                  text: AnsiParser.strip(widget.output),
-                  iconSize: 13,
-                ),
+                ToolViewCopyButton(text: _strippedOutput, iconSize: 13),
               ],
             ),
           ),

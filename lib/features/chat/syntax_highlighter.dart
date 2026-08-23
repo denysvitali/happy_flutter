@@ -110,7 +110,8 @@ class SyntaxColors {
   static Map<SyntaxTokenType, Color> get dark => _enumMap(SyntaxTheme.dark);
 
   /// Light rainbow brackets (alias of [SyntaxTheme.light] bracketNesting).
-  static List<Color> get bracketNestingLight => SyntaxTheme.light.bracketNesting;
+  static List<Color> get bracketNestingLight =>
+      SyntaxTheme.light.bracketNesting;
 
   /// Dark rainbow brackets (alias of [SyntaxTheme.dark] bracketNesting).
   static List<Color> get bracketNestingDark => SyntaxTheme.dark.bracketNesting;
@@ -119,11 +120,7 @@ class SyntaxColors {
   ///
   /// Falls back to [SyntaxTheme.defaultText] when the token has no entry
   /// or when the enum value is the unknown-string sentinel `default_`.
-  static Color getColor(
-    SyntaxTokenType type,
-    int nestLevel,
-    bool isDarkMode,
-  ) {
+  static Color getColor(SyntaxTokenType type, int nestLevel, bool isDarkMode) {
     final theme = isDarkMode ? SyntaxTheme.dark : SyntaxTheme.light;
     if (type == SyntaxTokenType.bracket) {
       return theme.bracketFor(nestLevel);
@@ -161,6 +158,7 @@ class SyntaxHighlighter extends StatefulWidget {
     this.fontSize = 14,
     this.lineHeight = 20,
     this.keywordFontWeight = FontWeight.w600,
+    this.isStreaming = false,
   });
 
   /// Raw source code.
@@ -181,6 +179,13 @@ class SyntaxHighlighter extends StatefulWidget {
   /// Font weight applied to keywords and control-flow tokens.
   final FontWeight? keywordFontWeight;
 
+  /// Whether [code] is still receiving appends. While true, only a bounded
+  /// plain-text tail renders (see [syntaxStreamingTailUnits]) and the shared
+  /// token cache is neither read nor written; the completed block is
+  /// tokenized and cached once streaming ends. Callers must therefore pass
+  /// the full [code] and flip this to false on completion.
+  final bool isStreaming;
+
   @override
   State<SyntaxHighlighter> createState() => _SyntaxHighlighterState();
 }
@@ -200,6 +205,7 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.code != widget.code ||
         oldWidget.language != widget.language ||
+        oldWidget.isStreaming != widget.isStreaming ||
         oldWidget.isDarkMode != widget.isDarkMode ||
         oldWidget.fontSize != widget.fontSize ||
         oldWidget.lineHeight != widget.lineHeight ||
@@ -222,7 +228,11 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
     // code. `_tokenCache.get` is cache-first: it only invokes the
     // tokenizer on a cache miss, so repeated identical (code, language)
     // pairs across all SyntaxHighlighter instances return instantly.
-    final tokens = _tokenCache.get(widget.code, widget.language);
+    final tokens = _tokenCache.get(
+      widget.code,
+      widget.language,
+      isStreaming: widget.isStreaming,
+    );
     return tokens.map((token) {
       final color = SyntaxColors.getColor(
         token.type,
@@ -242,8 +252,7 @@ class _SyntaxHighlighterState extends State<SyntaxHighlighter> {
       SyntaxTokenType.keyword ||
       SyntaxTokenType.controlFlow ||
       SyntaxTokenType.type ||
-      SyntaxTokenType.function =>
-        widget.keywordFontWeight,
+      SyntaxTokenType.function => widget.keywordFontWeight,
       _ => FontWeight.w400,
     };
   }
