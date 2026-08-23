@@ -402,6 +402,20 @@ commit message instead.
 
 **Viewport:** Phone viewport set via `tester.view.physicalSize = Size(390*2, 844*2)` with `devicePixelRatio = 2.0`.
 
+### Benchmarks
+
+`benchmark/` holds mocked-backend benchmarks run by the dedicated
+**Mocked-backend benchmarks** CI job on every push (never locally — same
+RAM rule as tests). Scenarios: session-collection compute, message-pipeline
+stages, raw AES-256-GCM crypto, and the two production ingress routes
+(socket inline ingest, REST first-load tail fetch) over the integration
+suite's `MockSyncServer`. Messaging numbers use a plaintext-passthrough
+encryptor so they isolate pipeline cost; real crypto lives in the crypto
+group. Results render into the job summary (markdown + CSV artifact
+`benchmark-results-*`) via `.github/scripts/bench_summary.py`. Numbers are
+JIT-mode relative indicators, not production AOT latencies — compare runs,
+don't quote absolutes.
+
 ## Coding Standards
 
 - **Strict typing:** `implicit-casts: false`, `implicit-dynamic: false`
