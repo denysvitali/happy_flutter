@@ -73,6 +73,32 @@ question remained unresolved. The rollout is now recorded above.
   request map and escaped as a bare null-check. It now validates inputs,
   returns a structured reason, and the known worker-isolate limitation is
   logged once per process at info.
+- **Parameterized-route page reuse (whole bug class, swept 2026-08-24).**
+  The per-session widget key fixed one route; the trap belonged to all 13
+  parameterized routes (session info/files/file/loops/workflows, message
+  detail, agent conversation, workflow run, machine detail, artifact
+  detail/edit, machine command) — every one seeds parameter-derived state
+  once, and `EditArtifactScreen` latched artifact A's title/body into its
+  text controllers, so a reused page would save A's text onto B. Only
+  `chat` had a live same-route `go()` caller; the rest were latent. Fixed
+  structurally: `routePageKey` in `app_router.dart` folds resolved path
+  parameters into the page key inside `_fadePage` / `_slideUpPage` /
+  `_slidePage`, so later routes inherit the guarantee (query parameters
+  stay out — `SessionsScreen` rewrites `?tab=` via `router.replace()`).
+  `test/core/routing/route_page_identity_test.dart` walks the real route
+  table asserting per route/parameter that the `Page` key differs and
+  `Page.canUpdate` is false, plus a `go()` walk over a probe screen that
+  seeds state in `initState`.
+
+**(2) Tablet/desktop auto-selection stole the tap.** `_ensureTabletSelection`
+treated "not an auto-selection candidate" as "gone":
+`TabletSessionSelectionProjection.fromSessions` filters archived sessions out
+of its candidate list, so after tapping an archived session in master-detail
+the post-frame callback replaced `_selectedSessionId` with the most recent
+*live* session. Archived sessions were therefore impossible to open on
+Linux desktop and tablets — the reported symptom. The projection now also
+carries every session id and exposes `contains()`; an explicit selection is
+only replaced when the session leaves the collection entirely.
 
 **Confirmed healthy:** idle rendering is clean (`activity="idle"` windows
 empty across three independent checks — the historical pulse/spinner family is

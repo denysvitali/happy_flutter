@@ -25,6 +25,18 @@ The choice of transition is per-route. By convention:
 - **Creation flows** (New Session, Profile Wizard) — `_slideUpPage`. Modal-ish.
 - **Detail screens** (Session Info, Message Detail) — `_slidePage`. Swipe-back on all platforms (including Android).
 
+All three take their page key from `routePageKey(state)`, not from
+`state.pageKey`. go_router derives `state.pageKey` from the route *pattern*
+(`/chat/:sessionId`), so `/chat/A` and `/chat/B` would share a key,
+`Page.canUpdate` would return true, and the Navigator would keep the old
+route and swap only the child — a screen that seeds state from its parameter
+in `initState` would keep A's state while `widget.sessionId` reads B.
+`routePageKey` folds the resolved path parameters in so that cannot happen on
+any route, present or future. Query parameters are excluded on purpose:
+`SessionsScreen` rewrites `?tab=` through `router.replace()` precisely to keep
+its own page alive. Pinned by `test/core/routing/route_page_identity_test.dart`,
+which walks the real route table.
+
 ### Named routes
 
 Every route has a name. Use `context.goNamed('chat', pathParameters: {'sessionId': id})` instead of `context.go('/sessions/...')`.
