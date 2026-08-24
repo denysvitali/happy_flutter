@@ -695,8 +695,11 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     );
     if (candidates.sessionIds.isEmpty) return;
     final current = _selectedSessionId;
-    final currentStillExists =
-        current != null && candidates.sessionIds.contains(current);
+    // An explicit selection is only replaced when the session is gone from
+    // the collection (deleted). Archived sessions are not auto-selection
+    // candidates, but tapping one must open *that* session — replacing it
+    // with the most recent live session here opened the wrong chat.
+    final currentStillExists = current != null && candidates.contains(current);
     if (currentStillExists || (current == null && _tabletSelectionDismissed)) {
       return;
     }
