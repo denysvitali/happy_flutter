@@ -2,7 +2,71 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-23
+**Last Updated**: 2026-08-24
+
+### Session-identity and test-suite hardening, 2026-08-24
+
+User report: tapping an archived session opened a different session. A
+worktree-isolated agent sweep with adversarial verification found **two
+independent root causes**, both now fixed and pinned.
+
+**(1) Route page reuse.** go_router derives `state.pageKey` from the route
+*pattern* (`/chat/:sessionId`), so `go('/chat/B')` while `/chat/A` is the
+current location keeps the same page and swaps the child in place.
+`ChatScreen` seeds its transcript, visibility and sync subscriptions in
+`initState` from `widget.sessionId`, so the keyless widget kept A's state
+while `widget.sessionId` read B: the header named B, the transcript and
+composer context were A's. Every imperative entry point navigates that way —
+command palette, notification tap, the send redirect
+(`_followRedirectedSession`), the new-session dialog. Fixed with a
+per-session `ValueKey('chat:<id>')` in `lib/core/routing/routes/`
+`_shell_routes.dart`; pinned by `test/core/routing/chat_route_identity_test`
+`.dart` (go-over-go and push/pop both assert the visible transcript matches
+the URL).
+
+**(2) Tablet/desktop auto-selection stole the tap.** `_ensureTabletSelection`
+treated "not an auto-selection candidate" as "gone":
+`TabletSessionSelectionProjection.fromSessions` filters archived sessions out
+of its candidate list, so after tapping an archived session in master-detail
+the post-frame callback replaced `_selectedSessionId` with the most recent
+*live* session. Archived sessions were therefore impossible to open on
+Linux desktop and tablets — the reported symptom. The projection now also
+carries every session id and exposes `contains()`; an explicit selection is
+only replaced when the session leaves the collection entirely.
+
+**Ruled out with evidence, not assumption.** The sessions-list layer was
+cleared by 22 widget tests covering folder recent/older archived groups,
+Mission Control workspace drill-down, date- and folder-grouped archived
+cards, search, archive-while-visible, timestamp reorder, row deletion,
+collapse/expand, grouping toggle, in-flight press while rows shift, and the
+400 ms tap debounce: label and route id come from the same `Session` object
+in every path (a mutation test remapping one id fails 21 of 22).
+
+**Coverage.** ~6,600 test lines added: a 51-test session-open contract suite
+across every chat entry point (list, folder view, Mission Control, tablet
+master-detail, command palette, notification tap, artifact detail) asserting
+tap-label → routed id with archived rows and near-identical metadata, plus
+91 pure-logic cases pinning ordering, date/folder grouping, disambiguation,
+notifier identity/rollback, targeted `SessionUiState` updates and Mission
+Control lane partition. That work exposed one real defect: every session
+sort compared timestamps only, so equal-timestamp sessions landed in Sync
+merge order and flipped above Dart's 32-entry insertion-sort threshold — all
+five sorts now tie-break by id (folder order by key).
+
+**Test speed.** Multi-second real timers were the dominant cost. Sync gained
+`@visibleForTesting` timing overrides (spawn readiness, reachability probe,
+retry jitter, suspend grace) and `MessageOutbox` a retry-delay scale, all
+defaulting to production values and reset in `tearDown`: session spawning
+81s→5s, session lifecycle 60s→2s, spawn-readiness 45s→5s, profile
+switching 23s→1s, outbox e2e 11s→2s, update-routing 5s→0s, and
+`message_outbox_test`
+52s→~3s, `sync_service_test`/`sync_notify_scoping_test` ~20s→~3s under
+FakeAsync. CI shards now run `--concurrency=4` (the serial pin dated from
+the k8s-runner OOM era, traced to coverage accumulation rather than isolate
+count), `.github/test-durations.json` was refreshed from real shard logs,
+`.github/scripts/update_test_durations.py` regenerates it from the JSON
+file-reporter artifact, and the analyze job now fails if any test file is
+missing from the shard assignment.
 
 ### Web build performance sweep, 2026-08-23
 
