@@ -47,6 +47,32 @@ void main() {
     });
   });
 
+  group('FrameMetricsService memory sample', () {
+    tearDown(() {
+      OpenTelemetryService.debugValueSink = null;
+    });
+
+    test('every flush records an RSS sample, even with zero frames', () {
+      final samples = <(String, double)>[];
+      OpenTelemetryService.debugValueSink = (name, value, attributes) {
+        samples.add((name, value));
+      };
+
+      // No frames recorded — the memory sample must still fire so idle
+      // windows (the healthy resting state) contribute to the heap trend.
+      FrameMetricsService.instance.debugFlush();
+
+      expect(samples, isNotEmpty);
+      final (name, mb) = samples.single;
+      expect(name, 'app.memory.rss_mb');
+      expect(
+        mb,
+        greaterThan(0),
+        reason: 'the test VM has a real RSS on this platform',
+      );
+    });
+  });
+
   group('FrameMetricsService classification', () {
     test('tracks smooth, slow, and frozen frames separately', () {
       final service = FrameMetricsService.instance;

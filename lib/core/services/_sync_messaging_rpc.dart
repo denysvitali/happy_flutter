@@ -951,6 +951,15 @@ extension SyncMessagingRpc on Sync {
   void prepareSessionVisibility(String sessionId) {
     final previousVisibleSessionId = _visibleSessionId;
     _visibleSessionId = sessionId;
+    // Both ends of a chat switch count as activity for the idle-window
+    // shrink sweep — the session just left keeps its full window for
+    // another idle period so an immediate back-navigation is cheap.
+    final touchNowMs =
+        testIdleShrinkNowMsOverride ?? DateTime.now().millisecondsSinceEpoch;
+    _sessionMessagesTouchedAtMs[sessionId] = touchNowMs;
+    if (previousVisibleSessionId != null) {
+      _sessionMessagesTouchedAtMs[previousVisibleSessionId] = touchNowMs;
+    }
     // When the user switches chats, tear down the previous session's
     // message-sync timer.  Otherwise the old session's InvalidateSync
     // keeps firing (every 500ms minInterval) for every pending socket

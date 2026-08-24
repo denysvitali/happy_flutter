@@ -528,6 +528,76 @@ class OpenTelemetryService {
   static void Function(String name, int value, Map<String, Object?> attributes)?
   debugCountSink;
 
+  /// Test-only observer for [recordValue], mirroring [debugDurationSink].
+  ///
+  /// Production code must never set this.
+  @visibleForTesting
+  static void Function(
+    String name,
+    double value,
+    Map<String, Object?> attributes,
+  )?
+  debugValueSink;
+
+  /// Histograms for non-duration measurements, keyed by metric name.
+  final Map<String, Histogram<double>> _valueHistograms =
+      <String, Histogram<double>>{};
+
+  /// Record a non-duration measurement into a histogram. Best-effort and
+  /// safe before OTel initialization, matching [recordDuration].
+  ///
+  /// There is no gauge in the SDK surface this app uses; a histogram of
+  /// periodic samples yields the same quantiles (e.g. p95 RSS by build)
+  /// while staying on the known-good export path.
+  void recordValue(
+    String name,
+    double value, {
+    required String unit,
+    required List<double> boundaries,
+    Map<String, Object?> attributes = const {},
+    String? description,
+  }) {
+    final sink = debugValueSink;
+    if (sink != null) {
+      try {
+        sink(name, value, attributes);
+      } catch (_) {
+        // A broken test sink must never break the host flow.
+      }
+    }
+    if (!_initialized || !metricsEnabled) return;
+    if (value.isNaN || value.isInfinite || value < 0) return;
+    try {
+      final histogram = _valueHistograms.putIfAbsent(name, () {
+        final meter = FlutterOTel.meter(name: 'happy_flutter');
+        return meter.createHistogram<double>(
+          name: name,
+          description: description ?? 'Measurement of $name',
+          unit: unit,
+          boundaries: boundaries,
+        );
+      });
+      final safe = _safeAttributes({
+        ...attributes,
+        ..._defaultMetricAttributes,
+      });
+      if (safe.isEmpty) {
+        histogram.record(value);
+      } else {
+        histogram.recordWithMap(value, safe);
+      }
+    } catch (e, stack) {
+      // Metrics must never break the host flow — but they must not fail
+      // silently either.
+      _reportPipelineError(
+        signal: 'metrics',
+        phase: 'histogram',
+        detail: '$name: $e',
+        stackTrace: stack,
+      );
+    }
+  }
+
   /// Increment a low-cardinality counter. Best-effort and safe before OTel
   /// initialization, matching [recordDuration].
   void recordCount(

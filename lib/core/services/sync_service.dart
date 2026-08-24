@@ -246,6 +246,39 @@ class Sync {
   static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;
   static const int _maxBackgroundSessionMessages = 200;
 
+  // ── Idle background window shrink ─────────────────────────────────────
+  // Per-session windows are bounded (200/1000 rows) but were never evicted
+  // across sessions: every session that ever received traffic kept its full
+  // window — with decrypted tool outputs and sidechain children — for the
+  // process lifetime. At 251+ sessions that is the progressive "laggier the
+  // longer it runs" heap shape. Sessions untouched for
+  // [idleSessionShrinkAfterMs] are shrunk to [idleSessionShrinkKeepRows]
+  // newest rows (enough for the session-card preview); scroll-back state is
+  // re-armed so reopening pages history back in, and MessageCacheService
+  // still holds 200 rows for cold-start repaint.
+
+  /// Rows kept when an idle background session's window is shrunk.
+  static const int idleSessionShrinkKeepRows = 25;
+
+  /// Background inactivity before a session's window is eligible to shrink.
+  static const int idleSessionShrinkAfterMs = 30 * 60 * 1000;
+
+  /// Minimum interval between shrink sweeps. The sweep piggybacks on
+  /// [_notifyDataChanged] so it needs no lifecycle-managed timer: a fully
+  /// quiet app runs no sweeps, but a quiet app also accumulates nothing.
+  static const int idleSessionShrinkSweepIntervalMs = 5 * 60 * 1000;
+
+  /// sessionId → epoch-ms of the last message-window mutation or visibility
+  /// change. Written by [_invalidateMessageCaches] (the mutation choke
+  /// point) and [prepareSessionVisibility].
+  final Map<String, int> _sessionMessagesTouchedAtMs = {};
+
+  int _lastIdleShrinkSweepMs = 0;
+
+  /// Overrides the clock used by the idle-window shrink sweep.
+  @visibleForTesting
+  int? testIdleShrinkNowMsOverride;
+
   /// Bounds only the TCP+TLS handshake, not the transfer. A healthy mobile
   /// connection establishes in well under a second, so 8 s still fails fast
   /// on a black-holed route.
@@ -1480,6 +1513,10 @@ what you have, you must use the options mode.
   void _invalidateMessageCaches(String sessionId) {
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.remove(sessionId);
+    // Every message-window mutation flows through here — the touch stamp
+    // is what keeps the idle-window shrink sweep away from live sessions.
+    _sessionMessagesTouchedAtMs[sessionId] =
+        testIdleShrinkNowMsOverride ?? DateTime.now().millisecondsSinceEpoch;
   }
 
   /// Returns the messages for a single session without copying all sessions.

@@ -993,6 +993,7 @@ extension SyncLifecycle on Sync {
     _notifiedPermissionIds.clear();
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();
+    _sessionMessagesTouchedAtMs.clear();
     _sessionUnreadCounts.clear();
     _sessionUnreadLastIncrementMs.clear();
 

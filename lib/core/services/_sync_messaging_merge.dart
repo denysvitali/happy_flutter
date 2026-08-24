@@ -801,6 +801,80 @@ extension SyncMessagingMerge on Sync {
     }
   }
 
+  /// Shrink resident message windows of idle background sessions.
+  ///
+  /// See the field docs on [Sync.idleSessionShrinkKeepRows]. Skips the
+  /// visible session, recently-touched sessions, and sessions with an
+  /// unsettled send (a `sending`/`pending`/`failed` row must stay resident
+  /// for retry identity and optimistic replacement). Shrinking records the
+  /// history-trim ledger and re-arms the scroll-back boundary to the oldest
+  /// retained seq, mirroring what the newest-N trim in
+  /// [_upsertSessionMessages] does — reopening the session pages history
+  /// back in instead of showing a false "beginning of conversation".
+  void _maybeShrinkIdleSessionWindows({bool force = false}) {
+    final nowMs =
+        testIdleShrinkNowMsOverride ?? DateTime.now().millisecondsSinceEpoch;
+    if (!force &&
+        nowMs - _lastIdleShrinkSweepMs < Sync.idleSessionShrinkSweepIntervalMs) {
+      return;
+    }
+    _lastIdleShrinkSweepMs = nowMs;
+
+    var shrunkSessions = 0;
+    var releasedRows = 0;
+    for (final sessionId in _sessionMessages.keys.toList(growable: false)) {
+      if (sessionId == _visibleSessionId) continue;
+      final rows = _sessionMessages[sessionId];
+      if (rows == null || rows.length <= Sync.idleSessionShrinkKeepRows) {
+        continue;
+      }
+      final touchedAt = _sessionMessagesTouchedAtMs[sessionId];
+      if (touchedAt == null) {
+        // No touch record (predates tracking) — start the idle clock now.
+        _sessionMessagesTouchedAtMs[sessionId] = nowMs;
+        continue;
+      }
+      if (nowMs - touchedAt < Sync.idleSessionShrinkAfterMs) continue;
+      // Same predicate as AutoArchiveService.hasUnsettledSend (not imported
+      // here: auto_archive_service already imports sync_service).
+      final hasUnsettledSend = rows.any((message) {
+        final status = message['sendStatus'];
+        return status == 'sending' || status == 'pending' || status == 'failed';
+      });
+      if (hasUnsettledSend) continue;
+
+      final dropped = rows.sublist(
+        0,
+        rows.length - Sync.idleSessionShrinkKeepRows,
+      );
+      _sessionMessages[sessionId] = rows.sublist(
+        rows.length - Sync.idleSessionShrinkKeepRows,
+      );
+      // Rows left the window: full-history residency can no longer be
+      // claimed, and a previously-pinned "fully loaded" walk must un-pin so
+      // hasOlderMessages doesn't go false over a 25-row window (the
+      // 2026-08-03 hollowed-session bug shape).
+      _sessionsHistoryTrimmed.add(sessionId);
+      _sessionsHistoryFullyLoaded.remove(sessionId);
+      final minSeq = _minLoadedSeq(sessionId);
+      if (minSeq != null && minSeq > 1) {
+        _sessionFirstLoadedSeq[sessionId] = minSeq;
+        _scheduleSaveFirstLoadedSeq();
+      }
+      _pruneSessionContentSignaturePrefix(sessionId, dropped);
+      _pendingToolResults.remove(sessionId);
+      _invalidateMessageCaches(sessionId);
+      shrunkSessions++;
+      releasedRows += dropped.length;
+    }
+    if (shrunkSessions > 0) {
+      logger.info(
+        '[messages] idle-window shrink: $shrunkSessions session(s), '
+        '$releasedRows row(s) released',
+      );
+    }
+  }
+
   /// Mark resident tool-calls stuck in `running` as `canceled` once the
   /// turn is over.
   ///

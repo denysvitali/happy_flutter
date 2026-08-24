@@ -64,14 +64,31 @@ sentinel, activity coordinator) now use new zero-copy
 always-repeating `_AppBarTypingIndicator` deleted, spawn-readiness capture
 list capped. Contract tests:
 `test/services/pending_tool_results_bounds_test.dart`,
-`test/features/chat/tools/views/todo_view_pulse_test.dart`. Deferred with
-reasons: cross-session eviction of idle `_sessionMessages` windows (real
-progressive-footprint driver but touches residency/cache-restore
-semantics — needs its own contract pass), a visible "interrupted" ToolState
-(touches ~10 exhaustive switches + l10n; `canceled` renders as the static
-queued glyph for now), and client heap/GC telemetry (no `app_*` memory
-metric exists, so the GC hypothesis stays unmeasurable — worth an OTel
-gauge before the next pass).
+`test/features/chat/tools/views/todo_view_pulse_test.dart`.
+
+**Third pass, same day — the two big deferrals landed.** **(5)** Idle
+background windows now shrink: a session untouched for 30 min (no message
+mutation, no visibility) drops to its newest 25 rows — enough for the
+session-card preview — releasing decrypted tool outputs and sidechain
+children that previously stayed resident for the process lifetime (200
+rows × every session ever touched = the "laggier the longer it runs"
+footprint). The sweep piggybacks on `_notifyDataChanged` (5-min throttle,
+two-int-compare guard, no lifecycle timer to leak), skips the visible
+session and any session with an unsettled send, records the
+`_sessionsHistoryTrimmed` ledger, un-pins `_sessionsHistoryFullyLoaded`,
+and re-arms `_sessionFirstLoadedSeq` to the oldest retained seq so
+reopening pages history back in (never the 2026-08-03 false
+"beginning of conversation"); MessageCacheService still holds 200
+rows/session for cold-start repaint. Contract tests:
+`test/services/idle_session_window_shrink_test.dart`. **(6)** Client
+memory telemetry exists now: `app.memory.rss_mb` histogram (native only;
+web RSS unavailable), sampled once per 30 s frame-metrics window — before
+the zero-frame early return, so healthy idle windows still sample — with
+`current_route` + `session_count_bucket` labels. Quantile it per
+`service_build` to finally see progressive heap growth; the GC-stall
+hypothesis is measurable from the next build on. Still deferred: a
+visible "interrupted" ToolState (touches ~10 exhaustive switches + l10n;
+`canceled` renders as the static queued glyph for now).
 
 ### Session-identity and test-suite hardening, 2026-08-24
 

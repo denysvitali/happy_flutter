@@ -350,6 +350,11 @@ extension SyncSocket on Sync {
   /// counter-based dedup paths see progress.
   void _notifyDataChanged([Set<SyncDomain>? domains]) {
     _dataChangeCounter++;
+    // Piggybacked sweep: throttled to one pass per
+    // idleSessionShrinkSweepIntervalMs, and the guard is two int compares —
+    // safe on this hot path. Needs no timer, so there is no lifecycle
+    // wiring to leak: a quiet app runs no sweeps and accumulates nothing.
+    _maybeShrinkIdleSessionWindows();
     final effectiveDomains = domains ?? SyncDomain.values.toSet();
     for (final domain in effectiveDomains) {
       _domainChangeCounters[domain] = (_domainChangeCounters[domain] ?? 0) + 1;

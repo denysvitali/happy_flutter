@@ -1957,6 +1957,8 @@ extension SyncMessaging on Sync {
     _invalidatePreviewCache(sessionId);
     _sessionContentSignatures.remove(sessionId);
     _invalidateMessageCaches(sessionId);
+    // After _invalidateMessageCaches — that call re-stamps the touch map.
+    _sessionMessagesTouchedAtMs.remove(sessionId);
     if (sessionId == _visibleSessionId) {
       _visibleSessionId = null;
     }

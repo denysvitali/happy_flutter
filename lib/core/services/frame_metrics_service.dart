@@ -5,6 +5,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../../platform_io.dart'
+    if (dart.library.js_interop) '../../platform_stub.dart';
 import '../utils/performance_buckets.dart';
 import 'logger_service.dart';
 import 'opentelemetry_service.dart';
@@ -42,6 +44,13 @@ class FrameMetricsService {
   static const int _idleRenderWarnFrames = 300;
 
   static const Duration _idleRenderWarnCooldown = Duration(minutes: 5);
+
+  /// Boundaries for the `app.memory.rss_mb` histogram. RSS of a Flutter
+  /// app spans ~150 MB (fresh launch) to 1 GB+ (pathological); the top
+  /// buckets exist to make runaway growth visible, not to be healthy.
+  static const List<double> _rssMbBuckets = [
+    128, 192, 256, 320, 384, 448, 512, 640, 768, 1024, 1536, 2048,
+  ];
 
   int _frameCount = 0;
   int _slowFrameCount = 0;
@@ -291,6 +300,27 @@ class FrameMetricsService {
     final pointerEvents = _pointerEvents;
     _lastActivityCounter = activityCounter;
     _pointerEvents = 0;
+
+    // Memory sample before the zero-frame early return: a healthy idle
+    // window renders nothing but its heap trend is exactly what the
+    // progressive-lag hypothesis needs. RSS is the only client memory
+    // signal available without the VM service; 0 means unsupported (web).
+    final rssBytes = currentRssBytes;
+    if (rssBytes > 0) {
+      OpenTelemetryService().recordValue(
+        'app.memory.rss_mb',
+        rssBytes / (1024 * 1024),
+        unit: 'MB',
+        boundaries: _rssMbBuckets,
+        attributes: {
+          'current_route': PerformanceContextService().currentRoute ?? 'unknown',
+          'session_count_bucket': collectionSizeBucket(sync.sessionCount),
+        },
+        description:
+            'Process resident set size sampled once per metrics window — '
+            'quantile this per build to see progressive heap growth',
+      );
+    }
 
     if (_frameCount == 0) return;
 

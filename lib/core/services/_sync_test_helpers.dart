@@ -842,7 +842,20 @@ extension SyncTestHelpers on Sync {
     _sessionUsage.clear();
     _lastEphemeralAt.clear();
     _pendingToolResults.clear();
+    _sessionMessagesTouchedAtMs.clear();
+    _lastIdleShrinkSweepMs = 0;
   }
+
+  /// Test helper: run the idle-window shrink sweep, bypassing the
+  /// sweep-interval throttle.
+  @visibleForTesting
+  void testRunIdleSessionShrinkSweep() =>
+      _maybeShrinkIdleSessionWindows(force: true);
+
+  /// Test helper: read a session's idle-shrink touch stamp.
+  @visibleForTesting
+  int? testSessionTouchedAtMs(String sessionId) =>
+      _sessionMessagesTouchedAtMs[sessionId];
 
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;
