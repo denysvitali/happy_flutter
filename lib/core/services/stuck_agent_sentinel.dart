@@ -95,7 +95,7 @@ class StuckAgentSentinel {
     _domainSub?.cancel();
     _domainSub = sync.onDomainChanged
         .where((domain) => domain == SyncDomain.sessions)
-        .listen((_) => reconcile(sync.sessions.values));
+        .listen((_) => reconcile(sync.sessionsView.values));
     _messagesSub?.cancel();
     _messagesSub = sync.onSessionMessagesChanged.listen(recordProgress);
     _checkTimer?.cancel();
@@ -107,7 +107,7 @@ class StuckAgentSentinel {
         : _checkInterval;
     _checkTimer = Timer.periodic(
       effectiveInterval,
-      (_) => reconcile(sync.sessions.values),
+      (_) => reconcile(sync.sessionsView.values),
     );
   }
 

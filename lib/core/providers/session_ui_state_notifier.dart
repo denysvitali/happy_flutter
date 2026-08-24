@@ -319,7 +319,9 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     if (!sync.isInitialized) return;
 
     final stopwatch = Stopwatch()..start();
-    final sessions = sync.sessions;
+    // Zero-copy view: this runs on every chat message tick; copying the
+    // whole catalog (251+ entries) per tick was measurable GC churn.
+    final sessions = sync.sessionsView;
     final session = sessions[sessionId];
     final span = _startScaleTrace('single', sessions.length);
     final previous = state.bySessionId[sessionId];
@@ -331,7 +333,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       _messageRevisions.remove(sessionId);
       _hasUnsettledSend.remove(sessionId);
     } else {
-      final usage = sync.sessionUsage[sessionId];
+      final usage = sync.sessionUsageView[sessionId];
       final next = _computeEntry(sessionId, previous, usage);
       if (!identical(next, previous)) {
         nextEntries[sessionId] = next;
@@ -391,8 +393,9 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     SessionUiState previousState = SessionUiState.empty,
   }) {
     final stopwatch = Stopwatch()..start();
-    final sessions = sync.sessions;
-    final usageBySession = sync.sessionUsage;
+    // Zero-copy views — read synchronously only (see Sync.sessionsView).
+    final sessions = sync.sessionsView;
+    final usageBySession = sync.sessionUsageView;
     final span = _startScaleTrace(trigger, sessions.length);
     final bySessionId = <String, SessionUiEntry>{};
     final timestamps = <String, int?>{};

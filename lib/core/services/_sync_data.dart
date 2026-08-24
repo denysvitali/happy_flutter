@@ -470,6 +470,9 @@ extension SyncData on Sync {
                 thinking: false,
               );
               _notifyDataChanged({SyncDomain.sessions});
+              // Dead process: running tool rows can never receive their
+              // results — stop them animating forever.
+              _reconcileStuckRunningTools(s.id);
             }
           });
         }

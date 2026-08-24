@@ -106,7 +106,7 @@ class SessionActivityCoordinator {
   Future<void> applyDecision(ActivityDecision decision) => _apply(decision);
 
   void _reconcile(Sync sync) {
-    final sessions = sync.sessions.values.toList(growable: false);
+    final sessions = sync.sessionsView.values.toList(growable: false);
     final stillRunning = <String>{};
     for (final session in sessions) {
       final decision = _decisionFor(session, visibleSessionId);

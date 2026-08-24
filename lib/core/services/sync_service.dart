@@ -1053,7 +1053,27 @@ what you have, you must use the options mode.
   /// Maps sessionId → list of pending tool results. Applied when the
   /// tool-call
   /// message arrives via inline processing or HTTP fetch.
+  ///
+  /// Bounded: entries are FIFO-capped at [maxPendingToolResultsPerSession]
+  /// and expire after [pendingToolResultTtlMs]. A result whose tool-call was
+  /// trimmed out of the resident window is permanently unmatchable — without
+  /// these bounds the queue grew for the process lifetime and was re-scanned
+  /// against every resident row on every socket batch and fetch page.
   final Map<String, List<Map<String, dynamic>>> _pendingToolResults = {};
+
+  /// FIFO cap for [_pendingToolResults] per session.
+  static const int maxPendingToolResultsPerSession = 200;
+
+  /// Max age of a queued tool result before it is dropped as unmatchable.
+  static const int pendingToolResultTtlMs = 10 * 60 * 1000;
+
+  /// Local-clock stamp key added to queued copies in [_pendingToolResults].
+  /// Ignored by the matcher; never leaves the process.
+  static const String pendingToolResultQueuedAtKey = 'pendingQueuedAtMs';
+
+  /// Overrides the clock used for [_pendingToolResults] TTL pruning.
+  @visibleForTesting
+  int? testPendingToolResultNowMsOverride;
   @visibleForTesting
   bool? testSocketConnectedOverride;
   @visibleForTesting
@@ -1083,6 +1103,22 @@ what you have, you must use the options mode.
   int get settingsVersion => settingsManager?.settingsVersion ?? 0;
   Purchases get purchases => settingsManager?.purchases ?? Purchases.defaults;
   Map<String, Session> get sessions => Map.unmodifiable(_sessions);
+
+  /// Zero-copy read-only view of the sessions catalog.
+  ///
+  /// [sessions] copies every entry per access — at 251+ sessions that is
+  /// real garbage on paths that run per message tick or timer tick. This
+  /// view is live: read it synchronously and do not hold it across awaits.
+  Map<String, Session> get sessionsView => UnmodifiableMapView(_sessions);
+
+  /// Single-session lookup without copying the whole catalog.
+  Session? sessionById(String sessionId) => _sessions[sessionId];
+
+  /// Zero-copy read-only view of per-session usage. Live — same rules as
+  /// [sessionsView]. Inner maps are replaced wholesale on update, so a held
+  /// inner map is safely immutable.
+  Map<String, Map<String, dynamic>> get sessionUsageView =>
+      UnmodifiableMapView(_sessionUsage);
 
   /// Number of sessions held in memory without allocating a map view.
   ///

@@ -702,13 +702,25 @@ extension SyncMessagingMerge on Sync {
   ) {
     if (toolResults.isEmpty) return const {};
 
+    // The retry path in the orchestrator / legacy messaging code passes
+    // `_pendingToolResults[sessionId]` itself as `toolResults`; that replay
+    // must not self-append, and it is the touch point where expired
+    // entries are pruned.
+    final isPendingReplay = identical(
+      _pendingToolResults[sessionId],
+      toolResults,
+    );
+    if (isPendingReplay) {
+      _prunePendingToolResults(sessionId);
+      if (toolResults.isEmpty) return const {};
+    }
+
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
     if (existing.isEmpty) {
       // Queue tool results that arrived before their tool-call message.
       // They will be applied when the tool-call message arrives.
-      final pending = _pendingToolResults.putIfAbsent(sessionId, () => []);
-      if (!identical(pending, toolResults)) {
-        pending.addAll(toolResults);
+      if (!isPendingReplay) {
+        _queuePendingToolResults(sessionId, toolResults);
       }
       return const {};
     }
@@ -726,23 +738,142 @@ extension SyncMessagingMerge on Sync {
     // seen from same-millisecond Codex events) is silently dropped
     // once the session already has prior messages, leaving the
     // tool-call stuck in `running` state forever.
-    //
-    // The retry path in the orchestrator / legacy messaging code
-    // passes `_pendingToolResults[sessionId]` itself as `toolResults`;
-    // skip the self-append in that case to avoid duplicating entries.
-    final pending = _pendingToolResults[sessionId];
-    if (!identical(pending, toolResults)) {
+    if (!isPendingReplay) {
       final unmatched = toolResults
           .where((r) => !result.matchedIds.contains(r['toolUseId']))
           .toList();
       if (unmatched.isNotEmpty) {
-        final queue =
-            pending ?? _pendingToolResults.putIfAbsent(sessionId, () => []);
-        queue.addAll(unmatched);
+        _queuePendingToolResults(sessionId, unmatched);
       }
     }
 
     return result.matchedIds;
+  }
+
+  /// Append tool results to the session's pending queue with a local-clock
+  /// stamp, enforcing the TTL and the per-session FIFO cap.
+  void _queuePendingToolResults(
+    String sessionId,
+    List<Map<String, dynamic>> results,
+  ) {
+    final queue = _pendingToolResults.putIfAbsent(sessionId, () => []);
+    final nowMs =
+        testPendingToolResultNowMsOverride ??
+        DateTime.now().millisecondsSinceEpoch;
+    for (final r in results) {
+      queue.add({...r, Sync.pendingToolResultQueuedAtKey: nowMs});
+    }
+    if (queue.length > Sync.maxPendingToolResultsPerSession) {
+      final dropped = queue.length - Sync.maxPendingToolResultsPerSession;
+      queue.removeRange(0, dropped);
+      logger.info(
+        '[toolResults] pending queue for $sessionId over cap — '
+        'dropped $dropped oldest unmatched result(s)',
+      );
+    }
+  }
+
+  /// Drop pending tool results older than [Sync.pendingToolResultTtlMs].
+  /// Their tool-call was trimmed out of the resident window (or never
+  /// existed) — they can never match and only add rescan cost.
+  void _prunePendingToolResults(String sessionId) {
+    final queue = _pendingToolResults[sessionId];
+    if (queue == null || queue.isEmpty) return;
+    final nowMs =
+        testPendingToolResultNowMsOverride ??
+        DateTime.now().millisecondsSinceEpoch;
+    final before = queue.length;
+    queue.removeWhere((r) {
+      final queuedAt = r[Sync.pendingToolResultQueuedAtKey];
+      // Entries queued by builds without the stamp expire immediately —
+      // they are at least one upgrade old.
+      if (queuedAt is! int) return true;
+      return nowMs - queuedAt > Sync.pendingToolResultTtlMs;
+    });
+    if (queue.isEmpty) {
+      _pendingToolResults.remove(sessionId);
+    }
+    final dropped = before - queue.length;
+    if (dropped > 0) {
+      logger.info(
+        '[toolResults] expired $dropped pending result(s) for $sessionId',
+      );
+    }
+  }
+
+  /// Mark resident tool-calls stuck in `running` as `canceled` once the
+  /// turn is over.
+  ///
+  /// A tool result that was lost, aborted, or queued against a tool-call
+  /// trimmed out of the resident window leaves its row in `running` forever.
+  /// Every such row keeps a full-fps pulse animation, a 1s elapsed-time
+  /// tick, and an indeterminate spinner alive for as long as it is mounted —
+  /// a resting chat can never let the frame pipeline go idle. Called when a
+  /// session's `thinking` flips false (socket delta) and when presence goes
+  /// offline: in both cases no process is producing results for these calls.
+  ///
+  /// Rows waiting on an unresolved permission are skipped — they are
+  /// legitimately parked, not stuck. A late result for a canceled row still
+  /// wins: [ToolResultProcessor.applyToolResults] overwrites state on match.
+  void _reconcileStuckRunningTools(String sessionId) {
+    final messages = _sessionMessages[sessionId];
+    if (messages == null || messages.isEmpty) return;
+
+    final (updated, changed) = _cancelRunningRows(messages);
+    if (!changed) return;
+
+    _sessionMessages[sessionId] = updated;
+    _invalidateMessageCaches(sessionId);
+    logger.info(
+      '[toolResults] canceled stuck running tool row(s) for $sessionId '
+      '(turn ended without results)',
+    );
+    _notifySessionMessagesChanged(sessionId);
+  }
+
+  (List<Map<String, dynamic>>, bool) _cancelRunningRows(
+    List<Map<String, dynamic>> messages,
+  ) {
+    var changed = false;
+    List<Map<String, dynamic>>? updated;
+    for (var i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      var next = msg;
+
+      final children = msg['children'];
+      if (children is List<dynamic>) {
+        final typedChildren = children
+            .whereType<Map<String, dynamic>>()
+            .toList();
+        final (updatedChildren, childChanged) = _cancelRunningRows(
+          typedChildren,
+        );
+        if (childChanged) {
+          next = {...next, 'children': updatedChildren};
+        }
+      }
+
+      if (msg['kind'] == 'tool-call' &&
+          msg['state'] == 'running' &&
+          msg['result'] == null &&
+          !_hasPendingPermission(msg)) {
+        next = {...next, 'state': 'canceled'};
+      }
+
+      if (!identical(next, msg)) {
+        changed = true;
+        updated ??= List<Map<String, dynamic>>.of(messages);
+        updated[i] = next;
+      }
+    }
+    return (updated ?? messages, changed);
+  }
+
+  bool _hasPendingPermission(Map<String, dynamic> msg) {
+    final permission = msg['permission'];
+    if (permission is! Map<String, dynamic>) return false;
+    final status = permission['status'];
+    return status != 'approved' && status != 'denied' && status != 'canceled';
   }
 
   /// Enrich tool-call messages with permission data from

@@ -442,7 +442,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _seedFromInMemorySync() {
     final sessionId = widget.sessionId;
-    _session = sync.sessions[sessionId];
+    _session = sync.sessionById(sessionId);
     _metadataJson = _session?.metadata?.toJson();
     final messages = sync.messagesForSession(sessionId);
     if (messages.isEmpty) return;
@@ -538,7 +538,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }
             return;
           }
-          final latest = sync.sessions[widget.sessionId];
+          final latest = sync.sessionById(widget.sessionId);
           if (latest != _session) {
             _refreshFromSync();
           }
@@ -606,7 +606,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
-    final latestSession = sync.sessions[widget.sessionId];
+    final latestSession = sync.sessionById(widget.sessionId);
     final latestMessages = sync.messagesForSession(widget.sessionId);
     final latestRevision = sync.messagesRevision(widget.sessionId);
 

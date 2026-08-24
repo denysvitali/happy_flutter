@@ -879,6 +879,10 @@ extension SyncMessagingSend on Sync {
             'requestedWaitMs': requestedWaitBudget,
             'recentlySpawned': true,
           });
+          // Rare event, but the list lives for the process — keep it small.
+          if (_spawnReadinessTimeoutCaptures.length > 20) {
+            _spawnReadinessTimeoutCaptures.removeAt(0);
+          }
           PowerDiagnosticsOtelReporter.instance.recordAppError(
             'app.session.spawn_timeout',
           );

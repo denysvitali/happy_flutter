@@ -8,7 +8,10 @@ import 'tool_status_indicator.dart' show ToolState;
 
 /// Parses a tool state string into [ToolState].
 ///
-/// Null or unknown values map to [ToolState.pending].
+/// Null or unknown values map to [ToolState.pending]. `'canceled'` (stamped
+/// by Sync when a turn ends leaving a running row without a result) lands
+/// there deliberately: the row must render statically — no pulse, no elapsed
+/// tick — because no process will ever finish it.
 ToolState parseToolState(String? state) {
   switch (state) {
     case 'running':

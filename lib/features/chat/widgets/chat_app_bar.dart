@@ -656,68 +656,6 @@ class _AgentsListButton extends StatelessWidget {
   }
 }
 
-/// Compact three-dot typing indicator for the app bar
-/// subtitle. Shows bouncing dots alongside a label.
-class _AppBarTypingIndicator extends StatefulWidget {
-  const _AppBarTypingIndicator({required this.color});
-
-  final Color color;
-
-  @override
-  State<_AppBarTypingIndicator> createState() => _AppBarTypingIndicatorState();
-}
-
-class _AppBarTypingIndicatorState extends State<_AppBarTypingIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 16,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ...List.generate(3, (i) {
-            return AnimatedBuilder(
-              animation: _ctrl,
-              builder: (context, child) {
-                final phase = (_ctrl.value + i * 0.2) % 1.0;
-                final y = -2.0 * (phase < 0.5 ? phase * 2 : 2.0 - phase * 2);
-                return Transform.translate(offset: Offset(0, y), child: child);
-              },
-              child: Container(
-                width: 4,
-                height: 4,
-                margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                decoration: BoxDecoration(
-                  color: widget.color.withAlpha(200),
-                  shape: BoxShape.circle,
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /// Resolves the [ChatMachineVitals] for the current session, returning

@@ -34,6 +34,45 @@ p95 says CPU is not the freeze driver), sidechain-grouper single-pass
 (loses its early exit), byte-budgeting the other four EncryptionCache maps,
 and dirty-gating the session-activity reconciler.
 
+**Second pass, same day (user: "still lags").** Telemetry re-check: builds
+≥263600 are live and the zero-idle-renderer and GC-stall signatures persist
+post-ratchet (frozen-frame p95 247 ms on chat at 251+ sessions with frozen
+*build* mean 1.0 ms and *raster* mean 1.85 ms — the time is outside both
+phases), and the chat route has never once recorded an `activity="idle"`
+render window. The 14k/day `unknown_acked_local_id` WARN bursts are zero on build
+264200 (7bc1d1c8 works) — they heal as the fleet updates. A verified static hunt then landed four fixes: **(1)**
+`_pendingToolResults` was unbounded (results whose tool-call left the
+200-row resident window are permanently unmatchable) and the whole stale
+queue was re-scanned — with a full resident-list rebuild — on every socket
+batch and fetch page, O(pending × resident) allocation on the ingest path
+forever; now FIFO-capped at 200/session with a 10-min TTL, and
+`ToolResultProcessor` gets an allocation-free no-match prescan. **(2)**
+Stuck-`running` tool rows (the structural product of (1)) kept a full-fps
+pulse, a 1 s elapsed tick, and an indeterminate spinner alive indefinitely;
+a session's `thinking` true→false socket transition (and presence-offline)
+now walks resident `running` rows without results back to `canceled`
+(permission-parked rows skipped; a late result still overwrites). **(3)**
+`TodoView`'s in-progress pulse ran an unbounded `repeat()` — the resting
+state of any interrupted plan kept the frame pipeline warm; now a bounded
+3-cycle intro that restarts on real progress (row keyed by `id_status`).
+This was the primary zero-idle suspect. **(4)** `Sync.sessions` /
+`sessionUsage` getters copy the whole catalog per access (`Map.unmodifiable`
+is a copying constructor) and were on per-message-tick and per-timer-tick
+paths at 251+ sessions; hot readers (chat screen, `SessionUiStateNotifier`,
+sentinel, activity coordinator) now use new zero-copy
+`sessionById`/`sessionsView`/`sessionUsageView`. Also: dead
+always-repeating `_AppBarTypingIndicator` deleted, spawn-readiness capture
+list capped. Contract tests:
+`test/services/pending_tool_results_bounds_test.dart`,
+`test/features/chat/tools/views/todo_view_pulse_test.dart`. Deferred with
+reasons: cross-session eviction of idle `_sessionMessages` windows (real
+progressive-footprint driver but touches residency/cache-restore
+semantics — needs its own contract pass), a visible "interrupted" ToolState
+(touches ~10 exhaustive switches + l10n; `canceled` renders as the static
+queued glyph for now), and client heap/GC telemetry (no `app_*` memory
+metric exists, so the GC hypothesis stays unmeasurable — worth an OTel
+gauge before the next pass).
+
 ### Session-identity and test-suite hardening, 2026-08-24
 
 User report: tapping an archived session opened a different session. A

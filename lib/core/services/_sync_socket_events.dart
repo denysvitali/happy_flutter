@@ -897,6 +897,13 @@ extension SyncSocketEvents on Sync {
               : session.lastSeq,
         );
         _notifyDataChanged({SyncDomain.sessions});
+        // Turn ended: any resident tool-call still `running` without a
+        // result is stuck (aborted turn, lost result, or a result queued
+        // against a trimmed-away call). Walk it back so its row stops
+        // animating forever. A late result still overwrites the state.
+        if (thinking == false && session.thinking) {
+          _reconcileStuckRunningTools(sessionId);
+        }
       }
       needsEncryptedRefresh =
           data.containsKey('metadata') ||

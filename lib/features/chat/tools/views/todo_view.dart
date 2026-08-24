@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart' show TickerCanceled;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/todo.dart';
@@ -400,17 +403,39 @@ class _PulsingIconState extends State<_PulsingIcon>
   late AnimationController _controller;
   late Animation<double> _opacity;
 
+  /// Bounded intro: pulse a few cycles, then hold static at full opacity.
+  ///
+  /// An unbounded `repeat()` kept the frame pipeline warm for as long as a
+  /// todo list with an in-progress item was visible — which is the resting
+  /// state of any interrupted plan, so chat could never idle. The row is
+  /// keyed by `id_status`, so real progress remounts it and restarts the
+  /// intro.
+  static const int _pulseCycles = 3;
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
     _opacity = Tween<double>(
       begin: 0.4,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    unawaited(_runBoundedPulse());
+  }
+
+  Future<void> _runBoundedPulse() async {
+    try {
+      for (var i = 0; i < _pulseCycles; i++) {
+        await _controller.forward(from: 0).orCancel;
+        await _controller.reverse().orCancel;
+      }
+      _controller.value = 1.0;
+    } on TickerCanceled {
+      // Disposed mid-pulse — nothing to settle.
+    }
   }
 
   @override

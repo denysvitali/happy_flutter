@@ -28,12 +28,58 @@ class ToolResultProcessor {
       return (messages: messages, changed: false, matchedIds: <String>{});
     }
 
+    // Allocation-free prescan: the pending-result replay path calls this on
+    // every socket batch and fetch page, usually with zero matches. Without
+    // this check every call rebuilds the entire resident list (and every
+    // row with children) just to discover nothing matched — O(pending ×
+    // resident) garbage on the ingest path.
+    if (!_hasAnyMatch(
+      messages,
+      toolResultsById,
+      visited: <Map<String, dynamic>>{},
+    )) {
+      return (messages: messages, changed: false, matchedIds: <String>{});
+    }
+
     final (updated, changed, matched) = _applyRecursive(
       messages,
       toolResultsById,
       visited: <Map<String, dynamic>>{},
     );
     return (messages: updated, changed: changed, matchedIds: matched);
+  }
+
+  /// Read-only walk mirroring [_applyRecursive]'s traversal: true when at
+  /// least one resident tool-call matches a result id. Shares the visited
+  /// guard so self-referential children cannot loop.
+  bool _hasAnyMatch(
+    List<Map<String, dynamic>> messages,
+    Map<String, Map<String, dynamic>> toolResultsById, {
+    required Set<Map<String, dynamic>> visited,
+  }) {
+    for (final msg in messages) {
+      if (!visited.add(msg)) continue;
+      if (msg['kind'] == 'tool-call') {
+        final toolUseId = msg['toolUseId'];
+        if (toolUseId is String && toolResultsById.containsKey(toolUseId)) {
+          return true;
+        }
+      }
+      final children = msg['children'];
+      if (children is List<dynamic>) {
+        for (final child in children) {
+          if (child is Map<String, dynamic> &&
+              _hasAnyMatch(
+                [child],
+                toolResultsById,
+                visited: visited,
+              )) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   (List<Map<String, dynamic>>, bool, Set<String>) _applyRecursive(
