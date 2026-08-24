@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1170,8 +1168,14 @@ void main() {
         await tester.drag(find.byType(ListView), const Offset(0, 5000));
         // The drag triggers a fling; pump a few short frames to let
         // it settle without waiting for the thinking-pill 1 s
-        // timer / status pulse animation to fire.
-        for (var i = 0; i < 20; i++) {
+        // timer / status pulse animation to fire. Stop as soon as the
+        // oldest row is on screen — the remaining frames only rebuild
+        // the same list.
+        for (
+          var i = 0;
+          i < 20 && find.text('Message number 0').evaluate().isEmpty;
+          i++
+        ) {
           await tester.pump(const Duration(milliseconds: 50));
         }
       }
