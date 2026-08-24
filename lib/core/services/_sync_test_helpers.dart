@@ -857,6 +857,12 @@ extension SyncTestHelpers on Sync {
   int? testSessionTouchedAtMs(String sessionId) =>
       _sessionMessagesTouchedAtMs[sessionId];
 
+  /// Test helper: set a session's idle-shrink touch stamp so the
+  /// residency-budget LRU ranking is deterministic.
+  @visibleForTesting
+  void testSetSessionTouchedAtMs(String sessionId, int ms) =>
+      _sessionMessagesTouchedAtMs[sessionId] = ms;
+
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;
 

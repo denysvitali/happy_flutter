@@ -4,6 +4,57 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-24
 
+### Progressive-lag remediation, fifth pass, 2026-08-24 ("still lags like crazy")
+
+Telemetry re-check on the live build (265100, which carries all four earlier
+passes) reframed the problem. The "zero idle renderer" is now largely healed:
+`app.ui.render_windows` shows chat rendering frames in only ~171 of 2,880
+30 s windows/day (~6 %), and **zero** windows are labelled `activity="idle"
+with frames` — the bad case (a rogue animation rendering with no pointer/Sync
+change) no longer occurs. The dominant remaining signal is **memory**:
+`app.memory.rss_mb` p50 ≈ 450 MB with a heavy tail, and RSS p95 lands in the
+**2048 MB** bucket at the 101-250 session bucket — RSS scales with session
+count, which is exactly the "laggier the longer it runs" heap-growth
+signature (GC/platform stalls, not build/raster cost: frozen-frame *build*
+p95 is still ~9.8 ms on chat).
+
+Root cause: `_sessionMessages` (the decrypted/parsed resident transcripts) had
+**no global cap**. The third-pass idle-window shrink only fires after 30 min
+of inactivity, so a user fanning across a large catalog retains one full
+~200-row transcript *per session touched in the last half hour* — at 250
+sessions that is up to ~50k decrypted rows (tool outputs and sidechain
+children included) pinned at once.
+
+Shipped: a **residency budget** (`Sync.maxFullResidentSessions = 8`) layered
+onto the same shrink sweep. Beyond the 8 most-recently-touched non-visible
+sessions, the least-recent full transcripts are shrunk to the 25-row preview
+window *immediately*, without waiting out the 30-min grace — bounding full
+residency to the handful of sessions the user is actually cycling between
+(memory becomes O(8×200 + rest×25) instead of O(total×200)). The visible
+session and any session with an unsettled send stay full (retry identity
+outranks the budget), and a budget-shrunk session pages history back in on
+reopen via the existing re-armed scroll-back boundary. The shrink body was
+extracted to a shared `_shrinkSessionWindow` helper; contract tests pin the
+LRU ranking, the within-budget no-op, the visible-session exemption, and the
+unsettled-send exemption (`test/services/idle_session_window_shrink_test.dart`).
+
+Also fixed one genuine un-mitigated idle driver a static audit surfaced:
+`HiddenToolSummary`'s collapsed indeterminate `CircularProgressIndicator` spun
+forever on a resting visible chat. `parseToolState('canceled')` returns
+`ToolState.pending` (the enum has no `canceled` member), and `_isPending`
+counted `pending||running` — so the round-4 running→canceled reconcile, meant
+to *stop* stuck animations, actually re-armed this collapsed spinner. `_isPending`
+now treats a literal `'canceled'` row as terminal
+(`test/features/chat/widgets/hidden_tool_summary_spinner_test.dart`).
+
+Deferred with reasons: the `SyncProgressBar` circular indicator's null-fraction
+indeterminate spin (an honest indeterminate spinner during a genuine sync is
+correct UX; coercing `value` to 0 would freeze a 0 % ring and mask the
+separate "isSyncing latches" bug), and shortening the 15-min visible-session
+`thinking`/`running` reconcile window (risks demoting a legitimately slow but
+alive turn — a long Bash with no message mutation would drop the caret). The
+Loki client-OTel outage remains an infra track.
+
 ### Progressive-lag audit, 2026-08-24
 
 User report: the app gets laggier the longer it runs. Four-agent sweep

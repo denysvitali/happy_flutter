@@ -197,7 +197,15 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
   }
 
   bool _isPending(Map<String, dynamic> tool) {
-    final state = parseToolState(tool['state'] as String?);
+    final raw = tool['state'] as String?;
+    // `canceled` is terminal — no process will ever finish the row. It parses
+    // to [ToolState.pending] (the enum has no `canceled` member), so counting
+    // it here would keep the collapsed indeterminate spinner ticking at full
+    // frame rate forever on a resting chat, which is exactly what the
+    // running->canceled reconcile is meant to stop (progressive-lag audit
+    // 2026-08-24, fifth pass). Treat it as done.
+    if (raw == 'canceled') return false;
+    final state = parseToolState(raw);
     return state == ToolState.pending || state == ToolState.running;
   }
 }

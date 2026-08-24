@@ -159,4 +159,109 @@ void main() {
       reason: 'the upsert must re-stamp the idle clock',
     );
   });
+
+  group('residency budget (LRU cap on full transcripts)', () {
+    // Populate `count` sessions, all touched within the idle grace window so
+    // the time-based pass never fires. Recency is encoded in the touch stamp:
+    // s0 is newest (t0-1), s{count-1} is oldest (t0-count).
+    void seedRecentSessions(int count, {int rowsEach = 120}) {
+      for (var i = 0; i < count; i++) {
+        final id = 's$i';
+        sync.testSetSessionMessages(id, rows(rowsEach));
+        sync.testSetSessionTouchedAtMs(id, t0 - (i + 1));
+      }
+    }
+
+    test('only the most-recently-touched maxFullResidentSessions keep full '
+        'transcripts; older ones shrink immediately without the idle wait', () {
+      final total = Sync.maxFullResidentSessions + 4;
+      seedRecentSessions(total);
+
+      sync.testRunIdleSessionShrinkSweep();
+
+      for (var i = 0; i < Sync.maxFullResidentSessions; i++) {
+        expect(
+          sync.messagesForSession('s$i'),
+          hasLength(120),
+          reason:
+              's$i is within the ${Sync.maxFullResidentSessions} most-recent '
+              'and must keep its full transcript',
+        );
+      }
+      for (var i = Sync.maxFullResidentSessions; i < total; i++) {
+        expect(
+          sync.messagesForSession('s$i'),
+          hasLength(Sync.idleSessionShrinkKeepRows),
+          reason:
+              's$i is beyond the residency budget and must shrink to the '
+              'preview window even though it was touched within the grace '
+              'window',
+        );
+        expect(
+          sync.hasOlderMessages('s$i'),
+          isTrue,
+          reason: 'a budget-shrunk session pages history back in on reopen',
+        );
+      }
+    });
+
+    test('within-budget catalogs are never shrunk', () {
+      seedRecentSessions(Sync.maxFullResidentSessions);
+
+      sync.testRunIdleSessionShrinkSweep();
+
+      for (var i = 0; i < Sync.maxFullResidentSessions; i++) {
+        expect(sync.messagesForSession('s$i'), hasLength(120));
+      }
+    });
+
+    test('the visible session never counts against or is evicted by the '
+        'budget', () {
+      // Fill the budget with newer sessions, then make an older session
+      // visible — it must stay full even though it ranks last by recency.
+      seedRecentSessions(Sync.maxFullResidentSessions);
+      sync.testSetSessionMessages('visible', rows(120));
+      sync.testSetSessionTouchedAtMs('visible', t0 - 10000);
+      sync.testSetVisibleSessionId('visible');
+
+      sync.testRunIdleSessionShrinkSweep();
+
+      expect(
+        sync.messagesForSession('visible'),
+        hasLength(120),
+        reason: 'the visible session is exempt from the residency budget',
+      );
+      for (var i = 0; i < Sync.maxFullResidentSessions; i++) {
+        expect(
+          sync.messagesForSession('s$i'),
+          hasLength(120),
+          reason:
+              'the visible session does not consume a budget slot, so all '
+              '${Sync.maxFullResidentSessions} others stay full',
+        );
+      }
+    });
+
+    test('a session with an unsettled send stays full even beyond the '
+        'budget', () {
+      final total = Sync.maxFullResidentSessions + 1;
+      seedRecentSessions(total);
+      // Make the oldest (over-budget) session hold a failed send.
+      final oldest = 's${total - 1}';
+      final withFailed = rows(120);
+      withFailed[3] = {...withFailed[3], 'sendStatus': 'failed'};
+      sync.testSetSessionMessages(oldest, withFailed);
+      sync.testSetSessionTouchedAtMs(oldest, t0 - total);
+
+      sync.testRunIdleSessionShrinkSweep();
+
+      expect(
+        sync.messagesForSession(oldest),
+        hasLength(120),
+        reason:
+            'retry identity outranks the residency budget — an unsettled '
+            'send keeps the whole window resident',
+      );
+    });
+  });
 }

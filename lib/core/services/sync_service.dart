@@ -268,6 +268,22 @@ class Sync {
   /// quiet app runs no sweeps, but a quiet app also accumulates nothing.
   static const int idleSessionShrinkSweepIntervalMs = 5 * 60 * 1000;
 
+  /// Maximum number of (non-visible) sessions that keep their *full* resident
+  /// transcript at once. The time-based shrink above only fires after
+  /// [idleSessionShrinkAfterMs], so a user who fans across a large catalog can
+  /// retain one full ~200-row decrypted transcript per session for the whole
+  /// grace window — the heap footprint that made the app "laggier the longer
+  /// it runs" and scaled RSS with session count (RSS p95 hit the 2 GB bucket
+  /// at 101-250 sessions; progressive-lag audit 2026-08-24, fifth pass).
+  ///
+  /// Beyond this budget, the least-recently-touched sessions are shrunk to
+  /// [idleSessionShrinkKeepRows] immediately, so full residency is bounded to
+  /// the handful of sessions the user is actually cycling between. The visible
+  /// session and any session with an unsettled send are always exempt, and a
+  /// shrunk session pages its history back in on reopen (same re-armed
+  /// scroll-back boundary as the time-based shrink).
+  static const int maxFullResidentSessions = 8;
+
   /// Silence (no message-window mutation) after which a session still
   /// flagged `thinking` is treated as wedged: thinking is demoted locally
   /// and stuck running tool rows walk back to canceled. Generous enough

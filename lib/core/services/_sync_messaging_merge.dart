@@ -822,6 +822,8 @@ extension SyncMessagingMerge on Sync {
 
     var shrunkSessions = 0;
     var releasedRows = 0;
+
+    // Pass 1 — time-based: sessions untouched beyond the idle grace window.
     for (final sessionId in _sessionMessages.keys.toList(growable: false)) {
       if (sessionId == _visibleSessionId) continue;
       final rows = _sessionMessages[sessionId];
@@ -835,38 +837,28 @@ extension SyncMessagingMerge on Sync {
         continue;
       }
       if (nowMs - touchedAt < Sync.idleSessionShrinkAfterMs) continue;
-      // Same predicate as AutoArchiveService.hasUnsettledSend (not imported
-      // here: auto_archive_service already imports sync_service).
-      final hasUnsettledSend = rows.any((message) {
-        final status = message['sendStatus'];
-        return status == 'sending' || status == 'pending' || status == 'failed';
-      });
-      if (hasUnsettledSend) continue;
-
-      final dropped = rows.sublist(
-        0,
-        rows.length - Sync.idleSessionShrinkKeepRows,
-      );
-      _sessionMessages[sessionId] = rows.sublist(
-        rows.length - Sync.idleSessionShrinkKeepRows,
-      );
-      // Rows left the window: full-history residency can no longer be
-      // claimed, and a previously-pinned "fully loaded" walk must un-pin so
-      // hasOlderMessages doesn't go false over a 25-row window (the
-      // 2026-08-03 hollowed-session bug shape).
-      _sessionsHistoryTrimmed.add(sessionId);
-      _sessionsHistoryFullyLoaded.remove(sessionId);
-      final minSeq = _minLoadedSeq(sessionId);
-      if (minSeq != null && minSeq > 1) {
-        _sessionFirstLoadedSeq[sessionId] = minSeq;
-        _scheduleSaveFirstLoadedSeq();
+      final released = _shrinkSessionWindow(sessionId);
+      if (released > 0) {
+        shrunkSessions++;
+        releasedRows += released;
       }
-      _pruneSessionContentSignaturePrefix(sessionId, dropped);
-      _pendingToolResults.remove(sessionId);
-      _invalidateMessageCaches(sessionId);
-      shrunkSessions++;
-      releasedRows += dropped.length;
     }
+
+    // Pass 2 — residency budget: even before the idle grace elapses, only the
+    // [Sync.maxFullResidentSessions] most-recently-touched non-visible
+    // sessions keep their full transcript. Every full session older than that
+    // is shrunk to the preview window now. Without this cap, fanning across a
+    // large catalog retains one full ~200-row decrypted transcript per session
+    // for the whole grace window — the heap growth that scaled RSS with
+    // session count (progressive-lag audit 2026-08-24, fifth pass).
+    for (final sessionId in _fullResidentSessionsBeyondBudget()) {
+      final released = _shrinkSessionWindow(sessionId);
+      if (released > 0) {
+        shrunkSessions++;
+        releasedRows += released;
+      }
+    }
+
     if (shrunkSessions > 0) {
       logger.info(
         '[messages] idle-window shrink: $shrunkSessions session(s), '
@@ -875,6 +867,69 @@ extension SyncMessagingMerge on Sync {
     }
 
     _reconcileStalledThinkingSessions(nowMs);
+  }
+
+  /// Non-visible sessions still holding more than the preview window, ranked
+  /// most-recently-touched first, that fall outside the
+  /// [Sync.maxFullResidentSessions] most-recent slots. Sessions with no touch
+  /// record sort oldest (they predate tracking). Returns an empty list when
+  /// the number of full-resident sessions is within budget.
+  List<String> _fullResidentSessionsBeyondBudget() {
+    final full = <String>[];
+    for (final entry in _sessionMessages.entries) {
+      if (entry.key == _visibleSessionId) continue;
+      if (entry.value.length <= Sync.idleSessionShrinkKeepRows) continue;
+      full.add(entry.key);
+    }
+    if (full.length <= Sync.maxFullResidentSessions) return const <String>[];
+    full.sort((a, b) {
+      final ta = _sessionMessagesTouchedAtMs[a] ?? 0;
+      final tb = _sessionMessagesTouchedAtMs[b] ?? 0;
+      return tb.compareTo(ta); // most-recent first
+    });
+    return full.sublist(Sync.maxFullResidentSessions);
+  }
+
+  /// Shrink one non-visible session's resident window to
+  /// [Sync.idleSessionShrinkKeepRows] newest rows, preserving retry identity
+  /// (an unsettled send keeps the session full) and re-arming the scroll-back
+  /// boundary so reopening pages history back in instead of showing a false
+  /// "beginning of conversation" (the 2026-08-03 hollowed-session bug shape).
+  ///
+  /// Returns the number of rows released, or 0 if the session was skipped
+  /// (already at/below the preview window, or holding an unsettled send).
+  int _shrinkSessionWindow(String sessionId) {
+    final rows = _sessionMessages[sessionId];
+    if (rows == null || rows.length <= Sync.idleSessionShrinkKeepRows) return 0;
+    // Same predicate as AutoArchiveService.hasUnsettledSend (not imported
+    // here: auto_archive_service already imports sync_service).
+    final hasUnsettledSend = rows.any((message) {
+      final status = message['sendStatus'];
+      return status == 'sending' || status == 'pending' || status == 'failed';
+    });
+    if (hasUnsettledSend) return 0;
+
+    final dropped = rows.sublist(
+      0,
+      rows.length - Sync.idleSessionShrinkKeepRows,
+    );
+    _sessionMessages[sessionId] = rows.sublist(
+      rows.length - Sync.idleSessionShrinkKeepRows,
+    );
+    // Rows left the window: full-history residency can no longer be claimed,
+    // and a previously-pinned "fully loaded" walk must un-pin so
+    // hasOlderMessages doesn't go false over a 25-row window.
+    _sessionsHistoryTrimmed.add(sessionId);
+    _sessionsHistoryFullyLoaded.remove(sessionId);
+    final minSeq = _minLoadedSeq(sessionId);
+    if (minSeq != null && minSeq > 1) {
+      _sessionFirstLoadedSeq[sessionId] = minSeq;
+      _scheduleSaveFirstLoadedSeq();
+    }
+    _pruneSessionContentSignaturePrefix(sessionId, dropped);
+    _pendingToolResults.remove(sessionId);
+    _invalidateMessageCaches(sessionId);
+    return dropped.length;
   }
 
   /// Demote `thinking` on sessions whose process stopped producing events.
