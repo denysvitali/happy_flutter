@@ -893,6 +893,10 @@ extension SyncMessaging on Sync {
               ),
             );
             _updateMessageSendStatus(sessionId, localId, 'sent');
+            // The page is upserted (and its ids seeded) after this loop, so
+            // seed here too: a socket ack landing between the two would
+            // otherwise see an id this client provably sent as unknown.
+            messageInvariantMonitor.seedSentLocalId(localId);
           }
           final hasMore = data['hasMore'] as bool? ?? false;
           final rawMaxSeq = _maxRawMessageSeq(messages);

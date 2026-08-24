@@ -272,6 +272,13 @@ class MessageInvariantMonitor {
     _addBounded(_sentLocalIds, _sentLocalIdOrder, localId);
   }
 
+  /// Whether [localId] was minted by this client (this process or, via
+  /// [seedSentLocalId], an earlier one). Call sites that observe server
+  /// rows they did not send — history pagination replays every stored
+  /// `localId`, including other devices' — use this to skip the ack tap
+  /// instead of reporting a foreign id as a violation.
+  bool isKnownLocalId(String localId) => _sentLocalIds.contains(localId);
+
   /// Record a server ack for [localId]. [optimisticRowCount] is the number
   /// of in-memory rows currently matching the id (from the merge output).
   ///

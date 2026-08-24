@@ -1680,11 +1680,24 @@ extension SyncMessagingSend on Sync {
       // Always-on runtime tap (unlike CanaryAssert, not gated on kCanary):
       // observes unmatched-optimistic, duplicate-localId, and unknown-acked
       // localId on every server ack. Pure observation, never throws.
-      messageInvariantMonitor.recordAck(
-        localId: localId,
-        optimisticRowCount: matchCount,
-        sessionId: sessionId,
-      );
+      //
+      // Only ids this client has something to say about are tapped. History
+      // pagination calls this for EVERY stored row carrying a `localId`
+      // (see `fetchMessages`), including ones minted by another device or a
+      // previous install; with no matching row and no local mint there is
+      // nothing to update here, and counting them produced bursts of false
+      // `unknown_acked_local_id` violations — 300 in one paging burst on
+      // build 264100 (Loki, 2026-08-24) — which made the invariant counter
+      // unalertable. A real breach still reports: rowCount > 0 keeps the
+      // duplicate/unknown checks, and a locally minted id keeps the
+      // unmatched-optimistic check.
+      if (matchCount > 0 || messageInvariantMonitor.isKnownLocalId(localId)) {
+        messageInvariantMonitor.recordAck(
+          localId: localId,
+          optimisticRowCount: matchCount,
+          sessionId: sessionId,
+        );
+      }
     }
     if (firstIdx >= 0) {
       final currentStatus = msgs[firstIdx]['sendStatus'] as String?;
