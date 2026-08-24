@@ -4,6 +4,51 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-24
 
+### Progressive-lag remediation, sixth pass, 2026-08-24 ("it still happens")
+
+The fifth pass shipped and **worked on its own terms** — RSS p95 fell from the
+2048 MB bucket (265100) to ~634 MB (265200) — and the app was still laggy. The
+frozen-frame phase split on the user's own build finally named the real
+mechanism, and it was never widget cost or GC:
+
+- frozen frame **total** p95 = **486 ms**
+- frozen frame **build** p95 = **9.6 ms**
+- frozen frame **raster** p95 = **9.6 ms**
+
+~96 % of every frozen frame is spent outside both phases: the UI isolate is
+*blocked*. `app.cache.messages.write` matched it almost exactly (`total` p95
+408 ms, `write` p95 153-172 ms), and Loki produced the proof — the user's
+Android device (CPH2653) logs `[MessageCache] Native worker storage
+unavailable` on **every single cache write** (5 in 12 s while chatting).
+
+Root cause: `writeSessionMessagesEncodedInWorker` calls `MMKV.defaultMMKV()`
+inside a short-lived `compute()` isolate. MMKV is only initialised on the main
+isolate and a worker cannot create a handle without a platform channel, so the
+call throws on this device **every time**. The fallback then wrote the whole
+multi-MB encrypted marker **synchronously on the UI isolate** — a ~150 ms frame
+block roughly every 2.4 s of active chat. Worse, each write first paid an
+isolate spawn *plus a full copy of that same multi-MB marker string* into the
+worker that was guaranteed to fail.
+
+Shipped: **(1)** the worker-storage failure is now latched for the process
+(`_workerStorageUnavailable`) — a device that cannot write from a worker stops
+paying the doomed spawn+copy on every subsequent write and goes straight to the
+main-isolate handle. **(2)** inline base64 image data is stripped in
+`_rawCacheWindow`, i.e. *before* the `compute()` deep-copy, instead of inside
+the worker. The copy is synchronous on the UI isolate, so the old order paid a
+multi-MB copy for bytes the worker immediately discarded; `stripInlineImageData`
+is non-mutating and idempotent, so the worker's own sanitize pass is now a no-op
+and the persisted bytes are unchanged. Contract tests pin pre-copy stripping,
+caller non-mutation, idempotence, and pass-through
+(`test/services/message_cache_worker_payload_test.dart`).
+
+Still open (needs its own pass): the proper fix is making MMKV usable from the
+worker isolate via `BackgroundIsolateBinaryMessenger.ensureInitialized(
+rootIsolateToken)` + an explicit `rootDir`, which would move the native write
+fully off the UI isolate on every device. Also still unbounded: giant *text*
+tool outputs in the cache payload (the deferred truncation item — it needs the
+refetch cursor), and the per-change rewrite of the whole 200-row window.
+
 ### Progressive-lag remediation, fifth pass, 2026-08-24 ("still lags like crazy")
 
 Telemetry re-check on the live build (265100, which carries all four earlier

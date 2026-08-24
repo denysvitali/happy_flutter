@@ -346,6 +346,33 @@ class MessageCacheService {
   /// sync save path so cold-start JSON decode and initial rendering stay
   /// predictable.
   static const int _maxCachedMessages = 200;
+
+  /// Latched once a worker-isolate MMKV write fails.
+  ///
+  /// Worker MMKV availability is a property of the device/plugin build (the
+  /// worker isolate has no initialized MMKV handle and cannot create one
+  /// without a platform channel), so a single failure predicts every later
+  /// one. Retrying per write cost an isolate spawn plus a copy of the whole
+  /// multi-MB encoded marker before falling back to the main-isolate write
+  /// anyway. Reset by [resetWorkerStorageAvailabilityForTest].
+  static bool _workerStorageUnavailable = false;
+
+  /// Test hook: clear the worker-storage latch between tests.
+  @visibleForTesting
+  static void resetWorkerStorageAvailabilityForTest() =>
+      _workerStorageUnavailable = false;
+
+  /// Test hook: whether worker writes have been latched off this process.
+  @visibleForTesting
+  static bool get debugWorkerStorageUnavailable => _workerStorageUnavailable;
+
+  /// Test hook: the exact payload handed to the worker isolate, i.e. what the
+  /// synchronous `compute()` deep-copy has to carry.
+  @visibleForTesting
+  static List<Map<String, dynamic>> debugRawCacheWindow(
+    List<Map<String, dynamic>> messages,
+  ) => _rawCacheWindow(messages);
+
   // Reads are synchronous on the main isolate (getMessages), so a 50ms+
   // read is genuinely user-visible (it blocks cold-start render) and
   // worth flagging.
@@ -905,7 +932,9 @@ class MessageCacheService {
       }
       var writeMs = 0;
       final useNativeWorkerStorage =
-          !kIsWeb && identical(_storage, MMKVStorage());
+          !kIsWeb &&
+          identical(_storage, MMKVStorage()) &&
+          !_workerStorageUnavailable;
       if (useNativeWorkerStorage) {
         final writeSucceeded = await compute(_writeMessageCacheJson, {
           'sessionId': sessionId,
@@ -919,11 +948,19 @@ class MessageCacheService {
           // handle instead of dropping every cache write. Encoding and
           // encryption still happened off-isolate; this fallback performs
           // only the final native string write.
+          //
+          // Latch the failure for the rest of the process: MMKV worker
+          // availability is a property of the device/plugin build, not of an
+          // individual write. Retrying it per write cost an isolate spawn
+          // *plus a copy of the whole multi-MB encoded marker* before failing
+          // and writing on the main isolate anyway — measured in production as
+          // a UI-isolate stall on every cache write (2026-08-24, sixth pass).
+          _workerStorageUnavailable = true;
           _storage.saveSessionMessagesEncoded(sessionId, marker);
           logger.info(
             '[MessageCache] Native worker storage unavailable; '
             'wrote cache through the initialized main-isolate handle for '
-            '$sessionId',
+            '$sessionId (worker writes disabled for this process)',
           );
         }
         // A synchronous suspend/delete may have fenced this write while the
@@ -982,10 +1019,18 @@ class MessageCacheService {
       0,
       messages.length,
     );
-    return List<Map<String, dynamic>>.of(
-      messages.getRange(start, messages.length),
-      growable: false,
-    );
+    // Strip inline base64 image data *before* the payload crosses the isolate
+    // boundary. `compute()` deep-copies its argument synchronously on the UI
+    // isolate, so leaving this to the worker meant paying a multi-MB copy for
+    // bytes the worker then discarded. `stripInlineImageData` is non-mutating
+    // and idempotent (it blanks `data` and marks `omitted`, so a second pass
+    // is a no-op returning the same object), which keeps the worker's own
+    // sanitize pass byte-identical — it simply finds nothing left to strip.
+    final window = <Map<String, dynamic>>[];
+    for (var i = start; i < messages.length; i++) {
+      window.add(_sanitizeCacheMessageTree(messages[i]));
+    }
+    return List<Map<String, dynamic>>.of(window, growable: false);
   }
 
   void _recordWrite(
