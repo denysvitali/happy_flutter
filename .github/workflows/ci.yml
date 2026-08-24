@@ -431,9 +431,37 @@ jobs:
           retention-days: 90
           if-no-files-found: warn
 
+  rust:
+    name: Rust native core
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/happy_core/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust/happy_core/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
+      - name: Test
+        working-directory: rust/happy_core
+        # Includes the cross-language vectors: an envelope produced by the
+        # Dart AES256Encryption implementation must decrypt here unchanged.
+        # This failing means the wire format broke — do not ship.
+        run: cargo test --locked
+
+      - name: Clippy
+        working-directory: rust/happy_core
+        run: cargo clippy --locked --all-targets -- -D warnings
+
   quality-gate:
     name: Quality Gate
-    needs: [analyze, build-ios, codegen, test, golden]
+    needs: [analyze, build-ios, codegen, test, golden, rust]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -444,7 +472,9 @@ jobs:
           IOS: ${{ needs.build-ios.result }}
           TEST: ${{ needs.test.result }}
           GOLDEN: ${{ needs.golden.result }}
+          RUST: ${{ needs.rust.result }}
         run: |
+          test "$RUST" = success
           test "$ANALYZE" = success
           test "$CODEGEN" = success
           test "$IOS" = success
@@ -615,6 +645,14 @@ jobs:
         uses: ./.github/actions/setup-android-build
         with:
           cache-write: 'true'
+
+      - name: Build native core (Rust)
+        if: steps.apk-cache.outputs.cache-hit != 'true'
+        # The native core is optional by design: NativeCore.ensureInitialized()
+        # falls back to the Dart path when the library is absent, so a miss
+        # here costs speed, never correctness. The script itself exits 0 when
+        # cargo or the NDK is unavailable.
+        run: ./scripts/build_rust.sh android
 
       - name: Build Release APK
         if: steps.apk-cache.outputs.cache-hit != 'true'

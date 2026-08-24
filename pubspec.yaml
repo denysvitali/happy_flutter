@@ -97,6 +97,7 @@ dependencies:
   image: ^4.9.1
   image_picker: ^1.1.2
 
+  flutter_rust_bridge: 2.13.0
 dependency_overrides:
   # Keep this explicit until the Flutter toolchain's transitive constraints
   # consistently pick an Android implementation with SharedPreferencesPlugin.

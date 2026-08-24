@@ -11,8 +11,14 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 [dependencies]
 aes-gcm = "0.10"
 base64 = "0.22"
+flutter_rust_bridge = "=2.13.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[lints.rust]
+# flutter_rust_bridge's macro emits `#[cfg(frb_expand)]`; declare it so the
+# unexpected-cfg lint stays useful for genuine typos.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 
 [profile.release]
 opt-level = 3

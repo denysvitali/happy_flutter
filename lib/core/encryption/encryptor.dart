@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:isolate';
 import 'dart:math' show min;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+import '../native/native_core.dart';
 import '../services/logger_service.dart' show logger;
 
 import 'aes_gcm.dart';
@@ -269,6 +271,40 @@ class AES256Encryption implements Encryptor {
         decodeFailures: decodeFailures,
       );
     }
+    // Native core first: `DartAesGcm` is a pure-Dart block cipher (the app
+    // has no `cryptography_flutter`), so a whole catalog or socket batch is
+    // a long CPU block that an isolate only *moves* — it still costs a spawn
+    // plus a full copy of the payload on the UI isolate. Rust does the batch
+    // with hardware AES in one crossing. Unavailable or failing native core
+    // returns null and we continue to the proven Dart path below.
+    final nativeValues = await NativeCore.instance.decryptAesGcmBase64Batch(
+      key: _secretKey,
+      envelopesBase64: encoded,
+    );
+    if (nativeValues != null && nativeValues.length == encoded.length) {
+      final values = List<dynamic>.filled(encoded.length, null);
+      final decodeFailures = <int>[];
+      for (var i = 0; i < encoded.length; i++) {
+        final json = nativeValues[i];
+        if (json == null) {
+          // Indistinguishable here between "bad base64" and "auth failed";
+          // both mean this row must fall through to the legacy/NaCl path,
+          // which is exactly what a decode failure signals.
+          decodeFailures.add(i);
+          continue;
+        }
+        try {
+          values[i] = jsonDecode(json);
+        } catch (_) {
+          decodeFailures.add(i);
+        }
+      }
+      return EncodedDecryptResult(
+        values: values,
+        decodeFailures: decodeFailures,
+      );
+    }
+
     EncodedDecryptResult result;
     try {
       // Hoist `_secretKey` into a local so the closure captures only

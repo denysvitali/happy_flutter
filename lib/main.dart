@@ -4,6 +4,8 @@ import 'dart:convert' show base64;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'core/native/native_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,6 +169,14 @@ Future<void> _runApp() async {
   // MMKV and the separate server-config store so startup can recover custom
   // server URLs before the first auth/sync request.
   final storageWarmup = storage.Storage().initialize();
+
+  // Load the Rust hot-path core alongside storage. It only replaces CPU-bound
+  // batch work (crypto today) and every call site keeps its Dart fallback, so
+  // a platform without the library is simply slower, never broken. Not
+  // awaited here: nothing on the first-frame path needs it, and the first
+  // batch that wants it awaits `ensureInitialized` itself.
+  final nativeCoreWarmup = NativeCore.instance.ensureInitialized();
+  unawaited(nativeCoreWarmup);
 
   // Start the initial deep-link platform-channel call in parallel
   // with first frame.  Previously this was awaited before `runApp`,

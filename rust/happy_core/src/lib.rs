@@ -6,4 +6,6 @@
 //! *raster* were only ~9.6 ms each — ~96 % of every frozen frame was the UI
 //! isolate blocked on pure computation, not on widgets or the GPU.
 
+pub mod api;
 pub mod crypto;
+mod frb_generated;
