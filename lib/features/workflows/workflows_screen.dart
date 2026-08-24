@@ -40,6 +40,35 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
   List<_WorkflowCardProjection> _projectedRuns =
       const <_WorkflowCardProjection>[];
 
+  /// Streaming mutates the message revision on every workflow step event;
+  /// without a floor, each poll would re-walk the whole resident
+  /// transcript to rebuild [WorkflowTranscriptIndex] (progressive-lag
+  /// audit 2026-08-24). Revision-equal builds reuse forever; mid-stream
+  /// builds reuse within [_transcriptIndexMinInterval].
+  static const _transcriptIndexMinInterval = Duration(milliseconds: 250);
+  WorkflowTranscriptIndex? _transcriptIndex;
+  int _transcriptIndexRevision = -1;
+  DateTime _transcriptIndexAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  WorkflowTranscriptIndex _indexFor(int revision) {
+    final cached = _transcriptIndex;
+    if (cached != null && revision == _transcriptIndexRevision) {
+      return cached;
+    }
+    final now = DateTime.now();
+    if (cached != null &&
+        now.difference(_transcriptIndexAt) < _transcriptIndexMinInterval) {
+      return cached;
+    }
+    final index = WorkflowTranscriptIndex.fromMessages(
+      sync.messagesForSession(widget.sessionId),
+    );
+    _transcriptIndex = index;
+    _transcriptIndexRevision = revision;
+    _transcriptIndexAt = now;
+    return index;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -137,8 +166,7 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
         revision == _projectedMessageRevision) {
       return _projectedRuns;
     }
-    final messages = sync.messagesForSession(widget.sessionId);
-    final index = WorkflowTranscriptIndex.fromMessages(messages);
+    final index = _indexFor(revision);
     final projected = <_WorkflowCardProjection>[];
     for (final source in runs) {
       final run = WorkflowRun.enrichFromIndex(source, index);

@@ -76,6 +76,48 @@ void main() {
         expect(result!.id, 'msg1');
         expect(result.content, 'Hello');
       });
+
+      test('small messages are cached', () {
+        cache.setCachedMessage('m-small', _msg({'text': 'hello'}));
+
+        expect(cache.getCachedMessage('m-small'), isNotNull);
+      });
+
+      test('oversized tool output is NOT cached (heap-ratchet guard)', () {
+        // Progressive-lag audit 2026-08-24: the LRU caps by count, so
+        // 1000 cached multi-hundred-KB tool results pin tens of MB.
+        cache.setCachedMessage(
+          'm-big',
+          _msg({
+            'role': 'user',
+            'content': [
+              {'type': 'tool_result', 'content': 'x' * 60000},
+            ],
+          }),
+        );
+
+        expect(cache.getCachedMessage('m-big'), isNull);
+      });
+
+      test('nested structures bail out once over budget', () {
+        final nested = {
+          'a': [
+            {'b': 'y' * 30000},
+            {'c': 'z' * 30000},
+          ],
+        };
+        cache.setCachedMessage('m-nested-big', _msg(nested));
+        expect(cache.getCachedMessage('m-nested-big'), isNull);
+
+        final smallNested = {
+          'a': [
+            {'b': 'ok'},
+            {'c': List.filled(10, 'fine')},
+          ],
+        };
+        cache.setCachedMessage('m-nested-small', _msg(smallNested));
+        expect(cache.getCachedMessage('m-nested-small'), isNotNull);
+      });
     });
 
     group('Machine Metadata Cache', () {
@@ -147,12 +189,15 @@ void main() {
       test('clearAll removes everything', () {
         cache.setCachedAgentState('s1', 1, {'a': 1});
         cache.setCachedMetadata('s1', 1, {'m': 1});
-        cache.setCachedMessage('msg1', DecryptedMessage(
-          id: 'msg1',
-          seq: 1,
-          content: 'test',
-          createdAt: DateTime.now(),
-        ),);
+        cache.setCachedMessage(
+          'msg1',
+          DecryptedMessage(
+            id: 'msg1',
+            seq: 1,
+            content: 'test',
+            createdAt: DateTime.now(),
+          ),
+        );
         cache.setCachedMachineMetadata('m1', 1, {'m': 1});
         cache.setCachedDaemonState('m1', 1, {'d': 1});
 
@@ -180,12 +225,15 @@ void main() {
       test('counts all cache entries', () {
         cache.setCachedAgentState('s1', 1, {'a': 1});
         cache.setCachedMetadata('s1', 1, {'m': 1});
-        cache.setCachedMessage('msg1', DecryptedMessage(
-          id: 'msg1',
-          seq: 1,
-          content: 'test',
-          createdAt: DateTime.now(),
-        ),);
+        cache.setCachedMessage(
+          'msg1',
+          DecryptedMessage(
+            id: 'msg1',
+            seq: 1,
+            content: 'test',
+            createdAt: DateTime.now(),
+          ),
+        );
         cache.setCachedMachineMetadata('m1', 1, {'m': 1});
         cache.setCachedDaemonState('m1', 1, {'d': 1});
 
@@ -298,7 +346,9 @@ void main() {
           id: 'msg1',
           seq: 5,
           localId: 'local1',
-          content: {'nested': {'value': 42}},
+          content: {
+            'nested': {'value': 42},
+          },
           createdAt: DateTime.utc(2024, 6, 15, 12, 0),
         );
 
@@ -352,4 +402,13 @@ void main() {
       });
     });
   });
+}
+
+DecryptedMessage _msg(Object? content) {
+  return DecryptedMessage(
+    id: 'id-1',
+    seq: 1,
+    content: content,
+    createdAt: DateTime(2024),
+  );
 }

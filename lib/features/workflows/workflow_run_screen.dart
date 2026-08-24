@@ -61,6 +61,33 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   int _projectedMessageRevision = -1;
   _WorkflowRunProjection? _projection;
 
+  /// Same transcript-index floor as WorkflowsScreen — a live run bumps
+  /// the message revision on every step event, and the index walk is
+  /// O(resident transcript) (progressive-lag audit 2026-08-24).
+  static const _transcriptIndexMinInterval = Duration(milliseconds: 250);
+  WorkflowTranscriptIndex? _transcriptIndex;
+  int _transcriptIndexRevision = -1;
+  DateTime _transcriptIndexAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  WorkflowTranscriptIndex _indexFor(int revision) {
+    final cached = _transcriptIndex;
+    if (cached != null && revision == _transcriptIndexRevision) {
+      return cached;
+    }
+    final now = DateTime.now();
+    if (cached != null &&
+        now.difference(_transcriptIndexAt) < _transcriptIndexMinInterval) {
+      return cached;
+    }
+    final index = WorkflowTranscriptIndex.fromMessages(
+      sync.messagesForSession(widget.sessionId),
+    );
+    _transcriptIndex = index;
+    _transcriptIndexRevision = revision;
+    _transcriptIndexAt = now;
+    return index;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -164,9 +191,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
       return _projection;
     }
 
-    final transcriptIndex = WorkflowTranscriptIndex.fromMessages(
-      sync.messagesForSession(widget.sessionId),
-    );
+    final transcriptIndex = _indexFor(revision);
     final run = WorkflowRun.enrichFromIndex(source, transcriptIndex);
     final groups = WorkflowRun.phaseGroups(
       run,

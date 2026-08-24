@@ -4,6 +4,36 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-24
 
+### Progressive-lag audit, 2026-08-24
+
+User report: the app gets laggier the longer it runs. Four-agent sweep
+(Prometheus, Loki, Jaeger, static audit) found: on build 263600 the chat
+route froze 302 times in 48h (p95 245 ms at the 251+ session bucket) while
+frame build p95 is 9.6 ms and raster p95 9.5 ms — the missing time is the
+GC/platform-stall signature, i.e. heap pressure, not widget-build cost.
+The renderer still reports **zero** `activity="idle"` windows (~31 fps
+continuous on chat), so something beyond the fixed online-chip pulse keeps
+the pipeline warm; and Jaeger holds no client traces (dev-cluster backend
+only), while **Loki lost all happy-flutter logs after 2026-08-20 16:07 UTC**
+(happy-server still streams — client OTel export or retention needs fixing
+before log-level attribution is possible again).
+
+Shipped here (all target memory ratchets / per-tick churn):
+`MessageInvariantMonitor` id sets are bounded FIFOs (10k, mirroring
+`_maxRecentInlineKeys`) instead of growing with every message seen for the
+process lifetime; `EncryptionCache.setCachedMessage` skips decrypted
+messages over a 50k-char content budget so huge tool outputs stop pinning
+tens of MB in the count-capped LRU; both workflow screens reuse their
+transcript index within a 250 ms floor instead of re-walking the whole
+resident transcript on every revision tick of a live run; removed a dead
+both-branches-identical ternary in `_refreshFromSync`. Contract tests pin
+the FIFO bounds, the live-send-after-flood semantics, the evicted-id
+trade-off, and the cache budget. Deferred with reasons: incremental
+neighbor-cache patching (correctness risk in padding logic; build-phase
+p95 says CPU is not the freeze driver), sidechain-grouper single-pass
+(loses its early exit), byte-budgeting the other four EncryptionCache maps,
+and dirty-gating the session-activity reconciler.
+
 ### Session-identity and test-suite hardening, 2026-08-24
 
 User report: tapping an archived session opened a different session. A

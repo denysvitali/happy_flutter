@@ -3,8 +3,7 @@ import '../utils/lru_cache.dart';
 /// LRU cache entry with access time tracking for legacy compatibility
 class CacheEntry<T> {
   CacheEntry(this.data, [int? accessTime])
-      : accessTime =
-            accessTime ?? DateTime.now().millisecondsSinceEpoch;
+    : accessTime = accessTime ?? DateTime.now().millisecondsSinceEpoch;
   final T data;
   final int accessTime;
 }
@@ -72,8 +71,46 @@ class EncryptionCache {
   }
 
   /// Cache decrypted message
+  ///
+  /// Oversized entries (huge tool outputs) are skipped: the LRU caps
+  /// entries by COUNT, so 1000 cached multi-hundred-KB tool results pin
+  /// tens of MB until evicted — a heap ratchet that grows GC pauses the
+  /// longer the session runs (progressive-lag audit 2026-08-24). Re-decrypting
+  /// a skipped message on refetch is cheap next to pinning it.
   void setCachedMessage(String messageId, DecryptedMessage data) {
+    if (_exceedsContentBudget(data.content)) return;
     _messageCache.put(messageId, data);
+  }
+
+  /// Char budget above which a decrypted message is not cached.
+  static const int maxCachedMessageChars = 50000;
+
+  /// Recursively counts string chars in [content] with an early bail-out
+  /// once the budget is exceeded, so typical small messages touch only
+  /// their own length.
+  static bool _exceedsContentBudget(Object? content) {
+    var remaining = maxCachedMessageChars;
+    bool walk(Object? node) {
+      if (node is String) {
+        remaining -= node.length;
+        return remaining < 0;
+      }
+      if (node is List) {
+        for (final element in node) {
+          if (walk(element)) return true;
+        }
+        return false;
+      }
+      if (node is Map) {
+        for (final value in node.values) {
+          if (walk(value)) return true;
+        }
+        return false;
+      }
+      return false;
+    }
+
+    return walk(content);
   }
 
   /// Get cached machine metadata
@@ -146,7 +183,8 @@ class EncryptionCache {
       'messages': _messageCache.length,
       'machineMetadata': _machineMetadataCache.length,
       'daemonStates': _daemonStateCache.length,
-      'totalEntries': _agentStateCache.length +
+      'totalEntries':
+          _agentStateCache.length +
           _metadataCache.length +
           _messageCache.length +
           _machineMetadataCache.length +
@@ -157,11 +195,11 @@ class EncryptionCache {
 
 /// Decrypted message model
 class DecryptedMessage {
-
   DecryptedMessage({
     required this.id,
     required this.seq,
-    required this.createdAt, this.localId,
+    required this.createdAt,
+    this.localId,
     this.content,
   });
 

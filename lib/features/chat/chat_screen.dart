@@ -617,11 +617,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // view caches can be mutated in place (e.g. when the underlying
     // _sessionMessages list is replaced but the view wrapper is reused),
     // so identical() alone is not sufficient.
-    final latestMessageFingerprint =
-        latestMessages.length == _messages.length &&
-            _lastMessageFingerprint != 0
-        ? _computeMessageFingerprint(latestMessages)
-        : _computeMessageFingerprint(latestMessages);
+    final latestMessageFingerprint = _computeMessageFingerprint(latestMessages);
 
     if (latestMessages.length == _messages.length &&
         _lastMessageFingerprint != 0) {
@@ -882,8 +878,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         !(_session?.thinking ?? false) &&
         !TtsService().isSpeaking) {
       final remaining =
-          _recentStreamActivityWindowMs -
-          (now - _lastMessageStreamActivityAt);
+          _recentStreamActivityWindowMs - (now - _lastMessageStreamActivityAt);
       _screenAwakeReleaseTimer = Timer(
         Duration(
           milliseconds: remaining.clamp(1, _recentStreamActivityWindowMs),

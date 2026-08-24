@@ -36,14 +36,16 @@ void main() {
 
     int countFor(MessageInvariant i) => monitor.counters[i.tag] ?? -1;
 
-    test('constructor primes all four counters so the series exist at zero',
-        () {
-      // Audit 2026-08-03: lazy counter creation meant a never-fired
-      // invariant had no Prometheus series, so "zero breaches" and
-      // "metric missing" were indistinguishable for alerting.
-      expect(primed, MessageInvariant.values);
-      expect(counted, isEmpty);
-    });
+    test(
+      'constructor primes all four counters so the series exist at zero',
+      () {
+        // Audit 2026-08-03: lazy counter creation meant a never-fired
+        // invariant had no Prometheus series, so "zero breaches" and
+        // "metric missing" were indistinguishable for alerting.
+        expect(primed, MessageInvariant.values);
+        expect(counted, isEmpty);
+      },
+    );
 
     test('happy path records ZERO violations', () async {
       // One tap -> one localId -> one optimistic row -> one ack.
@@ -199,32 +201,33 @@ void main() {
 
     // ── Audit 2026-08-03 fixes ────────────────────────────────────────────
 
-    test('a double-tapped ack is observed once (REST path + status path)',
-        () async {
-      // The same server ack reaches recordAck from BOTH the REST-ack
-      // apply path and the send-status path. Before the dedupe this
-      // double-counted every ack — and any violation with it.
-      monitor.recordOptimisticSent('local-d');
-      monitor.recordAck(
-        localId: 'local-d',
-        optimisticRowCount: 2, // a real duplicate row
-        sessionId: 's1',
-      );
-      monitor.recordAck(
-        localId: 'local-d',
-        optimisticRowCount: 2,
-        sessionId: 's1',
-      );
+    test(
+      'a double-tapped ack is observed once (REST path + status path)',
+      () async {
+        // The same server ack reaches recordAck from BOTH the REST-ack
+        // apply path and the send-status path. Before the dedupe this
+        // double-counted every ack — and any violation with it.
+        monitor.recordOptimisticSent('local-d');
+        monitor.recordAck(
+          localId: 'local-d',
+          optimisticRowCount: 2, // a real duplicate row
+          sessionId: 's1',
+        );
+        monitor.recordAck(
+          localId: 'local-d',
+          optimisticRowCount: 2,
+          sessionId: 's1',
+        );
 
-      await Future<void>.delayed(Duration.zero);
-      expect(countFor(MessageInvariant.duplicateLocalId), 1);
-      expect(counted, hasLength(1));
-      expect(captured, hasLength(1));
-      expect(durations, hasLength(1));
-    });
+        await Future<void>.delayed(Duration.zero);
+        expect(countFor(MessageInvariant.duplicateLocalId), 1);
+        expect(counted, hasLength(1));
+        expect(captured, hasLength(1));
+        expect(durations, hasLength(1));
+      },
+    );
 
-    test('seeded localId from a persisted row is not unknown-acked',
-        () async {
+    test('seeded localId from a persisted row is not unknown-acked', () async {
       // Restart case: the id was minted by an earlier process and came
       // back via cache restore / history fetch. Its ack must NOT read
       // as unknown_acked_local_id (the audit's false positive).
@@ -242,37 +245,41 @@ void main() {
       expect(durations, isEmpty);
     });
 
-    test('restored outbox localId is not unknown-acked after restart',
-        () async {
-      // The outbox is a second persistence source independent of the message
-      // cache. A cache write may be missing while the encrypted outbox still
-      // restores the canonical localId, so restore must seed that identity
-      // before its status callback can deliver an ack.
-      monitor.seedSentLocalId('outbox-restored-1');
-      monitor.recordAck(
-        localId: 'outbox-restored-1',
-        optimisticRowCount: 0,
-        sessionId: 's1',
-      );
+    test(
+      'restored outbox localId is not unknown-acked after restart',
+      () async {
+        // The outbox is a second persistence source independent of the message
+        // cache. A cache write may be missing while the encrypted outbox still
+        // restores the canonical localId, so restore must seed that identity
+        // before its status callback can deliver an ack.
+        monitor.seedSentLocalId('outbox-restored-1');
+        monitor.recordAck(
+          localId: 'outbox-restored-1',
+          optimisticRowCount: 0,
+          sessionId: 's1',
+        );
 
-      await Future<void>.delayed(Duration.zero);
-      expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
-      expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
-    });
+        await Future<void>.delayed(Duration.zero);
+        expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
+        expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
+      },
+    );
 
-    test('seeded localId with a missing row is unmatched, not unknown',
-        () async {
-      monitor.seedSentLocalId('restored-2');
-      monitor.recordAck(
-        localId: 'restored-2',
-        optimisticRowCount: 0,
-        sessionId: 's1',
-      );
+    test(
+      'seeded localId with a missing row is unmatched, not unknown',
+      () async {
+        monitor.seedSentLocalId('restored-2');
+        monitor.recordAck(
+          localId: 'restored-2',
+          optimisticRowCount: 0,
+          sessionId: 's1',
+        );
 
-      await Future<void>.delayed(Duration.zero);
-      expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
-      expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
-    });
+        await Future<void>.delayed(Duration.zero);
+        expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
+        expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
+      },
+    );
 
     test('tap→ack latency is recorded with the outcome label', () async {
       monitor.recordOptimisticSent('local-t');
@@ -288,8 +295,7 @@ void main() {
       expect(elapsed, greaterThanOrEqualTo(Duration.zero));
     });
 
-    test('tap→ack latency carries the violated invariant as outcome',
-        () async {
+    test('tap→ack latency carries the violated invariant as outcome', () async {
       monitor.recordOptimisticSent('local-v');
       monitor.recordAck(
         localId: 'local-v',
@@ -301,8 +307,7 @@ void main() {
       expect(durations.single.$2, 'unmatched_optimistic');
     });
 
-    test('unknown ack records no latency sample (never minted here)',
-        () async {
+    test('unknown ack records no latency sample (never minted here)', () async {
       monitor.recordAck(
         localId: 'ghost-latency',
         optimisticRowCount: 1,
@@ -314,26 +319,74 @@ void main() {
       expect(durations, isEmpty);
     });
 
-    test('reset clears ack dedupe so a fresh process view can re-observe',
-        () async {
-      monitor.recordOptimisticSent('local-r');
+    test(
+      'reset clears ack dedupe so a fresh process view can re-observe',
+      () async {
+        monitor.recordOptimisticSent('local-r');
+        monitor.recordAck(
+          localId: 'local-r',
+          optimisticRowCount: 1,
+          sessionId: 's1',
+        );
+        monitor.reset();
+        monitor.recordOptimisticSent('local-r');
+        monitor.recordAck(
+          localId: 'local-r',
+          optimisticRowCount: 1,
+          sessionId: 's1',
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        expect(monitor.totalViolations, 0);
+        // One sample before reset, one after.
+        expect(durations, hasLength(2));
+      },
+    );
+
+    test('id tracking stays bounded across heavy seed traffic', () {
+      // Progressive-lag audit 2026-08-24: the sets are seeded with EVERY
+      // observed message id; without a FIFO cap they grow with all
+      // traffic for the whole process lifetime.
+      for (var i = 0; i < 12000; i++) {
+        monitor.seedSentLocalId('seed-$i');
+      }
+
+      expect(monitor.trackedSentLocalIdCount, 10000);
+    });
+
+    test('a live send is still recognized after the seed flood', () async {
+      for (var i = 0; i < 12000; i++) {
+        monitor.seedSentLocalId('seed-$i');
+      }
+      monitor.recordOptimisticSent('live-1');
       monitor.recordAck(
-        localId: 'local-r',
-        optimisticRowCount: 1,
-        sessionId: 's1',
-      );
-      monitor.reset();
-      monitor.recordOptimisticSent('local-r');
-      monitor.recordAck(
-        localId: 'local-r',
+        localId: 'live-1',
         optimisticRowCount: 1,
         sessionId: 's1',
       );
 
       await Future<void>.delayed(Duration.zero);
-      expect(monitor.totalViolations, 0);
-      // One sample before reset, one after.
-      expect(durations, hasLength(2));
+      expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
+      expect(durations, hasLength(1));
+    });
+
+    test('acking an id evicted by the cap reads as unknown (pinned '
+        'trade-off)', () async {
+      // Documented cost of the bound: only ancient ids (10k additions
+      // old) are evicted, so a late ack for one reads as unknown rather
+      // than silently growing memory forever.
+      monitor.seedSentLocalId('ancient');
+      for (var i = 0; i < 10000; i++) {
+        monitor.seedSentLocalId('flood-$i');
+      }
+      monitor.recordAck(
+        localId: 'ancient',
+        optimisticRowCount: 1,
+        sessionId: 's1',
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(countFor(MessageInvariant.unknownAckedLocalId), 1);
     });
   });
 }

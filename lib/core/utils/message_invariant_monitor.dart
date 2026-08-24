@@ -17,7 +17,9 @@
 // See `ROADMAP.md` "Invariant telemetry" task.
 
 import 'dart:async';
+import 'dart:collection';
 
+import 'package:meta/meta.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/logger_service.dart';
@@ -158,22 +160,38 @@ class MessageInvariantMonitor {
     );
   }
 
+  /// Upper bound for the id-tracking sets below. They are seeded with EVERY
+  /// observed message id (cache restore, history fetch, socket delivery),
+  /// so without a cap they grow monotonically with all traffic for the
+  /// whole process lifetime — tens of thousands of retained strings on the
+  /// Sync singleton after a heavy day (progressive-lag audit 2026-08-24).
+  /// Mirrors `Sync._maxRecentInlineKeys`. Trade-off: an ack arriving for an
+  /// id evicted 10k additions ago reads as `unknown_acked_local_id`; live
+  /// sends ack within seconds, so only ancient ids are ever evicted.
+  static const int _maxTrackedLocalIds = 10000;
+
   /// LocalIds the client has minted via the optimistic insert — in THIS
   /// process or an earlier one (seeded from persisted rows on restore /
   /// fetch, see [seedSentLocalId]). Used to tell an "unknown acked" id
   /// (never sent) from an "unmatched optimistic" one (sent, but the
-  /// placeholder row went missing before the ack).
+  /// placeholder row went missing before the ack). Bounded FIFO.
   final Set<String> _sentLocalIds = <String>{};
+  final Queue<String> _sentLocalIdOrder = Queue<String>();
 
   /// Mint timestamps (epoch ms) for ids sent in THIS process, keyed by
   /// localId. Powers the `app.message_send` tap→ack histogram. Seeded ids
-  /// from older lifetimes carry no timestamp and skip the sample.
+  /// from older lifetimes carry no timestamp and skip the sample. Drained
+  /// per ack; bounded FIFO for sends that never get one.
   final Map<String, int> _sentAtMs = <String, int>{};
 
   /// LocalIds whose ack has already been observed this process. The
   /// REST-ack path and the send-status path both tap the same server ack;
   /// without this set every ack double-counted (audit 2026-08-03).
+  /// Bounded FIFO: re-processing an ack after eviction would re-bump the
+  /// ack denominator, which needs 10k newer acks to reach — accepted over
+  /// unbounded growth.
   final Set<String> _ackedLocalIds = <String>{};
+  final Queue<String> _ackedLocalIdOrder = Queue<String>();
 
   /// Per-invariant violation counts since process start.
   final Map<MessageInvariant, int> _counts = <MessageInvariant, int>{
@@ -199,21 +217,47 @@ class MessageInvariantMonitor {
   /// Clears all state — used by tests.
   void reset() {
     _sentLocalIds.clear();
+    _sentLocalIdOrder.clear();
     _sentAtMs.clear();
     _ackedLocalIds.clear();
+    _ackedLocalIdOrder.clear();
     _capturedKeys.clear();
     for (final key in _counts.keys.toList()) {
       _counts[key] = 0;
     }
   }
 
+  /// Bounded FIFO insert shared by the id-tracking sets: Set gives O(1)
+  /// membership, Queue gives O(1) oldest eviction (same shape as
+  /// `Sync._recentInlineMessageKeys`).
+  void _addBounded(Set<String> set, Queue<String> order, String id) {
+    if (!set.add(id)) return;
+    order.addLast(id);
+    while (order.length > _maxTrackedLocalIds) {
+      set.remove(order.removeFirst());
+    }
+  }
+
+  /// Number of tracked sent ids — exposed for tests pinning the bound.
+  @visibleForTesting
+  int get trackedSentLocalIdCount => _sentLocalIds.length;
+
+  /// Number of tracked acked ids — exposed for tests pinning the bound.
+  @visibleForTesting
+  int get trackedAckedLocalIdCount => _ackedLocalIds.length;
+
   /// Record that the client minted [localId] for an optimistic send. Call
   /// from the optimistic insert in `sendMessage`. Records zero violations on
   /// the happy path.
   void recordOptimisticSent(String localId) {
     if (localId.isEmpty) return;
-    _sentLocalIds.add(localId);
+    _addBounded(_sentLocalIds, _sentLocalIdOrder, localId);
     _sentAtMs[localId] = DateTime.now().millisecondsSinceEpoch;
+    // Sends that never get an ack (permanent failures) would otherwise
+    // pin their timestamps forever; FIFO-drain the oldest.
+    while (_sentAtMs.length > _maxTrackedLocalIds) {
+      _sentAtMs.remove(_sentAtMs.keys.first);
+    }
     PowerDiagnosticsOtelReporter.instance.recordMessageSend();
   }
 
@@ -225,7 +269,7 @@ class MessageInvariantMonitor {
   /// contribute a latency sample.
   void seedSentLocalId(String localId) {
     if (localId.isEmpty) return;
-    _sentLocalIds.add(localId);
+    _addBounded(_sentLocalIds, _sentLocalIdOrder, localId);
   }
 
   /// Record a server ack for [localId]. [optimisticRowCount] is the number
@@ -244,7 +288,12 @@ class MessageInvariantMonitor {
     String? sessionId,
   }) {
     if (localId.isEmpty) return;
-    if (!_ackedLocalIds.add(localId)) return;
+    final firstAckForId = _ackedLocalIds.add(localId);
+    if (!firstAckForId) return;
+    _ackedLocalIdOrder.addLast(localId);
+    while (_ackedLocalIdOrder.length > _maxTrackedLocalIds) {
+      _ackedLocalIds.remove(_ackedLocalIdOrder.removeFirst());
+    }
     PowerDiagnosticsOtelReporter.instance.recordMessageAck();
 
     final wasSent = _sentLocalIds.contains(localId);
