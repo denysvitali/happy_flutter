@@ -9,7 +9,8 @@ import 'package:happy_flutter/core/components/app_empty_state.dart';
 import 'package:happy_flutter/core/components/app_error_state.dart';
 import 'package:happy_flutter/core/components/settings_section.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
-import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/providers/connection_notifier.dart';
+import 'package:happy_flutter/core/providers/network_notifier.dart';
 import 'package:happy_flutter/core/ui/tab_bar/tab_bar.dart';
 import 'package:happy_flutter/core/widgets/offline_banner.dart';
 
