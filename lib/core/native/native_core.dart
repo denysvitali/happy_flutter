@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../services/logger_service.dart' show logger;
+import '../services/opentelemetry_service.dart';
 import 'generated/frb_generated.dart';
 import 'generated/api/crypto_api.dart' as rust_crypto;
 
@@ -25,8 +26,9 @@ class NativeCore {
 
   static final NativeCore instance = NativeCore._();
 
-  bool _initAttempted = false;
+  Future<void>? _initFuture;
   bool _available = false;
+  String _status = 'not_attempted';
 
   /// Whether the native core loaded and may be used.
   bool get isAvailable => _available;
@@ -35,9 +37,11 @@ class NativeCore {
   ///
   /// Safe to call from anywhere; failures are logged at info level because a
   /// platform without the library is an expected configuration, not an error.
-  Future<void> ensureInitialized() async {
-    if (_initAttempted) return;
-    _initAttempted = true;
+  /// Concurrent and repeat callers share one in-flight attempt, so a second
+  /// call cannot observe a half-settled status.
+  Future<void> ensureInitialized() => _initFuture ??= _initialize();
+
+  Future<void> _initialize() async {
     try {
       await RustLib.init();
     } catch (_) {
@@ -50,9 +54,15 @@ class NativeCore {
       // Cheap round-trip: proves symbols actually resolve, not merely that
       // the library file was found.
       _available = rust_crypto.nativeCoreReady();
+      _status = _available ? 'ready' : 'probe_false';
       logger.info('[NativeCore] native core ready');
     } catch (e) {
       _available = false;
+      // Keep the reason coarse: it becomes a metric label, so it must stay
+      // low-cardinality and must never carry payload or path detail.
+      _status = e.toString().contains('not been initialized')
+          ? 'bridge_uninitialized'
+          : 'library_missing';
       logger.info(
         '[NativeCore] native core unavailable, using the Dart path: $e',
       );
@@ -183,15 +193,42 @@ class NativeCore {
     }
   }
 
+  /// Publish whether the native core loaded, once telemetry is up.
+  ///
+  /// [ensureInitialized] runs before `OpenTelemetryService().initialize()` on
+  /// the startup path, so its log never reaches the collector — which left no
+  /// fleet-wide way to tell whether the library actually loads on real
+  /// devices, i.e. whether any of this is doing anything. Call this after
+  /// telemetry is ready.
+  void reportAvailability() {
+    logger.info('[NativeCore] status=$_status available=$_available');
+    try {
+      OpenTelemetryService().recordCount(
+        'app.native_core.status',
+        attributes: {'available': _available.toString(), 'status': _status},
+        description:
+            'Whether the Rust hot-path core loaded on this launch — the '
+            'denominator for judging native-path performance work',
+      );
+    } catch (_) {
+      // Telemetry must never break startup.
+    }
+  }
+
+  @visibleForTesting
+  String get debugStatus => _status;
+
   @visibleForTesting
   void debugSetAvailable({required bool available}) {
-    _initAttempted = true;
+    _initFuture = Future<void>.value();
     _available = available;
+    _status = available ? 'ready' : 'library_missing';
   }
 
   @visibleForTesting
   void debugReset() {
-    _initAttempted = false;
+    _initFuture = null;
     _available = false;
+    _status = 'not_attempted';
   }
 }

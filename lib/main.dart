@@ -333,6 +333,13 @@ Future<void> _deferredInit() async {
     );
     try {
       await OpenTelemetryService().initialize();
+      // Now that the collector is up, publish whether the Rust core loaded.
+      // Its own init runs far earlier than telemetry, so this is the only
+      // point where that fact can actually be exported.
+      // Idempotent: the early warmup already ran this, so it just awaits the
+      // settled state before publishing it.
+      await NativeCore.instance.ensureInitialized();
+      NativeCore.instance.reportAvailability();
     } catch (e) {
       otelSpan
         ..status = const SpanStatus.internalError()
