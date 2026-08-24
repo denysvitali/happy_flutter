@@ -250,6 +250,13 @@ class MessageOutbox {
 
   static final Random _rng = Random();
 
+  /// Test-only multiplier applied to every scheduled retry delay (backoff,
+  /// jitter, and the fixed re-arm delays). Production is `1.0`; tests
+  /// shrink it so the real scheduler still drives every attempt without
+  /// burning seconds of wall-clock. Reset to `1.0` in `tearDown`.
+  @visibleForTesting
+  static double testRetryDelayScale = 1.0;
+
   /// Register the delivery callback and status-change notifier.
   /// Must be called before [add] or [restoreAndFlush].
   void configure({
@@ -586,7 +593,9 @@ class MessageOutbox {
 
   void _scheduleRetry(OutboxEntry entry, {Duration? initialDelay}) {
     _retryTimers.remove(entry.localId)?.cancel();
-    final delay = initialDelay ?? _backoffDuration(entry.retryCount);
+    final delay =
+        (initialDelay ?? _backoffDuration(entry.retryCount)) *
+        testRetryDelayScale;
     logger.info(
       '[MessageOutbox] scheduling retry for '
       'localId=${entry.localId} in ${delay.inMilliseconds}ms '

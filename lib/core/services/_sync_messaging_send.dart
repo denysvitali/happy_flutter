@@ -96,9 +96,14 @@ void _recordSendPreparationTotal(
 /// readiness wait it genuinely needs is not silently clamped to 6 s.
 const Duration _kSendDeadline = Duration(seconds: 12);
 
+Duration get _sendDeadline => Sync.testSendDeadlineOverride ?? _kSendDeadline;
+
 /// Slice of [_kSendDeadline] reserved for the HTTP POST, so a slow
 /// readiness wait can never consume the whole budget.
 const Duration _kSendMinPostWindow = Duration(seconds: 6);
+
+Duration get _sendMinPostWindow =>
+    Sync.testSendMinPostWindowOverride ?? _kSendMinPostWindow;
 
 /// Bound for the encryption/session recovery round trips in
 /// [SyncMessagingSend.sendMessage]. Up to three sequential
@@ -748,9 +753,9 @@ extension SyncMessagingSend on Sync {
         DateTime.now().millisecondsSinceEpoch - spawnedAt <
             Sync.recentlySpawnedFlagMs;
     final sendBudget = recentlySpawned
-        ? Duration(milliseconds: Sync.recentlySpawnedWaitMs) +
-              _kSendMinPostWindow
-        : _kSendDeadline;
+        ? Duration(milliseconds: Sync._recentlySpawnedWaitBudgetMs) +
+              _sendMinPostWindow
+        : _sendDeadline;
     final sendDeadline = DateTime.now().add(sendBudget);
     var sent = false;
     var ackedByServer = false;
@@ -787,7 +792,7 @@ extension SyncMessagingSend on Sync {
         description: 'Wait for agent readiness',
       );
       final requestedWaitBudget = recentlySpawned
-          ? Sync.recentlySpawnedWaitMs
+          ? Sync._recentlySpawnedWaitBudgetMs
           : Sync.sessionReadyTimeoutMs;
       // Clamp the wait so it can never eat the whole send budget: the
       // POST always keeps at least _kSendMinPostWindow. Spawned sends
@@ -801,7 +806,7 @@ extension SyncMessagingSend on Sync {
               max(
                 0,
                 _remainingSendBudget(sendDeadline).inMilliseconds -
-                    _kSendMinPostWindow.inMilliseconds,
+                    _sendMinPostWindow.inMilliseconds,
               ),
             );
       final otelWaitSpan = otelSpan == null
@@ -1140,7 +1145,7 @@ extension SyncMessagingSend on Sync {
       // A slow success is not a success: flag it so the latency tail is
       // visible in the outcome dimension, not only in span duration.
       final degraded =
-          outcome != 'ok' || elapsedMs >= _kSendDeadline.inMilliseconds ~/ 2;
+          outcome != 'ok' || elapsedMs >= _sendDeadline.inMilliseconds ~/ 2;
       otelSpan
         ?..setAttribute('send.outcome', outcome)
         ..setAttribute('send.elapsed_ms', elapsedMs)

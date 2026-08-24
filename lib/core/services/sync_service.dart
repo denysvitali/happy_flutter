@@ -194,6 +194,53 @@ class Sync {
   /// returning an error — see createSession).
   static const int recentlySpawnedWaitMs = 15000;
 
+  // ── Test-only wall-clock overrides ─────────────────────────────────────
+  // Production reads go through the private getters below so the shipped
+  // defaults stay identical; tests shrink them so real-timer paths
+  // (spawn readiness wait, hydration retries, webhook recovery, sessions
+  // refresh debounce) stop burning seconds. Reset with
+  // [testResetTimingOverrides] in tearDown.
+
+  /// Override for [recentlySpawnedWaitMs] (ms).
+  @visibleForTesting
+  static int? testRecentlySpawnedWaitMsOverride;
+
+  /// Override for the ordinary foreground send deadline (12 s).
+  @visibleForTesting
+  static Duration? testSendDeadlineOverride;
+
+  /// Override for the POST slice reserved inside the send deadline (6 s).
+  @visibleForTesting
+  static Duration? testSendMinPostWindowOverride;
+
+  /// Override for the wait before recovering a session after the daemon's
+  /// spawn webhook timed out (5 s).
+  @visibleForTesting
+  static Duration? testWebhookTimeoutRecoveryDelayOverride;
+
+  /// Override for the `fetchSingleSession` hydration retry cadence
+  /// (`[0, 250 ms, 750 ms]`). The attempt count is whatever the list holds.
+  @visibleForTesting
+  static List<Duration>? testSpawnHydrateRetryDelaysOverride;
+
+  /// Override for [_sessionsRefreshDebounce] (2 s).
+  @visibleForTesting
+  static Duration? testSessionsRefreshDebounceOverride;
+
+  /// Clears every timing override above. Call from `tearDown`.
+  @visibleForTesting
+  static void testResetTimingOverrides() {
+    testRecentlySpawnedWaitMsOverride = null;
+    testSendDeadlineOverride = null;
+    testSendMinPostWindowOverride = null;
+    testWebhookTimeoutRecoveryDelayOverride = null;
+    testSpawnHydrateRetryDelaysOverride = null;
+    testSessionsRefreshDebounceOverride = null;
+  }
+
+  static int get _recentlySpawnedWaitBudgetMs =>
+      testRecentlySpawnedWaitMsOverride ?? recentlySpawnedWaitMs;
+
   static const int _visibleMessageFetchPageLimit = kIsWeb ? 4 : 12;
   static const int _backgroundMessageFetchPageLimit = 1;
   static const int _maxVisibleSessionMessages = kIsWeb ? 600 : 1000;
@@ -1932,7 +1979,8 @@ what you have, you must use the options mode.
   /// active, title, thinking) inline, this fetch is only needed for
   /// encrypted metadata/agentState changes which are infrequent.
   /// Previously 250ms — caused N+1 fetches during startup bursts.
-  static const Duration _sessionsRefreshDebounce = Duration(seconds: 2);
+  static Duration get _sessionsRefreshDebounce =>
+      testSessionsRefreshDebounceOverride ?? const Duration(seconds: 2);
 
   /// Minimum interval between the end of one sessions fetch and the start
   /// of the next.  Without this, socket event bursts (dozens of

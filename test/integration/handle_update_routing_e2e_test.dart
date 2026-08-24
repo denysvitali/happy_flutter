@@ -19,6 +19,15 @@ import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 /// changes as expected.
 
 void main() {
+  // The update-session debounce is 2 s in production; the drain test only
+  // cares that the pending set empties once the timer fires, so shrink it.
+  setUp(
+    () => Sync.testSessionsRefreshDebounceOverride = const Duration(
+      milliseconds: 50,
+    ),
+  );
+  tearDown(Sync.testResetTimingOverrides);
+
   // ---------------------------------------------------------------------------
   // Group 1: new-message event routing
   // ---------------------------------------------------------------------------
@@ -66,13 +75,10 @@ void main() {
           ),
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 500),
-        );
-
         // Embedded messages are now processed inline for
         // non-visible sessions so they are immediately available.
         // The pending updates flag (for session list UI) is set.
+        await _waitUntil(() => sync.testHasPendingUpdate(sessionId));
         expect(
           sync.testHasPendingUpdate(sessionId),
           isTrue,
@@ -115,8 +121,8 @@ void main() {
           ),
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
+        await _waitUntil(
+          () => sync.testSessionMessages(sessionId)?.isNotEmpty ?? false,
         );
 
         final msgs = sync.testSessionMessages(sessionId);
@@ -148,9 +154,7 @@ void main() {
           // No 'message' field
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
-        );
+        await _waitUntil(() => sync.testHasPendingSocketMessage(sessionId));
 
         expect(
           sync.testHasPendingSocketMessage(sessionId),
@@ -236,10 +240,9 @@ void main() {
               'after the update-session event is dispatched',
         );
 
-        // …then drained once the debounce timer fires (2s).
-        await Future<void>.delayed(
-          const Duration(milliseconds: 2500),
-        );
+        // …then drained once the debounce timer fires (2 s in
+        // production, shrunk via testSessionsRefreshDebounceOverride).
+        await _waitUntil(() => sync.testPendingUpdateSessionIdsEmpty());
 
         expect(
           sync.testPendingUpdateSessionIdsEmpty(),
@@ -296,9 +299,7 @@ void main() {
           'sid': sessionId,
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
-        );
+        await _waitUntil(() => !sync.testSessions.containsKey(sessionId));
 
         expect(
           sync.testSessions.containsKey(sessionId),
@@ -332,8 +333,8 @@ void main() {
           'sid': sessionId,
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
+        await _waitUntil(
+          () => !sync.testSessionSpawnedAt.containsKey(sessionId),
         );
 
         expect(
@@ -367,9 +368,7 @@ void main() {
           'sid': sessionId,
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
-        );
+        await _waitUntil(() => !sync.messagesSync.containsKey(sessionId));
 
         expect(
           sync.messagesSync.containsKey(sessionId),
@@ -427,8 +426,8 @@ void main() {
           'active': true,
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
+        await _waitUntil(
+          () => sync.testSessions[sessionId]?.thinking ?? false,
         );
 
         final session = sync.testSessions[sessionId];
@@ -470,9 +469,7 @@ void main() {
           'active': true,
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 400),
-        );
+        await _waitUntil(() => notified);
 
         await sub.cancel();
 
@@ -531,8 +528,8 @@ void main() {
           'active': true,
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
+        await _waitUntil(
+          () => sync.testSessions[sessionId]?.presence == 'online',
         );
 
         final session = sync.testSessions[sessionId];
@@ -568,8 +565,8 @@ void main() {
           'active': false,
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
+        await _waitUntil(
+          () => sync.testSessions[sessionId]?.presence == 'offline',
         );
 
         final session = sync.testSessions[sessionId];
@@ -816,6 +813,21 @@ void main() {
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
+
+/// Polls [condition] every 5 ms until it holds (bounded by [timeout]).
+/// Replaces fixed settle sleeps: the test resumes as soon as the asserted
+/// state is reached, and the assertion that follows still reports the
+/// real failure if it never is.
+Future<void> _waitUntil(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 5),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) return;
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+}
 
 Session _makeSession(
   String id, {

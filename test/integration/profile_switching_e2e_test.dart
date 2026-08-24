@@ -26,6 +26,13 @@ import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 ///   - The `_profileEnvironmentVariables` logic merges env vars + configs
 ///   - No profile → empty env vars (no stale leakage)
 void main() {
+  // Shrink the real-timer budgets every test in this file would otherwise
+  // wait through (15 s spawn-readiness wait, 1 s hydration retries, 5 s
+  // webhook-timeout recovery). Attempt counts and code paths are unchanged;
+  // only the wall-clock between them is.
+  setUp(_useFastSpawnTimings);
+  tearDown(Sync.testResetTimingOverrides);
+
   group('Profile env vars on createSession', () {
     late Sync sync;
     late _FakeEncryption encryption;
@@ -2002,4 +2009,16 @@ class _FakeEncryptor implements Encryptor {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+void _useFastSpawnTimings() {
+  Sync.testRecentlySpawnedWaitMsOverride = 500;
+  Sync.testSpawnHydrateRetryDelaysOverride = const <Duration>[
+    Duration.zero,
+    Duration(milliseconds: 5),
+    Duration(milliseconds: 15),
+  ];
+  Sync.testWebhookTimeoutRecoveryDelayOverride = const Duration(
+    milliseconds: 20,
+  );
 }
