@@ -83,6 +83,23 @@ void main() {
       expect(valueFor(profile, 'CLAUDE_CODE_SUBAGENT_MODEL'), 'glm-5.1');
     });
 
+    test('preserves existing model expressions', () {
+      final before = profileWithEnv([
+        EnvironmentVariable(
+          name: 'ANTHROPIC_MODEL',
+          value: r'${MINIMAX_MODEL:-MiniMax-M2.7}',
+        ),
+      ], model: 'MiniMax-M2.7');
+
+      final after = normalizeModelSelectionEnv(before);
+
+      expect(
+        valueFor(after, 'ANTHROPIC_MODEL'),
+        r'${MINIMAX_MODEL:-MiniMax-M2.7}',
+      );
+      expect(valueFor(after, 'ANTHROPIC_DEFAULT_MODEL'), 'MiniMax-M2.7');
+    });
+
     test('leaves fully-mapped profiles untouched', () {
       final before = profileWithEnv([
         EnvironmentVariable(name: 'ANTHROPIC_MODEL', value: 'm'),

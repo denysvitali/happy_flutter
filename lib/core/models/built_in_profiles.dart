@@ -176,7 +176,10 @@ AIBackendProfile normalizeModelSelectionEnv(AIBackendProfile profile) {
       if (!seen.add(env.name)) {
         continue; // drop duplicate stale entry
       }
-      updated.add(replacement.first);
+      // Keep an existing model expression (including `${VAR:-default}`)
+      // intact. It may be intentionally overridden in the daemon process;
+      // only fill a key that is absent or explicitly blank.
+      updated.add(env.value.isEmpty ? replacement.first : env);
     } else {
       updated.add(env);
     }
