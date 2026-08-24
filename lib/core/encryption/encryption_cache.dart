@@ -13,11 +13,31 @@ class CacheEntry<T> {
 /// Uses O(1) LRU eviction instead of O(n) scan for better performance.
 class EncryptionCache {
   EncryptionCache() {
-    _agentStateCache = LRUCache(maxAgentStates);
-    _metadataCache = LRUCache(maxMetadata);
-    _messageCache = LRUCache(maxMessages);
-    _machineMetadataCache = LRUCache(maxMachineMetadata);
-    _daemonStateCache = LRUCache(maxDaemonStates);
+    _agentStateCache = LRUCache(
+      maxAgentStates,
+      sizeOf: estimateJsonBytes,
+      maxBytes: agentStateByteBudget,
+    );
+    _metadataCache = LRUCache(
+      maxMetadata,
+      sizeOf: estimateJsonBytes,
+      maxBytes: metadataByteBudget,
+    );
+    _messageCache = LRUCache(
+      maxMessages,
+      sizeOf: (m) => estimateJsonBytes(m.content),
+      maxBytes: messageByteBudget,
+    );
+    _machineMetadataCache = LRUCache(
+      maxMachineMetadata,
+      sizeOf: estimateJsonBytes,
+      maxBytes: machineMetadataByteBudget,
+    );
+    _daemonStateCache = LRUCache(
+      maxDaemonStates,
+      sizeOf: (v) => v is Map<String, dynamic> ? estimateJsonBytes(v) : 64,
+      maxBytes: daemonStateByteBudget,
+    );
   }
 
   // Configuration
@@ -26,6 +46,48 @@ class EncryptionCache {
   static const int maxMessages = 1000;
   static const int maxMachineMetadata = 500;
   static const int maxDaemonStates = 500;
+
+  // Retained-byte ceilings per map. Count caps alone let every version bump
+  // of a streaming session insert another multi-KB agent-state JSON until the
+  // LRU turns over — a heap ratchet that grows GC pauses over a long day
+  // (progressive-lag audit, second sweep 2026-08-24).
+  static const int agentStateByteBudget = 4 * 1024 * 1024;
+  static const int metadataByteBudget = 2 * 1024 * 1024;
+  static const int messageByteBudget = 8 * 1024 * 1024;
+  static const int machineMetadataByteBudget = 1024 * 1024;
+  static const int daemonStateByteBudget = 4 * 1024 * 1024;
+
+  /// Recursively estimates retained UTF-16 chars of [node] as bytes, with an
+  /// early bail-out once [limit] is exceeded so typical small payloads cost
+  /// O(own length). Used both for cache admission sizing and budget checks.
+  static int estimateJsonBytes(Object? node, {int limit = 1 << 20}) {
+    var total = 0;
+    bool walk(Object? n) {
+      if (n is String) {
+        total += n.length * 2;
+        return total >= limit;
+      }
+      if (n is List) {
+        total += 16;
+        for (final element in n) {
+          if (walk(element)) return true;
+        }
+        return false;
+      }
+      if (n is Map) {
+        total += 24;
+        for (final key in n.keys) {
+          total += '${key}'.length * 2;
+          if (walk(n[key])) return true;
+        }
+        return false;
+      }
+      return false;
+    }
+
+    walk(node);
+    return total;
+  }
 
   late final LRUCache<String, Map<String, dynamic>> _agentStateCache;
   late final LRUCache<String, Map<String, dynamic>> _metadataCache;
@@ -189,6 +251,12 @@ class EncryptionCache {
           _messageCache.length +
           _machineMetadataCache.length +
           _daemonStateCache.length,
+      'retainedBytes':
+          _agentStateCache.retainedBytes +
+          _metadataCache.retainedBytes +
+          _messageCache.retainedBytes +
+          _machineMetadataCache.retainedBytes +
+          _daemonStateCache.retainedBytes,
     };
   }
 }

@@ -90,6 +90,50 @@ hypothesis is measurable from the next build on. Still deferred: a
 visible "interrupted" ToolState (touches ~10 exhaustive switches + l10n;
 `canceled` renders as the static queued glyph for now).
 
+**Fourth pass, same day ("still laggy").** Telemetry first: the live fleet
+build is 264400 — it has round 1 but predates round 2, so the RSS histogram
+is absent yet. Frozen frames on chat per build/day are falling exactly along
+the round-1 ratchets: 263600→325, 264200→82, 264400→21. Four remaining root
+mechanisms landed: **(7)** state-latch animations had no client-side expiry —
+`thinking`, tool-row `running`, and sub-agent `running>0` are server-truth
+booleans, so a daemon that dies mid-turn left the caret pulse, stop-bar dot,
+N tool-row spinners, and banner dots animating at full fps on an idle chat
+forever (the zero-idle-renderer signature, ~90fps sustained windows with no
+user input). `_reconcileStalledThinkingSessions` piggybacks on the throttled
+idle-window shrink sweep (no new timers): a session with no message mutation
+for 15 minutes gets `thinking` demoted to false and its stuck `running` rows
+walked back to `canceled` (permission-parked rows skipped; a late result or
+server update still overwrites). **(8)** inline base64 images decoded inside
+`build`: every stream tick re-ran `base64Decode` on multi-MB payloads and
+minted a fresh `MemoryImage`, whose new bytes identity missed the ImageCache —
+a full-resolution re-decode per tick of pure garbage (the GC-stall freeze
+signature). `_CachedBase64Image` decodes once per distinct payload and every
+rebuild shares the identical bytes instance; malformed base64 now renders a
+placeholder instead of throwing out of build. **(9)** EncryptionCache's five
+count-capped LRU maps gained byte budgets (agent-state 4MB / metadata 2MB /
+messages 8MB aggregate on top of the 50k-char admission gate / machine
+metadata 1MB / daemon state 4MB) through new `LRUCache` `sizeOf`/`maxBytes`
+accounting with an O(budget) `estimateJsonBytes` bail-out; `getStats()` now
+reports `retainedBytes`. **(10)** the four per-id derived families
+(`sessionById`, `machineById`, `recentPathsForMachine`, `sessionUiEntry`)
+became autoDispose — riverpod keeps every non-autoDispose element alive for
+the process lifetime, one element per id ever rendered. Also: chat chrome
+revision now bumps when the recent-stream-activity window expires, so chrome
+settles without waiting for a message event. Contract tests:
+`test/utils/lru_cache_byte_budget_test.dart`,
+`test/services/stalled_thinking_reconcile_test.dart`,
+`test/core/providers/derived_view_providers_test.dart`,
+`test/features/chat/widgets/user_bubble_image_decode_test.dart`, plus the
+byte-budget group in `encryption_cache_test.dart`. Deferred with reasons:
+SendStatusIndicator legacy-'sending' spinners (P0 send-path surface, needs
+its own contract analysis), TtsPlaybackBar token-stall and hidden_tool_summary
+spinner, SyncProgressBar/shimmer stall cases (load-path bugs in their own
+right), visible-session tool-output hollowing (breaks resident-read
+guarantees; needs the refetch-cursor design), dialog TextEditingController
+disposal lint, ChatSwitchMetrics stranded span (cosmetic), and the Loki
+client OTel export outage since Aug 20 (infra track, blocks log-level
+attribution only).
+
 ### Session-identity and test-suite hardening, 2026-08-24
 
 User report: tapping an archived session opened a different session. A

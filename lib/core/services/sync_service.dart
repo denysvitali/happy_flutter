@@ -268,6 +268,13 @@ class Sync {
   /// quiet app runs no sweeps, but a quiet app also accumulates nothing.
   static const int idleSessionShrinkSweepIntervalMs = 5 * 60 * 1000;
 
+  /// Silence (no message-window mutation) after which a session still
+  /// flagged `thinking` is treated as wedged: thinking is demoted locally
+  /// and stuck running tool rows walk back to canceled. Generous enough
+  /// that a legitimately quiet long-running command inside an active turn
+  /// is never interrupted.
+  static const int stuckThinkingReconcileAfterMs = 15 * 60 * 1000;
+
   /// sessionId → epoch-ms of the last message-window mutation or visibility
   /// change. Written by [_invalidateMessageCaches] (the mutation choke
   /// point) and [prepareSessionVisibility].

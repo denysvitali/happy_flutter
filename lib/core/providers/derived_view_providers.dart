@@ -85,11 +85,21 @@ int _computeSessionsSignature(Map<String, Session> sessions) {
 
 final _recentSessionsCache = _RecentSessionsCache();
 
-final sessionByIdProvider = Provider.family<Session?, String>((ref, id) {
+/// Per-id lookups are autoDispose: riverpod 3 keeps every non-autoDispose
+/// family element alive for the process lifetime, so one element per
+/// session/machine id ever rendered accumulated forever — slow heap growth
+/// proportional to browsing (progressive-lag audit 2026-08-24).
+final sessionByIdProvider = Provider.autoDispose.family<Session?, String>((
+  ref,
+  id,
+) {
   return ref.watch(sessionsNotifierProvider.select((sessions) => sessions[id]));
 });
 
-final machineByIdProvider = Provider.family<Machine?, String>((ref, id) {
+final machineByIdProvider = Provider.autoDispose.family<Machine?, String>((
+  ref,
+  id,
+) {
   return ref.watch(machinesNotifierProvider.select((machines) => machines[id]));
 });
 
@@ -105,10 +115,8 @@ final recentMachineIdsProvider = Provider<List<String>>((ref) {
   return _recentSessionsCache.machineIds;
 });
 
-final recentPathsForMachineProvider = Provider.family<List<String>, String>((
-  ref,
-  machineId,
-) {
+final recentPathsForMachineProvider = Provider.autoDispose
+    .family<List<String>, String>((ref, machineId) {
   final sessions = ref.watch(sessionsNotifierProvider);
   _recentSessionsCache.update(sessions);
   return _recentSessionsCache.pathsForMachine(machineId);
@@ -145,7 +153,7 @@ final artifactsListProvider = Provider<List<DecryptedArtifact>>((ref) {
 /// isSessionReadyForMessages, sessionUsage. Watch this from widget
 /// `build()` instead of calling `sync.getLastMessage*(id)` etc.
 final sessionUiEntryProvider =
-    Provider.family<SessionUiEntry, String>((ref, sessionId) {
+    Provider.autoDispose.family<SessionUiEntry, String>((ref, sessionId) {
   final state = ref.watch(sessionUiStateNotifierProvider);
   return state.bySessionId[sessionId] ?? SessionUiEntry.empty;
 });

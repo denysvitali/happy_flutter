@@ -873,6 +873,46 @@ extension SyncMessagingMerge on Sync {
         '$releasedRows row(s) released',
       );
     }
+
+    _reconcileStalledThinkingSessions(nowMs);
+  }
+
+  /// Demote `thinking` on sessions whose process stopped producing events.
+  ///
+  /// `thinking` is only ever cleared by a server event; a daemon that dies
+  /// mid-turn, or whose terminal event is lost, leaves it true forever.
+  /// Every surface keyed on it then animates at full frame rate on an
+  /// otherwise idle chat — the streaming caret, the stop bar, running tool
+  /// rows, and the sub-agent banner can all latch at once, which is the
+  /// measured "renderer never idles" signature (progressive-lag audit
+  /// 2026-08-24, third pass). A turn that has produced zero message
+  /// mutations for [Sync.stuckThinkingReconcileAfterMs] while its daemon
+  /// keeps heartbeating is treated as wedged: thinking is demoted locally
+  /// and stuck running tool rows walk back to canceled, same as the
+  /// presence-offline path. Truth self-heals — the next server update
+  /// rewrites the field, and a late tool result overwrites a canceled row.
+  void _reconcileStalledThinkingSessions(int nowMs) {
+    var demoted = 0;
+    for (final entry in _sessions.entries.toList(growable: false)) {
+      final session = entry.value;
+      if (!session.thinking) continue;
+      final touchedAt = _sessionMessagesTouchedAtMs[entry.key];
+      // No resident window yet (spawned, nothing streamed) — conservative
+      // skip; spawn-readiness handling owns that case.
+      if (touchedAt == null) continue;
+      if (nowMs - touchedAt < Sync.stuckThinkingReconcileAfterMs) continue;
+      _sessions[entry.key] = session.copyWith(thinking: false);
+      _reconcileStuckRunningTools(entry.key);
+      demoted++;
+    }
+    if (demoted > 0) {
+      logger.info(
+        '[sessions] demoted thinking on $demoted stalled session(s) '
+        '(no message mutations for '
+        '${Sync.stuckThinkingReconcileAfterMs}ms)',
+      );
+      _notifyDataChanged({SyncDomain.sessions});
+    }
   }
 
   /// Mark resident tool-calls stuck in `running` as `canceled` once the

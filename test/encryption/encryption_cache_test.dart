@@ -247,6 +247,78 @@ void main() {
       });
     });
 
+    // Byte budgets (progressive-lag audit, third pass 2026-08-24): every
+    // version bump of a streaming session inserts another multi-KB
+    // agent-state JSON; count-only LRU caps let those pin tens of MB until
+    // the count turns over. The byte ceilings bound residency directly.
+    group('byte budgets', () {
+      test('agent-state churn evicts by bytes, not only by count', () {
+        String bigValue(int i) => 'v$i${'x' * (512 * 1024)}';
+        for (var version = 1; version <= 5; version++) {
+          cache.setCachedAgentState('session1', version, {
+            'payload': bigValue(version),
+          });
+        }
+        // 5 × ~1MB against a 4MB budget: at most 4 entries can survive.
+        expect(cache.getStats()['agentStates'], lessThanOrEqualTo(4));
+        expect(
+          EncryptionCache.estimateJsonBytes({'payload': bigValue(99)}),
+          greaterThanOrEqualTo(EncryptionCache.agentStateByteBudget ~/ 8),
+        );
+      });
+
+      test('small payloads are never evicted early', () {
+        for (var version = 1; version <= 50; version++) {
+          cache.setCachedAgentState('s$version', 1, {'tiny': 'x'});
+        }
+        expect(cache.getCachedAgentState('s1', 1), isNotNull);
+        expect(cache.getStats()['agentStates'], 50);
+      });
+
+      test('message budget keeps the aggregate under the ceiling', () {
+        // Per-entry admission skips anything over 50k chars, so the
+        // aggregate budget is exercised by many just-under-cap entries:
+        // 95 × ~46k chars ≈ 8.3MB estimated against the 8MB ceiling.
+        for (var i = 1; i <= 95; i++) {
+          cache.setCachedMessage(
+            'm-$i',
+            DecryptedMessage(
+              id: 'm-$i',
+              seq: i,
+              content: 'y' * 46000,
+              createdAt: DateTime(2024),
+            ),
+          );
+        }
+        expect(cache.getCachedMessage('m-95'), isNotNull);
+        expect(cache.getStats()['messages'], lessThan(95));
+        expect(
+          cache.getStats()['retainedBytes'],
+          lessThanOrEqualTo(EncryptionCache.messageByteBudget * 11 ~/ 10),
+          reason: 'residency stays at the ceiling (small overshoot allowed '
+              'for a single oversized newest entry)',
+        );
+      });
+
+      test('estimateJsonBytes bails out at the limit', () {
+        final huge = {'a': 'z' * (10 * 1024 * 1024)};
+        final sw = Stopwatch()..start();
+        final size = EncryptionCache.estimateJsonBytes(huge, limit: 4096);
+        sw.stop();
+        expect(size, greaterThanOrEqualTo(4096));
+        // The bail-out keeps estimation O(budget), not O(payload).
+        expect(sw.elapsedMilliseconds, lessThan(100));
+      });
+
+      test('clearAll resets retained bytes on every map', () {
+        cache.setCachedMetadata('s1', 1, {'k': 'x' * 1000});
+        cache.setCachedMachineMetadata('m1', 1, {'k': 'x' * 1000});
+        expect(cache.getStats()['retainedBytes'], greaterThan(0));
+        cache.clearAll();
+        expect(cache.getStats()['retainedBytes'], 0);
+      });
+    });
+
     group('LRU Eviction', () {
       test('evicts oldest entry when max agent states exceeded', () {
         // maxAgentStates is 1000, add 1001 entries

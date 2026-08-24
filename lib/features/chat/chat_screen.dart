@@ -883,9 +883,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         Duration(
           milliseconds: remaining.clamp(1, _recentStreamActivityWindowMs),
         ),
-        _updateScreenAwake,
+        _onRecentStreamActivityExpired,
       );
     }
+  }
+
+  /// The recent-activity window expiring is a timer event, not a sync
+  /// event: without bumping the chrome revision the activity bar would
+  /// stay mounted with its infinite ticker until some unrelated rebuild
+  /// happened to fire (progressive-lag audit 2026-08-24).
+  void _onRecentStreamActivityExpired() {
+    if (mounted) _chatChromeRevision.value++;
+    _updateScreenAwake();
   }
 
   /// Marks messages in the range [start, end) as seen to prevent animations.

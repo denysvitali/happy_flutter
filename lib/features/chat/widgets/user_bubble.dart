@@ -347,6 +347,10 @@ BorderRadius _inset(BorderRadius radius) {
 /// sends) render from the network. Blocks whose base64 data was stripped
 /// by the offline cache show a placeholder. Tapping opens a fullscreen
 /// viewer with pinch zoom (same pattern as the session file viewer).
+/// Thumbnail decode/render height bound shared by the bubble and its
+/// inline image widget.
+const double _kMaxThumbHeight = 220;
+
 class _UserImageThumb extends StatelessWidget {
   const _UserImageThumb({required this.block, required this.onBubble});
 
@@ -355,7 +359,7 @@ class _UserImageThumb extends StatelessWidget {
   /// Bubble foreground — placeholder icon/text must match the copy.
   final Color onBubble;
 
-  static const double _maxThumbHeight = 220;
+  static const double _maxThumbHeight = _kMaxThumbHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -403,21 +407,7 @@ class _UserImageThumb extends StatelessWidget {
           ),
         );
       }
-      final bytes = base64Decode(data);
-      return GestureDetector(
-        onTap: () => _showFullscreenImage(context, bytes),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: _maxThumbHeight),
-          child: ClipRRect(
-            borderRadius: borderRadius,
-            child: Image.memory(
-              bytes,
-              fit: BoxFit.contain,
-              gaplessPlayback: true,
-            ),
-          ),
-        ),
-      );
+      return _CachedBase64Image(data: data, borderRadius: borderRadius);
     }
 
     if (sourceType == 'url') {
@@ -434,8 +424,57 @@ class _UserImageThumb extends StatelessWidget {
 
     return const SizedBox.shrink();
   }
+}
 
-  void _showFullscreenImage(BuildContext context, Uint8List bytes) {
+/// Inline base64 image with a once-per-payload decode.
+///
+/// Decoding used to run inside `build`, so every parent rebuild (each
+/// message tick while a session streams) re-ran `base64Decode` on a
+/// potentially multi-MB payload and minted a fresh [MemoryImage] whose new
+/// bytes identity missed the global ImageCache — a full-resolution
+/// re-decode per tick of pure garbage, exactly the GC-stall freeze
+/// signature (progressive-lag audit 2026-08-24). The decode now happens
+/// once per distinct source string and the same [Uint8List] instance backs
+/// every rebuild, so the provider stays `==` and the decoded image is
+/// reused from the cache.
+class _CachedBase64Image extends StatefulWidget {
+  const _CachedBase64Image({required this.data, required this.borderRadius});
+
+  final String data;
+  final BorderRadius borderRadius;
+
+  @override
+  State<_CachedBase64Image> createState() => _CachedBase64ImageState();
+}
+
+class _CachedBase64ImageState extends State<_CachedBase64Image> {
+  Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _decode();
+  }
+
+  @override
+  void didUpdateWidget(_CachedBase64Image oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.data != oldWidget.data) _decode();
+  }
+
+  void _decode() {
+    try {
+      _bytes = base64Decode(widget.data);
+    } on FormatException {
+      // Malformed payload: render the not-cached placeholder instead of
+      // crashing this bubble (the previous inline decode would have).
+      _bytes = null;
+    }
+  }
+
+  void _showFullscreen(BuildContext context) {
+    final bytes = _bytes;
+    if (bytes == null) return;
     Navigator.of(context, rootNavigator: true).push(
       PageRouteBuilder<void>(
         opaque: false,
@@ -455,6 +494,34 @@ class _UserImageThumb extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = _bytes;
+    if (bytes == null) {
+      return Container(
+        height: 72,
+        width: 160,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.onSurface.withValues(
+            alpha: AppOpacity.faint,
+          ),
+          borderRadius: widget.borderRadius,
+        ),
+        child: const Center(child: Icon(Icons.broken_image_outlined)),
+      );
+    }
+    return GestureDetector(
+      onTap: () => _showFullscreen(context),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: _kMaxThumbHeight),
+        child: ClipRRect(
+          borderRadius: widget.borderRadius,
+          child: Image.memory(bytes, fit: BoxFit.contain, gaplessPlayback: true),
+        ),
       ),
     );
   }
