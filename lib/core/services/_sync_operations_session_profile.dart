@@ -450,7 +450,11 @@ extension SyncSpawnProfileResolution on Sync {
     final normalized =
         effectiveAgent == 'codex' && _isCustomCodexProfile(profile)
         ? _nonDefaultModelMode(modelMode)
-        : _normalizeModelModeForAgent(modelMode, effectiveAgent);
+        : _normalizeModelModeForAgent(
+            modelMode,
+            effectiveAgent,
+            profile: profile,
+          );
     if (normalized != null && normalized != 'default') {
       // A provider-owned model override whose profile could not be
       // resolved spawns without its routing env: with no ANTHROPIC_BASE_URL
