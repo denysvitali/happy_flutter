@@ -4,6 +4,49 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-24
 
+### Progressive-lag remediation, seventh pass, 2026-08-24 ("still lags")
+
+The sixth pass **worked on the metric it targeted** — on build 265500
+`app.cache.messages.write` `write` p95 fell **172 ms -> 9.7 ms**, and the
+worker-storage latch is confirmed in Loki (one fallback log per launch instead
+of five per twelve seconds). Frozen frames did **not** move: p95 stayed at
+**487 ms**. So the synchronous cache write was real, but it was not what
+freezes the frames.
+
+Two signals then named the actual driver. Every jank window on chat lands in
+the **5-30 s bucket** — zero short ones — i.e. sustained jank for the length of
+an agent turn, not isolated frames; and `app.chat.sync.await` p95 is **652 ms**.
+
+Root cause: a streaming turn re-delivers the *same* agent row 20-50x/second as
+tokens arrive. `_canAppendMessagesFastPath` deliberately rejects those (the id
+already exists in the tail), so **every token fell through to the full merge
+path**: a whole-list `LinkedHashMap` rebuild, a localId reverse index over
+every row, an O(resident) `_isPromptEcho` scan per incoming row, a full
+`toList()` copy and an order re-check — five passes over up to 1000 decrypted
+rows, per token. That is both the sustained jank and the allocation churn
+behind the GC stalls.
+
+Shipped: an **in-place tail update**. When every incoming row is a pure content
+update of a row already in the tail, it is replaced where it sits —
+O(incoming + tail) instead of O(resident) — preserving the merge path's grouped
+`children` and `_sidechainRootUuids`. It stays strictly subordinate to the
+messaging invariants: a `localId` on either side, a prompt-echo candidate, a
+user row, an out-of-tail id, or any replacement that would reorder the list all
+fall through to the proven full merge. Contract tests
+(`test/services/streaming_in_place_update_test.dart`) pin in-place replacement
+without duplication or reorder, repeated updates keeping one logical row,
+sidechain child preservation, optimistic replacement still happening by
+`localId`, out-of-order rejection, out-of-tail fallback, and plain appends; the
+dedup/out-of-order E2E suites were re-run green alongside them.
+
+Still open, ranked, from the same audit: `_preDecryptSessions` runs up to 502
+**inline** pure-Dart AES-GCM decrypts in one microtask drain (no
+`cryptography_flutter`, so `DartAesGcm`), the only remaining cost that scales
+linearly with the 251+ session count; the socket ingest orchestrator has a
+~140-line span with no `await` between `_upsertSessionMessages` and
+`_groupSidechainMessages`; and the sidechain grouper re-walks the whole
+transcript with no revision memo.
+
 ### Progressive-lag remediation, sixth pass, 2026-08-24 ("it still happens")
 
 The fifth pass shipped and **worked on its own terms** — RSS p95 fell from the
