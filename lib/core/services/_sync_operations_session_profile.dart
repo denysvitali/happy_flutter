@@ -228,10 +228,26 @@ extension SyncSpawnProfileResolution on Sync {
     // not per-agent, so the stale value survives a profile switch.
     // Vendor/model strings like inclusionai/ling-3.0-flash:free use a
     // slash in the provider prefix and are never valid Claude models.
-    if (agent == 'claude' && _isNonClaudeModelMode(modelMode)) {
+    final configuredClaudeGatewayModel =
+        agent == 'claude' &&
+        profile != null &&
+        _isThirdPartyAnthropicBaseUrl(_anthropicBaseUrlForProfile(profile)) &&
+        _profileOwnsModel(profile, modelMode);
+    if (agent == 'claude' &&
+        _isNonClaudeModelMode(modelMode) &&
+        !configuredClaudeGatewayModel) {
       return 'default';
     }
     return modelMode;
+  }
+
+  bool _profileOwnsModel(AIBackendProfile profile, String modelMode) {
+    for (final configured in profile.models) {
+      if (modelMode == configured || modelMode.startsWith('$configured:')) {
+        return true;
+      }
+    }
+    return false;
   }
 
   bool _isKnownCodexModelMode(String modelMode) {
@@ -380,10 +396,10 @@ extension SyncSpawnProfileResolution on Sync {
   /// Known non-Claude patterns:
   /// - OpenAI/Codex models: `gpt-*`, `o<digit>*` token plan slugs.
   /// - Gemini models: `gemini-*`.
-  /// - Vendor/model strings: `inclusionai/ling-3.0-flash:free` carry
-  ///   a `/` slash that is never a Claude model name (vs. Anthropic-
-  ///   compatible providers like `anthropic/claude-opus-4-6` which
-  ///   _is_ a Claude model alias and must pass through).
+  /// - Unconfigured vendor/model strings such as
+  ///   `inclusionai/ling-3.0-flash:free`. Explicit models owned by the
+  ///   selected third-party Claude-compatible profile are handled by
+  ///   [_normalizeModelModeForAgent] and must pass through unchanged.
   /// - Codex selections use `<slug>:<reasoning-effort>` wire format.
   /// Custom Claude models also use `:` for effort, so check the slug.
   bool _isNonClaudeModelMode(String modelMode) {
@@ -621,6 +637,7 @@ extension SyncSpawnProfileResolution on Sync {
         _sessionSpawnedAgent[sessionId] = agent;
       }
     }
+
     logger.info(
       '[sendMessage] _resolveSendTargetSession '
       'session=$sessionId looksReady=$looksReady '

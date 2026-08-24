@@ -434,5 +434,38 @@ void main() {
         'anthropic/claude-opus-4-6',
       );
     });
+
+    test('preserves configured vendor/model strings for Claude gateways', () {
+      final profile = AIBackendProfile(
+        id: 'venice-claude',
+        name: 'Venice Claude',
+        anthropicConfig: AnthropicConfig(
+          baseUrl: 'https://proxy.example/anthropic',
+        ),
+        models: const ['venice/stealth-ox-alpha'],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          gemini: false,
+        ),
+      );
+
+      expect(
+        sync.testNormalizeModelModeForAgentWithProfile(
+          'venice/stealth-ox-alpha',
+          'claude',
+          profile,
+        ),
+        'venice/stealth-ox-alpha',
+      );
+      expect(
+        sync.testGetModelOverride(
+          agent: 'claude',
+          profile: profile,
+          modelMode: 'venice/stealth-ox-alpha:high',
+        ),
+        'venice/stealth-ox-alpha:high',
+      );
+    });
   });
 }
