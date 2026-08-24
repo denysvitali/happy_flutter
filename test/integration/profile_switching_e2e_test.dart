@@ -282,6 +282,74 @@ void main() {
       );
     });
 
+    test('selected model re-points every Claude model env var', () async {
+      final sessionId = 'profile-zai-model-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await sync.applySettings({'lastUsedProfile': 'zai'});
+
+      await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        modelMode: 'glm-4.7',
+      );
+
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>;
+      expect(capturedParams!['model'], 'glm-4.7');
+      expect(envVars['ANTHROPIC_MODEL'], 'glm-4.7');
+      expect(envVars['ANTHROPIC_DEFAULT_MODEL'], 'glm-4.7');
+      expect(envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'glm-4.7');
+      expect(
+        envVars['ANTHROPIC_DEFAULT_SONNET_MODEL'],
+        contains('glm-4.5-air'),
+      );
+      expect(envVars['ANTHROPIC_DEFAULT_FABLE_MODEL'], 'glm-4.7');
+      expect(envVars['CLAUDE_CODE_SUBAGENT_MODEL'], 'glm-4.7');
+      expect(
+        envVars['ANTHROPIC_DEFAULT_HAIKU_MODEL'],
+        contains('glm-4.5-air'),
+        reason: 'the provider fast model stays for haiku-class work',
+      );
+      expect(envVars['ANTHROPIC_BASE_URL'], contains('z.ai'));
+    });
+
+    test('official tier alias leaves profile model env untouched', () async {
+      final sessionId = 'profile-zai-alias-1';
+      Map<String, dynamic>? capturedParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        capturedParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+
+      await sync.applySettings({'lastUsedProfile': 'zai'});
+
+      await sync.createSession(
+        agent: 'claude',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        modelMode: 'default',
+      );
+
+      final envVars =
+          capturedParams!['environmentVariables'] as Map<String, dynamic>;
+      expect(envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'], contains('glm-5.1'));
+      expect(envVars.containsKey('ANTHROPIC_MODEL'), isFalse);
+    });
+
     test('no profile sends empty env vars', () async {
       final sessionId = 'profile-none-1';
       Map<String, dynamic>? capturedParams;
@@ -1157,6 +1225,84 @@ void main() {
             'lastUsedProfile (OpenAI)',
       );
       expect(envVars.containsKey('OPENAI_BASE_URL'), isFalse);
+    });
+
+    test('auto-restore binds the model env to the send-time model', () async {
+      final sessionId = 'auto-restore-model-1';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      sync.testGetSpawnEnvVarsOverride = (sid) async {
+        final zai = getBuiltInProfile('zai')!;
+        return (
+          envVars: <String, String>{
+            for (final v in zai.environmentVariables) v.name: v.value,
+          },
+          profile: zai,
+        );
+      };
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now - 60000,
+        updatedAt: now - 60000,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          lifecycleState: 'archived',
+        ),
+      );
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: 0,
+        updatedAt: 0,
+        active: true,
+        activeAt: now,
+        metadataVersion: 0,
+        daemonStateVersion: 0,
+      );
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(
+          sessionId,
+          'hello',
+          profileId: 'zai',
+          modelMode: 'glm-4.7',
+        );
+      } catch (_) {}
+
+      expect(capturedSpawnParams, isNotNull);
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>;
+      expect(capturedSpawnParams!['model'], 'glm-4.7');
+      expect(envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'glm-4.7');
+      expect(
+        envVars['ANTHROPIC_DEFAULT_SONNET_MODEL'],
+        contains('glm-4.5-air'),
+      );
+      expect(envVars['ANTHROPIC_DEFAULT_HAIKU_MODEL'], contains('glm-4.5-air'));
+      expect(envVars['CLAUDE_CODE_SUBAGENT_MODEL'], 'glm-4.7');
     });
 
     test('auto-restore with no saved profile sends empty env vars', () async {

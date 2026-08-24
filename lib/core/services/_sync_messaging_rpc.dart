@@ -592,7 +592,12 @@ extension SyncMessagingRpc on Sync {
       );
       final effectiveModelMode = spawnProfileResolution.modelMode;
       final effectiveEnvVars = spawnProfileResolution.profile != null
-          ? spawnResult.envVars
+          ? _spawnEnvForModel(
+              spawnResult.envVars,
+              agent: sessionAgent,
+              profile: spawnProfileResolution.profile,
+              modelMode: effectiveModelMode,
+            )
           : <String, String>{};
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',

@@ -84,6 +84,44 @@ List<EnvironmentVariable> buildAnthropicModelEnvVars({
   ];
 }
 
+/// Re-point every Claude model-selection knob in [envVars] at [mainModel]
+/// so the model the user picked in the composer/session dialog is what the
+/// spawned process actually uses. A profile's saved env vars only describe
+/// the model it was created with; switching the model in the UI must move
+/// the knobs with it, otherwise `ANTHROPIC_DEFAULT_*_MODEL` keeps routing
+/// every alias to the old model.
+///
+/// The haiku-class knobs keep the profile's fast model when one is
+/// configured and differs from the previous main model (a small background
+/// model is a property of the provider, not of the selected main model);
+/// otherwise they follow [mainModel] too.
+Map<String, String> applyModelSelectionToEnv(
+  Map<String, String> envVars,
+  String mainModel,
+) {
+  final previousMain =
+      envVars['ANTHROPIC_MODEL'] ?? envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'];
+  String? fast;
+  for (final name in const [
+    'ANTHROPIC_SMALL_FAST_MODEL',
+    'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  ]) {
+    final v = envVars[name];
+    if (v != null && v.isNotEmpty && v != previousMain) {
+      fast = v;
+      break;
+    }
+  }
+  final out = <String, String>{...envVars};
+  for (final env in buildAnthropicModelEnvVars(
+    mainModel: mainModel,
+    fastModel: fast,
+  )) {
+    out[env.name] = env.value;
+  }
+  return out;
+}
+
 /// Infers which agent a profile targets from its provider environment.
 ///
 /// A profile with no recognizable provider variables remains compatible with

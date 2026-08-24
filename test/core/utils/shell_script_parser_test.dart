@@ -94,4 +94,47 @@ void main() {
       expect(compatibility.gemini, isTrue);
     });
   });
+
+  group('applyModelSelectionToEnv', () {
+    test('re-points every Claude model knob at the selected model', () {
+      final env = <String, String>{
+        'ANTHROPIC_BASE_URL': 'https://api.z.ai/api/anthropic',
+        'ANTHROPIC_DEFAULT_OPUS_MODEL': 'glm-5.1',
+        'ANTHROPIC_DEFAULT_SONNET_MODEL': 'glm-4.7',
+        'ANTHROPIC_DEFAULT_HAIKU_MODEL': 'glm-4.5-air',
+      };
+      final bound = applyModelSelectionToEnv(env, 'glm-4.7');
+      expect(bound['ANTHROPIC_MODEL'], 'glm-4.7');
+      expect(bound['ANTHROPIC_DEFAULT_MODEL'], 'glm-4.7');
+      expect(bound['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'glm-4.7');
+      expect(bound['ANTHROPIC_DEFAULT_SONNET_MODEL'], 'glm-4.5-air');
+      expect(bound['ANTHROPIC_DEFAULT_FABLE_MODEL'], 'glm-4.7');
+      expect(bound['CLAUDE_CODE_SUBAGENT_MODEL'], 'glm-4.7');
+      expect(
+        bound['ANTHROPIC_DEFAULT_HAIKU_MODEL'],
+        'glm-4.5-air',
+        reason: 'the provider fast model is preserved',
+      );
+      expect(bound['ANTHROPIC_SMALL_FAST_MODEL'], 'glm-4.5-air');
+      expect(bound['ANTHROPIC_BASE_URL'], env['ANTHROPIC_BASE_URL']);
+      expect(env.containsKey('ANTHROPIC_MODEL'), isFalse, reason: 'pure');
+    });
+
+    test('fast knobs follow the main model when none is configured', () {
+      final bound = applyModelSelectionToEnv({
+        'ANTHROPIC_MODEL': 'deepseek-chat',
+      }, 'deepseek-reasoner');
+      expect(bound['ANTHROPIC_MODEL'], 'deepseek-reasoner');
+      expect(bound['ANTHROPIC_SMALL_FAST_MODEL'], 'deepseek-reasoner');
+      expect(bound['ANTHROPIC_DEFAULT_HAIKU_MODEL'], 'deepseek-reasoner');
+    });
+
+    test('a fast model equal to the previous main is not kept', () {
+      final bound = applyModelSelectionToEnv({
+        'ANTHROPIC_MODEL': 'MiniMax-M2',
+        'ANTHROPIC_SMALL_FAST_MODEL': 'MiniMax-M2',
+      }, 'MiniMax-M2.5');
+      expect(bound['ANTHROPIC_SMALL_FAST_MODEL'], 'MiniMax-M2.5');
+    });
+  });
 }

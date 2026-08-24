@@ -199,7 +199,12 @@ extension SyncSessionOperations on Sync {
     final permMode =
         spawnProfileResolution.profile?.defaultPermissionMode ??
         settingsSnapshot.lastUsedPermissionMode;
-    final envVars = _spawnEnvironmentVariables(profileEnvVars);
+    final envVars = _spawnEnvForModel(
+      _spawnEnvironmentVariables(profileEnvVars),
+      agent: agent,
+      profile: spawnProfileResolution.profile,
+      modelMode: effectiveModelMode,
+    );
     if (message != null && message.isNotEmpty) {
       envVars['HAPPY_INITIAL_PROMPT'] = message;
     }
