@@ -242,12 +242,36 @@ extension SyncSpawnProfileResolution on Sync {
   }
 
   bool _profileOwnsModel(AIBackendProfile profile, String modelMode) {
-    for (final configured in profile.models) {
+    final configuredModels = <String>{
+      ...profile.models,
+      profile.defaultModelMode ?? '',
+      profile.anthropicConfig?.model ?? '',
+      profile.openaiConfig?.model ?? '',
+      profile.azureOpenAIConfig?.deploymentName ?? '',
+    };
+    for (final env in profile.environmentVariables) {
+      if (_isModelEnvironmentVariable(env.name)) {
+        configuredModels.add(_extractDefaultEnvValue(env.value));
+      }
+    }
+    for (final configured in configuredModels) {
+      if (configured.isEmpty || configured.startsWith(r'${')) continue;
       if (modelMode == configured || modelMode.startsWith('$configured:')) {
         return true;
       }
     }
     return false;
+  }
+
+  bool _isModelEnvironmentVariable(String name) {
+    return name == 'OPENAI_MODEL' ||
+        name == 'AZURE_OPENAI_DEPLOYMENT_NAME' ||
+        name == 'ANTHROPIC_MODEL' ||
+        name == 'ANTHROPIC_SMALL_FAST_MODEL' ||
+        name == 'ANTHROPIC_DEFAULT_OPUS_MODEL' ||
+        name == 'ANTHROPIC_DEFAULT_SONNET_MODEL' ||
+        name == 'ANTHROPIC_DEFAULT_HAIKU_MODEL' ||
+        name == 'CLAUDE_CODE_SUBAGENT_MODEL';
   }
 
   bool _isKnownCodexModelMode(String modelMode) {

@@ -467,5 +467,38 @@ void main() {
         'venice/stealth-ox-alpha:high',
       );
     });
+
+    test('preserves a model from an existing profile env var', () {
+      // Profiles saved before the model-list field was added only have the
+      // provider model in ANTHROPIC_MODEL. That model is still authoritative.
+      final profile = AIBackendProfile(
+        id: 'existing-venice',
+        name: 'Existing Venice',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value: 'https://proxy.example/anthropic',
+          ),
+          EnvironmentVariable(
+            name: 'ANTHROPIC_MODEL',
+            value: 'venice/stealth-ox-alpha',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          gemini: false,
+        ),
+      );
+
+      expect(
+        sync.testGetModelOverride(
+          agent: 'claude',
+          profile: profile,
+          modelMode: 'venice/stealth-ox-alpha:high',
+        ),
+        'venice/stealth-ox-alpha:high',
+      );
+    });
   });
 }
