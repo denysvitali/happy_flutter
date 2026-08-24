@@ -84,6 +84,12 @@ class SessionsListContent extends ConsumerStatefulWidget {
   /// False while another inline tab covers this retained IndexedStack child.
   final bool isVisible;
 
+  /// Minimum wall-clock gap between two phone-mode chat pushes. Tests that
+  /// tap several rows back to back set this to zero; production keeps 400ms
+  /// so a double tap cannot race two ChatScreen instances.
+  @visibleForTesting
+  static int navDebounceMs = 400;
+
   @override
   ConsumerState<SessionsListContent> createState() =>
       _SessionsListContentState();
@@ -117,7 +123,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   /// instances — which races their initState/build and causes
   /// "Null check operator used on a null value" crashes.
   int _lastNavTapMs = 0;
-  static const _navDebounceMs = 400;
 
   ValueNotifier<SelectionState> get _sel => widget.selectionNotifier;
 
@@ -133,7 +138,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       return;
     }
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (nowMs - _lastNavTapMs < _navDebounceMs) return;
+    if (nowMs - _lastNavTapMs < SessionsListContent.navDebounceMs) return;
     _lastNavTapMs = nowMs;
     ChatSwitchMetrics().begin(sessionId, source: 'sessions_list');
     unawaited(
