@@ -109,18 +109,10 @@ const _modelSelectionEnvKeys = [
 /// provider. When the profile has a selected model but is missing any of
 /// [_modelSelectionEnvKeys], map the selected model onto every model knob
 /// (the fast/haiku-class knobs get the small-fast value when one exists).
-/// Built-in profiles are left untouched — their defaults are curated.
+/// Built-in profiles are left untouched — their defaults are curated and
+/// some intentionally omit [ANTHROPIC_MODEL] in favor of tier aliases.
 AIBackendProfile normalizeModelSelectionEnv(AIBackendProfile profile) {
-  if (!profile.compatibility.claude) return profile;
-  if (profile.isBuiltIn) {
-    // Built-ins are curated; only fill vars they never define.
-    if (_modelSelectionEnvKeys.every(
-      (key) => profile.environmentVariables.any((e) => e.name == key),
-    )) {
-      return profile;
-    }
-    // Fall through to backfill with their own selected model below.
-  }
+  if (!profile.compatibility.claude || profile.isBuiltIn) return profile;
   final selected = AIBackendProfile.inferDefaultModelMode(
     defaultModelMode: profile.defaultModelMode,
     anthropicConfig: profile.anthropicConfig,

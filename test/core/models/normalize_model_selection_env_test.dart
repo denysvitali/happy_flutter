@@ -135,6 +135,12 @@ void main() {
       expect(identical(normalizeModelSelectionEnv(before), before), isTrue);
     });
 
+    test('leaves curated built-in profiles untouched', () {
+      final before = getBuiltInProfile('zai');
+      expect(before, isNotNull);
+      expect(identical(normalizeModelSelectionEnv(before!), before), isTrue);
+    });
+
     test('skips profiles without a selected model', () {
       final before = profileWithEnv([
         EnvironmentVariable(
