@@ -196,7 +196,10 @@ class TabletSessionSelectionProjection {
         sessions.values
             .where((session) => !session.archived)
             .toList(growable: false)
-          ..sort((a, b) => b.activeAt.compareTo(a.activeAt));
+          ..sort((a, b) {
+            final byActiveAt = b.activeAt.compareTo(a.activeAt);
+            return byActiveAt != 0 ? byActiveAt : a.id.compareTo(b.id);
+          });
     final sessionIds = candidates
         .map((session) => session.id)
         .toList(growable: false);
@@ -335,12 +338,17 @@ SortedSessions computeSortedSessions(
     if (aOnline != bOnline) return aOnline.compareTo(bOnline);
     final aTs = getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.activeAt;
     final bTs = getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.activeAt;
-    return bTs.compareTo(aTs);
+    final byTs = bTs.compareTo(aTs);
+    // Equal timestamps must not depend on map insertion order: the sort
+    // is unstable above 32 entries and the input order follows Sync
+    // merge order, so tie-break by id for a deterministic list.
+    return byTs != 0 ? byTs : a.id.compareTo(b.id);
   });
   inactive.sort((a, b) {
     final aTs = getLastMessageTimestamp(a.id) ?? a.lastMessageAt ?? a.updatedAt;
     final bTs = getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt;
-    return bTs.compareTo(aTs);
+    final byTs = bTs.compareTo(aTs);
+    return byTs != 0 ? byTs : a.id.compareTo(b.id);
   });
   final result = SortedSessions(
     active: active,

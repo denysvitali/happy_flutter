@@ -96,7 +96,8 @@ Map<DateGroup, List<Session>> groupSessionsByDateCategory(
         final bTs = getLastMessageTimestamp != null
             ? getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt
             : b.lastMessageAt ?? b.updatedAt;
-        return bTs.compareTo(aTs);
+        final byTs = bTs.compareTo(aTs);
+        return byTs != 0 ? byTs : a.id.compareTo(b.id);
       });
     });
 
@@ -594,7 +595,8 @@ List<SessionFolderItem> groupSessionsByFolder(
           : s.lastMessageAt ?? s.updatedAt;
       final aLatest = groups[a]!.map(ts).reduce(math.max);
       final bLatest = groups[b]!.map(ts).reduce(math.max);
-      return bLatest.compareTo(aLatest);
+      final byTs = bLatest.compareTo(aLatest);
+      return byTs != 0 ? byTs : a.compareTo(b);
     });
 
   // Sort sessions within each group by last activity descending.
@@ -606,7 +608,8 @@ List<SessionFolderItem> groupSessionsByFolder(
       final bTs = getLastMessageTimestamp != null
           ? getLastMessageTimestamp(b.id) ?? b.lastMessageAt ?? b.updatedAt
           : b.lastMessageAt ?? b.updatedAt;
-      return bTs.compareTo(aTs);
+      final byTs = bTs.compareTo(aTs);
+      return byTs != 0 ? byTs : a.id.compareTo(b.id);
     });
   }
 
@@ -711,9 +714,10 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
   }
 
   final keys = {...groupedActive.keys, ...groupedInactive.keys}.toList()
-    ..sort(
-      (a, b) => latestActivityByKey[b]!.compareTo(latestActivityByKey[a]!),
-    );
+    ..sort((a, b) {
+      final byTs = latestActivityByKey[b]!.compareTo(latestActivityByKey[a]!);
+      return byTs != 0 ? byTs : a.compareTo(b);
+    });
 
   List<Session> sortActive(List<Session> sessions) {
     final sorted = List<Session>.from(sessions)
@@ -723,14 +727,18 @@ List<SessionFolderGroup> groupAllSessionsByFolder(
         if (aOnline != bOnline) {
           return aOnline.compareTo(bOnline);
         }
-        return activityTs(b).compareTo(activityTs(a));
+        final byTs = activityTs(b).compareTo(activityTs(a));
+        return byTs != 0 ? byTs : a.id.compareTo(b.id);
       });
     return sorted;
   }
 
   List<Session> sortInactive(List<Session> sessions) {
     final sorted = List<Session>.from(sessions)
-      ..sort((a, b) => activityTs(b).compareTo(activityTs(a)));
+      ..sort((a, b) {
+        final byTs = activityTs(b).compareTo(activityTs(a));
+        return byTs != 0 ? byTs : a.id.compareTo(b.id);
+      });
     return sorted;
   }
 
