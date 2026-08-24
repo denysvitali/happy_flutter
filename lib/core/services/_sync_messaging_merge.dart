@@ -851,13 +851,9 @@ extension SyncMessagingMerge on Sync {
     // large catalog retains one full ~200-row decrypted transcript per session
     // for the whole grace window — the heap growth that scaled RSS with
     // session count (progressive-lag audit 2026-08-24, fifth pass).
-    for (final sessionId in _fullResidentSessionsBeyondBudget()) {
-      final released = _shrinkSessionWindow(sessionId);
-      if (released > 0) {
-        shrunkSessions++;
-        releasedRows += released;
-      }
-    }
+    final budgetResult = _enforceResidentSessionBudget();
+    shrunkSessions += budgetResult.$1;
+    releasedRows += budgetResult.$2;
 
     if (shrunkSessions > 0) {
       logger.info(
@@ -867,6 +863,37 @@ extension SyncMessagingMerge on Sync {
     }
 
     _reconcileStalledThinkingSessions(nowMs);
+  }
+
+  /// Shrink every full-resident session outside the
+  /// [Sync.maxFullResidentSessions] most-recent slots down to the preview
+  /// window. Unthrottled and independent of the idle grace window, so it can
+  /// run on the session-switch path (`onSessionVisible`) to reclaim promptly
+  /// while the user is actively navigating — not only on the throttled
+  /// 5-minute sweep. Returns `(sessionsShrunk, rowsReleased)`.
+  (int, int) _enforceResidentSessionBudget() {
+    var shrunkSessions = 0;
+    var releasedRows = 0;
+    for (final sessionId in _fullResidentSessionsBeyondBudget()) {
+      final released = _shrinkSessionWindow(sessionId);
+      if (released > 0) {
+        shrunkSessions++;
+        releasedRows += released;
+      }
+    }
+    return (shrunkSessions, releasedRows);
+  }
+
+  /// Enforce the resident-session budget outside the throttled shrink sweep
+  /// (called on session switch). Logs only when it actually reclaims.
+  void enforceResidentSessionBudgetNow() {
+    final (shrunkSessions, releasedRows) = _enforceResidentSessionBudget();
+    if (shrunkSessions > 0) {
+      logger.info(
+        '[messages] residency-budget shrink on switch: $shrunkSessions '
+        'session(s), $releasedRows row(s) released',
+      );
+    }
   }
 
   /// Non-visible sessions still holding more than the preview window, ranked

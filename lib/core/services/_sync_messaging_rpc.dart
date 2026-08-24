@@ -1042,6 +1042,14 @@ extension SyncMessagingRpc on Sync {
     // Each InvalidateSync holds Timers, a Completer, and closures that
     // capture the Sync singleton — unbounded growth for 500+ sessions.
     _evictStaleMessagesSync();
+
+    // Reclaim resident transcripts eagerly on switch. The throttled 5-minute
+    // idle-shrink sweep alone lets a fast navigator pile up one full ~200-row
+    // decrypted transcript per session for minutes before reclaim — the peak
+    // heap a heavy user feels as lag mid-session. Now that visibility moved,
+    // any full session outside the residency budget shrinks to the preview
+    // window immediately (visible + unsettled-send sessions stay full).
+    enforceResidentSessionBudgetNow();
     unawaited(
       Sentry.addBreadcrumb(
         Breadcrumb(

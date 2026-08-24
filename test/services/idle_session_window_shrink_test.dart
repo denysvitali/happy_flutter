@@ -242,6 +242,26 @@ void main() {
       }
     });
 
+    test('the budget is enforced immediately on switch, without waiting for '
+        'the throttled sweep interval', () {
+      final total = Sync.maxFullResidentSessions + 3;
+      seedRecentSessions(total);
+      // Do NOT advance _lastIdleShrinkSweepMs / the sweep throttle: the
+      // switch-path entry point must reclaim on its own.
+      sync.enforceResidentSessionBudgetNow();
+
+      for (var i = 0; i < Sync.maxFullResidentSessions; i++) {
+        expect(sync.messagesForSession('s$i'), hasLength(120));
+      }
+      for (var i = Sync.maxFullResidentSessions; i < total; i++) {
+        expect(
+          sync.messagesForSession('s$i'),
+          hasLength(Sync.idleSessionShrinkKeepRows),
+          reason: 's$i is over budget and must shrink on the switch path',
+        );
+      }
+    });
+
     test('a session with an unsettled send stays full even beyond the '
         'budget', () {
       final total = Sync.maxFullResidentSessions + 1;
