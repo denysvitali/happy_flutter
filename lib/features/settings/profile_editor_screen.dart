@@ -339,6 +339,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       defaultModelMode:
           AIBackendProfile.inferDefaultModelMode(
             environmentVariables: envVars,
+            models: models,
           ) ??
           existing?.defaultModelMode,
       contextWindow: _contextWindow,

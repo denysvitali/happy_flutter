@@ -584,9 +584,16 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {
-    // Use the profile's default model mode when switching providers.
-    // If no profile is selected, fall back to the server default mode.
-    final profileDefaultModelMode = profile?.defaultModelMode;
+    // Preserve the current model when the destination profile advertises it.
+    // Legacy custom profiles often have only `models` (no defaultModelMode),
+    // so replacing the selection with `default` here also prevented their
+    // model env vars from reaching the respawned Claude process.
+    final currentModelMode = _profileModelOverride ?? _modelMode.modeString;
+    final profileSupportsCurrentModel =
+        profile != null && profile.models.contains(currentModelMode);
+    final profileDefaultModelMode = profileSupportsCurrentModel
+        ? currentModelMode
+        : profile?.inferredDefaultModelMode;
     final rawModelString = profileDefaultModelMode != null
         ? ChatModelMode.normalizeRawForFlavor(
             profileDefaultModelMode,

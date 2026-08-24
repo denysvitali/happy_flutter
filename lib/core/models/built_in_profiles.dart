@@ -119,6 +119,7 @@ AIBackendProfile normalizeModelSelectionEnv(AIBackendProfile profile) {
     openaiConfig: profile.openaiConfig,
     azureOpenAIConfig: profile.azureOpenAIConfig,
     environmentVariables: profile.environmentVariables,
+    models: profile.models,
   );
   if (selected == null) return profile;
 

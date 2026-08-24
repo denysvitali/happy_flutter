@@ -177,6 +177,16 @@ void main() {
 
       expect(profile.inferredDefaultModelMode, 'explicit-model');
     });
+
+    test('derives a default from a legacy profile model list', () {
+      final profile = AIBackendProfile(
+        id: 'legacy-claude-proxy',
+        name: 'Legacy Claude Proxy',
+        models: ['stealth/ox-alpha', 'stealth/ox-fast'],
+      );
+
+      expect(profile.inferredDefaultModelMode, 'stealth/ox-alpha');
+    });
   });
 
   group('AIBackendProfile Codex providers', () {

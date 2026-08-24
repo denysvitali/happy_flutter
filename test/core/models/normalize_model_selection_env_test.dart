@@ -6,11 +6,13 @@ void main() {
   AIBackendProfile profileWithEnv(
     List<EnvironmentVariable> envVars, {
     String? model,
+    List<String> models = const [],
   }) => AIBackendProfile(
     id: 'custom_1',
     name: 'opencode-proxy',
     environmentVariables: envVars,
     defaultModelMode: model,
+    models: models,
     isBuiltIn: false,
     compatibility: const ProfileCompatibility(
       claude: true,
@@ -81,6 +83,33 @@ void main() {
       expect(valueFor(profile, 'ANTHROPIC_DEFAULT_SONNET_MODEL'), 'GLM-4.7');
       expect(valueFor(profile, 'ANTHROPIC_DEFAULT_HAIKU_MODEL'), 'GLM-4.7');
       expect(valueFor(profile, 'CLAUDE_CODE_SUBAGENT_MODEL'), 'glm-5.1');
+    });
+
+    test('backfills selection knobs from a legacy profile model list', () {
+      final profile = normalizeModelSelectionEnv(
+        profileWithEnv(
+          [
+            EnvironmentVariable(
+              name: 'ANTHROPIC_BASE_URL',
+              value: 'https://proxy.example.com',
+            ),
+          ],
+          models: ['stealth/ox-alpha'],
+        ),
+      );
+
+      for (final name in const [
+        'ANTHROPIC_MODEL',
+        'ANTHROPIC_SMALL_FAST_MODEL',
+        'ANTHROPIC_DEFAULT_OPUS_MODEL',
+        'ANTHROPIC_DEFAULT_SONNET_MODEL',
+        'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+        'ANTHROPIC_DEFAULT_FABLE_MODEL',
+        'ANTHROPIC_DEFAULT_MODEL',
+        'CLAUDE_CODE_SUBAGENT_MODEL',
+      ]) {
+        expect(valueFor(profile, name), 'stealth/ox-alpha');
+      }
     });
 
     test('preserves existing model expressions', () {

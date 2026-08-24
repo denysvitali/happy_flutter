@@ -666,6 +666,7 @@ class AIBackendProfile {
     openaiConfig: openaiConfig,
     azureOpenAIConfig: azureOpenAIConfig,
     environmentVariables: environmentVariables,
+    models: models,
   );
 
   static String? inferDefaultModelMode({
@@ -674,6 +675,7 @@ class AIBackendProfile {
     OpenAIConfig? openaiConfig,
     AzureOpenAIConfig? azureOpenAIConfig,
     List<EnvironmentVariable> environmentVariables = const [],
+    List<String> models = const [],
   }) {
     return _nonDefaultModelMode(defaultModelMode) ??
         _nonDefaultModelMode(openaiConfig?.model) ??
@@ -682,7 +684,8 @@ class AIBackendProfile {
         _envModelMode(environmentVariables, 'OPENAI_MODEL') ??
         _envModelMode(environmentVariables, 'AZURE_OPENAI_DEPLOYMENT_NAME') ??
         _envModelMode(environmentVariables, 'ANTHROPIC_MODEL') ??
-        _envModelMode(environmentVariables, 'ANTHROPIC_DEFAULT_OPUS_MODEL');
+        _envModelMode(environmentVariables, 'ANTHROPIC_DEFAULT_OPUS_MODEL') ??
+        models.map(_nonDefaultModelMode).whereType<String>().firstOrNull;
   }
 
   static String? _envModelMode(
