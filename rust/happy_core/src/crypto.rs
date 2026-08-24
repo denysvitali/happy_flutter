@@ -202,7 +202,7 @@ mod at_rest_tests {
         let sealed = encrypt_at_rest_batch(&key, &["{}".into()], &[vec![5u8; 12]], b"cache");
         let payload = sealed[0].clone().unwrap();
 
-        assert!(decrypt_at_rest_batch(&key, &[payload.clone()], b"cache")[0].is_some());
+        assert!(decrypt_at_rest_batch(&key, std::slice::from_ref(&payload), b"cache")[0].is_some());
         assert!(
             decrypt_at_rest_batch(&key, &[payload], b"outbox")[0].is_none(),
             "a payload sealed for one domain must not open under another",
