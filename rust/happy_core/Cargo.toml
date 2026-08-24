@@ -1,0 +1,21 @@
+[package]
+name = "happy_core"
+version = "0.1.0"
+edition = "2021"
+description = "Native hot-path core for happy_flutter: batch AES-256-GCM and message pipeline work moved off the Dart UI isolate."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+aes-gcm = "0.10"
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
