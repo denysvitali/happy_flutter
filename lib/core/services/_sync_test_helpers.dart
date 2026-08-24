@@ -812,6 +812,8 @@ extension SyncTestHelpers on Sync {
   /// Mirrors the per-session fields cleared by `shutdown()`.
   @visibleForTesting
   void testClearAllSessionMessageState() {
+    _saveFirstLoadedSeqDebounceTimer?.cancel();
+    _saveFirstLoadedSeqDebounceTimer = null;
     for (final entry in _postSendCatchUpTimers.entries.toList()) {
       entry.value.cancel();
     }
@@ -862,6 +864,22 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testSetSessionTouchedAtMs(String sessionId, int ms) =>
       _sessionMessagesTouchedAtMs[sessionId] = ms;
+
+  /// Test helper: whether a first-loaded-seq cursor write is coalescing in
+  /// the debounce window rather than having been issued immediately. A bulk
+  /// shrink must leave exactly one pending write, not one isolate spawn per
+  /// shrunk session.
+  @visibleForTesting
+  bool get testFirstLoadedSeqWritePending =>
+      _saveFirstLoadedSeqDebounceTimer != null;
+
+  /// Test helper: drop a pending cursor write so it cannot fire after the
+  /// test completes.
+  @visibleForTesting
+  void testCancelFirstLoadedSeqWrite() {
+    _saveFirstLoadedSeqDebounceTimer?.cancel();
+    _saveFirstLoadedSeqDebounceTimer = null;
+  }
 
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;

@@ -526,14 +526,27 @@ extension SyncSocket on Sync {
     });
   }
 
-  /// Background serialization for the oldest loaded cursor map. Pagination
-  /// can advance this once per page, so native storage revision-guards worker
-  /// completions instead of keeping another lifecycle-owned timer alive.
+  /// Background serialization for the oldest loaded cursor map, debounced.
+  ///
+  /// Every call copies the whole cursor map twice and spawns an isolate
+  /// (`saveAllAsync` -> `compute`), and callers fire it in bulk: pagination
+  /// advances it once per page, and the residency-budget shrink calls it once
+  /// per shrunk session — so a switch that shrinks 20 sessions used to queue
+  /// 20 back-to-back isolate spawns on the UI isolate. Coalescing to one
+  /// write per 500 ms window matches [_scheduleSaveSeq]; `shutdown()` still
+  /// flushes the cursor map synchronously, so nothing is lost.
   void _scheduleSaveFirstLoadedSeq() {
-    unawaited(
-      MMKVStorage().saveSessionFirstLoadedSeqAsync(
-        Map.unmodifiable(_sessionFirstLoadedSeq),
-      ),
+    _saveFirstLoadedSeqDebounceTimer?.cancel();
+    _saveFirstLoadedSeqDebounceTimer = Timer(
+      const Duration(milliseconds: 500),
+      () {
+        _saveFirstLoadedSeqDebounceTimer = null;
+        unawaited(
+          MMKVStorage().saveSessionFirstLoadedSeqAsync(
+            Map.unmodifiable(_sessionFirstLoadedSeq),
+          ),
+        );
+      },
     );
   }
 

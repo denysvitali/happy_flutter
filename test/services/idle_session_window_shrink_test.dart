@@ -262,6 +262,30 @@ void main() {
       }
     });
 
+    test('a bulk shrink coalesces the cursor write instead of spawning one '
+        'isolate per shrunk session', () {
+      // Every shrink re-arms the scroll-back boundary, which schedules a
+      // first-loaded-seq write. That write copies the whole cursor map twice
+      // and spawns an isolate, so an unthrottled bulk shrink used to queue
+      // one spawn per session on the UI isolate.
+      final total = Sync.maxFullResidentSessions + 20;
+      seedRecentSessions(total);
+      for (var i = 0; i < total; i++) {
+        sync.testSetSessionFirstLoadedSeq('s$i', 50);
+      }
+
+      sync.enforceResidentSessionBudgetNow();
+
+      expect(
+        sync.testFirstLoadedSeqWritePending,
+        isTrue,
+        reason:
+            '20 shrunk sessions must leave one coalescing write, not 20 '
+            'immediate isolate spawns',
+      );
+      sync.testCancelFirstLoadedSeqWrite();
+    });
+
     test('a session with an unsettled send stays full even beyond the '
         'budget', () {
       final total = Sync.maxFullResidentSessions + 1;

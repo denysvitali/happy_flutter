@@ -42,6 +42,29 @@ and the persisted bytes are unchanged. Contract tests pin pre-copy stripping,
 caller non-mutation, idempotence, and pass-through
 (`test/services/message_cache_worker_payload_test.dart`).
 
+**(3)** A parallel static audit then caught a regression the fifth pass had
+just introduced. `_shrinkSessionWindow` re-arms the scroll-back boundary, which
+calls `_scheduleSaveFirstLoadedSeq()` — and that was **undebounced**, copying
+the whole cursor map twice and spawning an isolate (`saveAllAsync` ->
+`compute`) *per call*. The fifth pass made that fire for many more sessions
+(budget-based, no idle wait) and on **every chat switch**, so switching into a
+chat after fanning across 30 sessions queued ~22 back-to-back isolate spawns on
+the UI isolate — the best single fit for a 486 ms frozen frame keyed to
+route=chat. It is now debounced to one write per 500 ms window, matching its
+sibling `_scheduleSaveSeq`; `suspend()` and `shutdown()` both still flush the
+cursor map synchronously, so no cursor is lost. Pinned by a contract test that
+a 20-session bulk shrink leaves one coalescing write rather than 20 spawns.
+
+**(4)** The cache payload is now bounded by **bytes** (512 KB) rather than only
+by row count, walking newest-first. The native write is a synchronous memcpy
+into an mmap (plus MMKV's full-writeback when the region grows), so its cost
+tracks payload size. Bounding by bytes keeps the full 200-row window for
+ordinary sessions and trims only the giant-tool-output sessions that actually
+produce the long writes; caching fewer rows than are resident is already a
+supported state, so restore semantics are unchanged. The newest row is always
+cached (cold start must repaint something); no row floor beyond that, since a
+handful of multi-MB tool outputs would otherwise blow past the ceiling.
+
 Still open (needs its own pass): the proper fix is making MMKV usable from the
 worker isolate via `BackgroundIsolateBinaryMessenger.ensureInitialized(
 rootIsolateToken)` + an explicit `rootDir`, which would move the native write

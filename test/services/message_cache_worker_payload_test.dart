@@ -105,4 +105,87 @@ void main() {
     MessageCacheService.resetWorkerStorageAvailabilityForTest();
     expect(MessageCacheService.debugWorkerStorageUnavailable, isFalse);
   });
+
+  group('payload byte budget', () {
+    Map<String, dynamic> textMessage(String id, int chars) => {
+      'id': id,
+      'seq': 1,
+      'role': 'assistant',
+      'content': 'x' * chars,
+    };
+
+    test('ordinary sessions keep the full row window', () {
+      final messages = [
+        for (var i = 0; i < 200; i++) textMessage('m-$i', 200),
+      ];
+
+      final window = MessageCacheService.debugRawCacheWindow(messages);
+
+      expect(
+        window,
+        hasLength(200),
+        reason:
+            'small rows must not be trimmed — the budget only targets the '
+            'giant-tool-output sessions that produce long writes',
+      );
+    });
+
+    test('giant tool outputs are bounded, keeping the newest rows', () {
+      // Each row ~1 MB of UTF-16 -> well past the 512 KB budget.
+      final messages = [
+        for (var i = 0; i < 40; i++) textMessage('m-$i', 500000),
+      ];
+
+      final window = MessageCacheService.debugRawCacheWindow(messages);
+
+      expect(
+        window.length,
+        lessThan(40),
+        reason: 'the payload must be bounded so the native write stays short',
+      );
+      expect(
+        window.last['id'],
+        'm-39',
+        reason: 'the newest row must always survive',
+      );
+    });
+
+    test('the newest row survives even when it alone blows the budget', () {
+      final messages = [
+        for (var i = 0; i < 30; i++) textMessage('m-$i', 2000000),
+      ];
+
+      final window = MessageCacheService.debugRawCacheWindow(messages);
+
+      expect(
+        window,
+        hasLength(1),
+        reason:
+            'a row floor would let a handful of multi-MB tool outputs blow '
+            'past the ceiling the budget exists to hold',
+      );
+      expect(
+        window.single['id'],
+        'm-29',
+        reason: 'cold start must still repaint the newest row',
+      );
+    });
+
+    test('rows stay in chronological order after budget trimming', () {
+      final messages = [
+        for (var i = 0; i < 40; i++) textMessage('m-$i', 500000),
+      ];
+
+      final window = MessageCacheService.debugRawCacheWindow(messages);
+
+      final seqs = [
+        for (final m in window) int.parse((m['id'] as String).split('-')[1]),
+      ];
+      expect(
+        seqs,
+        orderedEquals([...seqs]..sort()),
+        reason: 'restore assumes oldest-to-newest ordering',
+      );
+    });
+  });
 }

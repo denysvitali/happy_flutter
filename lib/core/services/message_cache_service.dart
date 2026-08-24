@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart'
     show compute, kIsWeb, visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../encryption/encryption_cache.dart';
 import '../utils/image_content_blocks.dart';
 import 'at_rest_encryption_service.dart';
 import 'logger_service.dart' show logger;
@@ -346,6 +347,12 @@ class MessageCacheService {
   /// sync save path so cold-start JSON decode and initial rendering stay
   /// predictable.
   static const int _maxCachedMessages = 200;
+
+  /// Byte ceiling for one session's cache payload. The native write is
+  /// synchronous and its cost tracks payload size; on devices where the
+  /// worker MMKV handle is unavailable it blocks the UI isolate directly
+  /// (measured p95 153-172 ms, 2026-08-24 sixth pass).
+  static const int _cacheWindowByteBudget = 512 * 1024;
 
   /// Latched once a worker-isolate MMKV write fails.
   ///
@@ -1026,11 +1033,36 @@ class MessageCacheService {
     // and idempotent (it blanks `data` and marks `omitted`, so a second pass
     // is a no-op returning the same object), which keeps the worker's own
     // sanitize pass byte-identical — it simply finds nothing left to strip.
-    final window = <Map<String, dynamic>>[];
-    for (var i = start; i < messages.length; i++) {
-      window.add(_sanitizeCacheMessageTree(messages[i]));
+    //
+    // Walk newest-first and stop once the accumulated payload exceeds
+    // [_cacheWindowByteBudget]. The native MMKV write is a synchronous
+    // memcpy into an mmap (plus MMKV's own full-writeback when the region
+    // has to grow), so its cost tracks payload bytes — and on devices where
+    // the worker handle is unavailable that write lands on the UI isolate.
+    // Bounding by bytes rather than by row count keeps the full 200-row
+    // window for ordinary sessions and only trims the giant-tool-output
+    // sessions that actually produce the long writes. Caching fewer rows
+    // than are resident is already a supported state (`truncated`), so this
+    // needs no new restore semantics — scroll-back pages the rest back in.
+    final reversed = <Map<String, dynamic>>[];
+    var bytes = 0;
+    for (var i = messages.length - 1; i >= start; i--) {
+      final sanitized = _sanitizeCacheMessageTree(messages[i]);
+      bytes += EncryptionCache.estimateJsonBytes(
+        sanitized,
+        limit: _cacheWindowByteBudget,
+      );
+      // The newest row is always cached so cold start can repaint something
+      // even when that row alone blows the budget; every later row must fit.
+      // A row floor is deliberately not used here — a handful of multi-MB
+      // tool outputs would blow past the ceiling the budget exists to hold.
+      if (reversed.isNotEmpty && bytes > _cacheWindowByteBudget) break;
+      reversed.add(sanitized);
     }
-    return List<Map<String, dynamic>>.of(window, growable: false);
+    return List<Map<String, dynamic>>.of(
+      reversed.reversed,
+      growable: false,
+    );
   }
 
   void _recordWrite(
