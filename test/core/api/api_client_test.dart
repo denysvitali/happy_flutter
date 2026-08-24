@@ -268,7 +268,10 @@ void main() {
   });
 
   group('ApiClient OpenTelemetry trace context propagation', () {
-    setUp(() async {
+    // OTel bring-up/teardown costs ~0.5s; these tests only use the
+    // span-context factories and never mutate tracer state, so one
+    // initialization serves the whole group.
+    setUpAll(() async {
       await OTel.reset();
       await OTel.initialize(
         endpoint: 'http://localhost:4318',
@@ -281,7 +284,7 @@ void main() {
       );
     });
 
-    tearDown(() async {
+    tearDownAll(() async {
       await OTel.reset();
     });
 
@@ -576,8 +579,22 @@ void main() {
     test('a retried request keeps the first attempt start so the total '
         'elapsed time is recorded, and each attempt gets fresh span '
         'bookkeeping', () async {
+      final dio = apiClient.testDio!;
+      // Keep the real retry path but shrink its backoff from ~1s to 10ms
+      // (non-zero so the second attempt's ms start stamp still advances);
+      // the production cadence is pinned by retry_interceptor_test.
+      final retryIndex = dio.interceptors.indexWhere(
+        (i) => i is RetryInterceptor,
+      );
+      expect(retryIndex, isNonNegative);
+      dio.interceptors[retryIndex] = RetryInterceptor(
+        dioGetter: () => dio,
+        maxRetries: 3,
+        baseDelayMs: 10,
+        maxDelayMs: 10,
+      );
       var attempts = 0;
-      apiClient.testDio!.interceptors.add(
+      dio.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
             attempts++;

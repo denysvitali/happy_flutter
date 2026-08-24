@@ -110,36 +110,39 @@ void main() {
 
     test(
       'known update-session with simple fields does not fetch sessions',
-      () async {
-        instance.testSessions['session_1'] = Session(
-          id: 'session_1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: 0,
-          metadataVersion: 0,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'offline',
-        );
+      () {
+        fakeAsync((async) {
+          instance.testSessions['session_1'] = Session(
+            id: 'session_1',
+            seq: 1,
+            createdAt: 0,
+            updatedAt: 0,
+            active: true,
+            activeAt: 0,
+            metadataVersion: 0,
+            agentStateVersion: 0,
+            thinking: false,
+            presence: 'offline',
+          );
 
-        instance.handleUpdate({
-          't': 'update-session',
-          'id': 'session_1',
-          'presence': 'online',
-          'thinking': true,
-          'lastSeq': 7,
+          instance.handleUpdate({
+            't': 'update-session',
+            'id': 'session_1',
+            'presence': 'online',
+            'thinking': true,
+            'lastSeq': 7,
+          });
+
+          // Outlast the 2s sessions-refresh debounce (virtual clock).
+          async.elapse(const Duration(milliseconds: 2500));
+          async.flushMicrotasks();
+
+          final session = instance.testSessions['session_1']!;
+          expect(session.presence, 'online');
+          expect(session.thinking, true);
+          expect(session.lastSeq, 7);
+          expect(sessionsInvalidations, 0);
         });
-
-        await Future<void>.delayed(const Duration(milliseconds: 2500));
-        await instance.sessionsSync.awaitQueue();
-
-        final session = instance.testSessions['session_1']!;
-        expect(session.presence, 'online');
-        expect(session.thinking, true);
-        expect(session.lastSeq, 7);
-        expect(sessionsInvalidations, 0);
       },
     );
 
@@ -190,7 +193,9 @@ void main() {
         await instance.messagesSync['session_1']?.awaitQueue();
         expect(invalidations, 1);
 
-        await Future<void>.delayed(const Duration(milliseconds: 800));
+        // Still inside the 2s no-embed probe cooldown: the duplicate
+        // event must not re-arm the fetch.
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         instance.handleUpdate({'t': 'new-message', 'id': 'session_1'});
         await instance.messagesSync['session_1']?.awaitQueue();
         expect(invalidations, 1);
@@ -204,66 +209,75 @@ void main() {
 
     test(
       'update-session bursts are debounced into one sessions refresh',
-      () async {
-        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
-        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
-        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+      () {
+        fakeAsync((async) {
+          instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+          instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+          instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
 
-        // _sessionsRefreshDebounce is 2s; wait long enough for it to fire.
-        await Future<void>.delayed(const Duration(milliseconds: 2500));
-        await instance.sessionsSync.awaitQueue();
+          // _sessionsRefreshDebounce is 2s; elapse long enough for it to
+          // fire on the virtual clock.
+          async.elapse(const Duration(milliseconds: 2500));
+          async.flushMicrotasks();
 
-        expect(sessionsInvalidations, 1);
+          expect(sessionsInvalidations, 1);
+        });
       },
     );
 
     test(
       'new-session bursts are debounced into one refresh when ready',
-      () async {
-        instance.encryption = _TestEncryption(
-          sessions: {'session_1': _NoopSessionEncryption()},
-        );
+      () {
+        fakeAsync((async) {
+          instance.encryption = _TestEncryption(
+            sessions: {'session_1': _NoopSessionEncryption()},
+          );
 
-        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-        await Future<void>.delayed(const Duration(milliseconds: 2500));
-        await instance.sessionsSync.awaitQueue();
+          async.elapse(const Duration(milliseconds: 2500));
+          async.flushMicrotasks();
 
-        expect(sessionsInvalidations, 1);
-        expect(instance.testForceFullFetchNext, false);
+          expect(sessionsInvalidations, 1);
+          expect(instance.testForceFullFetchNext, false);
+        });
       },
     );
 
     test(
       'new-session triggers one recovery full fetch when encryption missing',
-      () async {
-        instance.encryption = _TestEncryption();
+      () {
+        fakeAsync((async) {
+          instance.encryption = _TestEncryption();
 
-        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-        await Future<void>.delayed(const Duration(milliseconds: 2500));
-        await instance.sessionsSync.awaitQueue();
+          async.elapse(const Duration(milliseconds: 2500));
+          async.flushMicrotasks();
 
-        expect(sessionsInvalidations, 2);
-        expect(instance.testForceFullFetchNext, true);
+          expect(sessionsInvalidations, 2);
+          expect(instance.testForceFullFetchNext, true);
+        });
       },
     );
 
     test(
       'new-session burst triggers only one recovery full fetch when missing',
-      () async {
-        instance.encryption = _TestEncryption();
+      () {
+        fakeAsync((async) {
+          instance.encryption = _TestEncryption();
 
-        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-        await Future<void>.delayed(const Duration(milliseconds: 2500));
-        await instance.sessionsSync.awaitQueue();
+          async.elapse(const Duration(milliseconds: 2500));
+          async.flushMicrotasks();
 
-        expect(sessionsInvalidations, 2);
+          expect(sessionsInvalidations, 2);
+        });
       },
     );
   });
@@ -457,41 +471,43 @@ void main() {
 
     test(
       'unchanged ephemeral heartbeats do not notify session listeners',
-      () async {
-        final instance = Sync();
-        instance.testSessions['s1'] = Session(
-          id: 's1',
-          seq: 1,
-          createdAt: 0,
-          updatedAt: 0,
-          active: true,
-          activeAt: 0,
-          metadataVersion: 0,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'online',
-        );
+      () {
+        // Runs on a virtual clock so trailing debounced notifications
+        // leaked from earlier tests on the shared singleton (real timers)
+        // cannot fire into this subscription, and the 250ms notify window
+        // elapses without sleeping.
+        fakeAsync((async) {
+          final instance = Sync();
+          instance.testSessions['s1'] = Session(
+            id: 's1',
+            seq: 1,
+            createdAt: 0,
+            updatedAt: 0,
+            active: true,
+            activeAt: 0,
+            metadataVersion: 0,
+            agentStateVersion: 0,
+            thinking: false,
+            presence: 'online',
+          );
 
-        // Let trailing debounced notifications (250ms window) leaked from
-        // earlier tests on the shared singleton flush before counting.
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+          var notifications = 0;
+          final subscription = instance.onDomainChanged
+              .where((domain) => domain == SyncDomain.sessions)
+              .listen((_) => notifications++);
 
-        var notifications = 0;
-        final subscription = instance.onDomainChanged
-            .where((domain) => domain == SyncDomain.sessions)
-            .listen((_) => notifications++);
+          instance.handleEphemeralUpdate({
+            'type': 'activity',
+            'id': 's1',
+            'thinking': false,
+            'active': true,
+          });
+          async.elapse(const Duration(milliseconds: 300));
 
-        instance.handleEphemeralUpdate({
-          'type': 'activity',
-          'id': 's1',
-          'thinking': false,
-          'active': true,
+          expect(notifications, 0);
+          expect(instance.testLastEphemeralAt['s1'], isNotNull);
+          subscription.cancel();
         });
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-
-        expect(notifications, 0);
-        expect(instance.testLastEphemeralAt['s1'], isNotNull);
-        await subscription.cancel();
       },
     );
 
@@ -715,60 +731,61 @@ void main() {
       expect(instance.testLastSessionsFetchedAt, isNull);
     });
 
-    test('defers non-critical syncs during phased invalidation', () async {
-      final instance = Sync();
-      instance.testIsInitialized = true; // Enable deferred sync timer
-      var criticalInvalidations = 0;
-      var deferredInvalidations = 0;
+    test('defers non-critical syncs during phased invalidation', () {
+      fakeAsync((async) {
+        final instance = Sync();
+        instance.testIsInitialized = true; // Enable deferred sync timer
+        var criticalInvalidations = 0;
+        var deferredInvalidations = 0;
 
-      // Track critical syncs (sessions)
-      instance.sessionsSync = InvalidateSync(() async {
-        criticalInvalidations++;
+        // Track critical syncs (sessions)
+        instance.sessionsSync = InvalidateSync(() async {
+          criticalInvalidations++;
+        });
+        // Track deferred syncs that the timer actually invalidates
+        instance.machinesSync = InvalidateSync(() async {
+          deferredInvalidations++;
+        });
+        instance.settingsSync = InvalidateSync(() async {
+          deferredInvalidations++;
+        });
+        instance.profileSync = InvalidateSync(() async {});
+        instance.purchasesSync = InvalidateSync(() async {});
+        instance.pushTokenSync = InvalidateSync(() async {});
+        instance.nativeUpdateSync = InvalidateSync(() async {});
+
+        // On-demand syncs (not invalidated by phased invalidation)
+        instance.artifactsSync = InvalidateSync(() async {});
+        instance.sessionGitStatusSync = InvalidateSync(() async {});
+
+        // Trigger invalidation
+        instance.testInvalidateAllSyncs(force: true);
+
+        // Critical syncs should invalidate immediately
+        async.flushMicrotasks();
+        expect(
+          criticalInvalidations,
+          1,
+          reason: 'Critical syncs should invalidate immediately',
+        );
+
+        // Deferred syncs should NOT have invalidated yet
+        expect(
+          deferredInvalidations,
+          0,
+          reason: 'Deferred syncs should not invalidate immediately',
+        );
+
+        // Deferred syncs are invalidated after the 3s delay (virtual clock).
+        async.elapse(const Duration(milliseconds: 3100));
+        async.flushMicrotasks();
+
+        expect(
+          deferredInvalidations,
+          2,
+          reason: 'Deferred syncs should invalidate after delay',
+        );
       });
-      // Track deferred syncs that the timer actually invalidates
-      instance.machinesSync = InvalidateSync(() async {
-        deferredInvalidations++;
-      });
-      instance.settingsSync = InvalidateSync(() async {
-        deferredInvalidations++;
-      });
-      instance.profileSync = InvalidateSync(() async {});
-      instance.purchasesSync = InvalidateSync(() async {});
-      instance.pushTokenSync = InvalidateSync(() async {});
-      instance.nativeUpdateSync = InvalidateSync(() async {});
-
-      // On-demand syncs (not invalidated by phased invalidation)
-      instance.artifactsSync = InvalidateSync(() async {});
-      instance.sessionGitStatusSync = InvalidateSync(() async {});
-
-      // Trigger invalidation
-      instance.testInvalidateAllSyncs(force: true);
-
-      // Critical syncs should invalidate immediately
-      await instance.sessionsSync.awaitQueue();
-      expect(
-        criticalInvalidations,
-        1,
-        reason: 'Critical syncs should invalidate immediately',
-      );
-
-      // Deferred syncs should NOT have invalidated yet
-      expect(
-        deferredInvalidations,
-        0,
-        reason: 'Deferred syncs should not invalidate immediately',
-      );
-
-      // Wait for deferred syncs to be invalidated (after 3s delay)
-      await Future.delayed(const Duration(milliseconds: 3100));
-      await instance.machinesSync.awaitQueue();
-      await instance.settingsSync.awaitQueue();
-
-      expect(
-        deferredInvalidations,
-        2,
-        reason: 'Deferred syncs should invalidate after delay',
-      );
     });
 
     test('refreshSessionsListData dedupes concurrent callers', () async {

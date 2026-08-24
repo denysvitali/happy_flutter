@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/test/test_flutter_secure_storage_platform
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
+import 'package:happy_flutter/core/api/retry_interceptor.dart';
 import 'package:happy_flutter/core/models/auth.dart';
 import 'package:happy_flutter/core/services/auth_service.dart';
 import 'package:happy_flutter/core/services/storage_service.dart';
@@ -102,9 +103,27 @@ void main() {
     });
 
     test('treats a 5xx from the verify endpoint as a server failure', () async {
-      apiClient.testDio!.interceptors.add(
+      final dio = apiClient.testDio!;
+      // A 5xx is retried by the real RetryInterceptor (1s + 2s + 4s of
+      // backoff before it gives up). Keep the retry path — every attempt
+      // still sees the 500 below — but swap in a zero-backoff instance so
+      // the contract does not sleep for 7s. The cadence itself is pinned by
+      // test/core/api/retry_interceptor_test.dart.
+      final retryIndex = dio.interceptors.indexWhere(
+        (i) => i is RetryInterceptor,
+      );
+      expect(retryIndex, isNonNegative);
+      var attempts = 0;
+      dio.interceptors[retryIndex] = RetryInterceptor(
+        dioGetter: () => dio,
+        maxRetries: 3,
+        baseDelayMs: 0,
+        maxDelayMs: 0,
+      );
+      dio.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
+            attempts++;
             handler.resolve(
               Response<dynamic>(
                 data: const {'error': 'boom'},
@@ -118,6 +137,12 @@ void main() {
       );
 
       final state = await AuthService().getAuthState();
+
+      expect(
+        attempts,
+        4,
+        reason: 'the 5xx must still go through the full retry budget',
+      );
 
       expect(state, AuthState.error);
       expect(AuthService().lastAuthFailure, AuthFailureKind.server);

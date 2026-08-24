@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meta/meta.dart';
 import 'package:happy_flutter/core/services/at_rest_encryption_service.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
@@ -75,6 +77,45 @@ OutboxEntry _makeEntry({
   );
 }
 
+/// Runs [body] under [FakeAsync] so the outbox's real 1 s → 30 s backoff
+/// timers elapse virtually instead of on the wall clock.
+///
+/// The body awaits the outbox's microtask-only work as usual and calls
+/// `async.elapse(...)` wherever it used to sleep on a real
+/// `Future.delayed`. The production delays are untouched; only the clock
+/// they run against is faked.
+@isTest
+void _fakeAsyncTest(
+  String description,
+  Future<void> Function(FakeAsync async) body,
+) {
+  test(description, () {
+    fakeAsync((async) {
+      var completed = false;
+      Object? failure;
+      StackTrace? failureTrace;
+      body(async).then(
+        (_) => completed = true,
+        onError: (Object error, StackTrace trace) {
+          failure = error;
+          failureTrace = trace;
+        },
+      );
+      async.flushMicrotasks();
+      if (failure != null) {
+        Error.throwWithStackTrace(failure!, failureTrace!);
+      }
+      expect(
+        completed,
+        isTrue,
+        reason:
+            'test body did not complete under FakeAsync — it awaited '
+            'something that is not driven by microtasks or async.elapse()',
+      );
+    });
+  });
+}
+
 void main() {
   group('OutboxEntry', () {
     test('toJson / fromJson round-trip', () {
@@ -113,7 +154,7 @@ void main() {
 
     // ── Basic add / remove ──────────────────────────────────────────────────
 
-    test('add queues an entry and persists it', () async {
+    _fakeAsyncTest('add queues an entry and persists it', (async) async {
       final delivered = <String>[];
       outbox.configure(
         deliver: (e) async {
@@ -126,7 +167,7 @@ void main() {
       await outbox.add(entry);
 
       // Wait for debounce (100ms) to fire
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      async.elapse(const Duration(milliseconds: 150));
 
       expect(outbox.contains(entry.localId), isTrue);
       expect(storage._outboxData, isNotNull);
@@ -221,7 +262,7 @@ void main() {
       restored.dispose();
     });
 
-    test('remove clears an entry and persists', () async {
+    _fakeAsyncTest('remove clears an entry and persists', (async) async {
       outbox.configure(deliver: (e) async => null);
       final entry = _makeEntry();
       await outbox.add(entry);
@@ -229,7 +270,7 @@ void main() {
       await outbox.remove(entry.localId);
 
       // Wait for debounce (100ms) to fire
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+      async.elapse(const Duration(milliseconds: 150));
 
       expect(outbox.contains(entry.localId), isFalse);
       final saved = _decodeStoredOutbox(storage);
@@ -238,7 +279,9 @@ void main() {
 
     // ── Successful delivery ─────────────────────────────────────────────────
 
-    test('successful delivery removes entry and fires sent status', () async {
+    _fakeAsyncTest('successful delivery removes entry and fires sent status', (
+      async,
+    ) async {
       final statuses = <String>[];
       outbox.configure(
         deliver: (e) async => null,
@@ -250,7 +293,7 @@ void main() {
 
       // Wait for the immediate retry (initialDelay = backoff(0) = 1s+jitter).
       // Since we're using fake timers in tests, we pump the timer manually.
-      await Future<void>.delayed(const Duration(milliseconds: 1300));
+      async.elapse(const Duration(milliseconds: 1300));
 
       expect(outbox.contains(entry.localId), isFalse);
       expect(statuses, containsAllInOrder(['pending', 'sent']));
@@ -258,9 +301,9 @@ void main() {
 
     // ── Failed delivery with retry ─────────────────────────────────────────
 
-    test(
+    _fakeAsyncTest(
       'failed delivery retries up to maxRetries then marks failed',
-      () async {
+      (async) async {
         var attempts = 0;
         final statuses = <String>[];
 
@@ -283,140 +326,133 @@ void main() {
         // attempt 2: after ~2 s (backoff(1))
         // attempt 3: after ~4 s (backoff(2))
         // Then marked failed.
-        await Future<void>.delayed(const Duration(milliseconds: 8000));
+        async.elapse(const Duration(milliseconds: 8000));
 
         expect(attempts, greaterThanOrEqualTo(3));
         expect(outbox.contains(entry.localId), isFalse);
         expect(statuses.last, 'failed');
       },
-      timeout: const Timeout(Duration(seconds: 15)),
     );
 
     // ── Dead-letter ─────────────────────────────────────────────────────────
 
-    test(
-      'exhausted entry is dead-lettered, not destroyed',
-      () async {
-        final statuses = <String>[];
-        final before = powerDiagnostics.snapshot();
-        outbox.configure(
-          deliver: (e) async => const OutboxDeliveryFailure(
-            OutboxFailureClass.permanent,
-            'session_gone',
-          ),
-          onStatusChanged: (_, __, status) => statuses.add(status),
-        );
+    _fakeAsyncTest('exhausted entry is dead-lettered, not destroyed', (
+      async,
+    ) async {
+      final statuses = <String>[];
+      final before = powerDiagnostics.snapshot();
+      outbox.configure(
+        deliver: (e) async => const OutboxDeliveryFailure(
+          OutboxFailureClass.permanent,
+          'session_gone',
+        ),
+        onStatusChanged: (_, __, status) => statuses.add(status),
+      );
 
-        await outbox.add(_makeEntry(localId: 'doomed'));
-        await Future<void>.delayed(const Duration(milliseconds: 8000));
+      await outbox.add(_makeEntry(localId: 'doomed'));
+      async.elapse(const Duration(milliseconds: 8000));
 
-        expect(statuses.last, 'failed');
-        expect(outbox.contains('doomed'), isFalse);
+      expect(statuses.last, 'failed');
+      expect(outbox.contains('doomed'), isFalse);
 
-        // The encrypted payload survives in the dead-letter bucket, with
-        // the failure class that chose the small permanent budget.
-        final dead = outbox.deadEntry('doomed');
-        expect(dead, isNotNull);
-        expect(dead!.encryptedContent, 'enc-abc');
-        expect(dead.dead, isTrue);
-        expect(dead.failureClass, OutboxFailureClass.permanent);
-        expect(dead.failureReason, 'session_gone');
+      // The encrypted payload survives in the dead-letter bucket, with
+      // the failure class that chose the small permanent budget.
+      final dead = outbox.deadEntry('doomed');
+      expect(dead, isNotNull);
+      expect(dead!.encryptedContent, 'enc-abc');
+      expect(dead.dead, isTrue);
+      expect(dead.failureClass, OutboxFailureClass.permanent);
+      expect(dead.failureReason, 'session_gone');
 
-        // …and it is persisted, so a cold start can still recover it.
-        final saved = _decodeStoredOutbox(storage);
-        expect(saved.single['localId'], 'doomed');
-        expect(saved.single['dead'], isTrue);
-        expect(saved.single['failureClass'], 'permanent');
+      // …and it is persisted, so a cold start can still recover it.
+      final saved = _decodeStoredOutbox(storage);
+      expect(saved.single['localId'], 'doomed');
+      expect(saved.single['dead'], isTrue);
+      expect(saved.single['failureClass'], 'permanent');
 
-        // Telemetry contract (audit 2026-08-03): EVERY failed attempt is
-        // counted — the terminal one used to be skipped — and the
-        // dead-letter itself gets its own counter.
-        final after = powerDiagnostics.snapshot();
-        expect(after.outboxFailures - before.outboxFailures, 3);
-        expect(after.outboxDeadLetters - before.outboxDeadLetters, 1);
-      },
-      timeout: const Timeout(Duration(seconds: 20)),
-    );
+      // Telemetry contract (audit 2026-08-03): EVERY failed attempt is
+      // counted — the terminal one used to be skipped — and the
+      // dead-letter itself gets its own counter.
+      final after = powerDiagnostics.snapshot();
+      expect(after.outboxFailures - before.outboxFailures, 3);
+      expect(after.outboxDeadLetters - before.outboxDeadLetters, 1);
+    });
 
-    test(
-      'restoreAndFlush rehydrates dead entries as failed rows',
-      () async {
-        final deadEntry = OutboxEntry(
-          localId: 'dead-1',
-          sessionId: 'session-a',
-          text: 'lost message',
-          encryptedContent: 'enc-dead',
-          rawRecord: const {'role': 'user'},
-          queuedAt: 1000,
-          retryCount: 3,
-          dead: true,
-        );
-        storage._outboxData = jsonEncode([deadEntry.toJson()]);
+    _fakeAsyncTest('restoreAndFlush rehydrates dead entries as failed rows', (
+      async,
+    ) async {
+      final deadEntry = OutboxEntry(
+        localId: 'dead-1',
+        sessionId: 'session-a',
+        text: 'lost message',
+        encryptedContent: 'enc-dead',
+        rawRecord: const {'role': 'user'},
+        queuedAt: 1000,
+        retryCount: 3,
+        dead: true,
+      );
+      storage._outboxData = jsonEncode([deadEntry.toJson()]);
 
-        final statuses = <String>[];
-        final delivered = <String>[];
-        final outbox2 = MessageOutbox(storage: storage);
-        outbox2.configure(
-          deliver: (e) async {
-            delivered.add(e.localId);
-            return null;
-          },
-          onStatusChanged: (_, __, status) => statuses.add(status),
-        );
+      final statuses = <String>[];
+      final delivered = <String>[];
+      final outbox2 = MessageOutbox(storage: storage);
+      outbox2.configure(
+        deliver: (e) async {
+          delivered.add(e.localId);
+          return null;
+        },
+        onStatusChanged: (_, __, status) => statuses.add(status),
+      );
 
-        await outbox2.restoreAndFlush();
+      await outbox2.restoreAndFlush();
 
-        // Republished as 'failed' so the retry affordance renders again.
-        expect(statuses, ['failed']);
-        expect(outbox2.contains('dead-1'), isFalse);
-        expect(outbox2.deadEntry('dead-1')?.encryptedContent, 'enc-dead');
-        expect(outbox2.deadEntry('dead-1')?.rawRecord, {'role': 'user'});
+      // Republished as 'failed' so the retry affordance renders again.
+      expect(statuses, ['failed']);
+      expect(outbox2.contains('dead-1'), isFalse);
+      expect(outbox2.deadEntry('dead-1')?.encryptedContent, 'enc-dead');
+      expect(outbox2.deadEntry('dead-1')?.rawRecord, {'role': 'user'});
 
-        // Dead entries are never auto-retried.
-        await Future<void>.delayed(const Duration(milliseconds: 3500));
-        expect(delivered, isEmpty);
-        outbox2.dispose();
-      },
-      timeout: const Timeout(Duration(seconds: 15)),
-    );
+      // Dead entries are never auto-retried.
+      async.elapse(const Duration(milliseconds: 3500));
+      expect(delivered, isEmpty);
+      outbox2.dispose();
+    });
 
-    test(
-      'reviveDead requeues with a fresh retry budget',
-      () async {
-        final deadEntry = OutboxEntry(
-          localId: 'dead-2',
-          sessionId: 'session-a',
-          text: 'lost message',
-          encryptedContent: 'enc-dead-2',
-          rawRecord: const {},
-          queuedAt: 1000,
-          retryCount: 3,
-          dead: true,
-        );
-        storage._outboxData = jsonEncode([deadEntry.toJson()]);
+    _fakeAsyncTest('reviveDead requeues with a fresh retry budget', (
+      async,
+    ) async {
+      final deadEntry = OutboxEntry(
+        localId: 'dead-2',
+        sessionId: 'session-a',
+        text: 'lost message',
+        encryptedContent: 'enc-dead-2',
+        rawRecord: const {},
+        queuedAt: 1000,
+        retryCount: 3,
+        dead: true,
+      );
+      storage._outboxData = jsonEncode([deadEntry.toJson()]);
 
-        final delivered = <OutboxEntry>[];
-        final outbox2 = MessageOutbox(storage: storage);
-        outbox2.configure(
-          deliver: (e) async {
-            delivered.add(e);
-            return null;
-          },
-        );
-        await outbox2.restoreAndFlush();
+      final delivered = <OutboxEntry>[];
+      final outbox2 = MessageOutbox(storage: storage);
+      outbox2.configure(
+        deliver: (e) async {
+          delivered.add(e);
+          return null;
+        },
+      );
+      await outbox2.restoreAndFlush();
 
-        expect(await outbox2.reviveDead('dead-2'), isTrue);
-        expect(outbox2.deadEntry('dead-2'), isNull);
-        expect(outbox2.contains('dead-2'), isTrue);
+      expect(await outbox2.reviveDead('dead-2'), isTrue);
+      expect(outbox2.deadEntry('dead-2'), isNull);
+      expect(outbox2.contains('dead-2'), isTrue);
 
-        await Future<void>.delayed(const Duration(milliseconds: 1500));
-        expect(delivered.single.localId, 'dead-2');
-        expect(delivered.single.retryCount, 0);
-        expect(delivered.single.dead, isFalse);
-        outbox2.dispose();
-      },
-      timeout: const Timeout(Duration(seconds: 15)),
-    );
+      async.elapse(const Duration(milliseconds: 1500));
+      expect(delivered.single.localId, 'dead-2');
+      expect(delivered.single.retryCount, 0);
+      expect(delivered.single.dead, isFalse);
+      outbox2.dispose();
+    });
 
     // ── Failure-class aware retry (audit 2026-08-03) ───────────────────────
     //
@@ -461,9 +497,9 @@ void main() {
       timeout: const Timeout(Duration(seconds: 20)),
     );
 
-    test(
+    _fakeAsyncTest(
       'throwing deliver is treated as transient, not dead-lettered',
-      () async {
+      (async) async {
         var attempts = 0;
         outbox.configure(
           deliver: (e) async {
@@ -475,7 +511,7 @@ void main() {
 
         await outbox.add(_makeEntry(localId: 'throwy'));
         for (var i = 0; i < 5; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 1500));
+          async.elapse(const Duration(milliseconds: 1500));
           outbox.resume();
         }
 
@@ -483,7 +519,6 @@ void main() {
         expect(outbox.contains('throwy'), isTrue);
         expect(outbox.deadEntry('throwy'), isNull);
       },
-      timeout: const Timeout(Duration(seconds: 20)),
     );
 
     test('failure class and reason persist with the entry', () {
@@ -503,9 +538,9 @@ void main() {
       expect(legacy.failureReason, isNull);
     });
 
-    test(
+    _fakeAsyncTest(
       'reviveTransientDead re-arms transient + legacy, skips permanent',
-      () async {
+      (async) async {
         final delivered = <OutboxEntry>[];
         outbox.configure(
           deliver: (e) async {
@@ -543,7 +578,7 @@ void main() {
 
         // The revived entries deliver with the SAME localId and a fresh
         // budget — one tap's worth of message, never a duplicate.
-        await Future<void>.delayed(const Duration(milliseconds: 1500));
+        async.elapse(const Duration(milliseconds: 1500));
         expect(delivered.map((e) => e.localId).toSet(), {
           'dead-transient',
           'dead-legacy',
@@ -553,7 +588,6 @@ void main() {
           expect(e.dead, isFalse);
         }
       },
-      timeout: const Timeout(Duration(seconds: 15)),
     );
 
     test(
@@ -582,9 +616,9 @@ void main() {
 
     // ── Restore ─────────────────────────────────────────────────────────────
 
-    test(
+    _fakeAsyncTest(
       'restoreAndFlush loads persisted entries and schedules retry',
-      () async {
+      (async) async {
         // Pre-populate storage with one entry.
         final savedEntry = _makeEntry(localId: 'restored-1');
         storage._outboxData = jsonEncode([savedEntry.toJson()]);
@@ -603,12 +637,11 @@ void main() {
         expect(outbox2.contains('restored-1'), isTrue);
 
         // Wait for initial flush delay (2 s) plus backoff.
-        await Future<void>.delayed(const Duration(milliseconds: 3500));
+        async.elapse(const Duration(milliseconds: 3500));
 
         expect(delivered, contains('restored-1'));
         outbox2.dispose();
       },
-      timeout: const Timeout(Duration(seconds: 10)),
     );
 
     test('restoreAndFlush is idempotent', () async {
@@ -618,60 +651,58 @@ void main() {
       // No exception thrown.
     });
 
-    test(
-      'restoreAndFlush delivers entries in queuedAt order',
-      () async {
-        // Pre-populate storage with multiple entries with different queuedAt.
-        final entry1 = OutboxEntry(
-          localId: 'msg-1',
-          sessionId: 'session-a',
-          text: 'first',
-          encryptedContent: 'enc-1',
-          rawRecord: const {},
-          queuedAt: 1000,
-        );
-        final entry2 = OutboxEntry(
-          localId: 'msg-2',
-          sessionId: 'session-a',
-          text: 'second',
-          encryptedContent: 'enc-2',
-          rawRecord: const {},
-          queuedAt: 2000,
-        );
-        final entry3 = OutboxEntry(
-          localId: 'msg-3',
-          sessionId: 'session-a',
-          text: 'third',
-          encryptedContent: 'enc-3',
-          rawRecord: const {},
-          queuedAt: 1500,
-        );
-        storage._outboxData = jsonEncode([
-          entry1.toJson(),
-          entry2.toJson(),
-          entry3.toJson(),
-        ]);
+    _fakeAsyncTest('restoreAndFlush delivers entries in queuedAt order', (
+      async,
+    ) async {
+      // Pre-populate storage with multiple entries with different queuedAt.
+      final entry1 = OutboxEntry(
+        localId: 'msg-1',
+        sessionId: 'session-a',
+        text: 'first',
+        encryptedContent: 'enc-1',
+        rawRecord: const {},
+        queuedAt: 1000,
+      );
+      final entry2 = OutboxEntry(
+        localId: 'msg-2',
+        sessionId: 'session-a',
+        text: 'second',
+        encryptedContent: 'enc-2',
+        rawRecord: const {},
+        queuedAt: 2000,
+      );
+      final entry3 = OutboxEntry(
+        localId: 'msg-3',
+        sessionId: 'session-a',
+        text: 'third',
+        encryptedContent: 'enc-3',
+        rawRecord: const {},
+        queuedAt: 1500,
+      );
+      storage._outboxData = jsonEncode([
+        entry1.toJson(),
+        entry2.toJson(),
+        entry3.toJson(),
+      ]);
 
-        final delivered = <String>[];
-        final outbox2 = MessageOutbox(storage: storage);
-        outbox2.configure(
-          deliver: (e) async {
-            delivered.add(e.localId);
-            return null;
-          },
-        );
+      final delivered = <String>[];
+      final outbox2 = MessageOutbox(storage: storage);
+      outbox2.configure(
+        deliver: (e) async {
+          delivered.add(e.localId);
+          return null;
+        },
+      );
 
-        await outbox2.restoreAndFlush();
+      await outbox2.restoreAndFlush();
 
-        // Wait for initial flush delay (2s) plus backoff for all three.
-        await Future<void>.delayed(const Duration(milliseconds: 5000));
+      // Wait for initial flush delay (2s) plus backoff for all three.
+      async.elapse(const Duration(milliseconds: 5000));
 
-        // Entries should be delivered in queuedAt order: msg-1, msg-3, msg-2.
-        expect(delivered, ['msg-1', 'msg-3', 'msg-2']);
-        outbox2.dispose();
-      },
-      timeout: const Timeout(Duration(seconds: 15)),
-    );
+      // Entries should be delivered in queuedAt order: msg-1, msg-3, msg-2.
+      expect(delivered, ['msg-1', 'msg-3', 'msg-2']);
+      outbox2.dispose();
+    });
 
     // ── Status callbacks ────────────────────────────────────────────────────
 
@@ -714,14 +745,14 @@ void main() {
       },
     );
 
-    test(
+    _fakeAsyncTest(
       'suspendAndFlush skips the write when no persist is pending',
-      () async {
+      (async) async {
         outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
 
         await outbox.add(_makeEntry(localId: 'already-persisted'));
         // Let the debounced persist fire on its own.
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+        async.elapse(const Duration(milliseconds: 200));
         expect(storage.writeCount, 1);
 
         // Nothing changed since, so the suspend has nothing to flush: the
@@ -737,23 +768,26 @@ void main() {
       },
     );
 
-    test('suspend() preserves the durable snapshot without an await', () async {
-      outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
+    _fakeAsyncTest(
+      'suspend() preserves the durable snapshot without an await',
+      (async) async {
+        outbox.configure(deliver: (e) async => OutboxDeliveryFailure.permanent);
 
-      await outbox.add(_makeEntry(localId: 'flush-sync'));
-      expect(storage._outboxData, isNotNull);
+        await outbox.add(_makeEntry(localId: 'flush-sync'));
+        expect(storage._outboxData, isNotNull);
 
-      outbox.suspend();
-      await Future<void>.delayed(Duration.zero);
+        outbox.suspend();
+        async.elapse(Duration.zero);
 
-      expect(storage._outboxData, isNotNull);
-      final saved = _decodeStoredOutbox(storage);
-      expect(saved.single['localId'], 'flush-sync');
-    });
+        expect(storage._outboxData, isNotNull);
+        final saved = _decodeStoredOutbox(storage);
+        expect(saved.single['localId'], 'flush-sync');
+      },
+    );
 
     // ── Dispose ─────────────────────────────────────────────────────────────
 
-    test('dispose cancels pending timers', () async {
+    _fakeAsyncTest('dispose cancels pending timers', (async) async {
       var attempts = 0;
       outbox.configure(
         deliver: (e) async {
@@ -766,7 +800,7 @@ void main() {
       outbox.dispose();
 
       // After dispose no more retries should be scheduled.
-      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      async.elapse(const Duration(milliseconds: 1500));
       expect(attempts, lessThanOrEqualTo(1)); // at most the initial attempt
     });
 

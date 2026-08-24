@@ -588,14 +588,22 @@ extension SyncSocket on Sync {
   /// server tail is refetched on open), so trading a wider window for
   /// roughly half the writes is the right side of the durability
   /// tradeoff — provided the suspend flush actually runs.
-  static const int _saveMsgsDebounceMs = 2000;
+  ///
+  /// Mutable only through [SyncTestHelpers.testSetSaveMessagesTiming];
+  /// production always runs [_saveMsgsDebounceMsDefault].
+  static int _saveMsgsDebounceMs = _saveMsgsDebounceMsDefault;
+  static const int _saveMsgsDebounceMsDefault = 2000;
 
   /// Hard ceiling on how long sustained streaming can defer a write.
   ///
   /// Fifteen seconds avoids the five-second cross-session snapshot storms
   /// observed in production while suspend still provides a synchronous
   /// durability fence before the OS can kill the app.
-  static const int _saveMsgsMaxDelayMs = 15000;
+  ///
+  /// Mutable only through [SyncTestHelpers.testSetSaveMessagesTiming];
+  /// production always runs [_saveMsgsMaxDelayMsDefault].
+  static int _saveMsgsMaxDelayMs = _saveMsgsMaxDelayMsDefault;
+  static const int _saveMsgsMaxDelayMsDefault = 15000;
 
   /// Immediately flush all pending debounced message saves so the MMKV
   /// cache is not stale when the app is backgrounded or killed.
