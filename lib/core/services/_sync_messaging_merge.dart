@@ -1146,6 +1146,110 @@ extension SyncMessagingMerge on Sync {
     return true;
   }
 
+  /// Order comparator shared by the merge sort and the in-place update
+  /// guard: createdAt first, seq as the tie-break.
+  int _messageOrderCompare(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final aCreated = _asInt(a['createdAt']) ?? 0;
+    final bCreated = _asInt(b['createdAt']) ?? 0;
+    if (aCreated != bCreated) return aCreated.compareTo(bCreated);
+    return (a['seq'] as int? ?? 0).compareTo(b['seq'] as int? ?? 0);
+  }
+
+  /// In-place update fast path for the streaming case.
+  ///
+  /// A streaming turn re-delivers the *same* agent row 20-50x/second as
+  /// tokens arrive. [_canAppendMessagesFastPath] deliberately rejects those
+  /// (the id already exists), so every token fell through to the full merge:
+  /// a whole-list `LinkedHashMap` rebuild, a localId reverse index over every
+  /// row, an O(resident) `_isPromptEcho` scan per incoming row, a full
+  /// `toList()` copy and an order re-check — five passes over up to 1000
+  /// decrypted rows per token. That is the measured sustained 5-30 s jank
+  /// window on chat (progressive-lag audit 2026-08-24, seventh pass), and the
+  /// allocation churn behind the GC stalls.
+  ///
+  /// When every incoming row is a pure content update of a row already in the
+  /// tail, and none of the merge path's identity semantics can apply, the row
+  /// is replaced where it sits — O(incoming + tail) instead of O(resident).
+  /// Anything touching send identity (`localId` on either side), prompt-echo
+  /// candidates, user rows, or a replacement that would reorder the list
+  /// falls through to the proven full merge.
+  bool _tryInPlaceTailUpdate(
+    List<Map<String, dynamic>> existing,
+    List<Map<String, dynamic>> incoming,
+  ) {
+    if (existing.isEmpty || incoming.isEmpty) return false;
+
+    const tailWindow = 20;
+    final tailStart = existing.length > tailWindow
+        ? existing.length - tailWindow
+        : 0;
+    final tailIndex = <String, int>{};
+    for (var i = tailStart; i < existing.length; i++) {
+      final id = existing[i]['id'] as String?;
+      if (id != null && id.isNotEmpty) tailIndex[id] = i;
+    }
+
+    final targets = <int>[];
+    for (final message in incoming) {
+      final id = message['id'] as String?;
+      if (id == null || id.isEmpty) return false;
+      final index = tailIndex[id];
+      if (index == null) return false;
+
+      // Optimistic replacement, prompt-echo suppression and the
+      // unidentified-user fallback are merge-path semantics. Never emulate
+      // them here — the canonical localId contract outranks the fast path.
+      final localId = message['localId'] as String?;
+      if (localId != null && localId.isNotEmpty) return false;
+      if (message['isPromptEchoCandidate'] == true) return false;
+      if (message['role'] == 'user') return false;
+
+      final target = existing[index];
+      final targetLocalId = target['localId'] as String?;
+      if (targetLocalId != null && targetLocalId.isNotEmpty) return false;
+
+      // Replacing in place is only safe while it cannot reorder the list.
+      if (index > 0 &&
+          _messageOrderCompare(existing[index - 1], message) > 0) {
+        return false;
+      }
+      if (index < existing.length - 1 &&
+          _messageOrderCompare(message, existing[index + 1]) > 0) {
+        return false;
+      }
+      targets.add(index);
+    }
+
+    for (var i = 0; i < incoming.length; i++) {
+      final message = incoming[i];
+      final index = targets[i];
+      final target = existing[index];
+      // Same preservation the merge path performs when replacing a row: the
+      // server copy carries neither grouped children nor root uuids, both of
+      // which are computed locally by the sidechain grouper.
+      final existingChildren = target['children'] as List<dynamic>?;
+      if (existingChildren != null &&
+          existingChildren.isNotEmpty &&
+          message['children'] == null) {
+        message['children'] = existingChildren;
+      }
+      final existingRoots = target['_sidechainRootUuids'] as List<dynamic>?;
+      if (existingRoots != null &&
+          existingRoots.isNotEmpty &&
+          message['_sidechainRootUuids'] == null) {
+        message['_sidechainRootUuids'] = existingRoots;
+      }
+      try {
+        existing[index] = message;
+      } on UnsupportedError {
+        // A fixed-length or unmodifiable window slipped in — let the full
+        // merge path rebuild the list instead.
+        return false;
+      }
+    }
+    return true;
+  }
+
   bool _canAppendMessagesFastPath(
     List<Map<String, dynamic>> existing,
     List<Map<String, dynamic>> incoming,
@@ -1276,6 +1380,26 @@ extension SyncMessagingMerge on Sync {
         );
         _updateSessionContentSignatures(sessionId, messages);
       }
+      _ensureFirstLoadedSeq(sessionId);
+      return;
+    }
+
+    // Streaming updates re-deliver an existing tail row many times a second.
+    // Replacing it where it sits avoids rebuilding and re-scanning the whole
+    // resident window per token; identity-sensitive rows still fall through.
+    if (_tryInPlaceTailUpdate(existing, messages)) {
+      _sessionMessages[sessionId] = existing;
+      if (sessionId == _visibleSessionId && logger.shouldLog(LogLevel.debug)) {
+        logger.debug(
+          '[messages] upsert session=$sessionId '
+          'incoming=${messages.length} '
+          'before=${existing.length} '
+          'after=${existing.length} '
+          'mode=in_place',
+        );
+      }
+      _invalidateMessageCaches(sessionId);
+      _updateSessionContentSignatures(sessionId, messages);
       _ensureFirstLoadedSeq(sessionId);
       return;
     }
