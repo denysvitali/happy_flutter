@@ -72,15 +72,48 @@ part 'routes/_settings_routes.dart';
 part 'routes/_chat_routes.dart';
 part 'routes/_feature_routes.dart';
 
+/// Page identity for one route match.
+///
+/// go_router derives [GoRouterState.pageKey] from the route *pattern*
+/// (`/chat/:sessionId`), not from the resolved location, so `/chat/A` and
+/// `/chat/B` produce the same key and `Page.canUpdate` returns true. The
+/// Navigator then keeps the existing route and swaps the page child in
+/// place: a screen that seeds state from the parameter in `initState`
+/// (message list, futures, controllers, sync subscriptions,
+/// `ref.listenManual`) keeps A's `State` while its widget field reads B —
+/// the user "opens" B and sees, and acts on, A. Every parameterized route is
+/// exposed to this the moment anything reaches it with `go()` /
+/// `goNamed()` / a browser history entry rather than `push()`.
+///
+/// Folding the resolved path parameters into the key makes those pages
+/// distinct, so the Navigator replaces the route and the new screen runs
+/// `initState` with the new parameter. Doing it here — instead of adding a
+/// `ValueKey` per screen — is what makes the class structurally impossible:
+/// a route added later inherits the guarantee.
+///
+/// Query parameters are deliberately excluded. `SessionsScreen` rewrites
+/// `?tab=` through `router.replace()` precisely to keep its own page (and
+/// tab/scroll state) alive; keying on the query string would remount the tab
+/// shell on every tab switch.
+@visibleForTesting
+ValueKey<String> routePageKey(GoRouterState state) {
+  final parameters = state.pathParameters;
+  if (parameters.isEmpty) return state.pageKey;
+  final names = parameters.keys.toList()..sort();
+  final suffix = names.map((n) => '$n=${parameters[n]}').join('&');
+  return ValueKey<String>('${state.pageKey.value}#$suffix');
+}
+
 /// Fade-through transition for tab-level routes: the incoming screen
 /// fades in while settling from a subtle 98 % scale, giving tab
 /// switches a sense of depth instead of a flat crossfade.
 Page<void> _fadePage(Widget child, GoRouterState state) {
+  final key = routePageKey(state);
   return CustomTransitionPage<void>(
-    key: state.pageKey,
+    key: key,
     name: _routeName(state),
     arguments: state.extra,
-    restorationId: state.pageKey.value,
+    restorationId: key.value,
     child: child,
     transitionsBuilder: (context, animation, _, child) {
       if (MediaQuery.disableAnimationsOf(context)) return child;
@@ -100,11 +133,12 @@ Page<void> _fadePage(Widget child, GoRouterState state) {
 
 /// Slide-up transition for creation / modal flows.
 Page<void> _slideUpPage(Widget child, GoRouterState state) {
+  final key = routePageKey(state);
   return CustomTransitionPage<void>(
-    key: state.pageKey,
+    key: key,
     name: _routeName(state),
     arguments: state.extra,
-    restorationId: state.pageKey.value,
+    restorationId: key.value,
     child: child,
     transitionsBuilder: (context, animation, _, child) {
       if (MediaQuery.disableAnimationsOf(context)) return child;
@@ -125,11 +159,12 @@ Page<void> _slideUpPage(Widget child, GoRouterState state) {
 /// Slide-in transition for detail/push screens with swipe-back
 /// gesture support via [_SwipeBackPage].
 Page<void> _slidePage(Widget child, GoRouterState state) {
+  final key = routePageKey(state);
   return _SwipeBackPage(
-    key: state.pageKey,
+    key: key,
     name: _routeName(state),
     arguments: state.extra,
-    restorationId: state.pageKey.value,
+    restorationId: key.value,
     child: child,
   );
 }

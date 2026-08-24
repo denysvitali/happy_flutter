@@ -53,7 +53,10 @@ List<RouteBase> get shellRoutes => [
         // A's state while `widget.sessionId` reads B — the user "opens" B
         // but sees and acts on A. Every imperative `goNamed('chat')`
         // (command palette, notification tap, send redirect, new-session
-        // dialog) hits that path.
+        // dialog) hits that path. `routePageKey` now folds the resolved
+        // path parameters into every page key, which fixes this for the
+        // whole route table; the widget key is kept as the local guard for
+        // anything that renders ChatScreen outside this pageBuilder.
         return _slidePage(
           AuthGate(
             child: ChatScreen(
