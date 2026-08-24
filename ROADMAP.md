@@ -4,6 +4,62 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-24
 
+### Native (Rust) core, eighth pass, 2026-08-24 ("create a library in Rust")
+
+Seven passes of Dart-side fixes each corrected a real defect and each left
+frozen frames at ~487 ms p95. The phase split says why they could not help:
+frame **build** p95 9.6 ms, **raster** p95 9.6 ms, **total** p95 487 ms — ~96 %
+of every frozen frame is neither widget work nor GPU work. The UI isolate is
+blocked on plain computation, and Dart gives no way to do that work
+concurrently without an isolate hop that costs a spawn plus a full copy of the
+payload being handed over.
+
+So the heavy lifting moves out of Dart. `rust/happy_core` is a new crate
+bridged with flutter_rust_bridge v2; Flutter keeps the view layer.
+
+**First slice: batch AES-256-GCM**, chosen because it is the largest measured
+cost that scales with the 251+ session count. The app depends on
+`cryptography` with **no** `cryptography_flutter`, so every AES-GCM operation
+resolved to pure-Dart `DartAesGcm` (~8-15 MB/s) *on the UI isolate*; a cold
+catalog decrypts up to two payloads per session, i.e. ~502 inline decrypts
+draining in one pass. Rust compiles to AES-NI / ARMv8 crypto extensions and
+the batch entry points pay one crossing per catalog instead of one per row.
+`decryptEncodedInIsolate` is the seam — it already takes base64 and returns
+index-aligned results, matching the Rust API exactly.
+
+**The native core is an optimisation, never a dependency.** `NativeCore`
+returns `null` for the whole call when it is unavailable or throws, which is
+the caller's signal to run the existing Dart path; a native fault latches the
+core off for the process. A missing library makes the app slower, never wrong.
+This also fixed a real init bug: `RustLib.init()` throws when the bridge is
+already initialized (hot restart, second entry point) and that was being
+misread as "unavailable" — the symbol probe is now the only authoritative
+signal.
+
+Verification: 11 Rust tests including **cross-language vectors** (an envelope
+produced by Dart's `AES256Encryption` must decrypt in Rust unchanged — that
+test failing means do not ship, never update the vector); 450 Dart encryption
+tests green with the native path live; new end-to-end tests that seal payloads
+in Dart and decrypt them through the real FFI (nested, unicode, and
+corrupt-row index alignment). CI gained a `rust` job (cargo test + clippy
+`-D warnings`) wired into the quality gate, and the release job cross-compiles
+and installs `libhappy_core.so` for arm64-v8a and x86_64 — confirmed in the
+build log, so the library ships inside the APK.
+
+Not yet done, in priority order:
+- **The rest of the hot path is still Dart**: JSON parse, the per-token merge
+  path, and sidechain grouping. Crypto was the dominant *measured* cost, but
+  the seventh-pass audit also named a ~140-line no-`await` span in the socket
+  ingest orchestrator and a grouper that re-walks the whole transcript with no
+  revision memo. Those are the next slices.
+- **WASM is generated but not delivered.** The `.web` bindings exist, but no
+  wasm-pack build is wired into the web CI job, so on web `RustLib.init()`
+  fails at runtime and the app falls back to Dart — safe, but no speedup there.
+- Re-baseline `app.ui.frozen_frame_*` by `service_build` once a build carrying
+  the native core reaches the fleet. If frozen frames finally move, continue
+  the port; if they do not, the blocker is elsewhere again and the next audit
+  starts from the phase split, not from a hypothesis.
+
 ### Progressive-lag remediation, seventh pass, 2026-08-24 ("still lags")
 
 The sixth pass **worked on the metric it targeted** — on build 265500
