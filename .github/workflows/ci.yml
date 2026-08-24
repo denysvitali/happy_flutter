@@ -650,8 +650,9 @@ jobs:
         if: steps.apk-cache.outputs.cache-hit != 'true'
         # The native core is optional by design: NativeCore.ensureInitialized()
         # falls back to the Dart path when the library is absent, so a miss
-        # here costs speed, never correctness. The script itself exits 0 when
-        # cargo or the NDK is unavailable.
+        # here costs speed, never correctness — and must never block shipping
+        # the APK. Correctness of the core itself is gated by the `rust` job.
+        continue-on-error: true
         run: ./scripts/build_rust.sh android
 
       - name: Build Release APK

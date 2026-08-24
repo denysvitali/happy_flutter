@@ -42,16 +42,37 @@ case "$TARGET_PLATFORM" in
     API_LEVEL="${ANDROID_API_LEVEL:-24}"
     TOOLCHAIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
+    if [[ ! -d "$TOOLCHAIN" ]]; then
+      echo "NDK toolchain not at $TOOLCHAIN; skipping native core" >&2
+      exit 0
+    fi
+
     for TRIPLE in "${!ABIS[@]}"; do
       ABI="${ABIS[$TRIPLE]}"
-      rustup target add "$TRIPLE" >/dev/null 2>&1 || true
 
-      # Cargo needs an explicit linker per Android triple; the NDK ships one
-      # clang wrapper per (triple, API level).
-      LINKER_VAR="CARGO_TARGET_$(echo "$TRIPLE" | tr '[:lower:]-' '[:upper:]_')_LINKER"
-      export "$LINKER_VAR=$TOOLCHAIN/${TRIPLE/aarch64/aarch64}${API_LEVEL}-clang"
+      # The NDK ships one clang wrapper per (triple, API level). If the exact
+      # wrapper is missing, skip this ABI rather than failing the build — the
+      # app runs fine without the library.
+      LINKER="$TOOLCHAIN/${TRIPLE}${API_LEVEL}-clang"
+      if [[ ! -x "$LINKER" ]]; then
+        echo "no linker at $LINKER; skipping $ABI" >&2
+        continue
+      fi
 
-      echo "==> building happy_core for $TRIPLE ($ABI)"
+      if ! rustup target add "$TRIPLE" >/dev/null 2>&1; then
+        echo "cannot add rust target $TRIPLE; skipping $ABI" >&2
+        continue
+      fi
+
+      # cargo reads CARGO_TARGET_<TRIPLE>_LINKER with the triple uppercased
+      # and dashes turned into underscores.
+      LINKER_VAR="CARGO_TARGET_$(printf '%s' "$TRIPLE" | tr 'a-z-' 'A-Z_')_LINKER"
+      export "${LINKER_VAR}=${LINKER}"
+      # cc-rs (pulled in by some transitive deps) keys off these instead.
+      export "CC_${TRIPLE//-/_}=${LINKER}"
+      export "AR_${TRIPLE//-/_}=$TOOLCHAIN/llvm-ar"
+
+      echo "==> building happy_core for $TRIPLE ($ABI) via $(basename "$LINKER")"
       (cd "$CRATE" && cargo build --release --target "$TRIPLE")
 
       DEST="$ROOT/android/app/src/main/jniLibs/$ABI"
