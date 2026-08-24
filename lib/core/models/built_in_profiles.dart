@@ -96,6 +96,8 @@ const _modelSelectionEnvKeys = [
   'ANTHROPIC_DEFAULT_OPUS_MODEL',
   'ANTHROPIC_DEFAULT_SONNET_MODEL',
   'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+  'ANTHROPIC_DEFAULT_FABLE_MODEL',
+  'ANTHROPIC_DEFAULT_MODEL',
   'CLAUDE_CODE_SUBAGENT_MODEL',
 ];
 
@@ -105,8 +107,8 @@ const _modelSelectionEnvKeys = [
 /// `ANTHROPIC_MODEL`, so picking `sonnet`/`opus`/`haiku` or spawning a
 /// subagent resolved to Claude's real model names and got rejected by the
 /// provider. When the profile has a selected model but is missing any of
-/// [_modelSelectionEnvKeys], map the selected model onto every knob (the
-/// fast/haiku-class knobs get the small-fast value when one exists).
+/// [_modelSelectionEnvKeys], map the selected model onto every model knob
+/// (the fast/haiku-class knobs get the small-fast value when one exists).
 /// Built-in profiles are left untouched — their defaults are curated.
 AIBackendProfile normalizeModelSelectionEnv(AIBackendProfile profile) {
   if (!profile.compatibility.claude) return profile;

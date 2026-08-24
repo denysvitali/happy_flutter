@@ -36,6 +36,11 @@ extension SyncSpawnProfileResolution on Sync {
   }
 
   Map<String, String> _profileEnvironmentVariables(AIBackendProfile profile) {
+    // Older profiles may have only ANTHROPIC_MODEL. Normalize here as well
+    // as during settings load because profiles can arrive from sync after
+    // startup, and Claude's aliases/defaults/subagents otherwise fall back
+    // to first-party model IDs that the gateway does not serve.
+    profile = normalizeModelSelectionEnv(profile);
     final envVars = <String, String>{};
 
     for (final v in profile.environmentVariables) {

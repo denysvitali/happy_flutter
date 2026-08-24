@@ -56,6 +56,11 @@ void main() {
         'x-preview-f-free',
       );
       expect(
+        valueFor(profile, 'ANTHROPIC_DEFAULT_FABLE_MODEL'),
+        'x-preview-f-free',
+      );
+      expect(valueFor(profile, 'ANTHROPIC_DEFAULT_MODEL'), 'x-preview-f-free');
+      expect(
         valueFor(profile, 'CLAUDE_CODE_SUBAGENT_MODEL'),
         'x-preview-f-free',
       );
@@ -85,6 +90,8 @@ void main() {
         EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: 'm'),
         EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_SONNET_MODEL', value: 'f'),
         EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', value: 'f'),
+        EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_FABLE_MODEL', value: 'm'),
+        EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_MODEL', value: 'm'),
         EnvironmentVariable(name: 'CLAUDE_CODE_SUBAGENT_MODEL', value: 'm'),
       ]);
 

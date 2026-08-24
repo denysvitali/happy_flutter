@@ -62,8 +62,8 @@ const _envOnlyKeys = {
 
 /// Model-selection env vars for an Anthropic-compatible provider serving
 /// [mainModel], with [fastModel] (haiku-class background/subagent work,
-/// defaults to [mainModel]) so every alias resolves to a model the
-/// provider actually serves.
+/// defaults to [mainModel]) so every alias, default, and subagent selection
+/// resolves to a model the provider actually serves.
 List<EnvironmentVariable> buildAnthropicModelEnvVars({
   required String mainModel,
   String? fastModel,
@@ -72,22 +72,15 @@ List<EnvironmentVariable> buildAnthropicModelEnvVars({
   return [
     EnvironmentVariable(name: 'ANTHROPIC_MODEL', value: mainModel),
     EnvironmentVariable(name: 'ANTHROPIC_SMALL_FAST_MODEL', value: fast),
+    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: mainModel),
+    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_SONNET_MODEL', value: fast),
+    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', value: fast),
     EnvironmentVariable(
-      name: 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+      name: 'ANTHROPIC_DEFAULT_FABLE_MODEL',
       value: mainModel,
     ),
-    EnvironmentVariable(
-      name: 'ANTHROPIC_DEFAULT_SONNET_MODEL',
-      value: fast,
-    ),
-    EnvironmentVariable(
-      name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
-      value: fast,
-    ),
-    EnvironmentVariable(
-      name: 'CLAUDE_CODE_SUBAGENT_MODEL',
-      value: mainModel,
-    ),
+    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_MODEL', value: mainModel),
+    EnvironmentVariable(name: 'CLAUDE_CODE_SUBAGENT_MODEL', value: mainModel),
   ];
 }
 

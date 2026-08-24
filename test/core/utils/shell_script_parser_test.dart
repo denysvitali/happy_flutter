@@ -13,6 +13,8 @@ void main() {
       expect(byName['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'mimo-v2.5-pro');
       expect(byName['ANTHROPIC_DEFAULT_SONNET_MODEL'], 'mimo-v2.5-pro');
       expect(byName['ANTHROPIC_DEFAULT_HAIKU_MODEL'], 'mimo-v2.5-pro');
+      expect(byName['ANTHROPIC_DEFAULT_FABLE_MODEL'], 'mimo-v2.5-pro');
+      expect(byName['ANTHROPIC_DEFAULT_MODEL'], 'mimo-v2.5-pro');
       expect(byName['CLAUDE_CODE_SUBAGENT_MODEL'], 'mimo-v2.5-pro');
     });
 
@@ -27,6 +29,8 @@ void main() {
       expect(byName['ANTHROPIC_SMALL_FAST_MODEL'], 'GLM-4.7');
       expect(byName['ANTHROPIC_DEFAULT_SONNET_MODEL'], 'GLM-4.7');
       expect(byName['ANTHROPIC_DEFAULT_HAIKU_MODEL'], 'GLM-4.7');
+      expect(byName['ANTHROPIC_DEFAULT_FABLE_MODEL'], 'glm-5.1');
+      expect(byName['ANTHROPIC_DEFAULT_MODEL'], 'glm-5.1');
       expect(byName['CLAUDE_CODE_SUBAGENT_MODEL'], 'glm-5.1');
     });
 
