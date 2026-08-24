@@ -65,7 +65,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 619708481;
+  int get rustContentHash => 1440463106;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -86,6 +86,32 @@ abstract class RustLibApi extends BaseApi {
   Future<List<String?>> crateApiCryptoApiDecryptAesGcmBatch({
     required List<int> key,
     required List<Uint8List> envelopes,
+    required List<int> associatedData,
+  });
+
+  List<String?> crateApiCryptoApiDecryptAesGcmBatchSync({
+    required List<int> key,
+    required List<Uint8List> envelopes,
+    required List<int> associatedData,
+  });
+
+  List<String?> crateApiCryptoApiDecryptAtRestBatchSync({
+    required List<int> key,
+    required List<Uint8List> payloads,
+    required List<int> associatedData,
+  });
+
+  List<Uint8List?> crateApiCryptoApiEncryptAesGcmBatchSync({
+    required List<int> key,
+    required List<String> plaintexts,
+    required List<Uint8List> nonces,
+    required List<int> associatedData,
+  });
+
+  List<Uint8List?> crateApiCryptoApiEncryptAtRestBatchSync({
+    required List<int> key,
+    required List<String> plaintexts,
+    required List<Uint8List> nonces,
     required List<int> associatedData,
   });
 
@@ -175,12 +201,144 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  List<String?> crateApiCryptoApiDecryptAesGcmBatchSync({
+    required List<int> key,
+    required List<Uint8List> envelopes,
+    required List<int> associatedData,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(key, serializer);
+          sse_encode_list_list_prim_u_8_strict(envelopes, serializer);
+          sse_encode_list_prim_u_8_loose(associatedData, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCryptoApiDecryptAesGcmBatchSyncConstMeta,
+        argValues: [key, envelopes, associatedData],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCryptoApiDecryptAesGcmBatchSyncConstMeta =>
+      const TaskConstMeta(
+        debugName: 'decrypt_aes_gcm_batch_sync',
+        argNames: ['key', 'envelopes', 'associatedData'],
+      );
+
+  @override
+  List<String?> crateApiCryptoApiDecryptAtRestBatchSync({
+    required List<int> key,
+    required List<Uint8List> payloads,
+    required List<int> associatedData,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(key, serializer);
+          sse_encode_list_list_prim_u_8_strict(payloads, serializer);
+          sse_encode_list_prim_u_8_loose(associatedData, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCryptoApiDecryptAtRestBatchSyncConstMeta,
+        argValues: [key, payloads, associatedData],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCryptoApiDecryptAtRestBatchSyncConstMeta =>
+      const TaskConstMeta(
+        debugName: 'decrypt_at_rest_batch_sync',
+        argNames: ['key', 'payloads', 'associatedData'],
+      );
+
+  @override
+  List<Uint8List?> crateApiCryptoApiEncryptAesGcmBatchSync({
+    required List<int> key,
+    required List<String> plaintexts,
+    required List<Uint8List> nonces,
+    required List<int> associatedData,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(key, serializer);
+          sse_encode_list_String(plaintexts, serializer);
+          sse_encode_list_list_prim_u_8_strict(nonces, serializer);
+          sse_encode_list_prim_u_8_loose(associatedData, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_opt_list_prim_u_8_strict,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCryptoApiEncryptAesGcmBatchSyncConstMeta,
+        argValues: [key, plaintexts, nonces, associatedData],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCryptoApiEncryptAesGcmBatchSyncConstMeta =>
+      const TaskConstMeta(
+        debugName: 'encrypt_aes_gcm_batch_sync',
+        argNames: ['key', 'plaintexts', 'nonces', 'associatedData'],
+      );
+
+  @override
+  List<Uint8List?> crateApiCryptoApiEncryptAtRestBatchSync({
+    required List<int> key,
+    required List<String> plaintexts,
+    required List<Uint8List> nonces,
+    required List<int> associatedData,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(key, serializer);
+          sse_encode_list_String(plaintexts, serializer);
+          sse_encode_list_list_prim_u_8_strict(nonces, serializer);
+          sse_encode_list_prim_u_8_loose(associatedData, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_opt_list_prim_u_8_strict,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCryptoApiEncryptAtRestBatchSyncConstMeta,
+        argValues: [key, plaintexts, nonces, associatedData],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCryptoApiEncryptAtRestBatchSyncConstMeta =>
+      const TaskConstMeta(
+        debugName: 'encrypt_at_rest_batch_sync',
+        argNames: ['key', 'plaintexts', 'nonces', 'associatedData'],
+      );
+
+  @override
   bool crateApiCryptoApiNativeCoreReady() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -227,6 +385,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<Uint8List?> dco_decode_list_opt_list_prim_u_8_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_opt_list_prim_u_8_strict)
+        .toList();
+  }
+
+  @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as List<int>;
@@ -242,6 +408,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
+  }
+
+  @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
   }
 
   @protected
@@ -308,6 +480,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<Uint8List?> sse_decode_list_opt_list_prim_u_8_strict(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    final len_ = sse_decode_i_32(deserializer);
+    final ans_ = <Uint8List?>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_opt_list_prim_u_8_strict(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final len_ = sse_decode_i_32(deserializer);
@@ -327,6 +513,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return sse_decode_String(deserializer);
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return sse_decode_list_prim_u_8_strict(deserializer);
     } else {
       return null;
     }
@@ -395,6 +592,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_opt_list_prim_u_8_strict(
+    List<Uint8List?> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_opt_list_prim_u_8_strict(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_prim_u_8_loose(
     List<int> self,
     SseSerializer serializer,
@@ -423,6 +632,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_String(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_prim_u_8_strict(self, serializer);
     }
   }
 

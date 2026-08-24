@@ -89,6 +89,36 @@ class AES256Encryption implements Encryptor {
 
   @override
   Future<List<dynamic>> decrypt(List<Uint8List> data) async {
+    // Native core first. This is the path `SessionEncryption.decryptMetadata`
+    // / `decryptAgentState` / `decryptRaw` take, i.e. the ~502 inline
+    // pure-Dart AES-GCM decrypts a cold catalog runs at 251+ sessions — the
+    // single largest measured UI-isolate block. The sync bridge is used
+    // deliberately: these are small per-row payloads where a worker hop would
+    // cost more than the cipher.
+    if (data.isNotEmpty) {
+      final native = NativeCore.instance.decryptAesGcmBatchSync(
+        envelopes: data,
+        key: _secretKey,
+      );
+      if (native != null && native.length == data.length) {
+        final results = <dynamic>[];
+        for (final json in native) {
+          if (json == null) {
+            // Same contract as below: an unreadable row is null, letting the
+            // caller fall through to legacy/NaCl instead of throwing.
+            results.add(null);
+            continue;
+          }
+          try {
+            results.add(jsonDecode(json));
+          } catch (_) {
+            results.add(null);
+          }
+        }
+        return results;
+      }
+    }
+
     final results = <dynamic>[];
     for (final item in data) {
       try {

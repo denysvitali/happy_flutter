@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
@@ -91,6 +92,93 @@ class NativeCore {
         e,
         stack,
       );
+      return null;
+    }
+  }
+
+  /// Batch-decrypt raw envelopes on the calling isolate.
+  ///
+  /// The per-row callers (`decryptMetadata`, `decryptAgentState`,
+  /// `decryptRaw` — ~502 of them for a cold catalog at 251+ sessions) each
+  /// hand over one small payload, where a worker-thread hop would cost more
+  /// than the cipher itself. This stays synchronous and still replaces a
+  /// pure-Dart block cipher with hardware AES. Large batches should use
+  /// [decryptAesGcmBase64Batch], which leaves the UI isolate entirely.
+  ///
+  /// Returns `null` when the native core is unavailable or threw — the
+  /// caller's signal to run the Dart path.
+  List<String?>? decryptAesGcmBatchSync({
+    required List<Uint8List> envelopes,
+    required List<int> key,
+    List<int> associatedData = const <int>[],
+  }) {
+    if (!_available) return null;
+    if (envelopes.isEmpty) return const <String?>[];
+    try {
+      return rust_crypto.decryptAesGcmBatchSync(
+        key: key,
+        envelopes: envelopes,
+        associatedData: associatedData,
+      );
+    } catch (e, stack) {
+      _available = false;
+      logger.warning(
+        '[NativeCore] sync batch decrypt failed, reverting to the Dart path',
+        e,
+        stack,
+      );
+      return null;
+    }
+  }
+
+  /// At-rest batch decrypt: `[nonce][ciphertext][tag]`, no version byte, with
+  /// [associatedData] bound as GCM AAD.
+  List<String?>? decryptAtRestBatchSync({
+    required List<Uint8List> payloads,
+    required List<int> key,
+    required List<int> associatedData,
+  }) {
+    if (!_available) return null;
+    if (payloads.isEmpty) return const <String?>[];
+    try {
+      return rust_crypto.decryptAtRestBatchSync(
+        key: key,
+        payloads: payloads,
+        associatedData: associatedData,
+      );
+    } catch (e, stack) {
+      _available = false;
+      logger.warning('[NativeCore] at-rest decrypt failed', e, stack);
+      return null;
+    }
+  }
+
+  /// At-rest batch encrypt. [nonces] must each be 12 CSPRNG bytes; nonce
+  /// generation stays on the Dart side so the native core holds no ambient
+  /// randomness.
+  ///
+  /// The caller that matters here is the suspend flush, which encrypts the
+  /// whole message-cache window synchronously on the UI isolate before the
+  /// process can be killed — multi-MB pure-Dart `encryptSync` was measured in
+  /// the hundreds of milliseconds there.
+  List<Uint8List?>? encryptAtRestBatchSync({
+    required List<String> plaintexts,
+    required List<Uint8List> nonces,
+    required List<int> key,
+    required List<int> associatedData,
+  }) {
+    if (!_available) return null;
+    if (plaintexts.isEmpty) return const <Uint8List?>[];
+    try {
+      return rust_crypto.encryptAtRestBatchSync(
+        key: key,
+        plaintexts: plaintexts,
+        nonces: nonces,
+        associatedData: associatedData,
+      );
+    } catch (e, stack) {
+      _available = false;
+      logger.warning('[NativeCore] at-rest encrypt failed', e, stack);
       return null;
     }
   }

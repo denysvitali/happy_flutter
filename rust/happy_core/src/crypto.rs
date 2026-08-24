@@ -83,10 +83,27 @@ pub fn decrypt_one(
     if envelope[0] != ENVELOPE_VERSION {
         return Err(DecryptError::BadVersion);
     }
-    let nonce = Nonce::from_slice(&envelope[1..1 + NONCE_LEN]);
+    decrypt_nonce_prefixed(cipher, &envelope[1..], associated_data)
+}
+
+/// Decrypt a `[12-byte nonce][ciphertext][16-byte tag]` payload — the same
+/// body as the message envelope but with **no version byte**.
+///
+/// This is the at-rest layout used by `AtRestEncryptionService` for the
+/// message cache and outbox, which binds a domain string as GCM AAD instead
+/// of prefixing a version.
+pub fn decrypt_nonce_prefixed(
+    cipher: &Aes256Gcm,
+    payload: &[u8],
+    associated_data: &[u8],
+) -> Result<String, DecryptError> {
+    if payload.len() < NONCE_LEN + TAG_LEN {
+        return Err(DecryptError::TooShort);
+    }
+    let nonce = Nonce::from_slice(&payload[..NONCE_LEN]);
     // `aes-gcm` expects the tag appended to the ciphertext, which is exactly
     // how the Dart side lays it out — so this is a plain slice, no splicing.
-    let ciphertext = &envelope[1 + NONCE_LEN..];
+    let ciphertext = &payload[NONCE_LEN..];
     let plaintext = cipher
         .decrypt(
             nonce,
@@ -97,6 +114,109 @@ pub fn decrypt_one(
         )
         .map_err(|_| DecryptError::AuthFailed)?;
     String::from_utf8(plaintext).map_err(|_| DecryptError::NotUtf8)
+}
+
+/// Seal into the at-rest layout: `[nonce][ciphertext][tag]`, no version byte.
+pub fn encrypt_nonce_prefixed(
+    cipher: &Aes256Gcm,
+    plaintext: &str,
+    nonce: &[u8],
+    associated_data: &[u8],
+) -> Result<Vec<u8>, DecryptError> {
+    if nonce.len() != NONCE_LEN {
+        return Err(DecryptError::TooShort);
+    }
+    let sealed = cipher
+        .encrypt(
+            Nonce::from_slice(nonce),
+            Payload {
+                msg: plaintext.as_bytes(),
+                aad: associated_data,
+            },
+        )
+        .map_err(|_| DecryptError::AuthFailed)?;
+    let mut out = Vec::with_capacity(NONCE_LEN + sealed.len());
+    out.extend_from_slice(nonce);
+    out.extend_from_slice(&sealed);
+    Ok(out)
+}
+
+/// At-rest batch decrypt (no version byte, AAD-bound).
+pub fn decrypt_at_rest_batch(
+    key: &[u8],
+    payloads: &[Vec<u8>],
+    associated_data: &[u8],
+) -> Vec<Option<String>> {
+    let cipher = match cipher_for(key) {
+        Ok(cipher) => cipher,
+        Err(_) => return vec![None; payloads.len()],
+    };
+    payloads
+        .iter()
+        .map(|p| decrypt_nonce_prefixed(&cipher, p, associated_data).ok())
+        .collect()
+}
+
+/// At-rest batch encrypt (no version byte, AAD-bound).
+pub fn encrypt_at_rest_batch(
+    key: &[u8],
+    plaintexts: &[String],
+    nonces: &[Vec<u8>],
+    associated_data: &[u8],
+) -> Vec<Option<Vec<u8>>> {
+    let cipher = match cipher_for(key) {
+        Ok(cipher) => cipher,
+        Err(_) => return vec![None; plaintexts.len()],
+    };
+    plaintexts
+        .iter()
+        .enumerate()
+        .map(|(i, plaintext)| {
+            let nonce = nonces.get(i)?;
+            encrypt_nonce_prefixed(&cipher, plaintext, nonce, associated_data).ok()
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod at_rest_tests {
+    use super::*;
+
+    #[test]
+    fn at_rest_round_trips_without_a_version_byte() {
+        let key: Vec<u8> = (0u8..32).collect();
+        let nonces = vec![vec![4u8; 12]];
+        let sealed = encrypt_at_rest_batch(&key, &["{\"x\":1}".into()], &nonces, b"domain");
+
+        let payload = sealed[0].clone().unwrap();
+        assert_eq!(&payload[..12], nonces[0].as_slice(), "nonce leads");
+        assert_eq!(payload.len(), 12 + 7 + 16, "no version byte is prepended");
+
+        let back = decrypt_at_rest_batch(&key, &[payload], b"domain");
+        assert_eq!(back[0].as_deref(), Some("{\"x\":1}"));
+    }
+
+    #[test]
+    fn at_rest_binds_its_associated_data() {
+        let key: Vec<u8> = (0u8..32).collect();
+        let sealed = encrypt_at_rest_batch(&key, &["{}".into()], &[vec![5u8; 12]], b"cache");
+        let payload = sealed[0].clone().unwrap();
+
+        assert!(decrypt_at_rest_batch(&key, &[payload.clone()], b"cache")[0].is_some());
+        assert!(
+            decrypt_at_rest_batch(&key, &[payload], b"outbox")[0].is_none(),
+            "a payload sealed for one domain must not open under another",
+        );
+    }
+
+    #[test]
+    fn at_rest_rejects_truncated_payloads_without_panicking() {
+        let key: Vec<u8> = (0u8..32).collect();
+        for len in 0..(NONCE_LEN + TAG_LEN) {
+            let short = vec![0u8; len];
+            assert!(decrypt_at_rest_batch(&key, &[short], b"")[0].is_none());
+        }
+    }
 }
 
 /// Decrypt a batch of raw envelopes.
@@ -325,5 +445,68 @@ mod dart_compat {
         let sealed = encrypt_one(&cipher, r#"{"hello":"world","n":42}"#, &(0u8..12).collect::<Vec<_>>(), b"").unwrap();
         let results = decrypt_batch(&dart_key(), &[sealed], b"");
         assert_eq!(results[0].as_deref(), Some(r#"{"hello":"world","n":42}"#));
+    }
+}
+
+/// Seal a batch of UTF-8 JSON plaintexts, one supplied nonce each.
+///
+/// Returns `None` for any row whose nonce is the wrong length or whose seal
+/// failed, keeping index alignment so the caller can fall back per row.
+pub fn encrypt_batch(
+    key: &[u8],
+    plaintexts: &[String],
+    nonces: &[Vec<u8>],
+    associated_data: &[u8],
+) -> Vec<Option<Vec<u8>>> {
+    let cipher = match cipher_for(key) {
+        Ok(cipher) => cipher,
+        Err(_) => return vec![None; plaintexts.len()],
+    };
+    plaintexts
+        .iter()
+        .enumerate()
+        .map(|(i, plaintext)| {
+            let nonce = nonces.get(i)?;
+            encrypt_one(&cipher, plaintext, nonce, associated_data).ok()
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod batch_encrypt_tests {
+    use super::*;
+
+    #[test]
+    fn seals_each_row_and_round_trips_through_decrypt_batch() {
+        let key: Vec<u8> = (0u8..32).collect();
+        let plaintexts = vec![r#"{"a":1}"#.to_string(), r#"{"b":2}"#.to_string()];
+        let nonces = vec![vec![7u8; 12], vec![9u8; 12]];
+
+        let sealed = encrypt_batch(&key, &plaintexts, &nonces, b"");
+        let envelopes: Vec<Vec<u8>> = sealed.iter().map(|s| s.clone().unwrap()).collect();
+        let back = decrypt_batch(&key, &envelopes, b"");
+
+        assert_eq!(back[0].as_deref(), Some(plaintexts[0].as_str()));
+        assert_eq!(back[1].as_deref(), Some(plaintexts[1].as_str()));
+    }
+
+    #[test]
+    fn a_bad_nonce_fails_only_its_own_row() {
+        let key: Vec<u8> = (0u8..32).collect();
+        let plaintexts = vec!["{}".to_string(), "{}".to_string()];
+        // Second nonce is the wrong length.
+        let nonces = vec![vec![1u8; 12], vec![1u8; 5]];
+
+        let sealed = encrypt_batch(&key, &plaintexts, &nonces, b"");
+
+        assert!(sealed[0].is_some());
+        assert!(sealed[1].is_none(), "index alignment preserved");
+    }
+
+    #[test]
+    fn missing_nonces_do_not_panic() {
+        let key: Vec<u8> = (0u8..32).collect();
+        let sealed = encrypt_batch(&key, &["{}".to_string()], &[], b"");
+        assert_eq!(sealed, vec![None]);
     }
 }

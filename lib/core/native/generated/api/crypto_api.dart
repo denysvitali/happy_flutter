@@ -36,3 +36,70 @@ Future<List<String?>> decryptAesGcmBatch({
 /// core loaded on this platform before routing any real work to it.
 bool nativeCoreReady() =>
     RustLib.instance.api.crateApiCryptoApiNativeCoreReady();
+
+/// Synchronous batch decrypt for the per-row callers.
+///
+/// `SessionEncryption.decryptMetadata` / `decryptAgentState` / `decryptRaw`
+/// each decrypt a single small payload, and a cold catalog runs ~502 of them.
+/// Those want the *sync* bridge: it executes on the calling isolate with no
+/// worker hop, which for a few-KB payload is dominated by hop latency rather
+/// than cipher time — while still being hardware AES instead of a pure-Dart
+/// block cipher. Large batches should use the async entry points above so the
+/// work leaves the UI isolate entirely.
+List<String?> decryptAesGcmBatchSync({
+  required List<int> key,
+  required List<Uint8List> envelopes,
+  required List<int> associatedData,
+}) => RustLib.instance.api.crateApiCryptoApiDecryptAesGcmBatchSync(
+  key: key,
+  envelopes: envelopes,
+  associatedData: associatedData,
+);
+
+/// Synchronous batch encrypt, mirroring [`decrypt_aes_gcm_batch_sync`].
+///
+/// `nonces` must supply one [`crypto::NONCE_LEN`]-byte CSPRNG nonce per
+/// plaintext; generating them stays on the Dart side so this function has no
+/// ambient randomness and remains deterministic under test.
+List<Uint8List?> encryptAesGcmBatchSync({
+  required List<int> key,
+  required List<String> plaintexts,
+  required List<Uint8List> nonces,
+  required List<int> associatedData,
+}) => RustLib.instance.api.crateApiCryptoApiEncryptAesGcmBatchSync(
+  key: key,
+  plaintexts: plaintexts,
+  nonces: nonces,
+  associatedData: associatedData,
+);
+
+/// At-rest batch decrypt: `[nonce][ciphertext][tag]`, no version byte, with
+/// the caller's domain string bound as GCM associated data.
+///
+/// Sync because the caller that matters is the suspend flush, which must
+/// finish before the process can be killed.
+List<String?> decryptAtRestBatchSync({
+  required List<int> key,
+  required List<Uint8List> payloads,
+  required List<int> associatedData,
+}) => RustLib.instance.api.crateApiCryptoApiDecryptAtRestBatchSync(
+  key: key,
+  payloads: payloads,
+  associatedData: associatedData,
+);
+
+/// At-rest batch encrypt. See [`decrypt_at_rest_batch_sync`].
+///
+/// The Dart side keeps ownership of nonce generation so this stays free of
+/// ambient randomness; each nonce must be 12 CSPRNG bytes, never reused.
+List<Uint8List?> encryptAtRestBatchSync({
+  required List<int> key,
+  required List<String> plaintexts,
+  required List<Uint8List> nonces,
+  required List<int> associatedData,
+}) => RustLib.instance.api.crateApiCryptoApiEncryptAtRestBatchSync(
+  key: key,
+  plaintexts: plaintexts,
+  nonces: nonces,
+  associatedData: associatedData,
+);
