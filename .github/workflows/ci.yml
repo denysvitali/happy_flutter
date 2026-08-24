@@ -83,6 +83,15 @@ jobs:
       - name: Analyze code
         run: mise exec -- flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
+      # Cheap guard for the test matrix: every non-golden test file must land
+      # in exactly one shard for both shard counts used below.
+      - name: Check test shard assignment
+        run: |
+          python3 -m doctest .github/scripts/select_test_shard.py
+          python3 -m doctest .github/scripts/update_test_durations.py
+          python3 .github/scripts/select_test_shard.py --check --total-shards 10
+          python3 .github/scripts/select_test_shard.py --check --total-shards 15
+
   codegen:
     name: Verify Generated Code
     runs-on: ubuntu-latest
@@ -202,8 +211,20 @@ jobs:
             echo "No tests in this shard, skipping."
             exit 0
           fi
+          # --concurrency=4: one flutter_tester per vCPU of the 4-vCPU /
+          # 16 GB GitHub-hosted runner. Each test file runs in its own
+          # process (MMKV is faked in-process by test/flutter_test_config.dart,
+          # the only temp-dir user creates a unique one), so files do not
+          # share state.
+          # The serial run dates from the k8s-runner era, where the OOM kills
+          # were traced to coverage accumulation and a shutdown hang, not to
+          # isolate count (536745fc, ce813b68). dart_test.yaml already pins
+          # 4 for local runs.
+          # --reporter=expanded is load-bearing for the failure grep below;
+          # --file-reporter feeds .github/scripts/update_test_durations.py
+          # (per-file timings that stay correct under concurrency).
           set +e
-          mise exec -- flutter test --no-pub --coverage --concurrency=1 --reporter=expanded "${shard_tests[@]}" 2>&1 | tee test-output.log
+          mise exec -- flutter test --no-pub --coverage --concurrency=4 --reporter=expanded --file-reporter=json:test-results.json "${shard_tests[@]}" 2>&1 | tee test-output.log
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -219,6 +240,16 @@ jobs:
           name: coverage-shard-${{ matrix.shard }}
           path: coverage/lcov.info
           retention-days: 1
+          if-no-files-found: ignore
+
+      # Input for .github/scripts/update_test_durations.py (see its docstring).
+      - name: Upload test timings
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-shard-${{ matrix.shard }}
+          path: test-results.json
+          retention-days: 14
           if-no-files-found: ignore
 
   coverage:

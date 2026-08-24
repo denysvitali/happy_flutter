@@ -46,8 +46,16 @@ longest-first balancing pass. Main uses 10 shards so overlapping per-commit
 release runs retain capacity under the shared runner quota; tests still finish
 before the longer Android and iOS builds. Pull requests and develop use 15
 shards for lower isolated latency. New tests receive the configured default
-estimate, so they are included automatically even before timing data is
-refreshed. Each shard still runs tests serially to control memory usage.
+estimate (the median measured file), so they are included automatically even
+before timing data is refreshed; the analyze job runs
+`select_test_shard.py --check` to prove every non-golden file lands in exactly
+one shard for both shard counts. Each shard runs `flutter test
+--concurrency=4` (one `flutter_tester` per vCPU of the GitHub-hosted runner;
+test files are separate processes with in-process MMKV fakes, so they share no
+state) and writes `--file-reporter=json:test-results.json`, uploaded as the
+`test-results-shard-<N>` artifact. Refresh the timings from a main run with
+`.github/scripts/update_test_durations.py` (see its docstring); it also parses
+legacy serial expanded-reporter logs.
 
 Golden tests are excluded from these shards and run only in the dedicated
 golden job. Full Flutter tests and golden updates must run in CI, not locally.
