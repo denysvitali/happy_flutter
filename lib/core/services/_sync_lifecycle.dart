@@ -140,7 +140,7 @@ extension SyncLifecycle on Sync {
     _sessionsRefreshDebounceTimer?.cancel();
     _artifactsSyncDebounceTimer?.cancel();
     _saveSeqDebounceTimer?.cancel();
-    _saveFirstLoadedSeqDebounceTimer?.cancel();
+    _saveFirstLoadedSeqQueued = false;
     _saveSessionsCacheDebounceTimer?.cancel();
     for (final timer in _postSendCatchUpTimers.values) {
       timer.cancel();
@@ -1032,8 +1032,7 @@ extension SyncLifecycle on Sync {
     // Flush any pending seq write before shutdown so cursors aren't lost.
     _saveSeqDebounceTimer?.cancel();
     _saveSeqDebounceTimer = null;
-    _saveFirstLoadedSeqDebounceTimer?.cancel();
-    _saveFirstLoadedSeqDebounceTimer = null;
+    _saveFirstLoadedSeqQueued = false;
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     MMKVStorage().saveSessionFirstLoadedSeq(
       Map.unmodifiable(_sessionFirstLoadedSeq),

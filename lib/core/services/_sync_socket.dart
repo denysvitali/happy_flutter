@@ -536,18 +536,22 @@ extension SyncSocket on Sync {
   /// write per 500 ms window matches [_scheduleSaveSeq]; `shutdown()` still
   /// flushes the cursor map synchronously, so nothing is lost.
   void _scheduleSaveFirstLoadedSeq() {
-    _saveFirstLoadedSeqDebounceTimer?.cancel();
-    _saveFirstLoadedSeqDebounceTimer = Timer(
-      const Duration(milliseconds: 500),
-      () {
-        _saveFirstLoadedSeqDebounceTimer = null;
-        unawaited(
-          MMKVStorage().saveSessionFirstLoadedSeqAsync(
-            Map.unmodifiable(_sessionFirstLoadedSeq),
-          ),
-        );
-      },
-    );
+    if (_saveFirstLoadedSeqQueued) return;
+    _saveFirstLoadedSeqQueued = true;
+    // A microtask, not a Timer: the storm this coalesces is N calls inside one
+    // synchronous loop (a bulk residency-budget shrink), which drains into a
+    // single write here. A Timer would additionally outlive widget tests and
+    // trip the framework's pending-timer assertion, and would delay a cursor
+    // write that callers already expect to be in flight.
+    scheduleMicrotask(() {
+      if (!_saveFirstLoadedSeqQueued) return;
+      _saveFirstLoadedSeqQueued = false;
+      unawaited(
+        MMKVStorage().saveSessionFirstLoadedSeqAsync(
+          Map.unmodifiable(_sessionFirstLoadedSeq),
+        ),
+      );
+    });
   }
 
   /// Debounced MMKV persist for a single session's message list.

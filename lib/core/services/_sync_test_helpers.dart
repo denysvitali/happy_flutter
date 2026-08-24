@@ -812,8 +812,7 @@ extension SyncTestHelpers on Sync {
   /// Mirrors the per-session fields cleared by `shutdown()`.
   @visibleForTesting
   void testClearAllSessionMessageState() {
-    _saveFirstLoadedSeqDebounceTimer?.cancel();
-    _saveFirstLoadedSeqDebounceTimer = null;
+    _saveFirstLoadedSeqQueued = false;
     for (final entry in _postSendCatchUpTimers.entries.toList()) {
       entry.value.cancel();
     }
@@ -870,16 +869,12 @@ extension SyncTestHelpers on Sync {
   /// shrink must leave exactly one pending write, not one isolate spawn per
   /// shrunk session.
   @visibleForTesting
-  bool get testFirstLoadedSeqWritePending =>
-      _saveFirstLoadedSeqDebounceTimer != null;
+  bool get testFirstLoadedSeqWritePending => _saveFirstLoadedSeqQueued;
 
   /// Test helper: drop a pending cursor write so it cannot fire after the
   /// test completes.
   @visibleForTesting
-  void testCancelFirstLoadedSeqWrite() {
-    _saveFirstLoadedSeqDebounceTimer?.cancel();
-    _saveFirstLoadedSeqDebounceTimer = null;
-  }
+  void testCancelFirstLoadedSeqWrite() => _saveFirstLoadedSeqQueued = false;
 
   @visibleForTesting
   SyncProgress? get testSyncProgress => _syncProgress;
