@@ -147,10 +147,21 @@ void main() {
       failNextPage = true;
       sync.testAddFetchProbe(sessionId);
       messagesSync!.invalidate();
-      try {
-        await messagesSync.awaitQueue();
-      } on Object {
-        // The retry itself is what we assert on.
+      // The retry fires on InvalidateSync's backoff timer, so a single
+      // awaitQueue() can return in the window between the failed attempt and
+      // the scheduled retry — and on a loaded runner it can return before the
+      // first attempt has even started. Poll to a bounded deadline instead of
+      // racing the scheduler; the invariant under test is that a retry
+      // happens at all, not when.
+      final deadline = DateTime.now().add(const Duration(seconds: 30));
+      while (attempts < 2 && DateTime.now().isBefore(deadline)) {
+        try {
+          await messagesSync.awaitQueue();
+        } on Object {
+          // The retry itself is what we assert on.
+        }
+        if (attempts >= 2) break;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       }
 
       expect(
