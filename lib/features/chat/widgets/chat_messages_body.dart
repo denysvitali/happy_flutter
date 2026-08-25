@@ -57,12 +57,15 @@ class ChatMessagesBody extends StatelessWidget {
     return isLoading
         ? const ChatLoadingShimmer(key: ValueKey('loading'))
         : messages.isEmpty
-            ? (loadFailed
-                ? RetryErrorView(key: const ValueKey('error'), onRetry: onRetry)
-                : EmptyChatView(
-                    key: const ValueKey('empty'),
-                    onSuggestionTap: onSuggestionTap,
-                  ))
-            : messageList;
+        ? (loadFailed
+              ? RetryErrorView(
+                  key: const ValueKey('chat-error'),
+                  onRetry: onRetry,
+                )
+              : EmptyChatView(
+                  key: const ValueKey('chat-empty'),
+                  onSuggestionTap: onSuggestionTap,
+                ))
+        : messageList;
   }
 }

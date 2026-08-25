@@ -559,6 +559,15 @@ extension SyncTestHelpers on Sync {
     _sessionFirstLoadedSeq[sessionId] = seq;
   }
 
+  @visibleForTesting
+  void testReplaceMessageListWithoutRevision(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    _sessionMessages[sessionId] = List<Map<String, dynamic>>.from(messages);
+    _sessionMessagesCache = null;
+  }
+
   /// Test helper: get _sessionSpawnedAt map.
   @visibleForTesting
   Map<String, int> get testSessionSpawnedAt => _sessionSpawnedAt;

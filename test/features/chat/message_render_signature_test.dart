@@ -81,5 +81,14 @@ void main() {
 
       expect(messageRenderSignature(summary), isNot(before));
     });
+
+    test('a replaced streaming row gets a fresh signature', () {
+      final first = <String, dynamic>{'id': 'stream', 'content': 'first'};
+      final firstSignature = messageRenderSignature(first);
+      expect(messageRenderSignature(first), firstSignature);
+
+      final second = <String, dynamic>{...first, 'content': 'second'};
+      expect(messageRenderSignature(second), isNot(firstSignature));
+    });
   });
 }

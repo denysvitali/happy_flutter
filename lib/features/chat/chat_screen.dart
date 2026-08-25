@@ -47,7 +47,6 @@ import 'chat_tts_gate.dart';
 import 'helpers/chat_dialogs.dart';
 import 'loop_command_parser.dart';
 import 'message_detail_screen.dart';
-import 'message_render_signature.dart';
 import 'message_widget.dart';
 import 'model_selection_resolver.dart';
 import 'send/chat_attachment_controller.dart';
@@ -314,8 +313,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _detailFilePath;
   String? _detailFileContent;
 
-  // Track when the actual messages list changes (not just rebuilds)
-  int _lastMessageFingerprint = 0;
   int _lastMessagesRevision = -1;
   String _initialContentSource = 'none';
   bool _hadInMemoryMessagesAtEntry = false;
@@ -434,7 +431,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _visibleCount = _initialVisibleCount(messages.length);
     _prevMessagesLength = messages.length;
     _prevSeenLength = messages.length;
-    _lastMessageFingerprint = _computeMessageFingerprint(messages);
     _lastMessagesRevision = sync.messagesRevision(sessionId);
     _recomputeMessageScanCache();
   }
@@ -591,27 +587,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final latestRevision = sync.messagesRevision(widget.sessionId);
 
     final sessionChanged = latestSession != _session;
-    var messagesChanged = !identical(latestMessages, _messages);
-
-    // Always compute fingerprint for same-length lists.  Unmodifiable
-    // view caches can be mutated in place (e.g. when the underlying
-    // _sessionMessages list is replaced but the view wrapper is reused),
-    // so identical() alone is not sufficient.
-    final latestMessageFingerprint = _computeMessageFingerprint(latestMessages);
-
-    if (latestMessages.length == _messages.length &&
-        _lastMessageFingerprint != 0) {
-      messagesChanged = latestMessageFingerprint != _lastMessageFingerprint;
-    }
+    final revisionChanged = latestRevision != _lastMessagesRevision;
 
     // The store bumps a per-session revision on every real message-list
-    // mutation. Trust it over the tail-of-5 fingerprint, which misses
-    // in-place edits to messages outside the tail — the "a message silently
-    // goes stale / disappears mid-thread" class of bug.
-    final revisionChanged = latestRevision != _lastMessagesRevision;
-    if (revisionChanged) {
-      messagesChanged = true;
-    }
+    // mutation. It is authoritative for both replacement and in-place edits,
+    // so skip the O(tail) map hashing entirely while no mutation occurred.
+    var messagesChanged =
+        !identical(latestMessages, _messages) || revisionChanged;
 
     // When the session changes, always refresh messages — the session
     // object replacement may coincide with message updates that the
@@ -715,7 +697,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
         _messages = latestMessages;
         _recomputeMessageScanCache();
-        _lastMessageFingerprint = latestMessageFingerprint;
         _lastMessagesRevision = latestRevision;
         _prevMessagesLength = latestMessages.length;
 
@@ -916,34 +897,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   String _messageKey(Map<String, dynamic> m) => canonicalMessageIdentityKey(m);
-
-  int _computeMessageFingerprint(List<Map<String, dynamic>> messages) {
-    // Hash length + first message + last N messages. This is O(1) instead
-    // of O(N) while still catching appends, streaming content updates,
-    // state changes on the newest message, and prepends (older page loads).
-    const tailSize = 5;
-    final len = messages.length;
-    var hash = len;
-    if (len == 0) return hash;
-
-    hash = _hashMessage(hash, messages.first);
-
-    final start = (len - tailSize).clamp(0, len);
-    for (var i = start; i < len; i++) {
-      hash = _hashMessage(hash, messages[i]);
-    }
-    return hash;
-  }
-
-  static int _hashMessage(int seed, Map<String, dynamic> message) {
-    return Object.hash(
-      seed,
-      message['id'],
-      message['toolUseId'],
-      message['seq'],
-      messageRenderSignature(message),
-    );
-  }
 
   void _scrollToBottom() {
     if (_scrollToBottomScheduled) return;
@@ -1585,6 +1538,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 children: [
                   AnimatedSwitcher(
                     duration: AppDuration.normal,
+                    // Streaming replaces the same logical list pane; a new
+                    // key would force the old transcript subtree to remain
+                    // alive through an unnecessary cross-fade on every tick.
+                    key: const ValueKey('chat-messages-body'),
                     child: ChatMessagesBody(
                       isLoading: _isLoadingMessages,
                       messages: _messages,

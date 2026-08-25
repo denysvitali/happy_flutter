@@ -8,7 +8,7 @@ import '../../../core/ui/shimmer/skeleton_list.dart';
 
 /// Shimmer loading skeleton for the chat message list.
 class ChatLoadingShimmer extends StatefulWidget {
-  const ChatLoadingShimmer({super.key});
+  const ChatLoadingShimmer({super.key = const ValueKey('chat-loading')});
 
   @override
   State<ChatLoadingShimmer> createState() => _ChatLoadingShimmerState();
@@ -26,7 +26,7 @@ class _ChatLoadingShimmerState extends State<ChatLoadingShimmer> {
       // User messages are short (1–2 lines); assistant replies are longer
       // (2–4 lines) to mirror real message shapes.
       final lineCount = isUser
-          ? 1 + random.nextInt(2) // 1 or 2
+          ? 1 + random.nextInt(2)
           : 2 + random.nextInt(3); // 2, 3, or 4
       return _ShimmerItem(
         isUser: isUser,

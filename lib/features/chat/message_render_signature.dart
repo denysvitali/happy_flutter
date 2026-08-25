@@ -68,9 +68,7 @@ int renderValueSignature(Object? value, [int depth = 0]) {
       for (var i = 0; i < _signatureEdgeSample; i++) {
         hash = Object.hash(hash, renderValueSignature(value[i], depth + 1));
       }
-      for (var i = value.length - _signatureEdgeSample;
-          i < value.length;
-          i++) {
+      for (var i = value.length - _signatureEdgeSample; i < value.length; i++) {
         hash = Object.hash(hash, renderValueSignature(value[i], depth + 1));
       }
       return hash;

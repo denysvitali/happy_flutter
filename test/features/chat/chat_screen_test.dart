@@ -185,6 +185,91 @@ void main() {
       expect(find.text('Hi! How can I help?'), findsOneWidget);
     });
 
+    testWidgets('does not refresh messages when revision is unchanged', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {'id': 'msg_1', 'role': 'user', 'content': 'Hello there'},
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final revisionAfterLoad = sync.messagesRevision('session_1');
+      sync.testReplaceMessageListWithoutRevision('session_1', [
+        {'id': 'msg_1', 'role': 'user', 'content': 'mutated without revision'},
+      ]);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(sync.messagesRevision('session_1'), revisionAfterLoad);
+      expect(find.text('Hello there'), findsOneWidget);
+      expect(find.text('mutated without revision'), findsNothing);
+    });
+
+    testWidgets('refreshes an in-place streaming mutation when revision '
+        'advances', (tester) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetVisibleSessionId('session_1');
+      sync.testSetSessionMessages('session_1', [
+        {'id': 'msg_1', 'role': 'agent', 'content': 'streaming'},
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      sync.testUpsertSessionMessages('session_1', [
+        {'id': 'msg_1', 'role': 'agent', 'content': 'streaming token'},
+      ]);
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('streaming token'), findsOneWidget);
+    });
+
+    testWidgets('revision advances before the message stream emits', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetVisibleSessionId('session_1');
+      sync.testSetSessionMessages('session_1', [
+        {'id': 'msg_1', 'role': 'user', 'content': 'stable'},
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      var revisionAtEmit = 0;
+      final revisionBefore = sync.messagesRevision('session_1');
+      final subscription = sync.onSessionMessagesChanged
+          .where((id) => id == 'session_1')
+          .listen((_) {
+            revisionAtEmit = sync.messagesRevision('session_1');
+          });
+      sync.testNotifySessionMessagesChanged('session_1');
+      await tester.pump();
+
+      expect(revisionAtEmit, greaterThan(revisionBefore));
+      await subscription.cancel();
+    });
+
     testWidgets('shows explicitly queued Codex messages and queue action', (
       tester,
     ) async {

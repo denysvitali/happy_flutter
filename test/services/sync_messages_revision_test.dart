@@ -10,7 +10,9 @@
 // Fix: Sync bumps a monotonic per-session revision on every real
 // message-list change, funnelled through the single
 // _notifySessionMessagesChanged call. The chat UI rebuilds whenever the
-// revision moves, independent of the fingerprint heuristic.
+// revision moves. It must not need a content fingerprint as a second
+// gate: hashing mutable wire maps on every streaming tick is exactly the
+// render cost this revision was introduced to remove.
 //
 // See: lib/core/services/sync_service.dart (messagesRevision),
 //      lib/core/services/_sync_socket.dart (_notifySessionMessagesChanged),

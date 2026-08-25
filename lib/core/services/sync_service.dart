@@ -1546,7 +1546,8 @@ what you have, you must use the options mode.
 
   /// Monotonic revision for a session's message list, bumped on every real
   /// mutation. Subscribers compare it to detect in-place content changes
-  /// that an identical()/tail-fingerprint check cannot see.
+  /// that an identical() check cannot see. Chat treats it as authoritative
+  /// and skips per-tick content fingerprinting while the revision is stable.
   int messagesRevision(String sessionId) =>
       _sessionMessagesRevision[sessionId] ?? 0;
 
