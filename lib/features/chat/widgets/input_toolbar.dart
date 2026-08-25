@@ -63,9 +63,10 @@ class ModelChip extends StatelessWidget {
                     : cs.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.pill),
                 border: Border.all(
-                  color: (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
-                      .glassBorder,
+                  color:
+                      (theme.extension<AppColorScheme>() ??
+                              AppColorScheme.dark())
+                          .glassBorder,
                   width: AppBorder.hairline,
                 ),
               ),
@@ -167,9 +168,10 @@ class ProfileChip extends StatelessWidget {
                       : cs.tertiary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                   border: Border.all(
-                    color: (theme.extension<AppColorScheme>() ??
-                            AppColorScheme.dark())
-                        .glassBorder,
+                    color:
+                        (theme.extension<AppColorScheme>() ??
+                                AppColorScheme.dark())
+                            .glassBorder,
                     width: AppBorder.hairline,
                   ),
                 ),
@@ -323,34 +325,40 @@ class InputToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final model = modelMode ?? ChatModelMode.defaultModel;
 
-    // Wrap (not SingleChildScrollView) so chips never scroll horizontally —
-    // when the row is wider than the available space, chips flow to the next
-    // line instead. This keeps every chip tappable without a surprise gesture.
-    return Wrap(
-      spacing: AppSpacing.xs,
-      runSpacing: AppSpacing.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        if (onPermissionModeChanged != null)
-          perm.PermissionModeSelector(
-            selectedMode: permissionMode,
-            onModeChanged: onPermissionModeChanged,
-            availableModes: sessionFlavor == 'codex'
-                ? perm.PermissionModeExtension.codexModes
-                : perm.PermissionModeExtension.claudeGeminiModes,
+    // Long provider and model names must not split composer controls across
+    // two rows. Keep one dense lane and let overflow scroll instead.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      padding: EdgeInsets.zero,
+      child: Row(
+        children: [
+          if (onPermissionModeChanged != null) ...[
+            perm.PermissionModeSelector(
+              selectedMode: permissionMode,
+              onModeChanged: onPermissionModeChanged,
+              availableModes: sessionFlavor == 'codex'
+                  ? perm.PermissionModeExtension.codexModes
+                  : perm.PermissionModeExtension.claudeGeminiModes,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+          ],
+          ModelChip(
+            model: model,
+            enabled: availableModels.length > 1,
+            onTap: onShowModelPicker,
           ),
-        ModelChip(
-          model: model,
-          enabled: availableModels.length > 1,
-          onTap: onShowModelPicker,
-        ),
-        ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
-        if (contextSize != null && contextSize! > 0)
-          ContextSizeIndicator(
-            contextSize: contextSize!,
-            maxContext: maxContext ?? ContextSizeIndicator.defaultMaxContext,
-          ),
-      ],
+          const SizedBox(width: AppSpacing.xs),
+          ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
+          if (contextSize != null && contextSize! > 0) ...[
+            const SizedBox(width: AppSpacing.xs),
+            ContextSizeIndicator(
+              contextSize: contextSize!,
+              maxContext: maxContext ?? ContextSizeIndicator.defaultMaxContext,
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

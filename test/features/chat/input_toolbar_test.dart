@@ -163,92 +163,58 @@ void main() {
     expect(profileSize.width, greaterThanOrEqualTo(44));
   });
 
-  testWidgets(
-    'toolbar is not horizontally scrollable — all chips stay visible at '
-    'narrow widths',
-    (tester) async {
-      // Phone-portrait width; previously the SingleChildScrollView let the
-      // row overflow off-screen and accepted horizontal drag gestures.
-      tester.view.physicalSize = const Size(390 * 2, 844 * 2);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(tester.view.reset);
+  testWidgets('permission, model, and profile chips share one scrollable row', (
+    tester,
+  ) async {
+    // Regression: wrapping long provider/model labels onto a second row
+    // doubled the composer toolbar height and made the layout look broken.
+    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.reset);
 
-      await tester.pumpWidget(
-        wrap(
-          SizedBox(
-            width: 390,
-            child: InputToolbar(
-              permissionMode: perm.PermissionMode.bypassPermissions,
-              onPermissionModeChanged: (_) {},
-              modelMode: ChatModelMode.sonnet,
-              availableModels: ChatModelMode.availableForFlavor('claude'),
-              onShowModelPicker: () {},
-              onShowProfilePicker: () {},
-            ),
+    await tester.pumpWidget(
+      wrap(
+        SizedBox(
+          width: 390,
+          child: InputToolbar(
+            permissionMode: perm.PermissionMode.defaultMode,
+            onPermissionModeChanged: (_) {},
+            modelMode: ChatModelMode.sonnet,
+            availableModels: ChatModelMode.availableForFlavor('claude'),
+            onShowModelPicker: () {},
+            onShowProfilePicker: () {},
           ),
         ),
-      );
+      ),
+    );
 
-      // No horizontal scroll view anywhere in the toolbar.
-      expect(
-        find.descendant(
-          of: find.byType(InputToolbar),
-          matching: find.byType(SingleChildScrollView),
-        ),
-        findsNothing,
-      );
+    final permCenter = tester.getCenter(
+      find.byType(perm.PermissionModeSelector),
+    );
+    final modelCenter = tester.getCenter(find.byType(ModelChip));
+    final profileCenter = tester.getCenter(find.byType(ProfileChip));
 
-      // All three primary chips must be present and tappable.
-      expect(find.byType(perm.PermissionModeSelector), findsOneWidget);
-      expect(find.byType(ModelChip), findsOneWidget);
-      expect(find.byType(ProfileChip), findsOneWidget);
-    },
-  );
+    // Same baseline (allow 1px float noise).
+    expect((permCenter.dy - modelCenter.dy).abs(), lessThan(1));
+    expect((modelCenter.dy - profileCenter.dy).abs(), lessThan(1));
 
-  testWidgets(
-    'permission, model, and profile chips share one row at phone width',
-    (tester) async {
-      // Regression: Align without widthFactor expanded each chip to full
-      // Wrap width, stacking them vertically (~half the screen).
-      tester.view.physicalSize = const Size(390 * 2, 844 * 2);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(tester.view.reset);
+    // Left-to-right order: permission → model → profile.
+    expect(permCenter.dx, lessThan(modelCenter.dx));
+    expect(modelCenter.dx, lessThan(profileCenter.dx));
 
-      await tester.pumpWidget(
-        wrap(
-          SizedBox(
-            width: 390,
-            child: InputToolbar(
-              permissionMode: perm.PermissionMode.defaultMode,
-              onPermissionModeChanged: (_) {},
-              modelMode: ChatModelMode.sonnet,
-              availableModels: ChatModelMode.availableForFlavor('claude'),
-              onShowModelPicker: () {},
-              onShowProfilePicker: () {},
-            ),
-          ),
-        ),
-      );
+    // Toolbar itself must stay a single chip-height strip, not 3 stacks.
+    final toolbarSize = tester.getSize(find.byType(InputToolbar));
+    expect(toolbarSize.height, lessThan(60));
 
-      final permCenter = tester.getCenter(
-        find.byType(perm.PermissionModeSelector),
-      );
-      final modelCenter = tester.getCenter(find.byType(ModelChip));
-      final profileCenter = tester.getCenter(find.byType(ProfileChip));
-
-      // Same baseline (allow 1px float noise).
-      expect((permCenter.dy - modelCenter.dy).abs(), lessThan(1));
-      expect((modelCenter.dy - profileCenter.dy).abs(), lessThan(1));
-
-      // Left-to-right order: permission → model → profile.
-      expect(permCenter.dx, lessThan(modelCenter.dx));
-      expect(modelCenter.dx, lessThan(profileCenter.dx));
-
-      // Toolbar itself must stay a single chip-height strip, not 3 stacks.
-      final toolbarSize = tester.getSize(find.byType(InputToolbar));
-      expect(toolbarSize.height, lessThan(60));
-    },
-  );
+    // Long labels overflow into a horizontal lane instead of wrapping.
+    expect(
+      find.descendant(
+        of: find.byType(InputToolbar),
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'profile chip semantics include backend host so misroutes are audible',
