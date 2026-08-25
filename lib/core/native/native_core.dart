@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../services/logger_service.dart' show logger;
 import '../services/opentelemetry_service.dart';
+import '../encryption/json_text.dart' show NativeJsonRowStatus;
 import 'generated/frb_generated.dart';
 import 'generated/api/crypto_api.dart' as rust_crypto;
 
@@ -99,6 +100,40 @@ class NativeCore {
       _available = false;
       logger.warning(
         '[NativeCore] batch decrypt failed, reverting to the Dart path',
+        e,
+        stack,
+      );
+      return null;
+    }
+  }
+
+  /// Batch decrypt **and** JSON-parse base64 envelopes in one crossing.
+  ///
+  /// Each row comes back as validated JSON text (or `null`) plus a
+  /// [NativeJsonRowStatus] code, so the caller can defer materialization to
+  /// a worker isolate and log the exact failure class. `null` for the whole
+  /// call means the native core did not run — fall back to the Dart path.
+  Future<({List<String?> values, Uint8List statuses})?>
+  decryptAesGcmBase64JsonBatch({
+    required List<int> key,
+    required List<String> envelopesBase64,
+    List<int> associatedData = const <int>[],
+  }) async {
+    if (!_available) return null;
+    if (envelopesBase64.isEmpty) {
+      return (values: const <String?>[], statuses: Uint8List(0));
+    }
+    try {
+      final batch = await rust_crypto.decryptAesGcmBase64JsonBatch(
+        key: key,
+        envelopesBase64: envelopesBase64,
+        associatedData: associatedData,
+      );
+      return (values: batch.values, statuses: batch.statuses);
+    } catch (e, stack) {
+      _available = false;
+      logger.warning(
+        '[NativeCore] batch decrypt+parse failed, reverting to the Dart path',
         e,
         stack,
       );

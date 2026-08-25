@@ -60,7 +60,7 @@ pub enum DecryptError {
     NotUtf8,
 }
 
-fn cipher_for(key: &[u8]) -> Result<Aes256Gcm, DecryptError> {
+pub(crate) fn cipher_for(key: &[u8]) -> Result<Aes256Gcm, DecryptError> {
     if key.len() != KEY_LEN {
         return Err(DecryptError::BadKeyLength);
     }
@@ -255,11 +255,20 @@ pub fn decrypt_base64_batch(
     };
     envelopes_b64
         .iter()
-        .map(|encoded| {
-            let raw = BASE64.decode(encoded.as_bytes()).ok()?;
-            decrypt_one(&cipher, &raw, associated_data).ok()
-        })
+        .map(|encoded| decrypt_base64_one(&cipher, encoded, associated_data).ok())
         .collect()
+}
+
+/// Decode one base64 envelope and decrypt it, keeping the failure reason.
+pub(crate) fn decrypt_base64_one(
+    cipher: &Aes256Gcm,
+    encoded: &str,
+    associated_data: &[u8],
+) -> Result<String, DecryptError> {
+    let raw = BASE64
+        .decode(encoded.as_bytes())
+        .map_err(|_| DecryptError::BadBase64)?;
+    decrypt_one(cipher, &raw, associated_data)
 }
 
 /// Seal one UTF-8 JSON plaintext into the app's envelope.

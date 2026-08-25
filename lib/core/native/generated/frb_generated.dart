@@ -65,7 +65,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1440463106;
+  int get rustContentHash => 1046558248;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -78,6 +78,12 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 
 abstract class RustLibApi extends BaseApi {
   Future<List<String?>> crateApiCryptoApiDecryptAesGcmBase64Batch({
+    required List<int> key,
+    required List<String> envelopesBase64,
+    required List<int> associatedData,
+  });
+
+  Future<DecryptedJsonBatch> crateApiCryptoApiDecryptAesGcmBase64JsonBatch({
     required List<int> key,
     required List<String> envelopesBase64,
     required List<int> associatedData,
@@ -164,6 +170,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<DecryptedJsonBatch> crateApiCryptoApiDecryptAesGcmBase64JsonBatch({
+    required List<int> key,
+    required List<String> envelopesBase64,
+    required List<int> associatedData,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(key, serializer);
+          sse_encode_list_String(envelopesBase64, serializer);
+          sse_encode_list_prim_u_8_loose(associatedData, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_decrypted_json_batch,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiCryptoApiDecryptAesGcmBase64JsonBatchConstMeta,
+        argValues: [key, envelopesBase64, associatedData],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiCryptoApiDecryptAesGcmBase64JsonBatchConstMeta =>
+      const TaskConstMeta(
+        debugName: 'decrypt_aes_gcm_base64_json_batch',
+        argNames: ['key', 'envelopesBase64', 'associatedData'],
+      );
+
+  @override
   Future<List<String?>> crateApiCryptoApiDecryptAesGcmBatch({
     required List<int> key,
     required List<Uint8List> envelopes,
@@ -179,7 +222,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 3,
             port: port_,
           );
         },
@@ -213,7 +256,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_list_prim_u_8_loose(key, serializer);
           sse_encode_list_list_prim_u_8_strict(envelopes, serializer);
           sse_encode_list_prim_u_8_loose(associatedData, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_opt_String,
@@ -245,7 +288,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_list_prim_u_8_loose(key, serializer);
           sse_encode_list_list_prim_u_8_strict(payloads, serializer);
           sse_encode_list_prim_u_8_loose(associatedData, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_opt_String,
@@ -279,7 +322,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_list_String(plaintexts, serializer);
           sse_encode_list_list_prim_u_8_strict(nonces, serializer);
           sse_encode_list_prim_u_8_loose(associatedData, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_opt_list_prim_u_8_strict,
@@ -313,7 +356,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           sse_encode_list_String(plaintexts, serializer);
           sse_encode_list_list_prim_u_8_strict(nonces, serializer);
           sse_encode_list_prim_u_8_loose(associatedData, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_opt_list_prim_u_8_strict,
@@ -338,7 +381,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -364,6 +407,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  DecryptedJsonBatch dco_decode_decrypted_json_batch(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return DecryptedJsonBatch(
+      values: dco_decode_list_opt_String(arr[0]),
+      statuses: dco_decode_list_prim_u_8_strict(arr[1]),
+    );
   }
 
   @protected
@@ -439,6 +494,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  DecryptedJsonBatch sse_decode_decrypted_json_batch(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_values = sse_decode_list_opt_String(deserializer);
+    final var_statuses = sse_decode_list_prim_u_8_strict(deserializer);
+    return DecryptedJsonBatch(values: var_values, statuses: var_statuses);
   }
 
   @protected
@@ -556,6 +621,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_decrypted_json_batch(
+    DecryptedJsonBatch self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_opt_String(self.values, serializer);
+    sse_encode_list_prim_u_8_strict(self.statuses, serializer);
   }
 
   @protected

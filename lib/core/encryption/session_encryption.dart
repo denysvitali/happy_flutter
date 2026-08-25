@@ -10,6 +10,7 @@ import 'base64.dart';
 import 'crypto_secret_box.dart';
 import 'encryption_cache.dart';
 import 'encryptor.dart';
+import 'json_text.dart';
 import 'message_processor.dart';
 
 /// Extracts the base64 ciphertext from a message content value.
@@ -194,7 +195,23 @@ class SessionEncryption {
   Future<List<DecryptedMessage?>> decryptMessages(
     List<Map<String, dynamic>> messages,
   ) async {
-    return (await _decryptMessagesPass(messages)).results;
+    final results = (await _decryptMessagesPass(messages)).results;
+    // Callers of this convenience path expect materialized objects; the
+    // page path hands [JsonText] straight to the processing worker.
+    for (var i = 0; i < results.length; i++) {
+      final row = results[i];
+      final content = row?.content;
+      if (row != null && content is JsonText) {
+        results[i] = DecryptedMessage(
+          id: row.id,
+          seq: row.seq,
+          localId: row.localId,
+          createdAt: row.createdAt,
+          content: materializeJsonText(content),
+        );
+      }
+    }
+    return results;
   }
 
   /// Single classification + cache + decrypt pass over a page.
@@ -205,12 +222,18 @@ class SessionEncryption {
   /// and the base64 payload extraction for rows that need decryption —
   /// the previous pipeline computed all three twice per decrypted row.
   Future<({List<DecryptedMessage?> results, List<bool> wasEncrypted})>
-      _decryptMessagesPass(List<Map<String, dynamic>> messages) async {
+  _decryptMessagesPass(List<Map<String, dynamic>> messages) async {
     final results = List<DecryptedMessage?>.filled(messages.length, null);
     final wasEncrypted = List<bool>.filled(messages.length, false);
     final toDecrypt =
-        <({int index, Map<String, dynamic> message, String cacheKey,
-            String b64})>[];
+        <
+          ({
+            int index,
+            Map<String, dynamic> message,
+            String cacheKey,
+            String b64,
+          })
+        >[];
 
     // Failure counters are aggregated across the whole batch and emitted
     // once at the end.  A rotated key fails every message on a 500-message
@@ -281,7 +304,7 @@ class SessionEncryption {
       // and decodes inline.
       if (_decryptor is AES256Encryption) {
         final encoded = <String>[for (final item in toDecrypt) item.b64];
-        final result = await _decryptor.decryptEncodedInIsolate(encoded);
+        final result = await _decryptor.decryptEncodedJsonInIsolate(encoded);
         decrypted = result.values;
         for (final idx in result.decodeFailures) {
           final failedB64 = toDecrypt[idx].b64;
@@ -381,9 +404,7 @@ class SessionEncryption {
     // separate full-page scan the pipeline used to run first.
     final pass = await _decryptMessagesPass(messages);
 
-    final contentList = <dynamic>[
-      for (final dm in pass.results) dm?.content,
-    ];
+    final contentList = <dynamic>[for (final dm in pass.results) dm?.content];
 
     return processDecryptedMessagesWithIsolation(
       decryptedJsonList: contentList,

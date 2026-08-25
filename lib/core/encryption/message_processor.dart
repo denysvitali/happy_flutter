@@ -5,9 +5,12 @@
 /// dependencies — only plain Dart map/list manipulation.
 library;
 
+import 'dart:convert' show jsonDecode;
+
 import '../utils/grok_acp_normalize.dart';
 import '../utils/task_label.dart';
 import '../wire/wire_parsers.dart';
+import 'json_text.dart';
 import 'processors/data_type.dart';
 
 // Content-type handlers extracted from the main file.
@@ -59,6 +62,21 @@ class ProcessedMessages {
   final int undecryptableRenderedCount;
 }
 
+/// Materialize native-parsed JSON text into Dart objects.
+///
+/// Runs wherever the row is consumed — inside the processing isolate for a
+/// page — so the parse never lands on the UI isolate for a batch. The text
+/// was already validated by the Rust core, so a failure here is a
+/// corrupted cache entry; it degrades to `null` (the same "no usable body"
+/// the decrypt path reports) rather than throwing out of the pipeline.
+dynamic materializeJsonText(JsonText json) {
+  try {
+    return jsonDecode(json.text);
+  } on FormatException {
+    return null;
+  }
+}
+
 typedef _UserContentBlock = Map<String, dynamic>;
 typedef _UserContentBlocks = List<_UserContentBlock>;
 
@@ -76,9 +94,9 @@ typedef _UserContentBlocks = List<_UserContentBlock>;
   return (
     isSidechain: WireParsers.isRawSidechain(data),
     uuid: (data['uuid'] ?? data['id']) as String?,
-    parentUuid: (data['subagent'] ??
-        data['parentUuid'] ??
-        data['parent_uuid']) as String?,
+    parentUuid:
+        (data['subagent'] ?? data['parentUuid'] ?? data['parent_uuid'])
+            as String?,
   );
 }
 
@@ -229,9 +247,8 @@ ProcessedMessages processDecryptedMessages({
     final localId = wire['localId'] as String?;
     final createdAt = _parseCreatedAtMs(wire['createdAt']);
 
-    final decrypted = i < decryptedJsonList.length
-        ? decryptedJsonList[i]
-        : null;
+    var decrypted = i < decryptedJsonList.length ? decryptedJsonList[i] : null;
+    if (decrypted is JsonText) decrypted = materializeJsonText(decrypted);
 
     if (decrypted == null) {
       if (seq > maxSeq) maxSeq = seq;
@@ -241,9 +258,7 @@ ProcessedMessages processDecryptedMessages({
           : true;
 
       if (!encrypted) {
-        droppedReasons.add(
-          'null content, not encrypted',
-        );
+        droppedReasons.add('null content, not encrypted');
         continue;
       }
 
@@ -418,8 +433,7 @@ ProcessedMessages processDecryptedMessages({
             'role': 'system',
             'kind': 'error',
             'errorType': 'unknown_agent_content_type',
-            'errorMessage':
-                'Unrecognized agent content type: $contentType',
+            'errorMessage': 'Unrecognized agent content type: $contentType',
             'debugData': {
               'messageId': id,
               'seq': seq,

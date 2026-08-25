@@ -10,6 +10,7 @@ import '../services/logger_service.dart' show logger;
 
 import 'aes_gcm.dart';
 import 'crypto_secret_box.dart';
+import 'json_text.dart';
 
 /// Encryptor and Decryptor interface.
 abstract interface class Encryptor {
@@ -22,7 +23,6 @@ typedef Decryptor = Encryptor;
 
 /// NaCl Secret Box encryption (symmetric)
 class SecretBoxEncryption implements Encryptor {
-
   SecretBoxEncryption(this._secretKey);
   final Uint8List _secretKey;
 
@@ -65,7 +65,6 @@ class SecretBoxEncryption implements Encryptor {
 /// Compatible with React Native's `rn-encryption` library.
 /// Format: [1-byte version (0)][12-byte IV][ciphertext][16-byte auth tag]
 class AES256Encryption implements Encryptor {
-
   AES256Encryption(this._secretKey);
   final Uint8List _secretKey;
 
@@ -149,9 +148,7 @@ class AES256Encryption implements Encryptor {
   /// AES-256-GCM uses pure-Dart crypto (`DartAesGcm`) — no platform
   /// channels or FFI — so it is fully isolate-safe. On web, falls back to
   /// main-thread decryption since isolates are not supported.
-  Future<List<dynamic>> decryptInIsolate(
-    List<Uint8List> data,
-  ) async {
+  Future<List<dynamic>> decryptInIsolate(List<Uint8List> data) async {
     final stripped = <Uint8List>[];
     final validIndices = <int>[];
     for (var i = 0; i < data.length; i++) {
@@ -182,16 +179,17 @@ class AES256Encryption implements Encryptor {
       // Mirrors the fix applied to `_offline_tts_service_native.dart`.
       final keyLocal = _secretKey;
       isolateResults = await Isolate.run(
-        () => AesGcmEncryption.decryptBatch(
-          stripped,
-          keyLocal,
-        ),
+        () => AesGcmEncryption.decryptBatch(stripped, keyLocal),
       );
     } catch (e, stack) {
       // Isolate spawn failed (e.g. certain test environments).
       // Fall back to main-thread decryption.
-      logger.warning('AES256Encryption: isolate spawn failed, '
-          'falling back to main-thread decrypt', e, stack);
+      logger.warning(
+        'AES256Encryption: isolate spawn failed, '
+        'falling back to main-thread decrypt',
+        e,
+        stack,
+      );
       return decrypt(data);
     }
     final results = List<dynamic>.filled(data.length, null);
@@ -232,14 +230,19 @@ class AES256Encryption implements Encryptor {
     } catch (e, stack) {
       // Isolate spawn failed (e.g. certain test environments).
       // Fall back to main-thread encryption.
-      logger.warning('AES256Encryption: isolate spawn failed, '
-          'falling back to main-thread encrypt', e, stack);
+      logger.warning(
+        'AES256Encryption: isolate spawn failed, '
+        'falling back to main-thread encrypt',
+        e,
+        stack,
+      );
       return encrypt(data);
     }
     return [
       for (final item in encrypted)
         Uint8List(item.length + 1)
-          ..[0] = 0 // version byte, matching React Native format
+          ..[0] =
+              0 // version byte, matching React Native format
           ..setAll(1, item),
     ];
   }
@@ -264,10 +267,7 @@ class AES256Encryption implements Encryptor {
     List<String> encoded,
   ) async {
     if (encoded.isEmpty) {
-      return EncodedDecryptResult(
-        values: const [],
-        decodeFailures: const [],
-      );
+      return EncodedDecryptResult(values: const [], decodeFailures: const []);
     }
     // Isolates are not supported on web — decrypt on the main thread in
     // chunks with an event-loop turn between them. Pure-Dart AES-GCM plus
@@ -346,8 +346,12 @@ class AES256Encryption implements Encryptor {
     } catch (e, stack) {
       // Isolate spawn failed (e.g. certain test environments).
       // Fall back to main-thread decryption.
-      logger.warning('AES256Encryption: isolate spawn failed, '
-          'falling back to main-thread decrypt', e, stack);
+      logger.warning(
+        'AES256Encryption: isolate spawn failed, '
+        'falling back to main-thread decrypt',
+        e,
+        stack,
+      );
       return AesGcmEncryption.decryptEncodedBatch(encoded, _secretKey);
     }
     final decodeFailed = Set<int>.of(result.decodeFailures);
@@ -363,6 +367,60 @@ class AES256Encryption implements Encryptor {
       );
     }
     return result;
+  }
+
+  /// Like [decryptEncodedInIsolate], but when the native core is available
+  /// the JSON parse happens in Rust too and each value comes back as a
+  /// [JsonText] — validated, not yet materialized — so no `jsonDecode` runs
+  /// on the calling isolate for the batch. Consumers materialize it where
+  /// they run (`processDecryptedMessages` does so inside its worker). Every
+  /// other path (web, native unavailable, native fault) returns the same
+  /// decoded values as [decryptEncodedInIsolate].
+  ///
+  /// Failure semantics are unchanged: a row that could not be decoded,
+  /// authenticated or parsed is `null` and listed in
+  /// [EncodedDecryptResult.decodeFailures] when its base64 was bad. The
+  /// native path additionally logs one bounded per-class summary per batch
+  /// instead of the old "base64 or auth, can't tell".
+  Future<EncodedDecryptResult> decryptEncodedJsonInIsolate(
+    List<String> encoded,
+  ) async {
+    if (encoded.isEmpty || kIsWeb) {
+      return decryptEncodedInIsolate(encoded);
+    }
+    final native = await NativeCore.instance.decryptAesGcmBase64JsonBatch(
+      key: _secretKey,
+      envelopesBase64: encoded,
+    );
+    if (native == null ||
+        native.values.length != encoded.length ||
+        native.statuses.length != encoded.length) {
+      return decryptEncodedInIsolate(encoded);
+    }
+    final values = List<dynamic>.filled(encoded.length, null);
+    final decodeFailures = <int>[];
+    Map<int, int>? failureClasses;
+    for (var i = 0; i < encoded.length; i++) {
+      final text = native.values[i];
+      final status = native.statuses[i];
+      if (text != null && status == NativeJsonRowStatus.ok) {
+        values[i] = JsonText(text);
+        continue;
+      }
+      if (status == NativeJsonRowStatus.badBase64) decodeFailures.add(i);
+      failureClasses ??= <int, int>{};
+      failureClasses[status] = (failureClasses[status] ?? 0) + 1;
+    }
+    if (failureClasses != null) {
+      final summary = failureClasses.entries
+          .map((e) => '${NativeJsonRowStatus.label(e.key)}=${e.value}')
+          .join(' ');
+      logger.warning(
+        'AES256Encryption.decryptEncodedJsonInIsolate: '
+        '${encoded.length} items, failures: $summary',
+      );
+    }
+    return EncodedDecryptResult(values: values, decodeFailures: decodeFailures);
   }
 
   /// Release any cached platform resources.

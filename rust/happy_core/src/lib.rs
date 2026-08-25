@@ -8,4 +8,5 @@
 
 pub mod api;
 pub mod crypto;
+pub mod json;
 mod frb_generated;

@@ -29,9 +29,42 @@ same-reference streaming update, late child and late parent still grouped
 without `changedIds`, orphans never memoized, deferred sweep still runs
 after a mutation, per-session clear.
 
-Still open from the same list: JSON parse and the per-token merge path in
-Rust, the ~140-line no-`await` span in the socket ingest orchestrator, and
-WASM delivery for web.
+**Second slice, same day ("add JSON parsing in Rust too"): decrypt-and-parse
+in one crossing.** After the crypto moved to Rust, the next thing the UI
+isolate did with every row was `jsonDecode` it, then copy the parsed tree
+*into* the message-processing isolate and copy the processed tree back out —
+on the 500-row benchmark page that is parse 3.9 ms + copy-in 2.2 ms +
+copy-out 2.2 ms of UI-isolate time per page (`aes_stage_utf8_json_decode_500`
+/ `aes_stage_decoded_copyout_500`). Design constraint, stated so nobody
+re-litigates it: Rust cannot build the Dart object tree cheaper than
+`jsonDecode` does — every bridge codec allocates the same objects plus its
+own envelope, and `Dart_CObject` has no map type — so the split is Rust
+**parses** and Dart **materializes** off the UI isolate. `rust/happy_core/
+src/json.rs` runs the full serde_json grammar walk (`IgnoredAny`: zero
+allocation) on each decrypted plaintext in the same call as the AES batch
+and returns validated text plus an exact per-row status (`bad_base64` /
+`bad_envelope` / `auth_failed` / `not_utf8` / `invalid_json` / `bad_key`)
+instead of the old "base64 or auth, can't tell". On the Dart side the page
+path (`decryptEncodedJsonInIsolate`) wraps each body as `JsonText`; the
+processor materializes it inside its worker (`materializeJsonText`), the
+single-row convenience path materializes on read, and `EncryptionCache`
+budgets it by characters. Web, native-unavailable and native-fault paths
+return the decoded objects exactly as before. Pinned by 5 Rust tests
+(grammar corners, every failure class aligned, byte-identical text, bad
+key, empty) and Dart contracts (`test/encryption/native_json_batch_test.dart`:
+byte-identical `JsonText` through the real FFI, failure classes aligned,
+**processed page identical through the native and Dart paths**, cached lazy
+row materialized on the single path, fallback; `json_text_processor_test.dart`:
+lazy vs decoded rows equal, JSON-string bodies unchanged, corrupt text
+degrades to the decryption-failed bubble, cache budget). Regenerated frb
+bindings (`rustContentHash` 1046558248). The remaining per-page UI-isolate
+cost around JSON is the flat string copy into the worker
+(`aes_stage_isolate_strings_in_500`, 2.2 ms) and the processed-tree copy
+out; both need a transferable-buffer design rather than more Rust.
+
+Still open from the same list: the per-token merge path and sidechain
+grouping in Rust, the ~140-line no-`await` span in the socket ingest
+orchestrator, and WASM delivery for web.
 
 ### Native (Rust) core, eighth pass, 2026-08-24 ("create a library in Rust")
 

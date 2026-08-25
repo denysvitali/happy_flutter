@@ -103,3 +103,38 @@ List<Uint8List?> encryptAtRestBatchSync({
   nonces: nonces,
   associatedData: associatedData,
 );
+
+/// Decrypt base64 envelopes **and** parse each plaintext as JSON in the same
+/// crossing, off the UI isolate.
+///
+/// Rows come back as validated JSON text with an exact per-row failure
+/// class; the Dart side materializes the text into objects on its worker
+/// isolate (see `json.rs` for why the tree itself is not built here).
+Future<DecryptedJsonBatch> decryptAesGcmBase64JsonBatch({
+  required List<int> key,
+  required List<String> envelopesBase64,
+  required List<int> associatedData,
+}) => RustLib.instance.api.crateApiCryptoApiDecryptAesGcmBase64JsonBatch(
+  key: key,
+  envelopesBase64: envelopesBase64,
+  associatedData: associatedData,
+);
+
+/// Decrypt-and-parse result: index-aligned validated JSON text plus one
+/// status byte per row (see `json::RowStatus`).
+class DecryptedJsonBatch {
+  const DecryptedJsonBatch({required this.values, required this.statuses});
+  final List<String?> values;
+  final Uint8List statuses;
+
+  @override
+  int get hashCode => values.hashCode ^ statuses.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DecryptedJsonBatch &&
+          runtimeType == other.runtimeType &&
+          values == other.values &&
+          statuses == other.statuses;
+}

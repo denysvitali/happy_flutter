@@ -8,6 +8,7 @@
 //! Dart/NaCl path for the failures.
 
 use crate::crypto;
+use crate::json;
 
 /// Decrypt base64-encoded `[version][nonce][ct][tag]` envelopes.
 ///
@@ -98,4 +99,31 @@ pub fn encrypt_at_rest_batch_sync(
     associated_data: Vec<u8>,
 ) -> Vec<Option<Vec<u8>>> {
     crypto::encrypt_at_rest_batch(&key, &plaintexts, &nonces, &associated_data)
+}
+
+/// Decrypt-and-parse result: index-aligned validated JSON text plus one
+/// status byte per row (see `json::RowStatus`).
+#[flutter_rust_bridge::frb]
+pub struct DecryptedJsonBatch {
+    pub values: Vec<Option<String>>,
+    pub statuses: Vec<u8>,
+}
+
+/// Decrypt base64 envelopes **and** parse each plaintext as JSON in the same
+/// crossing, off the UI isolate.
+///
+/// Rows come back as validated JSON text with an exact per-row failure
+/// class; the Dart side materializes the text into objects on its worker
+/// isolate (see `json.rs` for why the tree itself is not built here).
+#[flutter_rust_bridge::frb]
+pub fn decrypt_aes_gcm_base64_json_batch(
+    key: Vec<u8>,
+    envelopes_base64: Vec<String>,
+    associated_data: Vec<u8>,
+) -> DecryptedJsonBatch {
+    let batch = json::decrypt_base64_json_batch(&key, &envelopes_base64, &associated_data);
+    DecryptedJsonBatch {
+        values: batch.values,
+        statuses: batch.statuses,
+    }
 }

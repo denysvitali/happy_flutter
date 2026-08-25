@@ -1,4 +1,5 @@
 import '../utils/lru_cache.dart';
+import 'json_text.dart';
 
 /// LRU cache entry with access time tracking for legacy compatibility
 class CacheEntry<T> {
@@ -154,6 +155,10 @@ class EncryptionCache {
     var remaining = maxCachedMessageChars;
     bool walk(Object? node) {
       if (node is String) {
+        remaining -= node.length;
+        return remaining < 0;
+      }
+      if (node is JsonText) {
         remaining -= node.length;
         return remaining < 0;
       }
