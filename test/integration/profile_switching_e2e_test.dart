@@ -1768,11 +1768,14 @@ void main() {
         };
         sync.testFetchSingleSessionOverride = (_) async => null;
 
+        // The picker emits bare slugs for third-party Anthropic-compatible
+        // profiles (provider-prefixed strings are collapsed to default by
+        // _normalizeModelModeForAgent by design).
         try {
           await sync.sendMessage(
             sessionId,
             'hello',
-            modelMode: 'venice/stealth-ox-alpha',
+            modelMode: 'stealth-ox-alpha',
             profileId: 'venice-anthropic',
           );
         } catch (_) {
@@ -1780,11 +1783,11 @@ void main() {
         }
 
         expect(capturedSpawnParams, isNotNull);
-        expect(capturedSpawnParams!['model'], 'venice/stealth-ox-alpha');
+        expect(capturedSpawnParams!['model'], 'stealth-ox-alpha');
         final envVars =
             capturedSpawnParams!['environmentVariables']
                 as Map<String, dynamic>;
-        expect(envVars['ANTHROPIC_MODEL'], 'venice/stealth-ox-alpha');
+        expect(envVars['ANTHROPIC_MODEL'], 'stealth-ox-alpha');
       },
     );
 
@@ -1799,9 +1802,12 @@ void main() {
         spawnedProfileId: 'custom-openai-codex',
       );
       final existing = sync.testSessions[sessionId]!;
+      // Durable metadata records the model the previous process ran; the
+      // profile config offers gpt-5.5 at high effort, which is what the
+      // user now picks (a selection the catalog actually serves).
       sync.testSessions[sessionId] = existing.copyWith(
         metadata: existing.metadata?.copyWith(flavor: 'codex'),
-        modelMode: 'gpt-5.5:medium',
+        modelMode: 'gpt-4.1:medium',
       );
 
       final profile = AIBackendProfile(
@@ -1813,10 +1819,10 @@ void main() {
             value: 'https://openai-proxy.example.com/v1',
           ),
           EnvironmentVariable(name: 'OPENAI_API_KEY', value: 'sk-test'),
-          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'old-model'),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'gpt-5.5'),
           EnvironmentVariable(
             name: 'CODEX_MODEL_REASONING_EFFORT',
-            value: 'low',
+            value: 'high',
           ),
         ],
         compatibility: const ProfileCompatibility(

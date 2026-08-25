@@ -639,9 +639,19 @@ extension SyncSpawnProfileResolution on Sync {
     // codexThreadId) alive and remote compact still used qwen.
     final previousModel = spawnedModel ?? 'default';
     final requestedModel = modelMode ?? 'default';
-    final modelChanged =
-        _sessionSpawnedModel.containsKey(sessionId) &&
-        previousModel != requestedModel;
+    // Tracked sessions carry a trustworthy client-run baseline: any
+    // difference respawns, including switches to/from `default`. For
+    // untracked (resumed) sessions the durable metadata cannot tell
+    // "process runs this model" apart from "user once picked it", and a
+    // plain follow-up send must not kill a healthy process just because
+    // the app restarted — so only an explicit non-default selection that
+    // differs from the durable baseline counts (mirrors
+    // [explicitProfileChange] above).
+    final modelChanged = trackedSpawnedModel != null
+        ? previousModel != requestedModel
+        : (modelMode != null &&
+              modelMode != 'default' &&
+              previousModel != requestedModel);
 
     final looksReady = health.looksReady;
     final onlineTrusted = health.isOnlineTrusted;
