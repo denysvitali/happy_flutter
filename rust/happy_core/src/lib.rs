@@ -9,4 +9,5 @@
 pub mod api;
 pub mod crypto;
 pub mod json;
+pub mod sidechain;
 mod frb_generated;

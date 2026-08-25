@@ -62,9 +62,23 @@ cost around JSON is the flat string copy into the worker
 (`aes_stage_isolate_strings_in_500`, 2.2 ms) and the processed-tree copy
 out; both need a transferable-buffer design rather than more Rust.
 
-Still open from the same list: the per-token merge path and sidechain
-grouping in Rust, the ~140-line no-`await` span in the socket ingest
-orchestrator, and WASM delivery for web.
+**Third slice, same day (sidechain assignment planning in Rust).** The
+grouper still has to flatten and mutate Dart's dynamic message tree, but the
+repeated identity indexing and transitive parent-chain walk now run through a
+compact FRB `SidechainRow` batch. Rust returns an index-aligned task
+assignment plan; Dart applies root persistence, child-list deduplication,
+nested regrouping, and orphan retry policy. A missing or faulty native core
+falls back to the existing four-pass Dart grouper. Native Rust contracts cover
+direct, transitive, nested, orphan, and cycle cases, and the live FFI test
+covers the production grouper shape.
+
+Still open from the same list: the per-token merge path and the ~140-line
+no-`await` span in the socket ingest orchestrator.
+
+The post-decrypt socket tail also now yields at the 120-row mutation-phase
+budget, preserving FIFO and one notification while giving the UI isolate
+event-loop boundaries during large batches. A targeted contract test covers
+the yield count, bounded resident result, and ordering/localId behavior.
 
 ### Native (Rust) core, eighth pass, 2026-08-24 ("create a library in Rust")
 
@@ -109,11 +123,11 @@ and installs `libhappy_core.so` for arm64-v8a and x86_64 — confirmed in the
 build log, so the library ships inside the APK.
 
 Not yet done, in priority order:
-- **The rest of the hot path is still Dart**: JSON parse, the per-token merge
-  path, and sidechain grouping. Crypto was the dominant *measured* cost, but
-  the seventh-pass audit also named a ~140-line no-`await` span in the socket
-  ingest orchestrator and a grouper that re-walks the whole transcript with no
-  revision memo. Those are the next slices.
+- **The remaining hot path is still Dart**: the per-token merge path and the
+  ~140-line no-`await` span in the socket ingest orchestrator. Crypto was the
+  dominant *measured* cost; JSON parsing and sidechain assignment planning now
+  have native fast paths, while their Dart materialization and fallback paths
+  remain intact.
 - **WASM delivery is now wired into the web build.** CI runs
   `flutter_rust_bridge_codegen build-web --release` against `rust/happy_core`
   and copies `pkg/happy_core.js` plus `pkg/happy_core_bg.wasm` into the

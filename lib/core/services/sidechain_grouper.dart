@@ -1,4 +1,6 @@
 import '../wire/wire_parsers.dart';
+import '../native/generated/api/sidechain_api.dart' as native_api;
+import '../native/native_core.dart';
 
 /// Returns true for messages that should count as visible orphans
 /// (i.e. would render as their own subagent tile if not grouped).
@@ -27,6 +29,147 @@ bool _isAgentContainerTool(Map<String, dynamic> m) {
 /// 3. Remove sidechain messages from main list, attach as children
 /// 4. Recursively regroup nested Task children
 class SidechainGrouper {
+  /// Result from the optional native planner. [handled] distinguishes a
+  /// successful native no-op from an unavailable/faulted native core, where
+  /// the caller must run the Dart implementation.
+  ({bool handled, List<Map<String, dynamic>> messages, bool hasOrphans})?
+  _tryNativeGrouping(List<Map<String, dynamic>> messages) {
+    final nodes = <Map<String, dynamic>>[];
+    final rows = <native_api.SidechainRow>[];
+    final tasks = <String, Map<String, dynamic>>{};
+    final visited = <Map<String, dynamic>>{};
+
+    String stringValue(Object? value) => value is String ? value : '';
+
+    String promptFor(Map<String, dynamic> message) {
+      final direct = message['prompt'];
+      if (direct is String && direct.isNotEmpty) return direct;
+      final input = WireParsers.asMap(message['input']);
+      return stringValue(input?['prompt']);
+    }
+
+    List<String> rootUuidsFor(Map<String, dynamic> message) {
+      final raw = message['_sidechainRootUuids'];
+      if (raw is! List) return const <String>[];
+      return raw.whereType<String>().where((v) => v.isNotEmpty).toList();
+    }
+
+    void walk(
+      List<dynamic> values, {
+      required bool topLevel,
+      String? ancestorTaskId,
+    }) {
+      for (final value in values) {
+        if (value is! Map<String, dynamic> || !visited.add(value)) continue;
+        final kind = stringValue(value['kind']);
+        final name = stringValue(value['name']);
+        final id = stringValue(value['id']);
+        final isTask =
+            kind == 'tool-call' &&
+            (name == 'Task' || name == 'Agent' || name == 'Workflow') &&
+            id.isNotEmpty;
+        nodes.add(value);
+        rows.add(
+          native_api.SidechainRow(
+            id: id,
+            uuid: stringValue(value['uuid']),
+            parentUuid: stringValue(value['parentUuid']),
+            parentToolUseId: stringValue(value['parentToolUseId']),
+            toolUseId: stringValue(value['toolUseId']),
+            prompt: promptFor(value),
+            agentId: stringValue(value['agentId']),
+            kind: kind,
+            name: name,
+            isSidechain: value['isSidechain'] == true,
+            isTaskEvent: value['taskEvent'] == true,
+            topLevel: topLevel,
+            ancestorTaskId: ancestorTaskId ?? '',
+            rootUuids: rootUuidsFor(value),
+          ),
+        );
+        if (isTask) tasks[id] = value;
+
+        final children = value['children'];
+        if (children is List) {
+          walk(
+            children,
+            topLevel: false,
+            ancestorTaskId: isTask ? id : ancestorTaskId,
+          );
+        }
+      }
+    }
+
+    walk(messages, topLevel: true);
+    final assignments = NativeCore.instance.planSidechainGrouping(rows: rows);
+    if (assignments == null || assignments.length != nodes.length) return null;
+
+    final childRows = <String, List<Map<String, dynamic>>>{};
+    final removedIds = <String>{};
+    for (var i = 0; i < assignments.length; i++) {
+      final taskId = assignments[i];
+      if (taskId == null) continue;
+      final message = nodes[i];
+      final id = stringValue(message['id']);
+      final task = tasks[taskId];
+      if (id.isEmpty || task == null || id == taskId) return null;
+
+      if (rows[i].kind == 'sidechain-root') {
+        final uuid = rows[i].uuid;
+        if (uuid.isNotEmpty) {
+          final roots =
+              (task['_sidechainRootUuids'] as List<dynamic>?) ?? <dynamic>[];
+          if (!roots.contains(uuid)) {
+            task['_sidechainRootUuids'] = [...roots, uuid];
+          }
+        }
+      } else if (rows[i].kind != 'sidechain-link') {
+        childRows
+            .putIfAbsent(taskId, () => <Map<String, dynamic>>[])
+            .add(message);
+      }
+      removedIds.add(id);
+    }
+
+    childRows.forEach((taskId, newChildren) {
+      final task = tasks[taskId];
+      if (task == null) return;
+      final existing = task['children'] as List<dynamic>?;
+      if (existing != null && existing.isNotEmpty) {
+        final existingIds = <String>{};
+        for (final child in existing) {
+          if (child is Map<String, dynamic>) {
+            existingIds.addAll(_messageIdentityKeys(child));
+          }
+        }
+        for (final child in newChildren) {
+          final newKeys = _messageIdentityKeys(child);
+          if (newKeys.isEmpty || existingIds.intersection(newKeys).isEmpty) {
+            existing.add(child);
+            existingIds.addAll(newKeys);
+          }
+        }
+      } else {
+        task['children'] = newChildren;
+      }
+    });
+
+    final filtered = messages
+        .where((message) => !removedIds.contains(message['id']))
+        .toList();
+    for (final task in tasks.values) {
+      final children = task['children'] as List<dynamic>?;
+      if (children != null && children.isNotEmpty) {
+        regroupNestedTasks(children.whereType<Map<String, dynamic>>().toList());
+      }
+    }
+    return (
+      handled: true,
+      messages: filtered,
+      hasOrphans: filtered.any(isVisibleSidechainOrphan),
+    );
+  }
+
   /// Returns both the normalized message id and ids embedded in the raw
   /// Claude payload. Delivery envelopes can have different outer ids while
   /// representing the same inner message.
@@ -105,6 +248,18 @@ class SidechainGrouper {
         final hasOrphans = messages.any(isVisibleSidechainOrphan);
         return hasOrphans ? (messages: messages, hasOrphans: true) : null;
       }
+    }
+
+    final nativeResult = _tryNativeGrouping(messages);
+    if (nativeResult != null && nativeResult.handled) {
+      if (nativeResult.messages.length == messages.length &&
+          !nativeResult.hasOrphans) {
+        return null;
+      }
+      return (
+        messages: nativeResult.messages,
+        hasOrphans: nativeResult.hasOrphans,
+      );
     }
 
     // Pass 1: Walk the entire tree (top-level + every nested

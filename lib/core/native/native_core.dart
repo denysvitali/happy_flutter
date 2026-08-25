@@ -8,6 +8,7 @@ import '../services/opentelemetry_service.dart';
 import '../encryption/json_text.dart' show NativeJsonRowStatus;
 import 'generated/frb_generated.dart';
 import 'generated/api/crypto_api.dart' as rust_crypto;
+import 'generated/api/sidechain_api.dart' as rust_sidechain;
 
 /// Gateway to the Rust hot-path core (`rust/happy_core`).
 ///
@@ -224,6 +225,30 @@ class NativeCore {
     } catch (e, stack) {
       _available = false;
       logger.warning('[NativeCore] at-rest encrypt failed', e, stack);
+      return null;
+    }
+  }
+
+  /// Plan sidechain parent assignments over compact message metadata.
+  ///
+  /// Dart keeps ownership of the dynamic message maps and applies the plan;
+  /// Rust handles the repeated identity indexing and transitive parent walk.
+  /// Returns `null` for whole-call native failure so the existing Dart
+  /// grouper remains the correctness fallback.
+  List<String?>? planSidechainGrouping({
+    required List<rust_sidechain.SidechainRow> rows,
+  }) {
+    if (!_available) return null;
+    if (rows.isEmpty) return const <String?>[];
+    try {
+      return rust_sidechain.planSidechainGrouping(rows: rows);
+    } catch (e, stack) {
+      _available = false;
+      logger.warning(
+        '[NativeCore] sidechain planning failed, reverting to the Dart path',
+        e,
+        stack,
+      );
       return null;
     }
   }

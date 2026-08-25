@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1046558248;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1353361455;
 
 // Section: executor
 
@@ -343,6 +343,38 @@ fn wire__crate__api__crypto_api__native_core_ready_impl(
         },
     )
 }
+fn wire__crate__api__sidechain_api__plan_sidechain_grouping_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "plan_sidechain_grouping",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_rows =
+                <Vec<crate::api::sidechain_api::SidechainRow>>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok =
+                    Ok::<_, ()>(crate::api::sidechain_api::plan_sidechain_grouping(api_rows))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -433,6 +465,20 @@ impl SseDecode for Vec<u8> {
     }
 }
 
+impl SseDecode for Vec<crate::api::sidechain_api::SidechainRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::sidechain_api::SidechainRow>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -452,6 +498,42 @@ impl SseDecode for Option<Vec<u8>> {
         } else {
             return None;
         }
+    }
+}
+
+impl SseDecode for crate::api::sidechain_api::SidechainRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_uuid = <String>::sse_decode(deserializer);
+        let mut var_parentUuid = <String>::sse_decode(deserializer);
+        let mut var_parentToolUseId = <String>::sse_decode(deserializer);
+        let mut var_toolUseId = <String>::sse_decode(deserializer);
+        let mut var_prompt = <String>::sse_decode(deserializer);
+        let mut var_agentId = <String>::sse_decode(deserializer);
+        let mut var_kind = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_isSidechain = <bool>::sse_decode(deserializer);
+        let mut var_isTaskEvent = <bool>::sse_decode(deserializer);
+        let mut var_topLevel = <bool>::sse_decode(deserializer);
+        let mut var_ancestorTaskId = <String>::sse_decode(deserializer);
+        let mut var_rootUuids = <Vec<String>>::sse_decode(deserializer);
+        return crate::api::sidechain_api::SidechainRow {
+            id: var_id,
+            uuid: var_uuid,
+            parent_uuid: var_parentUuid,
+            parent_tool_use_id: var_parentToolUseId,
+            tool_use_id: var_toolUseId,
+            prompt: var_prompt,
+            agent_id: var_agentId,
+            kind: var_kind,
+            name: var_name,
+            is_sidechain: var_isSidechain,
+            is_task_event: var_isTaskEvent,
+            top_level: var_topLevel,
+            ancestor_task_id: var_ancestorTaskId,
+            root_uuids: var_rootUuids,
+        };
     }
 }
 
@@ -534,6 +616,11 @@ fn pde_ffi_dispatcher_sync_impl(
             data_len,
         ),
         8 => wire__crate__api__crypto_api__native_core_ready_impl(ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__sidechain_api__plan_sidechain_grouping_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -558,6 +645,39 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::crypto_api::DecryptedJsonBatc
     for crate::api::crypto_api::DecryptedJsonBatch
 {
     fn into_into_dart(self) -> crate::api::crypto_api::DecryptedJsonBatch {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sidechain_api::SidechainRow {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.uuid.into_into_dart().into_dart(),
+            self.parent_uuid.into_into_dart().into_dart(),
+            self.parent_tool_use_id.into_into_dart().into_dart(),
+            self.tool_use_id.into_into_dart().into_dart(),
+            self.prompt.into_into_dart().into_dart(),
+            self.agent_id.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.is_sidechain.into_into_dart().into_dart(),
+            self.is_task_event.into_into_dart().into_dart(),
+            self.top_level.into_into_dart().into_dart(),
+            self.ancestor_task_id.into_into_dart().into_dart(),
+            self.root_uuids.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sidechain_api::SidechainRow
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sidechain_api::SidechainRow>
+    for crate::api::sidechain_api::SidechainRow
+{
+    fn into_into_dart(self) -> crate::api::sidechain_api::SidechainRow {
         self
     }
 }
@@ -634,6 +754,16 @@ impl SseEncode for Vec<u8> {
     }
 }
 
+impl SseEncode for Vec<crate::api::sidechain_api::SidechainRow> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::sidechain_api::SidechainRow>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<String> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -651,6 +781,26 @@ impl SseEncode for Option<Vec<u8>> {
         if let Some(value) = self {
             <Vec<u8>>::sse_encode(value, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::api::sidechain_api::SidechainRow {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.uuid, serializer);
+        <String>::sse_encode(self.parent_uuid, serializer);
+        <String>::sse_encode(self.parent_tool_use_id, serializer);
+        <String>::sse_encode(self.tool_use_id, serializer);
+        <String>::sse_encode(self.prompt, serializer);
+        <String>::sse_encode(self.agent_id, serializer);
+        <String>::sse_encode(self.kind, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <bool>::sse_encode(self.is_sidechain, serializer);
+        <bool>::sse_encode(self.is_task_event, serializer);
+        <bool>::sse_encode(self.top_level, serializer);
+        <String>::sse_encode(self.ancestor_task_id, serializer);
+        <Vec<String>>::sse_encode(self.root_uuids, serializer);
     }
 }
 

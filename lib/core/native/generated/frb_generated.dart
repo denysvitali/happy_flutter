@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'api/crypto_api.dart';
+import 'api/sidechain_api.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -65,7 +66,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1046558248;
+  int get rustContentHash => 1353361455;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -122,6 +123,10 @@ abstract class RustLibApi extends BaseApi {
   });
 
   bool crateApiCryptoApiNativeCoreReady();
+
+  List<String?> crateApiSidechainApiPlanSidechainGrouping({
+    required List<SidechainRow> rows,
+  });
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -397,6 +402,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiCryptoApiNativeCoreReadyConstMeta =>
       const TaskConstMeta(debugName: 'native_core_ready', argNames: []);
 
+  @override
+  List<String?> crateApiSidechainApiPlanSidechainGrouping({
+    required List<SidechainRow> rows,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_sidechain_row(rows, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSidechainApiPlanSidechainGroupingConstMeta,
+        argValues: [rows],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSidechainApiPlanSidechainGroupingConstMeta =>
+      const TaskConstMeta(
+        debugName: 'plan_sidechain_grouping',
+        argNames: ['rows'],
+      );
+
   @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -460,6 +493,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SidechainRow> dco_decode_list_sidechain_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_sidechain_row).toList();
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -469,6 +508,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
+  }
+
+  @protected
+  SidechainRow dco_decode_sidechain_row(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return SidechainRow(
+      id: dco_decode_String(arr[0]),
+      uuid: dco_decode_String(arr[1]),
+      parentUuid: dco_decode_String(arr[2]),
+      parentToolUseId: dco_decode_String(arr[3]),
+      toolUseId: dco_decode_String(arr[4]),
+      prompt: dco_decode_String(arr[5]),
+      agentId: dco_decode_String(arr[6]),
+      kind: dco_decode_String(arr[7]),
+      name: dco_decode_String(arr[8]),
+      isSidechain: dco_decode_bool(arr[9]),
+      isTaskEvent: dco_decode_bool(arr[10]),
+      topLevel: dco_decode_bool(arr[11]),
+      ancestorTaskId: dco_decode_String(arr[12]),
+      rootUuids: dco_decode_list_String(arr[13]),
+    );
   }
 
   @protected
@@ -573,6 +636,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SidechainRow> sse_decode_list_sidechain_row(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    final len_ = sse_decode_i_32(deserializer);
+    final ans_ = <SidechainRow>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sidechain_row(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -592,6 +669,41 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  SidechainRow sse_decode_sidechain_row(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_id = sse_decode_String(deserializer);
+    final var_uuid = sse_decode_String(deserializer);
+    final var_parentUuid = sse_decode_String(deserializer);
+    final var_parentToolUseId = sse_decode_String(deserializer);
+    final var_toolUseId = sse_decode_String(deserializer);
+    final var_prompt = sse_decode_String(deserializer);
+    final var_agentId = sse_decode_String(deserializer);
+    final var_kind = sse_decode_String(deserializer);
+    final var_name = sse_decode_String(deserializer);
+    final var_isSidechain = sse_decode_bool(deserializer);
+    final var_isTaskEvent = sse_decode_bool(deserializer);
+    final var_topLevel = sse_decode_bool(deserializer);
+    final var_ancestorTaskId = sse_decode_String(deserializer);
+    final var_rootUuids = sse_decode_list_String(deserializer);
+    return SidechainRow(
+      id: var_id,
+      uuid: var_uuid,
+      parentUuid: var_parentUuid,
+      parentToolUseId: var_parentToolUseId,
+      toolUseId: var_toolUseId,
+      prompt: var_prompt,
+      agentId: var_agentId,
+      kind: var_kind,
+      name: var_name,
+      isSidechain: var_isSidechain,
+      isTaskEvent: var_isTaskEvent,
+      topLevel: var_topLevel,
+      ancestorTaskId: var_ancestorTaskId,
+      rootUuids: var_rootUuids,
+    );
   }
 
   @protected
@@ -701,6 +813,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sidechain_row(
+    List<SidechainRow> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sidechain_row(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -721,6 +845,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_list_prim_u_8_strict(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_sidechain_row(SidechainRow self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.uuid, serializer);
+    sse_encode_String(self.parentUuid, serializer);
+    sse_encode_String(self.parentToolUseId, serializer);
+    sse_encode_String(self.toolUseId, serializer);
+    sse_encode_String(self.prompt, serializer);
+    sse_encode_String(self.agentId, serializer);
+    sse_encode_String(self.kind, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_bool(self.isSidechain, serializer);
+    sse_encode_bool(self.isTaskEvent, serializer);
+    sse_encode_bool(self.topLevel, serializer);
+    sse_encode_String(self.ancestorTaskId, serializer);
+    sse_encode_list_String(self.rootUuids, serializer);
   }
 
   @protected
