@@ -840,7 +840,8 @@ extension SyncMessagingMerge on Sync {
     final nowMs =
         testIdleShrinkNowMsOverride ?? DateTime.now().millisecondsSinceEpoch;
     if (!force &&
-        nowMs - _lastIdleShrinkSweepMs < Sync.idleSessionShrinkSweepIntervalMs) {
+        nowMs - _lastIdleShrinkSweepMs <
+            Sync.idleSessionShrinkSweepIntervalMs) {
       return;
     }
     _lastIdleShrinkSweepMs = nowMs;
@@ -1234,8 +1235,7 @@ extension SyncMessagingMerge on Sync {
       if (targetLocalId != null && targetLocalId.isNotEmpty) return false;
 
       // Replacing in place is only safe while it cannot reorder the list.
-      if (index > 0 &&
-          _messageOrderCompare(existing[index - 1], message) > 0) {
+      if (index > 0 && _messageOrderCompare(existing[index - 1], message) > 0) {
         return false;
       }
       if (index < existing.length - 1 &&
@@ -1343,6 +1343,7 @@ extension SyncMessagingMerge on Sync {
     List<Map<String, dynamic>> messages,
   ) {
     _upsertSessionMessages(sessionId, messages);
+    _notifySessionMessagesChangedUiOnly(sessionId);
   }
 
   void _upsertSessionMessages(

@@ -81,7 +81,16 @@ non-message Sync changes, and message-list mutations, so a future low-fps
 report can distinguish an active streaming window from a blocked isolate or
 a genuinely idle renderer.
 
-Still open from the same list: the per-token merge path.
+The remaining per-token merge work is now consumer-side rather than store-side:
+`ChatScreen` still hashed the first/tail message maps on every refresh even
+though `Sync.messagesRevision` was already authoritative. It now uses that
+revision (plus list identity and explicit session/empty-state guards) as the
+only change gate, so a no-op Sync wake costs no content hashing. Widget tests
+pin both directions: a replaced resident list with an unchanged revision does
+not repaint, while an in-place streaming replacement with an advanced revision
+does. A rejected follow-up also proved why row-signature memoization is not
+viable today: chat rows are mutable nested maps, so identity-keyed caching
+hides in-place tool-result and sidechain-child changes.
 
 **Same-day P0 invariant fix (`unmatched_optimistic`).** Production bursted
 ~198 warnings on build 267200 because the `fetchMessages` pre-page loop

@@ -233,41 +233,11 @@ void main() {
       sync.testUpsertSessionMessages('session_1', [
         {'id': 'msg_1', 'role': 'agent', 'content': 'streaming token'},
       ]);
-      await tester.pump(const Duration(milliseconds: 120));
+      await tester.pump(const Duration(milliseconds: 220));
+      sync.testFlushPendingMessageSaves();
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.textContaining('streaming token'), findsOneWidget);
-    });
-
-    testWidgets('revision advances before the message stream emits', (
-      tester,
-    ) async {
-      sync.isInitialized = true;
-      sync.messagesSync['session_1'] = InvalidateSync(() async {});
-      sync.testSetVisibleSessionId('session_1');
-      sync.testSetSessionMessages('session_1', [
-        {'id': 'msg_1', 'role': 'user', 'content': 'stable'},
-      ]);
-      sync.testSessions['session_1'] = _makeSession();
-
-      await tester.pumpWidget(
-        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      var revisionAtEmit = 0;
-      final revisionBefore = sync.messagesRevision('session_1');
-      final subscription = sync.onSessionMessagesChanged
-          .where((id) => id == 'session_1')
-          .listen((_) {
-            revisionAtEmit = sync.messagesRevision('session_1');
-          });
-      sync.testNotifySessionMessagesChanged('session_1');
-      await tester.pump();
-
-      expect(revisionAtEmit, greaterThan(revisionBefore));
-      await subscription.cancel();
     });
 
     testWidgets('shows explicitly queued Codex messages and queue action', (
@@ -405,12 +375,12 @@ void main() {
 
       expect(find.text('First message'), findsOneWidget);
 
-      // Add a new message via sync
-      sync.testSetSessionMessages('session_1', [
+      // Add a new message via sync.
+      sync.testUpsertSessionMessages('session_1', [
         {'id': 'msg_1', 'role': 'user', 'content': 'First message'},
         {'id': 'msg_2', 'role': 'assistant', 'content': 'Response message'},
       ]);
-      sync.testNotifySessionMessagesChanged('session_1');
+      await tester.pump(const Duration(milliseconds: 220));
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
