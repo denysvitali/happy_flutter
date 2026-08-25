@@ -4,6 +4,66 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-25
 
+### Perf pass 10, 2026-08-25 ("move more and more operations to Rust")
+
+Telemetry-first pass. The three-tool sweep on the live fleet (builds
+268100–268700) re-baselined the eighth/ninth passes and named the next
+driver. Prometheus: frozen frames are down to 12–137 per build per 24h,
+essentially all `route=chat`, almost entirely in the ≤0.25 s buckets with
+zero frames above 0.5 s — but concentrated ~10× at
+`session_count_bucket="251+"` (268100: 130.4 vs 7.1 for 101–250) while
+active render-window counts are *equal* across buckets (163.8 vs 159.5).
+So the freeze probability per streaming window scales with catalog size,
+not transcript size. Jaeger's `ui.jank` traces remain single-span — two
+fetched in detail (28.0 s and 27.2 s windows, session.count 201/443) put
+frozen-frame **build** at 1 ms and **raster** at 2 ms of a 125–137 ms max
+frame: ~97 % blocked-isolate computation, still unattributable from tags
+alone. Loki is quiet: exactly one WARN across the newest-build window (a
+transient outbox dead-letter, `reason=agent_starting`).
+
+The ingest orchestrator was cleared first — the pass-9 mutation yield and
+in-place tail update hold; `_updateSessionUsage` is O(1). The catalog-scale
+term lives in the notification fan-out instead: during a streaming turn the
+server's `update-session` events carry fresh `activeAt`/`lastSeq` per token
+batch, each bumping `SyncDomain.sessions` up to ~10 waves/s after Sync's
+debounce, and two listeners walked the whole catalog on *every* wave:
+`StuckAgentSentinel` (`reconcile(sync.sessionsView.values)` with fingerprint
+strings per thinking session), and worse, `SessionActivityCoordinator`,
+which copied the catalog via `sessionsView.values.toList()`, spawned an
+unawaited `_apply` future for every session including noops, ran an
+O(active × catalog) nested stale scan, and **re-posted one platform
+notification + Live Activity update per thinking session per wave** —
+notification flooding on top of the isolate work.
+
+Shipped: both listeners now coalesce sessions-domain events into one
+full-catalog walk per cooldown window (leading edge + trailing catch-up,
+1 s default — alert/notification latency may lag ≤1 s against a 10-minute
+stall threshold and a 15 s elapsed-refresh timer). The coordinator also
+skips noop applies, iterates the live view without the defensive copy,
+replaces the nested scan with a seen-set difference, and dedupes show
+decisions by presentation identity (toolName/sessionName unchanged → no
+platform re-post; keeping the first snapshot pins startedAt so the elapsed
+clock no longer drifts forward when the server refreshes activeAt mid-turn;
+tool changes still re-post immediately). New
+`app.session.catalog_reconcile` histogram (`source` +
+`session_count_bucket`) measures both walks so this fix verifies itself
+from production and any regression is visible by bucket.
+
+Deliberately **no Rust slice this pass**, stated so it is not re-litigated:
+the pinned cost is fan-out work — map walks, platform-channel marshaling and
+pointer chasing over the session collection — which crosses FRB worse than
+it runs in Dart (every bridge call would copy the catalog over the boundary
+to do less work than Dart already does). Rust pays off for CPU-dense
+kernels; the queued kernel remains the transferable-buffer JSON
+materialization design from the ninth pass (flat string copy into the
+worker + processed-tree copy out). Contract tests pin the new behavior:
+burst-of-10 domain events → exactly two catalog walks and one notification
+post per coordinator/sentinel, tool-change re-posts, deleted-session
+cleanup, and detach() cancelling the pending trailing walk
+(`session_activity_coordinator_test.dart`,
+`stuck_agent_sentinel_test.dart`); `testEmitDomainChanged` drives the
+domain stream without the socket.
+
 ### Perf pass 9, 2026-08-25 ("improve the performance even further")
 
 First slice of the eighth pass's "rest of the hot path is still Dart" list:

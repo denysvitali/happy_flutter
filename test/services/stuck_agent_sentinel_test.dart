@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/stuck_agent_sentinel.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
+import '../helpers/test_helpers.dart';
 
 Session _session({
   required String id,
@@ -88,6 +90,35 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(shown, isEmpty);
+    await sentinel.detach();
+  });
+
+  // Freeze audit 2026-08-25: update-session socket events bump
+  // SyncDomain.sessions per token batch during streaming, and this listener
+  // used to walk and fingerprint the whole catalog on every wave. Pin the
+  // leading+trailing coalescing that caps the walk at one per cooldown.
+  test('coalesces a sessions-domain burst into two catalog walks', () async {
+    final sync = createTestSync();
+    sync.testSessions['s1'] = _session(id: 's1');
+    final shown = <StuckAlert>[];
+    final cancelled = <String>[];
+    final sentinel = StuckAgentSentinel(
+      stallThreshold: Duration.zero,
+      eventReconcileCooldown: const Duration(milliseconds: 80),
+      checkInterval: const Duration(hours: 1),
+      visibleSessionResolver: () => null,
+      showAlert: (alert) async => shown.add(alert),
+      cancelAlert: (sessionId) async => cancelled.add(sessionId),
+    )..attach(sync);
+
+    for (var i = 0; i < 10; i++) {
+      sync.testEmitDomainChanged(SyncDomain.sessions);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(sentinel.debugReconcileCount, 2); // leading + trailing
+    expect(shown, hasLength(1)); // one-shot alert, not one per wave
+    expect(cancelled, isEmpty);
     await sentinel.detach();
   });
 }

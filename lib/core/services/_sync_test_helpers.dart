@@ -48,6 +48,15 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testNotifyDataChanged() => _notifyDataChanged();
 
+  /// Emits one `onDomainChanged` event so domain-scoped consumers
+  /// (sentinel, activity coordinator) can be driven without the socket.
+  @visibleForTesting
+  void testEmitDomainChanged(SyncDomain domain) {
+    if (!_domainChangeController.isClosed) {
+      _domainChangeController.add(domain);
+    }
+  }
+
   /// Seeds the unread counter for a session so mark-read triage can be
   /// tested without driving the socket increment path.
   @visibleForTesting

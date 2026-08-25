@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../models/session.dart';
+import '../utils/performance_buckets.dart';
 import 'logger_service.dart';
 import 'notification_service.dart';
+import 'opentelemetry_service.dart';
 import 'session_activity_coordinator.dart';
 import 'sync_service.dart';
 
@@ -51,11 +53,13 @@ class StuckAgentSentinel {
   StuckAgentSentinel({
     this.stallThreshold = const Duration(minutes: 10),
     Duration checkInterval = const Duration(seconds: 60),
+    Duration eventReconcileCooldown = const Duration(seconds: 1),
     DateTime Function()? now,
     String? Function()? visibleSessionResolver,
     Future<void> Function(StuckAlert alert)? showAlert,
     Future<void> Function(String sessionId)? cancelAlert,
   }) : _checkInterval = checkInterval,
+       _eventReconcileCooldown = eventReconcileCooldown,
        _now = now ?? DateTime.now,
        _visibleSession =
            visibleSessionResolver ??
@@ -68,6 +72,7 @@ class StuckAgentSentinel {
   final Duration stallThreshold;
 
   final Duration _checkInterval;
+  final Duration _eventReconcileCooldown;
   final DateTime Function() _now;
   final String? Function() _visibleSession;
   final Future<void> Function(StuckAlert alert) _showAlert;
@@ -76,6 +81,9 @@ class StuckAgentSentinel {
   StreamSubscription<void>? _domainSub;
   StreamSubscription<String>? _messagesSub;
   Timer? _checkTimer;
+  Timer? _pendingEventReconcile;
+  DateTime _lastEventReconcileAt = DateTime.fromMillisecondsSinceEpoch(0);
+  Sync? _sync;
 
   final Map<String, _TrackedSession> _tracked = <String, _TrackedSession>{};
 
@@ -92,10 +100,11 @@ class StuckAgentSentinel {
 
   /// Begin watching [sync] for stalled sessions.
   void attach(Sync sync) {
+    _sync = sync;
     _domainSub?.cancel();
     _domainSub = sync.onDomainChanged
         .where((domain) => domain == SyncDomain.sessions)
-        .listen((_) => reconcile(sync.sessionsView.values));
+        .listen((_) => _onSessionsDomainEvent());
     _messagesSub?.cancel();
     _messagesSub = sync.onSessionMessagesChanged.listen(recordProgress);
     _checkTimer?.cancel();
@@ -107,7 +116,55 @@ class StuckAgentSentinel {
         : _checkInterval;
     _checkTimer = Timer.periodic(
       effectiveInterval,
-      (_) => reconcile(sync.sessionsView.values),
+      (_) => _reconcileCatalog(),
+    );
+  }
+
+  /// Coalesce sessions-domain events into at most one full-catalog walk per
+  /// cooldown window (leading edge + trailing catch-up).
+  ///
+  /// During a streaming turn the server re-delivers `update-session` events
+  /// with fresh `activeAt`/`lastSeq` on every token batch, each bumping
+  /// `SyncDomain.sessions` up to ~10x/s after Sync's own debounce. At a
+  /// 251+ session catalog that made this listener walk and fingerprint the
+  /// whole collection per wave — sustained UI-isolate work for the length
+  /// of an agent turn, scaling with catalog size (freeze audit 2026-08-25:
+  /// chat frozen frames concentrated ~10x in the 251+ bucket). Alert
+  /// latency may now lag reality by up to one cooldown, which is nothing
+  /// against the 10-minute stall threshold.
+  void _onSessionsDomainEvent() {
+    final now = _now();
+    final elapsed = now.difference(_lastEventReconcileAt);
+    if (elapsed >= _eventReconcileCooldown) {
+      _pendingEventReconcile?.cancel();
+      _pendingEventReconcile = null;
+      _lastEventReconcileAt = now;
+      _reconcileCatalog();
+      return;
+    }
+    _pendingEventReconcile ??= Timer(
+      _eventReconcileCooldown - elapsed,
+      () {
+        _pendingEventReconcile = null;
+        _lastEventReconcileAt = _now();
+        _reconcileCatalog();
+      },
+    );
+  }
+
+  void _reconcileCatalog() {
+    final sync = _sync;
+    if (sync == null) return;
+    final stopwatch = Stopwatch()..start();
+    reconcile(sync.sessionsView.values);
+    OpenTelemetryService().recordDuration(
+      'app.session.catalog_reconcile',
+      stopwatch.elapsed,
+      attributes: {
+        'source': 'sentinel',
+        'session_count_bucket': collectionSizeBucket(sync.sessionsView.length),
+      },
+      description: 'Full-catalog sentinel reconcile walk',
     );
   }
 
@@ -119,6 +176,9 @@ class StuckAgentSentinel {
     _messagesSub = null;
     _checkTimer?.cancel();
     _checkTimer = null;
+    _pendingEventReconcile?.cancel();
+    _pendingEventReconcile = null;
+    _sync = null;
     final alerted = _tracked.entries
         .where((e) => e.value.alerted)
         .map((e) => e.key)
@@ -131,6 +191,10 @@ class StuckAgentSentinel {
 
   /// Visible for tests — session ids currently being watched.
   Iterable<String> get debugTrackedSessions => _tracked.keys;
+
+  /// Visible for tests — how many full-catalog walks have run, so tests can
+  /// assert coalescing rather than infer it from alert side effects.
+  int debugReconcileCount = 0;
 
   /// Visible for tests — session ids with a raised stuck alert.
   Iterable<String> get debugAlertedSessions =>
@@ -165,6 +229,7 @@ class StuckAgentSentinel {
 
   /// Re-derive tracking state and raise/clear alerts for [sessions].
   void reconcile(Iterable<Session> sessions) {
+    debugReconcileCount++;
     final now = _now();
     final seen = <String>{};
     for (final session in sessions) {
