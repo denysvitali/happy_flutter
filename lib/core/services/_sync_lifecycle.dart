@@ -1112,6 +1112,9 @@ extension SyncLifecycle on Sync {
     // login).
     _orphanWalkbackOrphanIds.clear();
     _orphanWalkbackParentKeys.clear();
+    _orphanWalkbackGiveUpSignatures.clear();
+    _orphanWalkbackGiveUpSignaturesLoaded = false;
+    MMKVStorage().removeKey(SyncMessagingMerge._orphanWalkbackGiveUpStorageKey);
     // _orphanSuppressedUntilMs cleared in shutdown (per-session
     // suppression windows must not leak across logout).
     _orphanSuppressedUntilMs.clear();

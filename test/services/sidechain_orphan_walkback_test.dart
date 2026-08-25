@@ -344,6 +344,7 @@ void main() {
 
       final maxAttempts = sync.testOrphanFetchOlderMaxAttempts;
       var countAtCap = -1;
+      var grouperRunsAtCap = -1;
       final ids = <String>[];
 
       // Drive enough sweeps to exceed the hard cap, growing the orphan
@@ -382,6 +383,7 @@ void main() {
         if (countAtCap == -1 &&
             sync.testOrphanFetchOlderNoProgressCount('s1') >= maxAttempts) {
           countAtCap = fetchOlderCount;
+          grouperRunsAtCap = sync.testSidechainGrouperRuns;
         }
       }
 
@@ -401,6 +403,11 @@ void main() {
         greaterThan(-1),
         reason: 'the hard cap must actually be reached within the '
             'driven sweeps',
+      );
+      expect(
+        grouperRunsAtCap,
+        greaterThan(-1),
+        reason: 'the hard cap must be reached after a real grouping pass',
       );
 
       // Once the cap is reached, the walk-back must give up: further
@@ -458,6 +465,12 @@ void main() {
         reason: 'once the hard cap is reached, growing the orphan set '
             'further must not lift suppression or fire more '
             'fetchOlder calls',
+      );
+      expect(
+        sync.testSidechainGrouperRuns,
+        grouperRunsAtCap,
+        reason: 'a capped orphan group must not re-run the full grouper '
+            'as new children stream in',
       );
     },
   );

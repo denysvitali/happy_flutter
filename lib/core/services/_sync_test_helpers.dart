@@ -164,6 +164,7 @@ extension SyncTestHelpers on Sync {
     _orphanWalkbackOrphanIds.remove(sessionId);
     _orphanWalkbackParentKeys.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
+    _clearOrphanWalkbackGiveUp(sessionId);
     _sessionMessagesMutationGen.remove(sessionId);
     _sidechainCleanAtGen.remove(sessionId);
   }
@@ -864,6 +865,8 @@ extension SyncTestHelpers on Sync {
     _orphanWalkbackOrphanIds.clear();
     _orphanWalkbackParentKeys.clear();
     _orphanSuppressedUntilMs.clear();
+    _orphanWalkbackGiveUpSignatures.clear();
+    _orphanWalkbackGiveUpSignaturesLoaded = false;
     _sessionUsage.clear();
     _lastEphemeralAt.clear();
     _pendingToolResults.clear();

@@ -298,6 +298,117 @@ extension SyncMessagingMerge on Sync {
   static const int _orphanFetchOlderMaxAttempts =
       Sync._orphanFetchOlderMaxPageSequences ~/ Sync._orphanFetchOlderPageSize;
 
+  static const String _orphanWalkbackGiveUpStorageKey =
+      'orphan-walkback-give-up-signatures';
+  void _loadOrphanWalkbackGiveUpSignatures() {
+    if (_orphanWalkbackGiveUpSignaturesLoaded) return;
+    _orphanWalkbackGiveUpSignaturesLoaded = true;
+    final encoded = MMKVStorage().getString(_orphanWalkbackGiveUpStorageKey);
+    if (encoded == null || encoded.isEmpty) return;
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is! Map) return;
+      _orphanWalkbackGiveUpSignatures
+        ..clear()
+        ..addAll(
+          decoded.map<String, String>((key, value) {
+            return MapEntry(key.toString(), value as String);
+          }),
+        );
+    } catch (error, stack) {
+      logger.warning(
+        '[sidechain] failed to load persisted orphan give-up state',
+        error,
+        stack,
+      );
+    }
+  }
+
+  void _persistOrphanWalkbackGiveUpSignatures() {
+    MMKVStorage().setString(
+      _orphanWalkbackGiveUpStorageKey,
+      jsonEncode(_orphanWalkbackGiveUpSignatures),
+    );
+  }
+
+  String? _orphanParentGroupSignature(Set<String> parentKeys) {
+    if (parentKeys.isEmpty) return null;
+    final sortedKeys = parentKeys.toList()..sort();
+    // JSON preserves the sorted string boundaries exactly, avoiding a hash
+    // collision that could suppress a genuinely new parent group.
+    return jsonEncode(sortedKeys);
+  }
+
+  Set<String> _orphanParentKeys(Iterable<Map<String, dynamic>> messages) =>
+      messages
+          .where(isVisibleSidechainOrphan)
+          .map(WireParsers.sidechainParentToolUseId)
+          .whereType<String>()
+          .toSet();
+
+  void _clearOrphanWalkbackGiveUp(String sessionId) {
+    _loadOrphanWalkbackGiveUpSignatures();
+    if (_orphanWalkbackGiveUpSignatures.remove(sessionId) != null) {
+      _persistOrphanWalkbackGiveUpSignatures();
+    }
+  }
+
+  void _markOrphanWalkbackGiveUp(String sessionId, String? signature) {
+    if (signature == null) return;
+    _loadOrphanWalkbackGiveUpSignatures();
+    if (_orphanWalkbackGiveUpSignatures[sessionId] == signature) return;
+    _orphanWalkbackGiveUpSignatures[sessionId] = signature;
+    _persistOrphanWalkbackGiveUpSignatures();
+  }
+
+  bool _hasPersistedOrphanGiveUp(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) {
+    _loadOrphanWalkbackGiveUpSignatures();
+    final persisted = _orphanWalkbackGiveUpSignatures[sessionId];
+    if (persisted == null) return false;
+    final parentKeys = _orphanParentKeys(messages);
+    _orphanWalkbackParentKeys[sessionId] = parentKeys;
+    return _orphanParentGroupSignature(parentKeys) == persisted;
+  }
+
+  bool _isAgentContainerTool(Map<String, dynamic> message) {
+    final name = message['name'];
+    return message['kind'] == 'tool-call' &&
+        (name == 'Task' || name == 'Agent' || name == 'Workflow');
+  }
+
+  Set<String> _messageIdentityKeys(Map<String, dynamic> message) => {
+    for (final value in [message['id'], message['uuid'], message['toolUseId']])
+      if (value is String && value.isNotEmpty) value,
+  };
+
+  void _liftOrphanGiveUpIfNewParentArrived(
+    String sessionId,
+    List<Map<String, dynamic>> existing,
+    List<Map<String, dynamic>> incoming,
+  ) {
+    _loadOrphanWalkbackGiveUpSignatures();
+    if (!_orphanWalkbackGiveUpSignatures.containsKey(sessionId)) return;
+
+    final trackedParents = _orphanWalkbackParentKeys[sessionId] ??=
+        _orphanParentKeys(existing);
+    final parentArrived = incoming.any(
+      (message) =>
+          _isAgentContainerTool(message) &&
+          _messageIdentityKeys(message).any(trackedParents.contains),
+    );
+    final newParentGroupArrived = incoming
+        .where(isVisibleSidechainOrphan)
+        .map(WireParsers.sidechainParentToolUseId)
+        .whereType<String>()
+        .any((parentKey) => !trackedParents.contains(parentKey));
+    if (parentArrived || newParentGroupArrived) {
+      _clearOrphanWalkbackGiveUp(sessionId);
+    }
+  }
+
   /// Group sidechain messages as children of their parent Task
   /// tool-call messages and remove them from the main message list.
   ///
@@ -371,6 +482,7 @@ extension SyncMessagingMerge on Sync {
       _orphanFetchOlderNoProgressCount.remove(sessionId);
       _orphanWalkbackOrphanIds.remove(sessionId);
       _orphanWalkbackParentKeys.remove(sessionId);
+      _clearOrphanWalkbackGiveUp(sessionId);
       return;
     }
 
@@ -432,6 +544,23 @@ extension SyncMessagingMerge on Sync {
         .map(WireParsers.sidechainParentToolUseId)
         .whereType<String>()
         .toSet();
+
+    final orphanParentSignature = _orphanParentGroupSignature(
+      _orphanWalkbackParentKeys[sessionId]!,
+    );
+    _loadOrphanWalkbackGiveUpSignatures();
+    if (orphanParentSignature != null &&
+        _orphanWalkbackGiveUpSignatures[sessionId] == orphanParentSignature) {
+      // This parent group already exhausted both pagination and the
+      // resident-window recovery path, possibly in a previous process.
+      // Keep rendering the children inline without another O(n) grouping
+      // pass. A real parent Task or a disjoint parent group clears this
+      // signature in [_upsertSessionMessages].
+      _sidechainRegroupSweepCount.remove(sessionId);
+      _orphanFetchOlderNoProgressCount[sessionId] =
+          _orphanFetchOlderMaxAttempts;
+      return;
+    }
 
     // If we've already given up on exactly this orphan set (throttled,
     // hard cap reached, or history exhausted), don't keep running the
@@ -519,6 +648,7 @@ extension SyncMessagingMerge on Sync {
       _orphanFetchOlderAttemptedMs.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
           nowMs + _orphanFetchOlderDefaultThrottleMs;
+      _markOrphanWalkbackGiveUp(sessionId, orphanParentSignature);
       logger.info(
         '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
         'session=$sessionId — gave up after '
@@ -555,6 +685,7 @@ extension SyncMessagingMerge on Sync {
       _sidechainRegroupSweepCount.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
           nowMs + _orphanFetchOlderExhaustedThrottleMs;
+      _markOrphanWalkbackGiveUp(sessionId, orphanParentSignature);
       logger.info(
         '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
         'session=$sessionId — session is at its message cap '
@@ -649,6 +780,7 @@ extension SyncMessagingMerge on Sync {
       _orphanFetchOlderAttemptedMs.remove(sessionId);
       _orphanSuppressedUntilMs[sessionId] =
           nowMs + _orphanFetchOlderExhaustedThrottleMs;
+      _markOrphanWalkbackGiveUp(sessionId, orphanParentSignature);
       logger.info(
         '[sidechain] ${beforeOrphans.length} orphan(s) persist for '
         'session=$sessionId — history exhausted, rendering inline',
@@ -661,6 +793,11 @@ extension SyncMessagingMerge on Sync {
   void _groupSidechainMessages(String sessionId, {Set<String>? changedIds}) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
+
+    if (_hasPersistedOrphanGiveUp(sessionId, messages)) {
+      _sidechainGrouperSkips++;
+      return;
+    }
 
     // Revision memo. A full pass over an unchanged window would re-walk
     // every resident row (up to 1000, five passes) to reach the exact same
@@ -1368,6 +1505,7 @@ extension SyncMessagingMerge on Sync {
     // sweep's progress path clears the counter; if it delivers new
     // orphans, the sweep's signature check opens a fresh budget.
     final existing = _sessionMessages[sessionId] ?? <Map<String, dynamic>>[];
+    _liftOrphanGiveUpIfNewParentArrived(sessionId, existing, messages);
     final maxMessages = _sessionTrimCap(sessionId);
 
     if (_canAppendMessagesFastPath(existing, messages)) {

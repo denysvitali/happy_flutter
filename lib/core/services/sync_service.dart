@@ -1000,6 +1000,13 @@ what you have, you must use the options mode.
   /// run the O(n) grouper for sidechain children that must render inline.
   final Map<String, int> _orphanSuppressedUntilMs = {};
 
+  /// Stable parent-group signatures for orphan walk-backs that have
+  /// exhausted their recovery budget. This survives process restarts so a
+  /// cold start does not re-run the full grouper and walk the same older
+  /// pages before reaching the same conclusion.
+  final Map<String, String> _orphanWalkbackGiveUpSignatures = {};
+  bool _orphanWalkbackGiveUpSignaturesLoaded = false;
+
   /// Sessions that received `new-message` socket events while they were
   /// not visible. When the user navigates to one of these sessions,
   /// [onSessionVisible] forces a tail-refresh so [fetchMessages] bypasses

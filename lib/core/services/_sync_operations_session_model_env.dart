@@ -9,11 +9,14 @@ part of 'sync_service.dart';
 /// whatever the profile hardcoded. Every spawn path (create, model/profile
 /// respawn, auto-restore) runs its env through [_spawnEnvForModel].
 extension SyncSpawnModelEnv on Sync {
-  /// Returns [envVars] with the Claude model-selection knobs pointed at
-  /// [modelMode] when that is a concrete provider model for a Claude spawn
-  /// against a third-party Anthropic-compatible base URL. Official tier
-  /// aliases (`opus`, `sonnet`, ...) and `default` are left to `--model`;
-  /// non-Claude agents and first-party Anthropic profiles are untouched.
+  /// Returns [envVars] with the selected model bound to every process knob
+  /// that can override it.
+  ///
+  /// Claude third-party gateways need all Anthropic aliases and subagent
+  /// knobs re-pointed. Custom OpenAI-compatible Codex profiles need
+  /// `OPENAI_MODEL` (and its reasoning-effort knob) synchronized because a
+  /// profile snapshot otherwise keeps launching its originally configured
+  /// model.
   Map<String, String> _spawnEnvForModel(
     Map<String, String> envVars, {
     required String? agent,
@@ -22,7 +25,21 @@ extension SyncSpawnModelEnv on Sync {
   }) {
     if (profile == null || modelMode == null) return envVars;
     if (modelMode.isEmpty || modelMode == 'default') return envVars;
-    if ((agent ?? 'claude') != 'claude') return envVars;
+    final effectiveAgent = agent ?? 'claude';
+    if (effectiveAgent == 'claude') {
+      return _bindClaudeModelEnv(envVars, profile, modelMode);
+    }
+    if (effectiveAgent == 'codex' && _isCustomCodexProfile(profile)) {
+      return _bindCodexModelEnv(envVars, modelMode);
+    }
+    return envVars;
+  }
+
+  Map<String, String> _bindClaudeModelEnv(
+    Map<String, String> envVars,
+    AIBackendProfile profile,
+    String modelMode,
+  ) {
     if (_isClaudeModelAlias(modelMode)) return envVars;
     final baseUrl =
         envVars['ANTHROPIC_BASE_URL'] ?? _anthropicBaseUrlForProfile(profile);
@@ -36,6 +53,31 @@ extension SyncSpawnModelEnv on Sync {
         '(profile=${profile.id})',
       );
     }
+    return bound;
+  }
+
+  Map<String, String> _bindCodexModelEnv(
+    Map<String, String> envVars,
+    String modelMode,
+  ) {
+    final raw = modelMode.endsWith('[1m]')
+        ? modelMode.substring(0, modelMode.length - '[1m]'.length)
+        : modelMode;
+    if (raw.isEmpty || raw == 'default') return envVars;
+    final separator = raw.lastIndexOf(':');
+    final hasEffort = separator > 0 && separator < raw.length - 1;
+    final model = hasEffort ? raw.substring(0, separator) : raw;
+    final effort = hasEffort ? raw.substring(separator + 1) : null;
+    if (model.isEmpty || model == 'default') return envVars;
+
+    final bound = <String, String>{...envVars};
+    bound['OPENAI_MODEL'] = model;
+    if (effort == null || effort.isEmpty) {
+      bound.remove('CODEX_MODEL_REASONING_EFFORT');
+    } else {
+      bound['CODEX_MODEL_REASONING_EFFORT'] = effort;
+    }
+    logger.info('[spawn] bound Codex model env to selected model=$model');
     return bound;
   }
 }

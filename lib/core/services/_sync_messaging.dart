@@ -601,6 +601,10 @@ extension SyncMessaging on Sync {
             // grouper for sessions with persistent orphans.
             if (hasOrphans) {
               final nowMs = DateTime.now().millisecondsSinceEpoch;
+              if (_hasPersistedOrphanGiveUp(sessionId, messages)) {
+                _sessionsNeedingVisibleRegroup.remove(sessionId);
+                return;
+              }
               final suppressedUntil = _orphanSuppressedUntilMs[sessionId];
               if (suppressedUntil != null && nowMs < suppressedUntil) {
                 // Clear the flag so onSessionVisible doesn't retry grouping
@@ -1984,6 +1988,7 @@ extension SyncMessaging on Sync {
     _orphanWalkbackOrphanIds.remove(sessionId);
     _orphanWalkbackParentKeys.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
+    _clearOrphanWalkbackGiveUp(sessionId);
     _sessionSpawnedAt.remove(sessionId);
     _sessionSpawnedProfile.remove(sessionId);
     _sessionSpawnedModel.remove(sessionId);

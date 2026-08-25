@@ -625,7 +625,14 @@ extension SyncSpawnProfileResolution on Sync {
               : spawnedProfileId != effectiveProfileIdForChange)
         : explicitProfileChange;
 
-    final spawnedModel = _sessionSpawnedModel[sessionId];
+    final trackedSpawnedModel = _sessionSpawnedModel[sessionId];
+    // Spawn tracking is intentionally volatile across app restarts. A
+    // resumed/externally launched process has no client-run baseline, so use
+    // the process's durable session metadata instead. Without this fallback,
+    // changing the picker updates only persisted intent and never reaches the
+    // already-running Claude/Codex process.
+    final spawnedModel =
+        trackedSpawnedModel ?? _nonDefaultModelMode(session.modelMode);
     // Any model change must respawn — including switch TO `default`.
     // Old guard only fired for non-default → non-default, so Qwen →
     // Default (OpenAI) kept the old process (and its sticky model /

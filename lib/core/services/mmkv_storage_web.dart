@@ -583,6 +583,7 @@ class MMKVStorage {
         _Keys.sessionLastSeq,
         _Keys.sessionFirstLoadedSeq,
         _Keys.sessionsCache,
+        'orphan-walkback-give-up-signatures',
       ];
       for (final k in userKeys) {
         _cache.remove(k);

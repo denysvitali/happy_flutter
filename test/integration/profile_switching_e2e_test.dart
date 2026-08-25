@@ -47,6 +47,8 @@ void main() {
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
       sync.testSettingsSnapshot = Settings();
+      sync.testSocketConnectedOverride = true;
+      sync.testSocketSendOverride = (_, __) {};
       sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
         'messages': <dynamic>[],
       };
@@ -58,6 +60,8 @@ void main() {
       sync.testSocketSendOverride = null;
       sync.testMachineRPCOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
+      sync.testSocketConnectedOverride = null;
+      sync.testSocketSendOverride = null;
       sync.testFetchMessagesOverride = null;
     });
 
@@ -1612,6 +1616,7 @@ void main() {
       required String machineId,
       required String path,
       required String? spawnedProfileId,
+      String? modelMode,
     }) {
       final now = DateTime.now().millisecondsSinceEpoch;
       sync.testSessions[sessionId] = Session(
@@ -1632,6 +1637,7 @@ void main() {
           lifecycleState: 'running',
           lifecycleStateSince: now,
         ),
+        modelMode: modelMode,
       );
       sync.testMachines[machineId] = Machine(
         id: machineId,
@@ -1707,6 +1713,156 @@ void main() {
         );
         expect(envVars.containsKey('ANTHROPIC_AUTH_TOKEN'), isFalse);
       }
+    });
+
+    test(
+      'resumed Claude session respawns when durable model changes',
+      () async {
+        const sessionId = 'resumed-claude-model-change';
+        Map<String, dynamic>? capturedSpawnParams;
+
+        primeOnlineSession(
+          sessionId: sessionId,
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          spawnedProfileId: 'venice-anthropic',
+        );
+        final existing = sync.testSessions[sessionId]!;
+        sync.testSessions[sessionId] = existing.copyWith(
+          metadata: existing.metadata?.copyWith(flavor: 'claude'),
+          modelMode: 'opencode/x-preview-f-free',
+        );
+
+        final profile = AIBackendProfile(
+          id: 'venice-anthropic',
+          name: 'Venice',
+          anthropicConfig: AnthropicConfig(
+            baseUrl: 'https://api.venice.ai/v1/anthropic',
+            authToken: 'venice-token',
+            model: 'stealth-ox-alpha',
+          ),
+        );
+        sync.testGetSpawnEnvVarsOverride = (_) async {
+          return (
+            envVars: <String, String>{
+              'ANTHROPIC_BASE_URL': profile.anthropicConfig!.baseUrl!,
+              'ANTHROPIC_AUTH_TOKEN': profile.anthropicConfig!.authToken!,
+              'ANTHROPIC_MODEL': 'stealth-ox-alpha',
+              'ANTHROPIC_DEFAULT_OPUS_MODEL': 'stealth-ox-alpha',
+              'CLAUDE_CODE_SUBAGENT_MODEL': 'stealth-ox-alpha',
+            },
+            profile: profile,
+          );
+        };
+
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          if (method == 'spawn-happy-session') {
+            capturedSpawnParams = params;
+            return <String, dynamic>{
+              'type': 'success',
+              'sessionId': sessionId,
+              'dataEncryptionKey': null,
+            };
+          }
+          return <String, dynamic>{'type': 'error'};
+        };
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        try {
+          await sync.sendMessage(
+            sessionId,
+            'hello',
+            modelMode: 'venice/stealth-ox-alpha',
+            profileId: 'venice-anthropic',
+          );
+        } catch (_) {
+          // REST POST is not mocked; the spawn contract is the assertion.
+        }
+
+        expect(capturedSpawnParams, isNotNull);
+        expect(capturedSpawnParams!['model'], 'venice/stealth-ox-alpha');
+        final envVars =
+            capturedSpawnParams!['environmentVariables']
+                as Map<String, dynamic>;
+        expect(envVars['ANTHROPIC_MODEL'], 'venice/stealth-ox-alpha');
+      },
+    );
+
+    test('untracked Codex session respawns from durable metadata', () async {
+      const sessionId = 'untracked-codex-model-change';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'custom-openai-codex',
+      );
+      final existing = sync.testSessions[sessionId]!;
+      sync.testSessions[sessionId] = existing.copyWith(
+        metadata: existing.metadata?.copyWith(flavor: 'codex'),
+        modelMode: 'gpt-5.5:medium',
+      );
+
+      final profile = AIBackendProfile(
+        id: 'custom-openai-codex',
+        name: 'Custom OpenAI',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: 'https://openai-proxy.example.com/v1',
+          ),
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: 'sk-test'),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'old-model'),
+          EnvironmentVariable(
+            name: 'CODEX_MODEL_REASONING_EFFORT',
+            value: 'low',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+          pi: false,
+        ),
+      );
+      sync.testGetSpawnEnvVarsOverride = (_) async => (
+        envVars: {
+          for (final env in profile.environmentVariables) env.name: env.value,
+        },
+        profile: profile,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(
+          sessionId,
+          'hello',
+          modelMode: 'gpt-5.5:high',
+          profileId: 'custom-openai-codex',
+        );
+      } catch (_) {
+        // REST POST is not mocked; the spawn contract is the assertion.
+      }
+
+      expect(capturedSpawnParams, isNotNull);
+      expect(capturedSpawnParams!['model'], 'gpt-5.5:high');
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>;
+      expect(envVars['OPENAI_MODEL'], 'gpt-5.5');
+      expect(envVars['CODEX_MODEL_REASONING_EFFORT'], 'high');
     });
 
     test('switching from qwen model to Default respawns '
