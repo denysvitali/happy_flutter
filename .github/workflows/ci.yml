@@ -921,6 +921,19 @@ jobs:
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
           echo "SENTRY_RELEASE=happy_flutter@${SEMVER}+${BUILD_NUMBER}" >> $GITHUB_OUTPUT
 
+      - name: Build Rust WASM core
+        # The generated FRB web bindings load `pkg/happy_core.js` at runtime.
+        # Keep the WASM output outside `web/` so it never becomes a checked-in
+        # build artifact, then copy it into Flutter's web bundle below.
+        run: |
+          cargo install --locked flutter_rust_bridge_codegen --version 2.13.0
+          rustup toolchain install nightly --profile minimal --component rust-src
+          flutter_rust_bridge_codegen build-web \
+            --dart-root . \
+            --rust-root rust/happy_core \
+            --output "$GITHUB_WORKSPACE/build/rust/web" \
+            --release
+
       - name: Build Web
         run: |
           mise exec -- flutter build web --release --no-pub \
@@ -929,6 +942,12 @@ jobs:
             --dart-define=COMMIT_SHA=${{ github.sha }} \
             --dart-define=SENTRY_RELEASE=${{ steps.build_meta.outputs.SENTRY_RELEASE }} \
             --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
+
+      - name: Include Rust WASM core in Web bundle
+        run: |
+          mkdir -p build/web/pkg
+          cp build/rust/web/pkg/happy_core.js build/web/pkg/happy_core.js
+          cp build/rust/web/pkg/happy_core_bg.wasm build/web/pkg/happy_core_bg.wasm
 
       - name: Upload web source maps to Sentry
         if: ${{ env.SENTRY_AUTH_TOKEN != '' }}

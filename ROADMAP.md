@@ -114,9 +114,13 @@ Not yet done, in priority order:
   the seventh-pass audit also named a ~140-line no-`await` span in the socket
   ingest orchestrator and a grouper that re-walks the whole transcript with no
   revision memo. Those are the next slices.
-- **WASM is generated but not delivered.** The `.web` bindings exist, but no
-  wasm-pack build is wired into the web CI job, so on web `RustLib.init()`
-  fails at runtime and the app falls back to Dart — safe, but no speedup there.
+- **WASM delivery is now wired into the web build.** CI runs
+  `flutter_rust_bridge_codegen build-web --release` against `rust/happy_core`
+  and copies `pkg/happy_core.js` plus `pkg/happy_core_bg.wasm` into the
+  Flutter web artifact. This closes the previous deployment gap: web now
+  ships the module files required by `RustLib.init()`. The native core
+  remains optional at runtime; a failed WASM load still takes the existing
+  Dart fallback.
 - **Re-baselined 2026-08-25** (`app.native_core.status_total` confirms builds
   266600+ load the core). Frozen frames per 24h by build: 263600 = 329,
   265200 = 179, 266200 = 119 (pre-Rust plateau) vs 266600 = 7, 266800 = 27.

@@ -12,6 +12,9 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 aes-gcm = "0.10"
 base64 = "0.22"
 flutter_rust_bridge = "=2.13.0"
+# AES-GCM's rand_core dependency resolves getrandom 0.2. Enable its Web
+# Crypto backend so the same crate compiles for the FRB WASM target.
+getrandom = { version = "0.2", features = ["js"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
