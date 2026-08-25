@@ -72,15 +72,16 @@ falls back to the existing four-pass Dart grouper. Native Rust contracts cover
 direct, transitive, nested, orphan, and cycle cases, and the live FFI test
 covers the production grouper shape.
 
-The post-decrypt socket tail also now yields at the 120-row mutation-phase
+The post-decrypt socket tail also yields at the 120-row mutation-phase
 budget, preserving FIFO and one notification while giving the UI isolate
 event-loop boundaries during large batches. A targeted contract test covers
 the yield count, bounded resident result, and ordering/localId behavior.
-Frame metrics now split every render window's activity into pointer events,
+Frame metrics split every render window's activity into pointer events,
 non-message Sync changes, and message-list mutations, so a future low-fps
 report can distinguish an active streaming window from a blocked isolate or
-a genuinely idle renderer. Still open from the same list: the per-token
-merge path.
+a genuinely idle renderer.
+
+Still open from the same list: the per-token merge path.
 
 ### Native (Rust) core, eighth pass, 2026-08-24 ("create a library in Rust")
 
