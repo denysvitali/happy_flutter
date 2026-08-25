@@ -50,6 +50,7 @@ void main() {
   group('FrameMetricsService memory sample', () {
     tearDown(() {
       OpenTelemetryService.debugValueSink = null;
+      FrameMetricsService.instance.debugEncryptionRetainedBytes = null;
     });
 
     test('every flush records an RSS sample, even with zero frames', () {
@@ -63,13 +64,78 @@ void main() {
       FrameMetricsService.instance.debugFlush();
 
       expect(samples, isNotEmpty);
-      final (name, mb) = samples.single;
-      expect(name, 'app.memory.rss_mb');
+      final rssSamples =
+          samples.where(((sample) => sample.$1 == 'app.memory.rss_mb'));
+      expect(rssSamples, hasLength(1));
       expect(
-        mb,
+        rssSamples.single.$2,
         greaterThan(0),
         reason: 'the test VM has a real RSS on this platform',
       );
+    });
+
+    // Memory attribution (perf pass 11): production RSS p95 sits near 2 GB
+    // at large session counts with nothing saying where the bytes live.
+    // Every flush now samples the candidate holders on the same window so
+    // a high-RSS launch can be decomposed without new tooling.
+    test('flush attributes memory to cache holders and resident rows', () {
+      final samples = <(String, double)>[];
+      OpenTelemetryService.debugValueSink = (name, value, attributes) {
+        samples.add((name, value));
+      };
+      FrameMetricsService.instance.debugEncryptionRetainedBytes =
+          () => 4 * 1024 * 1024;
+      sync.testSetSessionMessages('mem-gauge-1', [
+        const {'localId': 'a'},
+        const {'localId': 'b'},
+      ]);
+      sync.testSetSessionMessages('mem-gauge-2', [
+        const {'localId': 'c'},
+      ]);
+      addTearDown(() {
+        sync.testClearSessionMessageState('mem-gauge-1');
+        sync.testClearSessionMessageState('mem-gauge-2');
+      });
+
+      FrameMetricsService.instance.debugFlush();
+
+      final byName = <String, double>{
+        for (final (name, value) in samples) name: value,
+      };
+      expect(byName.keys, containsAll(<String>[
+        'app.memory.rss_mb',
+        'app.memory.image_cache_mb',
+        'app.memory.encryption_cache_mb',
+        'app.memory.resident_rows',
+      ]));
+      expect(byName['app.memory.image_cache_mb']!, greaterThanOrEqualTo(0));
+      expect(byName['app.memory.encryption_cache_mb']!, closeTo(4.0, 0.01));
+      // Top-level rows across both seeded sessions; sidechain children hang
+      // off their parent row and are deliberately not double-counted.
+      expect(byName['app.memory.resident_rows']!, 3);
+    });
+
+    // Sync.encryption only exists after login. A pre-auth window must skip
+    // its encryption-cache sample rather than throw out of the flush.
+    test('skips the encryption gauge before login instead of throwing', () {
+      final samples = <(String, double)>[];
+      OpenTelemetryService.debugValueSink = (name, value, attributes) {
+        samples.add((name, value));
+      };
+      // No debugEncryptionRetainedBytes override: production read hits the
+      // unset late field and reads as "nothing to report".
+
+      expect(
+        sync.isEncryptionInitialized,
+        isFalse,
+        reason: 'precondition: this test runs without a logged-in account',
+      );
+
+      FrameMetricsService.instance.debugFlush();
+
+      final names = samples.map(((sample) => sample.$1)).toSet();
+      expect(names, contains('app.memory.rss_mb'));
+      expect(names, isNot(contains('app.memory.encryption_cache_mb')));
     });
   });
 

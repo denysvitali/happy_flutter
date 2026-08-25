@@ -1210,6 +1210,20 @@ what you have, you must use the options mode.
   /// should not call [sessions] merely to ask for its length.
   int get sessionCount => _sessions.length;
 
+  /// Total decrypted transcript rows resident across all sessions.
+  ///
+  /// Telemetry accessor for `app.memory.resident_rows`: the residency
+  /// budget bounds full transcripts to a handful of sessions with 25-row
+  /// previews for the rest, and this is the number that should stay flat
+  /// as the catalog grows. Counts top-level rows only — sidechain children
+  /// hang off their parent row and are not double-counted. O(sessions),
+  /// no copies, sampled once per frame-metrics flush.
+  int get residentMessageRowCount {
+    var count = 0;
+    _sessionMessages.forEach((_, rows) => count += rows.length);
+    return count;
+  }
+
   /// Per-session message seq cursors. Exposed for debug UI.
   Map<String, int> get sessionMessageCursors =>
       Map.unmodifiable(_sessionLastSeq);

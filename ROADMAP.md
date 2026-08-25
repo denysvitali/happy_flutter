@@ -4,6 +4,68 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-25
 
+### Perf pass 11, 2026-08-25 ("cold-start re-baseline + memory attribution")
+
+Telemetry-first pass with two headline results and one instrumentation
+slice. **First, the cold-start re-baseline that has been deferred since the
+2026-07-31 audit is delivered — no code change was needed, only a correct
+query.** The startup histograms were never dead: every launch records
+exactly one sample per metric (verified: `_count` reaches 1 on all 52
+launch instances across builds 263600–268900 for first-frame,
+essential-ready, and deferred-init; `app_native_core_status_total` fires on
+the 22 post-Rust builds). What defeated every previous re-baseline attempt
+was **delta temporality on per-launch streams**: each OTLP export carries
+only the window's delta, so `rate()`/`increase()`/`histogram_quantile` over
+`rate()` read NaN or 0 forever, while later zero-delta windows keep the
+series alive at `_count=0` — which reads exactly like "recorded but never
+exported". The correct aggregation is `sum_over_time` (each delta sample
+*is* an increment), then `histogram_quantile` over the summed buckets.
+An interim claim from this session that the one-shot metrics were
+permanently dead is retracted — it was the same query artifact.
+
+Re-baseline over 30 days of production launches: **essential-ready mean
+0.90 s / p95 2.34 s against the <3 s avg target — target met** (Sentry-era
+baseline was 4.6 s avg). Splash first-frame p50 65 ms / p95 156 ms (the
+first frame paints before deferred init by design, so it measures shell
+paint, not usable-app time); `app_deferred_init` mean 0.82 s remains the
+largest startup component and is now measurable against future passes.
+
+**Second result: frozen frames are solved at the fleet level.** Newest
+builds sit at ~1–2.5 frozen frames per build per 24 h (268100 = 137 →
+268500 = 22 → 268700 = 2.5 → 268900 ≈ 1.1), all in the ≤250 ms bucket.
+The collapse tracks the orphan-give-up fixes (14a118d6, 2680cdfb) rather
+than pass-10's reconciler coalescing — its builds (≥269000) are still
+accumulating, and the new `app.session.catalog_reconcile` histogram shows
+both listeners walking at ~150–164 walks/6 h, 100 % inside the ≤10 ms
+bucket at 101–250 sessions. Loki logged exactly one WARN in the newest
+builds' window (a transient outbox dead-letter, `reason=agent_starting`);
+Jaeger's ten `ui.jank` traces remain single-span and unattributable.
+
+With latency metrics healthy, the top unattributed signal is **memory**:
+`app.memory.rss_mb` p50 ≈ 1074 MB / p95 ≈ 1940 MB concentrated in the
+101–250 session bucket (inverted relative to 251+, which reads lower),
+across chat/home/unknown routes — mechanism unknown, and the residency
+budget already bounds transcripts independent of catalog size. Shipped:
+three attribution gauges sampled on the same frame-metrics window as RSS
+(same native gate, same route/session-bucket attributes so windows join):
+`app.memory.image_cache_mb` (decoded-image cache bytes — inline base64
+chat images are the prime suspect), `app.memory.encryption_cache_mb`
+(EncryptionCache retainedBytes; skipped pre-login via
+`isEncryptionInitialized`, exposes a breach of its ~19 MB budgets), and
+`app.memory.resident_rows` (`Sync.residentMessageRowCount` — decrypted
+transcript rows across sessions; the budget should keep this flat as the
+catalog grows, top-level rows only). If image_cache does not move with the
+101–250 RSS inversion next pass, images are ruled out and the trail points
+at tool-output retention or workflow projections.
+
+Deliberately **no Rust slice this pass**: with freezes at ~1/day the queued
+transferable-buffer JSON kernel's user-visible value is marginal until a
+measured need returns; memory attribution decides whether the next slice
+exists at all. Contract coverage: flush emits all four gauges with seeded
+cache/session state, encryption gauge skips instead of throwing pre-auth,
+RSS sample still fires on zero-frame idle windows
+(`test/core/services/frame_metrics_service_test.dart`).
+
 ### Perf pass 10, 2026-08-25 ("move more and more operations to Rust")
 
 Telemetry-first pass. The three-tool sweep on the live fleet (builds
