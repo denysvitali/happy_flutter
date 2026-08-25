@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-24
+**Last Updated**: 2026-08-25
 
 ### Native (Rust) core, eighth pass, 2026-08-24 ("create a library in Rust")
 
@@ -55,10 +55,19 @@ Not yet done, in priority order:
 - **WASM is generated but not delivered.** The `.web` bindings exist, but no
   wasm-pack build is wired into the web CI job, so on web `RustLib.init()`
   fails at runtime and the app falls back to Dart — safe, but no speedup there.
-- Re-baseline `app.ui.frozen_frame_*` by `service_build` once a build carrying
-  the native core reaches the fleet. If frozen frames finally move, continue
-  the port; if they do not, the blocker is elsewhere again and the next audit
-  starts from the phase split, not from a hypothesis.
+- **Re-baselined 2026-08-25** (`app.native_core.status_total` confirms builds
+  266600+ load the core). Frozen frames per 24h by build: 263600 = 329,
+  265200 = 179, 266200 = 119 (pre-Rust plateau) vs 266600 = 7, 266800 = 27.
+  Normalized per active render window (`app.ui.render_windows_total`; the
+  `app_cold_start_first_frame_seconds_count` denominator reads all-zero and is
+  unusable): plateau ~3.1–3.8 → **0.60 on 266600, 2.26 on 266800**. Every
+  surviving freeze on Rust builds sits in the 100–250 ms bucket; zero frames
+  above 250 ms anywhere — the old 487 ms tail is gone. Methodology note:
+  judge raw counts and bucket occupancy, never `histogram_quantile` on these
+  near-empty histograms (single occupied bucket → the quantile returns a
+  number just under that edge on every build; an earlier interim "p95 halved
+  to 242.5 ms" claim was exactly that artifact and is retracted). Verdict: it
+  moved, so the port continues — survivors are the remaining Dart hot path.
 
 ### Progressive-lag remediation, seventh pass, 2026-08-24 ("still lags")
 
