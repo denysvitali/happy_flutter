@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/features/chat/tools/known_tools.dart';
 import 'package:happy_flutter/features/chat/tools/views/task_tool_view.dart';
 
 Widget _wrap(ProviderContainer container, Widget child) {
@@ -21,6 +22,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('TaskToolView — rendering', () {
+    test('Create Task collapsed header reads the Happy MCP content field', () {
+      final subtitle = KnownTools.get('TaskCreate')!.extractSubtitle!({
+        'name': 'mcp__happy__todo_add',
+        'input': {'content': 'Fix Create Task rows'},
+      }, null);
+
+      expect(subtitle, 'Fix Create Task rows');
+    });
+
+    test('Update Task collapsed header reads the Happy MCP content field', () {
+      final subtitle = KnownTools.get('TaskUpdate')!.extractSubtitle!({
+        'name': 'mcp__happy__todo_update',
+        'input': {'id': '1', 'content': 'Ship the fix'},
+      }, null);
+
+      expect(subtitle, 'Ship the fix');
+    });
+
     testWidgets('TaskCreate renders subject and status', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);

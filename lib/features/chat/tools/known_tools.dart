@@ -531,7 +531,7 @@ class KnownTools {
       // tools skip body instantiation entirely.
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['subject'] as String? ?? input?['description'] as String?;
+        return _taskSubject(input);
       },
     ),
     'TaskUpdate': ToolDefinition(
@@ -546,8 +546,8 @@ class KnownTools {
         if (input == null) return null;
         final taskId = input['taskId'] as String? ?? input['id'] as String?;
         final what =
+            _taskSubject(input) ??
             input['activeForm'] as String? ??
-            input['subject'] as String? ??
             (taskId != null ? '#$taskId' : null);
         final status = input['status'] as String?;
         final label = status == null || status.isEmpty
@@ -1053,6 +1053,15 @@ class KnownTools {
       '*** Delete File: ',
     ]) {
       if (line.startsWith(prefix)) return line.substring(prefix.length);
+    }
+    return null;
+  }
+
+  static String? _taskSubject(Map<String, dynamic>? input) {
+    if (input == null) return null;
+    for (final key in const ['subject', 'content', 'description']) {
+      final value = input[key];
+      if (value is String && value.trim().isNotEmpty) return value.trim();
     }
     return null;
   }
