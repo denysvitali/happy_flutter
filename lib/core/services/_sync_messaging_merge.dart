@@ -369,6 +369,22 @@ extension SyncMessagingMerge on Sync {
     final persisted = _orphanWalkbackGiveUpSignatures[sessionId];
     if (persisted == null) return false;
     final parentKeys = _orphanParentKeys(messages);
+
+    // The normal socket/fetch path clears this marker in
+    // [_upsertSessionMessages], but tests and cache-restore paths can hand
+    // the grouper a complete window directly. A real parent in that window
+    // must always win over a stale persisted give-up marker.
+    final parentArrived = messages.any(
+      (message) =>
+          _isAgentContainerTool(message) &&
+          _messageIdentityKeys(message).any(parentKeys.contains),
+    );
+    if (parentArrived) {
+      _clearOrphanWalkbackGiveUp(sessionId);
+      _orphanWalkbackParentKeys[sessionId] = parentKeys;
+      return false;
+    }
+
     _orphanWalkbackParentKeys[sessionId] = parentKeys;
     return _orphanParentGroupSignature(parentKeys) == persisted;
   }
@@ -557,8 +573,6 @@ extension SyncMessagingMerge on Sync {
       // pass. A real parent Task or a disjoint parent group clears this
       // signature in [_upsertSessionMessages].
       _sidechainRegroupSweepCount.remove(sessionId);
-      _orphanFetchOlderNoProgressCount[sessionId] =
-          _orphanFetchOlderMaxAttempts;
       return;
     }
 
