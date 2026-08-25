@@ -4,6 +4,35 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-25
 
+### Perf pass 9, 2026-08-25 ("improve the performance even further")
+
+First slice of the eighth pass's "rest of the hot path is still Dart" list:
+the **sidechain-grouper revision memo**. Six of the nine production
+`_groupSidechainMessages` call sites pass no `changedIds` (catch-up skip,
+visible-regroup on session open, cache restore, fetch-older, the deferred
+walk-back sweep), so each one re-walked the whole resident transcript — up
+to 1000 rows through five indexing/grouping passes — even when nothing had
+changed since the previous pass. `Sync.messagesRevision` could not anchor
+the memo: only the socket path bumps it. The memo instead keys on a new
+per-session **mutation generation** bumped in `_invalidateMessageCaches`,
+the hook every message-window mutation already flows through (18 call
+sites, including the seventh pass's in-place tail update, which reuses the
+list reference — so list identity alone would have been unsound). A full
+pass that finished *clean* (nothing to group, or grouped with no orphans)
+records the generation; a full pass requested at that same generation is a
+guaranteed no-op and is skipped. Orphan outcomes are never memoized, so
+`_scheduleSidechainRegroup` and the deferred sweep behave exactly as before,
+and `changedIds` calls still take the existing fast path. Contract tests
+(`test/services/sidechain_grouper_memo_test.dart`) pin: skip on unchanged
+window with `children` intact, re-arm on any mutation including the
+same-reference streaming update, late child and late parent still grouped
+without `changedIds`, orphans never memoized, deferred sweep still runs
+after a mutation, per-session clear.
+
+Still open from the same list: JSON parse and the per-token merge path in
+Rust, the ~140-line no-`await` span in the socket ingest orchestrator, and
+WASM delivery for web.
+
 ### Native (Rust) core, eighth pass, 2026-08-24 ("create a library in Rust")
 
 Seven passes of Dart-side fixes each corrected a real defect and each left

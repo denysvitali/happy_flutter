@@ -164,7 +164,22 @@ extension SyncTestHelpers on Sync {
     _orphanWalkbackOrphanIds.remove(sessionId);
     _orphanWalkbackParentKeys.remove(sessionId);
     _orphanSuppressedUntilMs.remove(sessionId);
+    _sessionMessagesMutationGen.remove(sessionId);
+    _sidechainCleanAtGen.remove(sessionId);
   }
+
+  /// Whether a deferred sidechain regroup sweep is armed for [sessionId].
+  @visibleForTesting
+  bool testHasSidechainRegroupTimer(String sessionId) =>
+      _sidechainRegroupTimers[sessionId]?.isActive ?? false;
+
+  /// Number of times the sidechain grouper actually ran (memo miss).
+  @visibleForTesting
+  int get testSidechainGrouperRuns => _sidechainGrouperRuns;
+
+  /// Number of full grouper passes skipped by the revision memo.
+  @visibleForTesting
+  int get testSidechainGrouperSkips => _sidechainGrouperSkips;
 
   @visibleForTesting
   Map<String, int> get testSessionEncryptionRecoveryAttempts =>
@@ -844,6 +859,10 @@ extension SyncTestHelpers on Sync {
     _lastEphemeralAt.clear();
     _pendingToolResults.clear();
     _sessionMessagesTouchedAtMs.clear();
+    _sessionMessagesMutationGen.clear();
+    _sidechainCleanAtGen.clear();
+    _sidechainGrouperRuns = 0;
+    _sidechainGrouperSkips = 0;
     _lastIdleShrinkSweepMs = 0;
   }
 

@@ -662,14 +662,34 @@ extension SyncMessagingMerge on Sync {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return;
 
+    // Revision memo. A full pass over an unchanged window would re-walk
+    // every resident row (up to 1000, five passes) to reach the exact same
+    // answer as last time. The generation counter is bumped by every
+    // message-window mutation path, so "same generation" means "no row was
+    // added, replaced, removed or mutated in place since the last clean
+    // pass" — including the streaming in-place update, which reuses the
+    // list reference (so reference identity alone would be unsound).
+    // Only clean outcomes are memoized: an orphan result must keep
+    // scheduling the deferred sweep and re-running when it fires.
+    final gen = _sessionMessagesMutationGen[sessionId] ?? 0;
+    if (changedIds == null && _sidechainCleanAtGen[sessionId] == gen) {
+      _sidechainGrouperSkips++;
+      return;
+    }
+    _sidechainGrouperRuns++;
+
     final result = _sidechainGrouper.groupMessages(
       _sessionMessages[sessionId] ?? messages,
       changedIds: changedIds,
     );
 
-    if (result == null) return;
+    if (result == null) {
+      if (changedIds == null) _sidechainCleanAtGen[sessionId] = gen;
+      return;
+    }
 
     if (result.hasOrphans) {
+      _sidechainCleanAtGen.remove(sessionId);
       _scheduleSidechainRegroup(sessionId);
     }
 
@@ -683,6 +703,11 @@ extension SyncMessagingMerge on Sync {
     // Always invalidate cache after assigning — the list reference may be
     // identical even when the list contents changed (hasOrphans path).
     _invalidateMessageCaches(sessionId);
+    if (!result.hasOrphans && changedIds == null) {
+      // Record the generation *after* our own invalidation bump so the
+      // next full pass over this exact window is skipped.
+      _sidechainCleanAtGen[sessionId] = _sessionMessagesMutationGen[sessionId]!;
+    }
   }
 
   /// Apply tool results to existing tool-call messages in a session.

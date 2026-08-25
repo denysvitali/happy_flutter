@@ -738,6 +738,23 @@ what you have, you must use the options mode.
   /// chat UI detect in-place edits that an identical()/tail-fingerprint
   /// comparison would otherwise miss.
   final Map<String, int> _sessionMessagesRevision = {};
+
+  /// Per-session count of message-window mutations, bumped by every
+  /// [_invalidateMessageCaches] call (the universal post-mutation hook).
+  /// Unlike [_sessionMessagesRevision], which only the socket path bumps,
+  /// this covers every path that can touch [_sessionMessages].
+  final Map<String, int> _sessionMessagesMutationGen = {};
+
+  /// Sidechain-grouper memo: the mutation generation at which a full
+  /// (no-`changedIds`) grouper pass last finished *clean* — nothing to
+  /// group, or grouped with no orphans left. A full pass requested at the
+  /// same generation is a guaranteed no-op and is skipped. Orphan outcomes
+  /// are never memoized, so the deferred walk-back sweep keeps re-walking.
+  final Map<String, int> _sidechainCleanAtGen = {};
+
+  /// Test-visible counters for the memo above.
+  int _sidechainGrouperRuns = 0;
+  int _sidechainGrouperSkips = 0;
   final Map<String, Map<String, dynamic>> _sessionUsage = {};
   Map<String, Session> _sessions = <String, Session>{};
   int? _lastSessionsFetchedAt;
@@ -1539,6 +1556,8 @@ what you have, you must use the options mode.
   void _invalidateMessageCaches(String sessionId) {
     _sessionMessagesCache = null;
     _sessionMessagesViewCache.remove(sessionId);
+    _sessionMessagesMutationGen[sessionId] =
+        (_sessionMessagesMutationGen[sessionId] ?? 0) + 1;
     // Every message-window mutation flows through here — the touch stamp
     // is what keeps the idle-window shrink sweep away from live sessions.
     _sessionMessagesTouchedAtMs[sessionId] =

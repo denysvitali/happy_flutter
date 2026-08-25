@@ -995,6 +995,8 @@ extension SyncLifecycle on Sync {
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();
     _sessionMessagesTouchedAtMs.clear();
+    _sessionMessagesMutationGen.clear();
+    _sidechainCleanAtGen.clear();
     _sessionUnreadCounts.clear();
     _sessionUnreadLastIncrementMs.clear();
 
