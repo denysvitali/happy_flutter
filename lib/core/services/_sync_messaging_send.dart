@@ -466,9 +466,19 @@ extension SyncMessagingSend on Sync {
         // Compute before target resolution so model changes can restore.
         final flavor =
             session.metadata?.flavor ?? settingsSnapshot.lastUsedAgent;
+        // Resolve the caller-selected profile so provider-owned model picks
+        // survive normalization for Claude-flavored sessions (same guard as
+        // createSession and auto-restore).
+        final sendProfile = profileId != null
+            ? _resolveProfile(profileId)
+            : null;
         final requestedModelMode = flavor == 'codex' && modelMode != null
             ? (_isClaudeModelAlias(modelMode) ? 'default' : modelMode)
-            : _normalizeModelModeForAgent(modelMode, flavor);
+            : _normalizeModelModeForAgent(
+                modelMode,
+                flavor,
+                profile: sendProfile,
+              );
         final effectiveModelMode =
             requestedModelMode != null && requestedModelMode != 'default'
             ? requestedModelMode

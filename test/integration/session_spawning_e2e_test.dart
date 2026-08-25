@@ -1990,6 +1990,132 @@ void main() {
     });
   });
 
+  group('model mode propagation over sendMessage', () {
+    late Sync sync;
+    late _FakeEncryption encryption;
+    late _CapturingSessionEncryption capturingEncryption;
+
+    setUp(() async {
+      sync = Sync();
+      capturingEncryption = _CapturingSessionEncryption();
+      encryption = _FakeEncryption(
+        customSessionEncryption: capturingEncryption,
+      );
+      sync.encryption = encryption;
+      sync.testIsInitialized = true;
+      sync.testSocketConnectedOverride = true;
+      sync.testSocketSendOverride = (_, __) {};
+      sync.testSessions.clear();
+      sync.testClearSessionSpawnedAt();
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+      _stubAllSyncs(sync);
+
+      await ApiClient().initialize(serverUrl: 'http://localhost');
+      final interceptor = _CapturingApiInterceptor();
+      ApiClient().testDio!.interceptors.add(interceptor);
+      interceptor.respondWith('model-sess');
+    });
+
+    tearDown(() {
+      ApiClient().dispose();
+      sync.testSocketConnectedOverride = null;
+      sync.testSocketSendOverride = null;
+      sync.testFetchSingleSessionOverride = null;
+    });
+
+    test(
+      'vendor-qualified pick with owning profile survives on claude flavor',
+      () async {
+        // Regression: the interactive send path used to normalize without a
+        // profile, so the Claude slash-rule collapsed provider picks like
+        // 'grok/grok-4.6' to 'default' and the wire meta.model was dropped.
+        // The daemon then substituted the active profile's ANTHROPIC_MODEL.
+        const profileId = 'venice-claude';
+        sync.testSettingsSnapshot = Settings()
+          ..profiles = [
+            AIBackendProfile(
+              id: profileId,
+              name: 'Venice (Claude gateway)',
+              anthropicConfig: AnthropicConfig(
+                baseUrl: 'https://proxy.example/anthropic',
+              ),
+              models: const ['grok/grok-4.6'],
+            ),
+          ];
+        sync.testSessions['model-sess'] = _makeSession(
+          'model-sess',
+          presence: 'online',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+          flavor: 'claude',
+        );
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        await sync.sendMessage(
+          'model-sess',
+          'test',
+          modelMode: 'grok/grok-4.6',
+          profileId: profileId,
+        );
+        await sync.lastCompleteSendFuture;
+
+        final raw = capturingEncryption.lastRawRecord;
+        expect(raw, isNotNull);
+        final meta = raw!['meta'] as Map<String, dynamic>;
+        expect(
+          meta['model'],
+          'grok/grok-4.6',
+          reason:
+              'Profile-owned vendor slug must survive normalization and reach '
+              'the wire meta.model so the daemon honors it verbatim',
+        );
+      },
+    );
+
+    test('vendor-qualified pick without profile collapses to null', () async {
+      // Pins the guard: without a resolvable owning profile the slash rule
+      // still strips non-Claude model modes for Claude-flavored sessions.
+      sync.testSettingsSnapshot = Settings();
+      sync.testSessions['model-sess'] = _makeSession(
+        'model-sess',
+        presence: 'online',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        flavor: 'claude',
+      );
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      await sync.sendMessage('model-sess', 'test', modelMode: 'grok/grok-4.6');
+      await sync.lastCompleteSendFuture;
+
+      final raw = capturingEncryption.lastRawRecord;
+      expect(raw, isNotNull);
+      final meta = raw!['meta'] as Map<String, dynamic>;
+      expect(meta['model'], isNull);
+    });
+
+    test('claude alias passes through unchanged', () async {
+      sync.testSettingsSnapshot = Settings();
+      sync.testSessions['model-sess'] = _makeSession(
+        'model-sess',
+        presence: 'online',
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        flavor: 'claude',
+      );
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      await sync.sendMessage('model-sess', 'test', modelMode: 'sonnet:high');
+      await sync.lastCompleteSendFuture;
+
+      final raw = capturingEncryption.lastRawRecord;
+      expect(raw, isNotNull);
+      final meta = raw!['meta'] as Map<String, dynamic>;
+      expect(meta['model'], 'sonnet:high');
+    });
+  });
+
   group('_primeSessionFromSpawnResult', () {
     late Sync sync;
     late _FakeEncryption encryption;
@@ -2139,6 +2265,7 @@ Session _makeSession(
   String? machineId,
   String? path,
   String? permissionMode,
+  String? flavor,
   int? createdAt,
 }) {
   final now = createdAt ?? 1700000000000;
@@ -2154,7 +2281,12 @@ Session _makeSession(
     thinking: false,
     presence: presence,
     permissionMode: permissionMode,
-    metadata: Metadata(host: '', machineId: machineId, path: path),
+    metadata: Metadata(
+      host: '',
+      machineId: machineId,
+      path: path,
+      flavor: flavor,
+    ),
   );
 }
 
