@@ -63,6 +63,7 @@ import 'widgets/chat_messages_body.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
 import 'widgets/model_change_divider.dart';
+import 'widgets/model_mode.dart';
 import 'widgets/pagination_failure_retry.dart';
 import 'widgets/pending_permission_bar.dart';
 import 'widgets/permission_mode_selector.dart';
@@ -203,32 +204,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? get _effectiveSendModelMode {
     final raw = _effectiveModelModeString;
     if (raw == null) return null;
-    return _withProfileContextSuffix(raw);
-  }
-
-  /// Apply the selected profile's context-window setting to [raw], stripping
-  /// any legacy `[1m]` suffix first so a stale draft can never outlive the
-  /// profile setting.
-  String? _withProfileContextSuffix(String raw) {
-    final base = ChatModelMode.stripOneMillionSuffix(raw).trim();
-    if (base.isEmpty || !_canCarryContextWindowSuffix(base)) return raw;
-    final wants1M =
-        _selectedProfile?.contextWindow == extendedContextWindowTokens;
-    return wants1M ? ChatModelMode.withOneMillionSuffix(base) : base;
-  }
-
-  /// Whether [raw] is a concrete provider model slug that can carry the
-  /// `[1m]` suffix. Claude tier aliases and `default` resolve through the
-  /// daemon, and non-Claude agents don't use the suffix at all.
-  bool _canCarryContextWindowSuffix(String raw) {
-    final flavor = _session?.metadata?.flavor;
-    if (flavor != null && flavor != 'claude') return false;
-    if (raw == ChatModelMode.defaultModel.modeString) return false;
-    if (raw == 'fable' || raw == 'sonnet' || raw == 'opus' || raw == 'haiku') {
-      return false;
-    }
-    if (raw.startsWith('claude-') || raw.contains('/claude-')) return false;
-    return true;
+    return applyProfileContextWindowSuffix(
+      raw: raw,
+      contextWindow: _selectedProfile?.contextWindow,
+      flavor: _session?.metadata?.flavor,
+    );
   }
 
   /// The context window the usage indicator measures against, from the

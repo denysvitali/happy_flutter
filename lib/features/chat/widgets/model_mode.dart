@@ -1,4 +1,5 @@
 import '../../../core/models/built_in_profiles.dart';
+import '../../../core/models/settings.dart' show extendedContextWindowTokens;
 import '../../../core/rpc/rpc_types.dart';
 
 /// Model mode options exposed by the shared chat composer.
@@ -595,4 +596,32 @@ class ChatModelMode {
     if (effort == 'xhigh') return 'XHigh';
     return '${effort[0].toUpperCase()}${effort.substring(1)}';
   }
+}
+
+/// Apply the profile's context-window setting to a model mode string.
+///
+/// The `[1m]` marker is a Claude Code model-mode feature. It is meaningful
+/// only for concrete provider-owned model IDs; aliases such as `default` and
+/// `sonnet` are resolved by the daemon before the provider is selected.
+String applyProfileContextWindowSuffix({
+  required String raw,
+  required int? contextWindow,
+  required String? flavor,
+}) {
+  if (flavor != null && flavor != 'claude') return raw;
+
+  final base = ChatModelMode.stripOneMillionSuffix(raw).trim();
+  if (base.isEmpty || !_canCarryContextWindowSuffix(base)) return raw;
+
+  final wants1M = contextWindow == extendedContextWindowTokens;
+  return wants1M ? ChatModelMode.withOneMillionSuffix(base) : base;
+}
+
+bool _canCarryContextWindowSuffix(String raw) {
+  if (raw == ChatModelMode.defaultModel.modeString) return false;
+  if (raw == 'fable' || raw == 'sonnet' || raw == 'opus' || raw == 'haiku') {
+    return false;
+  }
+  if (raw.startsWith('claude-') || raw.contains('/claude-')) return false;
+  return true;
 }

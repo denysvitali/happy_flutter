@@ -640,6 +640,13 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         }
       }
       if (!_canUseRef) return;
+      if (modelMode != null) {
+        modelMode = applyProfileContextWindowSuffix(
+          raw: modelMode,
+          contextWindow: selectedProfile?.contextWindow,
+          flavor: _selectedAgent,
+        );
+      }
       final String sessionPath;
       if (isKubernetes) {
         sessionPath = kubernetesCheckoutPath(machine, repoUrl!);
