@@ -733,8 +733,22 @@ extension SyncMessagingMerge on Sync {
               } else {
                 final currentNoProgress =
                     _orphanFetchOlderNoProgressCount[sessionId] ?? 0;
-                _orphanFetchOlderNoProgressCount[sessionId] =
-                    currentNoProgress + 1;
+                final nextNoProgress = currentNoProgress + 1;
+                _orphanFetchOlderNoProgressCount[sessionId] = nextNoProgress;
+
+                // The callback schedules the next deferred sweep. Persist
+                // the cap before that sweep runs so it skips the full
+                // grouper instead of performing one final O(n) pass merely
+                // to discover that the walk-back has already given up.
+                final currentParentSignature = _orphanParentGroupSignature(
+                  _orphanParentKeys(
+                    afterSweep ?? const <Map<String, dynamic>>[],
+                  ),
+                );
+                if (nextNoProgress >= _orphanFetchOlderMaxAttempts &&
+                    currentParentSignature == orphanParentSignature) {
+                  _markOrphanWalkbackGiveUp(sessionId, currentParentSignature);
+                }
               }
               _sidechainRegroupSweepCount.remove(sessionId);
               _scheduleSidechainRegroup(sessionId);
