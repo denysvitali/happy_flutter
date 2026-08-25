@@ -390,6 +390,39 @@ void main() {
       expect(FrameMetricsService.instance.debugLastWindowIdle, isFalse);
     });
 
+    // The aggregate active/idle label cannot distinguish a blocked isolate
+    // from ordinary input-driven repaints. These low-cardinality counts are
+    // the discriminator for the production "low fps with fast frames" signal.
+    test('counts pointer, data, and message activity separately', () {
+      FrameMetricsService.instance.debugRecordPointerEvent();
+      sync.testNotifyDataChanged();
+      sync.testNotifySessionMessagesChanged('session-1');
+      recordSmoothFrames(2);
+      FrameMetricsService.instance.debugFlush();
+
+      expect(attributes['app.ui.window_frames']?['activity'], 'active');
+      expect(attributes['app.ui.window_frames']?['pointer_events'], 1);
+      expect(attributes['app.ui.window_frames']?['data_changes'], 1);
+      expect(attributes['app.ui.window_frames']?['message_changes'], 1);
+    });
+
+    test('activity counters reset with the window', () {
+      FrameMetricsService.instance
+        ..debugRecordPointerEvent()
+        ..debugFlush()
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 4),
+          raster: const Duration(milliseconds: 4),
+          total: const Duration(milliseconds: 8),
+        )
+        ..debugFlush();
+
+      final window = attributes['app.ui.window_frames']!;
+      expect(window['pointer_events'], 0);
+      expect(window['data_changes'], 0);
+      expect(window['message_changes'], 0);
+    });
+
     // The reset has to happen before the zero-frame early return, or a tap
     // in a quiet window would leak forward and label the *next* window
     // active — hiding exactly the burst we are hunting.

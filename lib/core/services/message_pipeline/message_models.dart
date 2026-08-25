@@ -74,6 +74,11 @@ class ProcessedMessageBundle {
   final String traceId;
   final MessagePipelineSource? source;
   final String? errorMessage;
+
+  /// Rows in the post-decrypt mutation tail. Above this size, the
+  /// orchestrator exposes a frame boundary between phases so sustained
+  /// streaming cannot hold the UI isolate through the entire merge.
+  static const int postDecryptMutationYieldRows = 120;
 }
 
 class FetchResponseBatch {

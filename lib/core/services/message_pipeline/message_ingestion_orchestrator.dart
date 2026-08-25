@@ -532,6 +532,14 @@ extension SyncMessagePipeline on Sync {
         },
       );
 
+      final mutationRowCount =
+          processed.messages.length +
+          processed.toolResults.length +
+          processed.usageUpdates.length;
+      final shouldYieldMutationPhases =
+          mutationRowCount >=
+          ProcessedMessageBundle.postDecryptMutationYieldRows;
+
       if (!applyMutations) {
         _logPipelineStage(
           traceId,
@@ -550,6 +558,10 @@ extension SyncMessagePipeline on Sync {
           source: normalized.source,
           traceId: traceId,
         );
+      }
+
+      if (shouldYieldMutationPhases) {
+        await _yieldPostDecryptMutationPhase();
       }
 
       var shouldNotify = false;
@@ -583,6 +595,10 @@ extension SyncMessagePipeline on Sync {
       }
       if (_applyPermissionRequests(sessionId)) {
         shouldNotify = true;
+      }
+
+      if (shouldYieldMutationPhases) {
+        await _yieldPostDecryptMutationPhase();
       }
 
       final pending = _pendingToolResults[sessionId];
@@ -704,5 +720,11 @@ extension SyncMessagePipeline on Sync {
         errorMessage: error.toString(),
       );
     }
+  }
+
+  Future<void> _yieldPostDecryptMutationPhase() {
+    final override = testPostDecryptMutationYieldOverride;
+    if (override != null) return override();
+    return Future<void>.delayed(Duration.zero);
   }
 }

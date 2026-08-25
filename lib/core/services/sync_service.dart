@@ -47,6 +47,7 @@ import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
 import '../sync/sync_progress.dart';
 import '../services/failure_telemetry.dart';
+import '../services/frame_metrics_service.dart';
 import '../services/loop_storage.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
@@ -1297,6 +1298,11 @@ what you have, you must use the options mode.
   )?
   testSessionRPCOverride;
 
+  /// Test seam for observing event-loop boundaries inserted between large
+  /// post-decrypt mutation phases.
+  @visibleForTesting
+  Future<void> Function()? testPostDecryptMutationYieldOverride;
+
   /// Override [SyncMessagingRpc.ensureMachineReachable] for testing the
   /// pre-flight liveness probe without a real socket connection.
   @visibleForTesting
@@ -1548,6 +1554,7 @@ what you have, you must use the options mode.
     _sessionMessagesRevision[sessionId] =
         (_sessionMessagesRevision[sessionId] ?? 0) + 1;
     _messagesChangeCounter++;
+    FrameMetricsService.instance.debugRecordMessageChange();
   }
 
   /// Invalidate the cached all-sessions snapshot and the per-session

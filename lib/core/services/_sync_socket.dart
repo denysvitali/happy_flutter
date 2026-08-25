@@ -350,6 +350,7 @@ extension SyncSocket on Sync {
   /// counter-based dedup paths see progress.
   void _notifyDataChanged([Set<SyncDomain>? domains]) {
     _dataChangeCounter++;
+    FrameMetricsService.instance.debugRecordDataChange();
     // Piggybacked sweep: throttled to one pass per
     // idleSessionShrinkSweepIntervalMs, and the guard is two int compares —
     // safe on this hot path. Needs no timer, so there is no lifecycle

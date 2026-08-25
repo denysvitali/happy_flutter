@@ -49,7 +49,18 @@ class FrameMetricsService {
   /// app spans ~150 MB (fresh launch) to 1 GB+ (pathological); the top
   /// buckets exist to make runaway growth visible, not to be healthy.
   static const List<double> _rssMbBuckets = [
-    128, 192, 256, 320, 384, 448, 512, 640, 768, 1024, 1536, 2048,
+    128,
+    192,
+    256,
+    320,
+    384,
+    448,
+    512,
+    640,
+    768,
+    1024,
+    1536,
+    2048,
   ];
 
   int _frameCount = 0;
@@ -101,6 +112,12 @@ class FrameMetricsService {
   /// `dataChangeCounter + messagesChangeCounter` as of the last flush, so a
   /// window can tell whether Sync published anything while it was rendering.
   int _lastActivityCounter = 0;
+
+  /// Activity counts observed in the current window. The aggregate counter
+  /// above answers "was anything active?", while these split the answer into
+  /// input-driven repaints versus Sync-driven repaints.
+  int _windowDataChanges = 0;
+  int _windowMessageChanges = 0;
 
   DateTime? _lastIdleRenderWarnAt;
 
@@ -158,12 +175,20 @@ class FrameMetricsService {
   @visibleForTesting
   void debugRecordPointerEvent() => _pointerEvents++;
 
+  @visibleForTesting
+  void debugRecordDataChange() => _windowDataChanges++;
+
+  @visibleForTesting
+  void debugRecordMessageChange() => _windowMessageChanges++;
+
   /// Re-seed the window accounting so a test starts from a clean window
   /// regardless of what earlier tests left on the shared singleton.
   @visibleForTesting
   void debugResetWindow() {
     _pointerEvents = 0;
     _lastActivityCounter = _activityCounter();
+    _windowDataChanges = 0;
+    _windowMessageChanges = 0;
     _lastWindowFrames = 0;
     _lastWindowIdle = false;
     _lastIdleRenderWarnAt = null;
@@ -297,8 +322,12 @@ class FrameMetricsService {
     // make the *next* window look active and mask a real idle-render burst.
     final activityCounter = _activityCounter();
     final activityTicks = activityCounter - _lastActivityCounter;
+    final dataChanges = _windowDataChanges;
+    final messageChanges = _windowMessageChanges;
     final pointerEvents = _pointerEvents;
     _lastActivityCounter = activityCounter;
+    _windowDataChanges = 0;
+    _windowMessageChanges = 0;
     _pointerEvents = 0;
 
     // Memory sample before the zero-frame early return: a healthy idle
@@ -313,7 +342,8 @@ class FrameMetricsService {
         unit: 'MB',
         boundaries: _rssMbBuckets,
         attributes: {
-          'current_route': PerformanceContextService().currentRoute ?? 'unknown',
+          'current_route':
+              PerformanceContextService().currentRoute ?? 'unknown',
           'session_count_bucket': collectionSizeBucket(sync.sessionCount),
         },
         description:
@@ -405,6 +435,9 @@ class FrameMetricsService {
     final windowAttributes = <String, Object?>{
       ...attributes,
       'activity': idleWindow ? 'idle' : 'active',
+      'pointer_events': pointerEvents,
+      'data_changes': dataChanges,
+      'message_changes': messageChanges,
     };
     _lastWindowFrames = frameCount;
     _lastWindowIdle = idleWindow;
