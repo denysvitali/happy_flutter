@@ -883,6 +883,14 @@ extension SyncMessaging on Sync {
           final messages = (data['messages'] as List<dynamic>? ?? [])
               .whereType<Map<String, dynamic>>()
               .toList();
+          // A bounded cache window can restore only the newest tail while
+          // the monitor still knows older localIds from a previous process.
+          // This loop runs before that history page is upserted, so treating
+          // each replayed row as an immediate ack reports every id outside
+          // the resident window as an unmatched optimistic row. The page is
+          // server truth: seed identity now and let its merge provide the
+          // resident row. A genuinely missing row is caught by the real REST
+          // or socket ack path after merge.
           for (final message in messages) {
             final localId = message['localId'] as String?;
             if (localId == null || localId.isEmpty) continue;
@@ -892,10 +900,6 @@ extension SyncMessaging on Sync {
                 () => messageOutbox.remove(localId),
               ),
             );
-            _updateMessageSendStatus(sessionId, localId, 'sent');
-            // The page is upserted (and its ids seeded) after this loop, so
-            // seed here too: a socket ack landing between the two would
-            // otherwise see an id this client provably sent as unknown.
             messageInvariantMonitor.seedSentLocalId(localId);
           }
           final hasMore = data['hasMore'] as bool? ?? false;

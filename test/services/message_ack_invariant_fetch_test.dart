@@ -92,7 +92,6 @@ void main() {
       instance.encryption = _FakeEncryption(_SilentSessionEncryption(3));
     });
 
-
     /// Production sessions always have a resident row list; without one
     /// `_updateMessageSendStatus` returns before the ack tap and the bug
     /// under test cannot reproduce.
@@ -160,31 +159,35 @@ void main() {
       expect(instance.messageInvariantMonitor.totalViolations, 0);
     });
 
-    test('a locally minted id whose row vanished still reports '
-        'unmatched_optimistic', () async {
-      // The suppression must not hide the real breach it was added next to:
-      // we sent this id, so a missing placeholder means the localId -> row
-      // mapping was lost upstream.
-      instance.messageInvariantMonitor.recordOptimisticSent('ours-1');
-      seedResidentRow();
-      instance.testFetchMessagesOverride = (_, __, ___) async {
-        return <String, dynamic>{
-          'messages': <Map<String, dynamic>>[
-            {'id': 'm1', 'seq': 1, 'localId': 'ours-1'},
-          ],
-          'pagination': <String, dynamic>{'hasMore': false},
+    test(
+      'a locally minted server row merges without a false violation',
+      () async {
+        // History is server truth. The pre-page sweep seeds identity but must
+        // not ack before the page merge; the resident row then proves the
+        // canonical mapping survived.
+        instance.messageInvariantMonitor.recordOptimisticSent('ours-1');
+        seedResidentRow();
+        instance.testFetchMessagesOverride = (_, __, ___) async {
+          return <String, dynamic>{
+            'messages': <Map<String, dynamic>>[
+              {'id': 'm1', 'seq': 1, 'localId': 'ours-1'},
+            ],
+            'pagination': <String, dynamic>{'hasMore': false},
+          };
         };
-      };
 
-      await instance.fetchMessages(sessionId);
-      await Future<void>.delayed(Duration.zero);
+        await instance.fetchMessages(sessionId);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
-      expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
-    });
+        expect(countFor(MessageInvariant.unmatchedOptimistic), 0);
+        expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
+      },
+    );
 
     test('two resident rows sharing one localId still report '
-        'duplicate_local_id', () async {
+        'duplicate_local_id on the real ack path', () {
+      // History pages are not acks; duplicate detection remains on the
+      // actual REST/socket acknowledgement path.
       instance.testSetSessionMessages(sessionId, [
         {
           'id': 'local-a',
@@ -205,17 +208,17 @@ void main() {
           'sendStatus': 'sending',
         },
       ]);
-      instance.testFetchMessagesOverride = (_, __, ___) async {
-        return <String, dynamic>{
-          'messages': <Map<String, dynamic>>[
-            {'id': 'm1', 'seq': 3, 'localId': 'dupe-1'},
-          ],
-          'pagination': <String, dynamic>{'hasMore': false},
-        };
-      };
+      final optimisticRowCount = instance
+          .messagesForSession(sessionId)
+          .where((m) => m['localId'] == 'dupe-1')
+          .length;
 
-      await instance.fetchMessages(sessionId);
-      await Future<void>.delayed(Duration.zero);
+      instance.messageInvariantMonitor.seedSentLocalId('dupe-1');
+      instance.messageInvariantMonitor.recordAck(
+        localId: 'dupe-1',
+        optimisticRowCount: optimisticRowCount,
+        sessionId: sessionId,
+      );
 
       expect(
         countFor(MessageInvariant.duplicateLocalId),

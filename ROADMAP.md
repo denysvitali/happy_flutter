@@ -83,6 +83,18 @@ a genuinely idle renderer.
 
 Still open from the same list: the per-token merge path.
 
+**Same-day P0 invariant fix (`unmatched_optimistic`).** Production bursted
+~198 warnings on build 267200 because the `fetchMessages` pre-page loop
+acked every known-but-not-resident history `localId` before that page was
+merged. With a truncated cache window, replaying 200 rows looked like 198
+optimistic sends with no resident placeholder. History fetch now seeds the
+restart-safe localId set and clears outbox entries without touching ack
+state; only a real REST/socket acknowledgement can record an ack outcome.
+A 200-row truncated-window contract pins zero false violations
+(`test/services/message_ack_cache_truncation_test.dart`), while the existing
+fetch-invariant suite still proves foreign rows stay silent and real-ack
+duplicate detection remains observable.
+
 ### Native (Rust) core, eighth pass, 2026-08-24 ("create a library in Rust")
 
 Seven passes of Dart-side fixes each corrected a real defect and each left
@@ -960,7 +972,7 @@ The current test count is not enough if this contract can break without failing 
 | Out-of-order delivery tests | Done | Coverage for REST success before a later socket echo, REST success before a later fetch overlap (`message_deduplication_e2e_test.dart`), socket echo before REST (`socket_echo_before_rest_e2e_test.dart`), socket echo before a tail/history fetch plus duplicate socket re-broadcast sequencing (`socket_echo_before_fetch_e2e_test.dart`), and a hidden-chat socket seq jump recovering from its pre-burst cursor without duplicating the overlapping row. Cached windows persisted by older builds also get one bounded repair overlap after upgrade (`socket_inline_message_e2e_test.dart`). |
 | Core messaging state-machine tests | Done | FSM contract suite at `test/fsm/message_state_machine_contract_test.dart` pins `draft -> sending -> sent/pending/failed -> merged` for both the typed `MessageStateTransitions` spec (Draft→Sending, Sending→Sent/Pending/Failed, Pending→Sent/Failed, Failed→Sending, Sent→Merged) and the `MessageStateMachine.apply` event-log projection. Every legal transition asserts `localId` identity; illegal/no-op transitions (double-optimistic, optimistic-after-merge, retry-on-merged/sending/null, fail-on-merged, missing-localId, ack/merge without serverId) are pinned as strict no-ops or `ArgumentError`s. End-to-end lifecycle walk and two-identical-`continue`-sends-with-distinct-localIds are covered. |
 | User-visible core E2E scenarios | Not Started | Add E2E coverage for rapid follow-ups, background/resume mid-send, disconnected socket with successful REST persistence, and follow-up sends while the agent is still thinking. |
-| Invariant telemetry | In Progress | Audit 2026-08-24 found the counter still unusable for a different reason: `fetchMessages` treats every stored `localId` in a history page as a send ack, so rows from other devices or previous installs each reported `unknown_acked_local_id` with `rowCount=0` — 300 in one paging burst on build 264100. The ack tap now runs only for ids with a resident row or a local mint (`test/services/message_ack_invariant_fetch_test.dart`). Audit 2026-08-03 found 1 of 4 counters shipped (`unknown_acked_local_id`) but restart-blind and double-counting per ack, with the other three absent and no denominator. Client-side fixes shipped in 6a9c9a7c (restart-safe seeding, per-localId ack dedupe, all four counters primed to zero, sends/acks denominators, `app.message_send` tap→ack histogram); the `> 0` Prometheus alert rules remain under the monitoring HA item. |
+| Invariant telemetry | In Progress | Audit 2026-08-25 fixed the production build-267200 burst (~198 `unmatched_optimistic`): the `fetchMessages` pre-page loop acked known-but-not-resident history ids before merging their page; it now seeds identity/outbox state only, so history is never treated as a send ack (`test/services/message_ack_cache_truncation_test.dart`). Earlier audits removed foreign-history unknown-ack noise and shipped restart-safe seeding, per-localId ack dedupe, all four counters, denominators, and the send tap→ack histogram; the `> 0` Prometheus alert rules remain under the monitoring HA item. |
 
 ### Production Bugs (from GlitchTip, May 2026)
 
