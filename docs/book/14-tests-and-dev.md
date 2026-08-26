@@ -222,7 +222,7 @@ The CI pipeline runs on GitHub Actions. The jobs (from `docs/DEV_OPS_CI_CD.md`):
 6. **build-web** — web build
 7. **deploy-web** — deploy web build (on `v*` tags only)
 
-The `v*` tag pipeline also obfuscates the build and attaches the APK to the GitHub release. The Linux x64 binary attachment was added in `2d19860f`.
+The `v*` tag pipeline attaches the APK to the GitHub release. The Linux x64 binary attachment was added in `2d19860f`. Dart obfuscation was dropped 2026-08-26 — the app is open source.
 
 ### The CI blockers
 
@@ -281,7 +281,7 @@ When asked about app crashes, production errors, regressions, or latest issues, 
 - The dev loop goes through `mise exec --`. Don't run `flutter` directly.
 - The CI blocks on errors only. Warnings/infos don't block.
 - The build flavors are Android-only. iOS has no flavor separation.
-- The `v*` tag pipeline obfuscates the build. Don't try to debug a release build locally — use the `development` flavor.
+- Don't try to debug a release build locally — use the `development` flavor.
 - GlitchTip is the production error tracker. Sentry (the SDK) is wired up; GlitchTip is the server.
 - The `createTestSync()` helper pre-wires all `InvalidateSync` fields to no-ops. If you need real invalidation in a test, override them per-field.
 - The e2e tests use `mock_sync_server.dart`. If a test fails after a wire-protocol change, the mock may be out of date.

@@ -34,9 +34,10 @@ concurrency group, so GitHub cannot replace an older pending main run when new
 commits arrive. Pull requests still cancel superseded runs, and Pages deploys
 are latest-wins.
 
-The signed APK remains arm64-only, R8-minified, resource-shrunk, obfuscated,
-and uploaded with its debug information. The Linux archive and web deployment
-remain part of the same workflow.
+The signed APK remains arm64-only, R8-minified, resource-shrunk, and uploaded
+with its debug information. Dart obfuscation is deliberately off — the app is
+open source and unobfuscated release stacks make GlitchTip triage cheaper.
+The Linux archive and web deployment remain part of the same workflow.
 
 ## Test sharding
 

@@ -673,12 +673,14 @@ jobs:
           set +e
           # No --dart-define=SENTRY_RELEASE: runtime PackageInfo supplies it
           # so AOT inputs stay stable across versionCode-only changes.
+          # No --obfuscate: open-source app; unobfuscated symbols make
+          # GlitchTip stacks readable. --split-debug-info stays — it feeds
+          # the Sentry symbol upload and strips DWARF from the APK.
           mise exec -- flutter build apk --release --no-pub \
             --flavor ${{ steps.build_meta.outputs.FLAVOR }} \
             --target-platform android-arm64 \
             --build-number ${{ steps.build_meta.outputs.BUILD_NUMBER }} \
             --split-debug-info=build/debug-info \
-            --obfuscate \
             --performance-measurement-file=build/flutter-perf.json \
             2>&1 | tee build-release.log
           status=${PIPESTATUS[0]}

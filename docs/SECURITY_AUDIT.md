@@ -50,7 +50,9 @@ sentry:
 
 Exposes original source code, function names, and variable names to Sentry servers.
 
-**Fix:** Disable for production builds. Use obfuscation for release builds.
+**Resolution:** Accepted deliberately (2026-08-26). The app is open source, so
+the uploads leak nothing the public repo does not, and Dart obfuscation was
+dropped from release builds for the same reason.
 
 ---
 
