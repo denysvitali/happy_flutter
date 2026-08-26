@@ -1082,31 +1082,31 @@ class _AgentPicker extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         FocusTraversalGroup(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              const columns = 3;
-              const spacing = AppSpacing.sm;
-              final maxWidth = constraints.maxWidth.isFinite
-                  ? constraints.maxWidth
-                  : MediaQuery.sizeOf(context).width;
-              final tileWidth = (maxWidth - spacing * (columns - 1)) / columns;
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: [
-                  for (final agent in _agentIds)
-                    SizedBox(
-                      width: tileWidth,
-                      child: _AgentOption(
-                        label: _agentLabel(l10n, agent),
-                        icon: _agentIcon(agent),
-                        selected: agent == selectedAgent,
-                        onTap: () => onSelected(agent),
+          child: Column(
+            children: [
+              for (var start = 0; start < _agentIds.length; start += 3) ...[
+                if (start > 0) const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    for (
+                      var i = start;
+                      i < start + 3 && i < _agentIds.length;
+                      i++
+                    ) ...[
+                      if (i > start) const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _AgentOption(
+                          label: _agentLabel(l10n, _agentIds[i]),
+                          icon: _agentIcon(_agentIds[i]),
+                          selected: _agentIds[i] == selectedAgent,
+                          onTap: () => onSelected(_agentIds[i]),
+                        ),
                       ),
-                    ),
-                ],
-              );
-            },
+                    ],
+                  ],
+                ),
+              ],
+            ],
           ),
         ),
       ],
