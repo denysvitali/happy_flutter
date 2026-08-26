@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 void main() {
@@ -388,6 +389,54 @@ void main() {
 
       // At least one run completed to unblock the awaiter.
       expect(callCount, greaterThanOrEqualTo(1));
+    });
+
+    group('max-retries log level', () {
+      // GlitchTip 4900/8573: exhausting retries on a connection-level
+      // network flap (VPN handoff, wifi↔cellular) forwarded the raw
+      // Cronet error to Sentry as an issue even though recovery re-arms
+      // on the next invalidation. Only non-network failures may log at
+      // error level — those are the server-brownout signal.
+      Future<List<LogLevel>> exhaustAndCollectLevels(
+        Object failure,
+      ) async {
+        logger.clear();
+        final sync = InvalidateSync(
+          () async => throw failure,
+          name: 'fetchMessages:test',
+          maxRetries: 0,
+        );
+        sync.invalidate();
+        await expectLater(
+          sync.awaitQueue(),
+          throwsA(anything),
+        );
+        // Let the catch path finish logging before reading the buffer.
+        await Future<void>.delayed(Duration.zero);
+        return logger
+            .getLogs()
+            .where((e) => e.message.contains('max retries exceeded'))
+            .map((e) => e.level)
+            .toList();
+      }
+
+      test('network-transition failure logs at info, not error', () async {
+        final levels = await exhaustAndCollectLevels(
+          'ClientException: Cronet exception: Exception in '
+          'CronetUrlRequest: net::ERR_NETWORK_CHANGED, Retryable=true',
+        );
+        expect(levels, isNotEmpty);
+        expect(levels.every((l) => l == LogLevel.info), isTrue);
+      });
+
+      test('server-side failure still logs at error', () async {
+        final levels = await exhaustAndCollectLevels(
+          'DioException [receive timeout]: The request took longer than '
+          '0:00:23.000000 to receive data',
+        );
+        expect(levels, isNotEmpty);
+        expect(levels.every((l) => l == LogLevel.error), isTrue);
+      });
     });
   });
 }

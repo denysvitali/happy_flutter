@@ -7,6 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart';
 import '../services/power_diagnostics_service.dart';
+import '../utils/network_errors.dart';
 
 /// Whether [manager] exhausted its retries and has not recovered yet.
 ///
@@ -275,9 +276,24 @@ class InvalidateSync {
         // where settings/profile syncs went dormant after timeout cascades.
         final needsReinvalidate = _invalidated;
         if (operation != null && !operation.isCompleted) {
-          // logger.error already forwards to Sentry via
-          // _forwardToSentry — no need for a separate captureException.
-          logger.error('InvalidateSync: max retries exceeded', error);
+          // Connection-level network flaps (VPN handoff, wifi↔cellular
+          // transitions, Cronet ERR_* aborts) are routine on mobile: the
+          // socket reconnects and the next invalidation re-fetches, so
+          // forwarding them as errors made resume-path noise read as
+          // defects (GlitchTip 4900/8573). Server-side failures (receive
+          // timeouts, 5xx) stay at error level — they are the brownout
+          // signal.
+          if (isConnectionLevelNetworkError(error)) {
+            logger.info(
+              'InvalidateSync: max retries exceeded (network transition; '
+              'retry re-arms on next invalidation) name=${_name ?? 'unknown'} '
+              '$error',
+            );
+          } else {
+            // logger.error already forwards to Sentry via
+            // _forwardToSentry — no need for a separate captureException.
+            logger.error('InvalidateSync: max retries exceeded', error);
+          }
           // `normalizedName` is the name with any dynamic suffix
           // (`messages:<sessionId>`) stripped — the same bounded value
           // already used as the Sentry transaction name. Never the raw

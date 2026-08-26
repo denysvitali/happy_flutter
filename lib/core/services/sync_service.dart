@@ -76,6 +76,7 @@ import '../utils/image_content_blocks.dart';
 import '../utils/codex_provider_config.dart';
 import '../sync/invalidate_sync.dart';
 import '../utils/message_invariant_monitor.dart';
+import '../utils/network_errors.dart';
 import '../utils/shell_script_parser.dart';
 import '../utils/parse_token.dart';
 import '../utils/path_utils.dart' show resolveAbsolutePath;
@@ -2023,24 +2024,15 @@ what you have, you must use the options mode.
   /// (e.g. DNS failure, timeout, Cronet aborting a connection because the
   /// app was backgrounded, or Socket.IO connection issues).
   static bool _isTransientConnectionError(Object error) {
-    // Check for typed socket exceptions first
+    // Connection-level network flaps first (Cronet ERR_*, DNS, resets).
+    if (isConnectionLevelNetworkError(error)) return true;
+    // Check for typed socket exceptions next
     if (error is SocketNotConnectedException ||
         error is SocketAckTimeoutException) {
       return true;
     }
     final msg = error.toString();
-    return msg.contains('ERR_CONNECTION_ABORTED') ||
-        msg.contains('ERR_CONNECTION_RESET') ||
-        msg.contains('ERR_NAME_NOT_RESOLVED') ||
-        msg.contains('ERR_CONNECTION_TIMED_OUT') ||
-        msg.contains('ERR_NETWORK_CHANGED') ||
-        msg.contains('ERR_INTERNET_DISCONNECTED') ||
-        msg.contains('ERR_ADDRESS_UNREACHABLE') ||
-        msg.contains('Failed host lookup') ||
-        msg.contains('No address associated') ||
-        msg.contains('Connection closed') ||
-        msg.contains('Software caused connection abort') ||
-        msg.contains('ApiClient not initialized') ||
+    return msg.contains('ApiClient not initialized') ||
         msg.contains('ApiClient was reconfigured during request startup') ||
         msg.contains('Machine encryption not found') ||
         msg.contains('operation has timed out');

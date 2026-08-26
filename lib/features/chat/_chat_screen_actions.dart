@@ -339,18 +339,33 @@ extension _ChatScreenActions on _ChatScreenState {
             queueFuture
                 .timeout(_backgroundAwaitBudget)
                 .catchError((Object e, StackTrace st) {
+                  final networkTransition =
+                      isConnectionLevelNetworkError(e);
                   backgroundOutcome = e is TimeoutException
                       ? 'timeout'
-                      : 'error';
-                  // Real refresh fail — surface as a breadcrumb but
-                  // don't fail the transaction; the user already sees
-                  // cached data.
-                  logger.warning(
-                    '[ChatScreen] background messagesSync awaitQueue failed '
-                    'session=$sessionId',
-                    e,
-                    st,
-                  );
+                      : (networkTransition ? 'network' : 'error');
+                  if (networkTransition) {
+                    // Device network flap (VPN handoff, wifi↔cellular):
+                    // cached messages stay on screen and the fetch
+                    // re-arms via the next invalidation / socket event.
+                    // Info-level keeps routine resume noise out of the
+                    // error tracker (GlitchTip issue 8573).
+                    logger.info(
+                      '[ChatScreen] background messagesSync awaitQueue hit '
+                      'a network transition (cached messages retained, '
+                      'retry re-arms) session=$sessionId: $e',
+                    );
+                  } else {
+                    // Real refresh fail — surface as a breadcrumb but
+                    // don't fail the transaction; the user already sees
+                    // cached data.
+                    logger.warning(
+                      '[ChatScreen] background messagesSync awaitQueue failed '
+                      'session=$sessionId',
+                      e,
+                      st,
+                    );
+                  }
                   // NOT recorded as a span error: cached content is on
                   // screen, so this has zero user impact and would just
                   // inflate the error bucket. The attribute keeps it
