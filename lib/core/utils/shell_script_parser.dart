@@ -99,6 +99,12 @@ Map<String, String> applyModelSelectionToEnv(
   Map<String, String> envVars,
   String mainModel,
 ) {
+  // `[1m]` is Claude Code CLI syntax for requesting extended context, not
+  // part of the upstream provider's model id. Passing it through ANTHROPIC_*
+  // makes compatible gateways miss the selected model and use a fallback.
+  final providerModel = mainModel.endsWith('[1m]')
+      ? mainModel.substring(0, mainModel.length - '[1m]'.length)
+      : mainModel;
   final previousMain =
       envVars['ANTHROPIC_MODEL'] ?? envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'];
   String? fast;
@@ -114,7 +120,7 @@ Map<String, String> applyModelSelectionToEnv(
   }
   final out = <String, String>{...envVars};
   for (final env in buildAnthropicModelEnvVars(
-    mainModel: mainModel,
+    mainModel: providerModel,
     fastModel: fast,
   )) {
     out[env.name] = env.value;

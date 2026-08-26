@@ -501,6 +501,35 @@ void main() {
       );
     });
 
+    test('preserves an extended-context model owned by the profile', () {
+      // The app appends `[1m]` to the CLI model selection for profiles that
+      // request an extended context window. The suffix is Claude Code syntax,
+      // not part of the provider model id, so ownership must compare the base
+      // slug or the pick silently falls back to the profile default.
+      final profile = AIBackendProfile(
+        id: 'llm-proxy',
+        name: 'LLM Proxy',
+        anthropicConfig: AnthropicConfig(
+          baseUrl: 'http://llm-proxy.example',
+        ),
+        models: const ['apodex/apodex-1.1'],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          gemini: false,
+        ),
+      );
+
+      expect(
+        sync.testNormalizeModelModeForAgentWithProfile(
+          'apodex/apodex-1.1[1m]',
+          'claude',
+          profile,
+        ),
+        'apodex/apodex-1.1[1m]',
+      );
+    });
+
     test(
       'drops a vendor pick the Claude gateway profile does not own',
       () {

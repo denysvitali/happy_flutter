@@ -136,5 +136,15 @@ void main() {
       }, 'MiniMax-M2.5');
       expect(bound['ANTHROPIC_SMALL_FAST_MODEL'], 'MiniMax-M2.5');
     });
+
+    test('strips Claude Code context suffix from provider env models', () {
+      final bound = applyModelSelectionToEnv({
+        'ANTHROPIC_BASE_URL': 'https://proxy.example/anthropic',
+      }, 'apodex/apodex-1.1[1m]');
+
+      expect(bound['ANTHROPIC_MODEL'], 'apodex/apodex-1.1');
+      expect(bound['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'apodex/apodex-1.1');
+      expect(bound['CLAUDE_CODE_SUBAGENT_MODEL'], 'apodex/apodex-1.1');
+    });
   });
 }

@@ -292,6 +292,12 @@ extension SyncSpawnProfileResolution on Sync {
   }
 
   bool _profileOwnsModel(AIBackendProfile profile, String modelMode) {
+    // `[1m]` is a Claude Code context-window modifier appended by the app.
+    // Provider profiles advertise the base model id, so compare ownership
+    // without the modifier while preserving it for the eventual --model arg.
+    final providerModelMode = modelMode.endsWith('[1m]')
+        ? modelMode.substring(0, modelMode.length - '[1m]'.length)
+        : modelMode;
     final configuredModels = <String>{
       ...profile.models,
       profile.defaultModelMode ?? '',
@@ -306,7 +312,8 @@ extension SyncSpawnProfileResolution on Sync {
     }
     for (final configured in configuredModels) {
       if (configured.isEmpty || configured.startsWith(r'${')) continue;
-      if (modelMode == configured || modelMode.startsWith('$configured:')) {
+      if (providerModelMode == configured ||
+          providerModelMode.startsWith('$configured:')) {
         return true;
       }
     }
