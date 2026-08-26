@@ -287,12 +287,24 @@ class MessageInvariantMonitor {
   /// - unknown acked `localId` when the id was never minted locally
   /// - unmatched optimistic when a minted id has zero matching rows
   ///
+  /// [sessionResidentRowCount] is the total number of rows the client holds
+  /// for the acked session. When it is zero the client is not holding the
+  /// transcript at all (process restarted, idle-window/archived clear,
+  /// cold cache miss), so a missing placeholder is uninformative — an
+  /// outbox retry can ack minutes or hours after the optimistic row
+  /// evaporated, and identity still held (the ack carries the same
+  /// `localId`). In that state `unmatched_optimistic` is suppressed
+  /// (GlitchTip issue 8566: a 24-attempt outbox retry acked 50 ms after
+  /// the session was archived; the message was delivered). `null` keeps
+  /// the legacy behavior (report).
+  ///
   /// Observed at most once per [localId] per process: both the REST-ack
   /// path and the send-status path tap the same server ack.
   void recordAck({
     required String localId,
     required int optimisticRowCount,
     String? sessionId,
+    int? sessionResidentRowCount,
   }) {
     if (localId.isEmpty) return;
     final firstAckForId = _ackedLocalIds.add(localId);
@@ -304,6 +316,8 @@ class MessageInvariantMonitor {
     PowerDiagnosticsOtelReporter.instance.recordMessageAck();
 
     final wasSent = _sentLocalIds.contains(localId);
+    final transcriptHeld =
+        sessionResidentRowCount == null || sessionResidentRowCount > 0;
     final String outcome;
 
     if (optimisticRowCount > 1) {
@@ -322,7 +336,7 @@ class MessageInvariantMonitor {
         sessionId: sessionId,
         detail: 'rowCount=$optimisticRowCount',
       );
-    } else if (optimisticRowCount == 0) {
+    } else if (optimisticRowCount == 0 && transcriptHeld) {
       outcome = MessageInvariant.unmatchedOptimistic.tag;
       _violation(
         MessageInvariant.unmatchedOptimistic,

@@ -1341,6 +1341,9 @@ extension SyncMessagingSend on Sync {
         localId: localId,
         optimisticRowCount: _countLocalIdMatches(sessionId, localId),
         sessionId: sessionId,
+        // Zero resident rows (restart / idle shrink / archived clear) means
+        // the placeholder's absence is expected, not a merge failure.
+        sessionResidentRowCount: _sessionMessages[sessionId]?.length ?? 0,
       );
       _upsertSessionMessages(sessionId, [
         {
@@ -1713,6 +1716,9 @@ extension SyncMessagingSend on Sync {
           localId: localId,
           optimisticRowCount: matchCount,
           sessionId: sessionId,
+          // An empty resident list means the client is not holding this
+          // session's transcript (cleared/restarted) — see recordAck.
+          sessionResidentRowCount: msgs.length,
         );
       }
     }

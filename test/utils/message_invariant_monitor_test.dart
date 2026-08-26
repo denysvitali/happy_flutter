@@ -80,11 +80,13 @@ void main() {
 
     test('unmatched optimistic increments its counter', () async {
       monitor.recordOptimisticSent('local-x');
-      // Sent, but the optimistic placeholder row went missing before ack.
+      // Sent, but the optimistic placeholder row went missing before ack —
+      // while the client still holds the session's transcript (5 rows).
       monitor.recordAck(
         localId: 'local-x',
         optimisticRowCount: 0,
         sessionId: 's1',
+        sessionResidentRowCount: 5,
       );
 
       await Future<void>.delayed(Duration.zero);
@@ -93,6 +95,69 @@ void main() {
       expect(counted.single, MessageInvariant.unmatchedOptimistic);
       expect(captured.single.invariant, MessageInvariant.unmatchedOptimistic);
     });
+
+    test(
+      'missing resident count keeps the legacy report (null back-compat)',
+      () async {
+        monitor.recordOptimisticSent('local-legacy');
+        monitor.recordAck(
+          localId: 'local-legacy',
+          optimisticRowCount: 0,
+          sessionId: 's1',
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
+      },
+    );
+
+    test(
+      'outbox retry acked with no resident transcript is NOT a violation',
+      () async {
+        // GlitchTip issue 8566: a 24-attempt outbox retry acked hours after
+        // the sends, right after the session was archived (resident rows
+        // cleared). Identity held — the ack carried the same localId and the
+        // message was delivered. Absence of the placeholder while the client
+        // holds zero rows for the session is uninformative.
+        monitor.recordOptimisticSent('local-outbox');
+        monitor.recordAck(
+          localId: 'local-outbox',
+          optimisticRowCount: 0,
+          sessionId: 's1',
+          sessionResidentRowCount: 0,
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        expect(monitor.totalViolations, 0);
+        expect(counted, isEmpty);
+        expect(captured, isEmpty);
+      },
+    );
+
+    test(
+      'duplicate and unknown checks still fire with zero resident rows',
+      () async {
+        // Suppression only relaxes unmatched-optimistic: a duplicate row or
+        // a foreign id is a violation regardless of transcript residency.
+        monitor.recordOptimisticSent('local-dup');
+        monitor.recordAck(
+          localId: 'local-dup',
+          optimisticRowCount: 2,
+          sessionId: 's1',
+          sessionResidentRowCount: 0,
+        );
+        monitor.recordAck(
+          localId: 'never-sent',
+          optimisticRowCount: 0,
+          sessionId: 's1',
+          sessionResidentRowCount: 0,
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        expect(countFor(MessageInvariant.duplicateLocalId), 1);
+        expect(countFor(MessageInvariant.unknownAckedLocalId), 1);
+      },
+    );
 
     test('duplicate localId increments its counter', () async {
       monitor.recordOptimisticSent('dup');
