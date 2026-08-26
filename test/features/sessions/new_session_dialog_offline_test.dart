@@ -950,103 +950,114 @@ void main() {
       tester,
     ) async {
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
-      final now = DateTime.now().millisecondsSinceEpoch;
-      await pumpDialog(
-        tester,
-        buildHarness(
-          machines: {
-            'm-online': _machine(
-              id: 'm-online',
-              displayName: 'My Laptop',
-              active: true,
-              activeAtMs: now,
-              spawnBackends: const ['local'],
-              defaultSpawnBackend: 'local',
-            ),
-          },
-          initialMachineId: 'm-online',
-          initialPath: '/home/me/project',
-        ),
-      );
+      // Dispose explicitly via try/finally — addTearDown runs after
+      // _verifySemanticsHandlesWereDisposed in this SDK, so a teardown-only
+      // handle is always reported as leaked.
+      try {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        await pumpDialog(
+          tester,
+          buildHarness(
+            machines: {
+              'm-online': _machine(
+                id: 'm-online',
+                displayName: 'My Laptop',
+                active: true,
+                activeAtMs: now,
+                spawnBackends: const ['local'],
+                defaultSpawnBackend: 'local',
+              ),
+            },
+            initialMachineId: 'm-online',
+            initialPath: '/home/me/project',
+          ),
+        );
 
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Claude')),
-        isSemantics(
-          isButton: true,
-          isSelected: true,
-          isInMutuallyExclusiveGroup: true,
-        ),
-      );
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Claude')),
+          isSemantics(
+            isButton: true,
+            isSelected: true,
+            isInMutuallyExclusiveGroup: true,
+          ),
+        );
 
-      await tester.tap(find.bySemanticsLabel('Codex'));
-      await tester.pump();
+        await tester.tap(find.bySemanticsLabel('Codex'));
+        await tester.pump();
 
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Codex')),
-        isSemantics(
-          isButton: true,
-          isSelected: true,
-          isInMutuallyExclusiveGroup: true,
-        ),
-      );
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Claude')),
-        isSemantics(
-          isButton: true,
-          isSelected: false,
-          isInMutuallyExclusiveGroup: true,
-        ),
-      );
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Codex')),
+          isSemantics(
+            isButton: true,
+            isSelected: true,
+            isInMutuallyExclusiveGroup: true,
+          ),
+        );
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Claude')),
+          isSemantics(
+            isButton: true,
+            isSelected: false,
+            isInMutuallyExclusiveGroup: true,
+          ),
+        );
+      } finally {
+        handle.dispose();
+      }
     });
 
     testWidgets('requirement status and spawn errors are live regions', (
       tester,
     ) async {
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
-      final testSync = createTestSync();
-      testSync.testEnsureMachineReachableOverride = (_) async {};
-      addTearDown(() {
-        testSync.testEnsureMachineReachableOverride = null;
-      });
+      // See the test above: dispose explicitly; addTearDown would be
+      // verified as a leak by _verifySemanticsHandlesWereDisposed.
+      try {
+        final testSync = createTestSync();
+        testSync.testEnsureMachineReachableOverride = (_) async {};
+        addTearDown(() {
+          testSync.testEnsureMachineReachableOverride = null;
+        });
 
-      final now = DateTime.now().millisecondsSinceEpoch;
-      await pumpDialog(
-        tester,
-        buildHarness(
-          machines: {
-            'm-online': _machine(
-              id: 'm-online',
-              displayName: 'My Laptop',
-              active: true,
-              activeAtMs: now,
-              spawnBackends: const ['local'],
-              defaultSpawnBackend: 'local',
-            ),
-          },
-          initialMachineId: 'm-online',
-          initialPath: '/home/me/project',
-          onCreateSession: () =>
-              Future<String>.error(StateError('spawn failed')),
-        ),
-      );
+        final now = DateTime.now().millisecondsSinceEpoch;
+        await pumpDialog(
+          tester,
+          buildHarness(
+            machines: {
+              'm-online': _machine(
+                id: 'm-online',
+                displayName: 'My Laptop',
+                active: true,
+                activeAtMs: now,
+                spawnBackends: const ['local'],
+                defaultSpawnBackend: 'local',
+              ),
+            },
+            initialMachineId: 'm-online',
+            initialPath: '/home/me/project',
+            onCreateSession: () =>
+                Future<String>.error(StateError('spawn failed')),
+          ),
+        );
 
-      expect(
-        tester.getSemantics(find.text('Ready to create session')),
-        isSemantics(isLiveRegion: true),
-      );
+        expect(
+          tester.getSemantics(find.text('Ready to create session')),
+          isSemantics(isLiveRegion: true),
+        );
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
-      await tester.pump();
-      await tester.pump();
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.pump();
+        await tester.pump();
 
-      expect(
-        tester.getSemantics(
-          find.text('Could not start session. Please try again.'),
-        ),
-        isSemantics(isLiveRegion: true),
-      );
+        expect(
+          tester.getSemantics(
+            find.text('Could not start session. Please try again.'),
+          ),
+          isSemantics(isLiveRegion: true),
+        );
+      } finally {
+        handle.dispose();
+      }
     });
   });
 }
