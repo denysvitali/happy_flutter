@@ -13,6 +13,13 @@ class ServerConfigStorage {
   MMKV? _mmkv;
   bool _initialized = false;
 
+  /// Whether the "MMKV engine not ready yet" notice was logged in this
+  /// process. `main.dart` deliberately resolves a provisional server URL
+  /// (`getServerUrl()`) while storage is still warming, so this constructor
+  /// throwing during early startup is an expected state, not a defect.
+  /// One info line per process; retries stay silent until the engine is up.
+  bool _engineWarmupNoticeLogged = false;
+
   static const String _serverUrlKey = 'custom-server-url';
   static const String _serverUrlErrorKey =
       'last-server-url-error';
@@ -28,9 +35,17 @@ class ServerConfigStorage {
         _mmkv = MMKV('server-config');
         _initialized = true;
       } catch (e) {
-        logger.warning(
-          'ServerConfigStorage: Sync init failed: $e',
-        );
+        // Expected while `Storage().initialize()` is still running: callers
+        // fall back to the default server URL and re-resolve after warmup
+        // (main.dart startupServicesFuture). Logging every retry forwarded
+        // 258 expected-startup warnings to GlitchTip (issue 4965).
+        if (!_engineWarmupNoticeLogged) {
+          _engineWarmupNoticeLogged = true;
+          logger.info(
+            'ServerConfigStorage: MMKV not ready yet — using default '
+            'server URL until storage warmup completes ($e)',
+          );
+        }
       }
     }
   }
