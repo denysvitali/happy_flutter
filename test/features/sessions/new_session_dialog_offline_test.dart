@@ -945,5 +945,108 @@ void main() {
         reason: 'online machine + repository/ref must enable Create',
       );
     });
+
+    testWidgets('agent chips expose exclusive selected semantics', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      addTearDown(handle.dispose);
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {
+            'm-online': _machine(
+              id: 'm-online',
+              displayName: 'My Laptop',
+              active: true,
+              activeAtMs: now,
+              spawnBackends: const ['local'],
+              defaultSpawnBackend: 'local',
+            ),
+          },
+          initialMachineId: 'm-online',
+          initialPath: '/home/me/project',
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Claude')),
+        isSemantics(
+          isButton: true,
+          isSelected: true,
+          isInMutuallyExclusiveGroup: true,
+        ),
+      );
+
+      await tester.tap(find.bySemanticsLabel('Codex'));
+      await tester.pump();
+
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Codex')),
+        isSemantics(
+          isButton: true,
+          isSelected: true,
+          isInMutuallyExclusiveGroup: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Claude')),
+        isSemantics(
+          isButton: true,
+          isSelected: false,
+          isInMutuallyExclusiveGroup: true,
+        ),
+      );
+    });
+
+    testWidgets('requirement status and spawn errors are live regions', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      addTearDown(handle.dispose);
+      final testSync = createTestSync();
+      testSync.testEnsureMachineReachableOverride = (_) async {};
+      addTearDown(() {
+        testSync.testEnsureMachineReachableOverride = null;
+      });
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await pumpDialog(
+        tester,
+        buildHarness(
+          machines: {
+            'm-online': _machine(
+              id: 'm-online',
+              displayName: 'My Laptop',
+              active: true,
+              activeAtMs: now,
+              spawnBackends: const ['local'],
+              defaultSpawnBackend: 'local',
+            ),
+          },
+          initialMachineId: 'm-online',
+          initialPath: '/home/me/project',
+          onCreateSession: () =>
+              Future<String>.error(StateError('spawn failed')),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.text('Ready to create session')),
+        isSemantics(isLiveRegion: true),
+      );
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        tester.getSemantics(
+          find.text('Could not start session. Please try again.'),
+        ),
+        isSemantics(isLiveRegion: true),
+      );
+    });
   });
 }

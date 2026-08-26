@@ -250,6 +250,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 Text(l10n.newSessionNoMachinesFound)
               else
                 DropdownButtonFormField<String>(
+                  key: ValueKey('new-session-machine-$_selectedMachine'),
                   decoration: InputDecoration(labelText: l10n.sessionMachine),
                   initialValue: _selectedMachine,
                   isExpanded: true,
@@ -462,10 +463,11 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
               ],
               if (_createError != null) ...[
                 const SizedBox(height: AppSpacing.md),
-                Text(
-                  _createError!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    _createError!,
+                    style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
                   ),
                 ),
               ],
@@ -476,7 +478,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   child: Row(
                     children: [
                       const SizedBox.square(
-                        dimension: AppSpacing.lg,
+                        dimension: AppIconSize.md,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -940,6 +942,7 @@ class _PathField extends ConsumerWidget {
           decoration: InputDecoration(
             labelText: context.l10n.sessionPath,
             hintText: context.l10n.sessionPathHint,
+            prefixIcon: const Icon(Icons.folder_outlined),
           ),
           onChanged: onChanged,
         );
@@ -965,7 +968,11 @@ class _SpawnBackendPicker extends StatelessWidget {
         .map(
           (backend) => ButtonSegment(
             value: backend,
-            label: Text(backend == 'kubernetes' ? 'Kubernetes' : 'Local'),
+            label: Text(
+              backend == 'kubernetes'
+                  ? context.l10n.newSessionSpawnKubernetes
+                  : context.l10n.newSessionSpawnLocal,
+            ),
             icon: Icon(
               backend == 'kubernetes'
                   ? Icons.cloud_queue_outlined
@@ -1020,7 +1027,7 @@ class _RepositoryUrlField extends ConsumerWidget {
           focusNode: focusNode,
           decoration: InputDecoration(
             labelText: context.l10n.newSessionRepositoryUrl,
-            hintText: 'https://github.com/org/repo.git',
+            hintText: context.l10n.newSessionRepositoryUrlHint,
             prefixIcon: const Icon(Icons.source_outlined),
           ),
           keyboardType: TextInputType.url,
@@ -1064,31 +1071,43 @@ class _AgentPicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.sessionsAgent,
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: cs.onSurfaceVariant,
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.sessionsAgent,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
-        Row(
-          children: _agentIds
-              .map((agent) {
-                return Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: agent == _agentIds.last ? 0 : AppSpacing.sm,
+        FocusTraversalGroup(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const columns = 3;
+              const spacing = AppSpacing.sm;
+              final maxWidth = constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : MediaQuery.sizeOf(context).width;
+              final tileWidth = (maxWidth - spacing * (columns - 1)) / columns;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  for (final agent in _agentIds)
+                    SizedBox(
+                      width: tileWidth,
+                      child: _AgentOption(
+                        label: _agentLabel(l10n, agent),
+                        icon: _agentIcon(agent),
+                        selected: agent == selectedAgent,
+                        onTap: () => onSelected(agent),
+                      ),
                     ),
-                    child: _AgentOption(
-                      label: _agentLabel(l10n, agent),
-                      icon: _agentIcon(agent),
-                      selected: agent == selectedAgent,
-                      onTap: () => onSelected(agent),
-                    ),
-                  ),
-                );
-              })
-              .toList(growable: false),
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
@@ -1113,45 +1132,50 @@ class _AgentOption extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final borderColor = selected ? cs.primary : cs.outlineVariant;
-    final iconColor = selected ? cs.primary : cs.onSurfaceVariant;
+    final foreground = selected ? cs.onPrimaryContainer : cs.onSurfaceVariant;
+    final radius = BorderRadius.circular(AppRadius.sm);
 
     return Semantics(
       button: true,
       selected: selected,
+      inMutuallyExclusiveGroup: true,
       label: label,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xs,
-            vertical: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            color: selected
-                ? cs.primaryContainer.withValues(alpha: AppOpacity.subtle)
-                : cs.surface,
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: iconColor),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: selected ? cs.primary : cs.onSurfaceVariant,
-                  fontSize: AppFontSize.xs,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
+      child: Material(
+        color: selected ? cs.primaryContainer : cs.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(color: borderColor),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: radius,
+          mouseCursor: SystemMouseCursors.click,
+          child: ExcludeSemantics(
+            child: Container(
+              constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.sm,
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: AppIconSize.lg, color: foreground),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: foreground,
+                      fontSize: AppFontSize.xs,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -1190,12 +1214,17 @@ class _DialogRequirementStatus extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(icon, size: 16, color: color),
+        ExcludeSemantics(
+          child: Icon(icon, size: AppIconSize.md, color: color),
+        ),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
-          child: Text(
-            _dialogRequirementText(l10n, blocker),
-            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          child: Semantics(
+            liveRegion: true,
+            child: Text(
+              _dialogRequirementText(l10n, blocker),
+              style: theme.textTheme.bodySmall?.copyWith(color: color),
+            ),
           ),
         ),
       ],
@@ -1243,7 +1272,7 @@ class _CreateButton extends StatelessWidget {
     final button = ElevatedButton(
       onPressed: onPressed,
       child: isCreating
-          ? const Icon(Icons.hourglass_top_rounded, size: AppSpacing.lg)
+          ? const Icon(Icons.hourglass_top_rounded, size: AppIconSize.md)
           : Text(label),
     );
     final tip = tooltip;
@@ -1276,6 +1305,6 @@ String _dialogRequirementText(
     case NewSessionCreateBlocker.syncNotReady:
       return l10n.authConnecting;
     case null:
-      return l10n.statusConnected;
+      return l10n.newSessionReadyToCreate;
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/components/app_empty_state.dart';
+import '../../../core/components/app_status_dot.dart';
 import '../../../core/components/settings_section.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
@@ -87,10 +88,12 @@ class MachinePicker extends StatelessWidget {
                 enabled: selectable,
                 child: Row(
                   children: [
-                    Icon(
-                      online ? Icons.circle : Icons.circle_outlined,
-                      size: 10,
+                    AppStatusDot(
                       color: online ? AppColors.success : cs.onSurfaceVariant,
+                      size: AppSpacing.xs,
+                      semanticLabel: online
+                          ? l10n.machineOnline
+                          : l10n.machineOffline,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(

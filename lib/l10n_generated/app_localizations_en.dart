@@ -227,6 +227,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'This daemon cannot create Kubernetes pods';
 
   @override
+  String get newSessionSpawnLocal => 'Local';
+
+  @override
+  String get newSessionSpawnKubernetes => 'Kubernetes';
+
+  @override
+  String get newSessionRepositoryUrlHint => 'https://github.com/org/repo.git';
+
+  @override
+  String get newSessionReadyToCreate => 'Ready to create session';
+
+  @override
   String get sessionPodSection => 'Kubernetes pod';
 
   @override

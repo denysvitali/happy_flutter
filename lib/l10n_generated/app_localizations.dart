@@ -508,6 +508,30 @@ abstract class AppLocalizations {
   /// **'This daemon cannot create Kubernetes pods'**
   String get newSessionKubernetesUnavailable;
 
+  /// No description provided for @newSessionSpawnLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get newSessionSpawnLocal;
+
+  /// No description provided for @newSessionSpawnKubernetes.
+  ///
+  /// In en, this message translates to:
+  /// **'Kubernetes'**
+  String get newSessionSpawnKubernetes;
+
+  /// No description provided for @newSessionRepositoryUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://github.com/org/repo.git'**
+  String get newSessionRepositoryUrlHint;
+
+  /// No description provided for @newSessionReadyToCreate.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to create session'**
+  String get newSessionReadyToCreate;
+
   /// No description provided for @sessionPodSection.
   ///
   /// In en, this message translates to:
