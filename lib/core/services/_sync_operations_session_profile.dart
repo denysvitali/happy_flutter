@@ -219,11 +219,16 @@ extension SyncSpawnProfileResolution on Sync {
       return modelMode;
     }
     if (agent != 'claude' && _isClaudeModelAlias(modelMode)) {
+      _logDroppedModelMode(
+          modelMode, agent, profile, 'Claude alias on a non-Claude session');
       return 'default';
     }
     if (agent == 'codex' &&
         !_isCustomCodexProfile(profile) &&
         !_isKnownCodexModelMode(modelMode)) {
+      _logDroppedModelMode(modelMode, agent, profile,
+          'not a known Codex model and the profile is not a custom '
+          'Codex provider');
       return 'default';
     }
     // The reverse direction: non-Claude model names from a previous
@@ -241,9 +246,49 @@ extension SyncSpawnProfileResolution on Sync {
     if (agent == 'claude' &&
         _isNonClaudeModelMode(modelMode) &&
         !configuredClaudeGatewayModel) {
+      _logDroppedModelMode(modelMode, agent, profile,
+          agent == 'claude' && profile != null && _isThirdPartyAnthropicBaseUrl(
+            _anthropicBaseUrlForProfile(profile),
+          )
+              ? 'the selected third-party gateway profile does not list it '
+                  '(profile.models is stale or the pick came from another '
+                  'profile); the profile default model will spawn instead'
+              : 'non-Claude model on a Claude session without an owning '
+                  'third-party gateway profile');
       return 'default';
     }
     return modelMode;
+  }
+
+  /// Resolve the profile saved for a session (per-session draft in MMKV)
+  /// without hydrating credentials — enough for model-mode normalization
+  /// gates when the caller has no explicit profile id. SendMessage uses this
+  /// so a provider-owned pick is not silently downgraded to 'default' (and
+  /// replaced by the profile's default model) just because the send call
+  /// carried no profileId.
+  Future<AIBackendProfile?> _sessionProfileForNormalization(
+    String sessionId,
+  ) async {
+    final savedId = await MMKVStorage().getSessionProfile(sessionId);
+    if (savedId == null) return null;
+    return _resolveProfile(savedId);
+  }
+
+  /// A dropped pick is otherwise invisible: the session silently spawns with
+  /// the profile's default model (production case: llm-proxy default
+  /// `opencode/x-preview-f-free` spawning after the user picked
+  /// `grok/grok-4.6`, session cddc18c35de421108622d20da). Log every
+  /// downgrade so prod logs answer "why did my model pick not apply".
+  void _logDroppedModelMode(
+    String modelMode,
+    String? agent,
+    AIBackendProfile? profile,
+    String reason,
+  ) {
+    logger.warning(
+      '[spawn] dropping model pick "$modelMode" for agent=$agent '
+      'profile=${profile?.id ?? 'none'}: $reason',
+    );
   }
 
   bool _profileOwnsModel(AIBackendProfile profile, String modelMode) {

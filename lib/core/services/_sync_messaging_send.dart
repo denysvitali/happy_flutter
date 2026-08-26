@@ -450,7 +450,7 @@ extension SyncMessagingSend on Sync {
       otelService: otelService,
       parentSpan: sendSpan,
       phase: 'send_options',
-      body: () {
+      body: () async {
         final requestedPermissionMode = permissionMode;
         final sandboxEnabled = session.metadata?.sandboxEnabled ?? false;
         final storedPermissionMode = session.permissionMode;
@@ -468,10 +468,13 @@ extension SyncMessagingSend on Sync {
             session.metadata?.flavor ?? settingsSnapshot.lastUsedAgent;
         // Resolve the caller-selected profile so provider-owned model picks
         // survive normalization for Claude-flavored sessions (same guard as
-        // createSession and auto-restore).
+        // createSession and auto-restore). Without an explicit profileId,
+        // fall back to the session's saved profile — normalizing against no
+        // profile silently downgraded provider-owned picks to 'default',
+        // spawning the profile's (possibly stale) default model instead.
         final sendProfile = profileId != null
             ? _resolveProfile(profileId)
-            : null;
+            : await _sessionProfileForNormalization(sessionId);
         final requestedModelMode = flavor == 'codex' && modelMode != null
             ? (_isClaudeModelAlias(modelMode) ? 'default' : modelMode)
             : _normalizeModelModeForAgent(
