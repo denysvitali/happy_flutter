@@ -308,4 +308,62 @@ void main() {
       expect(WireParsers.sidechainAgentId(<String, dynamic>{}), isNull);
     });
   });
+
+  group('WireParsers.asMapOrJson / toolInput', () {
+    test('asMapOrJson decodes a JSON object string', () {
+      expect(WireParsers.asMapOrJson('{"a":1}'), {'a': 1});
+      expect(WireParsers.asMapOrJson(' not json '), isNull);
+      expect(WireParsers.asMapOrJson('[1,2]'), isNull);
+    });
+
+    test('toolInput unwraps a nested MCP arguments envelope', () {
+      expect(
+        WireParsers.toolInput({
+          'input': {
+            'arguments': {
+              'content': 'Design safe sensor bring-up path',
+              'description': 'Choose an implementation',
+              'priority': 'high',
+              'status': 'in_progress',
+            },
+          },
+        }),
+        {
+          'content': 'Design safe sensor bring-up path',
+          'description': 'Choose an implementation',
+          'priority': 'high',
+          'status': 'in_progress',
+        },
+      );
+    });
+
+    test('toolInput unwraps JSON-string arguments', () {
+      expect(
+        WireParsers.toolInput({
+          'input':
+              '{"arguments":{"content":"Fix the row","status":"pending"}}',
+        }),
+        {'content': 'Fix the row', 'status': 'pending'},
+      );
+    });
+
+    test('toolInput reads top-level arguments when input is missing', () {
+      expect(
+        WireParsers.toolInput({
+          'name': 'mcp__happy__todo_add',
+          'arguments': {'content': 'Only arguments', 'id': '1'},
+        }),
+        {'content': 'Only arguments', 'id': '1'},
+      );
+    });
+
+    test('toolInput keeps a flat Claude-style input', () {
+      expect(
+        WireParsers.toolInput({
+          'input': {'subject': 'Already flat', 'status': 'pending'},
+        }),
+        {'subject': 'Already flat', 'status': 'pending'},
+      );
+    });
+  });
 }

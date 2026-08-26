@@ -84,9 +84,10 @@ class TaskToolView extends ConsumerStatefulWidget {
       }
     }
 
+    final input = WireParsers.toolInput(tool);
+
     switch (name) {
       case 'TaskCreate':
-        final input = WireParsers.asMap(tool['input']) ?? const {};
         final subject =
             input['subject'] as String? ?? input['content'] as String?;
         if (subject == null || subject.isEmpty) return existing;
@@ -143,7 +144,6 @@ class TaskToolView extends ConsumerStatefulWidget {
         ];
 
       case 'TaskUpdate':
-        final input = WireParsers.asMap(tool['input']) ?? const {};
         final explicitId = input['taskId'] as String? ?? input['id'] as String?;
         if (explicitId == null) return existing;
         final rawName = (tool['name'] as String?) ?? '';
@@ -246,7 +246,8 @@ class TaskToolView extends ConsumerStatefulWidget {
           explicit:
               (map['id'] as String?) ??
               (map['taskId'] as String?) ??
-              (WireParsers.asMap(tool['input'])?['taskId'] as String?),
+              (input['taskId'] as String?) ??
+              (input['id'] as String?),
           fallback: 'get-$subject',
           toolId: toolId,
         );
@@ -523,7 +524,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
   }
 
   Widget _buildCreate(BuildContext context) {
-    final input = WireParsers.asMap(widget.tool['input']) ?? const {};
+    final input = WireParsers.toolInput(widget.tool);
     final subject = input['subject'] as String? ?? input['content'] as String?;
     final description = input['description'] as String?;
     final activeForm = input['activeForm'] as String?;
@@ -542,7 +543,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
   }
 
   Widget _buildUpdate(BuildContext context) {
-    final input = WireParsers.asMap(widget.tool['input']) ?? const {};
+    final input = WireParsers.toolInput(widget.tool);
     final taskId = input['taskId'] as String? ?? input['id'] as String?;
     final status = input['status'] as String?;
     final activeForm = input['activeForm'] as String?;
@@ -604,7 +605,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
   Widget _buildGet(BuildContext context) {
     final result = WireParsers.asMap(widget.tool['result']);
     if (result == null) {
-      final input = WireParsers.asMap(widget.tool['input']) ?? const {};
+      final input = WireParsers.toolInput(widget.tool);
       final id = input['taskId'] as String? ?? input['id'] as String?;
       return _EmptyHint(id != null ? 'No data for #$id' : 'No data');
     }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Lenient parsers for wire values coming from different server variants.
 ///
 /// Some backends emit numeric fields as numbers, others as numeric strings.
@@ -57,6 +59,47 @@ class WireParsers {
       }
     }
     return null;
+  }
+
+  /// Decode [value] when it is already a map or a JSON object string.
+  ///
+  /// Function-call adapters (Codex, some MCP gateways) serialize tool
+  /// parameters as a JSON string. [asMap] rejects strings, so callers
+  /// that only cast would treat a perfectly valid payload as empty.
+  static Map<String, dynamic>? asMapOrJson(dynamic value) {
+    final map = asMap(value);
+    if (map != null) return map;
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed.codeUnitAt(0) != 0x7B) {
+      return null;
+    }
+    try {
+      return asMap(jsonDecode(trimmed));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Actual tool parameters, unwrapping function-call / MCP envelopes.
+  ///
+  /// Codex MCP calls often land as `{arguments: {content, status, ...}}`
+  /// (or a JSON string of that) on `input`. Reading `input.content`
+  /// directly then yields an empty Create/Update Task card.
+  static Map<String, dynamic> toolInput(Map<String, dynamic> tool) {
+    for (final candidate in [
+      tool['input'],
+      tool['arguments'],
+      tool['args'],
+    ]) {
+      final map = asMapOrJson(candidate);
+      if (map == null) continue;
+      final nested = asMapOrJson(map['arguments']) ??
+          asMapOrJson(map['args']);
+      if (nested != null) return nested;
+      if (map.isNotEmpty) return map;
+    }
+    return const <String, dynamic>{};
   }
 
   /// Safely cast a dynamic value to `List<dynamic>?`.

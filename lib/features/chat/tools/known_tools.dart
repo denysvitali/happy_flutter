@@ -530,8 +530,7 @@ class KnownTools {
       // push the parsed item into todoStateNotifierProvider. Collapsed
       // tools skip body instantiation entirely.
       extractSubtitle: (tool, _) {
-        final input = WireParsers.asMap(tool['input']);
-        return _taskSubject(input);
+        return _taskSubject(WireParsers.toolInput(tool));
       },
     ),
     'TaskUpdate': ToolDefinition(
@@ -542,8 +541,8 @@ class KnownTools {
       // that said nothing about what changed. Always fall back to the id
       // and append the new status.
       extractSubtitle: (tool, _) {
-        final input = WireParsers.asMap(tool['input']);
-        if (input == null) return null;
+        final input = WireParsers.toolInput(tool);
+        if (input.isEmpty) return null;
         final taskId = input['taskId'] as String? ?? input['id'] as String?;
         final what =
             _taskSubject(input) ??
@@ -562,8 +561,8 @@ class KnownTools {
       icon: todoIcon,
       title: 'Get Task',
       extractSubtitle: (tool, _) {
-        final input = WireParsers.asMap(tool['input']);
-        final taskId = input?['taskId'] as String? ?? input?['id'] as String?;
+        final input = WireParsers.toolInput(tool);
+        final taskId = input['taskId'] as String? ?? input['id'] as String?;
         return taskId != null ? '#$taskId' : null;
       },
     ),

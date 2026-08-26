@@ -40,6 +40,100 @@ void main() {
       expect(subtitle, 'Ship the fix');
     });
 
+    test('Create Task header unwraps nested MCP arguments', () {
+      final subtitle = KnownTools.get('TaskCreate')!.extractSubtitle!({
+        'name': 'mcp__happy__todo_add',
+        'input': {
+          'arguments': {
+            'content': 'Design safe sensor bring-up path',
+            'description': 'Choose an implementation',
+            'priority': 'high',
+            'status': 'in_progress',
+          },
+        },
+      }, null);
+
+      expect(subtitle, 'Design safe sensor bring-up path');
+    });
+
+    test('Update Task header unwraps nested MCP arguments', () {
+      final subtitle = KnownTools.get('TaskUpdate')!.extractSubtitle!({
+        'name': 'mcp__happy__todo_update',
+        'input': {
+          'arguments': {
+            'id': '1',
+            'content': 'Design safe sensor bring-up path',
+            'status': 'in_progress',
+          },
+        },
+      }, null);
+
+      expect(
+        subtitle,
+        'Design safe sensor bring-up path → in progress',
+      );
+    });
+
+    testWidgets('TaskCreate renders nested MCP arguments', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          TaskToolView(
+            tool: {
+              'name': 'mcp__happy__todo_add',
+              'state': 'completed',
+              'input': {
+                'arguments': {
+                  'content': 'Design safe sensor bring-up path',
+                  'description':
+                      'Choose an implementation that exposes AP i2c1',
+                  'priority': 'high',
+                  'status': 'in_progress',
+                },
+              },
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Design safe sensor bring-up path'), findsOneWidget);
+      expect(
+        find.text('Choose an implementation that exposes AP i2c1'),
+        findsOneWidget,
+      );
+      expect(find.text('in_progress'), findsOneWidget);
+    });
+
+    testWidgets('TaskUpdate renders nested MCP arguments', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          TaskToolView(
+            tool: {
+              'name': 'mcp__happy__todo_update',
+              'state': 'completed',
+              'input': {
+                'arguments': {
+                  'id': '1',
+                  'content': 'Design safe sensor bring-up path',
+                  'status': 'in_progress',
+                },
+              },
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Design safe sensor bring-up path'), findsOneWidget);
+      expect(find.text('in_progress'), findsOneWidget);
+    });
+
     testWidgets('TaskCreate renders subject and status', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -656,6 +750,27 @@ void main() {
 
       final items = container.read(todoStateNotifierProvider).bySession['s1']!;
       expect(items.single.status, TodoState.completed);
+    });
+
+    testWidgets('Happy MCP nested arguments still create an item', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-mcp-args',
+        'createdAt': 1000,
+        'input': {
+          'arguments': {
+            'content': 'Design safe sensor bring-up path',
+            'status': 'in_progress',
+          },
+        },
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items.single.content, 'Design safe sensor bring-up path');
+      expect(items.single.status, TodoState.inProgress);
     });
 
     testWidgets('Happy MCP todo_add content field creates an item', (
