@@ -249,6 +249,34 @@ void main() {
         expect(ts, lessThan(after));
       });
 
+      test('double createdAt is preserved instead of becoming now', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {'role': 'user', 'content': {'type': 'text', 'text': 'hi'}},
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1700000000000.0},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages.first['createdAt'], 1700000000000);
+      });
+
+      test('numeric-string createdAt is preserved', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {'role': 'user', 'content': {'type': 'text', 'text': 'hi'}},
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': '1700000000000'},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages.first['createdAt'], 1700000000000);
+      });
+
       test('all fields missing — still produces a result without throwing', () {
         expect(
           () => processDecryptedMessages(

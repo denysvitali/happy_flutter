@@ -159,5 +159,26 @@ void main() {
         isNotEmpty,
       );
     });
+
+    test('small future skew still reads as just now', () {
+      expect(
+        formatRelativeTime(
+          now.add(const Duration(seconds: 20)),
+          now: now,
+        ),
+        'Just now',
+      );
+    });
+
+    test('large future timestamps are not pinned to just now', () {
+      expect(
+        formatRelativeTime(
+          now.add(const Duration(hours: 2)),
+          now: now,
+          locale: 'en_US',
+        ),
+        '8/10/2026',
+      );
+    });
   });
 }

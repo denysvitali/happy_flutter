@@ -118,14 +118,31 @@ String? _extractParentToolUseId(Map<String, dynamic> data) =>
 String? _extractAgentId(Map<String, dynamic> data) =>
     WireParsers.sidechainAgentId(data);
 
-int _parseCreatedAtMs(dynamic raw) {
+/// Best-effort epoch-ms parse for wire `createdAt` / `time`.
+///
+/// Returns null when [raw] is missing or unusable so callers can fall
+/// through to a better candidate instead of stamping `DateTime.now()`.
+/// JSON numbers sometimes arrive as [double]; numeric strings are
+/// accepted too. Unparseable values must not become "Just now".
+int? _tryParseCreatedAtMs(dynamic raw) {
+  if (raw == null) return null;
   if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
   if (raw is String) {
-    final parsed = DateTime.tryParse(raw);
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final parsed = DateTime.tryParse(trimmed);
     if (parsed != null) return parsed.millisecondsSinceEpoch;
+    final asInt = int.tryParse(trimmed);
+    if (asInt != null) return asInt;
+    final asDouble = double.tryParse(trimmed);
+    if (asDouble != null) return asDouble.toInt();
   }
-  return DateTime.now().millisecondsSinceEpoch;
+  return null;
 }
+
+int _parseCreatedAtMs(dynamic raw) =>
+    _tryParseCreatedAtMs(raw) ?? DateTime.now().millisecondsSinceEpoch;
 
 bool _looksLikeSessionEnvelope(dynamic value) {
   if (value is! Map<String, dynamic>) return false;

@@ -430,7 +430,9 @@ class _SidebarSessionListItem extends ConsumerWidget {
               // Timestamp
               Text(
                 _formatTimestamp(
-                  lastMessageTimestamp ?? session.updatedAt,
+                  lastMessageTimestamp ??
+                      session.lastMessageAt ??
+                      session.updatedAt,
                   context,
                 ),
                 style: theme.textTheme.labelSmall?.copyWith(

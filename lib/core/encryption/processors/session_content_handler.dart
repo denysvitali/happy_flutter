@@ -32,9 +32,14 @@ void _processSessionContent({
 
   final eventRole = envelope['role'] as String?;
   final envelopeId = (envelope['id'] ?? envelope['uuid']) as String? ?? id;
-  final envelopeCreatedAt = _parseCreatedAtMs(
-    envelope['time'] ?? envelope['createdAt'] ?? createdAt,
-  );
+  // Parse each candidate on its own. `time` is often a float or a
+  // garbage string; coalescing with `??` only skips *null*, so a bad
+  // `time` used to stamp the event as DateTime.now() and the session
+  // list then showed "Just now" for old chats.
+  final envelopeCreatedAt =
+      _tryParseCreatedAtMs(envelope['time']) ??
+      _tryParseCreatedAtMs(envelope['createdAt']) ??
+      createdAt;
   final parentUuid =
       (envelope['subagent'] ??
               envelope['parentUuid'] ??

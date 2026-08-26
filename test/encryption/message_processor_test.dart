@@ -1723,6 +1723,57 @@ void main() {
         expect(result.messages.first['content'], 'Session reply');
       });
 
+      test('unparseable envelope time falls back to wire createdAt', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'session',
+                'data': {
+                  'id': 'ev1',
+                  'time': 'not-a-date',
+                  'role': 'agent',
+                  'ev': {'t': 'text', 'text': 'Session reply'},
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1700000000000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['createdAt'], 1700000000000);
+      });
+
+      test('float envelope time is kept and not replaced with now', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'session',
+                'data': {
+                  'id': 'ev1',
+                  'time': 1700000000000.0,
+                  'role': 'agent',
+                  'ev': {'t': 'text', 'text': 'Session reply'},
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages.first['createdAt'], 1700000000000);
+      });
+
       test('processes session tool-call-start event', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [

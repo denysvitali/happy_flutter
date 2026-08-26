@@ -1330,6 +1330,54 @@ void main() {
       ]);
       expect(instance.getLastMessagePreview('s1'), 'actual response');
     });
+
+    test('timestamp follows the preview row, not a trailing thinking block',
+        () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'actual response',
+          'createdAt': 1_700_000_000_000,
+        },
+        {
+          'role': 'agent',
+          'kind': 'text',
+          'content': '*Thinking...*',
+          'isThinking': true,
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+        },
+        {
+          'role': 'agent',
+          'kind': 'agent-event',
+          'content': '',
+          'createdAt': DateTime.now().millisecondsSinceEpoch,
+        },
+      ]);
+      expect(instance.getLastMessagePreview('s1'), 'actual response');
+      expect(instance.getLastMessageTimestamp('s1'), 1_700_000_000_000);
+    });
+
+    test('timestamp uses the tool-call fallback when that is the preview',
+        () {
+      instance.testSetSessionMessages('s1', [
+        {
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'input': {'command': 'ls'},
+          'createdAt': 42,
+        },
+        {
+          'role': 'agent',
+          'kind': 'agent-event',
+          'content': '',
+          'createdAt': 99,
+        },
+      ]);
+      expect(instance.getLastMessagePreview('s1'), 'Used Bash · ls');
+      expect(instance.getLastMessageTimestamp('s1'), 42);
+    });
   });
 
   group('Sync cold-start message cache warmup', () {

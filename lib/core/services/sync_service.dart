@@ -1621,8 +1621,12 @@ what you have, you must use the options mode.
     return count;
   }
 
-  /// Returns the timestamp of the last message in a session, or null if
-  /// there are no messages.
+  /// Timestamp of the last *previewable* message in a session, or null.
+  ///
+  /// Matches [getLastMessagePreview]: thinking blocks, agent-events,
+  /// and sidechains are skipped. Using `messages.last.createdAt` made
+  /// wedged/still-thinking sessions show "Just now" on the list while
+  /// the visible transcript was hours old.
   int? getLastMessageTimestamp(String sessionId) =>
       _ensurePreviewCache(sessionId).timestamp;
 
@@ -1665,12 +1669,15 @@ what you have, you must use the options mode.
       return _previewCache[sessionId]!;
     }
 
-    // Compute all fields in a single backward scan.
-    final timestamp = messages.last['createdAt'] as int?;
+    // Compute all fields in a single backward scan. Timestamp follows
+    // the same row as the preview — not messages.last — so a trailing
+    // thinking/agent-event heartbeat cannot masquerade as "Just now".
+    int? timestamp;
     String? preview;
     String? role;
     String? toolFallback;
     String? toolFallbackRole;
+    int? toolFallbackTimestamp;
     var isError = false;
     var sawToolCall = false;
     for (var i = messages.length - 1; i >= 0; i--) {
@@ -1686,6 +1693,7 @@ what you have, you must use the options mode.
         if (toolFallback == null) {
           toolFallback = _toolPreview(msg);
           toolFallbackRole = msgRole;
+          toolFallbackTimestamp = WireParsers.parseInt(msg['createdAt']);
         }
         continue;
       }
@@ -1702,6 +1710,7 @@ what you have, you must use the options mode.
           preview = _cleanPreviewText(errorText.trim());
           role = msgRole;
           isError = true;
+          timestamp = WireParsers.parseInt(msg['createdAt']);
           break;
         }
         continue;
@@ -1713,11 +1722,13 @@ what you have, you must use the options mode.
         // Only text messages mark the error lane — a failed tool result
         // is routine agent self-correction, not a stalled session.
         isError = msg['isError'] == true || text.trim().startsWith('API Error');
+        timestamp = WireParsers.parseInt(msg['createdAt']);
         break;
       }
     }
     preview ??= toolFallback;
     role ??= toolFallbackRole ?? (sawToolCall ? MessageRole.agent : null);
+    timestamp ??= toolFallbackTimestamp;
 
     final result = (
       timestamp: timestamp,

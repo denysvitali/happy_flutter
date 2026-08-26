@@ -165,6 +165,20 @@ String formatRelativeTime(
   final reference = now ?? DateTime.now();
   final diff = reference.difference(when);
 
+  // `Duration.inMinutes < 1` is true for every negative duration, so a
+  // future timestamp (clock skew, seconds-vs-ms mixup, ISO-without-Z)
+  // used to pin the session list to "Just now" forever. Treat a minute
+  // of skew as current; anything further is an absolute date.
+  if (diff.isNegative) {
+    if (diff > const Duration(minutes: -1)) {
+      return l10n?.relativeJustNow ?? 'Just now';
+    }
+    if (absoluteFallback != null) {
+      return absoluteFallback(when, locale: locale);
+    }
+    return formatShortDate(when, locale: locale);
+  }
+
   if (diff.inMinutes < 1) return l10n?.relativeJustNow ?? 'Just now';
   if (diff.inMinutes < 60) {
     final n = diff.inMinutes;
