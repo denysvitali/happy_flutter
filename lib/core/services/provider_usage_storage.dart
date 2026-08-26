@@ -16,6 +16,7 @@ class ProviderUsageStorage {
   static final ProviderUsageStorage _instance = ProviderUsageStorage._();
 
   static const String _accountsKey = 'provider_usage_accounts';
+  static const String _failuresKey = 'provider_usage_failures';
 
   final _secureStorage = const FlutterSecureStorage();
   List<ProviderAccount>? _cachedAccounts;
@@ -86,6 +87,54 @@ class ProviderUsageStorage {
       return true;
     } catch (e, stack) {
       logger.error('Failed to clear provider usage accounts', e, stack);
+      return false;
+    }
+  }
+
+  /// Reads the persisted per-account fetch-failure state, or an empty map
+  /// when nothing is stored. Shape:
+  /// `{accountId: {failures: int, error: String, nextRetryAtMs: int,
+  ///   backoffUs: int}}`
+  ///
+  /// The strike map is persisted so an account whose provider state is
+  /// permanently failing (e.g. an out-of-balance Kimi key answering 429
+  /// forever) does not restart its warning/backoff cycle on every app
+  /// launch — without this, each process re-emitted up to two full Sentry
+  /// warning stacks per dead account (GlitchTip issue 3658, 173 events).
+  Future<Map<String, Map<String, dynamic>>> readFailureState() async {
+    try {
+      final stored = await _secureStorage.read(key: _failuresKey);
+      if (stored == null || stored.isEmpty) {
+        return const <String, Map<String, dynamic>>{};
+      }
+      final decoded = jsonDecode(stored);
+      if (decoded is! Map<String, dynamic>) {
+        return const <String, Map<String, dynamic>>{};
+      }
+      return {
+        for (final entry in decoded.entries)
+          if (entry.value is Map<String, dynamic>)
+            entry.key: Map<String, dynamic>.from(entry.value as Map),
+      };
+    } catch (e, stack) {
+      logger.error('Failed to load provider usage failure state', e, stack);
+      return const <String, Map<String, dynamic>>{};
+    }
+  }
+
+  /// Persists the per-account fetch-failure state.
+  Future<bool> writeFailureState(
+    Map<String, Map<String, dynamic>> state,
+  ) async {
+    try {
+      if (state.isEmpty) {
+        await _secureStorage.delete(key: _failuresKey);
+        return true;
+      }
+      await _secureStorage.write(key: _failuresKey, value: jsonEncode(state));
+      return true;
+    } catch (e, stack) {
+      logger.error('Failed to save provider usage failure state', e, stack);
       return false;
     }
   }

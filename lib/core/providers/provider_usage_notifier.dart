@@ -25,8 +25,16 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   /// Per-account failure tracking so a dead key/network blip does not spam
   /// Loki with a full stack every refresh. Backoff starts at 30s and doubles
   /// up to 15 minutes; a successful fetch clears the strike.
+  ///
+  /// The map is hydrated from [ProviderUsageStorage] on the first refresh
+  /// and persisted on every change so the strike/backoff cycle survives
+  /// process restarts — without persistence every launch re-emitted up to
+  /// two full warning stacks per permanently-failing account (GlitchTip
+  /// issue 3658: a Kimi account out of balance answered HTTP 429 forever
+  /// and produced 173 warning events).
   final Map<String, _UsageFetchFailure> _failures =
       <String, _UsageFetchFailure>{};
+  bool _failuresHydrated = false;
 
   static const int _maxWarningStacks = 2;
   static const Duration _minBackoff = Duration(seconds: 30);
@@ -42,6 +50,27 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     _qwenApi = QwenUsageApi();
     ref.onDispose(_failures.clear);
     return const ProviderUsageSummary();
+  }
+
+  /// Loads the persisted strike map once per notifier lifetime.
+  Future<void> _hydrateFailures() async {
+    if (_failuresHydrated) return;
+    _failuresHydrated = true;
+    final persisted = await _storage.readFailureState();
+    for (final entry in persisted.entries) {
+      _failures[entry.key] ??= _UsageFetchFailure.fromPersisted(entry.value);
+    }
+  }
+
+  /// Persists the strike map. Fire-and-forget — losing a write only costs
+  /// one extra warning stack on the next launch.
+  void _persistFailures() {
+    unawaited(
+      _storage.writeFailureState({
+        for (final entry in _failures.entries)
+          entry.key: entry.value.toPersisted(),
+      }),
+    );
   }
 
   /// Load accounts from secure storage without fetching usage.
@@ -65,6 +94,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
   /// Each account is fetched independently so that one failing provider does
   /// not hide results from the others.
   Future<void> refreshUsage() async {
+    await _hydrateFailures();
     final accounts = await _storage.getAccounts();
     if (accounts.isEmpty) {
       state = state.copyWith(usages: const <ProviderUsage>[], isLoading: false);
@@ -147,10 +177,12 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
         ),
       );
       _failures.remove(account.id);
+      if (failure != null) _persistFailures();
       return usage;
     } catch (e, stack) {
       final next = (failure ?? _UsageFetchFailure.empty()).next(e.toString());
       _failures[account.id] = next;
+      _persistFailures();
       final label = '${account.type.name}/${account.id}';
       if (next.consecutiveFailures <= _maxWarningStacks) {
         logger.warning('Failed to fetch usage for $label', e, stack);
@@ -245,6 +277,7 @@ class ProviderUsageNotifier extends Notifier<ProviderUsageSummary> {
     if (!deleted) return false;
 
     _failures.remove(accountId);
+    _persistFailures();
     await loadAccounts();
     state = state.copyWith(
       usages: state.usages.where((u) => u.accountId != accountId).toList(),
@@ -291,6 +324,33 @@ class _UsageFetchFailure {
       lastError: error,
       nextRetryAt: DateTime.now().add(nextBackoff),
       backoff: nextBackoff,
+    );
+  }
+
+  /// Plain-map shape written to [ProviderUsageStorage.writeFailureState].
+  Map<String, dynamic> toPersisted() => <String, dynamic>{
+    'failures': consecutiveFailures,
+    'error': lastError,
+    'nextRetryAtMs': nextRetryAt.millisecondsSinceEpoch,
+    'backoffUs': backoff.inMicroseconds,
+  };
+
+  /// Restores a strike persisted by an earlier process. Tolerant of missing
+  /// fields: anything unread resets to the empty-strike defaults.
+  factory _UsageFetchFailure.fromPersisted(Map<String, dynamic> json) {
+    final failures = json['failures'];
+    final nextRetryAtMs = json['nextRetryAtMs'];
+    final backoffUs = json['backoffUs'];
+    return _UsageFetchFailure(
+      consecutiveFailures:
+          failures is int && failures > 0 ? failures : 0,
+      lastError: json['error'] is String ? json['error'] as String : '',
+      nextRetryAt: nextRetryAtMs is int
+          ? DateTime.fromMillisecondsSinceEpoch(nextRetryAtMs)
+          : DateTime.fromMillisecondsSinceEpoch(0),
+      backoff: backoffUs is int && backoffUs > 0
+          ? Duration(microseconds: backoffUs)
+          : ProviderUsageNotifier._minBackoff,
     );
   }
 }
