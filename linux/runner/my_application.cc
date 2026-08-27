@@ -55,7 +55,7 @@ static void screen_awake_method_call_cb(FlMethodChannel* channel,
   if (enabled) {
     self->screen_awake_cookie = gtk_application_inhibit(
         GTK_APPLICATION(self), GTK_WINDOW(nullptr),
-        GTK_APPLICATION_INHIBIT_SUSPEND | GTK_APPLICATION_INHIBIT_IDLE,
+        GTK_APPLICATION_INHIBIT_IDLE,
         "Happy is running a foreground session");
   }
 

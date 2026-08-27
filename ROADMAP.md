@@ -18,7 +18,13 @@ running process. `recordAck` now fires `unmatched_optimistic` only for
 ids minted in this process (`_sentAtMs` present); seeded ids keep the
 duplicate check but no longer owe a placeholder. The screen-awake Linux
 crash trio (4678/4680/5290) last fired on build 270700, which predates
-the fix commit 68b5b98e — stale the moment 270800+ rolls out. The
+the fix commit 68b5b98e — stale the moment a post-fix build rolls out. That
+commit initially broke `Build Linux x64` in CI: OR-ing
+`GTK_APPLICATION_INHIBIT_SUSPEND | GTK_APPLICATION_INHIBIT_IDLE` yields
+`int`, which C++ will not implicitly convert to the
+`GtkApplicationInhibitFlags` parameter; the follow-up ships the
+idle-only inhibit, which also matches the service's cross-platform
+contract (screen awake, never system suspend). The
 RetryInterceptor/receiveTimeout events (8588, 4972) are the brownout
 family on build 270600: the underlying Cronet `ERR_CONNECTION_ABORTED`
 is demoted by 130b1155 (one commit later), and the receive-timeout
