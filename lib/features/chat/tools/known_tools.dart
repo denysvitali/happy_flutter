@@ -261,11 +261,15 @@ class KnownTools {
       hideDefaultError: true,
       isMutable: true,
       extractSubtitle: (tool, _) {
-        final command = tool['input']?['command'] as String?;
+        final input = WireParsers.asMap(tool['input']);
+        if (input == null) return null;
+        final command = extractCommand(input);
         return command == null ? null : cleanShellCommand(command);
       },
       extractDescription: (tool, _) {
-        final command = tool['input']?['command'] as String?;
+        final input = WireParsers.asMap(tool['input']);
+        if (input == null) return null;
+        final command = extractCommand(input);
         if (command == null) return null;
         final cmd = cleanShellCommand(command);
         final firstWord = cmd.split(' ').first;
@@ -673,11 +677,15 @@ class KnownTools {
       hideDefaultError: true,
       isMutable: true,
       extractSubtitle: (tool, _) {
-        final command = tool['input']?['command'] as String?;
+        final input = WireParsers.asMap(tool['input']);
+        if (input == null) return null;
+        final command = extractCommand(input);
         return command == null ? null : cleanShellCommand(command);
       },
       extractDescription: (tool, _) {
-        final command = tool['input']?['command'] as String?;
+        final input = WireParsers.asMap(tool['input']);
+        if (input == null) return null;
+        final command = extractCommand(input);
         if (command == null) return null;
         final cmd = cleanShellCommand(command);
         final firstWord = cmd.split(' ').first;

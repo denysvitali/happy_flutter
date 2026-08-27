@@ -203,7 +203,7 @@ class TaskToolView extends ConsumerStatefulWidget {
         // No result yet (tool still running) — don't wipe the bucket.
         if (result == null) return existing;
         final map = WireParsers.asMap(result);
-        final List<TodoItem> parsed;
+        var parsed = const <TodoItem>[];
         if (map != null) {
           final raw =
               WireParsers.asList(map['tasks']) ??
@@ -211,8 +211,9 @@ class TaskToolView extends ConsumerStatefulWidget {
               WireParsers.asList(map['todos']) ??
               const [];
           parsed = _domainFromList(raw, session, eventAt);
-        } else {
-          // Plain-text result: one "#<id> [<status>] <subject>" per line.
+        }
+        if (parsed.isEmpty) {
+          // Plain-text or MCP content-block snapshot.
           final text = _resultText(result);
           if (text == null) return existing;
           parsed = _domainFromListText(text, session, eventAt);
@@ -229,18 +230,17 @@ class TaskToolView extends ConsumerStatefulWidget {
 
       case 'TaskGet':
         final result = tool['result'];
-        var map = WireParsers.asMap(result);
-        if (map == null) {
-          // Plain-text result: "Task #<id>: <subject>\nStatus: <status>\n…"
-          final text = _resultText(result);
-          if (text != null) map = _mapFromGetResultText(text);
-        }
+        // Prefer flattened text so MCP `{content: [{type:text,text}]}`
+        // envelopes are parsed instead of treating `content` as a string.
+        final text = _resultText(result);
+        var map = text == null ? null : _mapFromGetResultText(text);
+        map ??= WireParsers.asMap(result);
         if (map == null) return existing;
         final subject =
-            (map['subject'] as String?) ??
-            (map['title'] as String?) ??
-            (map['description'] as String?) ??
-            (map['content'] as String?);
+            _optionalString(map['subject']) ??
+            _optionalString(map['title']) ??
+            _optionalString(map['description']) ??
+            _optionalString(map['content']);
         if (subject == null || subject.isEmpty) return existing;
         final itemId = _deriveIdStatic(
           explicit:
@@ -337,6 +337,10 @@ class TaskToolView extends ConsumerStatefulWidget {
 
   /// Plain-text body of a tool result, flattening the MCP content-block
   /// shape (`[{type: text, text: ...}]`) when the backend forwards it.
+  ///
+  /// Codex MCP results land as `{content: [{type, text}], status}` maps.
+  /// Casting `content` as `String?` throws
+  /// `List<dynamic> is not a subtype of String?` and ANRs chat open.
   static String? _resultText(dynamic result) {
     if (result is String) return result;
     if (result is List) {
@@ -351,8 +355,16 @@ class TaskToolView extends ConsumerStatefulWidget {
       }
       return parts.isEmpty ? null : parts.join('\n');
     }
-    return null;
+    final map = WireParsers.asMap(result);
+    if (map == null) return null;
+    return _resultText(map['content']) ??
+        _resultText(map['result']) ??
+        _resultText(map['output']) ??
+        (map['text'] is String ? map['text'] as String : null);
   }
+
+  static String? _optionalString(dynamic value) =>
+      value is String ? value : null;
 
   /// Parses a plain-text TaskList result into domain items.
   ///
@@ -603,18 +615,22 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
   }
 
   Widget _buildGet(BuildContext context) {
-    final result = WireParsers.asMap(widget.tool['result']);
+    final raw = widget.tool['result'];
+    final text = TaskToolView._resultText(raw);
+    var result = text == null ? null : TaskToolView._mapFromGetResultText(text);
+    result ??= WireParsers.asMap(raw);
     if (result == null) {
       final input = WireParsers.toolInput(widget.tool);
       final id = input['taskId'] as String? ?? input['id'] as String?;
       return _EmptyHint(id != null ? 'No data for #$id' : 'No data');
     }
     final subject =
-        (result['subject'] as String?) ??
-        (result['title'] as String?) ??
-        (result['description'] as String?);
-    final status = result['status'] as String?;
-    final activeForm = result['activeForm'] as String?;
+        TaskToolView._optionalString(result['subject']) ??
+        TaskToolView._optionalString(result['title']) ??
+        TaskToolView._optionalString(result['description']) ??
+        TaskToolView._optionalString(result['content']);
+    final status = TaskToolView._optionalString(result['status']);
+    final activeForm = TaskToolView._optionalString(result['activeForm']);
     return _TaskBody(
       icon: Icons.task_alt,
       iconColor: Theme.of(context).colorScheme.primary,

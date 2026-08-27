@@ -68,10 +68,7 @@ void main() {
         },
       }, null);
 
-      expect(
-        subtitle,
-        'Design safe sensor bring-up path → in progress',
-      );
+      expect(subtitle, 'Design safe sensor bring-up path → in progress');
     });
 
     testWidgets('TaskCreate renders nested MCP arguments', (tester) async {
@@ -285,6 +282,43 @@ void main() {
       expect(find.text('Audit IPC'), findsOneWidget);
       expect(find.text('Auditing IPC'), findsOneWidget);
       expect(find.text('in_progress'), findsOneWidget);
+    });
+
+    testWidgets('TaskGet Codex MCP envelope renders subject without crashing', (
+      tester,
+    ) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          TaskToolView(
+            tool: {
+              'name': 'todo_get',
+              'state': 'completed',
+              'input': {
+                'arguments': {'id': '3'},
+              },
+              'result': {
+                'content': [
+                  {
+                    'text':
+                        'Task #3: Fix highest-impact production bugs\n'
+                        'Status: pending\n'
+                        'Priority: high',
+                    'type': 'text',
+                  },
+                ],
+                'status': 'completed',
+              },
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fix highest-impact production bugs'), findsOneWidget);
+      expect(find.text('pending'), findsOneWidget);
     });
 
     testWidgets('TaskGet with no result falls back to id hint', (tester) async {
@@ -702,6 +736,75 @@ void main() {
       expect(items.single.content, 'Audit IPC');
       expect(items.single.status, TodoState.inProgress);
     });
+
+    testWidgets(
+      'TaskGet Codex MCP content-block envelope does not throw and upserts',
+      (tester) async {
+        final container = await pumpHost(tester);
+        TaskToolView.pushToolToGlobalState(ctx, {
+          'name': 'todo_get',
+          'toolUseId': 'call-1',
+          'createdAt': 1000,
+          'input': {
+            'arguments': {'id': '3'},
+          },
+          'result': {
+            'content': [
+              {
+                'text':
+                    'Task #3: Fix highest-impact production bugs\n'
+                    'Status: pending\nPriority: high',
+                'type': 'text',
+              },
+            ],
+            'status': 'completed',
+          },
+        }, 's1');
+
+        final items = container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!;
+        expect(items.single.id, '3');
+        expect(items.single.content, 'Fix highest-impact production bugs');
+        expect(items.single.status, TodoState.pending);
+      },
+    );
+
+    testWidgets(
+      'TaskCreate Codex MCP snapshot envelope hydrates the full list',
+      (tester) async {
+        final container = await pumpHost(tester);
+        TaskToolView.pushToolToGlobalState(ctx, {
+          'name': 'todo_add',
+          'toolUseId': 'call-1',
+          'createdAt': 1000,
+          'input': {
+            'arguments': {'content': 'Triage issues'},
+          },
+          'result': {
+            'content': [
+              {
+                'text':
+                    'Added #1: Triage issues\n'
+                    '2 items, 2 open\n'
+                    '#1 [in_progress] Triage issues\n'
+                    '#2 [pending] Diagnose lag',
+                'type': 'text',
+              },
+            ],
+            'status': 'completed',
+          },
+        }, 's1');
+
+        final items = container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!;
+        expect(items.map((e) => e.id).toList(), ['1', '2']);
+        expect(items.first.content, 'Triage issues');
+        expect(items.first.status, TodoState.inProgress);
+        expect(items.last.content, 'Diagnose lag');
+      },
+    );
 
     testWidgets('reverse-order replay (update before create) converges to the '
         'newest state', (tester) async {

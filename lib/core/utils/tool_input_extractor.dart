@@ -25,11 +25,15 @@ import '../wire/wire_parsers.dart';
 /// For the `parsed_cmd` path, the result is cleaned via [cleanShellCommand]
 /// if [clean] is true.
 String? extractCommand(Map<String, dynamic> input, {bool clean = true}) {
-  final direct = input['command'] as String?;
-  if (direct != null && direct.isNotEmpty) return direct;
+  final direct = input['command'];
+  if (direct is String && direct.isNotEmpty) return direct;
+  if (direct is List && direct.isNotEmpty) {
+    final joined = direct.whereType<String>().join(' ');
+    if (joined.isNotEmpty) return joined;
+  }
 
-  final cmd = input['cmd'] as String?;
-  if (cmd != null && cmd.isNotEmpty) return cmd;
+  final cmd = input['cmd'];
+  if (cmd is String && cmd.isNotEmpty) return cmd;
 
   final parsedCmd = WireParsers.asList(input['parsed_cmd']);
   if (parsedCmd != null && parsedCmd.isNotEmpty) {
@@ -167,10 +171,8 @@ String? extractContentText(dynamic source) {
   Map<String, dynamic> input,
 ) {
   return (
-    oldText: input['old_string'] as String? ??
-        input['oldContent'] as String?,
-    newText: input['new_string'] as String? ??
-        input['newContent'] as String?,
+    oldText: input['old_string'] as String? ?? input['oldContent'] as String?,
+    newText: input['new_string'] as String? ?? input['newContent'] as String?,
   );
 }
 

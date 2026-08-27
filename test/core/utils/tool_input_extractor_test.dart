@@ -45,6 +45,13 @@ void main() {
       expect(extractCommand(input, clean: false), '  echo hello  ');
     });
 
+    test('joins CodexBash command lists', () {
+      const input = {
+        'command': ['/bin/bash -lc', 'ls'],
+      };
+      expect(extractCommand(input), '/bin/bash -lc ls');
+    });
+
     test('returns null when no command found', () {
       const input = {'other': 'value'};
       expect(extractCommand(input), isNull);
@@ -136,9 +143,7 @@ void main() {
 
     test('extracts path from Writing to title', () {
       const input = {
-        'toolCall': {
-          'title': 'Writing to /tmp/foo.txt',
-        },
+        'toolCall': {'title': 'Writing to /tmp/foo.txt'},
       };
       expect(extractGeminiToolCallPath(input), '/tmp/foo.txt');
     });

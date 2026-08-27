@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/exit_code_badge.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
+import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/utils/tool_result_parser.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
@@ -25,7 +26,7 @@ class BashView extends StatelessWidget {
     final result = tool['result'];
     final state = tool['state'] as String? ?? 'pending';
 
-    final command = cleanShellCommand(input['command'] as String?);
+    final command = cleanShellCommand(extractCommand(input));
     final description = input['description'] as String?;
 
     final stdout = state == 'completed' && result != null
@@ -51,7 +52,6 @@ class BashView extends StatelessWidget {
       ),
     );
   }
-
 }
 
 /// View for function-style command execution tools.
@@ -170,11 +170,7 @@ class CommandView extends StatelessWidget {
             isError: true,
           ),
         if (error != null)
-          TerminalOutputSection(
-            label: 'error',
-            output: error!,
-            isError: true,
-          ),
+          TerminalOutputSection(label: 'error', output: error!, isError: true),
         if (exitCode != null) ExitCodeBadge(exitCode: exitCode!),
         // Raw JSON output is reachable via long-press → details; no inline
         // toggle here. The `rawResult` field is preserved for callers that
