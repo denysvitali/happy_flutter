@@ -326,23 +326,55 @@ void main() {
 
         await Future<void>.delayed(Duration.zero);
         expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
-        expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
+        // Seeded (not minted this process): no placeholder was ever this
+        // process's responsibility — a missing row is not a merge failure.
+        expect(countFor(MessageInvariant.unmatchedOptimistic), 0);
       },
     );
 
     test(
-      'seeded localId with a missing row is unmatched, not unknown',
+      'socket echo of a seeded, non-resident localId is NOT a violation',
       () async {
-        monitor.seedSentLocalId('restored-2');
+        // GlitchTip issues 8592/8594 (build 270800, 2026-08-27): the
+        // `_handleNewMessage` echo tap acks every server row carrying a
+        // `localId`, including re-broadcasts of old messages whose row left
+        // the resident window (idle/budget shrink) and other devices' sends.
+        // Those ids are only ever *seeded* (cache restore / upserted
+        // batches), so rowCount=0 over a held transcript must stay silent.
+        monitor.seedSentLocalId('old-echo');
         monitor.recordAck(
-          localId: 'restored-2',
+          localId: 'old-echo',
           optimisticRowCount: 0,
           sessionId: 's1',
+          sessionResidentRowCount: 17,
         );
 
         await Future<void>.delayed(Duration.zero);
-        expect(countFor(MessageInvariant.unmatchedOptimistic), 1);
+        expect(monitor.totalViolations, 0);
+        expect(counted, isEmpty);
+        expect(captured, isEmpty);
         expect(countFor(MessageInvariant.unknownAckedLocalId), 0);
+        expect(countFor(MessageInvariant.unmatchedOptimistic), 0);
+      },
+    );
+
+    test(
+      'seeded localId with a duplicate row still reports duplicate',
+      () async {
+        // The minted gate only relaxes unmatched-optimistic: a duplicate
+        // seeded row (cache restore + fresh server row) is still a
+        // violation, whatever minted it.
+        monitor.seedSentLocalId('seeded-dup');
+        monitor.recordAck(
+          localId: 'seeded-dup',
+          optimisticRowCount: 2,
+          sessionId: 's1',
+          sessionResidentRowCount: 17,
+        );
+
+        await Future<void>.delayed(Duration.zero);
+        expect(countFor(MessageInvariant.duplicateLocalId), 1);
+        expect(countFor(MessageInvariant.unmatchedOptimistic), 0);
       },
     );
 

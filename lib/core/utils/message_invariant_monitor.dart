@@ -298,6 +298,16 @@ class MessageInvariantMonitor {
   /// the session was archived; the message was delivered). `null` keeps
   /// the legacy behavior (report).
   ///
+  /// `unmatched_optimistic` additionally requires the id to have been
+  /// **minted in this process** (`recordOptimisticSent`). Seeded ids
+  /// (cache restore, upserted batches, other devices' rows — see
+  /// `seedSentLocalId`) were never this process's placeholder
+  /// responsibility: the socket echo tap in `_handleNewMessage` acks every
+  /// server row carrying a `localId`, including re-broadcasts of old
+  /// messages whose row left the resident window (idle/budget shrink),
+  /// which read as rowCount=0 over a held transcript and produced false
+  /// violations on build 270800 (GlitchTip issues 8592/8594, 2026-08-27).
+  ///
   /// Observed at most once per [localId] per process: both the REST-ack
   /// path and the send-status path tap the same server ack.
   void recordAck({
@@ -316,6 +326,10 @@ class MessageInvariantMonitor {
     PowerDiagnosticsOtelReporter.instance.recordMessageAck();
 
     final wasSent = _sentLocalIds.contains(localId);
+    // Only ids minted in this process owe us an optimistic placeholder.
+    // Seeded ids were recovered from persisted/foreign rows and read as
+    // rowCount=0 whenever their row is not in the resident window.
+    final mintedInProcess = _sentAtMs.containsKey(localId);
     final transcriptHeld =
         sessionResidentRowCount == null || sessionResidentRowCount > 0;
     final String outcome;
@@ -336,7 +350,7 @@ class MessageInvariantMonitor {
         sessionId: sessionId,
         detail: 'rowCount=$optimisticRowCount',
       );
-    } else if (optimisticRowCount == 0 && transcriptHeld) {
+    } else if (optimisticRowCount == 0 && transcriptHeld && mintedInProcess) {
       outcome = MessageInvariant.unmatchedOptimistic.tag;
       _violation(
         MessageInvariant.unmatchedOptimistic,
