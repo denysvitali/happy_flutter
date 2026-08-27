@@ -340,7 +340,10 @@ extension SyncData on Sync {
             metadataVersion: metadataVersion,
             agentState: parsedAgentState,
             agentStateVersion: agentStateVersion,
-            todos: TodoItem.listFromJson(metadata?['todos']),
+            todos: TodoItem.listFromJsonForSession(
+              metadata?['todos'],
+              sessionId,
+            ),
             thinking: false,
             thinkingAt: null,
             // REST fetches cannot tell us whether the CLI process is
@@ -636,7 +639,7 @@ extension SyncData on Sync {
         metadataVersion: metadataVersion,
         agentState: parsedAgentState,
         agentStateVersion: agentStateVersion,
-        todos: TodoItem.listFromJson(metadata?['todos']),
+        todos: TodoItem.listFromJsonForSession(metadata?['todos'], sessionId),
         thinking: false,
         presence: _sessions[sessionId]?.presence ?? 'offline',
         lastSeq: max(

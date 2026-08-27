@@ -117,6 +117,33 @@ class TodoItem {
     return out;
   }
 
+  /// Like [listFromJson], but drops items stamped for a different session.
+  ///
+  /// Unstamped items are kept only when the blob has no stamped rows, so a
+  /// cloned metadata document cannot leak another session's list.
+  static List<TodoItem>? listFromJsonForSession(
+    dynamic value,
+    String sessionId,
+  ) {
+    final parsed = listFromJson(value);
+    if (parsed == null) return null;
+    final hasStamped = parsed.any((item) => (item.sessionId ?? '').isNotEmpty);
+    return [
+      for (final item in parsed)
+        if (_belongsToSession(item, sessionId, hasStamped)) item,
+    ];
+  }
+
+  static bool _belongsToSession(
+    TodoItem item,
+    String sessionId,
+    bool hasStamped,
+  ) {
+    final stamped = item.sessionId ?? '';
+    if (stamped.isNotEmpty) return stamped == sessionId;
+    return !hasStamped;
+  }
+
   final String id;
   final String content;
   final TodoState status;

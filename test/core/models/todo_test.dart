@@ -102,5 +102,57 @@ void main() {
       expect(items.first.status, TodoState.inProgress);
       expect(items.first.priority, 'high');
     });
+
+    test('listFromJsonForSession drops foreign session rows', () {
+      final items = TodoItem.listFromJsonForSession([
+        {
+          'id': '1',
+          'content': 'mine',
+          'status': 'pending',
+          'priority': 'medium',
+          'order': 0,
+          'createdAt': 1,
+          'updatedAt': 1,
+          'sessionId': 'sess-a',
+        },
+        {
+          'id': '2',
+          'content': 'theirs',
+          'status': 'pending',
+          'priority': 'medium',
+          'order': 0,
+          'createdAt': 1,
+          'updatedAt': 1,
+          'sessionId': 'sess-b',
+        },
+        {
+          'id': '3',
+          'content': 'legacy',
+          'status': 'pending',
+          'priority': 'medium',
+          'order': 0,
+          'createdAt': 1,
+          'updatedAt': 1,
+        },
+      ], 'sess-a');
+      expect(items, hasLength(1));
+      expect(items!.first.content, 'mine');
+    });
+
+    test('listFromJsonForSession keeps a fully unstamped legacy blob', () {
+      final items = TodoItem.listFromJsonForSession([
+        {
+          'id': '1',
+          'content': 'legacy',
+          'status': 'pending',
+          'priority': 'medium',
+          'order': 0,
+          'createdAt': 1,
+          'updatedAt': 1,
+        },
+      ], 'sess-a');
+      expect(items, hasLength(1));
+      expect(items!.first.content, 'legacy');
+    });
   });
 }
