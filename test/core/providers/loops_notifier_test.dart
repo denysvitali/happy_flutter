@@ -8,6 +8,7 @@ import 'package:happy_flutter/core/models/loop.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/loops_notifier.dart';
 import 'package:happy_flutter/core/services/loop_storage.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
@@ -37,14 +38,14 @@ Loop _sample({String id = 'id1234ab', String sessionId = 's1'}) {
   );
 }
 
-Session _session({required String id}) {
+Session _session({required String id, int activeAt = 0}) {
   return Session(
     id: id,
     seq: 1,
     createdAt: 0,
     updatedAt: 0,
     active: true,
-    activeAt: 0,
+    activeAt: activeAt,
     metadataVersion: 0,
     agentStateVersion: 0,
     thinking: false,
@@ -206,6 +207,81 @@ void main() {
         expect(container.read(loopsNotifierProvider), isEmpty);
       },
     );
+
+    test('typed unsupported RPC is cached without warning noise', () async {
+      sync.testSessions['unsupported'] = _session(id: 'unsupported');
+      sync.testSocketConnectedOverride = true;
+      var capabilityCalls = 0;
+      var loopCalls = 0;
+      sync.testRpcCapabilitiesOverride = (scope, id, timeout) async {
+        capabilityCalls++;
+        expect(scope, 'session');
+        expect(id, 'unsupported');
+        return <String, dynamic>{
+          'scope': 'session:unsupported',
+          'protocolVersion': 2,
+          'methods': const <String>['loop-list'],
+        };
+      };
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        loopCalls++;
+        throw const RpcException(
+          code: RpcErrorCode.methodUnsupported,
+          message: 'loop-list is not supported',
+          retryable: false,
+        );
+      };
+
+      logger.clear();
+      addTearDown(logger.clear);
+      await sync.refreshAllLoops();
+      await sync.refreshAllLoops();
+
+      expect(capabilityCalls, 1);
+      expect(loopCalls, 1);
+      expect(
+        logger
+            .getLogsByLevel(LogLevel.warning)
+            .where((entry) => entry.message.contains('[loops]')),
+        isEmpty,
+        reason: 'unsupported loop RPCs are expected on older daemons',
+      );
+    });
+
+    test('typed offline RPC stops the batch without warning noise', () async {
+      sync.testSessions['offline'] = _session(id: 'offline', activeAt: 2);
+      sync.testSessions['later'] = _session(id: 'later', activeAt: 1);
+      sync.testSocketConnectedOverride = true;
+      final attempted = <String>[];
+      sync.testRpcCapabilitiesOverride = (scope, id, timeout) async {
+        return <String, dynamic>{
+          'scope': '$scope:$id',
+          'protocolVersion': 2,
+          'methods': const <String>['loop-list'],
+        };
+      };
+      sync.testSessionRPCOverride = (sid, method, params) async {
+        attempted.add(sid);
+        throw const RpcException(
+          code: RpcErrorCode.handlerOffline,
+          message: 'RPC handler is offline',
+          retryable: true,
+        );
+      };
+
+      logger.clear();
+      addTearDown(logger.clear);
+      await sync.refreshAllLoops();
+
+      expect(attempted, ['offline']);
+      expect(
+        logger
+            .getLogsByLevel(LogLevel.warning)
+            .where((entry) => entry.message.contains('[loops]')),
+        isEmpty,
+        reason: 'offline handlers are transient, not app failures',
+      );
+    });
 
     test('refreshFromSync skips RPC when socket is disconnected', () async {
       sync.testSessions['offline-session'] = _session(id: 'offline-session');

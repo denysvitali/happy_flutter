@@ -476,7 +476,8 @@ extension SyncLoops on Sync {
   /// `loops-updated` event in response; callers that want fresh state
   /// should also subscribe to [onLoopsChanged].
   Future<List<Loop>> listLoops({required String sessionId}) async {
-    if (testSessionRPCOverride == null) {
+    if (testSessionRPCOverride == null ||
+        testRpcCapabilitiesOverride != null) {
       await ensureSessionRPCSupported(sessionId, 'loop-list');
     }
     final raw = await sessionRPC(
@@ -643,6 +644,31 @@ extension SyncLoops on Sync {
       } on TimeoutException {
         // Hit the total deadline — stop admitting more RPCs.
         break;
+      } on RpcException catch (e, st) {
+        if (e.code == RpcErrorCode.methodUnsupported ||
+            e.code == RpcErrorCode.protocolUnsupported) {
+          // Capability preflight and the RPC itself can both report a
+          // structured unsupported-method failure. Remember it by machine
+          // so a legacy daemon does not create a warning on every refresh.
+          _blockLoopListCapability(sessionId);
+          logger.debug(
+            '[loops] listLoops($sessionId) stopped — RPC unavailable; '
+            'capability blocked for ${_loopListCapabilityKey(sessionId)}',
+          );
+          break;
+        }
+        if (e.code == RpcErrorCode.handlerOffline ||
+            e.retryable ||
+            Sync._isTransientRpcError(e)) {
+          // A disconnected handler is temporary. Keep the cached loops and
+          // wait for reconnect/loops-updated instead of reporting a warning
+          // for every session in the refresh batch.
+          logger.debug(
+            '[loops] listLoops($sessionId) skipped — transient: $e',
+          );
+          break;
+        }
+        logger.warning('[loops] listLoops($sessionId) failed: $e', e, st);
       } on StateError catch (e) {
         if (_isDeadLoopSessionError(e)) {
           logger.debug(

@@ -730,7 +730,10 @@ class MessageCacheService {
     while (_webSessionLru.length > _maxWebSessions) {
       final oldest = _webSessionLru.removeAt(0);
       _storage.clearSessionMessages(oldest);
-      logger.warning(
+      // This is planned LRU protection, not a failed write or data-loss
+      // condition: the authoritative transcript is fetched from the server
+      // when the session is opened again. Keep it out of GlitchTip warnings.
+      logger.info(
         '[MessageCache] Web quota guard: evicted session $oldest '
         '(keeping ${_webSessionLru.length}/$_maxWebSessions sessions)',
       );

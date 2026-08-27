@@ -6,32 +6,41 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 ### GlitchTip triage, 2026-08-27
 
-Swept the unresolved queue (builds 270600–270800). One new client defect
-found and fixed on main: the first `unmatched_optimistic` occurrences on
-a build that carries BOTH prior false-positive fixes (issues 8592/8594,
-build 270800, same launch, 13–32 resident rows) exposed a third seeding
-hole — the socket echo tap in `_handleNewMessage` acks every server row
-carrying a `localId`, including re-broadcasts of old messages whose row
-left the resident window and other devices' sends; those ids are only
-ever *seeded* (cache restore / upserted batches), never minted in the
-running process. `recordAck` now fires `unmatched_optimistic` only for
-ids minted in this process (`_sentAtMs` present); seeded ids keep the
-duplicate check but no longer owe a placeholder. The screen-awake Linux
-crash trio (4678/4680/5290) last fired on build 270700, which predates
-the fix commit 68b5b98e — stale the moment a post-fix build rolls out. That
-commit initially broke `Build Linux x64` in CI: OR-ing
-`GTK_APPLICATION_INHIBIT_SUSPEND | GTK_APPLICATION_INHIBIT_IDLE` yields
-`int`, which C++ will not implicitly convert to the
-`GtkApplicationInhibitFlags` parameter; the follow-up ships the
-idle-only inhibit, which also matches the service's cross-platform
-contract (screen awake, never system suspend). The
-RetryInterceptor/receiveTimeout events (8588, 4972) are the brownout
-family on build 270600: the underlying Cronet `ERR_CONNECTION_ABORTED`
-is demoted by 130b1155 (one commit later), and the receive-timeout
-variant stays warning-level by design (server-stall signal). Two new
-low-frequency signals logged as open rows below: `[Perf] sessions UI
-state compute` (211 ms at 465 sessions) and the daemon-side
-`[machineRPC] SLOW` family.
+Paged the complete unresolved queue instead of treating GlitchTip's 100-row
+API page as the whole backlog: 5,035 event-level rows across 1,151 normalized
+title families, first seen 2026-06-09 through 2026-08-27. The newest page
+spans builds 269300–271000. Most of the older volume is repeated telemetry
+from pre-fix builds (unknown ack identity, workflow handler registration,
+native cache-worker, and historical auth/outbox failures), not a current
+release regression; the latest event for each family was checked before
+classifying it.
+
+The two remaining client-side reporting defects found in the current window
+are fixed on main. Loop refreshes now classify structured `RpcException`
+values directly: old daemons that do not advertise `loop-list` are
+negative-cached by machine, and offline/transient handlers stop the batch
+without warning-level Sentry events. The web message-cache LRU eviction is
+also an intentional quota guard, not a failed write, so it now logs at info
+rather than opening a GlitchTip warning. Both paths have regression coverage
+where the transport seam permits it.
+
+The `unmatched_optimistic` occurrences on build 270800 (issues 8592/8594)
+were a third seeding hole and are already fixed on main: `recordAck` now
+fires only for ids minted in this process (`_sentAtMs` present); seeded ids
+keep duplicate checks but do not owe a placeholder. The screen-awake Linux
+crash trio (4678/4680/5290) last fired on build 270700, before 68b5b98e and
+the CI follow-up e875df43; they need a post-fix build before being closed.
+The current `/v2/sessions` receive-timeout/retry-budget rows (4972/8599)
+are an Android network/resume transition recovered by reconnect; receive
+timeouts remain warning-level as the server-stall signal, while Cronet
+connection-abort errors are demoted by 130b1155. The remaining current
+signals are the daemon-side `[machineRPC] SLOW` family (no Flutter defect),
+plus the session lifecycle mismatch (8595/8600) that needs daemon-side state
+correlation. The newest lifecycle event shows the session reload and socket
+resume succeeding before the warning, but the daemon reports no live local
+process for the restored session. The older ANR, chat-open TypeError,
+RenderBox, and 465-session UI-compute rows remain blocked on a newer
+symbolicated/measured occurrence.
 
 ### GlitchTip triage, 2026-08-26
 
@@ -1190,7 +1199,8 @@ The current test count is not enough if this contract can break without failing 
 | Socket echo of a seeded, non-resident `localId` trips `unmatched_optimistic` | Error | 2 | Fix on main, shipped automatically on the next `main` commit | Issues 8592/8594 (2026-08-27, build 270800 — first occurrences past both prior fixes): `_handleNewMessage` taps `'sent'` for every socket row carrying a `localId`, so a re-broadcast of an old message (row evicted by idle/budget shrink) or another device's send reads as rowCount=0 over a held transcript (13–32 rows). Those ids are only *seeded* (cache restore / every upserted batch — `_sync_messaging_merge.dart`), never minted in the running process. `recordAck` now requires an in-process mint (`_sentAtMs`) to fire `unmatched_optimistic`; duplicate/unknown checks and minted-id strictness are unchanged. Contract tests in `test/utils/message_invariant_monitor_test.dart`. |
 | `[Perf] sessions UI state compute` at extreme catalogs | Warning | 2 (one device, 463–465 sessions) | Open — needs its own measured pass | Issues 8589/8590 (2026-08-27): `trigger=single changed=1` 209 ms and `trigger=sessions_and_messages changed=3` 211 ms at 465 sessions. The single path pays a 465-entry map copy + ordering/MissionControl reconcile; the all-sessions path walks every entry (~0.45 ms each) even when only 3 changed — incremental reconciliation is the fix shape, not a same-day patch. Re-check the fleet tail via `app.sessions.ui_state_compute` by `session_count_bucket` before designing. |
 | `[machineRPC] SLOW method=ping/get-codex-models/rpc-capabilities` | Warning | 254 / 271 / 80 since 2026-06-13 | Open — daemon-side, observability signal | Wedged/slow daemons answering machine RPCs above the slow threshold. `ping` slowness is the designed wedged-daemon detector (12 s pre-flight probe, 2026-06-09 fix); `get-codex-models` slowness feeds the coalescing model-catalog cache. No client defect; candidate for demoting per-session repeats to a rate-limited summary once the daemon fleet updates. |
-| `[loops] listLoops` refresh noise (`method_unsupported` / `handler_offline`) | Warning | 3 | Open — low priority | Issue 8586 (2026-08-26): `refreshAllLoops` re-probes every session on each Loops-screen refresh; daemons that don't advertise `loop-list` warn per session (~7 warnings in 50 ms), plus `handler_offline` for disconnected machines. Should reuse the capability negative-TTL cache to skip unadvertised handlers instead of re-probing. |
+| `[loops] listLoops` refresh noise (`method_unsupported` / `handler_offline`) | Warning | 15 across 10 rows | Fixed on main | Structured `RpcException` failures were falling through the `StateError`-only policy in `refreshAllLoops`, so unsupported and offline handlers were reported as warnings. The refresh path now negative-caches unsupported methods by machine and treats offline/retryable failures as transient; regression coverage pins one capability probe and no warning-level loop log across repeated refreshes. |
+| `MessageCache` web quota-guard eviction | Warning | 13 across 4 rows | Fixed on main | Evicting the least-recently-used session after the deliberate three-session web cap is normal quota protection; the message cache rehydrates from the server on reopen. The event is now info-level so expected evictions do not open GlitchTip issues. |
 | CryptoSecretBox.decrypt failed | Warning | 27 | Telemetry on main, shipped automatically on the next `main` commit | Audit 2026-06-09: leading hypothesis is DEK decryption failing in `fetchSessions` → client silently falls back to legacy NaCl master secret → AES-256-GCM messages then fail MAC check (`stage=sodium`, `envelope=aesV0`). Added once-per-session Sentry capture (`dek_fallback_session` tag) when DEK decryption falls back, so fallback sessions can be correlated with `decrypt_scope=session:<id>:messages` failures. Next: confirm correlation in GlitchTip, then fix key refresh (cached `_sessionDataKeys` is never refreshed after rotation). |
 | Stale profile in ChatScreen | Warning | 9 | Shipped in v1.0.0-154901 (51f1189) | `_loadInitialSettings` now catches `StateError` from `firstWhere` and falls back to no profile, clearing the stale `savedProfileId` from `DraftStorage`. |
 | Machine offline on session create | Warning | 33 | Fix on main, shipped automatically on the next `main` commit | NewSessionDialog disables offline machines and gates the create button (`newSessionCreateBlocker`). Remaining failure mode — machine heartbeat fresh but daemon wedged (60 s `SocketAckTimeoutException` on `spawn-happy-session`, seen 2026-06-09) — addressed with a 12 s pre-flight `ping` probe in `createSession` (`ensureMachineReachable`); daemon-side `ping` handler added in happy-cli-go (old daemons answer `Method not found`, which also proves liveness). |
