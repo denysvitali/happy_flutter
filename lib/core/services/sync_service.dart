@@ -2088,6 +2088,19 @@ what you have, you must use the options mode.
   static bool _isTransientRpcError(Object error) =>
       _isTransientConnectionError(error) || _isRpcReplicaTimeout(error);
 
+  /// Daemon-side subprocess was SIGKILLed (OOM / cgroup). Catalog
+  /// probes (`codex debug models`) surface this as
+  /// `RpcException(handler_error, … signal: killed)`. Not a client
+  /// defect — demote to info so GlitchTip stays quiet.
+  static bool _isDaemonSubprocessKilled(Object error) {
+    final msg = error is RpcException
+        ? error.message.toLowerCase()
+        : error.toString().toLowerCase();
+    return msg.contains('signal: killed') ||
+        msg.contains('signal:killed') ||
+        msg.contains('killed by signal');
+  }
+
   bool _isSocketConnected() {
     return testSocketConnectedOverride ??
         socketIoClient.connectionStatus == ConnectionStatus.connected;

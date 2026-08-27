@@ -81,6 +81,13 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   static final Map<String, DateTime> _lastReportedAt = {};
   static const Duration _reportWindow = Duration(seconds: 1);
 
+  /// Re-entrancy latch for [ErrorWidget.builder]. The production ANR
+  /// (GlitchTip 3659, build 271500) was ErrorBoundary replacing
+  /// MaterialApp, then the fallback calling [Theme.of] — which throws,
+  /// which builds another ErrorWidget, forever. While this flag is set
+  /// the builder returns an empty box and does not log.
+  static bool _buildingErrorWidget = false;
+
   static String _fingerprint(Object error, StackTrace? stack) {
     final type = error.runtimeType.toString();
     final firstFrame = stack
@@ -130,19 +137,29 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     // Replace the default red error widget with our own.
     _previousErrorWidgetBuilder = ErrorWidget.builder;
     ErrorWidget.builder = (details) {
-      if (_shouldReport(details.exception, details.stack)) {
-        logger.error(
-          'ErrorWidget built for error: '
-          '${_describeError(details.exception, library: details.library)}',
-          details.exception,
-          details.stack,
-        );
-        widget.onError?.call(
-          details.exception,
-          details.stack ?? StackTrace.empty,
-        );
+      if (_buildingErrorWidget) {
+        return const SizedBox.shrink();
       }
-      return _ErrorWidgetFallback(details: details);
+      _buildingErrorWidget = true;
+      try {
+        if (_shouldReport(details.exception, details.stack)) {
+          logger.error(
+            'ErrorWidget built for error: '
+            '${_describeError(details.exception, library: details.library)}',
+            details.exception,
+            details.stack,
+          );
+          widget.onError?.call(
+            details.exception,
+            details.stack ?? StackTrace.empty,
+          );
+        }
+        return _ErrorWidgetFallback(details: details);
+      } catch (_) {
+        return const SizedBox.shrink();
+      } finally {
+        _buildingErrorWidget = false;
+      }
     };
   }
 
@@ -215,25 +232,55 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
           ? ToolErrorParser.parse(_error! as String)
           : null;
 
+      final Widget body;
       if (widget.errorBuilder != null) {
-        return widget.errorBuilder!(_error!, _stackTrace ?? StackTrace.empty);
+        body = widget.errorBuilder!(
+          _error!,
+          _stackTrace ?? StackTrace.empty,
+        );
+      } else {
+        body = _DefaultErrorWidget(
+          error: _error,
+          stackTrace: _stackTrace,
+          toolError: toolError,
+          onRetry: () {
+            setState(() {
+              _error = null;
+              _stackTrace = null;
+            });
+          },
+        );
       }
-
-      return _DefaultErrorWidget(
-        error: _error,
-        stackTrace: _stackTrace,
-        toolError: toolError,
-        onRetry: () {
-          setState(() {
-            _error = null;
-            _stackTrace = null;
-          });
-        },
-      );
+      // ErrorBoundary wraps [runApp] *above* MaterialApp, so a takeover
+      // has no Theme / Directionality / MediaQuery. Inject a minimal
+      // host so the fallback cannot throw (and ANR) on [Theme.of].
+      return _ensureMinimalMaterial(context, body);
     }
 
     return widget.child;
   }
+}
+
+/// Host for the full-app error takeover when no MaterialApp is in
+/// the ancestor chain. ErrorBoundary wraps [runApp] *above*
+/// MaterialApp, so [Theme.of] / [MediaQuery.of] would throw here.
+Widget _ensureMinimalMaterial(BuildContext context, Widget child) {
+  return Directionality(
+    textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
+    child: MediaQuery(
+      data: MediaQuery.maybeOf(context) ?? const MediaQueryData(),
+      child: Theme(
+        data: ThemeData.light(),
+        child: DefaultTextStyle(
+          style: const TextStyle(
+            decoration: TextDecoration.none,
+            color: Colors.black87,
+          ),
+          child: Material(child: child),
+        ),
+      ),
+    ),
+  );
 }
 
 /// Default error display widget
@@ -353,14 +400,16 @@ class _DefaultErrorWidget extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh),
-                  label: Text(AppLocalizations.of(context).commonTryAgain),
+                  label: Text(_tryAgainLabel(context)),
                 ),
-                const SizedBox(width: AppSpacing.lg),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/'),
-                  icon: const Icon(Icons.home),
-                  label: Text(AppLocalizations.of(context).commonGoHome),
-                ),
+                if (GoRouter.maybeOf(context) != null) ...[
+                  const SizedBox(width: AppSpacing.lg),
+                  OutlinedButton.icon(
+                    onPressed: () => GoRouter.of(context).go('/'),
+                    icon: const Icon(Icons.home),
+                    label: Text(_goHomeLabel(context)),
+                  ),
+                ],
               ],
             ),
           ],
@@ -617,39 +666,53 @@ extension ErrorNotificationExtension on BuildContext {
   }
 }
 
+String _tryAgainLabel(BuildContext context) {
+  return Localizations.of<AppLocalizations>(context, AppLocalizations)
+          ?.commonTryAgain ??
+      'Try Again';
+}
+
+String _goHomeLabel(BuildContext context) {
+  return Localizations.of<AppLocalizations>(context, AppLocalizations)
+          ?.commonGoHome ??
+      'Go Home';
+}
+
 /// Fallback widget shown in place of the default red error screen.
+///
+/// Must not look up Theme / Localizations / MediaQuery — Flutter
+/// installs this builder as the last resort, including when those
+/// ancestors are missing. A [Theme.of] here is unbounded recursion
+/// on the UI isolate (GlitchTip 3659).
 class _ErrorWidgetFallback extends StatelessWidget {
   const _ErrorWidgetFallback({required this.details});
   final FlutterErrorDetails details;
 
+  static const Color _errorContainer = Color(0xFFF9DEDC);
+  static const Color _onErrorContainer = Color(0xFF410E0B);
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.error_outline,
-            color: theme.colorScheme.onErrorContainer,
-            size: 20,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              kDebugMode ? details.exceptionAsString() : 'An error occurred',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onErrorContainer,
-              ),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+    final label = kDebugMode
+        ? details.exceptionAsString()
+        : 'An error occurred';
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: ColoredBox(
+        color: _errorContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Text(
+            label,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _onErrorContainer,
+              fontSize: 12,
+              decoration: TextDecoration.none,
             ),
           ),
-        ],
+        ),
       ),
     );
   }

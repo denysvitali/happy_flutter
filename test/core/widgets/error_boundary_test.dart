@@ -104,4 +104,70 @@ void main() {
       expect(described, isNot(endsWith('...')));
     });
   });
+
+  // Production ANR (GlitchTip 3659, build 271500): ErrorBoundary sits
+  // above MaterialApp. The takeover called Theme.of / AppLocalizations.of
+  // (both bang), Flutter built ErrorWidget, and ErrorWidget.builder
+  // itself called Theme.of — unbounded recursion on the UI isolate.
+  group('ErrorBoundary ANR guards', () {
+    testWidgets('takeover without MaterialApp does not throw', (tester) async {
+      final originalOnError = FlutterError.onError;
+      final originalBuilder = ErrorWidget.builder;
+      addTearDown(() {
+        FlutterError.onError = originalOnError;
+        ErrorWidget.builder = originalBuilder;
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: ErrorBoundary(child: const SizedBox.shrink()),
+        ),
+      );
+
+      FlutterError.onError?.call(
+        FlutterErrorDetails(exception: StateError('boom')),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Try Again'), findsOneWidget);
+      expect(find.text('Go Home'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets(
+      'ErrorWidget.builder without Theme ancestor does not recurse',
+      (tester) async {
+        final originalOnError = FlutterError.onError;
+        final originalBuilder = ErrorWidget.builder;
+        addTearDown(() {
+          FlutterError.onError = originalOnError;
+          ErrorWidget.builder = originalBuilder;
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            child: ErrorBoundary(
+              child: Builder(
+                builder: (context) {
+                  return ErrorWidget.builder(
+                    FlutterErrorDetails(
+                      exception: StateError('no theme'),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        expect(tester.takeException(), isNull);
+        expect(find.textContaining('no theme'), findsOneWidget);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  });
 }

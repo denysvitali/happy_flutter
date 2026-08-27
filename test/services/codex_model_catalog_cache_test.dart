@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/rpc/rpc_exception.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 
 Map<String, dynamic> _catalog(String slug) => <String, dynamic>{
@@ -52,5 +54,37 @@ void main() {
 
     await Future.wait([first, second]);
     expect(calls, 1);
+  });
+
+  test('daemon SIGKILL on get-codex-models is info, not error', () async {
+    sync.testMachineRPCOverride = (machineId, method, params) async {
+      throw const RpcException(
+        code: RpcErrorCode.handlerError,
+        message: 'codex debug models: signal: killed',
+        retryable: false,
+      );
+    };
+    LoggerService().clear();
+
+    final response = await sync.machineGetCodexModels(machineId: 'machine-1');
+
+    expect(response.success, isFalse);
+    final logs = LoggerService().getLogs();
+    expect(
+      logs.where(
+        (e) =>
+            e.level == LogLevel.error &&
+            e.message.contains('machineGetCodexModels'),
+      ),
+      isEmpty,
+    );
+    expect(
+      logs.any(
+        (e) =>
+            e.level == LogLevel.info &&
+            e.message.contains('subprocess killed'),
+      ),
+      isTrue,
+    );
   });
 }

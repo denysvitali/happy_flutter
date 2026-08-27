@@ -332,6 +332,13 @@ extension SyncMachineRpcOperations on Sync {
         );
       } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineGetCodexModels: transient RPC failure — $error');
+      } else if (Sync._isDaemonSubprocessKilled(error)) {
+        // Daemon-side `codex debug models` SIGKILL (OOM). Catalog is
+        // optional chrome; keep the failure in the cache TTL but do
+        // not open a GlitchTip error (issues 8603/8606).
+        logger.info(
+          'machineGetCodexModels: daemon subprocess killed — $error',
+        );
       } else {
         logger.error('machineGetCodexModels error', error, stackTrace);
       }
