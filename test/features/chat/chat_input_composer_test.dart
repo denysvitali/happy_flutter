@@ -12,6 +12,7 @@ import 'package:happy_flutter/features/chat/send/chat_attachment_controller.dart
 import 'package:happy_flutter/features/chat/widgets/autocomplete_overlay.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_input_buttons.dart';
 import 'package:happy_flutter/features/chat/widgets/file_autocomplete.dart';
+import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
 
 Widget _buildComposer({
   required TextEditingController controller,
@@ -192,6 +193,35 @@ void main() {
     );
     expect(contentSize.width, AppBreakpoint.contentMax);
     expect(find.byType(BackdropFilter), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('keeps input actions in one composer surface', (tester) async {
+    final controller = TextEditingController();
+
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+    await tester.pump();
+
+    final composerCard = find.byKey(
+      const ValueKey<String>('chat-composer-card'),
+    );
+    expect(composerCard, findsOneWidget);
+    expect(
+      find.descendant(of: composerCard, matching: find.byType(TextField)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: composerCard, matching: find.byType(InputToolbar)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: composerCard, matching: find.byType(SendButton)),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

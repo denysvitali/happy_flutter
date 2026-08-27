@@ -29,9 +29,8 @@ List<Map<String, dynamic>>? extractUserImageBlocks(Object? raw) {
 
 /// Right-aligned speech bubble for user messages.
 ///
-/// Aurora Glass treatment: a translucent [AppColorScheme.bubbleUser] wash
-/// over the pane surface, framed by a hairline [AppColorScheme.glassBorder]
-/// and wrapped in a thin accent-gradient rim (the signature "edge glow").
+/// Uses a quiet tonal accent surface so user turns stay easy to scan without
+/// competing with the composer or long-form assistant copy.
 class UserBubble extends StatefulWidget {
   const UserBubble({
     required this.text,
@@ -74,9 +73,6 @@ class UserBubble extends StatefulWidget {
 
   static const _full = Radius.circular(AppRadius.xl);
   static const _small = Radius.circular(AppRadius.xsm);
-
-  /// Width of the accent-gradient rim around the glass fill.
-  static const double _glow = 1.25;
 
   @override
   State<UserBubble> createState() => _UserBubbleState();
@@ -126,91 +122,46 @@ class _UserBubbleState extends State<UserBubble> {
       final appColors = theme.extension<AppColorScheme>();
       final fill = _userBubbleFill(theme, cs);
       final onFill = _userBubbleText(theme, cs);
-      final hairline =
-          appColors?.glassBorder ?? cs.outlineVariant.withValues(
-            alpha: AppOpacity.soft,
-          );
-      final highlight =
-          appColors?.glassHighlight ?? Colors.white.withValues(
-            alpha: AppOpacity.subtle,
-          );
+      final accent = appColors?.bubbleUser ?? cs.primary;
 
       return Semantics(
         label: 'User message: ${_truncateForLabel(widget.text)}',
         button: false,
         child: Container(
+          key: const ValueKey<String>('user-message-surface'),
           // Cap to the incoming pane, not the window. Tablet master-detail
           // and desktop splits are far narrower than MediaQuery.size.width.
-          constraints: BoxConstraints(
-            maxWidth: constraints.maxWidth * 0.80,
-          ),
-          // Accent-gradient rim: a gradient-painted shell inset by its own
-          // width so only the edge reads as a glowing border. No package,
-          // no shader mask, one extra box.
-          padding: const EdgeInsets.all(UserBubble._glow),
+          constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.80),
           decoration: BoxDecoration(
             borderRadius: radius,
-            gradient:
-                appColors?.accentLinearGradient ??
-                LinearGradient(
-                  colors:
-                      appColors?.accentGradient ??
-                      <Color>[cs.primary, cs.tertiary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-            boxShadow: [
-              BoxShadow(
-                color:
-                    (appColors?.accentGradient ?? <Color>[cs.primary])
-                        .first
-                        .withValues(alpha: AppOpacity.soft),
-                blurRadius: AppSpacing.lg,
-                offset: const Offset(0, AppSpacing.xxxs),
-              ),
-            ],
+            color: fill,
+            border: Border.all(
+              color: accent.withValues(alpha: AppOpacity.medium),
+              width: AppBorder.hairline,
+            ),
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md + 2,
-              vertical: AppSpacing.md,
-            ),
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: _inset(radius),
-              border: Border.all(color: hairline, width: AppBorder.hairline),
-            ),
-            // Top-edge glass highlight painted by the same render object —
-            // fades out over the upper third so light appears to fall on
-            // the panel.
-            foregroundDecoration: BoxDecoration(
-              borderRadius: _inset(radius),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [highlight, highlight.withValues(alpha: 0)],
-                stops: const [0, 0.4],
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (widget.imageBlocks != null) ...[
-                  for (final block in widget.imageBlocks!)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                      child: _UserImageThumb(block: block, onBubble: onFill),
-                    ),
-                ],
-                if (widget.text.isNotEmpty)
-                  MarkdownView(
-                    markdown: widget.text,
-                    onOptionPress: widget.onOptionPress,
-                    textColor: onFill,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md + 2,
+            vertical: AppSpacing.smd,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.imageBlocks != null) ...[
+                for (final block in widget.imageBlocks!)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    child: _UserImageThumb(block: block, onBubble: onFill),
                   ),
               ],
-            ),
+              if (widget.text.isNotEmpty)
+                MarkdownView(
+                  markdown: widget.text,
+                  onOptionPress: widget.onOptionPress,
+                  textColor: onFill,
+                ),
+            ],
           ),
         ),
       );
@@ -323,22 +274,6 @@ Color _userBubbleText(ThemeData theme, ColorScheme cs) {
     return appColors?.bubbleUserText ?? cs.onPrimary;
   }
   return appColors?.bubbleUser ?? cs.primary;
-}
-
-/// Shrinks every corner of [radius] by the gradient-rim width so the glass
-/// fill sits uniformly inside the shell instead of pooling at corners.
-BorderRadius _inset(BorderRadius radius) {
-  Radius shrink(Radius r) {
-    final x = r.x - UserBubble._glow;
-    return Radius.circular(x <= 0 ? 0 : x);
-  }
-
-  return BorderRadius.only(
-    topLeft: shrink(radius.topLeft),
-    topRight: shrink(radius.topRight),
-    bottomLeft: shrink(radius.bottomLeft),
-    bottomRight: shrink(radius.bottomRight),
-  );
 }
 
 /// Inline thumbnail for an attached image inside a [UserBubble].
@@ -506,9 +441,9 @@ class _CachedBase64ImageState extends State<_CachedBase64Image> {
         height: 72,
         width: 160,
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.onSurface.withValues(
-            alpha: AppOpacity.faint,
-          ),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: AppOpacity.faint),
           borderRadius: widget.borderRadius,
         ),
         child: const Center(child: Icon(Icons.broken_image_outlined)),
@@ -520,7 +455,11 @@ class _CachedBase64ImageState extends State<_CachedBase64Image> {
         constraints: const BoxConstraints(maxHeight: _kMaxThumbHeight),
         child: ClipRRect(
           borderRadius: widget.borderRadius,
-          child: Image.memory(bytes, fit: BoxFit.contain, gaplessPlayback: true),
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+          ),
         ),
       ),
     );

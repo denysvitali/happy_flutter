@@ -13,6 +13,7 @@ import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_color_scheme.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
 import 'send/chat_attachment_controller.dart';
@@ -662,37 +663,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   AppSpacing.md,
                   AppSpacing.xs,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildCardInputArea(context),
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: InputToolbar(
-                            permissionMode: widget.permissionMode,
-                            onPermissionModeChanged:
-                                widget.onPermissionModeChanged,
-                            modelMode: widget.modelMode,
-                            availableModels: widget.availableModels,
-                            onShowModelPicker: () =>
-                                widget.onModelModeChanged != null
-                                ? _showModelPicker(context)
-                                : null,
-                            selectedProfile: widget.selectedProfile,
-                            onShowProfilePicker: () =>
-                                _showProfilePicker(context),
-                            contextSize: widget.contextSize,
-                            sessionFlavor: widget.sessionFlavor,
-                            maxContext: widget.maxContext,
-                          ),
-                        ),
-                        ExpandComposerButton(onTap: _openFullscreenComposer),
-                      ],
-                    ),
-                  ],
-                ),
+                child: _buildCardInputArea(context),
               ),
             ),
           ),
@@ -713,45 +684,27 @@ class _ChatInputState extends ConsumerState<ChatInput>
     return ValueListenableBuilder<bool>(
       valueListenable: _isFocused,
       builder: (context, isFocused, child) {
-        // Focused composer wears the signature gradient ring; unfocused keeps
-        // a hairline glass border. The ring lives in the padding band between
-        // the outer ring layer and the card, so focus never shifts layout.
-        const ringGap = 1.25;
-        return Padding(
-          padding: const EdgeInsets.all(ringGap),
-          child: AnimatedContainer(
-            duration: AppMotion.duration(context, kBorderAnimDuration),
-            curve: AppCurve.standard,
-            decoration: BoxDecoration(
-              borderRadius: _containerRadius + const BorderRadius.all(
-                Radius.circular(ringGap),
-              ),
-              gradient: isFocused ? appCs.accentLinearGradient : null,
-              color: isFocused ? null : cs.outlineVariant.withValues(alpha: 0),
+        return AnimatedContainer(
+          key: const ValueKey<String>('chat-composer-card'),
+          duration: AppMotion.duration(context, kBorderAnimDuration),
+          curve: AppCurve.standard,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: cardColor,
+            borderRadius: _containerRadius,
+            border: Border.all(
+              color: isFocused
+                  ? appCs.accentGradient.first.withValues(
+                      alpha: AppOpacity.strong,
+                    )
+                  : cs.outlineVariant.withValues(alpha: AppOpacity.medium),
+              width: isFocused ? AppBorder.thin : AppBorder.hairline,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(ringGap),
-              child: AnimatedContainer(
-                duration: AppMotion.duration(context, kBorderAnimDuration),
-                curve: AppCurve.standard,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: _containerRadius,
-                  border: Border.all(
-                    color: isFocused
-                        ? Colors.transparent
-                        : cs.outlineVariant.withValues(alpha: 0.4),
-                    width: 0.5,
-                  ),
-                  boxShadow: AppElevationShadow.card(
-                    Theme.of(context).brightness,
-                  ),
-                ),
-                child: child,
-              ),
-            ),
+            boxShadow: isFocused
+                ? AppElevationShadow.floating(Theme.of(context).brightness)
+                : AppElevationShadow.card(Theme.of(context).brightness),
           ),
+          child: child,
         );
       },
       child: Column(
@@ -853,6 +806,42 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 ),
               ),
             ],
+          ),
+          Divider(
+            height: AppBorder.hairline,
+            thickness: AppBorder.hairline,
+            indent: AppSpacing.md,
+            endIndent: AppSpacing.md,
+            color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xsm,
+              AppSpacing.xxs,
+              AppSpacing.xs,
+              AppSpacing.xxs,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InputToolbar(
+                    permissionMode: widget.permissionMode,
+                    onPermissionModeChanged: widget.onPermissionModeChanged,
+                    modelMode: widget.modelMode,
+                    availableModels: widget.availableModels,
+                    onShowModelPicker: () => widget.onModelModeChanged != null
+                        ? _showModelPicker(context)
+                        : null,
+                    selectedProfile: widget.selectedProfile,
+                    onShowProfilePicker: () => _showProfilePicker(context),
+                    contextSize: widget.contextSize,
+                    sessionFlavor: widget.sessionFlavor,
+                    maxContext: widget.maxContext,
+                  ),
+                ),
+                ExpandComposerButton(onTap: _openFullscreenComposer),
+              ],
+            ),
           ),
         ],
       ),
