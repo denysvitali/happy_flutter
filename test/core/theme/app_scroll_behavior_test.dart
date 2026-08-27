@@ -27,19 +27,27 @@ void main() {
 
   testWidgets('uses clamping physics on Linux', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final physics = await resolvePhysics(tester);
 
-    final physics = await resolvePhysics(tester);
-
-    expect(physics, isA<ClampingScrollPhysics>());
-    expect(physics.parent, isA<AlwaysScrollableScrollPhysics>());
+      expect(physics, isA<ClampingScrollPhysics>());
+      expect(physics.parent, isA<AlwaysScrollableScrollPhysics>());
+    } finally {
+      // Flutter verifies debug globals before package:test tearDown callbacks.
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('keeps bouncing physics on Android', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    try {
+      final physics = await resolvePhysics(tester);
 
-    final physics = await resolvePhysics(tester);
-
-    expect(physics, isA<BouncingScrollPhysics>());
-    expect(physics.parent, isA<AlwaysScrollableScrollPhysics>());
+      expect(physics, isA<BouncingScrollPhysics>());
+      expect(physics.parent, isA<AlwaysScrollableScrollPhysics>());
+    } finally {
+      // Flutter verifies debug globals before package:test tearDown callbacks.
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 }

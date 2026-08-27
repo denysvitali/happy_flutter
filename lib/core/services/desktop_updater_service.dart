@@ -31,10 +31,9 @@ import 'dart:io'
         ProcessStartMode,
         RandomAccessFile,
         exit;
-import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart' show compute, kDebugMode, kIsWeb;
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
@@ -111,9 +110,8 @@ Future<void> downloadFileToPath(
 /// inflated tar payload in the app isolate. `archive_io` streams gzip to a
 /// temporary tar on disk, then streams each tar entry to [targetPath].
 Future<void> _extractDesktopBundleInWorker(
-  String archivePath,
-  String targetPath,
-) => extractFileToDisk(archivePath, targetPath);
+  ({String archivePath, String targetPath}) paths,
+) => extractFileToDisk(paths.archivePath, paths.targetPath);
 
 void _deleteDirectoryInWorker(String path) {
   final directory = Directory(path);
@@ -400,10 +398,10 @@ class DesktopUpdaterService {
         }
       });
       final extractStopwatch = Stopwatch()..start();
-      await Isolate.run(
-        () => _extractDesktopBundleInWorker(archivePath, staging.path),
-        debugName: 'desktop-update-extract',
-      );
+      await compute(_extractDesktopBundleInWorker, (
+        archivePath: archivePath,
+        targetPath: staging.path,
+      ), debugLabel: 'desktop-update-extract');
       extractStopwatch.stop();
       logger.info(
         '[DesktopUpdater] extracted bundle in '
@@ -574,9 +572,10 @@ class DesktopUpdaterService {
   Future<void> _deleteRecursively(Directory dir) async {
     if (!dir.existsSync()) return;
     try {
-      await Isolate.run(
-        () => _deleteDirectoryInWorker(dir.path),
-        debugName: 'desktop-update-cleanup',
+      await compute(
+        _deleteDirectoryInWorker,
+        dir.path,
+        debugLabel: 'desktop-update-cleanup',
       );
     } catch (error) {
       logger.warning('[DesktopUpdater] cleanup of ${dir.path}: $error');
