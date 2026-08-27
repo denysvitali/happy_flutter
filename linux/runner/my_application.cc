@@ -10,6 +10,8 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  FlMethodChannel* screen_awake_channel;
+  guint screen_awake_cookie;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -17,6 +19,47 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+static void clear_screen_awake_inhibit(MyApplication* self) {
+  if (self->screen_awake_cookie == 0) {
+    return;
+  }
+
+  gtk_application_uninhibit(GTK_APPLICATION(self),
+                            self->screen_awake_cookie);
+  self->screen_awake_cookie = 0;
+}
+
+static void screen_awake_method_call_cb(FlMethodChannel* channel,
+                                        FlMethodCall* method_call,
+                                        gpointer user_data) {
+  MyApplication* self = MY_APPLICATION(user_data);
+
+  if (g_strcmp0(fl_method_call_get_name(method_call), "setEnabled") != 0) {
+    fl_method_call_respond_not_implemented(method_call, nullptr);
+    return;
+  }
+
+  FlValue* args = fl_method_call_get_args(method_call);
+  if (args == nullptr || fl_value_get_type(args) != FL_VALUE_TYPE_BOOL) {
+    fl_method_call_respond_error(method_call, "invalid_arguments",
+                                 "setEnabled expects a boolean", nullptr,
+                                 nullptr);
+    return;
+  }
+
+  const gboolean enabled = fl_value_get_bool(args);
+  clear_screen_awake_inhibit(self);
+
+  if (enabled) {
+    self->screen_awake_cookie = gtk_application_inhibit(
+        GTK_APPLICATION(self), GTK_WINDOW(nullptr),
+        GTK_APPLICATION_INHIBIT_SUSPEND | GTK_APPLICATION_INHIBIT_IDLE,
+        "Happy is running a foreground session");
+  }
+
+  fl_method_call_respond_success(method_call, nullptr, nullptr);
 }
 
 // Implements GApplication::activate.
@@ -75,6 +118,16 @@ static void my_application_activate(GApplication* application) {
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
+  if (self->screen_awake_channel == nullptr) {
+    g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+    self->screen_awake_channel = fl_method_channel_new(
+        fl_engine_get_binary_messenger(fl_view_get_engine(view)),
+        "com.example.happy_flutter/screen_awake", FL_METHOD_CODEC(codec));
+    fl_method_channel_set_method_call_handler(self->screen_awake_channel,
+                                              screen_awake_method_call_cb,
+                                              self, nullptr);
+  }
+
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
 
@@ -120,6 +173,8 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
+  clear_screen_awake_inhibit(self);
+  g_clear_object(&self->screen_awake_channel);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
