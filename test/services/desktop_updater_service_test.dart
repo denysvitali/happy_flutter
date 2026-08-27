@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -47,10 +48,7 @@ void main() {
     test('semver outranks build number', () {
       // A huge build suffix must not beat a higher semver part.
       final current = DesktopReleaseInfo.parse('v1.0.1-1')!;
-      expect(
-        DesktopReleaseInfo.parse('v1.0.0-99999')! > current,
-        isFalse,
-      );
+      expect(DesktopReleaseInfo.parse('v1.0.0-99999')! > current, isFalse);
       expect(DesktopReleaseInfo.parse('v1.1.0')! > current, isTrue);
     });
   });
@@ -81,6 +79,17 @@ void main() {
       expect(manifest.channel, 'stable');
       expect(manifest.name, 'happy_flutter');
     });
+  });
+
+  test('DesktopUpdateState can explicitly clear download progress', () {
+    const downloading = DesktopUpdateState(
+      status: DesktopUpdateStatus.downloading,
+      downloadProgress: 100,
+    );
+
+    final cleared = downloading.copyWith(clearDownloadProgress: true);
+
+    expect(cleared.downloadProgress, isNull);
   });
 
   group('DesktopRemoteRelease.fromJson', () {
@@ -273,6 +282,63 @@ void main() {
           DesktopUpdateStatus.readyToRestart,
         ]),
       );
+    });
+
+    test('download progress only publishes changed percentages', () async {
+      final archivePath = makeBundleArchive();
+      final release = DesktopRemoteRelease(
+        info: DesktopReleaseInfo.parse('v1.0.0-300')!,
+        assetUrls: const {'happy-flutter-linux-x64.tar.gz': 'unused://x'},
+      );
+      final svc = DesktopUpdaterService(
+        fetchLatestRelease: (_) async => release,
+        downloadFile: (_, savePath, onProgress) async {
+          onProgress(1);
+          onProgress(1);
+          onProgress(2);
+          onProgress(2);
+          File(savePath).writeAsBytesSync(File(archivePath).readAsBytesSync());
+        },
+        installDirResolver: () => installDir.path,
+      )..onStateChanged = states.add;
+
+      expect(await svc.applyUpdate(), isTrue);
+
+      expect(
+        states.where((state) => state.downloadProgress == 1),
+        hasLength(1),
+      );
+      expect(
+        states.where((state) => state.downloadProgress == 2),
+        hasLength(1),
+      );
+    });
+
+    test('automatic download keeps the update operation serialized', () async {
+      final archivePath = makeBundleArchive();
+      final downloadStarted = Completer<void>();
+      final releaseDownload = Completer<void>();
+      final release = DesktopRemoteRelease(
+        info: DesktopReleaseInfo.parse('v1.0.0-300')!,
+        assetUrls: const {'happy-flutter-linux-x64.tar.gz': 'unused://x'},
+      );
+      final svc = DesktopUpdaterService(
+        fetchLatestRelease: (_) async => release,
+        downloadFile: (_, savePath, _) async {
+          downloadStarted.complete();
+          await releaseDownload.future;
+          File(savePath).writeAsBytesSync(File(archivePath).readAsBytesSync());
+        },
+        installDirResolver: () => installDir.path,
+      )..onStateChanged = states.add;
+
+      final check = svc.checkForUpdates();
+      await downloadStarted.future;
+
+      expect(await svc.applyUpdate(), isFalse);
+      releaseDownload.complete();
+      expect(await check, isTrue);
+      expect(svc.state.status, DesktopUpdateStatus.readyToRestart);
     });
 
     test('applyUpdate keeps old install on corrupt archive', () async {

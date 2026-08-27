@@ -1,18 +1,25 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-/// App-wide scroll behavior with iOS-style bouncing physics.
+/// App-wide, platform-adaptive scroll behavior.
 ///
-/// Replaces the Android stretch/glow overscroll indicator with the
-/// rubber-band bounce used on iOS, so every scrollable in the app
-/// shares the same physical feel on all platforms. Mouse drag is
-/// enabled so desktop and web users can fling lists naturally.
+/// Touch platforms use the app's rubber-band bounce. Linux and Windows use
+/// clamping physics: forcing an iOS spring there makes every wheel event at a
+/// list edge start an otherwise unnecessary rebound animation, and feels
+/// foreign with a mouse or trackpad.
 class AppScrollBehavior extends MaterialScrollBehavior {
   /// Creates the app scroll behavior.
   const AppScrollBehavior();
 
   @override
   ScrollPhysics getScrollPhysics(BuildContext context) {
+    if (defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows) {
+      return const ClampingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      );
+    }
     return const BouncingScrollPhysics(
       decelerationRate: ScrollDecelerationRate.fast,
       parent: AlwaysScrollableScrollPhysics(),

@@ -69,6 +69,7 @@ class DesktopUpdateState {
     String? availableVersion,
     int? availableBuildNumber,
     int? downloadProgress,
+    bool clearDownloadProgress = false,
     String? error,
     bool clearError = false,
     int? lastCheckedAtMs,
@@ -80,7 +81,9 @@ class DesktopUpdateState {
       currentBuildNumber: currentBuildNumber ?? this.currentBuildNumber,
       availableVersion: availableVersion ?? this.availableVersion,
       availableBuildNumber: availableBuildNumber ?? this.availableBuildNumber,
-      downloadProgress: downloadProgress ?? this.downloadProgress,
+      downloadProgress: clearDownloadProgress
+          ? null
+          : (downloadProgress ?? this.downloadProgress),
       error: clearError ? null : (error ?? this.error),
       lastCheckedAtMs: lastCheckedAtMs ?? this.lastCheckedAtMs,
       dismissed: dismissed ?? this.dismissed,

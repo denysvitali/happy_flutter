@@ -37,6 +37,33 @@ void main() {
         // If we got here without exception, initialization succeeded
         expect(true, isTrue);
       });
+
+      test('defers session-scoped map decoding until first access', () async {
+        await storage.writeRawString(
+          'session-permission-modes',
+          jsonEncode({'session-1': 'edit'}),
+        );
+        await storage.writeRawString(
+          'session-model-modes',
+          jsonEncode({'session-1': 'opus'}),
+        );
+        await storage.writeRawString(
+          'session-profiles',
+          jsonEncode({'session-1': 'profile-1'}),
+        );
+
+        MMKVStorage.resetForTesting();
+        await MMKVStorage.initialize();
+
+        expect(MMKVStorage.debugPermissionModesCacheLoaded, isFalse);
+        expect(MMKVStorage.debugModelModesCacheLoaded, isFalse);
+        expect(MMKVStorage.debugSessionProfilesCacheLoaded, isFalse);
+
+        expect(storage.getSessionPermissionModeDirect('session-1'), 'edit');
+        expect(MMKVStorage.debugPermissionModesCacheLoaded, isTrue);
+        expect(MMKVStorage.debugModelModesCacheLoaded, isFalse);
+        expect(MMKVStorage.debugSessionProfilesCacheLoaded, isFalse);
+      });
     });
 
     group('Settings Storage', () {

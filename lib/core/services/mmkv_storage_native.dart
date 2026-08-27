@@ -77,6 +77,8 @@ class _JsonMapStore {
   Timer? _persistTimer;
   int _revision = 0;
 
+  bool get isLoaded => _cache != null;
+
   /// Load from MMKV into cache, returning the map.
   Map<String, String> _loadCache() {
     try {
@@ -188,8 +190,17 @@ class _JsonMapStore {
 
   // ── Cached (synchronous) accessors for permission/model modes ──
 
-  /// Get from in-memory cache (must call [initCache] first).
-  String? getFromCache(String id) => _cache?[id];
+  /// Get from the in-memory cache, loading the persisted map on first use.
+  ///
+  /// Session-scoped maps used to be decoded eagerly during
+  /// [MMKVStorage.initialize]. That made every cold start pay for permission,
+  /// model, and profile maps even when the user only opened the inbox. Keep
+  /// the synchronous accessor contract while moving the decode to the first
+  /// screen that actually needs a value.
+  String? getFromCache(String id) {
+    final cache = _cache ??= _loadCache();
+    return cache[id];
+  }
 
   /// Save to in-memory cache; persist to MMKV via 500ms debounce so
   /// rapid picker taps don't trigger per-tap full-map serialization.
@@ -241,11 +252,10 @@ class _IntCursorStore {
   Map<String, int> getAll() {
     if (_cache != null) return Map<String, int>.from(_cache!);
     final loaded = _loadFromMMKV();
-    if (loaded.isNotEmpty) {
-      _cache = loaded;
-      return Map<String, int>.from(_cache!);
-    }
-    return {};
+    // Cache an empty result too. Otherwise every cursor lookup on a fresh
+    // install repeatedly reads and JSON-decodes the same absent MMKV value.
+    _cache = loaded;
+    return Map<String, int>.from(loaded);
   }
 
   /// Get a single entry by key (uses cache if available).
@@ -380,14 +390,12 @@ class MMKVStorage {
         logger.info('MMKV: Migration from SharedPreferences completed');
       }
 
-      // Warm caches only after migration so migrated values are visible to
-      // the process immediately. Initializing them first pins empty maps in
-      // memory even though migration subsequently writes the MMKV entries.
+      // Cursor maps are consumed immediately by Sync._init, so warm those two
+      // after migration. Permission/model/profile maps are loaded lazily by
+      // their synchronous accessors; decoding all three here delayed auth and
+      // inbox rendering for data that may not be used during this launch.
       _instance._lastSeqStore.getAll();
       _instance._firstLoadedSeqStore.getAll();
-      await _instance._permissionModesStore.initCache();
-      await _instance._modelModesStore.initCache();
-      await _instance._profilesStore.initCache();
     } catch (e) {
       logger.warning('MMKV: Initialization failed: $e');
       // Do NOT mark _initialized = true on failure;
@@ -395,6 +403,18 @@ class MMKVStorage {
       rethrow;
     }
   }
+
+  @visibleForTesting
+  static bool get debugPermissionModesCacheLoaded =>
+      _instance._permissionModesStore.isLoaded;
+
+  @visibleForTesting
+  static bool get debugModelModesCacheLoaded =>
+      _instance._modelModesStore.isLoaded;
+
+  @visibleForTesting
+  static bool get debugSessionProfilesCacheLoaded =>
+      _instance._profilesStore.isLoaded;
 
   /// Resets process-local initialization and caches between isolated tests.
   @visibleForTesting

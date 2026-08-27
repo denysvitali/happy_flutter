@@ -910,29 +910,44 @@ class Storage {
   final sessionPermissionModesStorage = SessionPermissionModesStorage();
   final profileStorage = ProfileStorage();
 
-  /// Initialize all storage.
+  /// Initialize all storage, including sensitive-payload protection.
   ///
-  /// MMKVStorage and ServerConfigStorage are independent (each calls the
-  /// idempotent `MMKV.initialize()` itself) so we run them in parallel to
-  /// shave a few hundred ms off cold start.
+  /// Non-startup callers retain the original guarantee that this completes
+  /// only when every storage component is ready. The app startup path uses
+  /// [initializeEssential] so Linux Secret Service / platform keystore I/O
+  /// cannot hold up server URL resolution and authentication. Cache/outbox
+  /// consumers initialize protection on demand, and their existing cache
+  /// latency telemetry includes that first secure-storage read.
   Future<void> initialize() async {
+    await Future.wait<void>([initializeEssential(), warmAtRestProtection()]);
+  }
+
+  /// Initialize only storage required to resolve startup configuration.
+  Future<void> initializeEssential() async {
+    // The stores are independent (each idempotently initializes MMKV), so
+    // overlap their platform-channel work.
     await Future.wait<void>([
       MMKVStorage.initialize(),
       ServerConfigStorage.initialize(),
-      () async {
-        try {
-          await AtRestEncryptionService().initialize();
-        } catch (error, stack) {
-          // Storage remains usable, but sensitive cache/outbox writers fail
-          // closed until secure storage becomes available on a later retry.
-          logger.warning(
-            '[Storage] At-rest protection key unavailable',
-            error,
-            stack,
-          );
-        }
-      }(),
     ]);
+  }
+
+  /// Warm the key used by message-cache and outbox encryption.
+  ///
+  /// Consumers also initialize the protector on demand, so this is a safe
+  /// best-effort warmup and never makes sensitive writes fail open.
+  Future<void> warmAtRestProtection() async {
+    try {
+      await AtRestEncryptionService().initialize();
+    } catch (error, stack) {
+      // Storage remains usable, but sensitive cache/outbox writers fail
+      // closed until secure storage becomes available on a later retry.
+      logger.warning(
+        '[Storage] At-rest protection key unavailable',
+        error,
+        stack,
+      );
+    }
   }
 
   /// Clear all storage (except server config which persists across logouts)

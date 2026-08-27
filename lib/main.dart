@@ -168,7 +168,7 @@ Future<void> _runApp() async {
   // Warm storage in parallel with everything else. This initializes both
   // MMKV and the separate server-config store so startup can recover custom
   // server URLs before the first auth/sync request.
-  final storageWarmup = storage.Storage().initialize();
+  final storageWarmup = storage.Storage().initializeEssential();
 
   // Load the Rust hot-path core alongside storage. It only replaces CPU-bound
   // batch work (crypto today) and every call site keeps its Dart fallback, so
@@ -386,7 +386,8 @@ Future<void> _deferredInit() async {
   // Firebase can take 1-3s on first init; keeping it off the critical
   // path saves ~2s on cold/warm start.  Errors are caught and logged
   // inside _initializeOptionalFirebase so they never propagate.
-  unawaited(() async {    final firebaseSpan = transaction.startChild(
+  unawaited(() async {
+    final firebaseSpan = transaction.startChild(
       'app.deferredInit.firebase',
       description: 'Initialize optional Firebase services',
     );

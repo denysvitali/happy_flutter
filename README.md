@@ -156,7 +156,9 @@ the background:
 - **In-app updater** (`lib/core/services/desktop_updater_service.dart`) —
   checks GitHub Releases ~20s after launch and every 6h. Newer builds are
   downloaded automatically; a slim banner on the sessions/chat screens offers
-  a one-tap "Restart now" once the swap is staged.
+  a one-tap "Restart now" once the swap is staged. Extraction and cleanup run
+  in background isolates and stream through disk so an update does not freeze
+  the desktop UI or retain the inflated bundle in the app heap.
 - **Background timer** — `install-linux.sh` arms a systemd user timer
   (`happy-flutter-updater.timer`, every 12h) that runs the bundled
   `update-linux.sh`. Pass `--no-autoupdate` to skip it. Both updaters share

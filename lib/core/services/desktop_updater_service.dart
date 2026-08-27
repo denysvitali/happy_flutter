@@ -31,8 +31,9 @@ import 'dart:io'
         ProcessStartMode,
         RandomAccessFile,
         exit;
+import 'dart:isolate';
 
-import 'package:archive/archive.dart';
+import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:http/http.dart' as http;
 
@@ -85,7 +86,9 @@ Future<void> downloadFileToPath(
     final sink = File(savePath).openWrite();
     var received = 0;
     try {
-      await for (final chunk in response.stream) {
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 30),
+      )) {
         received += chunk.length;
         sink.add(chunk);
         onProgress(
@@ -101,6 +104,21 @@ Future<void> downloadFileToPath(
     }
   } finally {
     client.close();
+  }
+}
+
+/// Extracts a Linux release without retaining the compressed bundle or its
+/// inflated tar payload in the app isolate. `archive_io` streams gzip to a
+/// temporary tar on disk, then streams each tar entry to [targetPath].
+Future<void> _extractDesktopBundleInWorker(
+  String archivePath,
+  String targetPath,
+) => extractFileToDisk(archivePath, targetPath);
+
+void _deleteDirectoryInWorker(String path) {
+  final directory = Directory(path);
+  if (directory.existsSync()) {
+    directory.deleteSync(recursive: true);
   }
 }
 
@@ -249,7 +267,10 @@ class DesktopUpdaterService {
         ),
       );
       if (autoDownload) {
-        unawaited(_apply(release));
+        // Keep `_operationInFlight` held until the automatic download and
+        // disk swap finish. Releasing it here allowed a manual/periodic check
+        // to start a second update against the same install directory.
+        await _apply(release);
       }
       return true;
     } catch (error) {
@@ -362,24 +383,44 @@ class DesktopUpdaterService {
         '$parent/.happy_flutter.backup.'
         '${DateTime.now().millisecondsSinceEpoch}';
     try {
-      _update(_state.copyWith(status: DesktopUpdateStatus.downloading));
+      _update(
+        _state.copyWith(
+          status: DesktopUpdateStatus.downloading,
+          clearDownloadProgress: true,
+          clearError: true,
+        ),
+      );
       final staging = Directory(stagingPath)..createSync(recursive: true);
       final archivePath = '$stagingPath.tar.gz';
       await _downloadFile(Uri.parse(url), archivePath, (progress) {
-        _update(_state.copyWith(downloadProgress: progress));
+        // Network chunks are much smaller than one percent of a desktop
+        // bundle. Avoid rebuilding updater consumers for duplicate values.
+        if (_state.downloadProgress != progress) {
+          _update(_state.copyWith(downloadProgress: progress));
+        }
       });
-      _extractArchive(archivePath, staging);
+      final extractStopwatch = Stopwatch()..start();
+      await Isolate.run(
+        () => _extractDesktopBundleInWorker(archivePath, staging.path),
+        debugName: 'desktop-update-extract',
+      );
+      extractStopwatch.stop();
+      logger.info(
+        '[DesktopUpdater] extracted bundle in '
+        '${extractStopwatch.elapsedMilliseconds}ms',
+      );
       File(archivePath).deleteSync();
 
       final binary = File('$stagingPath/happy_flutter');
       if (!binary.existsSync()) {
         throw Exception('bundle missing happy_flutter binary');
       }
-      _makeExecutable(binary.path);
+      final executablePaths = <String>[binary.path];
       for (final script in const ['install-linux.sh', 'update-linux.sh']) {
         final f = File('$stagingPath/$script');
-        if (f.existsSync()) _makeExecutable(f.path);
+        if (f.existsSync()) executablePaths.add(f.path);
       }
+      await _makeExecutable(executablePaths);
       _writeManifest(
         '$stagingPath/$manifestFileName',
         DesktopInstallManifest(
@@ -401,7 +442,7 @@ class DesktopUpdaterService {
         }
         rethrow;
       }
-      _deleteRecursively(Directory(backupPath));
+      await _deleteRecursively(Directory(backupPath));
 
       logger.info('[DesktopUpdater] applied ${release.info.tag}');
       _update(
@@ -409,20 +450,20 @@ class DesktopUpdaterService {
           status: DesktopUpdateStatus.readyToRestart,
           currentVersion: release.info.version,
           currentBuildNumber: release.info.buildNumber,
-          downloadProgress: null,
-          error: null,
+          clearDownloadProgress: true,
+          clearError: true,
         ),
       );
       return true;
     } catch (error) {
       logger.error('[DesktopUpdater] apply failed: $error');
-      _deleteRecursively(Directory(stagingPath));
-      _deleteRecursively(Directory(backupPath));
+      await _deleteRecursively(Directory(stagingPath));
+      await _deleteRecursively(Directory(backupPath));
       _update(
         _state.copyWith(
           status: DesktopUpdateStatus.available,
           error: '$error',
-          downloadProgress: null,
+          clearDownloadProgress: true,
         ),
       );
       return false;
@@ -440,15 +481,15 @@ class DesktopUpdaterService {
       return;
     }
     logger.info('[DesktopUpdater] restarting into $binary');
+    unawaited(_restartDetached(binary));
+  }
+
+  Future<void> _restartDetached(String binary) async {
     try {
-      unawaited(Process.run('chmod', ['+x', binary]));
-      unawaited(
-        Process.start(binary, [], mode: ProcessStartMode.detached).then((_) {
-          exit(0);
-        }),
-      );
-    } catch (error) {
-      logger.error('[DesktopUpdater] restart failed: $error');
+      await Process.start(binary, [], mode: ProcessStartMode.detached);
+      exit(0);
+    } catch (error, stack) {
+      logger.error('[DesktopUpdater] restart failed', error, stack);
     }
   }
 
@@ -515,25 +556,13 @@ class DesktopUpdaterService {
     return null;
   }
 
-  void _extractArchive(String archivePath, Directory target) {
-    final bytes = File(archivePath).readAsBytesSync();
-    final tarBytes = GZipDecoder().decodeBytes(bytes);
-    final archive = TarDecoder().decodeBytes(tarBytes);
-    for (final entry in archive.files) {
-      if (!entry.isFile) continue;
-      final name = entry.name.replaceFirst('./', '');
-      if (name.isEmpty || name.contains('..')) continue;
-      final outFile = File('${target.path}/$name');
-      outFile.parent.createSync(recursive: true);
-      outFile.writeAsBytesSync(entry.content as List<int>);
+  Future<void> _makeExecutable(List<String> paths) async {
+    // dart:io exposes no chmod. Run one process for the whole bundle and wait
+    // before renaming staging so chmod cannot race the atomic directory swap.
+    final result = await Process.run('chmod', ['+x', ...paths]);
+    if (result.exitCode != 0) {
+      throw Exception('chmod failed: ${result.stderr}');
     }
-  }
-
-  void _makeExecutable(String path) {
-    try {
-      // dart:io exposes no chmod; shell out once per applied update.
-      unawaited(Process.run('chmod', ['+x', path]));
-    } catch (_) {}
   }
 
   void _writeManifest(String path, DesktopInstallManifest manifest) {
@@ -542,10 +571,13 @@ class DesktopUpdaterService {
     );
   }
 
-  void _deleteRecursively(Directory dir) {
+  Future<void> _deleteRecursively(Directory dir) async {
     if (!dir.existsSync()) return;
     try {
-      dir.deleteSync(recursive: true);
+      await Isolate.run(
+        () => _deleteDirectoryInWorker(dir.path),
+        debugName: 'desktop-update-cleanup',
+      );
     } catch (error) {
       logger.warning('[DesktopUpdater] cleanup of ${dir.path}: $error');
     }
