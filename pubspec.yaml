@@ -20,7 +20,7 @@ dependencies:
   flutterrific_opentelemetry: ^0.4.0
   # Pinned via dependency_overrides; imported directly for W3C propagation.
   dartastic_opentelemetry: 1.0.2-alpha
-  dartastic_opentelemetry_api: 1.0.0-alpha
+  dartastic_opentelemetry_api: 1.0.0-rc.3
 
   # Core dependencies
   dio: ^5.9.0
