@@ -1665,11 +1665,8 @@ void main() {
         spawnedProfileId: 'deepseek',
       );
 
-      // Simulate "user picked Default in the picker" — MMKV cleared,
-      // so _getSpawnEnvVarsForSession resolves to empty env vars and a
-      // null profile. Without the override, a real MMKV read would also
-      // return null (no entry), which is what we want — but tests don't
-      // have a fake MMKV plugin, so we override explicitly.
+      // Simulate "user picked Default in the picker". The explicit marker
+      // must win even if the asynchronous MMKV removal has not completed.
       sync.testGetSpawnEnvVarsOverride = (_) async =>
           (envVars: <String, String>{}, profile: null);
 
@@ -1687,7 +1684,7 @@ void main() {
       sync.testFetchSingleSessionOverride = (_) async => null;
 
       try {
-        await sync.sendMessage(sessionId, 'hello');
+        await sync.sendMessage(sessionId, 'hello', profileId: 'default');
       } catch (_) {
         // sendMessage may throw after the respawn (REST POST not mocked);
         // the respawn happens before that and is what we are asserting here.
@@ -1698,7 +1695,7 @@ void main() {
         isNotNull,
         reason:
             'Switching to Default on a running session must trigger '
-            'a respawn — sendMessage(profileId: null) should not '
+            'a respawn — the explicit Default marker should not '
             'silently keep the old profile alive.',
       );
       final envVars =
@@ -2094,7 +2091,7 @@ void main() {
       },
     );
 
-    test('sendMessage with profileId=null does NOT kill session when '
+    test('explicit Default does NOT kill session when '
         'the daemon was already spawned with no profile', () async {
       const sessionId = 'no-change-default-to-default';
       var spawnCalled = false;
@@ -2117,7 +2114,7 @@ void main() {
       };
 
       try {
-        await sync.sendMessage(sessionId, 'hello');
+        await sync.sendMessage(sessionId, 'hello', profileId: 'default');
       } catch (_) {
         // REST POST not mocked.
       }

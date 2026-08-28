@@ -741,7 +741,7 @@ extension _ChatScreenActions on _ChatScreenState {
             displayText: option,
             permissionMode: _permissionMode.toModeString(),
             modelMode: _effectiveSendModelMode ?? _modelMode.modeString,
-            profileId: _selectedProfile?.id,
+            profileId: _selectedProfile?.id ?? 'default',
           );
       if (_followRedirectedSession(sentSessionId)) {
         return;
@@ -846,7 +846,7 @@ extension _ChatScreenActions on _ChatScreenState {
               text,
               permissionMode: _permissionMode.toModeString(),
               modelMode: _effectiveSendModelMode ?? _modelMode.modeString,
-              profileId: _selectedProfile?.id,
+              profileId: _selectedProfile?.id ?? 'default',
               codexDeliveryMode: codexDeliveryMode,
             );
         if (_followRedirectedSession(sentSessionId)) {
@@ -991,7 +991,7 @@ extension _ChatScreenActions on _ChatScreenState {
             displayText: text.isNotEmpty ? text : null,
             permissionMode: _permissionMode.toModeString(),
             modelMode: _effectiveSendModelMode ?? _modelMode.modeString,
-            profileId: _selectedProfile?.id,
+            profileId: _selectedProfile?.id ?? 'default',
             images: hasImages ? images : null,
             codexDeliveryMode: codexDeliveryMode,
           );

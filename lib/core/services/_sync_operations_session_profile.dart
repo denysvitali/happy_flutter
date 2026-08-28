@@ -652,12 +652,21 @@ extension SyncSpawnProfileResolution on Sync {
     final recentlySpawned = health.wasRecentlySpawned;
 
     // When the caller didn't pass a profileId (e.g. ask_user_question
-    // fallback), fall back to MMKV — the persisted session profile reflects
-    // the user's last explicit choice. This mirrors _getSpawnEnvVarsForSession
-    // and lets us detect "user switched to Default" (MMKV cleared) as a real
-    // change, while still ignoring no-op sends from callers that don't care.
+    // fallback), fall back to MMKV. Composer sends use the explicit `default`
+    // marker for no profile, so they never depend on an asynchronous MMKV
+    // removal completing before target resolution.
     final mmkvProfileId = await MMKVStorage().getSessionProfile(sessionId);
-    final effectiveProfileIdForChange = profileId ?? mmkvProfileId;
+    // `default` is the wire-level marker for an explicit no-profile choice.
+    // Keep it distinct from an omitted profile while resolving intent, then
+    // normalize it to null before comparing with spawn tracking. Otherwise a
+    // just-cleared (but not yet flushed) MMKV entry can resurrect the previous
+    // profile, while comparing the literal marker would make Default ->
+    // Default restart on every send.
+    final hasExplicitProfileSelection = profileId != null;
+    final explicitProfileId = profileId == 'default' ? null : profileId;
+    final effectiveProfileIdForChange = hasExplicitProfileSelection
+        ? explicitProfileId
+        : mmkvProfileId;
     final spawnedProfileKnown = _sessionSpawnedProfile.containsKey(sessionId);
     // For just-spawned sessions, MMKV may not have been written yet even
     // though _sessionSpawnedProfile was registered. Treat absence-of-MMKV +
@@ -667,9 +676,9 @@ extension SyncSpawnProfileResolution on Sync {
     final mmkvUnknownForFreshSpawn =
         recentlySpawned && profileId == null && mmkvProfileId == null;
     // For sessions not tracked by this app run, only treat an explicit
-    // (non-default) profile argument as a real change. Falling back to MMKV on
-    // unknown sessions can be stale and would otherwise cause unnecessary kill +
-    // respawn cycles.
+    // (non-default) profile argument as a real change. Falling back to MMKV
+    // on unknown sessions can be stale and would otherwise cause unnecessary
+    // kill + respawn cycles.
     final explicitProfileChange = profileId != null && profileId != 'default';
     final profileChanged = spawnedProfileKnown
         ? (mmkvUnknownForFreshSpawn
