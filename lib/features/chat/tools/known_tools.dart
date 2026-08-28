@@ -547,7 +547,7 @@ class KnownTools {
       extractSubtitle: (tool, _) {
         final input = WireParsers.toolInput(tool);
         if (input.isEmpty) return null;
-        final taskId = input['taskId'] as String? ?? input['id'] as String?;
+        final taskId = WireParsers.parseString(input['taskId'] ?? input['id']);
         final what =
             _taskSubject(input) ??
             input['activeForm'] as String? ??
@@ -566,7 +566,7 @@ class KnownTools {
       title: 'Get Task',
       extractSubtitle: (tool, _) {
         final input = WireParsers.toolInput(tool);
-        final taskId = input['taskId'] as String? ?? input['id'] as String?;
+        final taskId = WireParsers.parseString(input['taskId'] ?? input['id']);
         return taskId != null ? '#$taskId' : null;
       },
     ),

@@ -71,6 +71,17 @@ void main() {
       expect(subtitle, 'Design safe sensor bring-up path → in progress');
     });
 
+    test('Update Task header accepts numeric Happy MCP ids', () {
+      final subtitle = KnownTools.get('TaskUpdate')!.extractSubtitle!({
+        'name': 'mcp__happy__todo_update',
+        'input': {
+          'arguments': {'id': 86, 'status': 'completed'},
+        },
+      }, null);
+
+      expect(subtitle, '#86 → completed');
+    });
+
     testWidgets('TaskCreate renders nested MCP arguments', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -129,6 +140,38 @@ void main() {
 
       expect(find.text('Design safe sensor bring-up path'), findsOneWidget);
       expect(find.text('in_progress'), findsOneWidget);
+    });
+
+    testWidgets('TaskUpdate renders numeric Happy MCP ids', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          TaskToolView(
+            tool: {
+              'name': 'mcp__happy__todo_update',
+              'state': 'completed',
+              'input': {
+                'arguments': {'id': 86, 'status': 'completed'},
+              },
+            },
+            sessionId: 'session-1',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Task #86'), findsOneWidget);
+      expect(find.text('completed'), findsOneWidget);
+      expect(
+        container
+            .read(todoStateNotifierProvider)
+            .bySession['session-1']!
+            .single
+            .id,
+        '86',
+      );
     });
 
     testWidgets('TaskCreate renders subject and status', (tester) async {

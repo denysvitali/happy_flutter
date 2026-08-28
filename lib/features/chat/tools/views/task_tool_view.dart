@@ -95,7 +95,8 @@ class TaskToolView extends ConsumerStatefulWidget {
         // ("Task #1 created successfully: <subject>"), not the input.
         // Prefer it so later TaskUpdate calls (which reference that id)
         // can find the item.
-        final realId = (input['id'] as String?) ?? _idFromCreateResult(tool);
+        final realId =
+            WireParsers.parseString(input['id']) ?? _idFromCreateResult(tool);
         final syntheticId = _deriveIdStatic(
           explicit: null,
           fallback: 'create-$subject',
@@ -144,7 +145,9 @@ class TaskToolView extends ConsumerStatefulWidget {
         ];
 
       case 'TaskUpdate':
-        final explicitId = input['taskId'] as String? ?? input['id'] as String?;
+        final explicitId = WireParsers.parseString(
+          input['taskId'] ?? input['id'],
+        );
         if (explicitId == null) return existing;
         final rawName = (tool['name'] as String?) ?? '';
         final rawStatus = input['status'] as String?;
@@ -243,11 +246,9 @@ class TaskToolView extends ConsumerStatefulWidget {
             _optionalString(map['content']);
         if (subject == null || subject.isEmpty) return existing;
         final itemId = _deriveIdStatic(
-          explicit:
-              (map['id'] as String?) ??
-              (map['taskId'] as String?) ??
-              (input['taskId'] as String?) ??
-              (input['id'] as String?),
+          explicit: WireParsers.parseString(
+            map['id'] ?? map['taskId'] ?? input['taskId'] ?? input['id'],
+          ),
           fallback: 'get-$subject',
           toolId: toolId,
         );
@@ -434,7 +435,7 @@ class TaskToolView extends ConsumerStatefulWidget {
   /// both the static resolver and the existing instance build path
   /// produce the same id for the same wire payload.
   static String _toolIdFor(Map<String, dynamic> tool) {
-    final id = tool['toolUseId'] as String? ?? tool['id'] as String?;
+    final id = WireParsers.parseString(tool['toolUseId'] ?? tool['id']);
     if (id != null && id.isNotEmpty) return id;
     return tool['name']?.toString() ?? 'task';
   }
@@ -473,7 +474,7 @@ class TaskToolView extends ConsumerStatefulWidget {
       if (subject == null || subject.isEmpty) continue;
       out.add(
         TodoItem(
-          id: (m['id'] as String?) ?? 'list-$subject',
+          id: WireParsers.parseString(m['id']) ?? 'list-$subject',
           content: subject,
           status: TodoState.fromString(m['status'] as String? ?? 'pending'),
           priority: (m['priority'] as String?) ?? 'medium',
@@ -556,7 +557,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
 
   Widget _buildUpdate(BuildContext context) {
     final input = WireParsers.toolInput(widget.tool);
-    final taskId = input['taskId'] as String? ?? input['id'] as String?;
+    final taskId = WireParsers.parseString(input['taskId'] ?? input['id']);
     final status = input['status'] as String?;
     final activeForm = input['activeForm'] as String?;
     final subject = input['subject'] as String? ?? input['content'] as String?;
@@ -621,7 +622,7 @@ class _TaskToolViewState extends ConsumerState<TaskToolView> {
     result ??= WireParsers.asMap(raw);
     if (result == null) {
       final input = WireParsers.toolInput(widget.tool);
-      final id = input['taskId'] as String? ?? input['id'] as String?;
+      final id = WireParsers.parseString(input['taskId'] ?? input['id']);
       return _EmptyHint(id != null ? 'No data for #$id' : 'No data');
     }
     final subject =
