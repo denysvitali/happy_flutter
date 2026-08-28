@@ -9,7 +9,7 @@
 # When paired with direnv, `.envrc` calls `use mise` so flutter /
 # dart / java / make land on PATH the moment you `cd` into the repo.
 [tools]
-flutter = "3.41.9"
+flutter = "3.47.2"
 dart    = "3.11.5"
 java    = "21.0.2"
 make    = "4.4.1"
