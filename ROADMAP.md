@@ -2,7 +2,80 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-27
+**Last Updated**: 2026-08-29
+
+### Production audit, 2026-08-29 (build 272600)
+
+The current GlitchTip/Loki/Prometheus sweep found two still-open client
+reliability defects, one cross-service lifecycle defect, and two performance
+regressions that need attribution. The apparent crash burst is stale-build
+noise rather than a current regression.
+
+**Malformed tool-output crash chain, issues 8647/8648/8615, build 272400.**
+One launch painted a CodexBash result containing an unpaired UTF-16 surrogate,
+then cascaded through a layout null-check and an ErrorBoundary fallback that
+could not find `ProviderScope`. All three events predate 42fbf23d, first shipped
+in 272500: decrypted JSON is recursively sanitized and ErrorBoundary now lives
+under ProviderScope. No recurrence appears on 272500 or 272600.
+
+**Outbox readiness polling storm, current build.** Issue 5387/8631 last
+dead-lettered on 272400 at 11:50 UTC after the same `agent_starting` item burned
+through attempts 466–480 in roughly two seconds. Build 272500 correctly stopped
+readiness deferrals from consuming the retry budget, but the pending item still
+wakes every five seconds forever. In the latest one-hour Prometheus window the
+fleet recorded 16,953 outbox attempts and 18,648 schedules; Loki still shows the
+same `localId` at `retryCount=49` on 272600. Replace timer polling with a
+readiness/lifecycle subscription, suppress duplicate schedules, and split
+`deferred` from real delivery-attempt telemetry.
+
+**Kubernetes auto-restore path contract, current build.** Issues 8658–8661
+are one 272600 launch, not another generic daemon split-brain: the daemon tried
+to auto-respawn a Codex session with Kubernetes for
+`/home/workspace/git/happy-cli-go`, rejected it because it is outside the
+advertised `/workspace` checkout, then the client saw `handler_offline` and
+could not restore after the machine went offline. Persist the selected spawn
+backend with the session, validate the path/backend pair before stopping the
+old runtime, and surface a repair action (canonical checkout or local backend)
+instead of retrying an impossible restore.
+
+**Session runtime split-brain, issues 8623/8626/8654, build 272600.** GlitchTip
+has 27 client lifecycle failures in 24 hours across multiple sessions,
+including a new event at 21:18 UTC: the server says a session is running while
+its daemon has no live local process. The daemon side has 4 metadata-CAS races
+(`metadata version kept changing`), 7 failed lifecycle marks, and 18
+stale-session reconciliations in the same window. This is not fixed by the
+272600 profile baseline patch and is separate from the invalid Kubernetes path
+cluster above. The durable fix is a daemon-owned runtime epoch/lease with an
+atomic process-start/exit state transition; the Flutter client should render
+that authoritative state and wait on its transition instead of repeatedly
+probing/restoring.
+
+**Network/server health.** The 272500 message failure at 13:38 UTC is Cronet
+`ERR_NAME_NOT_RESOLVED`, followed by successful outbox ownership. Prometheus
+shows no HTTP 500 responses in 24 hours, POST `/v3/sessions/{id}/messages` p95
+at about 35 ms, websocket queue depth at 1, and queue-wait p95 at 18.5 ms. The
+remaining 501 responses are repeated `/v1/push/send-all` calls to an
+unimplemented endpoint, not server overload. No Flutter pipeline
+`outcome=error|dropped` logs were found.
+
+**Performance snapshot.** Build 272600 essential-ready startup is healthy
+(mean 0.17 s, p95 0.25 s, 68 samples). End-to-end successful send latency is
+not: mean 4.32 s and p95 reaches the 30 s histogram bucket while the server POST
+stays near 35 ms, pointing to client/runtime readiness and serialization.
+Frozen-frame rate is 0.0093% of frames, about 4x build 272400, with p95 0.74 s;
+the current sample is dominated by one 251+ session launch and needs another
+build window before calling it a fleet regression. One separate 272600 launch
+holds about 2.01 GB RSS with only 34 resident rows, ~0.005 MB decoded images,
+and 0.05 MB encryption cache. The new attribution gauges therefore rule out
+all three instrumented caches; add Dart heap/external allocation and retained
+tool-output byte attribution next.
+
+**Infrastructure/observability.** Prometheus is firing `KubeMemoryOvercommit`
+(6.70 GB) and three OpenBao availability/rollout alerts. They are not tied to
+the current client failures but reduce failure tolerance. Cross-service
+correlation is also incomplete: GlitchTip trace ids do not match a Loki stream,
+daemon lifecycle lines lack the Flutter trace/app-launch id, and production
+server/daemon streams are labeled `deployment_environment="dev"`.
 
 ### GlitchTip triage, 2026-08-27 (evening, build 271500)
 
@@ -1225,6 +1298,10 @@ The current test count is not enough if this contract can break without failing 
 | Session-create progress animation after dialog disposal | Error | Active burst on build 237001 | Fix on main, shipped automatically on the next `main` commit | Retained release symbols resolved the generic null-check stack to Flutter's `_CircularProgressIndicatorState`: its animation rebuilt after the Create dialog element was deactivated. The pending state is now a static hourglass icon, and the dismissal regression asserts no indeterminate ticker is mounted. |
 | Back button error rate | Error | 3/8 (37.5%) | Fixed on main (ec102e5, 2bca2c8, bd011fd), shipped automatically on the next `main` commit | `StandardComponentType.backButton` `ui.action.click` transaction (GlitchTip transaction-group id 29). Two root causes addressed: (1) `PopScope` races where `canPop` was evaluated at build time but the callback ran later — fixed in `sessions_screen.dart`, `chat_screen.dart`, `edit_artifact_screen.dart`, and `voice_language_settings_screen.dart` by reading current state at callback time and adding `_pendingNav` / `_isPopping` guards; (2) bare `context.pop()` on deep-linked screens with an empty stack — fixed with `safePop()` helper in `lib/core/utils/safe_pop.dart` that checks `context.mounted` + `context.canPop()` and falls back to a named route, with widget tests in `test/core/utils/safe_pop_test.dart`. Transaction group last received an error 2026-04-03, before both fixes landed; no new occurrences as of audit 2026-05-22. |
 | ANR (ErrorWidget recursion on UI isolate) | Fatal | 10+ | Fix on main, ships with next `main` commit | Issue 3659 (Background ANR, 19:41 UTC, **build 271500** = HEAD) plus 3529/3545 on 271100. Same 498–521 `libapp.so` cycle (`nativePollOnce`). 271100 events followed the todo_get TypeError (3eef2c38). 271500 is **after** that fix: chat → message-detail → home, then `Null check operator used on a null value [widgets library]`; ErrorBoundary replaced the tree *above* MaterialApp and `_ErrorWidgetFallback` called `Theme.of` — unbounded ErrorWidget recursion. Fallback is now theme-free, builder latches re-entry, takeover injects a minimal Material host (`test/core/widgets/error_boundary_test.dart`). The original home-pop null-check is still unsymbolicated; the ANR is the loop, not that throw. Close 3659/3529 only after a post-fix build (≥ this commit) with zero recurrences. |
+| Malformed UTF-16 tool output crash cascade | Fatal / Error | 3 events, one launch | Fixed in 272500 (42fbf23d); no recurrence on 272500/272600 | Issues 8647/8648/8615 on 272400 share one trace: an unpaired surrogate in CodexBash output failed during paint, followed by a layout null-check and `No ProviderScope found` in the recovery tree. Decrypted JSON is now recursively sanitized and ErrorBoundary is mounted under ProviderScope. |
+| Outbox `agent_starting` readiness poll storm | Error (reliability / battery) | 16,953 attempts and 18,648 schedules / 1h; same `localId` at retry 49 | Open on 272600; dead-letter fixed in 272500 | Issue 5387/8631 dead-lettered the same item after attempts 466–480 collapsed into about two seconds on 272400. The readiness deferral no longer consumes retry budget, but current builds still poll every 5 s indefinitely and count each readiness check as a delivery attempt. Wake from lifecycle/readiness state, coalesce per-session waiters, and keep `deferred` out of attempt/failure denominators. |
+| Kubernetes auto-restore rejects a valid local path | Error (user-visible send failure) | 4 issues in one 272600 launch | Open — backend/path contract | Issues 8658–8661: auto-restore selected Kubernetes for `/home/workspace/git/happy-cli-go`, outside `/workspace`, then surfaced `handler_offline` and a failed restore. Validate the pair before respawn and offer canonical checkout/local-backend repair. |
+| Session says running but daemon has no process | Warning (user-visible send failure) | 27 client events / 24h | Open on 272600; daemon-side root cause | Issues 8623/8626/8654 span multiple sessions. Same-window daemon logs show 4 metadata-version CAS races, 7 failed lifecycle marks, and 18 stale-session reconciliations. Introduce a daemon-owned runtime epoch/lease and atomic process transition, propagate it through server state, then have the client subscribe instead of probe/restore-looping. |
 | TypeError `'List<dynamic>' is not a subtype of 'String?'` at chat open | Error | 3 | Fix on main (3eef2c38); no recurrence on 271500 | Recurred 2026-08-27 15:46 on build 271100 (issues 8570/8571 + ANR 3529). Codex MCP `todo_get` results arrive as `{content:[{type:text,text}], status}` maps; `TaskGet` did `map['content'] as String?`. Flatten MCP content blocks in `_resultText`. Last seen 271100; 271300 was first ship of the fix; 271500 (HEAD at triage) has zero events. Close after one more clean build window. |
 | `RpcException(handler_error, codex debug models: signal: killed)` | Error | 2 (271100 + 271500) | Fix on main — demote to info | Issues 8603/8606: daemon `codex debug models` SIGKILLed (OOM). Catalog is optional chrome; client now logs info and keeps the failure TTL (`test/services/codex_model_catalog_cache_test.dart`). Daemon OOM still wants a host-side look. |
 | `ServerConfigStorage: Sync init failed` (MMKV not initialized) | Warning | 258 | Fixed on main, shipped automatically on the next `main` commit | Expected startup state, misreported as a defect: `main.dart` deliberately resolves a provisional server URL while storage is still warming, so `MMKV('server-config')` throws "forget initialize MMKV first?" and the old code logged a warning (forwarded to Sentry) on every pre-warmup read. `_syncInit` now logs one info line per process and retries silently until the engine is up; callers already fell back to the default URL and re-resolved after warmup. |
@@ -1252,10 +1329,13 @@ The current test count is not enough if this contract can break without failing 
 
 | Metric | Value | Target | Notes |
 |--------|-------|--------|-------|
-| App cold start (`root /`) | avg 4.6s, p95 9.3s (Sentry); OTel quantiles uncomputable until 2026-07-31 | < 3s avg | `app.cold_start.first_frame` shipped a constant 0s because the top-level `_coldStartStopwatch` was lazily constructed *by* the post-frame callback that read it; `essential_ready` (2.4s) therefore measured from first frame, not process start. Anchored in `main()` (b5858b2f). The 2026-07-31 audit then found each launch overwriting the previous metric stream, so 24h quantiles still could not be computed; per-launch stream identity fixed that. Re-baseline from Prometheus once a few launches have reported on a build after 2026-07-31. |
+| App cold start (`essential_ready`) | Build 272600 mean 0.17s, p95 0.25s (68 samples); 30d fleet mean 0.90s, p95 2.34s | < 3s avg | Target met. The previous 4.6s Sentry baseline is obsolete. OTel uses delta temporality on per-launch streams, so aggregate one-shot histogram samples with `sum_over_time`, not `rate`/`increase`. |
+| Successful send end-to-end | Build 272600 mean 4.32s, p95 reaches 30s bucket (841 observations) | < 1s p95 when runtime is ready | Server POST `/v3/sessions/{id}/messages` p95 is about 35ms with no 500s. The delay is before/around the POST: readiness waits, restore/respawn, FIFO serialization, and outbox handoff. Split the histogram by `ready`, `restored`, `queued`, and `backgrounded` phases. |
+| App RSS | Build 272600 p95 2.02GB in the 101–250 session bucket; one launch averages 2.01GB in chat with 34 resident rows | < 768MB p95 | Image cache (~0.005MB), encryption cache (~0.05MB), and resident-row count rule out the three instrumented suspects on the outlier. Add Dart heap, external/native allocation, retained tool-output bytes, workflow projection bytes, and route-transition snapshots. |
 | fetchMessages p95 | avg 33–50ms (Prometheus, 2026-07-28) | < 5s | Was "up to 54s"; `app_fetch_messages_seconds` now shows 0.033s visible / 0.050s background. Target met — the 54s figure predates the pagination work. |
 | Deferred init | avg 2.5s | < 1s | `app.deferred_init` histogram (the Sentry `app.deferredInit` transaction agrees). Still the largest startup cost — audit what's loaded eagerly. |
 | Sessions frozen-frame p95 | 388 ms on `home` / 7d (69 frozen frames); build 245500 Mission Control max 175 ms | < 100 ms, no growth by session bucket/view | `session_count_bucket` proved the build-245500 recurrence was at 200 sessions; `sessions.mission_control.model` disproved grouping as the remaining bottleneck. Frame metrics now also label `sessions_view`, and `app.ui.frozen_frame_build` / `app.ui.frozen_frame_raster` split future freezes into UI-build versus GPU-raster cost. Re-baseline after lazy workspaces and bounded activity animation reach production. |
+| Current frozen-frame rate | Build 272600 0.0093% of frames, p95 0.74s; about 4x 272400 and 3x 272500 | < 0.001%, p95 < 100ms | Early 272600 data is dominated by one 251+ session launch. Chat contributes most events; `message-detail` and home contain the longest frames. Re-check after a full build window and correlate `frozen_frame_build`/`raster` with RSS and tool-output size. |
 | Foreground battery draw | 838 mAh over 3 h 40 m foreground (228 mA avg) on one Android device, 2026-08-15; background 14 mAh over 15 h 36 m (0.90 mA) | no rendering while the UI is at rest | Background draw is already negligible; the cost is foreground. Over the same 24 h the fleet rendered 814,125 frames (769,790 on `chat`, 44,331 on `home`) — ~62 fps averaged across the entire foreground window, i.e. the UI never idles. **Driver identified**: `buildChatStatusChips` hardcoded `pulse: true` on the ready/"Online" app-bar chip, so a 1.5 s repeating `AnimationController` ticked at 60 fps for as long as any chat stayed open — the resting state, i.e. ~all foreground time. Fixed by `pulse: false` for the steady online state, matching `SessionStatus.isPulsing` (pulse only for transient thinking/permission-required) and the sidebar/voice-bar `ConnectionStatus.connecting` convention. `app.ui.window_frames` / `app.ui.render_windows` (shipped in 258200) split every 30 s window by `activity` (`idle` = zero pointer events and zero Sync change) and `window_fps_bucket` to confirm the fix and catch any remaining idle renderer. Re-baseline frame count once 2582xx reaches the fleet. |
 
 ### Engineering Rule
