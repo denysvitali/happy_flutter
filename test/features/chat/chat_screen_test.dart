@@ -112,6 +112,9 @@ void main() {
     sync.testClearSessionMessageState('session_1');
     sync.testSessions.remove('session_1');
     sync.isInitialized = false;
+    sync.testEncryptionInitialized = false;
+    sync.testMachineRPCOverride = null;
+    sync.testClearCodexModelsCache();
     ChatScreen.testInitialSettingsApplyBarrier = null;
     await TtsService().dispose();
   });
@@ -151,6 +154,49 @@ void main() {
       await tester.pump();
 
       expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('loads Codex models before the first message is sent', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.testEncryptionInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession(flavor: 'codex').copyWith(
+        metadata: const Metadata(
+          host: 'host',
+          flavor: 'codex',
+          machineId: 'machine-1',
+          path: '/repo',
+        ),
+      );
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(method, 'get-codex-models');
+        return <String, dynamic>{
+          'success': true,
+          'models': [
+            <String, dynamic>{
+              'slug': 'gpt-5.6',
+              'displayName': 'GPT-5.6',
+              'supportedReasoningEfforts': ['medium'],
+            },
+          ],
+        };
+      };
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final modelChip = tester.widget<ModelChip>(find.byType(ModelChip));
+      expect(modelChip.enabled, isTrue);
+      await tester.tap(find.byType(ModelChip));
+      await tester.pumpAndSettle();
+
+      expect(find.text('GPT-5.6'), findsOneWidget);
     });
 
     testWidgets('has app bar with menu and info actions', (tester) async {

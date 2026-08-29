@@ -246,6 +246,12 @@ extension _ChatScreenActions on _ChatScreenState {
           stack,
         );
       }
+      // The session is seeded synchronously in initState, so the first
+      // refresh can see the same session object and skip the sessionChanged
+      // branch that normally loads the Codex catalog. Start the catalog
+      // request during the initial in-session load so the model picker is
+      // enabled before the first message is sent.
+      unawaited(_refreshCodexModelModes(_session));
       final restoredCount = sync.messagesForSession(sessionId).length;
       if (initialMessageCount == 0 && restoredCount > 0) {
         _initialContentSource = 'cache';

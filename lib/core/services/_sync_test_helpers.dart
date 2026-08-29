@@ -119,6 +119,11 @@ extension SyncTestHelpers on Sync {
     if (!value) _criticalSyncManagersInitialized = false;
   }
 
+  /// Test-only control for the app-level encryption readiness gate used by
+  /// optional machine RPCs such as the Codex model catalog.
+  @visibleForTesting
+  set testEncryptionInitialized(bool value) => _encryptionInitialized = value;
+
   @visibleForTesting
   set testCriticalSyncManagersInitialized(bool value) =>
       _criticalSyncManagersInitialized = value;
