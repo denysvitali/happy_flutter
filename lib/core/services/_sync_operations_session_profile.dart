@@ -220,15 +220,23 @@ extension SyncSpawnProfileResolution on Sync {
     }
     if (agent != 'claude' && _isClaudeModelAlias(modelMode)) {
       _logDroppedModelMode(
-          modelMode, agent, profile, 'Claude alias on a non-Claude session');
+        modelMode,
+        agent,
+        profile,
+        'Claude alias on a non-Claude session',
+      );
       return 'default';
     }
     if (agent == 'codex' &&
         !_isCustomCodexProfile(profile) &&
         !_isKnownCodexModelMode(modelMode)) {
-      _logDroppedModelMode(modelMode, agent, profile,
-          'not a known Codex model and the profile is not a custom '
-          'Codex provider');
+      _logDroppedModelMode(
+        modelMode,
+        agent,
+        profile,
+        'not a known Codex model and the profile is not a custom '
+        'Codex provider',
+      );
       return 'default';
     }
     // The reverse direction: non-Claude model names from a previous
@@ -246,15 +254,21 @@ extension SyncSpawnProfileResolution on Sync {
     if (agent == 'claude' &&
         _isNonClaudeModelMode(modelMode) &&
         !configuredClaudeGatewayModel) {
-      _logDroppedModelMode(modelMode, agent, profile,
-          agent == 'claude' && profile != null && _isThirdPartyAnthropicBaseUrl(
-            _anthropicBaseUrlForProfile(profile),
-          )
-              ? 'the selected third-party gateway profile does not list it '
+      _logDroppedModelMode(
+        modelMode,
+        agent,
+        profile,
+        agent == 'claude' &&
+                profile != null &&
+                _isThirdPartyAnthropicBaseUrl(
+                  _anthropicBaseUrlForProfile(profile),
+                )
+            ? 'the selected third-party gateway profile does not list it '
                   '(profile.models is stale or the pick came from another '
                   'profile); the profile default model will spawn instead'
-              : 'non-Claude model on a Claude session without an owning '
-                  'third-party gateway profile');
+            : 'non-Claude model on a Claude session without an owning '
+                  'third-party gateway profile',
+      );
       return 'default';
     }
     return modelMode;
@@ -693,7 +707,8 @@ extension SyncSpawnProfileResolution on Sync {
     // changing the picker updates only persisted intent and never reaches the
     // already-running Claude/Codex process.
     final spawnedModel =
-        trackedSpawnedModel ?? _nonDefaultModelMode(session.modelMode);
+        trackedSpawnedModel ??
+        _nonDefaultModelMode(session.modelMode ?? session.metadata?.model);
     // Any model change must respawn — including switch TO `default`.
     // Old guard only fired for non-default → non-default, so Qwen →
     // Default (OpenAI) kept the old process (and its sticky model /

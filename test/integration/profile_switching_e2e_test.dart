@@ -1868,6 +1868,54 @@ void main() {
       expect(envVars['CODEX_MODEL_REASONING_EFFORT'], 'high');
     });
 
+    test('untracked Codex session does not respawn when encrypted metadata '
+        'already carries the selected model', () async {
+      const sessionId = 'untracked-codex-same-encrypted-model';
+      var spawnCalled = false;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: null,
+      );
+      sync.testSessionSpawnedProfile.remove(sessionId);
+      final existing = sync.testSessions[sessionId]!;
+      sync.testSessions[sessionId] = existing.copyWith(
+        metadata: existing.metadata?.copyWith(
+          flavor: 'codex',
+          model: 'gpt-daybreak-blue-latest:medium',
+        ),
+        // Production list responses can omit the cleartext mirror. The
+        // encrypted metadata remains the durable process baseline.
+        modelMode: null,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') spawnCalled = true;
+        return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
+      };
+
+      try {
+        await sync.sendMessage(
+          sessionId,
+          'follow up',
+          modelMode: 'gpt-daybreak-blue-latest:medium',
+          profileId: 'default',
+        );
+      } catch (_) {
+        // REST POST is not mocked; the no-respawn contract is the assertion.
+      }
+
+      expect(
+        spawnCalled,
+        isFalse,
+        reason:
+            'An unchanged model from encrypted metadata must not replace '
+            'a healthy Codex runtime after the app restarts.',
+      );
+    });
+
     test('switching from qwen model to Default respawns '
         'with model=default', () async {
       const sessionId = 'switch-qwen-to-default-model';
