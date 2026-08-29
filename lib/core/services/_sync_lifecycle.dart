@@ -319,6 +319,7 @@ extension SyncLifecycle on Sync {
 
     // Resume lightweight services immediately.
     messageOutbox.resume();
+    _wakeReadyOutboxSessions();
     NetworkMonitorService().resume();
 
     if (socketNeedsReconnect) {

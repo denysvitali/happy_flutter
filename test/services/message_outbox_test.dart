@@ -152,14 +152,47 @@ void main() {
       outbox.dispose();
     });
 
+    _fakeAsyncTest(
+      'readiness deferral waits for an explicit readiness wakeup',
+      (async) async {
+        var attempts = 0;
+        final deliveredIds = <String>[];
+        outbox.configure(
+          deliver: (entry) async {
+            attempts++;
+            deliveredIds.add(entry.localId);
+            if (attempts == 1) {
+              return const OutboxDeliveryFailure.readiness('agent_starting');
+            }
+            return null;
+          },
+        );
+        outbox.testInsertPending(_makeEntry(retryCount: 479));
+
+        await outbox.testAttemptNow('local-1');
+
+        expect(outbox.entries.single.retryCount, 479);
+        expect(outbox.entries.single.failureReason, 'agent_starting');
+        expect(outbox.deadEntries, isEmpty);
+
+        // Readiness deferral must not create a timer-driven retry storm.
+        async.elapse(const Duration(seconds: 30));
+        expect(attempts, 1);
+
+        outbox.notifySessionReady('session-a');
+        outbox.notifySessionReady('session-a');
+        async.elapse(Duration.zero);
+
+        expect(attempts, 2);
+        expect(deliveredIds, ['local-1', 'local-1']);
+        expect(outbox.entries, isEmpty);
+      },
+    );
+
     test('readiness deferral does not consume the retry budget', () async {
       outbox.configure(
-        deliver: (entry) async => const OutboxDeliveryFailure(
-          OutboxFailureClass.transient,
-          'agent_starting',
-          false,
-          Duration(seconds: 5),
-        ),
+        deliver: (entry) async =>
+            const OutboxDeliveryFailure.readiness('agent_starting'),
       );
       outbox.testInsertPending(_makeEntry(retryCount: 479));
 

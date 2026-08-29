@@ -170,6 +170,7 @@ extension SyncSocketEvents on Sync {
           _lastEphemeralAt[entry.key] = DateTime.now().millisecondsSinceEpoch;
         }
       }
+      _wakeReadyOutboxSessions();
       // Re-fetch messages for non-visible sessions where the server may have
       // advanced past our local cursor.  Sessions where serverLastSeq
       // equals cursorSeq are caught up (no gap); sessions where both are

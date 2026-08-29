@@ -1329,6 +1329,23 @@ extension SyncMessagingRpc on Sync {
     return _isSessionReady(session);
   }
 
+  /// Release outbox entries that were waiting for a session to become
+  /// reachable. The outbox exposes only sessions with deferred entries, so
+  /// this remains cheap even when the account has a large session catalog.
+  void _wakeReadyOutboxSessions() {
+    for (final sessionId in messageOutbox.readinessDeferredSessionIds) {
+      final session = _sessions[sessionId];
+      final lifecycle = session?.effectiveLifecycleState?.toLowerCase();
+      // Match _deliverOutboxEntry's readiness gate. Presence can become
+      // online before the encrypted lifecycle patch says running; waking in
+      // that window would simply defer again on every session update.
+      if (lifecycle == 'starting' || lifecycle == 'connecting') continue;
+      if (isSessionReadyForMessages(sessionId)) {
+        messageOutbox.notifySessionReady(sessionId);
+      }
+    }
+  }
+
   /// Wait for agent to be ready.
   ///
   /// Returns `true` when the session's presence becomes `'online'`

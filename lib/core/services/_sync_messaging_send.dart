@@ -1526,12 +1526,7 @@ extension SyncMessagingSend on Sync {
         'session=${entry.sessionId} localId=${entry.localId} '
         'lifecycle=$lifecycle',
       );
-      return const OutboxDeliveryFailure(
-        OutboxFailureClass.transient,
-        'agent_starting',
-        false,
-        Duration(seconds: 5),
-      );
+      return const OutboxDeliveryFailure.readiness('agent_starting');
     }
 
     final apiClient = ApiClient();

@@ -34,7 +34,12 @@ class OutboxDeliveryFailure {
     this.reason,
     this.consumesRetryBudget = true,
     this.retryAfter,
+    this.wakeOnSessionReady = false,
   ]);
+
+  /// A readiness deferral that waits for [MessageOutbox.notifySessionReady].
+  const OutboxDeliveryFailure.readiness([String? reason])
+    : this(OutboxFailureClass.transient, reason, false, null, true);
 
   final OutboxFailureClass failureClass;
 
@@ -52,6 +57,10 @@ class OutboxDeliveryFailure {
   /// Optional delay for state-based deferrals. Ordinary transport failures
   /// continue to use exponential backoff.
   final Duration? retryAfter;
+
+  /// Whether this deferral should wait for an explicit session-readiness
+  /// notification instead of polling with a retry timer.
+  final bool wakeOnSessionReady;
 
   static const transient = OutboxDeliveryFailure(OutboxFailureClass.transient);
   static const permanent = OutboxDeliveryFailure(OutboxFailureClass.permanent);
@@ -258,6 +267,7 @@ class MessageOutbox {
   final Map<String, OutboxEntry> _dead = {};
   final Map<String, Timer> _retryTimers = {};
   final Map<String, Future<void>> _sessionDeliveryTails = {};
+  final Map<String, Set<String>> _readinessDeferredEntries = {};
   Timer? _persistTimer;
   bool _initialized = false;
   int _generation = 0;
@@ -392,6 +402,7 @@ class MessageOutbox {
   Future<void> add(OutboxEntry entry) async {
     final previousPending = _entries[entry.localId];
     final previousDead = _dead.remove(entry.localId);
+    _clearReadinessDeferral(entry.localId, sessionId: entry.sessionId);
     _entries[entry.localId] = entry.copyWith(dead: false);
     // A successful return is the durability boundary. In particular, callers
     // may background or be killed immediately after this future completes;
@@ -421,6 +432,7 @@ class MessageOutbox {
     final removed =
         _entries.remove(localId) != null || _dead.remove(localId) != null;
     if (removed) {
+      _clearReadinessDeferral(localId);
       _retryTimers.remove(localId)?.cancel();
       _persistTimer?.cancel();
       _persistTimer = null;
@@ -464,6 +476,30 @@ class MessageOutbox {
   /// production continues to use the real exponential-backoff scheduler.
   @visibleForTesting
   Future<void> testAttemptNow(String localId) => _attempt(localId);
+
+  /// Wake entries that were deferred until their session became ready.
+  ///
+  /// Session updates can arrive in bursts, so the deferred set is removed
+  /// before any retry timers are created. Repeated readiness notifications
+  /// therefore coalesce to one immediate attempt per pending [localId].
+  void notifySessionReady(String sessionId) {
+    final localIds = _readinessDeferredEntries.remove(sessionId);
+    if (localIds == null || localIds.isEmpty) return;
+
+    for (final localId in localIds) {
+      final entry = _entries[localId];
+      if (entry == null) continue;
+      _scheduleRetry(entry, initialDelay: Duration.zero);
+    }
+    logger.info(
+      '[MessageOutbox] waking ${localIds.length} readiness-deferred '
+      'entry${localIds.length == 1 ? '' : 'ies'} for session=$sessionId',
+    );
+  }
+
+  /// Sessions currently waiting for an explicit readiness notification.
+  Iterable<String> get readinessDeferredSessionIds =>
+      List.unmodifiable(_readinessDeferredEntries.keys);
 
   /// Test-only: place [entry] in the pending bucket WITHOUT scheduling a
   /// retry timer or a persist. Lets widget tests reproduce "the outbox
@@ -577,6 +613,7 @@ class MessageOutbox {
     if (!_initialized) return;
     // Re-schedule retries for all pending entries
     for (final entry in _entries.values) {
+      if (_isReadinessDeferred(entry.localId, entry.sessionId)) continue;
       _scheduleRetry(entry, initialDelay: const Duration(seconds: 1));
     }
     unawaited(reviveTransientDead(reason: 'app resumed'));
@@ -592,6 +629,7 @@ class MessageOutbox {
     }
     _retryTimers.clear();
     _sessionDeliveryTails.clear();
+    _readinessDeferredEntries.clear();
     _entries.clear();
     _dead.clear();
     _initialized = false;
@@ -653,7 +691,6 @@ class MessageOutbox {
       'localId=$localId '
       'retryCount=${entry.retryCount}',
     );
-    powerDiagnostics.recordOutboxAttempt(localId);
 
     OutboxDeliveryFailure? failure;
     try {
@@ -675,8 +712,16 @@ class MessageOutbox {
 
     if (generation != _generation || _entries[localId] == null) return;
 
+    // Readiness deferrals happen before a delivery attempt and must stay out
+    // of attempt/failure denominators. Transport and server failures are
+    // counted after the callback classifies the result.
+    if (failure == null || failure.consumesRetryBudget) {
+      powerDiagnostics.recordOutboxAttempt(localId);
+    }
+
     if (failure == null) {
       logger.info('[MessageOutbox] delivered localId=$localId');
+      _clearReadinessDeferral(localId, sessionId: entry.sessionId);
       _entries.remove(localId);
       _persistTimer?.cancel();
       _persistTimer = null;
@@ -699,6 +744,12 @@ class MessageOutbox {
         'reason=${failure.reason ?? 'unknown'}',
       );
       _onStatusChanged?.call(entry.sessionId, localId, 'pending');
+      if (failure.wakeOnSessionReady) {
+        _readinessDeferredEntries
+            .putIfAbsent(entry.sessionId, () => <String>{})
+            .add(localId);
+        return;
+      }
       _scheduleRetry(
         deferred,
         initialDelay: failure.retryAfter ?? const Duration(seconds: 5),
@@ -707,6 +758,7 @@ class MessageOutbox {
     }
 
     // Delivery failed — increment retry count and remember the class.
+    _clearReadinessDeferral(localId, sessionId: entry.sessionId);
     final updated = entry.copyWith(
       retryCount: entry.retryCount + 1,
       failureClass: failure.failureClass,
@@ -770,6 +822,21 @@ class MessageOutbox {
         '[MessageOutbox] dead-letter bucket full, dropping '
         'localId=${stale.localId}',
       );
+    }
+  }
+
+  bool _isReadinessDeferred(String localId, String sessionId) {
+    return _readinessDeferredEntries[sessionId]?.contains(localId) ?? false;
+  }
+
+  void _clearReadinessDeferral(String localId, {String? sessionId}) {
+    final resolvedSessionId = sessionId ?? _entries[localId]?.sessionId;
+    if (resolvedSessionId == null) return;
+    final localIds = _readinessDeferredEntries[resolvedSessionId];
+    if (localIds == null) return;
+    localIds.remove(localId);
+    if (localIds.isEmpty) {
+      _readinessDeferredEntries.remove(resolvedSessionId);
     }
   }
 

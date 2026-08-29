@@ -357,6 +357,9 @@ extension SyncSocket on Sync {
     // wiring to leak: a quiet app runs no sweeps and accumulates nothing.
     _maybeShrinkIdleSessionWindows();
     final effectiveDomains = domains ?? SyncDomain.values.toSet();
+    if (effectiveDomains.contains(SyncDomain.sessions)) {
+      _wakeReadyOutboxSessions();
+    }
     for (final domain in effectiveDomains) {
       _domainChangeCounters[domain] = (_domainChangeCounters[domain] ?? 0) + 1;
       final existingTimer = _domainChangeDebounceTimers[domain];
@@ -417,6 +420,9 @@ extension SyncSocket on Sync {
   void _flushDataChanged([Set<SyncDomain>? domains]) {
     _dataChangeCounter++;
     final effectiveDomains = domains ?? SyncDomain.values.toSet();
+    if (effectiveDomains.contains(SyncDomain.sessions)) {
+      _wakeReadyOutboxSessions();
+    }
     for (final domain in effectiveDomains) {
       _domainChangeDebounceTimers[domain]?.cancel();
       _domainChangeCounters[domain] = (_domainChangeCounters[domain] ?? 0) + 1;
