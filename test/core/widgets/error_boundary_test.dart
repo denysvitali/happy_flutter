@@ -5,6 +5,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/widgets/error_boundary.dart';
 
 void main() {
+  testWidgets('fallback remains inside the root ProviderScope', (tester) async {
+    final originalOnError = FlutterError.onError;
+    FlutterError.onError = (_) {};
+    addTearDown(() => FlutterError.onError = originalOnError);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: ErrorBoundary(
+          errorBuilder: (error, stack) => Consumer(
+            builder: (context, ref, child) => const Text('scoped fallback'),
+          ),
+          child: const SizedBox.shrink(),
+        ),
+      ),
+    );
+    FlutterError.onError?.call(
+      FlutterErrorDetails(exception: StateError('boom')),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('scoped fallback'), findsOneWidget);
+  });
+
   testWidgets('custom errorBuilder receives an empty stack when absent', (
     tester,
   ) async {
@@ -119,9 +143,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        ProviderScope(
-          child: ErrorBoundary(child: const SizedBox.shrink()),
-        ),
+        ProviderScope(child: ErrorBoundary(child: const SizedBox.shrink())),
       );
 
       FlutterError.onError?.call(
@@ -136,38 +158,35 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
-    testWidgets(
-      'ErrorWidget.builder without Theme ancestor does not recurse',
-      (tester) async {
-        final originalOnError = FlutterError.onError;
-        final originalBuilder = ErrorWidget.builder;
-        addTearDown(() {
-          FlutterError.onError = originalOnError;
-          ErrorWidget.builder = originalBuilder;
-        });
+    testWidgets('ErrorWidget.builder without Theme ancestor does not recurse', (
+      tester,
+    ) async {
+      final originalOnError = FlutterError.onError;
+      final originalBuilder = ErrorWidget.builder;
+      addTearDown(() {
+        FlutterError.onError = originalOnError;
+        ErrorWidget.builder = originalBuilder;
+      });
 
-        await tester.pumpWidget(
-          ProviderScope(
-            child: ErrorBoundary(
-              child: Builder(
-                builder: (context) {
-                  return ErrorWidget.builder(
-                    FlutterErrorDetails(
-                      exception: StateError('no theme'),
-                    ),
-                  );
-                },
-              ),
+      await tester.pumpWidget(
+        ProviderScope(
+          child: ErrorBoundary(
+            child: Builder(
+              builder: (context) {
+                return ErrorWidget.builder(
+                  FlutterErrorDetails(exception: StateError('no theme')),
+                );
+              },
             ),
           ),
-        );
-        await tester.pump();
+        ),
+      );
+      await tester.pump();
 
-        expect(tester.takeException(), isNull);
-        expect(find.textContaining('no theme'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('no theme'), findsOneWidget);
 
-        await tester.pumpWidget(const SizedBox.shrink());
-      },
-    );
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
   });
 }

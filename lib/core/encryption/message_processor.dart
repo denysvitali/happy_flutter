@@ -9,6 +9,7 @@ import 'dart:convert' show jsonDecode;
 
 import '../utils/grok_acp_normalize.dart';
 import '../utils/task_label.dart';
+import '../utils/utf16_sanitizer.dart';
 import '../wire/wire_parsers.dart';
 import 'json_text.dart';
 import 'processors/data_type.dart';
@@ -266,6 +267,7 @@ ProcessedMessages processDecryptedMessages({
 
     var decrypted = i < decryptedJsonList.length ? decryptedJsonList[i] : null;
     if (decrypted is JsonText) decrypted = materializeJsonText(decrypted);
+    decrypted = sanitizeJsonUtf16(decrypted);
 
     if (decrypted == null) {
       if (seq > maxSeq) maxSeq = seq;

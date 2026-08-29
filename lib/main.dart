@@ -278,8 +278,8 @@ Future<void> _runApp() async {
   // on every cold start.
 
   runApp(
-    ErrorBoundary(
-      child: ProviderScope(
+    ProviderScope(
+      child: ErrorBoundary(
         child: SentryWidget(
           child: HappyApp(
             initialDeepLinkFuture: deepLinkFuture,

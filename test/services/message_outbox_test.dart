@@ -152,6 +152,24 @@ void main() {
       outbox.dispose();
     });
 
+    test('readiness deferral does not consume the retry budget', () async {
+      outbox.configure(
+        deliver: (entry) async => const OutboxDeliveryFailure(
+          OutboxFailureClass.transient,
+          'agent_starting',
+          false,
+          Duration(seconds: 5),
+        ),
+      );
+      outbox.testInsertPending(_makeEntry(retryCount: 479));
+
+      await outbox.testAttemptNow('local-1');
+
+      expect(outbox.entries.single.retryCount, 479);
+      expect(outbox.entries.single.failureReason, 'agent_starting');
+      expect(outbox.deadEntries, isEmpty);
+    });
+
     // ── Basic add / remove ──────────────────────────────────────────────────
 
     _fakeAsyncTest('add queues an entry and persists it', (async) async {

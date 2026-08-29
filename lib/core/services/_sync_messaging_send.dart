@@ -1529,6 +1529,8 @@ extension SyncMessagingSend on Sync {
       return const OutboxDeliveryFailure(
         OutboxFailureClass.transient,
         'agent_starting',
+        false,
+        Duration(seconds: 5),
       );
     }
 

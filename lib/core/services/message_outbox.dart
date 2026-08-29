@@ -29,7 +29,12 @@ enum OutboxFailureClass {
 ///
 /// `null` means the message was delivered.
 class OutboxDeliveryFailure {
-  const OutboxDeliveryFailure(this.failureClass, [this.reason]);
+  const OutboxDeliveryFailure(
+    this.failureClass, [
+    this.reason,
+    this.consumesRetryBudget = true,
+    this.retryAfter,
+  ]);
 
   final OutboxFailureClass failureClass;
 
@@ -38,6 +43,15 @@ class OutboxDeliveryFailure {
   /// `unknown`. Never a raw exception string or a per-message id (both
   /// would explode metric cardinality).
   final String? reason;
+
+  /// Whether this result represents a delivery attempt. Readiness deferrals
+  /// happen before any request is made and must not exhaust the transient
+  /// retry budget while an agent is still starting.
+  final bool consumesRetryBudget;
+
+  /// Optional delay for state-based deferrals. Ordinary transport failures
+  /// continue to use exponential backoff.
+  final Duration? retryAfter;
 
   static const transient = OutboxDeliveryFailure(OutboxFailureClass.transient);
   static const permanent = OutboxDeliveryFailure(OutboxFailureClass.permanent);
@@ -670,6 +684,25 @@ class MessageOutbox {
         _schedulePersist();
       }
       _onStatusChanged?.call(entry.sessionId, localId, 'sent');
+      return;
+    }
+
+    if (!failure.consumesRetryBudget) {
+      final deferred = entry.copyWith(
+        failureClass: failure.failureClass,
+        failureReason: failure.reason,
+      );
+      _entries[localId] = deferred;
+      _schedulePersist();
+      logger.info(
+        '[MessageOutbox] delivery deferred for localId=$localId '
+        'reason=${failure.reason ?? 'unknown'}',
+      );
+      _onStatusChanged?.call(entry.sessionId, localId, 'pending');
+      _scheduleRetry(
+        deferred,
+        initialDelay: failure.retryAfter ?? const Duration(seconds: 5),
+      );
       return;
     }
 
