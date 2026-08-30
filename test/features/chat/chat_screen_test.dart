@@ -699,6 +699,8 @@ void main() {
     testWidgets('shows restart-on-send feedback when session is restorable', (
       tester,
     ) async {
+      LoggerService().clear();
+      addTearDown(LoggerService().clear);
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', const []);
@@ -725,6 +727,27 @@ void main() {
       expect(
         find.textContaining('Sending a message will try to restart'),
         findsOneWidget,
+      );
+
+      final lifecycleWarnings = LoggerService()
+          .getLogsByLevel(LogLevel.warning)
+          .where(
+            (entry) =>
+                entry.message == '[ChatScreen] session lifecycle failure',
+          )
+          .toList();
+      expect(lifecycleWarnings, isEmpty);
+      final lifecycleInfo = LoggerService()
+          .getLogsByLevel(LogLevel.info)
+          .where(
+            (entry) =>
+                entry.message == '[ChatScreen] session lifecycle failure',
+          )
+          .toList();
+      expect(lifecycleInfo, hasLength(1));
+      expect(
+        lifecycleInfo.single.error,
+        'daemon started without a live local process for this running session',
       );
     });
 
