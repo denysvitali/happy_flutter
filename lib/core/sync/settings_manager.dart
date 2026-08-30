@@ -197,7 +197,10 @@ class SettingsManager {
             logger.warning('Failed to fetch settings: ${response.statusCode}');
           }
         } on TimeoutException {
-          logger.warning(
+          // This is a successful stale-data fallback, not data loss. Keep it
+          // out of warning/Sentry issue reporting; connectivity telemetry
+          // already captures the surrounding outage.
+          logger.info(
             'Settings fetch timed out after 10s; using cached settings',
           );
         }
@@ -261,9 +264,9 @@ class SettingsManager {
         logger.warning('Failed to fetch profile: ${response.statusCode}');
       }
     } on TimeoutException {
-      logger.warning(
-        'Profile fetch timed out after 10s; using cached profile',
-      );
+      // Cached profile data remains usable, so this is expected degraded
+      // operation rather than an actionable warning/Sentry issue.
+      logger.info('Profile fetch timed out after 10s; using cached profile');
     } on DioException {
       rethrow;
     } catch (error, stack) {

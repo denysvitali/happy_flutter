@@ -213,6 +213,40 @@ void main() {
   });
 
   group('RetryInterceptor transport failures', () {
+    test('retries Cronet HTTP/2 ping failures surfaced as unknown', () async {
+      var calls = 0;
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: 'https://test.example.com',
+          validateStatus: (_) => true,
+        ),
+      );
+      dio.interceptors.add(
+        RetryInterceptor(
+          dioGetter: () => dio,
+          maxRetries: 2,
+          baseDelayMs: 1,
+          maxDelayMs: 2,
+        ),
+      );
+      dio.httpClientAdapter = _ThrowingAdapter(() {
+        calls++;
+        if (calls == 1) {
+          throw DioException(
+            requestOptions: RequestOptions(path: '/v1/machines'),
+            type: DioExceptionType.unknown,
+            error: 'Cronet exception: net::ERR_HTTP2_PING_FAILED, '
+                'Retryable=true',
+          );
+        }
+      });
+
+      final response = await dio.get<dynamic>('/v1/machines');
+
+      expect(calls, 2);
+      expect(response.statusCode, 200);
+    });
+
     test('retries connection errors surfaced through onError', () async {
       var calls = 0;
       final dio = Dio(

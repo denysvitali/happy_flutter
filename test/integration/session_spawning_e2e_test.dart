@@ -15,6 +15,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -62,6 +63,7 @@ void main() {
       sync.testGetSpawnEnvVarsOverride = null;
       sync.testEnsureMachineReachableOverride = null;
       InvalidateSync.isBackgrounded = false;
+      LoggerService().clear();
     });
 
     test('successful spawn registers session in _sessionSpawnedAt', () async {
@@ -584,6 +586,45 @@ void main() {
 
       expect(result, 'probe-ok');
       expect(probed, isTrue);
+    });
+
+    test('createSession reports a stable Kubernetes RPC failure', () async {
+      LoggerService().clear();
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        throw StateError(
+          'Kubernetes session creation failed: GHProxyURL is required',
+        );
+      };
+
+      await expectLater(
+        sync.createSession(
+          agent: 'claude',
+          machineId: 'machine-1',
+          path: '/workspace/repo',
+          spawnBackend: 'kubernetes',
+          repoUrl: 'https://example.com/repo.git',
+          repoRef: 'main',
+        ),
+        throwsStateError,
+      );
+
+      final createDiagnostics = LoggerService()
+          .getLogsByLevel(LogLevel.info)
+          .where((entry) => entry.message == '[createSession] spawn RPC failed')
+          .toList();
+      expect(createDiagnostics, hasLength(1));
+      expect(
+        createDiagnostics.single.message,
+        '[createSession] spawn RPC failed',
+      );
+      expect(createDiagnostics.single.message, isNot(contains('GHProxyURL')));
+      expect(createDiagnostics.single.error, isA<StateError>());
+      expect(
+        LoggerService()
+            .getLogsByLevel(LogLevel.warning)
+            .where((entry) => entry.message.contains('[createSession]')),
+        isEmpty,
+      );
     });
 
     test('createSession throws when RPC returns empty session ID', () {

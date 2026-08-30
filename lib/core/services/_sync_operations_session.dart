@@ -318,12 +318,27 @@ extension SyncSessionOperations on Sync {
         'elapsedMs=${rpcStopwatch.elapsedMilliseconds}',
       );
     } catch (error, stack) {
-      logger.warning(
-        '[createSession] RPC FAILED '
-        'elapsedMs=${rpcStopwatch.elapsedMilliseconds}: $error',
-        error,
-        stack,
+      final elapsedMs = rpcStopwatch.elapsedMilliseconds;
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'createSession spawn RPC failed',
+            category: 'session.create',
+            level: SentryLevel.warning,
+            data: {
+              'machineId': machineId,
+              'sessionId': requestedSessionId,
+              'spawnBackend': spawnBackend ?? 'default',
+              'elapsedMs': elapsedMs,
+              'error': error.toString(),
+            },
+          ),
+        ),
       );
+      // The dialog boundary emits the one GlitchTip warning after it has
+      // converted the failure to user-visible state. Keep the detailed RPC
+      // line local; the breadcrumb above carries this context into that event.
+      logger.info('[createSession] spawn RPC failed', error, stack);
       rethrow;
     }
 

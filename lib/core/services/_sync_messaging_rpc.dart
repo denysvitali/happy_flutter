@@ -539,8 +539,10 @@ extension SyncMessagingRpc on Sync {
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';
     final isArchived = lifecycleState == 'archived';
+    final hasLifecycleError = session.hasLifecycleError;
     final looksReady =
         !isArchived &&
+        !hasLifecycleError &&
         (session.isOnline || (agentIsStartingOrRunning && lifecycleRecent));
 
     // Grace period for recently-spawned sessions — same threshold as
@@ -551,7 +553,7 @@ extension SyncMessagingRpc on Sync {
         DateTime.now().millisecondsSinceEpoch - _sessionSpawnedAt[sessionId]! <
             120000;
 
-    if (looksReady || recentlySpawned) return false;
+    if (looksReady || (recentlySpawned && !hasLifecycleError)) return false;
 
     final machineId = session.metadata?.machineId;
     final path = session.metadata?.path;
@@ -1305,6 +1307,7 @@ extension SyncMessagingRpc on Sync {
     // ephemeral events) would be wrongly treated as not-ready, forcing
     // waitForAgentReady to wait the full sessionReadyTimeoutMs.
     final lc = s.effectiveLifecycleState;
+    if (s.hasLifecycleError) return false;
     if (lc == 'running') {
       final since = s.metadata?.lifecycleStateSince;
       if (since != null &&

@@ -1193,11 +1193,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         rawError.isNotEmpty &&
         rawError != _lastLoggedLifecycleError) {
       _lastLoggedLifecycleError = rawError;
-      logger.warning(
-        '[ChatScreen] session lifecycle failure '
-        'sessionId=${widget.sessionId}',
-        rawError,
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'ChatScreen session lifecycle failure',
+            category: 'chat.lifecycle',
+            level: SentryLevel.warning,
+            data: {'sessionId': widget.sessionId, 'error': rawError},
+          ),
+        ),
       );
+      logger.warning('[ChatScreen] session lifecycle failure', rawError);
     }
     final copy = safeLifecycleIssueCopy(context.l10n);
     return _SessionSendIssue(

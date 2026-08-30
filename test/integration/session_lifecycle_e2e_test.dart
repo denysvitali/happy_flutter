@@ -410,12 +410,17 @@ void main() {
 
     test('errored session restores before sending', () async {
       const sessionId = 'errored-restorable';
+      final now = DateTime.now().millisecondsSinceEpoch;
       sync.testSessions[sessionId] = _makeSession(
         sessionId,
+        presence: 'online',
         machineId: 'machine-1',
         path: '/project',
         lifecycleState: 'errored',
+        lifecycleStateSince: now,
       );
+      sync.testSetLastEphemeralAt(sessionId, now);
+      sync.testSetSessionSpawnedAt(sessionId, now);
 
       var rpcCalled = false;
       const restoredId = 'errored-restored';
@@ -441,7 +446,12 @@ void main() {
       };
       sync.testFetchSingleSessionOverride = (_) async => null;
 
-      final result = await sync.sendMessage(sessionId, 'hello');
+      const localId = 'errored-restorable-local-id';
+      final result = await sync.sendMessage(
+        sessionId,
+        'hello',
+        clientLocalId: localId,
+      );
       await sync.lastCompleteSendFuture;
 
       expect(rpcCalled, isTrue);
@@ -451,7 +461,16 @@ void main() {
         isEmpty,
         reason: 'the stopped session must not receive the outbound message',
       );
-      expect(sync.testSessionMessages(restoredId), isNotNull);
+      final restoredMessages = sync.testSessionMessages(restoredId);
+      expect(restoredMessages, isNotNull);
+      expect(restoredMessages, hasLength(1));
+      expect(
+        restoredMessages!.single['localId'],
+        localId,
+        reason:
+            'Redirecting the send to a restored process must preserve the '
+            'caller-provided canonical localId.',
+      );
     });
 
     test(

@@ -41,7 +41,8 @@ class SyncHealth {
 
   /// Whether the session appears ready to receive messages.
   ///
-  /// A session "looks ready" when it is not archived AND either:
+  /// A session "looks ready" when it is neither archived nor terminally
+  /// errored AND either:
   /// - Its online presence is trusted (isOnlineTrusted), OR
   /// - The agent is starting/running AND the lifecycle state timestamp
   ///   is recent (guards against stale 'running' after a crash), OR
@@ -56,11 +57,13 @@ class SyncHealth {
   bool get looksReady {
     final lifecycleState = session.effectiveLifecycleState;
     final isArchived = lifecycleState == 'archived';
+    final hasLifecycleError = session.hasLifecycleError;
     final agentIsStartingOrRunning =
         lifecycleState == 'starting' || lifecycleState == 'running';
     final runningAndOnline = lifecycleState == 'running' && session.isOnline;
 
     return !isArchived &&
+        !hasLifecycleError &&
         (isOnlineTrusted ||
             (agentIsStartingOrRunning && lcRecent) ||
             runningAndOnline);

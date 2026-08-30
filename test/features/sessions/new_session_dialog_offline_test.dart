@@ -872,6 +872,74 @@ void main() {
       expect(createButton.onPressed, isNotNull);
     });
 
+    testWidgets(
+      'Kubernetes spawn failure keeps one warning and shows the error',
+      (tester) async {
+        final testSync = createTestSync();
+        testSync.testEnsureMachineReachableOverride = (_) async {};
+        LoggerService().clear();
+        addTearDown(() {
+          testSync.testEnsureMachineReachableOverride = null;
+          LoggerService().clear();
+        });
+
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final failure = StateError(
+          'Kubernetes session creation failed: GHProxyURL is required',
+        );
+        await pumpDialog(
+          tester,
+          buildHarness(
+            machines: {
+              'm-kube': _machine(
+                id: 'm-kube',
+                displayName: 'Kube Box',
+                active: true,
+                activeAtMs: now,
+                spawnBackends: const ['kubernetes'],
+                defaultSpawnBackend: 'kubernetes',
+              ),
+            },
+            initialMachineId: 'm-kube',
+            onCreateSession: () {
+              logger.info(
+                '[createSession] spawn RPC failed',
+                failure,
+                StackTrace.current,
+              );
+              return Future<String>.error(failure);
+            },
+          ),
+        );
+
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.pump();
+        await tester.pump();
+
+        final createWarnings = LoggerService()
+            .getLogsByLevel(LogLevel.warning)
+            .where((entry) => entry.message.contains('createSession'))
+            .toList();
+        expect(createWarnings, hasLength(1));
+        expect(
+          createWarnings.single.message,
+          '[NewSessionDialog] createSession failed',
+        );
+        expect(
+          LoggerService().getLogs().where(
+            (entry) =>
+                entry.level == LogLevel.info &&
+                entry.message == '[createSession] spawn RPC failed',
+          ),
+          hasLength(1),
+        );
+        expect(
+          find.text('Could not start session. Please try again.'),
+          findsOneWidget,
+        );
+      },
+    );
+
     testWidgets('switching from offline to online machine clears the warning '
         'and enables Create', (tester) async {
       final now = DateTime.now().millisecondsSinceEpoch;

@@ -14,6 +14,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
@@ -634,6 +635,8 @@ void main() {
     testWidgets('shows stopped-process feedback and disables sends '
         'without restore target', (tester) async {
       final semantics = tester.ensureSemantics();
+      LoggerService().clear();
+      addTearDown(LoggerService().clear);
       sync.isInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
       sync.testSetSessionMessages('session_1', const []);
@@ -657,6 +660,20 @@ void main() {
       expect(find.text('Session agent stopped'), findsOneWidget);
       expect(find.textContaining('live local process'), findsNothing);
       expect(find.textContaining('cannot be restored'), findsOneWidget);
+
+      final lifecycleWarnings = LoggerService()
+          .getLogsByLevel(LogLevel.warning)
+          .where(
+            (entry) =>
+                entry.message == '[ChatScreen] session lifecycle failure',
+          )
+          .toList();
+      expect(lifecycleWarnings, hasLength(1));
+      expect(lifecycleWarnings.single.message, isNot(contains('session_1')));
+      expect(
+        lifecycleWarnings.single.error,
+        'daemon started without a live local process for this running session',
+      );
 
       await tester.enterText(find.byType(TextField), 'continue');
       await tester.pump();

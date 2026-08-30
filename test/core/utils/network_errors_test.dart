@@ -24,6 +24,13 @@ void main() {
         ),
         isTrue,
       );
+      expect(
+        isConnectionLevelNetworkError(
+          'ClientException: Cronet exception: Exception in '
+          'CronetUrlRequest: net::ERR_HTTP2_PING_FAILED, Retryable=true',
+        ),
+        isTrue,
+      );
     });
 
     test('classifies DNS and socket-level failures', () {

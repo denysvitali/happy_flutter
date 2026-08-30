@@ -91,5 +91,26 @@ void main() {
 
       expect(health.looksReady, isFalse);
     });
+
+    test('errored sessions never look ready despite fresh presence', () {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final health = SyncHealth(
+        session: session(
+          presence: 'online',
+          lifecycle: 'errored',
+          lifecycleSince: now,
+        ),
+        sessionSpawnedAt: const {},
+        lastEphemeralAt: {'codex-live': now},
+      );
+
+      expect(
+        health.looksReady,
+        isFalse,
+        reason:
+            'A terminal lifecycle error must override stale online presence '
+            'so sendMessage restores instead of targeting a dead process.',
+      );
+    });
   });
 }

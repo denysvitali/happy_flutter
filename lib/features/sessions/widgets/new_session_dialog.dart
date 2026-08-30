@@ -716,7 +716,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         _createError = e.message;
       });
     } catch (e, st) {
-      logger.warning('[NewSessionDialog] createSession failed: $e', e, st);
+      // Keep the issue title stable. Sync.createSession records RPC-specific
+      // details as a breadcrumb, so this is the single GlitchTip warning for
+      // the user-visible failure rather than a duplicate second capture.
+      logger.warning('[NewSessionDialog] createSession failed', e, st);
       if (!_canUseRef) return;
       final userMessage = newSessionCreateErrorMessage(l10n: l10n, error: e);
       setState(() {

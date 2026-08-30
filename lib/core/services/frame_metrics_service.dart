@@ -39,10 +39,10 @@ class FrameMetricsService {
   /// against this, so the timer and the fps buckets must share it.
   static const int _flushIntervalSeconds = 30;
 
-  /// Frames in a single idle window above which the window is worth a log
-  /// line — 300 frames over 30 s is 10 fps sustained with nothing on screen
-  /// asking to be redrawn.
-  static const int _idleRenderWarnFrames = 300;
+  /// Sustained idle frame rate above which the window is worth a log line.
+  /// Lifecycle detach flushes partial windows, so this must be rate-based
+  /// rather than assuming that every flush covered the full 30 seconds.
+  static const double _idleRenderWarnFps = 10;
 
   static const Duration _idleRenderWarnCooldown = Duration(minutes: 5);
 
@@ -169,6 +169,13 @@ class FrameMetricsService {
   int _windowDataChanges = 0;
   int _windowMessageChanges = 0;
 
+  /// Wall-clock bounds and lifecycle activity for the current window.
+  /// A suspend flush is normally shorter than [_flushIntervalSeconds], and
+  /// attach/resume itself legitimately causes frames without a pointer or
+  /// Sync event. Both facts must survive until classification at flush.
+  DateTime? _windowStartedAt;
+  int _windowLifecycleChanges = 0;
+
   DateTime? _lastIdleRenderWarnAt;
 
   int _lastWindowFrames = 0;
@@ -217,8 +224,8 @@ class FrameMetricsService {
   @visibleForTesting
   int get debugLastWindowFrames => _lastWindowFrames;
 
-  /// Whether the most recently flushed window saw neither pointer input nor
-  /// a Sync change — i.e. it had no reason to render at all.
+  /// Whether the most recently flushed window saw neither pointer input, a
+  /// Sync change, nor a lifecycle-bounded partial interval.
   @visibleForTesting
   bool get debugLastWindowIdle => _lastWindowIdle;
 
@@ -239,6 +246,8 @@ class FrameMetricsService {
     _lastActivityCounter = _activityCounter();
     _windowDataChanges = 0;
     _windowMessageChanges = 0;
+    _windowStartedAt = _attached ? DateTime.now() : null;
+    _windowLifecycleChanges = 0;
     _lastWindowFrames = 0;
     _lastWindowIdle = false;
     _lastIdleRenderWarnAt = null;
@@ -257,11 +266,17 @@ class FrameMetricsService {
   void attach({bool enableSentryTransactions = false}) {
     _enableSentryTransactions = enableSentryTransactions;
     if (_attached) return;
+    // A timings callback already queued by the engine can arrive after
+    // removeTimingsCallback. Never let such a detached sample become the
+    // first frame of the next foreground window.
+    _discardPendingWindow();
     _attached = true;
 
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
     GestureBinding.instance.pointerRouter.addGlobalRoute(_onPointerEvent);
     _lastActivityCounter = _activityCounter();
+    _windowStartedAt = DateTime.now();
+    _windowLifecycleChanges = 1;
 
     // Periodically flush accumulated jank stats as a single Sentry
     // transaction instead of one per frame.
@@ -283,6 +298,10 @@ class FrameMetricsService {
   int _activityCounter() => sync.dataChangeCounter + sync.messagesChangeCounter;
 
   void _onTimings(List<FrameTiming> timings) {
+    // Removing the callback does not retract a delivery already queued by
+    // the engine. Ignore that tail after detach so it cannot cross the next
+    // attach boundary.
+    if (!_attached) return;
     for (final t in timings) {
       _recordFrame(
         buildMicros: t.buildDuration.inMicroseconds,
@@ -383,6 +402,12 @@ class FrameMetricsService {
   }
 
   void _flush() {
+    final now = DateTime.now();
+    final windowDuration = _windowStartedAt == null
+        ? const Duration(seconds: _flushIntervalSeconds)
+        : now.difference(_windowStartedAt!);
+    final lifecycleChanges = _windowLifecycleChanges;
+
     // Reset the window's activity accounting before the zero-frame early
     // return. A window that rendered nothing is the healthy case, but its
     // taps and data changes still belong to it — carrying them forward would
@@ -396,6 +421,8 @@ class FrameMetricsService {
     _windowDataChanges = 0;
     _windowMessageChanges = 0;
     _pointerEvents = 0;
+    _windowLifecycleChanges = 0;
+    _windowStartedAt = _attached ? now : null;
 
     // Memory samples before the zero-frame early return: a healthy idle
     // window renders nothing but its heap trend is exactly what the
@@ -530,20 +557,29 @@ class FrameMetricsService {
       );
     }
 
-    // Idle-render detection. A window that rendered frames while the user
-    // never touched the screen and Sync never published a change had nothing
-    // to draw — those frames are pure battery burn. A healthy screen at rest
-    // produces zero frames and never reaches this code at all.
+    // Idle-render detection. A complete window that rendered frames while
+    // the user never touched the screen and Sync never published a change
+    // had nothing to draw — those frames are pure battery burn. A lifecycle-
+    // bounded partial window includes the legitimate attach/resume redraws,
+    // so it is active even without a pointer or Sync event. A healthy screen
+    // at rest produces zero frames and never reaches this code at all.
     //
     // A negative delta means `shutdown()` reset `dataChangeCounter` mid
     // window, which is itself activity; do not read it as silence.
-    final idleWindow = pointerEvents == 0 && activityTicks == 0;
+    final lifecycleBoundedPartialWindow =
+        lifecycleChanges > 0 &&
+        windowDuration < const Duration(seconds: _flushIntervalSeconds);
+    final idleWindow =
+        pointerEvents == 0 &&
+        activityTicks == 0 &&
+        !lifecycleBoundedPartialWindow;
     final windowAttributes = <String, Object?>{
       ...attributes,
       'activity': idleWindow ? 'idle' : 'active',
       'pointer_events': pointerEvents,
       'data_changes': dataChanges,
       'message_changes': messageChanges,
+      'lifecycle_changes': lifecycleChanges,
     };
     _lastWindowFrames = frameCount;
     _lastWindowIdle = idleWindow;
@@ -554,20 +590,21 @@ class FrameMetricsService {
         attributes: windowAttributes,
         description:
             'Frames rendered in one metrics window, split by whether that '
-            'window saw any pointer input or Sync data change',
+            'window saw pointer, Sync, or lifecycle activity',
       )
       ..recordCount(
         'app.ui.render_windows',
         attributes: {
           ...windowAttributes,
-          'window_fps_bucket': _windowFpsBucket(frameCount),
+          'window_fps_bucket': _windowFpsBucket(frameCount, windowDuration),
         },
         description:
             'Metrics windows that rendered at least one frame, bucketed by '
             'sustained frame rate — the denominator for app.ui.window_frames',
       );
-    if (idleWindow && frameCount >= _idleRenderWarnFrames) {
-      _warnIdleRender(route, frameCount);
+    final windowFps = _windowFps(frameCount, windowDuration);
+    if (idleWindow && windowFps >= _idleRenderWarnFps) {
+      _warnIdleRender(route, frameCount, windowDuration, windowFps);
     }
 
     if (snapshot.isEmpty) {
@@ -700,35 +737,76 @@ class FrameMetricsService {
   /// Sustained frame rate of a window, bucketed. Kept coarse: this label
   /// exists to separate "a couple of frames on a socket update" from "the
   /// screen never stopped drawing", not to profile.
-  static String _windowFpsBucket(int frames) => switch (frames) {
-    < _flushIntervalSeconds => 'under_1fps',
-    < _flushIntervalSeconds * 5 => '1_5fps',
-    < _flushIntervalSeconds * 15 => '5_15fps',
-    < _flushIntervalSeconds * 30 => '15_30fps',
-    _ => '30fps_plus',
-  };
+  static double _windowFps(int frames, Duration duration) {
+    final micros = duration.inMicroseconds;
+    if (micros <= 0) return frames.toDouble();
+    return frames * Duration.microsecondsPerSecond / micros;
+  }
+
+  static String _windowFpsBucket(int frames, Duration duration) =>
+      switch (_windowFps(frames, duration)) {
+        < 1 => 'under_1fps',
+        < 5 => '1_5fps',
+        < 15 => '5_15fps',
+        < 30 => '15_30fps',
+        _ => '30fps_plus',
+      };
 
   /// One greppable line per idle-render burst, rate limited so a screen that
   /// spins forever cannot flood Loki. The metrics above carry the counts;
   /// this exists so the route can be found without a dashboard.
-  void _warnIdleRender(String route, int frames) {
+  void _warnIdleRender(
+    String route,
+    int frames,
+    Duration windowDuration,
+    double fps,
+  ) {
     final now = DateTime.now();
     final last = _lastIdleRenderWarnAt;
     if (last != null && now.difference(last) < _idleRenderWarnCooldown) {
       return;
     }
     _lastIdleRenderWarnAt = now;
-    final fps = (frames / _flushIntervalSeconds).toStringAsFixed(1);
+    final windowSeconds =
+        windowDuration.inMicroseconds / Duration.microsecondsPerSecond;
     logger.warning(
       '[FrameMetrics] idle render: route=$route frames=$frames '
-      'window=${_flushIntervalSeconds}s fps=$fps '
+      'window=${windowSeconds.toStringAsFixed(1)}s '
+      'fps=${fps.toStringAsFixed(1)} '
       '(no pointer input, no sync change)',
     );
+  }
+
+  /// Drop anything recorded outside an attached foreground window.
+  void _discardPendingWindow() {
+    _frameCount = 0;
+    _slowFrameCount = 0;
+    _frozenFrameCount = 0;
+    _buildMicros = 0;
+    _rasterMicros = 0;
+    _totalMicros = 0;
+    for (final bucket in _frameBuckets.keys) {
+      _frameBuckets[bucket] = 0;
+    }
+    _recentFrozenFrames.clear();
+    _jankSpan?.end();
+    _jankSpan = null;
+    _jankSpanStartedAt = null;
+    _jankSpanRoute = null;
+    _jankSessionsView = null;
+    _jankSessionCount = null;
+    _jankWindowOpen = false;
+    _pointerEvents = 0;
+    _windowDataChanges = 0;
+    _windowMessageChanges = 0;
+    _windowStartedAt = null;
+    _windowLifecycleChanges = 0;
   }
 
   /// Detach and clean up. Call on app dispose.
   void detach() {
     if (!_attached) return;
+    _windowLifecycleChanges++;
     _attached = false;
     SchedulerBinding.instance.removeTimingsCallback(_onTimings);
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointerEvent);

@@ -234,6 +234,31 @@ void main() {
         });
       },
     );
+    test(
+      'lifecycleState=errored + isOnline=true + ephemeral fresh '
+      '-> NOT READY (terminal lifecycle wins)',
+      () {
+        fakeAsync((async) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          sync.testSessions[sid] = buildSession(
+            id: sid,
+            presence: 'online',
+            lifecycleState: 'errored',
+            lifecycleStateSince: now,
+          );
+          sync.testSetLastEphemeralAt(sid, now);
+
+          expect(
+            sync.isSessionReadyForMessages(sid),
+            isFalse,
+            reason:
+                'Errored is terminal even while residual presence and a '
+                'recent ephemeral timestamp make the session look online.',
+          );
+          async.elapse(Duration.zero);
+        });
+      },
+    );
   });
 
   group('Sync.waitForAgentReady fast path + timeout', () {

@@ -19,6 +19,7 @@ bool isConnectionLevelNetworkError(Object error) {
       msg.contains('ERR_NAME_NOT_RESOLVED') ||
       msg.contains('ERR_CONNECTION_TIMED_OUT') ||
       msg.contains('ERR_NETWORK_CHANGED') ||
+      msg.contains('ERR_HTTP2_PING_FAILED') ||
       msg.contains('ERR_INTERNET_DISCONNECTED') ||
       msg.contains('ERR_ADDRESS_UNREACHABLE') ||
       msg.contains('Failed host lookup') ||

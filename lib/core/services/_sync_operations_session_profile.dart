@@ -733,7 +733,7 @@ extension SyncSpawnProfileResolution on Sync {
     final onlineTrusted = health.isOnlineTrusted;
 
     final lifecycleState = session.effectiveLifecycleState;
-    final lifecycleErrored = lifecycleState == 'errored';
+    final lifecycleErrored = session.hasLifecycleError;
 
     // Snapshot of the spawn tracking cleared for a profile/model respawn.
     // If the respawn fails, this is put back so the next send re-detects
@@ -808,7 +808,7 @@ extension SyncSpawnProfileResolution on Sync {
           );
         }
       }
-    } else if (looksReady || recentlySpawned) {
+    } else if (looksReady || (recentlySpawned && !lifecycleErrored)) {
       return (
         sessionId: sessionId,
         session: session,

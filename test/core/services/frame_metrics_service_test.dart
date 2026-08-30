@@ -45,6 +45,52 @@ void main() {
       expect(service.debugIsAttached, isFalse);
       expect(service.debugHasFlushTimer, isFalse);
     });
+
+    test('attach discards frame timings delivered while detached', () {
+      final service = FrameMetricsService.instance;
+
+      // Models an engine timings delivery that was already queued when the
+      // callback was removed. It must not become part of the next foreground
+      // window.
+      service.testRecordFrame(
+        build: const Duration(milliseconds: 4),
+        raster: const Duration(milliseconds: 4),
+        total: const Duration(milliseconds: 8),
+      );
+      expect(service.debugFrameCount, 1);
+
+      service.attach();
+
+      expect(service.debugFrameCount, 0);
+    });
+
+    test('lifecycle-bounded partial window is active and rate-normalized', () {
+      final attributes = <String, Map<String, Object?>>{};
+      OpenTelemetryService.debugCountSink = (name, _, values) {
+        attributes[name] = values;
+      };
+      addTearDown(() => OpenTelemetryService.debugCountSink = null);
+      final service = FrameMetricsService.instance..attach();
+
+      // A short foreground stint can render more than the old absolute
+      // 300-frame warning threshold. Attach/detach are valid activity, and
+      // its frame-rate bucket must use the real partial-window duration.
+      for (var i = 0; i < 60; i++) {
+        service.testRecordFrame(
+          build: const Duration(milliseconds: 4),
+          raster: const Duration(milliseconds: 4),
+          total: const Duration(milliseconds: 8),
+        );
+      }
+      service.detach();
+
+      expect(attributes['app.ui.window_frames']?['activity'], 'active');
+      expect(attributes['app.ui.window_frames']?['lifecycle_changes'], 2);
+      expect(
+        attributes['app.ui.render_windows']?['window_fps_bucket'],
+        '30fps_plus',
+      );
+    });
   });
 
   group('FrameMetricsService memory sample', () {
@@ -64,8 +110,9 @@ void main() {
       FrameMetricsService.instance.debugFlush();
 
       expect(samples, isNotEmpty);
-      final rssSamples =
-          samples.where(((sample) => sample.$1 == 'app.memory.rss_mb'));
+      final rssSamples = samples.where(
+        ((sample) => sample.$1 == 'app.memory.rss_mb'),
+      );
       expect(rssSamples, hasLength(1));
       expect(
         rssSamples.single.$2,
@@ -83,8 +130,8 @@ void main() {
       OpenTelemetryService.debugValueSink = (name, value, attributes) {
         samples.add((name, value));
       };
-      FrameMetricsService.instance.debugEncryptionRetainedBytes =
-          () => 4 * 1024 * 1024;
+      FrameMetricsService.instance.debugEncryptionRetainedBytes = () =>
+          4 * 1024 * 1024;
       sync.testSetSessionMessages('mem-gauge-1', [
         const {'localId': 'a'},
         const {'localId': 'b'},
@@ -102,12 +149,15 @@ void main() {
       final byName = <String, double>{
         for (final (name, value) in samples) name: value,
       };
-      expect(byName.keys, containsAll(<String>[
-        'app.memory.rss_mb',
-        'app.memory.image_cache_mb',
-        'app.memory.encryption_cache_mb',
-        'app.memory.resident_rows',
-      ]));
+      expect(
+        byName.keys,
+        containsAll(<String>[
+          'app.memory.rss_mb',
+          'app.memory.image_cache_mb',
+          'app.memory.encryption_cache_mb',
+          'app.memory.resident_rows',
+        ]),
+      );
       expect(byName['app.memory.image_cache_mb']!, greaterThanOrEqualTo(0));
       expect(byName['app.memory.encryption_cache_mb']!, closeTo(4.0, 0.01));
       // Top-level rows across both seeded sessions; sidechain children hang

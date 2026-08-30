@@ -4,6 +4,50 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-08-30
 
+### Production audit, 2026-08-30 (build 273300)
+
+The current-build unresolved queue contains nine fingerprints, all from one
+Android launch and trace. Three independent GlitchTip passes plus Loki
+correlation separated one Flutter message-routing defect from daemon
+configuration/runtime failures and expected degraded-connectivity signals.
+
+**Errored lifecycle still accepted sends, issues 8623/8674/8675.** The daemon
+continues to publish sessions as running after their local process disappears,
+which still needs the daemon-owned runtime epoch/lease described below. The
+client also had a concrete P0 gap: recent online presence and the recent-spawn
+grace period could override `lifecycleState=errored`, so REST accepted a user
+message that no process could consume. Every readiness gate now treats the
+lifecycle error as terminal and routes the send through auto-restore while
+preserving its canonical `localId`. Lifecycle warnings also use one stable
+GlitchTip title with the session and error retained as structured context.
+
+**Kubernetes repository spawn configuration, issues 8672/8673.** One explicit
+Kubernetes spawn for `/workspace/happy-cli-go` failed because the daemon
+advertised the backend without a configured `Kubernetes.GHProxyURL`. This is
+not the local-path auto-restore regression fixed in 273300; the deployment or
+daemon capability advertisement remains the functional fix. The app now emits
+one stable user-boundary warning instead of duplicating the same RPC failure at
+both Sync and dialog layers, while retaining machine/session/backend details in
+a breadcrumb.
+
+**Recovered startup/network signals, issues 8670/8671/8667.** Profile and
+settings fetches timed out together during the same disconnected cold start,
+then correctly retained cached data; those expected fallbacks now log at info
+instead of opening two issues. The adjacent 272900 transport outage exposed a
+classifier gap for Cronet `ERR_HTTP2_PING_FAILED`; retry and logging classifiers
+now treat that exact error as a connection transition without suppressing
+receive-timeout or 5xx server-health signals.
+
+**Lifecycle frame accounting, issue 8668.** A suspend flush only 4.8 seconds
+after resume reported 358 frames as a 30-second idle window. Frame telemetry now
+uses the real partial-window duration, treats attach/detach as activity, ignores
+queued timings delivered after detach, and cannot carry detached samples into
+the next foreground window.
+
+The remaining current-build slow `ping`, `rpc-capabilities`, and
+`get-codex-models` rows correlate with server Redis-forward retries and daemon
+startup delay. They are observability signals, not Flutter execution failures.
+
 ### Production audit, 2026-08-29 (build 272600)
 
 The current GlitchTip/Loki/Prometheus sweep found two still-open client
@@ -1304,7 +1348,11 @@ The current test count is not enough if this contract can break without failing 
 | Malformed UTF-16 tool output crash cascade | Fatal / Error | 3 events, one launch | Fixed in 272500 (42fbf23d); no recurrence on 272500/272600 | Issues 8647/8648/8615 on 272400 share one trace: an unpaired surrogate in CodexBash output failed during paint, followed by a layout null-check and `No ProviderScope found` in the recovery tree. Decrypted JSON is now recursively sanitized and ErrorBoundary is mounted under ProviderScope. |
 | Outbox `agent_starting` readiness poll storm | Error (reliability / battery) | 16,953 attempts and 18,648 schedules / 1h; same `localId` at retry 49 | Wakeup implementation pending CI on 272600; dead-letter fixed in 272500 | Issue 5387/8631 dead-lettered the same item after attempts 466–480 collapsed into about two seconds on 272400. The readiness deferral no longer consumes retry budget, but current builds still poll every 5 s indefinitely and count each readiness check as a delivery attempt. The implementation now coalesces per-session waiters and wakes them from the sessions readiness funnel; `test/services/message_outbox_test.dart` pins stable `localId`/retry identity, no timer storm, and explicit wakeup behavior. Keep `deferred` out of attempt/failure denominators. |
 | Kubernetes auto-restore rejects a valid local path | Error (user-visible send failure) | 4 issues in one 272600 launch | Fix on main, ships automatically on the next `main` commit | Issues 8658–8661: auto-restore selected Kubernetes for `/home/workspace/git/happy-cli-go`, outside `/workspace`, because legacy backend recovery treated any `repoUrl` as Kubernetes proof. Explicit `runtimeType` is still authoritative; legacy recovery now selects Kubernetes only when the normalized path is inside the machine's advertised checkout root, otherwise it preserves the local backend. Contract coverage pins both the local-path regression and the legacy `/workspace` compatibility case in `test/integration/session_spawning_e2e_test.dart`. |
-| Session says running but daemon has no process | Warning (user-visible send failure) | 27 client events / 24h | Open on 272600; daemon-side root cause | Issues 8623/8626/8654 span multiple sessions. Same-window daemon logs show 4 metadata-version CAS races, 7 failed lifecycle marks, and 18 stale-session reconciliations. Introduce a daemon-owned runtime epoch/lease and atomic process transition, propagate it through server state, then have the client subscribe instead of probe/restore-looping. |
+| Session says running but daemon has no process | Warning (user-visible send failure) | 6 warnings / 5 sessions on 273300, plus the earlier 27-event burst | Client routing guard fixed on main; daemon root cause open | Issues 8623/8626/8654/8674/8675 span multiple sessions. Same-window daemon logs show metadata-version CAS races, failed lifecycle marks, stale-session reconciliation, and zero live processes. The client now makes `hasLifecycleError` terminal across readiness, recent-spawn, and send-resolution gates, restores before sending, and preserves the canonical `localId`; the warning title is stable across session ids. The durable fix remains a daemon-owned runtime epoch/lease and atomic process transition propagated through server state. |
+| Kubernetes backend advertised without `GHProxyURL` | Warning (session creation blocked) | 2 fingerprints / 1 spawn on 273300 | Client duplicate reporting fixed; daemon/deployment configuration open | Issues 8672/8673 are the same explicit Kubernetes repository spawn. The `/workspace` path is valid, but the daemon requires `Kubernetes.GHProxyURL`; configure it or stop advertising the backend until it is usable. Flutter now reports one stable dialog-boundary warning and keeps RPC context in a breadcrumb. |
+| Cached profile/settings startup timeout | Warning noise | 2 fingerprints / 1 cold-start stall on 273300 | Fixed on main | Issues 8670/8671 retained usable cached data during the same disconnected 10-second startup window. Expected cached fallback is now info-level; invalid payloads, failed statuses, write timeouts, and unexpected failures remain warning/error signals. |
+| Cronet `ERR_HTTP2_PING_FAILED` network transition | Warning noise | 1 event on 272900 | Fixed on main | Issue 8667 was one broader mobile transport outage. Both retry and reporting classifiers now recognize the exact HTTP/2 ping failure as connection-level while preserving receive-timeout and 5xx server-stall reporting. |
+| Lifecycle partial window reported as idle rendering | Warning noise | 1 event on 272900 | Fixed on main | Issue 8668 force-flushed 358 frames about 4.8 seconds after resume but divided them by a hard-coded 30-second window and ignored lifecycle activity. Frame telemetry now rate-normalizes partial windows, marks lifecycle-bounded windows active, and discards detached timing callbacks before reattach. |
 | TypeError `'List<dynamic>' is not a subtype of 'String?'` at chat open | Error | 3 | Fix on main (3eef2c38); no recurrence on 271500 | Recurred 2026-08-27 15:46 on build 271100 (issues 8570/8571 + ANR 3529). Codex MCP `todo_get` results arrive as `{content:[{type:text,text}], status}` maps; `TaskGet` did `map['content'] as String?`. Flatten MCP content blocks in `_resultText`. Last seen 271100; 271300 was first ship of the fix; 271500 (HEAD at triage) has zero events. Close after one more clean build window. |
 | `RpcException(handler_error, codex debug models: signal: killed)` | Error | 2 (271100 + 271500) | Fix on main — demote to info | Issues 8603/8606: daemon `codex debug models` SIGKILLed (OOM). Catalog is optional chrome; client now logs info and keeps the failure TTL (`test/services/codex_model_catalog_cache_test.dart`). Daemon OOM still wants a host-side look. |
 | `ServerConfigStorage: Sync init failed` (MMKV not initialized) | Warning | 258 | Fixed on main, shipped automatically on the next `main` commit | Expected startup state, misreported as a defect: `main.dart` deliberately resolves a provisional server URL while storage is still warming, so `MMKV('server-config')` throws "forget initialize MMKV first?" and the old code logged a warning (forwarded to Sentry) on every pre-warmup read. `_syncInit` now logs one info line per process and retries silently until the engine is up; callers already fell back to the default URL and re-resolved after warmup. |
