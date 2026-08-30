@@ -126,6 +126,18 @@ class _FirstTimeEmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          FilledButton.icon(
+            onPressed: onConnectComputer,
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            label: Text(l10n.sessionsConnectComputer),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(160, AppTouchTarget.min),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxl),
           _OnboardingStepCard(
             step: 1,
             label: l10n.emptySessionsFirstTimeStep1Label,
@@ -151,18 +163,6 @@ class _FirstTimeEmptyState extends StatelessWidget {
             icon: Icons.qr_code_scanner_outlined,
             colorScheme: cs,
             theme: theme,
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          FilledButton.icon(
-            onPressed: onConnectComputer,
-            icon: const Icon(Icons.qr_code_scanner_outlined),
-            label: Text(l10n.sessionsConnectComputer),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(160, AppTouchTarget.min),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-            ),
           ),
         ],
       ),

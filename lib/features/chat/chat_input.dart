@@ -830,14 +830,16 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     AppSpacing.xsm,
                     AppSpacing.xs,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    runAlignment: WrapAlignment.end,
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xs,
                     children: [
                       QueueNextTurnButton(
                         isDisabled: disabled,
                         onTap: _onQueueNextTurnTap,
                       ),
-                      const SizedBox(width: AppSpacing.xs),
                       SendButton(
                         isSending: widget.isSending,
                         isSendDisabled: disabled,
