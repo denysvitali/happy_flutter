@@ -100,12 +100,22 @@ class ChatModelMode {
   /// Effort levels supported by the `claude` CLI's `--effort` flag.
   static const claudeEfforts = ['low', 'medium', 'high', 'xhigh', 'max'];
 
-  /// Canonical reasoning efforts offered for a provider-owned Codex
-  /// model. The app cannot query a third-party provider for the set its
-  /// model supports, so it exposes the standard Codex range. The model
-  /// slug itself is fixed by the selected profile; only the effort is
-  /// user-selectable (see [providerOwnedCodexEfforts]).
-  static const codexEfforts = ['low', 'medium', 'high'];
+  /// Canonical effort suffixes understood by current Codex releases.
+  /// `ultra` is a Codex orchestration preset: models advertise it only when
+  /// they support proactive multi-agent delegation.
+  static const codexEfforts = [
+    'low',
+    'medium',
+    'high',
+    'xhigh',
+    'max',
+    'ultra',
+  ];
+
+  /// Conservative fallback for provider-owned models absent from the live
+  /// Codex catalog. In particular, never invent `ultra`: without an
+  /// advertised multi-agent version it would only look enabled in the UI.
+  static const _fallbackCodexEfforts = ['low', 'medium', 'high'];
 
   /// Suffix the Claude Code CLI parses locally to open a 1M-token context
   /// window. It is stripped client-side before the model ID reaches the
@@ -263,7 +273,10 @@ class ChatModelMode {
       return [
         defaultModel,
         ...(flavor == 'codex'
-            ? _expandProfileCodexModelFamilies(profileModels)
+            ? _expandProfileCodexModelFamilies(
+                profileModels,
+                codexModels: codexModels,
+              )
             : _expandProfileModelFamilies(profileModels)),
       ];
     }
@@ -272,7 +285,7 @@ class ChatModelMode {
       if (owned != null &&
           owned.isNotEmpty &&
           owned != defaultModel.modeString) {
-        return providerOwnedCodexEfforts(owned);
+        return providerOwnedCodexEfforts(owned, codexModels: codexModels);
       }
       return codexModels == null || codexModels.isEmpty
           ? const [defaultModel]
@@ -290,11 +303,29 @@ class ChatModelMode {
   /// [rawModel], dropping any existing `:effort` suffix), so the family
   /// row exposes a single model. The user can still vary the reasoning
   /// effort: the first entry is the effort-less "Auto" variant (the
-  /// provider's own default), followed by one entry per [codexEfforts].
+  /// provider's own default), followed by the live catalog's advertised
+  /// efforts or a conservative fallback when the slug is unknown.
   /// Selecting an effort emits the wire-format `slug:effort` string.
-  static List<ChatModelMode> providerOwnedCodexEfforts(String rawModel) {
+  static List<ChatModelMode> providerOwnedCodexEfforts(
+    String rawModel, {
+    List<ChatModelMode>? codexModels,
+  }) {
     final slug = _stripEffortSuffix(rawModel.trim());
     if (slug.isEmpty) return const [defaultModel];
+    final advertisedEfforts = <String>[];
+    final seenEfforts = <String>{};
+    for (final model in codexModels ?? const <ChatModelMode>[]) {
+      final effort = model.reasoningEffort;
+      if (model.modelSlug == slug &&
+          effort != null &&
+          codexEfforts.contains(effort) &&
+          seenEfforts.add(effort)) {
+        advertisedEfforts.add(effort);
+      }
+    }
+    final efforts = advertisedEfforts.isEmpty
+        ? _fallbackCodexEfforts
+        : advertisedEfforts;
     return [
       ChatModelMode._(
         label: slug,
@@ -302,7 +333,7 @@ class ChatModelMode {
         modelSlug: slug,
         flavor: 'codex',
       ),
-      for (final effort in codexEfforts)
+      for (final effort in efforts)
         ChatModelMode.fromCodexModel(
           slug: slug,
           displayName: slug,
@@ -346,14 +377,17 @@ class ChatModelMode {
   /// Expands a profile's configured model list into Codex effort families.
   /// Entries that differ only by a `:effort` suffix collapse into one family.
   static List<ChatModelMode> _expandProfileCodexModelFamilies(
-    List<String> models,
-  ) {
+    List<String> models, {
+    List<ChatModelMode>? codexModels,
+  }) {
     final families = <ChatModelMode>[];
     final seenSlugs = <String>{};
     for (final raw in models) {
       final slug = _stripEffortSuffix(raw.trim());
       if (slug.isEmpty || !seenSlugs.add(slug)) continue;
-      families.addAll(providerOwnedCodexEfforts(slug));
+      families.addAll(
+        providerOwnedCodexEfforts(slug, codexModels: codexModels),
+      );
     }
     return families;
   }

@@ -13,6 +13,7 @@ void main() {
   Future<void> pumpPickerHost(
     WidgetTester tester, {
     required List<ChatModelMode> models,
+    ValueChanged<ChatModelMode>? onChanged,
   }) async {
     // The Claude picker now has up to 13 tiles (default + sonnet/opus +
     // 5 efforts each). Use a tall viewport so every tile is hit-testable.
@@ -33,7 +34,7 @@ void main() {
                     context,
                     ChatModelMode.defaultModel,
                     models,
-                    (_) {},
+                    onChanged ?? (_) {},
                   );
                 },
                 child: const Text('Open'),
@@ -53,35 +54,67 @@ void main() {
   ) async {
     final models = ChatModelMode.fromCodexCatalog([
       const CodexModelInfo(
-        slug: 'gpt-5.5',
-        displayName: 'GPT-5.5',
-        supportedReasoningEfforts: ['low', 'medium'],
+        slug: 'gpt-5.6-sol',
+        displayName: 'GPT-5.6 Sol',
+        supportedReasoningEfforts: [
+          'low',
+          'medium',
+          'high',
+          'xhigh',
+          'max',
+          'ultra',
+        ],
       ),
       const CodexModelInfo(
-        slug: 'gpt-5.4-mini',
-        displayName: 'GPT-5.4 Mini',
-        supportedReasoningEfforts: ['medium', 'high'],
+        slug: 'gpt-5.6-luna',
+        displayName: 'GPT-5.6 Luna',
+        supportedReasoningEfforts: ['medium', 'high', 'max'],
       ),
     ]);
 
     await pumpPickerHost(tester, models: models);
 
     expect(find.text('Default'), findsOneWidget);
-    expect(find.text('GPT-5.5'), findsOneWidget);
-    expect(find.text('GPT-5.4 Mini'), findsOneWidget);
+    expect(find.text('GPT-5.6 Sol'), findsOneWidget);
+    expect(find.text('GPT-5.6 Luna'), findsOneWidget);
     expect(find.text('Effort'), findsOneWidget);
-    // Effort sub-list shows just the effort label.
     expect(find.text('Low'), findsOneWidget);
     expect(find.text('Medium'), findsOneWidget);
-    expect(find.text('High'), findsNothing);
+    expect(find.text('Max'), findsOneWidget);
+    expect(find.text('Ultra'), findsOneWidget);
 
-    await tester.tap(find.text('GPT-5.4 Mini'));
+    await tester.tap(find.text('GPT-5.6 Luna'));
     await tester.pumpAndSettle();
 
     expect(find.text('Medium'), findsOneWidget);
     expect(find.text('High'), findsOneWidget);
+    expect(find.text('Max'), findsOneWidget);
+    expect(find.text('Ultra'), findsNothing);
     expect(find.text('Sonnet'), findsNothing);
     expect(find.text('Opus'), findsNothing);
+  });
+
+  testWidgets('codex ultra effort emits the wire-format string', (
+    tester,
+  ) async {
+    String? selected;
+    final models = ChatModelMode.fromCodexCatalog([
+      const CodexModelInfo(
+        slug: 'gpt-5.6-sol',
+        displayName: 'GPT-5.6 Sol',
+        supportedReasoningEfforts: ['low', 'max', 'ultra'],
+      ),
+    ]);
+
+    await pumpPickerHost(
+      tester,
+      models: models,
+      onChanged: (model) => selected = model.modeString,
+    );
+    await tester.drag(find.byType(Slider), const Offset(1000, 0));
+    await tester.pumpAndSettle();
+
+    expect(selected, 'gpt-5.6-sol:ultra');
   });
 
   testWidgets('claude sessions show sonnet, opus, and effort levels', (
@@ -327,6 +360,30 @@ void main() {
         'qwen3.7-max:low',
         'qwen3.7-max:medium',
         'qwen3.7-max:high',
+      ]);
+    });
+
+    test('provider-owned official model uses catalog-advertised ultra', () {
+      final catalog = ChatModelMode.fromCodexCatalog([
+        const CodexModelInfo(
+          slug: 'gpt-5.6-sol',
+          displayName: 'GPT-5.6 Sol',
+          supportedReasoningEfforts: ['low', 'max', 'ultra'],
+        ),
+      ]);
+
+      final models = ChatModelMode.availableForProfile(
+        flavor: 'codex',
+        claudeCompatible: false,
+        codexModels: catalog,
+        providerOwnedCodexModel: 'gpt-5.6-sol',
+      );
+
+      expect(models.map((m) => m.modeString).toList(), [
+        'gpt-5.6-sol',
+        'gpt-5.6-sol:low',
+        'gpt-5.6-sol:max',
+        'gpt-5.6-sol:ultra',
       ]);
     });
 
@@ -663,6 +720,46 @@ void main() {
       expect(models.skip(1).every((m) => m.isCodex), isTrue);
     });
 
+    test('profile Codex models inherit model-specific catalog efforts', () {
+      final catalog = ChatModelMode.fromCodexCatalog([
+        const CodexModelInfo(
+          slug: 'gpt-5.6-sol',
+          displayName: 'GPT-5.6 Sol',
+          supportedReasoningEfforts: ['low', 'max', 'ultra'],
+        ),
+        const CodexModelInfo(
+          slug: 'gpt-5.6-luna',
+          displayName: 'GPT-5.6 Luna',
+          supportedReasoningEfforts: ['low', 'max'],
+        ),
+      ]);
+
+      final models = ChatModelMode.availableForProfile(
+        flavor: 'codex',
+        claudeCompatible: false,
+        codexModels: catalog,
+        profileModels: const ['gpt-5.6-sol', 'gpt-5.6-luna'],
+      );
+
+      expect(
+        models
+            .where((m) => m.modelSlug == 'gpt-5.6-sol')
+            .map((m) => m.modeString),
+        [
+          'gpt-5.6-sol',
+          'gpt-5.6-sol:low',
+          'gpt-5.6-sol:max',
+          'gpt-5.6-sol:ultra',
+        ],
+      );
+      expect(
+        models
+            .where((m) => m.modelSlug == 'gpt-5.6-luna')
+            .map((m) => m.modeString),
+        ['gpt-5.6-luna', 'gpt-5.6-luna:low', 'gpt-5.6-luna:max'],
+      );
+    });
+
     test('fromAllowedRaw keeps effort suffixes off the Codex catalog', () {
       final mode = ChatModelMode.fromAllowedRaw('GLM-5:high', const ['GLM-5']);
       expect(mode, isNotNull);
@@ -676,6 +773,13 @@ void main() {
       expect(codexMode, isNotNull);
       expect(codexMode!.isCodex, isTrue);
       expect(codexMode.reasoningEffort, 'high');
+
+      final ultraMode = ChatModelMode.fromAllowedRaw(
+        'gpt-5.6-sol:ultra',
+        const ['gpt-5.6-sol'],
+        flavor: 'codex',
+      );
+      expect(ultraMode?.reasoningEffort, 'ultra');
 
       // Not allowlisted: no profile, unknown slug, or unknown effort.
       expect(ChatModelMode.fromAllowedRaw('GLM-5:high', null), isNull);
