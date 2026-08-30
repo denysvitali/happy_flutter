@@ -1,14 +1,56 @@
 part of 'sync_service.dart';
 
 /// Reconstructs the backend for sessions created before backend metadata was
-/// persisted. Repository-backed sessions use Kubernetes; the remaining
-/// sessions are daemon-local processes.
-String _spawnBackendForExistingSession(Session session) {
+/// persisted. Explicit runtime metadata is authoritative. For legacy
+/// repository-backed sessions, the checkout must also live under the
+/// machine's advertised Kubernetes root; a repo URL alone is not proof that
+/// the process ran in Kubernetes.
+String _spawnBackendForExistingSession(Session session, Machine? machine) {
   final runtimeType = session.metadata?.runtimeKind?.trim().toLowerCase();
   if (runtimeType == 'kubernetes') return 'kubernetes';
   if (runtimeType == 'local' || runtimeType == 'process') return 'local';
-  final repoUrl = session.metadata?.repoUrl;
-  return repoUrl != null && repoUrl.isNotEmpty ? 'kubernetes' : 'local';
+
+  final repoUrl = session.metadata?.repoUrl?.trim();
+  if (repoUrl == null || repoUrl.isEmpty) return 'local';
+  final advertisedBackends = machine?.metadata?.spawnBackends;
+  if (advertisedBackends != null &&
+      advertisedBackends.isNotEmpty &&
+      !advertisedBackends.contains('kubernetes')) {
+    return 'local';
+  }
+
+  final advertisedRoot = machine?.metadata?.kubernetesCheckoutBaseDir?.trim();
+  final checkoutRoot = advertisedRoot != null && advertisedRoot.isNotEmpty
+      ? advertisedRoot
+      : '/workspace';
+  return _isPathWithinDirectory(session.metadata?.path, checkoutRoot)
+      ? 'kubernetes'
+      : 'local';
+}
+
+bool _isPathWithinDirectory(String? candidate, String root) {
+  final normalizedCandidate = _normalizeAbsolutePosixPath(candidate);
+  final normalizedRoot = _normalizeAbsolutePosixPath(root);
+  if (normalizedCandidate == null || normalizedRoot == null) return false;
+  if (normalizedRoot == '/') return true;
+  return normalizedCandidate == normalizedRoot ||
+      normalizedCandidate.startsWith('$normalizedRoot/');
+}
+
+String? _normalizeAbsolutePosixPath(String? raw) {
+  final value = raw?.trim();
+  if (value == null || value.isEmpty || !value.startsWith('/')) return null;
+  final segments = <String>[];
+  for (final segment in value.split('/')) {
+    if (segment.isEmpty || segment == '.') continue;
+    if (segment == '..') {
+      if (segments.isEmpty) return null;
+      segments.removeLast();
+      continue;
+    }
+    segments.add(segment);
+  }
+  return segments.isEmpty ? '/' : '/${segments.join('/')}';
 }
 
 Metadata _metadataWithSpawnResult(

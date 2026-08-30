@@ -995,6 +995,127 @@ void main() {
       expect(sync.testSessionSpawnedAt.containsKey(restoredId), isTrue);
     });
 
+    test('legacy repo-backed local path restores with local backend', () async {
+      const sessionId = 'legacy-local-repo';
+      const machineId = 'hybrid-machine-local';
+      final now = DateTime.now().millisecondsSinceEpoch;
+      sync.testSessions[sessionId] =
+          _makeSession(
+            sessionId,
+            machineId: machineId,
+            path: '/home/workspace/git/happy-cli-go',
+          ).copyWith(
+            metadata: Metadata(
+              host: '',
+              machineId: machineId,
+              path: '/home/workspace/git/happy-cli-go',
+              repoUrl: 'https://github.com/slopus/happy-cli-go.git',
+              lifecycleState: 'stopped',
+            ),
+          );
+      sync.testMachines[machineId] = Machine(
+        id: machineId,
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        daemonStateVersion: 1,
+        metadata: const MachineMetadata(
+          spawnBackends: ['local', 'kubernetes'],
+          defaultSpawnBackend: 'kubernetes',
+          kubernetesCheckoutBaseDir: '/workspace',
+        ),
+      );
+
+      Map<String, dynamic>? capturedSpawnParams;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(method, 'spawn-happy-session');
+        capturedSpawnParams = params;
+        return <String, dynamic>{
+          'type': 'success',
+          'sessionId': sessionId,
+          'dataEncryptionKey': null,
+        };
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      await sync.sendMessage(sessionId, 'continue');
+      await sync.lastCompleteSendFuture;
+
+      expect(capturedSpawnParams, isNotNull);
+      expect(
+        capturedSpawnParams!['spawnBackend'],
+        'local',
+        reason:
+            'A repo URL describes the checkout but does not prove that '
+            'the legacy session ran in Kubernetes',
+      );
+    });
+
+    test(
+      'legacy repo path inside Kubernetes checkout root preserves backend',
+      () async {
+        const sessionId = 'legacy-kubernetes-repo';
+        const machineId = 'hybrid-machine-kubernetes';
+        final now = DateTime.now().millisecondsSinceEpoch;
+        sync.testSessions[sessionId] =
+            _makeSession(
+              sessionId,
+              machineId: machineId,
+              path: '/workspace/happy-cli-go',
+            ).copyWith(
+              metadata: Metadata(
+                host: '',
+                machineId: machineId,
+                path: '/workspace/happy-cli-go',
+                repoUrl: 'https://github.com/slopus/happy-cli-go.git',
+                lifecycleState: 'stopped',
+              ),
+            );
+        sync.testMachines[machineId] = Machine(
+          id: machineId,
+          seq: 1,
+          createdAt: now,
+          updatedAt: now,
+          active: true,
+          activeAt: now,
+          metadataVersion: 1,
+          daemonStateVersion: 1,
+          metadata: const MachineMetadata(
+            spawnBackends: ['local', 'kubernetes'],
+            defaultSpawnBackend: 'local',
+            kubernetesCheckoutBaseDir: '/workspace',
+          ),
+        );
+
+        Map<String, dynamic>? capturedSpawnParams;
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          expect(method, 'spawn-happy-session');
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        };
+        sync.testFetchSingleSessionOverride = (_) async => null;
+
+        await sync.sendMessage(sessionId, 'continue');
+        await sync.lastCompleteSendFuture;
+
+        expect(capturedSpawnParams, isNotNull);
+        expect(
+          capturedSpawnParams!['spawnBackend'],
+          'kubernetes',
+          reason:
+              'Legacy Kubernetes sessions without runtimeType still need '
+              'a safe compatibility fallback',
+        );
+      },
+    );
+
     test('auto-restore drops incompatible Claude model override for '
         'third-party Anthropic base URL', () async {
       final sessionId = 'auto-restore-incompatible-model';

@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-29
+**Last Updated**: 2026-08-30
 
 ### Production audit, 2026-08-29 (build 272600)
 
@@ -33,10 +33,13 @@ are one 272600 launch, not another generic daemon split-brain: the daemon tried
 to auto-respawn a Codex session with Kubernetes for
 `/home/workspace/git/happy-cli-go`, rejected it because it is outside the
 advertised `/workspace` checkout, then the client saw `handler_offline` and
-could not restore after the machine went offline. Persist the selected spawn
-backend with the session, validate the path/backend pair before stopping the
-old runtime, and surface a repair action (canonical checkout or local backend)
-instead of retrying an impossible restore.
+could not restore after the machine went offline. Fixed on main: persisted
+`runtimeType` remains authoritative, while legacy sessions without it now
+require both a repository URL and a normalized path under the machine's
+advertised Kubernetes checkout root before selecting Kubernetes. A normal
+local checkout therefore restores through the local backend even if repository
+metadata is present; compatibility coverage preserves old Kubernetes sessions
+under `/workspace` (`session_spawning_e2e_test.dart`).
 
 **Session runtime split-brain, issues 8623/8626/8654, build 272600.** GlitchTip
 has 27 client lifecycle failures in 24 hours across multiple sessions,
@@ -1300,7 +1303,7 @@ The current test count is not enough if this contract can break without failing 
 | ANR (ErrorWidget recursion on UI isolate) | Fatal | 10+ | Fix on main, ships with next `main` commit | Issue 3659 (Background ANR, 19:41 UTC, **build 271500** = HEAD) plus 3529/3545 on 271100. Same 498–521 `libapp.so` cycle (`nativePollOnce`). 271100 events followed the todo_get TypeError (3eef2c38). 271500 is **after** that fix: chat → message-detail → home, then `Null check operator used on a null value [widgets library]`; ErrorBoundary replaced the tree *above* MaterialApp and `_ErrorWidgetFallback` called `Theme.of` — unbounded ErrorWidget recursion. Fallback is now theme-free, builder latches re-entry, takeover injects a minimal Material host (`test/core/widgets/error_boundary_test.dart`). The original home-pop null-check is still unsymbolicated; the ANR is the loop, not that throw. Close 3659/3529 only after a post-fix build (≥ this commit) with zero recurrences. |
 | Malformed UTF-16 tool output crash cascade | Fatal / Error | 3 events, one launch | Fixed in 272500 (42fbf23d); no recurrence on 272500/272600 | Issues 8647/8648/8615 on 272400 share one trace: an unpaired surrogate in CodexBash output failed during paint, followed by a layout null-check and `No ProviderScope found` in the recovery tree. Decrypted JSON is now recursively sanitized and ErrorBoundary is mounted under ProviderScope. |
 | Outbox `agent_starting` readiness poll storm | Error (reliability / battery) | 16,953 attempts and 18,648 schedules / 1h; same `localId` at retry 49 | Wakeup implementation pending CI on 272600; dead-letter fixed in 272500 | Issue 5387/8631 dead-lettered the same item after attempts 466–480 collapsed into about two seconds on 272400. The readiness deferral no longer consumes retry budget, but current builds still poll every 5 s indefinitely and count each readiness check as a delivery attempt. The implementation now coalesces per-session waiters and wakes them from the sessions readiness funnel; `test/services/message_outbox_test.dart` pins stable `localId`/retry identity, no timer storm, and explicit wakeup behavior. Keep `deferred` out of attempt/failure denominators. |
-| Kubernetes auto-restore rejects a valid local path | Error (user-visible send failure) | 4 issues in one 272600 launch | Open — backend/path contract | Issues 8658–8661: auto-restore selected Kubernetes for `/home/workspace/git/happy-cli-go`, outside `/workspace`, then surfaced `handler_offline` and a failed restore. Validate the pair before respawn and offer canonical checkout/local-backend repair. |
+| Kubernetes auto-restore rejects a valid local path | Error (user-visible send failure) | 4 issues in one 272600 launch | Fix on main, ships automatically on the next `main` commit | Issues 8658–8661: auto-restore selected Kubernetes for `/home/workspace/git/happy-cli-go`, outside `/workspace`, because legacy backend recovery treated any `repoUrl` as Kubernetes proof. Explicit `runtimeType` is still authoritative; legacy recovery now selects Kubernetes only when the normalized path is inside the machine's advertised checkout root, otherwise it preserves the local backend. Contract coverage pins both the local-path regression and the legacy `/workspace` compatibility case in `test/integration/session_spawning_e2e_test.dart`. |
 | Session says running but daemon has no process | Warning (user-visible send failure) | 27 client events / 24h | Open on 272600; daemon-side root cause | Issues 8623/8626/8654 span multiple sessions. Same-window daemon logs show 4 metadata-version CAS races, 7 failed lifecycle marks, and 18 stale-session reconciliations. Introduce a daemon-owned runtime epoch/lease and atomic process transition, propagate it through server state, then have the client subscribe instead of probe/restore-looping. |
 | TypeError `'List<dynamic>' is not a subtype of 'String?'` at chat open | Error | 3 | Fix on main (3eef2c38); no recurrence on 271500 | Recurred 2026-08-27 15:46 on build 271100 (issues 8570/8571 + ANR 3529). Codex MCP `todo_get` results arrive as `{content:[{type:text,text}], status}` maps; `TaskGet` did `map['content'] as String?`. Flatten MCP content blocks in `_resultText`. Last seen 271100; 271300 was first ship of the fix; 271500 (HEAD at triage) has zero events. Close after one more clean build window. |
 | `RpcException(handler_error, codex debug models: signal: killed)` | Error | 2 (271100 + 271500) | Fix on main — demote to info | Issues 8603/8606: daemon `codex debug models` SIGKILLed (OOM). Catalog is optional chrome; client now logs info and keeps the failure TTL (`test/services/codex_model_catalog_cache_test.dart`). Daemon OOM still wants a host-side look. |

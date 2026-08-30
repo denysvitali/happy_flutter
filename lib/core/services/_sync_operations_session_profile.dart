@@ -948,7 +948,7 @@ extension SyncSpawnProfileResolution on Sync {
         isRestore: true,
         agent: sessionAgent,
         permissionMode: effectivePermissionMode,
-        spawnBackend: _spawnBackendForExistingSession(session),
+        spawnBackend: _spawnBackendForExistingSession(session, machine),
         repoUrl: session.metadata?.repoUrl,
         repoRef: session.metadata?.repoRef,
         repoCommit: session.metadata?.repoCommit,
