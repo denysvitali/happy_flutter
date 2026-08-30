@@ -151,12 +151,27 @@ void main() {
     final queueButton = find.byKey(
       const ValueKey<String>('queue-next-turn-button'),
     );
+    final inputRow = find.byKey(
+      const ValueKey<String>('chat-composer-input-row'),
+    );
     expect(queueButton, findsOneWidget);
+    expect(inputRow, findsOneWidget);
+    expect(
+      find.descendant(of: inputRow, matching: find.byType(TextField)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: inputRow, matching: queueButton),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: inputRow, matching: find.byType(SendButton)),
+      findsOneWidget,
+    );
     expect(find.text('Queue'), findsOneWidget);
-    expect(find.text('Update'), findsOneWidget);
     expect(
       find.text('Update changes the running turn; Queue starts afterward.'),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       tester.getSemantics(queueButton),
@@ -212,6 +227,35 @@ void main() {
     );
     expect(contentSize.width, AppBreakpoint.contentMax);
     expect(find.byType(BackdropFilter), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('active-turn actions do not add another composer row', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'A compact follow-up');
+    final composerCard = find.byKey(
+      const ValueKey<String>('chat-composer-card'),
+    );
+
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+    await tester.pump();
+    final idleHeight = tester.getSize(composerCard).height;
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        onQueueNextTurn: () {},
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.getSize(composerCard).height, idleHeight);
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

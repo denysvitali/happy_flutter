@@ -53,12 +53,11 @@ class QueueNextTurnButton extends StatelessWidget {
             minimumSize: const Size(0, AppTouchTarget.min),
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             foregroundColor: cs.secondary,
-            backgroundColor: cs.secondaryContainer.withValues(alpha: 0.55),
+            backgroundColor: enabled
+                ? cs.secondaryContainer.withValues(alpha: 0.35)
+                : Colors.transparent,
             disabledForegroundColor: cs.onSurface.withValues(
               alpha: AppMotion.disabledContentOpacity,
-            ),
-            disabledBackgroundColor: cs.onSurface.withValues(
-              alpha: AppMotion.disabledContainerOpacity,
             ),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
@@ -89,7 +88,6 @@ class SendButton extends StatefulWidget {
     super.key,
     this.lastDeliveryStatus,
     this.actionLabel,
-    this.visibleLabel,
   });
 
   final bool isSending;
@@ -99,9 +97,6 @@ class SendButton extends StatefulWidget {
 
   /// Overrides the default send tooltip and accessibility label.
   final String? actionLabel;
-
-  /// Optional compact label rendered beside the send glyph.
-  final String? visibleLabel;
 
   /// Delivery status of the most-recently sent message.
   /// When this becomes `'sent'` the button plays a checkmark morph.
@@ -265,40 +260,6 @@ class _SendButtonState extends State<SendButton>
       ),
     );
 
-    final visibleLabel = widget.visibleLabel;
-    final control = visibleLabel == null
-        ? IconButton(
-            onPressed: canSend ? widget.onTap : null,
-            padding: EdgeInsets.zero,
-            style: IconButton.styleFrom(
-              minimumSize: const Size.square(AppTouchTarget.min),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            icon: icon,
-          )
-        : TextButton(
-            onPressed: canSend ? widget.onTap : null,
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, AppTouchTarget.min),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  visibleLabel,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: canSend ? cs.primary : cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                icon,
-              ],
-            ),
-          );
-
     return Semantics(
       container: true,
       label: semanticLabel,
@@ -307,7 +268,18 @@ class _SendButtonState extends State<SendButton>
       liveRegion: widget.isSending || showCheck,
       onTap: canSend ? widget.onTap : null,
       excludeSemantics: true,
-      child: Tooltip(message: semanticLabel, child: control),
+      child: Tooltip(
+        message: semanticLabel,
+        child: IconButton(
+          onPressed: canSend ? widget.onTap : null,
+          padding: EdgeInsets.zero,
+          style: IconButton.styleFrom(
+            minimumSize: const Size.square(AppTouchTarget.min),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: icon,
+        ),
+      ),
     );
   }
 }
