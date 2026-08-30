@@ -88,12 +88,20 @@ class SendButton extends StatefulWidget {
     required this.scaleAnimation,
     super.key,
     this.lastDeliveryStatus,
+    this.actionLabel,
+    this.visibleLabel,
   });
 
   final bool isSending;
   final bool isSendDisabled;
   final VoidCallback onTap;
   final Animation<double> scaleAnimation;
+
+  /// Overrides the default send tooltip and accessibility label.
+  final String? actionLabel;
+
+  /// Optional compact label rendered beside the send glyph.
+  final String? visibleLabel;
 
   /// Delivery status of the most-recently sent message.
   /// When this becomes `'sent'` the button plays a checkmark morph.
@@ -191,7 +199,105 @@ class _SendButtonState extends State<SendButton>
         ? l10n.chatSending
         : showCheck
         ? l10n.chatSent
-        : l10n.chatSend;
+        : widget.actionLabel ?? l10n.chatSend;
+
+    final icon = ScaleTransition(
+      scale: widget.scaleAnimation,
+      child: AnimatedContainer(
+        duration: AppMotion.duration(context, kBorderAnimDuration),
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: isActive ? appCs.accentLinearGradient : null,
+          color: isActive
+              ? null
+              : cs.onSurface.withValues(
+                  alpha: AppMotion.disabledContainerOpacity,
+                ),
+          boxShadow: isActive
+              ? AppElevationShadow.interactive(theme.brightness)
+              : null,
+        ),
+        child: AnimatedSwitcher(
+          duration: AppMotion.duration(context, kSwitchAnimDuration),
+          switchInCurve: AppCurve.enter,
+          switchOutCurve: AppCurve.exit,
+          transitionBuilder: (child, animation) {
+            if (AppMotion.reduceMotion(context)) return child;
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: showCheck
+                    ? _morphScale
+                    : animation.drive(Tween<double>(begin: 0.7, end: 1)),
+                child: child,
+              ),
+            );
+          },
+          child: showCheck
+              ? Icon(
+                  key: const ValueKey('check'),
+                  Icons.check_rounded,
+                  size: AppIconSize.lg,
+                  color: cs.onPrimary,
+                )
+              : widget.isSending
+              ? Padding(
+                  key: const ValueKey('spinner'),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: CircularProgressIndicator(
+                    strokeWidth: AppBorder.thin,
+                    color: cs.onPrimary,
+                  ),
+                )
+              : Icon(
+                  key: const ValueKey('send'),
+                  Icons.arrow_upward_rounded,
+                  size: AppIconSize.lg,
+                  color: canSend
+                      ? cs.onPrimary
+                      : cs.onSurface.withValues(
+                          alpha: AppMotion.disabledContentOpacity,
+                        ),
+                ),
+        ),
+      ),
+    );
+
+    final visibleLabel = widget.visibleLabel;
+    final control = visibleLabel == null
+        ? IconButton(
+            onPressed: canSend ? widget.onTap : null,
+            padding: EdgeInsets.zero,
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(AppTouchTarget.min),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: icon,
+          )
+        : TextButton(
+            onPressed: canSend ? widget.onTap : null,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, AppTouchTarget.min),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  visibleLabel,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: canSend ? cs.primary : cs.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                icon,
+              ],
+            ),
+          );
 
     return Semantics(
       container: true,
@@ -201,83 +307,7 @@ class _SendButtonState extends State<SendButton>
       liveRegion: widget.isSending || showCheck,
       onTap: canSend ? widget.onTap : null,
       excludeSemantics: true,
-      child: IconButton(
-        tooltip: semanticLabel,
-        onPressed: canSend ? widget.onTap : null,
-        padding: EdgeInsets.zero,
-        style: IconButton.styleFrom(
-          minimumSize: const Size.square(AppTouchTarget.min),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        icon: ScaleTransition(
-          scale: widget.scaleAnimation,
-          child: AnimatedContainer(
-            duration: AppMotion.duration(context, kBorderAnimDuration),
-            width: 32,
-            height: 32,
-            // Active state wears the signature gradient; disabled stays a
-            // quiet neutral disc. Foreground glyphs already use onPrimary /
-            // disabledContentOpacity, which hold contrast on both fills.
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: isActive ? appCs.accentLinearGradient : null,
-              color: isActive
-                  ? null
-                  : cs.onSurface.withValues(
-                      alpha: AppMotion.disabledContainerOpacity,
-                    ),
-              boxShadow: isActive
-                  ? AppElevationShadow.interactive(theme.brightness)
-                  : null,
-            ),
-            child: AnimatedSwitcher(
-              duration: AppMotion.duration(context, kSwitchAnimDuration),
-              switchInCurve: AppCurve.enter,
-              switchOutCurve: AppCurve.exit,
-              transitionBuilder: (child, animation) {
-                if (AppMotion.reduceMotion(context)) {
-                  return child;
-                }
-                return FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: showCheck
-                        ? _morphScale
-                        : animation.drive(Tween<double>(begin: 0.7, end: 1)),
-                    child: child,
-                  ),
-                );
-              },
-              child: showCheck
-                  ? Icon(
-                      key: const ValueKey('check'),
-                      Icons.check_rounded,
-                      size: AppIconSize.lg,
-                      color: cs.onPrimary,
-                    )
-                  : widget.isSending
-                  ? Padding(
-                      key: const ValueKey('spinner'),
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      child: CircularProgressIndicator(
-                        strokeWidth: AppBorder.thin,
-                        color: cs.onPrimary,
-                      ),
-                    )
-                  : Icon(
-                      key: const ValueKey('send'),
-                      Icons.arrow_upward_rounded,
-                      size: AppIconSize.lg,
-                      color: canSend
-                          ? cs.onPrimary
-                          : cs.onSurface.withValues(
-                              alpha: AppMotion.disabledContentOpacity,
-                            ),
-                    ),
-            ),
-          ),
-        ),
-      ),
+      child: Tooltip(message: semanticLabel, child: control),
     );
   }
 }

@@ -12,6 +12,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart' show logger;
+import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
 
 /// Shows a modal bottom sheet with session actions (settings, stop,
@@ -45,6 +46,72 @@ void showSessionMenu(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.sm,
+                    AppSpacing.lg,
+                    AppSpacing.xs,
+                  ),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text(
+                      l10n.chatWorkspaceTitle,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.folder_open_outlined,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  title: Text(l10n.sessionFilesTitle),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(sheetContext);
+                    outerContext.pushNamed(
+                      'session-files',
+                      pathParameters: {'sessionId': sessionId},
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.account_tree_outlined,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  title: Text(l10n.workflowsTitle),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(sheetContext);
+                    outerContext.pushNamed(
+                      'chat-workflows',
+                      pathParameters: {'sessionId': sessionId},
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.repeat_rounded,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  title: Text(l10n.loopsTitle),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(sheetContext);
+                    outerContext.pushNamed(
+                      'chat-loops',
+                      pathParameters: {'sessionId': sessionId},
+                    );
+                  },
+                ),
+                const Divider(),
                 ListTile(
                   leading: Icon(
                     Icons.settings_outlined,
@@ -73,6 +140,7 @@ void showSessionMenu(
                   ),
                   onTap: () => updateHideToolCalls(!hideToolCalls),
                 ),
+                const Divider(),
                 ListTile(
                   leading: Icon(Icons.stop_rounded, color: cs.error),
                   title: Text(

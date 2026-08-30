@@ -10,6 +10,7 @@ import '../../core/components/tablet/no_session_selected_view.dart';
 import '../../core/components/tablet/resizable_split_view.dart';
 import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/logger_service.dart' show logger;
@@ -652,38 +653,37 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
       );
     }
 
-    return AnimatedSwitcher(
-      duration: AppMotion.duration(context, AppDuration.fast),
-      transitionBuilder: (child, animation) {
-        final slide = Tween<Offset>(
-          begin: const Offset(0, 0.03),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(position: slide, child: child),
-        );
-      },
-      child: KeyedSubtree(
-        key: ValueKey<AppTab>(_activeTab),
-        child: IndexedStack(
-          index: _activeTab.index,
-          children: [
-            SessionsListContent(
-              selectionNotifier: _selectionNotifier,
-              folderNotifier: _folderNotifier,
-              searchQuery: _searchController.text,
-              onClearSearch: _clearSearch,
-              isVisible: _activeTab == AppTab.sessions,
-              scrollController: _scrollController,
-              onCreateSession: () => _showNewSessionDialog(context),
-            ),
-            _buildLoopsTab(),
-            _buildProvidersTab(),
-            _buildSettingsTab(isTablet: isTablet),
-          ],
+    // Keep one stable stack so tab-local state (filters, scroll position,
+    // selections) survives navigation and network-backed tabs do not repeat
+    // their init loads. TickerMode pauses hidden tab animations.
+    return IndexedStack(
+      index: _activeTab.index,
+      children: [
+        TickerMode(
+          enabled: _activeTab == AppTab.sessions,
+          child: SessionsListContent(
+            selectionNotifier: _selectionNotifier,
+            folderNotifier: _folderNotifier,
+            searchQuery: _searchController.text,
+            onClearSearch: _clearSearch,
+            isVisible: _activeTab == AppTab.sessions,
+            scrollController: _scrollController,
+            onCreateSession: () => _showNewSessionDialog(context),
+          ),
         ),
-      ),
+        TickerMode(
+          enabled: _activeTab == AppTab.loops,
+          child: _buildLoopsTab(),
+        ),
+        TickerMode(
+          enabled: _activeTab == AppTab.providers,
+          child: _buildProvidersTab(),
+        ),
+        TickerMode(
+          enabled: _activeTab == AppTab.settings,
+          child: _buildSettingsTab(isTablet: isTablet),
+        ),
+      ],
     );
   }
 
@@ -900,6 +900,30 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     final usesMasterDetail =
         width >= AppBreakpoint.masterDetail && _activeTab == AppTab.sessions;
     final router = GoRouter.of(context);
+
+    // A create dialog cannot succeed without a reachable computer. Refresh
+    // once to avoid acting on stale provider state, then route users to the
+    // existing setup or recovery destination instead of a disabled form.
+    var machines = ref.read(machinesNotifierProvider);
+    if (!machines.values.any((machine) => machine.isOnline)) {
+      await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
+      if (!mounted || !context.mounted) return;
+      machines = ref.read(machinesNotifierProvider);
+    }
+    if (machines.isEmpty) {
+      await router.pushNamed('link');
+      if (mounted) {
+        unawaited(
+          ref.read(machinesNotifierProvider.notifier).refreshFromSync(),
+        );
+      }
+      return;
+    }
+    if (!machines.values.any((machine) => machine.isOnline)) {
+      await router.pushNamed('machines');
+      return;
+    }
+
     final sessionId = await showNewSessionDialog(
       context,
       initialMachineId: initialMachineId,

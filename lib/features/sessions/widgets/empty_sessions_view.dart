@@ -1,53 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/components/app_empty_state.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/models/machine.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'new_session_dialog.dart';
 
 /// Empty sessions view with tiered state.
 ///
-/// First-time users (no machines ever connected) see an onboarding-style
-/// 3-step guidance card: install CLI, start daemon, scan QR code.
-/// Returning users (machines known but no active sessions) see a minimal
-/// "no active sessions" state with a start-session CTA.
-class EmptySessionsView extends ConsumerWidget {
-  const EmptySessionsView({super.key, this.onCreateSession});
+/// First-time users see the computer-linking path, offline users get recovery
+/// actions, and ready users get a direct start-session action.
+class EmptySessionsView extends ConsumerStatefulWidget {
+  const EmptySessionsView({
+    super.key,
+    this.onCreateSession,
+    this.onRefreshMachines,
+    this.onManageMachines,
+  });
 
   /// Parent-owned create flow. When set, the CTA uses it so a successful
   /// create can open the new chat (push / tablet-select). The local fallback
   /// only shows the dialog and drops the returned session id.
   final Future<void> Function()? onCreateSession;
 
+  /// Optional refresh override, primarily for parent coordination and tests.
+  final Future<void> Function()? onRefreshMachines;
+
+  /// Optional computer-management override.
+  final VoidCallback? onManageMachines;
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EmptySessionsView> createState() => _EmptySessionsViewState();
+}
+
+class _EmptySessionsViewState extends ConsumerState<EmptySessionsView> {
+  bool _isRefreshing = false;
+
+  @override
+  Widget build(BuildContext context) {
     final machines = ref.watch(machinesNotifierProvider);
     final isFirstTimeUser = machines.isEmpty;
+    final hasOnlineMachine = machines.values.any((machine) => machine.isOnline);
 
     if (isFirstTimeUser) {
-      return _FirstTimeEmptyState(
-        onNewSession: () {
-          _showNewSessionDialog(context);
-        },
+      return _FirstTimeEmptyState(onConnectComputer: _startOrConnect);
+    }
+
+    if (!hasOnlineMachine) {
+      return _OfflineMachinesEmptyState(
+        isRefreshing: _isRefreshing,
+        onRefresh: _refreshMachines,
+        onManageMachines: _manageMachines,
       );
     }
 
-    return _ReturningUserEmptyState(
-      onNewSession: () {
-        _showNewSessionDialog(context);
-      },
-    );
+    return _ReturningUserEmptyState(onNewSession: _startOrConnect);
   }
 
-  Future<void> _showNewSessionDialog(BuildContext context) async {
-    final create = onCreateSession;
+  Future<void> _startOrConnect() async {
+    final create = widget.onCreateSession;
     if (create != null) {
       await create();
       return;
     }
+    final machines = ref.read(machinesNotifierProvider);
+    if (machines.isEmpty) {
+      await context.pushNamed('link');
+      return;
+    }
+    if (!machines.values.any((machine) => machine.isOnline)) {
+      _manageMachines();
+      return;
+    }
     await showNewSessionDialog(context);
+  }
+
+  Future<void> _refreshMachines() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    try {
+      final refresh = widget.onRefreshMachines;
+      if (refresh != null) {
+        await refresh();
+      } else {
+        await ref.read(machinesNotifierProvider.notifier).refreshFromSync();
+      }
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  void _manageMachines() {
+    final manage = widget.onManageMachines;
+    if (manage != null) {
+      manage();
+      return;
+    }
+    context.pushNamed('machines');
   }
 }
 
@@ -56,9 +108,9 @@ class EmptySessionsView extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class _FirstTimeEmptyState extends StatelessWidget {
-  const _FirstTimeEmptyState({required this.onNewSession});
+  const _FirstTimeEmptyState({required this.onConnectComputer});
 
-  final VoidCallback onNewSession;
+  final VoidCallback onConnectComputer;
 
   @override
   Widget build(BuildContext context) {
@@ -102,15 +154,59 @@ class _FirstTimeEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxl),
           FilledButton.icon(
-            onPressed: onNewSession,
-            icon: const Icon(Icons.add),
-            label: Text(l10n.sessionNewSession),
+            onPressed: onConnectComputer,
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            label: Text(l10n.sessionsConnectComputer),
             style: FilledButton.styleFrom(
               minimumSize: const Size(160, AppTouchTarget.min),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OfflineMachinesEmptyState extends StatelessWidget {
+  const _OfflineMachinesEmptyState({
+    required this.isRefreshing,
+    required this.onRefresh,
+    required this.onManageMachines,
+  });
+
+  final bool isRefreshing;
+  final VoidCallback onRefresh;
+  final VoidCallback onManageMachines;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AppEmptyState(
+      icon: Icons.computer_outlined,
+      title: l10n.emptySessionsOfflineTitle,
+      subtitle: l10n.emptySessionsOfflineSubtitle,
+      action: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
+        alignment: WrapAlignment.center,
+        children: [
+          FilledButton.icon(
+            onPressed: isRefreshing ? null : onRefresh,
+            icon: isRefreshing
+                ? const SizedBox.square(
+                    dimension: AppIconSize.md,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded),
+            label: Text(l10n.commonRefresh),
+          ),
+          OutlinedButton.icon(
+            onPressed: onManageMachines,
+            icon: const Icon(Icons.settings_outlined),
+            label: Text(l10n.sessionsViewComputers),
           ),
         ],
       ),
@@ -222,7 +318,7 @@ class _ReturningUserEmptyState extends StatelessWidget {
       action: FilledButton.icon(
         onPressed: onNewSession,
         icon: const Icon(Icons.add),
-        label: Text(l10n.sessionNewSession),
+        label: Text(l10n.sessionsStartSession),
         style: FilledButton.styleFrom(
           minimumSize: const Size(160, AppTouchTarget.min),
           shape: RoundedRectangleBorder(

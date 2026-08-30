@@ -203,6 +203,12 @@ class _MachinesEmptyState extends StatelessWidget {
         AppEmptyState(
           icon: Icons.computer_outlined,
           title: context.l10n.machinesNoMachines,
+          subtitle: context.l10n.emptySessionsFirstTimeSubtitle,
+          action: FilledButton.icon(
+            onPressed: () => context.pushNamed('link'),
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            label: Text(context.l10n.sessionsConnectComputer),
+          ),
         ),
       ],
     );

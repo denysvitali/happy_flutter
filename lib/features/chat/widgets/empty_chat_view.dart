@@ -27,21 +27,25 @@ class EmptyChatView extends StatelessWidget {
         l10n.chatSuggestionWriteCode,
         l10n.chatSuggestionWriteCodeDesc,
         Icons.code_rounded,
+        l10n.chatSuggestionWriteCodePrompt,
       ),
       _Suggestion(
         l10n.chatSuggestionDebugIssue,
         l10n.chatSuggestionDebugIssueDesc,
         Icons.bug_report_rounded,
+        l10n.chatSuggestionDebugIssuePrompt,
       ),
       _Suggestion(
         l10n.chatSuggestionExplainCode,
         l10n.chatSuggestionExplainCodeDesc,
         Icons.auto_stories_rounded,
+        l10n.chatSuggestionExplainCodePrompt,
       ),
       _Suggestion(
         l10n.chatSuggestionReviewPr,
         l10n.chatSuggestionReviewPrDesc,
         Icons.rate_review_rounded,
+        l10n.chatSuggestionReviewPrPrompt,
       ),
     ];
 
@@ -72,10 +76,30 @@ class EmptyChatView extends StatelessWidget {
                       icon: s.icon,
                       onTap: onSuggestionTap == null
                           ? null
-                          : () => onSuggestionTap!(s.title),
+                          : () => onSuggestionTap!(s.prompt),
                     ),
                 ],
               ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              alignment: WrapAlignment.center,
+              children: [
+                _CapabilityChip(
+                  icon: Icons.alternate_email_rounded,
+                  label: l10n.chatCapabilityFiles,
+                ),
+                _CapabilityChip(
+                  icon: Icons.terminal_rounded,
+                  label: l10n.chatCapabilityCommands,
+                ),
+                _CapabilityChip(
+                  icon: Icons.mic_none_rounded,
+                  label: l10n.chatCapabilityVoice,
+                ),
+              ],
             ),
           ],
         ),
@@ -98,8 +122,9 @@ class _AuroraHeader extends StatelessWidget {
     final cs = theme.colorScheme;
     final appColors = theme.extension<AppColorScheme>();
     final accent = appColors?.accentGradient;
-    final glowColor =
-        (accent != null && accent.isNotEmpty) ? accent.first : cs.primary;
+    final glowColor = (accent != null && accent.isNotEmpty)
+        ? accent.first
+        : cs.primary;
 
     return Column(
       children: [
@@ -183,10 +208,42 @@ class _IconMark extends StatelessWidget {
 }
 
 class _Suggestion {
-  const _Suggestion(this.title, this.subtitle, this.icon);
+  const _Suggestion(this.title, this.subtitle, this.icon, this.prompt);
   final String title;
   final String subtitle;
   final IconData icon;
+  final String prompt;
+}
+
+class _CapabilityChip extends StatelessWidget {
+  const _CapabilityChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: cs.outlineVariant, width: AppBorder.hairline),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: AppIconSize.sm, color: cs.primary),
+          const SizedBox(width: AppSpacing.xs),
+          Text(label, style: Theme.of(context).textTheme.labelMedium),
+        ],
+      ),
+    );
+  }
 }
 
 /// Glass suggestion card: hairline glass border, faint fill, hover/press
@@ -210,16 +267,15 @@ class _SuggestionCard extends StatelessWidget {
     final cs = theme.colorScheme;
     final appColors = theme.extension<AppColorScheme>();
     final accent = appColors?.accentGradient;
-    final accentColor =
-        (accent != null && accent.isNotEmpty) ? accent.first : cs.primary;
+    final accentColor = (accent != null && accent.isNotEmpty)
+        ? accent.first
+        : cs.primary;
     final glassBorder = appColors?.glassBorder ?? cs.outlineVariant;
 
     return SizedBox(
       width: 200,
       child: Material(
-        color: cs.surfaceContainerHighest.withValues(
-          alpha: AppOpacity.subtle,
-        ),
+        color: cs.surfaceContainerHighest.withValues(alpha: AppOpacity.subtle),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -232,19 +288,14 @@ class _SuggestionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.lg),
           hoverColor: accentColor.withValues(alpha: AppOpacity.faint),
           focusColor: accentColor.withValues(alpha: AppOpacity.faint),
-          highlightColor: accentColor.withValues(
-            alpha: AppOpacity.soft,
-          ),
+          highlightColor: accentColor.withValues(alpha: AppOpacity.soft),
           child: Container(
             constraints: const BoxConstraints(
               minHeight: AppTouchTarget.comfortable + AppSpacing.xl,
             ),
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: glassBorder,
-                width: AppBorder.hairline,
-              ),
+              border: Border.all(color: glassBorder, width: AppBorder.hairline),
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Column(

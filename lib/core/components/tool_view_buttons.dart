@@ -34,23 +34,27 @@ class _ToolViewCopyButtonState extends State<ToolViewCopyButton> {
   @override
   Widget build(BuildContext context) {
     final label = _copied ? context.l10n.commonCopied : context.l10n.commonCopy;
-    return Tooltip(
-      message: label,
-      child: Semantics(
-        button: true,
-        label: label,
-        child: GestureDetector(
-          onTap: _handleCopy,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Icon(
-              _copied ? Icons.check : Icons.copy,
-              key: ValueKey(_copied),
-              size: widget.iconSize,
-              color: _copied
-                  ? AppColors.success
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: _handleCopy,
+      excludeSemantics: true,
+      child: IconButton(
+        tooltip: label,
+        onPressed: _handleCopy,
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(AppTouchTarget.min),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: AnimatedSwitcher(
+          duration: AppMotion.duration(context, AppDuration.fast),
+          child: Icon(
+            _copied ? Icons.check : Icons.copy,
+            key: ValueKey(_copied),
+            size: widget.iconSize,
+            color: _copied
+                ? AppColors.success
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -83,40 +87,49 @@ class ToolViewShowMoreButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final count = hiddenCount;
     final collapsedLabel = count != null
-        ? 'Show $count more line${count == 1 ? '' : 's'}'
-        : 'Show more';
+        ? context.l10n.codeBlockShowAllLines(count)
+        : context.l10n.toolOutputShowMore;
+    final label = expanded ? context.l10n.toolOutputShowLess : collapsedLabel;
 
-    return InkWell(
+    return Semantics(
+      button: true,
+      expanded: expanded,
+      label: label,
       onTap: onToggle,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsm),
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: cs.outlineVariant)),
-          color: cs.surfaceContainer,
-          borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(AppRadius.sm),
-            bottomRight: Radius.circular(AppRadius.sm),
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onToggle,
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsm),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: cs.outlineVariant)),
+            color: cs.surfaceContainer,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(AppRadius.sm),
+              bottomRight: Radius.circular(AppRadius.sm),
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              expanded ? Icons.expand_less : Icons.expand_more,
-              size: 14,
-              color: cs.onSurfaceVariant,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              expanded ? 'Show less' : collapsedLabel,
-              style: TextStyle(
-                fontSize: AppFontSize.xs,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                expanded ? Icons.expand_less : Icons.expand_more,
+                size: AppIconSize.sm,
                 color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
               ),
-            ),
-          ],
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppFontSize.xs,
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

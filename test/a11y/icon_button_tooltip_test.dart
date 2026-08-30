@@ -18,11 +18,13 @@
 // four lines above", so a wrapper any distance up the tree counts.
 
 import 'dart:io';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Sources covered by the icon-only accessibility sweep.
 const _auditedSources = <String>[
@@ -180,9 +182,7 @@ Widget build(BuildContext context) {
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const Scaffold(
-            body: ToolViewCopyButton(text: 'payload'),
-          ),
+          home: const Scaffold(body: ToolViewCopyButton(text: 'payload')),
         ),
       );
       await tester.pumpAndSettle();
@@ -194,6 +194,35 @@ Widget build(BuildContext context) {
         ),
       );
       expect(tooltip.message, 'Copy');
+      final targetSize = tester.getSize(find.byType(ToolViewCopyButton));
+      expect(targetSize.width, greaterThanOrEqualTo(AppTouchTarget.min));
+      expect(targetSize.height, greaterThanOrEqualTo(AppTouchTarget.min));
+    });
+
+    testWidgets('ToolViewShowMoreButton exposes state and a 44dp target', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: ToolViewShowMoreButton(
+              expanded: false,
+              hiddenCount: 3,
+              onToggle: () {},
+            ),
+          ),
+        ),
+      );
+
+      final finder = find.byType(ToolViewShowMoreButton);
+      final node = tester.getSemantics(finder);
+      expect(node.label, 'Show 3 more lines');
+      expect(node.flagsCollection.isExpanded, Tristate.isFalse);
+      expect(tester.getSize(finder).height, greaterThanOrEqualTo(44));
+      semantics.dispose();
     });
   });
 }

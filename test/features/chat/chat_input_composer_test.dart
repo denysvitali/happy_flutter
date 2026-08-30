@@ -152,7 +152,12 @@ void main() {
       const ValueKey<String>('queue-next-turn-button'),
     );
     expect(queueButton, findsOneWidget);
-    expect(find.text('Next'), findsOneWidget);
+    expect(find.text('Queue'), findsOneWidget);
+    expect(find.text('Update'), findsOneWidget);
+    expect(
+      find.text('Update changes the running turn; Queue starts afterward.'),
+      findsOneWidget,
+    );
     expect(
       tester.getSemantics(queueButton),
       isSemantics(
@@ -168,6 +173,20 @@ void main() {
     await tester.pump();
     expect(queued, 1);
     expect(sends, 0);
+
+    await tester.tap(find.byType(SendButton));
+    await tester.pump();
+    expect(sends, 1);
+    expect(
+      tester.getSemantics(find.byType(SendButton)),
+      isSemantics(
+        label: 'Update current turn',
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+      ),
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     handle.dispose();
@@ -241,6 +260,33 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byType(SendButton), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('keeps active-turn choices stable on a narrow large-text view', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 640);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = TextEditingController(text: 'Continue with this');
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        onQueueNextTurn: () {},
+        mediaQueryData: const MediaQueryData(textScaler: TextScaler.linear(2)),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SendButton), findsOneWidget);
+    expect(find.byType(QueueNextTurnButton), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

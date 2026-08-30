@@ -625,32 +625,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changelogNoEntriesAvailable => 'No changelog entries available.';
 
   @override
-  String get emptySessionsFirstTimeTitle => 'Get started with Happy';
+  String get emptySessionsFirstTimeTitle => 'Connect your computer';
 
   @override
   String get emptySessionsFirstTimeSubtitle =>
-      'Connect your computer to start coding sessions from your phone.';
+      'Link Happy to a computer, then start coding from anywhere.';
 
   @override
-  String get emptySessionsFirstTimeStep1Label => 'Install CLI';
+  String get emptySessionsFirstTimeStep1Label => 'Install Happy CLI';
 
   @override
   String get emptySessionsFirstTimeStep1Detail =>
-      'Run happy install on your computer';
+      'npm install -g happy-coder@latest';
 
   @override
-  String get emptySessionsFirstTimeStep2Label => 'Start daemon';
+  String get emptySessionsFirstTimeStep2Label => 'Link your account';
 
   @override
   String get emptySessionsFirstTimeStep2Detail =>
-      'Run happy start in your project';
+      'Run happy auth login --method mobile';
 
   @override
-  String get emptySessionsFirstTimeStep3Label => 'Scan & connect';
+  String get emptySessionsFirstTimeStep3Label => 'Keep your computer available';
 
   @override
-  String get emptySessionsFirstTimeStep3Detail =>
-      'Tap the + button and scan the QR code';
+  String get emptySessionsFirstTimeStep3Detail => 'Run happy daemon install';
+
+  @override
+  String get sessionsConnectComputer => 'Connect computer';
+
+  @override
+  String get emptySessionsOfflineTitle => 'Computer offline';
+
+  @override
+  String get emptySessionsOfflineSubtitle =>
+      'Bring a linked computer online, then refresh to start a session.';
+
+  @override
+  String get sessionsViewComputers => 'View computers';
+
+  @override
+  String get sessionsStartSession => 'Start session';
 
   @override
   String get emptySessionsReturningTitle => 'No active sessions';
@@ -1307,7 +1322,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatQueueNextTurn => 'Queue for next turn';
 
   @override
-  String get chatNextTurn => 'Next';
+  String get chatNextTurn => 'Queue';
+
+  @override
+  String get chatUpdateCurrentTurn => 'Update current turn';
+
+  @override
+  String get chatUpdateCurrentTurnShort => 'Update';
+
+  @override
+  String get chatActiveTurnDeliveryHint =>
+      'Update changes the running turn; Queue starts afterward.';
 
   @override
   String get chatQueuedForNextTurn => 'Queued for next turn';
@@ -2863,6 +2888,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSuggestionReviewPr => 'Review PR';
+
+  @override
+  String get chatSuggestionWriteCodePrompt =>
+      'Build this feature with production-ready code: ';
+
+  @override
+  String get chatSuggestionDebugIssuePrompt =>
+      'Investigate and fix this issue. Start by reproducing it: ';
+
+  @override
+  String get chatSuggestionExplainCodePrompt =>
+      'Explain how this code works, including the key data flow: ';
+
+  @override
+  String get chatSuggestionReviewPrPrompt =>
+      'Review the current changes for correctness, regressions, and missing tests.';
+
+  @override
+  String get chatCapabilityFiles => '@ files';
+
+  @override
+  String get chatCapabilityCommands => '/ commands';
+
+  @override
+  String get chatCapabilityVoice => 'Voice input';
+
+  @override
+  String get chatWorkspaceTitle => 'Session workspace';
 
   @override
   String get agentFallbackDescription => 'Agent';

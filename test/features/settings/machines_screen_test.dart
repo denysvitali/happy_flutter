@@ -52,8 +52,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -70,8 +69,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -81,10 +79,10 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('No machines'), findsOneWidget);
+      expect(find.text('Connect computer'), findsOneWidget);
     });
 
-    testWidgets('renders machine list when machines exist',
-        (tester) async {
+    testWidgets('renders machine list when machines exist', (tester) async {
       final machines = {
         'machine-1': _makeMachine(
           id: 'machine-1',
@@ -108,8 +106,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -122,8 +119,9 @@ void main() {
       expect(find.text('Work Desktop'), findsOneWidget);
     });
 
-    testWidgets('renders machine with host when no display name',
-        (tester) async {
+    testWidgets('renders machine with host when no display name', (
+      tester,
+    ) async {
       final machines = {
         'machine-1': _makeMachine(
           id: 'machine-1',
@@ -141,8 +139,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -154,8 +151,7 @@ void main() {
       expect(find.text('my-server'), findsOneWidget);
     });
 
-    testWidgets('shows online status for active machine',
-        (tester) async {
+    testWidgets('shows online status for active machine', (tester) async {
       final machines = {
         'machine-1': _makeMachine(
           id: 'machine-1',
@@ -173,8 +169,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -210,8 +205,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -223,8 +217,7 @@ void main() {
       expect(find.text('linux • Offline'), findsOneWidget);
     });
 
-    testWidgets('shows offline status for inactive machine',
-        (tester) async {
+    testWidgets('shows offline status for inactive machine', (tester) async {
       final machines = {
         'machine-1': _makeMachine(
           id: 'machine-1',
@@ -242,8 +235,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -255,8 +247,7 @@ void main() {
       expect(find.text('macos • Offline'), findsOneWidget);
     });
 
-    testWidgets('renders delete button for each machine',
-        (tester) async {
+    testWidgets('renders delete button for each machine', (tester) async {
       final machines = {
         'machine-1': _makeMachine(
           id: 'machine-1',
@@ -274,8 +265,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -305,8 +295,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -318,8 +307,7 @@ void main() {
       expect(find.byIcon(Icons.computer_outlined), findsOneWidget);
     });
 
-    testWidgets('sorts online machines before offline ones',
-        (tester) async {
+    testWidgets('sorts online machines before offline ones', (tester) async {
       final machines = {
         'machine-inactive': _makeMachine(
           id: 'machine-inactive',
@@ -343,8 +331,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),
@@ -382,8 +369,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const MachinesScreen(),
           ),

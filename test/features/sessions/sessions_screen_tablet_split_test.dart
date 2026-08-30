@@ -56,6 +56,7 @@ class _StubSessionsNotifier extends SessionsNotifier {
   void publish(Map<String, Session> sessions) {
     state = SessionCollectionSnapshot(sessions);
   }
+
   @override
   void loadFromSync() {}
   @override
@@ -148,7 +149,19 @@ Widget _app({Map<String, Session> sessions = const {}}) {
   // SessionsScreen resolves GoRouter.of(context) in its new-session flow,
   // so the harness must sit under a router like production does.
   final router = GoRouter(
-    routes: [GoRoute(path: '/', builder: (_, _) => const SessionsScreen())],
+    routes: [
+      GoRoute(path: '/', builder: (_, _) => const SessionsScreen()),
+      GoRoute(
+        path: '/link',
+        name: 'link',
+        builder: (_, _) => const Scaffold(body: Text('Connect computer')),
+      ),
+      GoRoute(
+        path: '/machines',
+        name: 'machines',
+        builder: (_, _) => const Scaffold(body: Text('View computers')),
+      ),
+    ],
   );
   return ProviderScope(
     overrides: [
@@ -272,7 +285,7 @@ void main() {
     expect(find.text('Sessions'), findsOneWidget);
   });
 
-  testWidgets('empty detail pane offers the new-session call to action', (
+  testWidgets('empty detail pane sends first-time users to computer setup', (
     tester,
   ) async {
     setTabletLandscape(tester);
@@ -293,14 +306,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byType(NewSessionDialog), findsOneWidget);
-
-    // Dismiss so the dialog's async work does not outlive the test.
-    // Bounded pumps only: the AppEmptyState behind the dialog runs a
-    // repeating breathe animation, so pumpAndSettle never settles.
-    Navigator.of(tester.element(find.byType(NewSessionDialog))).pop();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Connect computer'), findsOneWidget);
+    expect(find.byType(NewSessionDialog), findsNothing);
   });
 
   testWidgets('phone width keeps the single-pane layout', (tester) async {
@@ -322,7 +329,10 @@ void main() {
       tester,
     ) async {
       setTabletLandscape(tester);
-      await pumpScreen(tester, sessions: {live.id: live, archived.id: archived});
+      await pumpScreen(
+        tester,
+        sessions: {live.id: live, archived.id: archived},
+      );
 
       final chat = tester.widget<ChatScreen>(find.byType(ChatScreen));
       expect(chat.sessionId, 'live');
@@ -331,7 +341,10 @@ void main() {
     testWidgets('tapping an archived session opens that session, not the '
         'most recent live one', (tester) async {
       setTabletLandscape(tester);
-      await pumpScreen(tester, sessions: {live.id: live, archived.id: archived});
+      await pumpScreen(
+        tester,
+        sessions: {live.id: live, archived.id: archived},
+      );
 
       final list = tester.widget<SessionsListContent>(
         find.byType(SessionsListContent),
@@ -351,7 +364,10 @@ void main() {
     testWidgets('a selection that leaves the collection falls back to the '
         'most recent live session', (tester) async {
       setTabletLandscape(tester);
-      await pumpScreen(tester, sessions: {live.id: live, archived.id: archived});
+      await pumpScreen(
+        tester,
+        sessions: {live.id: live, archived.id: archived},
+      );
       final list = tester.widget<SessionsListContent>(
         find.byType(SessionsListContent),
       );

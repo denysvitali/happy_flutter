@@ -712,6 +712,33 @@ class _ChatInputState extends ConsumerState<ChatInput>
         children: [
           if (widget.attachmentController != null)
             _buildAttachmentStrip(context),
+          if (widget.onQueueNextTurn != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.xs,
+                AppSpacing.md,
+                0,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.alt_route_rounded,
+                    size: AppIconSize.sm,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      context.l10n.chatActiveTurnDeliveryHint,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -760,53 +787,71 @@ class _ChatInputState extends ConsumerState<ChatInput>
                         onTap: _onDictationTap,
                       ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(left: AppSpacing.xs),
-                child: ListenableBuilder(
-                  listenable: Listenable.merge([
-                    widget.controller,
-                    if (widget.attachmentController != null)
-                      widget.attachmentController!,
-                  ]),
-                  builder: (context, _) {
-                    if (widget.onQueueNextTurn == null) {
-                      return const SizedBox.shrink();
-                    }
-                    return QueueNextTurnButton(
-                      isDisabled:
-                          widget.isSendDisabled ||
-                          widget.isSending ||
-                          !_hasSendableContent,
-                      onTap: _onQueueNextTurnTap,
-                    );
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.xxs,
-                  right: AppSpacing.xsm,
-                ),
-                child: ListenableBuilder(
-                  listenable: Listenable.merge([
-                    widget.controller,
-                    if (widget.attachmentController != null)
-                      widget.attachmentController!,
-                  ]),
-                  builder: (context, _) {
-                    return SendButton(
+              if (widget.onQueueNextTurn == null)
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.xxs,
+                    right: AppSpacing.xsm,
+                  ),
+                  child: ListenableBuilder(
+                    listenable: Listenable.merge([
+                      widget.controller,
+                      if (widget.attachmentController != null)
+                        widget.attachmentController!,
+                    ]),
+                    builder: (context, _) => SendButton(
                       isSending: widget.isSending,
                       isSendDisabled:
                           widget.isSendDisabled || !_hasSendableContent,
                       onTap: _onSendTap,
                       scaleAnimation: _sendScale,
                       lastDeliveryStatus: widget.lastDeliveryStatus,
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
+          if (widget.onQueueNextTurn != null)
+            ListenableBuilder(
+              listenable: Listenable.merge([
+                widget.controller,
+                if (widget.attachmentController != null)
+                  widget.attachmentController!,
+              ]),
+              builder: (context, _) {
+                final disabled =
+                    widget.isSendDisabled ||
+                    widget.isSending ||
+                    !_hasSendableContent;
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    0,
+                    AppSpacing.xsm,
+                    AppSpacing.xs,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      QueueNextTurnButton(
+                        isDisabled: disabled,
+                        onTap: _onQueueNextTurnTap,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      SendButton(
+                        isSending: widget.isSending,
+                        isSendDisabled: disabled,
+                        onTap: _onSendTap,
+                        scaleAnimation: _sendScale,
+                        lastDeliveryStatus: widget.lastDeliveryStatus,
+                        actionLabel: context.l10n.chatUpdateCurrentTurn,
+                        visibleLabel: context.l10n.chatUpdateCurrentTurnShort,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           Divider(
             height: AppBorder.hairline,
             thickness: AppBorder.hairline,

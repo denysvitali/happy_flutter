@@ -16,9 +16,7 @@ void main() {
 
   group('EmptyChatView', () {
     testWidgets('renders suggestion cards', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -29,9 +27,7 @@ void main() {
     });
 
     testWidgets('renders all four suggestion icons', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -42,21 +38,14 @@ void main() {
     });
 
     testWidgets('renders main chat icon', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      expect(
-        find.byIcon(Icons.chat_bubble_outline_rounded),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
     });
 
-    testWidgets('calls onSuggestionTap when a card is tapped', (
-      tester,
-    ) async {
+    testWidgets('calls onSuggestionTap when a card is tapped', (tester) async {
       String? tappedSuggestion;
 
       await tester.pumpWidget(
@@ -74,13 +63,14 @@ void main() {
       await tester.tap(find.text('Write code'));
       await tester.pump();
 
-      expect(tappedSuggestion, 'Write code');
+      expect(
+        tappedSuggestion,
+        'Build this feature with production-ready code: ',
+      );
     });
 
     testWidgets('renders subtitle text', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -90,10 +80,19 @@ void main() {
       expect(find.text('Get feedback on your changes'), findsOneWidget);
     });
 
+    testWidgets('coaches file, command, and voice capabilities', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
+      await tester.pump();
+
+      expect(find.text('@ files'), findsOneWidget);
+      expect(find.text('/ commands'), findsOneWidget);
+      expect(find.text('Voice input'), findsOneWidget);
+    });
+
     testWidgets('displays header title', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -102,9 +101,7 @@ void main() {
     });
 
     testWidgets('displays subtitle prompt', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -112,9 +109,7 @@ void main() {
     });
 
     testWidgets('cards flow in a responsive wrap layout', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -128,9 +123,7 @@ void main() {
     });
 
     testWidgets('no crash when onSuggestionTap is null', (tester) async {
-      await tester.pumpWidget(
-        _buildApp(child: const EmptyChatView()),
-      );
+      await tester.pumpWidget(_buildApp(child: const EmptyChatView()));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 

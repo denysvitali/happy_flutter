@@ -1255,53 +1255,83 @@ abstract class AppLocalizations {
   /// **'No changelog entries available.'**
   String get changelogNoEntriesAvailable;
 
-  /// No description provided for @emptySessionsFirstTimeTitle.
+  /// First-run sessions empty-state title
   ///
   /// In en, this message translates to:
-  /// **'Get started with Happy'**
+  /// **'Connect your computer'**
   String get emptySessionsFirstTimeTitle;
 
-  /// No description provided for @emptySessionsFirstTimeSubtitle.
+  /// First-run sessions setup explanation
   ///
   /// In en, this message translates to:
-  /// **'Connect your computer to start coding sessions from your phone.'**
+  /// **'Link Happy to a computer, then start coding from anywhere.'**
   String get emptySessionsFirstTimeSubtitle;
 
   /// No description provided for @emptySessionsFirstTimeStep1Label.
   ///
   /// In en, this message translates to:
-  /// **'Install CLI'**
+  /// **'Install Happy CLI'**
   String get emptySessionsFirstTimeStep1Label;
 
   /// No description provided for @emptySessionsFirstTimeStep1Detail.
   ///
   /// In en, this message translates to:
-  /// **'Run happy install on your computer'**
+  /// **'npm install -g happy-coder@latest'**
   String get emptySessionsFirstTimeStep1Detail;
 
   /// No description provided for @emptySessionsFirstTimeStep2Label.
   ///
   /// In en, this message translates to:
-  /// **'Start daemon'**
+  /// **'Link your account'**
   String get emptySessionsFirstTimeStep2Label;
 
   /// No description provided for @emptySessionsFirstTimeStep2Detail.
   ///
   /// In en, this message translates to:
-  /// **'Run happy start in your project'**
+  /// **'Run happy auth login --method mobile'**
   String get emptySessionsFirstTimeStep2Detail;
 
   /// No description provided for @emptySessionsFirstTimeStep3Label.
   ///
   /// In en, this message translates to:
-  /// **'Scan & connect'**
+  /// **'Keep your computer available'**
   String get emptySessionsFirstTimeStep3Label;
 
   /// No description provided for @emptySessionsFirstTimeStep3Detail.
   ///
   /// In en, this message translates to:
-  /// **'Tap the + button and scan the QR code'**
+  /// **'Run happy daemon install'**
   String get emptySessionsFirstTimeStep3Detail;
+
+  /// Action that opens the computer QR linking flow
+  ///
+  /// In en, this message translates to:
+  /// **'Connect computer'**
+  String get sessionsConnectComputer;
+
+  /// Sessions empty-state title when linked computers are offline
+  ///
+  /// In en, this message translates to:
+  /// **'Computer offline'**
+  String get emptySessionsOfflineTitle;
+
+  /// Guidance shown when no linked computer is reachable
+  ///
+  /// In en, this message translates to:
+  /// **'Bring a linked computer online, then refresh to start a session.'**
+  String get emptySessionsOfflineSubtitle;
+
+  /// Action that opens linked computer management
+  ///
+  /// In en, this message translates to:
+  /// **'View computers'**
+  String get sessionsViewComputers;
+
+  /// Primary action for creating a coding session
+  ///
+  /// In en, this message translates to:
+  /// **'Start session'**
+  String get sessionsStartSession;
 
   /// No description provided for @emptySessionsReturningTitle.
   ///
@@ -2446,8 +2476,26 @@ abstract class AppLocalizations {
   /// No description provided for @chatNextTurn.
   ///
   /// In en, this message translates to:
-  /// **'Next'**
+  /// **'Queue'**
   String get chatNextTurn;
+
+  /// Action that steers the currently running Codex turn
+  ///
+  /// In en, this message translates to:
+  /// **'Update current turn'**
+  String get chatUpdateCurrentTurn;
+
+  /// Compact visible label for updating the running Codex turn
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get chatUpdateCurrentTurnShort;
+
+  /// Explains the two destinations available while a Codex turn is running
+  ///
+  /// In en, this message translates to:
+  /// **'Update changes the running turn; Queue starts afterward.'**
+  String get chatActiveTurnDeliveryHint;
 
   /// No description provided for @chatQueuedForNextTurn.
   ///
@@ -5436,6 +5484,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Review PR'**
   String get chatSuggestionReviewPr;
+
+  /// Editable starter prompt inserted by the Write code suggestion
+  ///
+  /// In en, this message translates to:
+  /// **'Build this feature with production-ready code: '**
+  String get chatSuggestionWriteCodePrompt;
+
+  /// Editable starter prompt inserted by the Debug an issue suggestion
+  ///
+  /// In en, this message translates to:
+  /// **'Investigate and fix this issue. Start by reproducing it: '**
+  String get chatSuggestionDebugIssuePrompt;
+
+  /// Editable starter prompt inserted by the Explain code suggestion
+  ///
+  /// In en, this message translates to:
+  /// **'Explain how this code works, including the key data flow: '**
+  String get chatSuggestionExplainCodePrompt;
+
+  /// Editable starter prompt inserted by the Review PR suggestion
+  ///
+  /// In en, this message translates to:
+  /// **'Review the current changes for correctness, regressions, and missing tests.'**
+  String get chatSuggestionReviewPrPrompt;
+
+  /// Empty-chat capability hint for attaching project files
+  ///
+  /// In en, this message translates to:
+  /// **'@ files'**
+  String get chatCapabilityFiles;
+
+  /// Empty-chat capability hint for slash commands
+  ///
+  /// In en, this message translates to:
+  /// **'/ commands'**
+  String get chatCapabilityCommands;
+
+  /// Empty-chat capability hint for voice dictation
+  ///
+  /// In en, this message translates to:
+  /// **'Voice input'**
+  String get chatCapabilityVoice;
+
+  /// Heading above session-specific files, workflows, and loops actions
+  ///
+  /// In en, this message translates to:
+  /// **'Session workspace'**
+  String get chatWorkspaceTitle;
 
   /// No description provided for @agentFallbackDescription.
   ///
