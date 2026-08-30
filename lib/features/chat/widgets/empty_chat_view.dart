@@ -65,6 +65,7 @@ class EmptyChatView extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 424),
               child: Wrap(
+                key: const ValueKey<String>('chat-suggestion-grid'),
                 spacing: AppSpacing.md,
                 runSpacing: AppSpacing.md,
                 alignment: WrapAlignment.center,

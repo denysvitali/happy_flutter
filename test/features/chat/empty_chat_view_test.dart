@@ -114,7 +114,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
 
       // Cards reflow in a Wrap instead of a fixed row-based grid
-      final wraps = find.byType(Wrap);
+      final wraps = find.byKey(const ValueKey<String>('chat-suggestion-grid'));
       expect(wraps, findsOneWidget);
       expect(
         find.descendant(of: wraps, matching: find.byType(InkWell)),

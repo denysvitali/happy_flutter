@@ -22,25 +22,19 @@ void main() {
 
   group('PathChip', () {
     testWidgets('renders the given path text', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const PathChip(path: 'lib/main.dart')),
-      );
+      await tester.pumpWidget(_wrap(const PathChip(path: 'lib/main.dart')));
 
       expect(find.text('lib/main.dart'), findsOneWidget);
     });
 
     testWidgets('shows folder icon', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const PathChip(path: 'src/utils')),
-      );
+      await tester.pumpWidget(_wrap(const PathChip(path: 'src/utils')));
 
       expect(find.byIcon(Icons.folder_outlined), findsOneWidget);
     });
 
     testWidgets('uses monospace font style', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const PathChip(path: 'test.dart')),
-      );
+      await tester.pumpWidget(_wrap(const PathChip(path: 'test.dart')));
 
       final text = tester.widget<Text>(find.text('test.dart'));
       expect(text.style?.fontFamily, 'monospace');
@@ -68,9 +62,7 @@ void main() {
 
   group('SessionHeaderChip', () {
     testWidgets('renders text', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const SessionHeaderChip(text: 'Online')),
-      );
+      await tester.pumpWidget(_wrap(const SessionHeaderChip(text: 'Online')));
 
       expect(find.text('Online'), findsOneWidget);
     });
@@ -90,9 +82,7 @@ void main() {
     });
 
     testWidgets('omits leading when null', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const SessionHeaderChip(text: 'Idle')),
-      );
+      await tester.pumpWidget(_wrap(const SessionHeaderChip(text: 'Idle')));
 
       // Only the text icon should be present.
       expect(find.text('Idle'), findsOneWidget);
@@ -146,9 +136,7 @@ void main() {
     testWidgets('renders a down arrow icon', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
-        _wrap(
-          ScrollToBottomPill(onTap: () => tapped = true),
-        ),
+        _wrap(ScrollToBottomPill(onTap: () => tapped = true)),
       );
       await tester.pumpAndSettle();
 
@@ -161,9 +149,7 @@ void main() {
     testWidgets('calls onTap when tapped', (tester) async {
       var tapped = false;
       await tester.pumpWidget(
-        _wrap(
-          ScrollToBottomPill(onTap: () => tapped = true),
-        ),
+        _wrap(ScrollToBottomPill(onTap: () => tapped = true)),
       );
       await tester.pumpAndSettle();
 
@@ -174,33 +160,23 @@ void main() {
     });
 
     testWidgets('has semantics label', (tester) async {
-      await tester.pumpWidget(
-        _wrap(ScrollToBottomPill(onTap: () {})),
-      );
+      await tester.pumpWidget(_wrap(ScrollToBottomPill(onTap: () {})));
       await tester.pumpAndSettle();
 
-      expect(
-        find.bySemanticsLabel('Scroll to latest message'),
-        findsOneWidget,
-      );
+      expect(find.bySemanticsLabel('Scroll to latest message'), findsOneWidget);
     });
 
     testWidgets('shows badge when unreadCount > 0', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          ScrollToBottomPill(onTap: () {}, unreadCount: 5),
-        ),
+        _wrap(ScrollToBottomPill(onTap: () {}, unreadCount: 5)),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('5'), findsOneWidget);
     });
 
-    testWidgets('does not show badge when unreadCount is null',
-        (tester) async {
-      await tester.pumpWidget(
-        _wrap(ScrollToBottomPill(onTap: () {})),
-      );
+    testWidgets('does not show badge when unreadCount is null', (tester) async {
+      await tester.pumpWidget(_wrap(ScrollToBottomPill(onTap: () {})));
       await tester.pumpAndSettle();
 
       // No badge text should be rendered.
@@ -209,9 +185,7 @@ void main() {
 
     testWidgets('shows 99+ for large counts', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          ScrollToBottomPill(onTap: () {}, unreadCount: 150),
-        ),
+        _wrap(ScrollToBottomPill(onTap: () {}, unreadCount: 150)),
       );
       await tester.pumpAndSettle();
 
@@ -233,10 +207,7 @@ void main() {
       await tester.pumpWidget(_wrap(const EmptyChatView()));
       await tester.pumpAndSettle();
 
-      expect(
-        find.byIcon(Icons.chat_bubble_outline_rounded),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.chat_bubble_outline_rounded), findsOneWidget);
     });
 
     testWidgets('renders all four suggestion cards', (tester) async {
@@ -253,28 +224,21 @@ void main() {
       await tester.pumpWidget(_wrap(const EmptyChatView()));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Generate a function or component'),
-        findsOneWidget,
-      );
+      expect(find.text('Generate a function or component'), findsOneWidget);
       expect(find.text('Find and fix a bug in your code'), findsOneWidget);
     });
 
     testWidgets('tapping suggestion calls onSuggestionTap', (tester) async {
       String? tappedTitle;
       await tester.pumpWidget(
-        _wrap(
-          EmptyChatView(
-            onSuggestionTap: (title) => tappedTitle = title,
-          ),
-        ),
+        _wrap(EmptyChatView(onSuggestionTap: (title) => tappedTitle = title)),
       );
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Write code'));
       await tester.pump();
 
-      expect(tappedTitle, 'Write code');
+      expect(tappedTitle, 'Build this feature with production-ready code: ');
     });
 
     testWidgets('renders suggestion icons', (tester) async {
