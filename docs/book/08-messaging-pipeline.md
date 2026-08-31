@@ -36,7 +36,7 @@ chat_screen.dart or chat_action_notifier.dart
 Sync.sendMessage(localId, text, ...)         [in _sync_messaging.dart]
      │
      ├──► optimistic insert into in-memory messages map
-     ├──► MessageCacheService.scheduleSave(sessionId)         [500ms debounce]
+     ├──► MessageCacheService.scheduleSave(sessionId)         [5s debounce]
      ├──► _sendSingle(localId, text, ...)                      [in _sync_messaging_send.dart]
      │       │
      │       ├──► if RPC streaming channel is open: send via RPC
@@ -102,7 +102,7 @@ _sync_messaging.dart handler:
      ├──► if session has sidechain messages, route through sidechain_grouper.dart
      │       to assemble the parent/child tree
      │
-     ├──► MessageCacheService.scheduleSave(sessionId)         [500ms debounce]
+     ├──► MessageCacheService.scheduleSave(sessionId)         [5s debounce]
      │
      ▼
 onSessionMessagesChanged(sessionId)    [no debounce]
@@ -153,7 +153,7 @@ It's stored in a `Map<LocalId, Message>` keyed by `localId`. **The map is keyed 
 `MessageCacheService.scheduleSave(sessionId)` is called. The service:
 
 - Holds the last 200 messages per session in memory
-- Debounces writes to MMKV by 500ms
+- Debounces writes to MMKV by 5s, with a 15s sustained-streaming ceiling
 - On flush, serializes the messages list and writes it under a per-session key
 
 The cache is what makes cold start (after force-kill) show the last seen messages immediately. It's also what makes the optimistic message persist across a process restart — if the app is killed between optimistic insert and REST success, the next cold start loads the cached state, the user sees their message, and the outbox retries the send.
@@ -290,7 +290,7 @@ The recent production issue "Sidechain orphans absorbed" (100+ warnings/day) was
 
 After merge:
 
-1. `MessageCacheService.scheduleSave(sessionId)` — 500ms debounce.
+1. `MessageCacheService.scheduleSave(sessionId)` — 5s debounce.
 2. `onSessionMessagesChanged(sessionId)` — fires synchronously, no debounce.
 3. `onDataChanged` — fires after 100ms debounce.
 
@@ -366,7 +366,7 @@ A truly stuck `Sending` is rare; the production data shows it as a low-frequency
 
 - The merge function is **the** load-bearing function. Every other file in the messaging pipeline can have a bug; the merge function is where the invariant is enforced. If you're not sure, read this file end-to-end.
 - The optimistic insert happens **before** the REST call. If the REST call fails, the optimistic message is still in the map. The user sees their message; it's marked `Failed`.
-- The cache write is debounced 500ms. If the user kills the app within 500ms of an optimistic insert, the message may not be cached. The outbox is the source of truth for retry; the cache is the source of truth for display.
+- The cache write is debounced 5s, with a 15s ceiling. If the user kills the app inside that window without a lifecycle callback, the message may not be cached. The outbox is the source of truth for retry; the cache is the source of truth for display.
 - `MessageOutbox` and `MessageCacheService` are **separate** services. Don't confuse them.
 - The `messagesSync` map is per-session. If you delete a session, clean up its entry.
 - The fast-path `inline-message` does **not** go through the merge function for streaming chunks. It only writes the canonical state via the merge function when the server emits the final `api-update`.

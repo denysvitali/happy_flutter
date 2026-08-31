@@ -117,6 +117,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
   Widget? _retainedVisibleTree;
   late bool _sessionsRouteActive;
   late String _sessionsViewStyle;
+  StreamSubscription<String>? _sessionMessagesSubscription;
 
   /// Gate rapid taps on session cards.  Without this, 4 taps within
   /// ~50ms each call pushNamed('chat') and create 4 ChatScreen
@@ -171,9 +172,13 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     // the cards whose per-session entry actually changed. We still
     // need to nudge the notifier whenever sessions or messages change
     // so the derived state stays fresh.
-    subscribeToDomains(const {SyncDomain.sessions, SyncDomain.messages}, () {
+    subscribeToDomains(const {SyncDomain.sessions}, () {
       if (!mounted || !_isVisible) return;
-      ref.read(sessionUiStateNotifierProvider.notifier).loadFromSync();
+      ref.read(sessionUiStateNotifierProvider.notifier).loadCatalogFromSync();
+    });
+    _sessionMessagesSubscription = sync.onSessionMessagesChanged.listen((id) {
+      if (!mounted || !_isVisible) return;
+      ref.read(sessionUiStateNotifierProvider.notifier).loadSessionFromSync(id);
     });
   }
 
@@ -212,6 +217,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     PerformanceContextService().routeListenable.removeListener(_onRouteChanged);
     _sel.removeListener(_onSelectionChanged);
     widget.folderNotifier.removeListener(_onFolderChanged);
+    unawaited(_sessionMessagesSubscription?.cancel());
     super.dispose();
   }
 
@@ -336,7 +342,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         sessionsViewStyle == 'unread_focus';
     final usesMissionControlRoot =
         sessionsViewStyle == 'mission_control' && _selectedFolderKey == null;
-    final sessions = usesAggregateRows
+    final sessions = usesMissionControlRoot
+        ? ref
+              .watch(
+                sessionsNotifierProvider.select(
+                  MissionControlSessionProjection.fromSessions,
+                ),
+              )
+              .sessions
+        : usesAggregateRows
         ? ref.watch(sessionsNotifierProvider)
         : ref
               .watch(
@@ -349,7 +363,15 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         sessionsViewStyle == 'folder' ||
         sessionsViewStyle == 'mission_control' ||
         _archivedGrouping == ArchivedGrouping.folder;
-    final machines = needsMachineProjection
+    final machines = usesMissionControlRoot
+        ? ref
+              .watch(
+                machinesNotifierProvider.select(
+                  SessionFolderMachinesProjection.fromMachines,
+                ),
+              )
+              .machines
+        : needsMachineProjection
         ? ref.watch(machinesNotifierProvider)
         : ref.read(machinesNotifierProvider);
     final showFlavorIcons = ref.watch(
@@ -555,7 +577,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         activeSessions,
         inactiveSessions,
         machines,
-        missionControlUi!.toUiState(),
+        missionControlUi!,
         showFlavorIcons: showFlavorIcons,
         avatarStyle: avatarStyle,
       );
@@ -629,7 +651,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
     List<Session> activeSessions,
     List<Session> inactiveSessions,
     Map<String, Machine> machines,
-    SessionUiState uiState, {
+    MissionControlUiProjection uiState, {
     required bool showFlavorIcons,
     required AvatarStyle? avatarStyle,
   }) {
@@ -640,7 +662,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       activeSessions: activeSessions,
       inactiveSessions: inactiveSessions,
       machines: machines,
-      uiState: uiState,
+      uiProjection: uiState,
       triage: triage,
       onMarkRead: (sessionId) => sync.markSessionRead(sessionId),
       onTogglePin: triageNotifier.togglePin,

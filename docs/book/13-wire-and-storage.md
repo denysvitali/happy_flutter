@@ -179,5 +179,5 @@ The boundary is: `Sync` never touches MMKV directly. It goes through the storage
 - `FlutterSecureStorage` is slow. Don't read from it in a hot path.
 - The `ServerConfig` URL persists across logouts. This is by design (users want to point the app at a self-hosted server even across accounts).
 - The `SessionsCacheStorage` is loaded on cold start to show the session list instantly. The network fetch overlays it.
-- The `MessageCacheService` is debounced 500ms. The outbox is per-user, not per-device.
+- The `MessageCacheService` is debounced 5s with a 15s ceiling. The outbox is per-user, not per-device.
 - The `Storage` singleton's `initialize()` is called once in `main.dart`. Don't call it elsewhere.

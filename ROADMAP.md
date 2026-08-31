@@ -1435,7 +1435,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Persist messages to MMKV | Done | `MessageCacheService` caches the last 200 messages per session in MMKV. Warm in-memory rows paint first; native cache read/decrypt/JSON and routine save preparation run in workers. Writes debounce for 2s with a 15s ceiling, skip unchanged revisions, and flush synchronously on suspend. |
+| Persist messages to MMKV | Done | `MessageCacheService` caches the last 200 messages per session in MMKV. Warm in-memory rows paint first; native cache read/decrypt/JSON and routine save preparation run in workers. Writes debounce for 5s with a 15s ceiling, skip unchanged revisions, and flush synchronously on suspend. Linux checks once after startup and compacts MMKV off-isolate when the mapped file is materially sparse. |
 | Offline message outbox | Done | `MessageOutbox` service persists failed sends to MMKV with exponential backoff retry (1s→2s→4s→max 30s). Restored on startup via `restoreAndFlush()`. Audit 2026-08-03 found the flat ~40s budget dead-lettered sends during brownouts longer than a minute (4 messages permanently lost, zero signal); shipped in d8dba9ac: failure-class-aware budgets (transient retries ~4h, permanent dead-letters after 3), reconnect/foreground/cold-start re-arm of transient dead letters, and a `dead_lettered` counter + Sentry capture (see the audit section). |
 
 ### 4. Optimistic Mutations

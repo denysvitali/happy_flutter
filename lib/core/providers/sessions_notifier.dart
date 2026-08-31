@@ -23,15 +23,22 @@ class SessionCollectionSnapshot extends UnmodifiableMapView<String, Session> {
   factory SessionCollectionSnapshot(Map<String, Session> sessions) {
     if (sessions is SessionCollectionSnapshot) return sessions;
     final values = Map<String, Session>.from(sessions);
+    final collectionRevision = _computeCollectionRevision(values);
     return SessionCollectionSnapshot._(
       values,
-      _computeCollectionRevision(values),
+      collectionRevision,
+      _computeMissionControlRevision(values, collectionRevision),
     );
   }
 
-  SessionCollectionSnapshot._(super.sessions, this.collectionRevision);
+  SessionCollectionSnapshot._(
+    super.sessions,
+    this.collectionRevision,
+    this.missionControlRevision,
+  );
 
   final int collectionRevision;
+  final int missionControlRevision;
 }
 
 int _computeCollectionRevision(Map<String, Session> sessions) {
@@ -62,6 +69,24 @@ int _computeCollectionRevision(Map<String, Session> sessions) {
           isSessionIdle(session),
         ]);
       }),
+    ),
+  );
+}
+
+int _computeMissionControlRevision(
+  Map<String, Session> sessions,
+  int collectionRevision,
+) {
+  return Object.hash(
+    collectionRevision,
+    Object.hashAllUnordered(
+      sessions.values.map(
+        (session) => Object.hash(
+          session.id,
+          session.thinking,
+          session.agentState?.requests?.isNotEmpty ?? false,
+        ),
+      ),
     ),
   );
 }

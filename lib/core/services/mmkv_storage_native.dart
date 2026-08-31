@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show compute, visibleForTesting;
 import 'package:mmkv/mmkv.dart';
@@ -41,6 +42,41 @@ bool writeSessionMessagesEncodedInWorker(
   } catch (_) {
     return false;
   }
+}
+
+/// Compacts the default MMKV from a worker isolate when its append-only file
+/// is materially larger than the live key/value payload.
+///
+/// `trim()` can copy and remap the complete file, so it must never run on the
+/// UI isolate. The thresholds avoid paying that cost for normal page-sized
+/// slack while reclaiming pathological growth caused by repeated full-blob
+/// message-cache replacements.
+Map<String, Object> _compactDefaultMMKVIfNeeded(Map<String, int> limits) {
+  final mmkv = MMKV.defaultMMKV();
+  final totalBefore = mmkv.totalSize;
+  final actualBefore = mmkv.actualSize;
+  if (!MMKVStorage.debugShouldCompactMessageCache(
+    totalBytes: totalBefore,
+    actualBytes: actualBefore,
+    isLinux: Platform.isLinux,
+    minFileBytes: limits['minFileBytes']!,
+    minReclaimableBytes: limits['minReclaimableBytes']!,
+    minWasteRatio: limits['minWasteRatio']!,
+  )) {
+    return <String, Object>{
+      'trimmed': false,
+      'totalBefore': totalBefore,
+      'actualBefore': actualBefore,
+      'totalAfter': totalBefore,
+    };
+  }
+  mmkv.trim();
+  return <String, Object>{
+    'trimmed': true,
+    'totalBefore': totalBefore,
+    'actualBefore': actualBefore,
+    'totalAfter': mmkv.totalSize,
+  };
 }
 
 /// Storage keys for MMKV
@@ -328,6 +364,17 @@ class MMKVStorage {
   MMKV? _mmkv;
   bool _initialized = false;
   int _sessionsCacheWriteRevision = 0;
+  Timer? _messageCacheCompactionTimer;
+  bool _messageCacheCompactionScheduled = false;
+  bool _messageCacheCompactionInFlight = false;
+
+  static const int _messageCacheCompactionMinFileBytes = 64 * 1024 * 1024;
+  static const int _messageCacheCompactionMinReclaimableBytes =
+      32 * 1024 * 1024;
+  static const int _messageCacheCompactionMinWasteRatio = 2;
+  static const Duration _messageCacheCompactionIdleDelay = Duration(
+    seconds: 10,
+  );
 
   // Lazy-initialized stores
   late final _JsonMapStore _draftsStore = _JsonMapStore(
@@ -396,6 +443,7 @@ class MMKVStorage {
       // inbox rendering for data that may not be used during this launch.
       _instance._lastSeqStore.getAll();
       _instance._firstLoadedSeqStore.getAll();
+      _instance._scheduleLinuxMessageCacheCompaction();
     } catch (e) {
       logger.warning('MMKV: Initialization failed: $e');
       // Do NOT mark _initialized = true on failure;
@@ -416,6 +464,22 @@ class MMKVStorage {
   static bool get debugSessionProfilesCacheLoaded =>
       _instance._profilesStore.isLoaded;
 
+  /// Pure policy used by the Linux startup maintenance task.
+  @visibleForTesting
+  static bool debugShouldCompactMessageCache({
+    required int totalBytes,
+    required int actualBytes,
+    required bool isLinux,
+    int minFileBytes = _messageCacheCompactionMinFileBytes,
+    int minReclaimableBytes = _messageCacheCompactionMinReclaimableBytes,
+    int minWasteRatio = _messageCacheCompactionMinWasteRatio,
+  }) {
+    if (!isLinux || totalBytes < minFileBytes) return false;
+    final reclaimableBytes = totalBytes - actualBytes;
+    if (reclaimableBytes < minReclaimableBytes) return false;
+    return actualBytes == 0 || totalBytes >= actualBytes * minWasteRatio;
+  }
+
   /// Resets process-local initialization and caches between isolated tests.
   @visibleForTesting
   static void resetForTesting() {
@@ -427,6 +491,10 @@ class MMKVStorage {
     _instance._profilesStore.clearCache();
     _instance._lastSeqStore.clearAll();
     _instance._firstLoadedSeqStore.clearAll();
+    _instance._messageCacheCompactionTimer?.cancel();
+    _instance._messageCacheCompactionTimer = null;
+    _instance._messageCacheCompactionScheduled = false;
+    _instance._messageCacheCompactionInFlight = false;
   }
 
   /// Migrate data from SharedPreferences to MMKV
@@ -830,6 +898,44 @@ class MMKVStorage {
 
   void clearSessionMessages(String sessionId) {
     _mmkv?.removeValue('session-messages-$sessionId');
+  }
+
+  /// Schedules one Linux-only maintenance pass after cold-start work settles.
+  /// Size inspection and `trim()` both run in a worker isolate, never on the
+  /// UI isolate or in the message-cache write path.
+  void _scheduleLinuxMessageCacheCompaction() {
+    if (!Platform.isLinux || _messageCacheCompactionScheduled) return;
+    _messageCacheCompactionScheduled = true;
+    _messageCacheCompactionTimer = Timer(_messageCacheCompactionIdleDelay, () {
+      _messageCacheCompactionTimer = null;
+      if (!_initialized || _messageCacheCompactionInFlight) return;
+      _messageCacheCompactionInFlight = true;
+      unawaited(_runMessageCacheCompactionCheck());
+    });
+  }
+
+  Future<void> _runMessageCacheCompactionCheck() async {
+    try {
+      final result = await compute(_compactDefaultMMKVIfNeeded, <String, int>{
+        'minFileBytes': _messageCacheCompactionMinFileBytes,
+        'minReclaimableBytes': _messageCacheCompactionMinReclaimableBytes,
+        'minWasteRatio': _messageCacheCompactionMinWasteRatio,
+      });
+      if (result['trimmed'] == true) {
+        logger.info(
+          '[MMKVStorage] Compacted message cache '
+          'totalBefore=${result['totalBefore']} '
+          'actualBefore=${result['actualBefore']} '
+          'totalAfter=${result['totalAfter']}',
+        );
+      }
+    } catch (error) {
+      logger.warning(
+        '[MMKVStorage] Message-cache compaction check failed: $error',
+      );
+    } finally {
+      _messageCacheCompactionInFlight = false;
+    }
   }
 
   // ─── Outbox persistence ─────────────────────────────────────────

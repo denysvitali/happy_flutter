@@ -191,7 +191,7 @@ void main() {
       MessageCacheService().debugSetStorage = storage;
       addTearDown(MessageCacheService().debugResetStorage);
 
-      // Same debounce-vs-ceiling geometry as production (2000ms / 15000ms)
+      // Same debounce-vs-ceiling geometry as production (5000ms / 15000ms)
       // scaled down so the contract runs on a real clock in under a second
       // instead of ~16.5s. The tick interval stays well below the debounce.
       const debounceMs = 100;

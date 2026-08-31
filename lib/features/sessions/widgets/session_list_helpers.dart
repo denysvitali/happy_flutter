@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/providers/sessions_notifier.dart';
@@ -116,6 +117,99 @@ class SessionCollectionProjection {
   @override
   bool operator ==(Object other) =>
       other is SessionCollectionProjection && other.revision == revision;
+
+  @override
+  int get hashCode => revision;
+}
+
+/// Session collection fields consumed by the Mission Control root model.
+///
+/// In addition to normal grouping/order fields, Mission Control needs live
+/// thinking and permission-request transitions to select lanes. Other row
+/// metadata is watched at the keyed row boundary.
+@immutable
+class MissionControlSessionProjection {
+  const MissionControlSessionProjection._({
+    required this.sessions,
+    required this.revision,
+  });
+
+  factory MissionControlSessionProjection.fromSessions(
+    Map<String, Session> sessions,
+  ) {
+    if (sessions is SessionCollectionSnapshot) {
+      return MissionControlSessionProjection._(
+        sessions: sessions,
+        revision: sessions.missionControlRevision,
+      );
+    }
+    final base = SessionCollectionProjection.fromSessions(sessions);
+    final revision = Object.hash(
+      base.revision,
+      Object.hashAllUnordered(
+        sessions.values.map(
+          (session) => Object.hash(
+            session.id,
+            session.thinking,
+            session.agentState?.requests?.isNotEmpty ?? false,
+          ),
+        ),
+      ),
+    );
+    return MissionControlSessionProjection._(
+      sessions: sessions,
+      revision: revision,
+    );
+  }
+
+  final Map<String, Session> sessions;
+  final int revision;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MissionControlSessionProjection && other.revision == revision;
+
+  @override
+  int get hashCode => revision;
+}
+
+/// Machine fields that affect session-folder labels.
+///
+/// Heartbeats and daemon-state updates must not rebuild the whole Mission
+/// Control dashboard when the displayed machine name is unchanged.
+@immutable
+class SessionFolderMachinesProjection {
+  const SessionFolderMachinesProjection._({
+    required this.machines,
+    required this.revision,
+  });
+
+  factory SessionFolderMachinesProjection.fromMachines(
+    Map<String, Machine> machines,
+  ) {
+    return SessionFolderMachinesProjection._(
+      machines: machines,
+      revision: Object.hash(
+        machines.length,
+        Object.hashAllUnordered(
+          machines.values.map(
+            (machine) => Object.hash(
+              machine.id,
+              machine.metadata?.displayName,
+              machine.metadata?.host,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  final Map<String, Machine> machines;
+  final int revision;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SessionFolderMachinesProjection && other.revision == revision;
 
   @override
   int get hashCode => revision;

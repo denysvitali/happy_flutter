@@ -361,6 +361,57 @@ void main() {
       expect(projection.revision, sessions.collectionRevision);
     });
 
+    test(
+      'mission projection ignores row-only metadata but tracks live state',
+      () {
+        final session = buildSession(
+          'active-1',
+          path: '/home/dev/app',
+          machineId: 'm1',
+          updatedAt: 100,
+          activeAt: 100,
+          active: true,
+          presence: 'online',
+        );
+        final initial = MissionControlSessionProjection.fromSessions({
+          session.id: session,
+        });
+        final rowOnlyUpdate = MissionControlSessionProjection.fromSessions({
+          session.id: session.copyWith(
+            metadata: session.metadata!.copyWith(model: 'opus'),
+          ),
+        });
+        final liveUpdate = MissionControlSessionProjection.fromSessions({
+          session.id: session.copyWith(thinking: true),
+        });
+
+        expect(rowOnlyUpdate, initial);
+        expect(liveUpdate, isNot(initial));
+      },
+    );
+
+    test('machine-folder projection ignores heartbeat-only updates', () {
+      final initial = SessionFolderMachinesProjection.fromMachines(machines);
+      final heartbeat = <String, Machine>{
+        ...machines,
+        'm1': machines['m1']!.copyWith(activeAt: 99, updatedAt: 99),
+      };
+      final renamed = <String, Machine>{
+        ...machines,
+        'm1': machines['m1']!.copyWith(
+          metadata: machines['m1']!.metadata!.copyWith(
+            displayName: 'Renamed Mac',
+          ),
+        ),
+      };
+
+      expect(SessionFolderMachinesProjection.fromMachines(heartbeat), initial);
+      expect(
+        SessionFolderMachinesProjection.fromMachines(renamed),
+        isNot(initial),
+      );
+    });
+
     test('ordering projection ignores previews but tracks timestamps', () {
       const initialEntry = SessionUiEntry(
         lastMessageTimestamp: 100,

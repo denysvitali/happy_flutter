@@ -64,6 +64,17 @@ class MMKVStorage {
 
   static final MMKVStorage _instance = MMKVStorage._();
 
+  /// Web never uses native MMKV compaction; kept for conditional API parity.
+  @visibleForTesting
+  static bool debugShouldCompactMessageCache({
+    required int totalBytes,
+    required int actualBytes,
+    required bool isLinux,
+    int minFileBytes = 64 * 1024 * 1024,
+    int minReclaimableBytes = 32 * 1024 * 1024,
+    int minWasteRatio = 2,
+  }) => false;
+
   Database? _db;
   final Map<String, String> _cache = {};
   final Set<String> _sessionMessageCacheKeys = <String>{};

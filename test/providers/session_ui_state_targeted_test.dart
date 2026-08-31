@@ -199,6 +199,64 @@ void main() {
       );
     });
 
+    test(
+      'paired session-domain event does not rescan an unchanged catalog',
+      () {
+        seed('a');
+        seed('b');
+        final notifier = container.read(
+          sessionUiStateNotifierProvider.notifier,
+        );
+        container.read(sessionUiStateNotifierProvider);
+        final fullScansBefore = notifier.debugFullComputeCount;
+
+        sync
+          ..testSetSessionMessages('a', [message('changed', createdAt: 7000)])
+          ..testNotifySessionMessagesChanged('a')
+          ..testNotifyDomains({SyncDomain.messages, SyncDomain.sessions});
+        notifier
+          ..loadSessionFromSync('a')
+          ..loadCatalogFromSync();
+
+        expect(notifier.debugFullComputeCount, fullScansBefore);
+        expect(
+          container
+              .read(sessionUiStateNotifierProvider)
+              .bySessionId['a']!
+              .lastMessagePreview,
+          'changed',
+        );
+      },
+    );
+
+    test('standalone session event still reconciles an unchanged catalog', () {
+      seed('a');
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      container.read(sessionUiStateNotifierProvider);
+      final fullScansBefore = notifier.debugFullComputeCount;
+
+      sync.testNotifyDomains({SyncDomain.sessions});
+      notifier.loadCatalogFromSync();
+
+      expect(notifier.debugFullComputeCount, fullScansBefore + 1);
+    });
+
+    test('catalog load still performs a full reconcile for new ids', () {
+      seed('a');
+      final notifier = container.read(sessionUiStateNotifierProvider.notifier);
+      container.read(sessionUiStateNotifierProvider);
+      final fullScansBefore = notifier.debugFullComputeCount;
+
+      seed('b');
+      notifier.loadCatalogFromSync();
+
+      expect(notifier.debugFullComputeCount, fullScansBefore + 1);
+      expect(
+        container.read(sessionUiStateNotifierProvider).bySessionId,
+        contains('b'),
+      );
+    });
+
     test('a removed target leaves every projection without it', () {
       seed('a');
       seed('b');
@@ -265,15 +323,17 @@ void main() {
       seed('b');
       final notifier = container.read(sessionUiStateNotifierProvider.notifier);
       final before = container.read(sessionUiStateNotifierProvider);
+      final fullScansBefore = notifier.debugFullComputeCount;
 
       sync.markSessionArchived('a');
-      notifier.loadFromSync();
+      notifier.loadCatalogFromSync();
 
       final after = container.read(sessionUiStateNotifierProvider);
       expect(after.optimisticallyArchivedIds, {'a'});
       expect(after.ordering.optimisticallyArchivedIds, {'a'});
       expect(after.ordering.revision, before.ordering.revision + 1);
       expect(container.read(optimisticallyArchivedIdsProvider), {'a'});
+      expect(notifier.debugFullComputeCount, fullScansBefore);
       // Row data is unaffected by archive bookkeeping.
       expect(
         identical(after.bySessionId['a'], before.bySessionId['a']),
@@ -281,7 +341,7 @@ void main() {
       );
 
       sync.markSessionUnarchived('a');
-      notifier.loadFromSync();
+      notifier.loadCatalogFromSync();
       final restored = container.read(sessionUiStateNotifierProvider);
       expect(restored.optimisticallyArchivedIds, isEmpty);
       expect(container.read(optimisticallyArchivedIdsProvider), isEmpty);

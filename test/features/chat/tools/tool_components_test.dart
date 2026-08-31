@@ -34,9 +34,7 @@ void main() {
 
     testWidgets('renders with single child', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolSectionView(child: Text('Single Child')),
-        ),
+        _wrap(const ToolSectionView(child: Text('Single Child'))),
       );
 
       expect(find.text('Single Child'), findsOneWidget);
@@ -44,9 +42,7 @@ void main() {
 
     testWidgets('renders without title', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolSectionView(children: [Text('No Title')]),
-        ),
+        _wrap(const ToolSectionView(children: [Text('No Title')])),
       );
 
       expect(find.text('No Title'), findsOneWidget);
@@ -54,21 +50,14 @@ void main() {
 
     testWidgets('title is uppercased', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolSectionView(
-            title: 'command',
-            children: [SizedBox()],
-          ),
-        ),
+        _wrap(const ToolSectionView(title: 'command', children: [SizedBox()])),
       );
 
       expect(find.text('COMMAND'), findsOneWidget);
     });
 
     testWidgets('renders empty children list', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const ToolSectionView()),
-      );
+      await tester.pumpWidget(_wrap(const ToolSectionView()));
 
       expect(find.byType(Column), findsWidgets);
     });
@@ -92,9 +81,7 @@ void main() {
   group('ToolStatusIndicator', () {
     testWidgets('renders completed state with check icon', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolStatusIndicator(state: ToolState.completed),
-        ),
+        _wrap(const ToolStatusIndicator(state: ToolState.completed)),
       );
 
       expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
@@ -102,54 +89,44 @@ void main() {
 
     testWidgets('renders error state with cancel icon', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolStatusIndicator(state: ToolState.error),
-        ),
+        _wrap(const ToolStatusIndicator(state: ToolState.error)),
       );
 
       expect(find.byIcon(Icons.cancel_rounded), findsOneWidget);
     });
 
-    testWidgets('renders pending state with unchecked icon',
-        (tester) async {
+    testWidgets('renders pending state with unchecked icon', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolStatusIndicator(state: ToolState.pending),
-        ),
+        _wrap(const ToolStatusIndicator(state: ToolState.pending)),
       );
 
-      expect(
-        find.byIcon(Icons.radio_button_unchecked),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.radio_button_unchecked), findsOneWidget);
     });
 
-    testWidgets('renders running state with progress indicator',
-        (tester) async {
+    testWidgets('running state pulses briefly then settles without a ticker', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolStatusIndicator(state: ToolState.running),
-        ),
+        _wrap(const ToolStatusIndicator(state: ToolState.running)),
       );
 
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byIcon(Icons.autorenew_rounded), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 8));
+
+      expect(find.byIcon(Icons.autorenew_rounded), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(tester.binding.transientCallbackCount, 0);
     });
 
     testWidgets('respects custom size', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolStatusIndicator(
-            state: ToolState.completed,
-            size: 32,
-          ),
-        ),
+        _wrap(const ToolStatusIndicator(state: ToolState.completed, size: 32)),
       );
 
-      final icon = tester.widget<Icon>(
-        find.byIcon(Icons.check_circle_rounded),
-      );
+      final icon = tester.widget<Icon>(find.byIcon(Icons.check_circle_rounded));
       expect(icon.size, 32);
     });
   });
@@ -164,9 +141,7 @@ void main() {
     });
 
     testWidgets('error shows cancel icon', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const StatusIcon(state: ToolState.error)),
-      );
+      await tester.pumpWidget(_wrap(const StatusIcon(state: ToolState.error)));
 
       expect(find.byIcon(Icons.cancel_rounded), findsOneWidget);
     });
@@ -192,24 +167,18 @@ void main() {
     testWidgets('applies custom color', (tester) async {
       const customColor = Colors.purple;
       await tester.pumpWidget(
-        _wrap(
-          const StatusIcon(
-            state: ToolState.completed,
-            color: customColor,
-          ),
-        ),
+        _wrap(const StatusIcon(state: ToolState.completed, color: customColor)),
       );
 
-      final icon = tester.widget<Icon>(
-        find.byIcon(Icons.check_circle_rounded),
-      );
+      final icon = tester.widget<Icon>(find.byIcon(Icons.check_circle_rounded));
       expect(icon.color, customColor);
     });
   });
 
   group('ToolError', () {
-    testWidgets('renders a structured result message without JSON framing',
-        (tester) async {
+    testWidgets('renders a structured result message without JSON framing', (
+      tester,
+    ) async {
       const message =
           'This session was recorded with model `gpt-5.6-sol` but is '
           'resuming with `gpt-5.6-terra`.';
@@ -230,9 +199,7 @@ void main() {
 
     testWidgets('renders error message', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolError(message: 'Something went wrong'),
-        ),
+        _wrap(const ToolError(message: 'Something went wrong')),
       );
 
       expect(find.text('Something went wrong'), findsOneWidget);
@@ -241,14 +208,10 @@ void main() {
 
     testWidgets('has left border accent', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolError(message: 'Error with border'),
-        ),
+        _wrap(const ToolError(message: 'Error with border')),
       );
 
-      final container = tester.widget<Container>(
-        find.byType(Container).first,
-      );
+      final container = tester.widget<Container>(find.byType(Container).first);
       final decoration = container.decoration as BoxDecoration;
       final border = decoration.border as Border;
       expect(border.left.width, 3);
@@ -258,9 +221,7 @@ void main() {
   group('ToolResultError', () {
     testWidgets('renders error message', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const ToolResultError(message: 'Result error'),
-        ),
+        _wrap(const ToolResultError(message: 'Result error')),
       );
 
       expect(find.text('Result error'), findsOneWidget);
@@ -268,11 +229,7 @@ void main() {
     });
 
     testWidgets('has left border accent', (tester) async {
-      await tester.pumpWidget(
-        _wrap(
-          const ToolResultError(message: 'Error'),
-        ),
-      );
+      await tester.pumpWidget(_wrap(const ToolResultError(message: 'Error')));
 
       final containers = tester.widgetList<Container>(find.byType(Container));
       // Find container with border decoration
@@ -284,5 +241,3 @@ void main() {
     });
   });
 }
-
-

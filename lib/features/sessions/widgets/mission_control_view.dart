@@ -64,7 +64,6 @@ class MissionControlView extends StatefulWidget {
     required this.activeSessions,
     required this.inactiveSessions,
     required this.machines,
-    required this.uiState,
     required this.actionCardBuilder,
     required this.onOpenWorkspace,
     super.key,
@@ -76,12 +75,20 @@ class MissionControlView extends StatefulWidget {
     this.onToggleMuteFolder,
     this.onOpenSession,
     this.onPeekSession,
-  });
+    this.uiState,
+    this.uiProjection,
+  }) : assert(uiState != null || uiProjection != null);
 
   final List<Session> activeSessions;
   final List<Session> inactiveSessions;
   final Map<String, Machine> machines;
-  final SessionUiState uiState;
+
+  /// Legacy full state accepted by focused widget tests.
+  final SessionUiState? uiState;
+
+  /// Minimal production projection. Passing it directly avoids allocating a
+  /// full `SessionUiState` map on every session message update.
+  final MissionControlUiProjection? uiProjection;
   final MissionTriageState triage;
 
   /// Builds one session tile while preserving parent-owned navigation,
@@ -128,6 +135,8 @@ class _MissionControlViewState extends State<MissionControlView> {
   int _nextWorkspaceSlot = 0;
   int _lastModelTraceAtMs = 0;
   int _lastSlowModelLogAtMs = 0;
+  final Map<String, MissionControlUiEntry> _projectedEntrySources = {};
+  final Map<String, SessionUiEntry> _projectedEntries = {};
 
   /// Actionable session ids the user has already seen since the view last
   /// showed them quiet. Rows entering the actionable set after that get a
@@ -148,8 +157,25 @@ class _MissionControlViewState extends State<MissionControlView> {
 
   static const int _telemetryThrottleMs = 30000;
 
-  SessionUiEntry _entry(String id) =>
-      widget.uiState.bySessionId[id] ?? SessionUiEntry.empty;
+  SessionUiEntry _entry(String id) {
+    final legacy = widget.uiState;
+    if (legacy != null) {
+      return legacy.bySessionId[id] ?? SessionUiEntry.empty;
+    }
+    final source = widget.uiProjection?.bySessionId[id];
+    if (source == null) return SessionUiEntry.empty;
+    if (_projectedEntrySources[id] == source) {
+      return _projectedEntries[id]!;
+    }
+    final entry = SessionUiEntry(
+      lastMessageTimestamp: source.lastMessageTimestamp,
+      unreadCount: source.unreadCount,
+      lastMessageIsError: source.lastMessageIsError,
+    );
+    _projectedEntrySources[id] = source;
+    _projectedEntries[id] = entry;
+    return entry;
+  }
 
   @override
   void dispose() {
@@ -160,6 +186,13 @@ class _MissionControlViewState extends State<MissionControlView> {
   @override
   void didUpdateWidget(MissionControlView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final currentIds = widget.uiProjection?.bySessionId.keys;
+    if (currentIds != null &&
+        !identical(widget.uiProjection, oldWidget.uiProjection)) {
+      final retained = currentIds.toSet();
+      _projectedEntrySources.removeWhere((id, _) => !retained.contains(id));
+      _projectedEntries.removeWhere((id, _) => !retained.contains(id));
+    }
     _observeWireEvents();
   }
 
@@ -380,9 +413,8 @@ class _MissionControlViewState extends State<MissionControlView> {
       widget.activeSessions,
       widget.inactiveSessions,
       widget.machines,
-      getLastMessageTimestamp: (id) =>
-          widget.uiState.bySessionId[id]?.lastMessageTimestamp,
-      getUnreadCount: (id) => widget.uiState.bySessionId[id]?.unreadCount ?? 0,
+      getLastMessageTimestamp: (id) => _entry(id).lastMessageTimestamp,
+      getUnreadCount: (id) => _entry(id).unreadCount,
     );
     _ensureWorkspaceSlots(workspaces, lanes);
 

@@ -48,6 +48,10 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testNotifyDataChanged() => _notifyDataChanged();
 
+  @visibleForTesting
+  void testNotifyDomains(Set<SyncDomain> domains) =>
+      _notifyDataChanged(domains);
+
   /// Emits one `onDomainChanged` event so domain-scoped consumers
   /// (sentinel, activity coordinator) can be driven without the socket.
   @visibleForTesting

@@ -611,17 +611,17 @@ extension SyncSocket on Sync {
 
   /// Debounce window for the per-session cache write.
   ///
-  /// Raised from 1000 ms after production showed 232 MMKV writes of
+  /// Raised after production showed repeated full-blob MMKV writes of
   /// 150-395 ms in 24 h, clustered on the two chattiest sessions. The
   /// cache is a cold-start accelerator, not the source of truth (the
   /// server tail is refetched on open), so trading a wider window for
-  /// roughly half the writes is the right side of the durability
+  /// fewer writes is the right side of the durability
   /// tradeoff — provided the suspend flush actually runs.
   ///
   /// Mutable only through [SyncTestHelpers.testSetSaveMessagesTiming];
   /// production always runs [_saveMsgsDebounceMsDefault].
   static int _saveMsgsDebounceMs = _saveMsgsDebounceMsDefault;
-  static const int _saveMsgsDebounceMsDefault = 2000;
+  static const int _saveMsgsDebounceMsDefault = 5000;
 
   /// Hard ceiling on how long sustained streaming can defer a write.
   ///

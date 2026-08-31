@@ -126,14 +126,13 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
   late final Animation<double> _pulseScale;
   late final Animation<double> _pulseOpacity;
   bool? _reduceMotion;
+  bool _settled = false;
+  int _animationRun = 0;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: AppDuration.pulse,
-    );
+    _controller = AnimationController(vsync: this, duration: AppDuration.pulse);
 
     _pulseScale = Tween<double>(
       begin: 0.7,
@@ -152,17 +151,27 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
     final reduceMotion = AppMotion.reduceMotion(context);
     if (_reduceMotion == reduceMotion) return;
     _reduceMotion = reduceMotion;
+    final run = ++_animationRun;
     if (reduceMotion) {
       _controller
         ..stop()
         ..value = 0;
+      _settled = true;
     } else {
-      _controller.repeat();
+      _settled = false;
+      _controller
+          .repeat(count: AppMotion.activityPulseCount)
+          .whenCompleteOrCancel(() {
+            if (!mounted || run != _animationRun) return;
+            _controller.value = 0;
+            setState(() => _settled = true);
+          });
     }
   }
 
   @override
   void dispose() {
+    _animationRun++;
     _controller.dispose();
     super.dispose();
   }
@@ -173,10 +182,10 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
     final cs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final ringColor = theme.colorScheme.primary;
     // The sheen ring carries the signature gradient so a running tool reads
-    // as "live" from across the room; the spinner keeps the plain primary.
+    // as "live" from across the room; the glyph keeps the plain primary.
     final gradient = cs.accentLinearGradient;
 
-    if (_reduceMotion ?? AppMotion.reduceMotion(context)) {
+    if ((_reduceMotion ?? AppMotion.reduceMotion(context)) || _settled) {
       return Icon(Icons.autorenew_rounded, size: widget.size, color: ringColor);
     }
 
@@ -214,13 +223,15 @@ class _PulsingRunningIndicatorState extends State<_PulsingRunningIndicator>
                 color: theme.scaffoldBackgroundColor,
               ),
             ),
-            // Inner spinner
-            SizedBox(
-              width: widget.size * 0.7,
-              height: widget.size * 0.7,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.8,
-                valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+            // Rotate a concrete running glyph with the bounded controller.
+            // An indeterminate CircularProgressIndicator owns a second
+            // perpetual ticker even after the outer pulse is stopped.
+            RotationTransition(
+              turns: _controller,
+              child: Icon(
+                Icons.autorenew_rounded,
+                size: widget.size * 0.75,
+                color: ringColor,
               ),
             ),
           ],

@@ -563,6 +563,13 @@ abstract final class AppSpring {
 /// overlayColor: AppMotion.overlayFor(_kSeedColor),
 /// ```
 abstract final class AppMotion {
+  /// Number of short activity-pulse passes before a live indicator settles.
+  ///
+  /// A live state remains visible after this animation finishes. Bounded
+  /// pulses communicate a state transition without keeping the Flutter frame
+  /// scheduler at the display refresh rate for an arbitrarily long tool run.
+  static const int activityPulseCount = 4;
+
   // ── Opacity constants ──────────────────────────────────────────────────
 
   /// 8 % – hover state layer.

@@ -262,6 +262,10 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
   final Map<String, bool> _hasUnsettledSend = {};
   int _lastScaleTraceAtMs = 0;
   int _lastSlowLogAtMs = 0;
+  int _fullComputeCount = 0;
+
+  @visibleForTesting
+  int get debugFullComputeCount => _fullComputeCount;
 
   static const int _slowComputeMs = 16;
   static const int _scaleTraceMinSessions = 11;
@@ -307,6 +311,56 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     if (result.state != state) {
       state = result.state;
     }
+  }
+
+  /// Reconciles session catalog membership without rescanning every message
+  /// window for metadata-only session-domain events.
+  ///
+  /// Message ingestion commonly emits a targeted session-message event and a
+  /// broad session-domain event as one pair. [loadSessionFromSync] handles the
+  /// first; when the catalog IDs are unchanged, the second has no additional
+  /// [SessionUiState] work to do.
+  void loadCatalogFromSync() {
+    if (!sync.isInitialized) return;
+    _lastDataChangeCounter = sync.dataChangeCounter;
+    _lastSessionsDomainCounter = sync.domainChangeCounter(SyncDomain.sessions);
+    final messagesDomainCounter = sync.domainChangeCounter(
+      SyncDomain.messages,
+    );
+    final pairedMessageEvent =
+        messagesDomainCounter != _lastMessagesDomainCounter;
+    _lastMessagesDomainCounter = messagesDomainCounter;
+    final sessions = sync.sessionsView;
+    final sameCatalog =
+        sessions.length == state.bySessionId.length &&
+        state.bySessionId.keys.every(sessions.containsKey);
+    final optimisticallyArchivedIds = Set<String>.unmodifiable(
+      sync.getOptimisticallyArchivedIds(),
+    );
+    final archiveChanged = !setEquals(
+      optimisticallyArchivedIds,
+      state.optimisticallyArchivedIds,
+    );
+    if (sameCatalog && (pairedMessageEvent || archiveChanged)) {
+      if (archiveChanged) {
+        state = SessionUiState(
+          bySessionId: state.bySessionId,
+          optimisticallyArchivedIds: optimisticallyArchivedIds,
+          ordering: SessionUiOrdering.reconcile(
+            previous: state.ordering,
+            timestamps: state.ordering.timestamps,
+            optimisticallyArchivedIds: optimisticallyArchivedIds,
+          ),
+          missionControl: state.missionControl,
+        );
+      }
+      return;
+    }
+    final result = _computeAllFromSync(
+      trigger: 'catalog',
+      previousState: state,
+    );
+    if (result.state != state) state = result.state;
   }
 
   /// Refresh only [sessionId] after its message stream changes.
@@ -392,6 +446,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     required String trigger,
     SessionUiState previousState = SessionUiState.empty,
   }) {
+    _fullComputeCount++;
     final stopwatch = Stopwatch()..start();
     // Zero-copy views — read synchronously only (see Sync.sessionsView).
     final sessions = sync.sessionsView;
@@ -410,11 +465,17 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       );
       bySessionId[session.id] = next;
       timestamps[session.id] = next.lastMessageTimestamp;
-      missionControlEntries[session.id] = MissionControlUiEntry(
+      final missionControlEntry = MissionControlUiEntry(
         lastMessageTimestamp: next.lastMessageTimestamp,
         unreadCount: next.unreadCount,
         lastMessageIsError: next.lastMessageIsError,
       );
+      final previousMissionControlEntry =
+          previousState.missionControl.bySessionId[session.id];
+      missionControlEntries[session.id] =
+          previousMissionControlEntry == missionControlEntry
+          ? previousMissionControlEntry!
+          : missionControlEntry;
       if (!identical(next, previous)) changed++;
     }
     changed +=
