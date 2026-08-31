@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/widgets/agents_list_sheet.dart';
 import 'package:happy_flutter/features/chat/widgets/sub_agent_status_banner.dart';
 
@@ -207,6 +208,60 @@ void main() {
       expect(material.color?.a, 1.0);
     });
 
+    testWidgets('running dots stop scheduling frames after bounded pulses', (
+      tester,
+    ) async {
+      sync.testSetSessionMessages('test-session', [
+        <String, dynamic>{
+          'id': 'task-1',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'isSidechain': false,
+          'seq': 1,
+        },
+      ]);
+
+      await tester.pumpWidget(
+        _wrap(const SubAgentStatusBanner(sessionId: 'test-session')),
+      );
+      await tester.pump();
+
+      expect(tester.binding.transientCallbackCount, greaterThan(0));
+
+      await tester.pump(
+        const Duration(milliseconds: 900 * AppMotion.activityPulseCount),
+      );
+      await tester.pump();
+
+      expect(tester.binding.transientCallbackCount, 0);
+    });
+
+    testWidgets('running dots are static with reduced motion', (tester) async {
+      sync.testSetSessionMessages('test-session', [
+        <String, dynamic>{
+          'id': 'task-1',
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'isSidechain': false,
+          'seq': 1,
+        },
+      ]);
+
+      await tester.pumpWidget(
+        _wrap(
+          const MediaQuery(
+            data: MediaQueryData(disableAnimations: true),
+            child: SubAgentStatusBanner(sessionId: 'test-session'),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.binding.transientCallbackCount, 0);
+    });
+
     testWidgets('refreshes only for its session message events', (
       tester,
     ) async {
@@ -309,9 +364,7 @@ void main() {
       // (the outer SubAgentStatusBanner widget is a thin wrapper that
       // is itself zero-size; only the inner InkWell is hit-testable).
       await tester.tap(find.text('Tap to view'));
-      // pumpAndSettle deadlocks on the running-dots animation, so use
-      // explicit pump() calls to advance just enough frames for the
-      // modal sheet to slide in.
+      // Explicit pumps advance only the modal-sheet transition under test.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 750));
 

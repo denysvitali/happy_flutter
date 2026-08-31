@@ -192,11 +192,13 @@ void main() {
       seed('b');
       final notifier = container.read(sessionUiStateNotifierProvider.notifier);
       final before = container.read(sessionUiStateNotifierProvider);
+      final copiesBefore = notifier.debugTargetedEntryMapCopyCount;
       notifier.loadSessionFromSync('a');
       expect(
         identical(container.read(sessionUiStateNotifierProvider), before),
         isTrue,
       );
+      expect(notifier.debugTargetedEntryMapCopyCount, copiesBefore);
     });
 
     test(

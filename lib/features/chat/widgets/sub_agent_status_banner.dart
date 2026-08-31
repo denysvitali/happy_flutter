@@ -434,6 +434,9 @@ class _RunningDots extends StatefulWidget {
 class _RunningDotsState extends State<_RunningDots>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
+  bool? _reduceMotion;
+  bool _settled = false;
+  int _animationRun = 0;
 
   @override
   void initState() {
@@ -448,15 +451,30 @@ class _RunningDotsState extends State<_RunningDots>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (AppMotion.reduceMotion(context)) {
-      _ctrl.stop();
-    } else if (!_ctrl.isAnimating) {
-      _ctrl.repeat();
+    final reduceMotion = AppMotion.reduceMotion(context);
+    if (_reduceMotion == reduceMotion) return;
+    _reduceMotion = reduceMotion;
+    final run = ++_animationRun;
+    if (reduceMotion) {
+      _ctrl
+        ..stop()
+        ..value = 0;
+      _settled = true;
+    } else {
+      _settled = false;
+      _ctrl.repeat(count: AppMotion.activityPulseCount).whenCompleteOrCancel(
+        () {
+          if (!mounted || run != _animationRun) return;
+          _ctrl.value = 0;
+          setState(() => _settled = true);
+        },
+      );
     }
   }
 
   @override
   void dispose() {
+    _animationRun++;
     _ctrl.dispose();
     super.dispose();
   }
@@ -465,7 +483,8 @@ class _RunningDotsState extends State<_RunningDots>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final color = theme.colorScheme.onPrimaryContainer;
-    final animate = _ctrl.isAnimating;
+    final animate =
+        !(_reduceMotion ?? AppMotion.reduceMotion(context)) && !_settled;
     return SizedBox(
       width: 18,
       height: 16,

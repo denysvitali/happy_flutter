@@ -180,7 +180,10 @@ Future<Map<String, dynamic>> _decodeAndPrepareMessageCacheJson(
   Map<String, dynamic> request,
 ) async {
   final raw = request['readNative'] == true
-      ? readSessionMessagesEncodedInWorker(request['sessionId'] as String)
+      ? readSessionMessagesEncodedInWorker(
+          request['sessionId'] as String,
+          request['rootDir'] as String,
+        )
       : request['raw'] as String?;
   final protectionKey = request['protectionKey'] as Uint8List?;
   try {
@@ -268,6 +271,7 @@ bool _writeMessageCacheJson(Map<String, dynamic> request) {
   return writeSessionMessagesEncodedInWorker(
     request['sessionId'] as String,
     request['encodedMarker'] as String,
+    request['rootDir'] as String,
   );
 }
 
@@ -356,12 +360,11 @@ class MessageCacheService {
 
   /// Latched once a worker-isolate MMKV write fails.
   ///
-  /// Worker MMKV availability is a property of the device/plugin build (the
-  /// worker isolate has no initialized MMKV handle and cannot create one
-  /// without a platform channel), so a single failure predicts every later
-  /// one. Retrying per write cost an isolate spawn plus a copy of the whole
-  /// multi-MB encoded marker before falling back to the main-isolate write
-  /// anyway. Reset by [resetWorkerStorageAvailabilityForTest].
+  /// Workers reopen the initialized mmap through its explicit root. A failure
+  /// still predicts every later attempt for this device/plugin build, so do
+  /// not keep spawning an isolate and copying the whole marker before falling
+  /// back to the main handle. Reset by
+  /// [resetWorkerStorageAvailabilityForTest].
   static bool _workerStorageUnavailable = false;
 
   /// Test hook: clear the worker-storage latch between tests.
@@ -463,8 +466,11 @@ class MessageCacheService {
     var outcome = 'miss';
     var messages = <Map<String, dynamic>>[];
     try {
-      final useNativeWorkerStorage =
-          !kIsWeb && identical(_storage, MMKVStorage());
+      final nativeWorkerRootDir =
+          !kIsWeb && identical(_storage, MMKVStorage())
+          ? _storage.nativeWorkerRootDir
+          : null;
+      final useNativeWorkerStorage = nativeWorkerRootDir != null;
       String? raw;
       if (!useNativeWorkerStorage) {
         raw = await _storage.getSessionMessagesEncodedAsync(sessionId);
@@ -496,6 +502,7 @@ class MessageCacheService {
       final result = await compute(_decodeAndPrepareMessageCacheJson, {
         'sessionId': sessionId,
         'readNative': useNativeWorkerStorage,
+        'rootDir': nativeWorkerRootDir,
         'raw': raw,
         'associatedData': _cacheAssociatedData(sessionId),
         'protectionKey': _protection.copyKeyForWorker(),
@@ -941,23 +948,26 @@ class MessageCacheService {
         return;
       }
       var writeMs = 0;
+      var nativeWorkerWriteSucceeded = false;
       final useNativeWorkerStorage =
           !kIsWeb &&
           identical(_storage, MMKVStorage()) &&
+          _storage.nativeWorkerRootDir != null &&
           !_workerStorageUnavailable;
       if (useNativeWorkerStorage) {
         final writeSucceeded = await compute(_writeMessageCacheJson, {
           'sessionId': sessionId,
           'encodedMarker': marker,
+          'rootDir': _storage.nativeWorkerRootDir!,
         });
+        nativeWorkerWriteSucceeded = writeSucceeded;
         writeMs = writeWatch.elapsedMilliseconds;
         if (!writeSucceeded) {
-          // Some Android MMKV builds cannot reopen the process-global handle
-          // from a short-lived Dart worker isolate. The main isolate already
-          // owns an initialized handle, so preserve the snapshot through that
-          // handle instead of dropping every cache write. Encoding and
-          // encryption still happened off-isolate; this fallback performs
-          // only the final native string write.
+          // Some MMKV builds can still reject an explicitly rooted handle in
+          // a short-lived Dart worker isolate. Preserve the snapshot through
+          // the initialized main handle instead of dropping every cache
+          // write. Encoding and encryption still happened off-isolate; this
+          // fallback performs only the final native string write.
           //
           // Latch the failure for the rest of the process: MMKV worker
           // availability is a property of the device/plugin build, not of an
@@ -995,6 +1005,9 @@ class MessageCacheService {
         seq: save.seq,
         revision: save.revision,
       );
+      if (nativeWorkerWriteSucceeded) {
+        _storage.noteMessageCacheWrite(marker.length);
+      }
       _recordWrite(
         sessionId,
         savedCount: result['savedCount'] as int,

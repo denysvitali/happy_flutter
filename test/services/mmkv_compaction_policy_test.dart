@@ -14,7 +14,7 @@ void main() {
       );
     });
 
-    test('rejects other platforms and ordinary allocation slack', () {
+    test('rejects other platforms and small files', () {
       expect(
         MMKVStorage.debugShouldCompactMessageCache(
           totalBytes: 268435456,
@@ -25,11 +25,40 @@ void main() {
       );
       expect(
         MMKVStorage.debugShouldCompactMessageCache(
-          totalBytes: 64 * 1024 * 1024,
+          totalBytes: 63 * 1024 * 1024,
           actualBytes: 48 * 1024 * 1024,
           isLinux: true,
         ),
         isFalse,
+      );
+    });
+
+    test('does not treat append position as live payload size', () {
+      expect(
+        MMKVStorage.debugShouldCompactMessageCache(
+          totalBytes: 268435456,
+          actualBytes: 218 * 1024 * 1024,
+          isLinux: true,
+        ),
+        isTrue,
+        reason: 'trim performs fullWriteback before deciding how far to shrink',
+      );
+    });
+
+    test('re-arms maintenance after 32 MiB of cache writes', () {
+      expect(
+        MMKVStorage.debugCrossesMessageCacheCompactionWriteTrigger(
+          accumulatedBytes: 31 * 1024 * 1024,
+          writeBytes: 1024 * 1024 - 1,
+        ),
+        isFalse,
+      );
+      expect(
+        MMKVStorage.debugCrossesMessageCacheCompactionWriteTrigger(
+          accumulatedBytes: 31 * 1024 * 1024,
+          writeBytes: 1024 * 1024,
+        ),
+        isTrue,
       );
     });
   });

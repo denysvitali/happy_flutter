@@ -19,11 +19,17 @@ String _encodeJsonForStorage(Object? value) => jsonEncode(value);
 
 /// Reads a message-cache blob from a background isolate.
 ///
-/// MMKV's native state is process-global, so the default handle can be opened
-/// in a Dart worker after the main isolate has initialized the library.
-String? readSessionMessagesEncodedInWorker(String sessionId) {
+/// MMKV's Dart root is isolate-local, so workers receive the main isolate's
+/// resolved root and reopen that exact mmap explicitly.
+String? readSessionMessagesEncodedInWorker(
+  String sessionId,
+  String rootDir,
+) {
   try {
-    return MMKV.defaultMMKV().decodeString('session-messages-$sessionId');
+    return MMKV(
+      'mmkv.default',
+      rootDir: rootDir,
+    ).decodeString('session-messages-$sessionId');
   } catch (_) {
     return null;
   }
@@ -33,9 +39,10 @@ String? readSessionMessagesEncodedInWorker(String sessionId) {
 bool writeSessionMessagesEncodedInWorker(
   String sessionId,
   String encodedMessages,
+  String rootDir,
 ) {
   try {
-    return MMKV.defaultMMKV().encodeString(
+    return MMKV('mmkv.default', rootDir: rootDir).encodeString(
       'session-messages-$sessionId',
       encodedMessages,
     );
@@ -51,20 +58,25 @@ bool writeSessionMessagesEncodedInWorker(
 /// UI isolate. The thresholds avoid paying that cost for normal page-sized
 /// slack while reclaiming pathological growth caused by repeated full-blob
 /// message-cache replacements.
-Map<String, Object> _compactDefaultMMKVIfNeeded(Map<String, int> limits) {
-  final mmkv = MMKV.defaultMMKV();
+Map<String, Object> _compactDefaultMMKVIfNeeded(Map<String, Object> request) {
+  // MMKV's Dart-side root directory is isolate-local. `defaultMMKV()` in a
+  // fresh compute isolate therefore opens the platform default rather than
+  // the live store initialized by the UI isolate with an application root.
+  // Address the same mmap explicitly so the maintenance pass trims the store
+  // whose size triggered it.
+  final rootDir = request['rootDir']! as String;
+  final mmkv = MMKV('mmkv.default', rootDir: rootDir);
   final totalBefore = mmkv.totalSize;
   final actualBefore = mmkv.actualSize;
   if (!MMKVStorage.debugShouldCompactMessageCache(
     totalBytes: totalBefore,
     actualBytes: actualBefore,
     isLinux: Platform.isLinux,
-    minFileBytes: limits['minFileBytes']!,
-    minReclaimableBytes: limits['minReclaimableBytes']!,
-    minWasteRatio: limits['minWasteRatio']!,
+    minFileBytes: request['minFileBytes']! as int,
   )) {
     return <String, Object>{
       'trimmed': false,
+      'rootDir': rootDir,
       'totalBefore': totalBefore,
       'actualBefore': actualBefore,
       'totalAfter': totalBefore,
@@ -73,6 +85,7 @@ Map<String, Object> _compactDefaultMMKVIfNeeded(Map<String, int> limits) {
   mmkv.trim();
   return <String, Object>{
     'trimmed': true,
+    'rootDir': rootDir,
     'totalBefore': totalBefore,
     'actualBefore': actualBefore,
     'totalAfter': mmkv.totalSize,
@@ -200,7 +213,7 @@ class _JsonMapStore {
     final revision = _revision;
     final snapshot = Map<String, String>.from(cache);
     unawaited(
-      compute(_encodeJsonForStorage, snapshot)
+      compute(_encodeJsonForStorage, snapshot, debugLabel: 'mmkv.encode.$_key')
           .then((encoded) {
             if (revision != _revision) return;
             _mmkv()?.encodeString(_key, encoded);
@@ -318,7 +331,11 @@ class _IntCursorStore {
     final revision = ++_revision;
     _cache = snapshot;
     try {
-      final encoded = await compute(_encodeJsonForStorage, snapshot);
+      final encoded = await compute(
+        _encodeJsonForStorage,
+        snapshot,
+        debugLabel: 'mmkv.encode.$_key',
+      );
       if (revision != _revision) return;
       _mmkv()?.encodeString(_key, encoded);
     } catch (e) {
@@ -367,11 +384,11 @@ class MMKVStorage {
   Timer? _messageCacheCompactionTimer;
   bool _messageCacheCompactionScheduled = false;
   bool _messageCacheCompactionInFlight = false;
+  int _messageCacheBytesSinceCompaction = 0;
 
   static const int _messageCacheCompactionMinFileBytes = 64 * 1024 * 1024;
-  static const int _messageCacheCompactionMinReclaimableBytes =
+  static const int _messageCacheCompactionWriteTriggerBytes =
       32 * 1024 * 1024;
-  static const int _messageCacheCompactionMinWasteRatio = 2;
   static const Duration _messageCacheCompactionIdleDelay = Duration(
     seconds: 10,
   );
@@ -471,14 +488,23 @@ class MMKVStorage {
     required int actualBytes,
     required bool isLinux,
     int minFileBytes = _messageCacheCompactionMinFileBytes,
-    int minReclaimableBytes = _messageCacheCompactionMinReclaimableBytes,
-    int minWasteRatio = _messageCacheCompactionMinWasteRatio,
   }) {
-    if (!isLinux || totalBytes < minFileBytes) return false;
-    final reclaimableBytes = totalBytes - actualBytes;
-    if (reclaimableBytes < minReclaimableBytes) return false;
-    return actualBytes == 0 || totalBytes >= actualBytes * minWasteRatio;
+    // MMKV actualSize is the append position, not the live-value payload.
+    // trim() performs fullWriteback first and then applies MMKV's own shrink
+    // ratio to the rewritten live bytes, so pre-gating on actualSize skips the
+    // exact pathological stores maintenance is meant to repair.
+    return isLinux && totalBytes >= minFileBytes;
   }
+
+  @visibleForTesting
+  static bool debugCrossesMessageCacheCompactionWriteTrigger({
+    required int accumulatedBytes,
+    required int writeBytes,
+    int triggerBytes = _messageCacheCompactionWriteTriggerBytes,
+  }) => accumulatedBytes + writeBytes >= triggerBytes;
+
+  /// Root passed to short-lived workers so they reopen this exact mmap.
+  String? get nativeWorkerRootDir => _initialized ? MMKV.rootDir : null;
 
   /// Resets process-local initialization and caches between isolated tests.
   @visibleForTesting
@@ -495,6 +521,7 @@ class MMKVStorage {
     _instance._messageCacheCompactionTimer = null;
     _instance._messageCacheCompactionScheduled = false;
     _instance._messageCacheCompactionInFlight = false;
+    _instance._messageCacheBytesSinceCompaction = 0;
   }
 
   /// Migrate data from SharedPreferences to MMKV
@@ -545,6 +572,7 @@ class MMKVStorage {
       final settingsJson = await compute(
         _encodeJsonForStorage,
         settings.toJson(),
+        debugLabel: 'mmkv.encode.settings',
       );
       _mmkv?.encodeString(_StorageKeys.settings, settingsJson);
     } catch (e) {
@@ -800,7 +828,11 @@ class MMKVStorage {
     if (!_initialized) return;
     final revision = ++_sessionsCacheWriteRevision;
     try {
-      final encoded = await compute(_encodeJsonForStorage, cache);
+      final encoded = await compute(
+        _encodeJsonForStorage,
+        cache,
+        debugLabel: 'mmkv.encode.sessions-cache',
+      );
       if (revision != _sessionsCacheWriteRevision) return;
       _mmkv?.encodeString(_StorageKeys.sessionsCache, encoded);
     } catch (e) {
@@ -893,7 +925,27 @@ class MMKVStorage {
   }
 
   void saveSessionMessagesEncoded(String sessionId, String encodedMessages) {
-    _mmkv?.encodeString('session-messages-$sessionId', encodedMessages);
+    final wrote =
+        _mmkv?.encodeString(
+          'session-messages-$sessionId',
+          encodedMessages,
+        ) ??
+        false;
+    if (wrote) noteMessageCacheWrite(encodedMessages.length);
+  }
+
+  /// Re-arms low-frequency Linux maintenance after enough append traffic.
+  /// The delayed worker still applies the 64 MiB file-size gate before trim.
+  void noteMessageCacheWrite(int encodedBytes) {
+    if (!Platform.isLinux || encodedBytes <= 0) return;
+    final shouldSchedule = debugCrossesMessageCacheCompactionWriteTrigger(
+      accumulatedBytes: _messageCacheBytesSinceCompaction,
+      writeBytes: encodedBytes,
+    );
+    _messageCacheBytesSinceCompaction += encodedBytes;
+    if (!shouldSchedule) return;
+    _messageCacheBytesSinceCompaction = 0;
+    _scheduleLinuxMessageCacheCompaction();
   }
 
   void clearSessionMessages(String sessionId) {
@@ -908,7 +960,10 @@ class MMKVStorage {
     _messageCacheCompactionScheduled = true;
     _messageCacheCompactionTimer = Timer(_messageCacheCompactionIdleDelay, () {
       _messageCacheCompactionTimer = null;
-      if (!_initialized || _messageCacheCompactionInFlight) return;
+      if (!_initialized || _messageCacheCompactionInFlight) {
+        _messageCacheCompactionScheduled = false;
+        return;
+      }
       _messageCacheCompactionInFlight = true;
       unawaited(_runMessageCacheCompactionCheck());
     });
@@ -916,25 +971,27 @@ class MMKVStorage {
 
   Future<void> _runMessageCacheCompactionCheck() async {
     try {
-      final result = await compute(_compactDefaultMMKVIfNeeded, <String, int>{
-        'minFileBytes': _messageCacheCompactionMinFileBytes,
-        'minReclaimableBytes': _messageCacheCompactionMinReclaimableBytes,
-        'minWasteRatio': _messageCacheCompactionMinWasteRatio,
-      });
-      if (result['trimmed'] == true) {
-        logger.info(
-          '[MMKVStorage] Compacted message cache '
-          'totalBefore=${result['totalBefore']} '
-          'actualBefore=${result['actualBefore']} '
-          'totalAfter=${result['totalAfter']}',
-        );
-      }
+      final result =
+          await compute(_compactDefaultMMKVIfNeeded, <String, Object>{
+            'rootDir': MMKV.rootDir,
+            'minFileBytes': _messageCacheCompactionMinFileBytes,
+          }, debugLabel: 'mmkv.compact.default');
+      logger.info(
+        '[MMKVStorage] Message-cache compaction check '
+        'root=${result['rootDir']} '
+        'trimmed=${result['trimmed']} '
+        'totalBefore=${result['totalBefore']} '
+        'actualBefore=${result['actualBefore']} '
+        'totalAfter=${result['totalAfter']}',
+      );
     } catch (error) {
       logger.warning(
-        '[MMKVStorage] Message-cache compaction check failed: $error',
+        '[MMKVStorage] Message-cache compaction check failed '
+        'root=${MMKV.rootDir}: $error',
       );
     } finally {
       _messageCacheCompactionInFlight = false;
+      _messageCacheCompactionScheduled = false;
     }
   }
 

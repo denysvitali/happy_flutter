@@ -361,32 +361,79 @@ void main() {
       expect(projection.revision, sessions.collectionRevision);
     });
 
+    test('mission projection buckets timestamps but tracks live state', () {
+      final session = buildSession(
+        'active-1',
+        path: '/home/dev/app',
+        machineId: 'm1',
+        updatedAt: 1100,
+        activeAt: 1200,
+        active: true,
+        presence: 'online',
+      ).copyWith(lastMessageAt: 1300);
+      final initial = MissionControlSessionProjection.fromSessions({
+        session.id: session,
+      });
+      final rowOnlyUpdate = MissionControlSessionProjection.fromSessions({
+        session.id: session.copyWith(
+          metadata: session.metadata!.copyWith(model: 'opus'),
+        ),
+      });
+      final sameBucketUpdate = MissionControlSessionProjection.fromSessions({
+        session.id: session.copyWith(
+          updatedAt: 1500,
+          activeAt: 1600,
+          lastMessageAt: 1700,
+        ),
+      });
+      final nextBucketUpdate = MissionControlSessionProjection.fromSessions({
+        session.id: session.copyWith(activeAt: 2200),
+      });
+      final liveUpdate = MissionControlSessionProjection.fromSessions({
+        session.id: session.copyWith(thinking: true),
+      });
+
+      expect(rowOnlyUpdate, initial);
+      expect(sameBucketUpdate, initial);
+      expect(nextBucketUpdate, isNot(initial));
+      expect(liveUpdate, isNot(initial));
+    });
+
     test(
-      'mission projection ignores row-only metadata but tracks live state',
+      'mission projection tracks permission and grouping changes exactly',
       () {
         final session = buildSession(
           'active-1',
           path: '/home/dev/app',
           machineId: 'm1',
-          updatedAt: 100,
-          activeAt: 100,
+          updatedAt: 1100,
+          activeAt: 1200,
           active: true,
           presence: 'online',
         );
         final initial = MissionControlSessionProjection.fromSessions({
           session.id: session,
         });
-        final rowOnlyUpdate = MissionControlSessionProjection.fromSessions({
+        final permissionUpdate = MissionControlSessionProjection.fromSessions({
           session.id: session.copyWith(
-            metadata: session.metadata!.copyWith(model: 'opus'),
+            agentState: AgentState(
+              requests: {
+                'request-1': RequestInfo(
+                  tool: 'Bash',
+                  arguments: const {'cmd': 'true'},
+                ),
+              },
+            ),
           ),
         });
-        final liveUpdate = MissionControlSessionProjection.fromSessions({
-          session.id: session.copyWith(thinking: true),
+        final groupingUpdate = MissionControlSessionProjection.fromSessions({
+          session.id: session.copyWith(
+            metadata: session.metadata!.copyWith(path: '/home/dev/other'),
+          ),
         });
 
-        expect(rowOnlyUpdate, initial);
-        expect(liveUpdate, isNot(initial));
+        expect(permissionUpdate, isNot(initial));
+        expect(groupingUpdate, isNot(initial));
       },
     );
 

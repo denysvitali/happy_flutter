@@ -60,6 +60,35 @@ add_subdirectory("runner")
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
 
+# Build the Rust hot-path core as part of profile/release Linux builds. The
+# Dart bridge deliberately has a fallback, but shipping without this library
+# sends every AES socket batch through a fresh Dart isolate instead.
+if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+  find_program(CARGO_EXECUTABLE cargo REQUIRED)
+  get_filename_component(HAPPY_PROJECT_ROOT
+    "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+  set(HAPPY_CORE_ROOT "${HAPPY_PROJECT_ROOT}/rust/happy_core")
+  set(HAPPY_CORE_LIBRARY
+    "${HAPPY_PROJECT_ROOT}/build/rust/linux/libhappy_core.so")
+  file(GLOB_RECURSE HAPPY_CORE_SOURCES CONFIGURE_DEPENDS
+    "${HAPPY_CORE_ROOT}/src/*.rs")
+
+  add_custom_command(
+    OUTPUT "${HAPPY_CORE_LIBRARY}"
+    COMMAND "${HAPPY_PROJECT_ROOT}/scripts/build_rust.sh" linux
+    DEPENDS
+      "${HAPPY_PROJECT_ROOT}/scripts/build_rust.sh"
+      "${HAPPY_CORE_ROOT}/Cargo.toml"
+      "${HAPPY_CORE_ROOT}/Cargo.lock"
+      ${HAPPY_CORE_SOURCES}
+    WORKING_DIRECTORY "${HAPPY_PROJECT_ROOT}"
+    COMMENT "Building Linux Rust hot-path core"
+    VERBATIM
+  )
+  add_custom_target(happy_core_linux ALL DEPENDS "${HAPPY_CORE_LIBRARY}")
+  add_dependencies(${BINARY_NAME} happy_core_linux)
+endif()
+
 # Only the install-generated bundle's copy of the executable will launch
 # correctly, since the resources must in the right relative locations. To avoid
 # people trying to run the unbundled copy, put it in a subdirectory instead of
@@ -105,6 +134,12 @@ foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
 endforeach(bundled_library)
+
+if(TARGET happy_core_linux)
+  install(FILES "${HAPPY_CORE_LIBRARY}"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
 
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/linux/")

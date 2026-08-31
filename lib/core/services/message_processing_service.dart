@@ -42,7 +42,7 @@ Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
         sessionId: sessionId,
         wasEncrypted: wasEncrypted,
       );
-    }),
+    }, debugName: 'messages.process-decrypted'),
   );
 }
 

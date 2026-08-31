@@ -127,5 +127,8 @@ Future<List<dynamic>> decryptNaClBatchInIsolate({
     nonceSize: nonceSize,
     macSize: macSize,
   );
-  return Isolate.run(() => _naclDecryptBatchWorker(req));
+  return Isolate.run(
+    () => _naclDecryptBatchWorker(req),
+    debugName: 'crypto.nacl.decrypt-batch',
+  );
 }

@@ -520,17 +520,45 @@ extension SyncSocket on Sync {
   /// [saveSessionLastSeq] does a synchronous jsonEncode + MMKV disk write on
   /// the main thread. Called on every pagination page during [fetchMessages],
   /// it was the single biggest cause of jank when opening large sessions.
-  /// We debounce to a 500ms window so rapid page fetches batch into one write.
+  /// A five-second trailing edge matches message-cache persistence, while the
+  /// fifteen-second ceiling prevents sustained socket traffic from deferring
+  /// cursor durability forever. Lifecycle suspend/shutdown also flushes the
+  /// current map synchronously.
   void _scheduleSaveSeq() {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final firstScheduledAtMs = _saveSeqFirstScheduledAtMs;
+    _saveSeqFirstScheduledAtMs = firstScheduledAtMs ?? nowMs;
+    final delayMs = _computeSeqSaveDelayMs(
+      nowMs: nowMs,
+      firstScheduledAtMs: firstScheduledAtMs,
+    );
     _saveSeqDebounceTimer?.cancel();
-    _saveSeqDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+    _saveSeqDebounceTimer = Timer(Duration(milliseconds: delayMs), () {
       _saveSeqDebounceTimer = null;
+      _saveSeqFirstScheduledAtMs = null;
       unawaited(
         MMKVStorage().saveSessionLastSeqAsync(
           Map.unmodifiable(_sessionLastSeq),
         ),
       );
     });
+  }
+
+  static const int _saveSeqDebounceMs = 5000;
+  static const int _saveSeqMaxDelayMs = 15000;
+
+  static int _computeSeqSaveDelayMs({
+    required int nowMs,
+    required int? firstScheduledAtMs,
+  }) {
+    final elapsed = firstScheduledAtMs == null
+        ? 0
+        : nowMs - firstScheduledAtMs;
+    final remainingBudget = _saveSeqMaxDelayMs - elapsed;
+    if (remainingBudget <= 0) return 0;
+    return remainingBudget < _saveSeqDebounceMs
+        ? remainingBudget
+        : _saveSeqDebounceMs;
   }
 
   /// Background serialization for the oldest loaded cursor map, debounced.

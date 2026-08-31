@@ -245,6 +245,37 @@ void main() {
       );
     }, timeout: const Timeout(Duration(seconds: 30)));
 
+    test('seq cursor persistence uses a 5s trailing edge with a 15s cap', () {
+      expect(
+        SyncTestHelpers.testComputeSeqSaveDelay(
+          nowMs: 1000,
+          firstScheduledAtMs: null,
+        ),
+        5000,
+      );
+      expect(
+        SyncTestHelpers.testComputeSeqSaveDelay(
+          nowMs: 11000,
+          firstScheduledAtMs: 1000,
+        ),
+        5000,
+      );
+      expect(
+        SyncTestHelpers.testComputeSeqSaveDelay(
+          nowMs: 15500,
+          firstScheduledAtMs: 1000,
+        ),
+        500,
+      );
+      expect(
+        SyncTestHelpers.testComputeSeqSaveDelay(
+          nowMs: 17000,
+          firstScheduledAtMs: 1000,
+        ),
+        0,
+      );
+    });
+
     test(
       '_flushPendingMessageSaves clears pending state for backgrounding',
       () async {

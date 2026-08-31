@@ -938,6 +938,7 @@ what you have, you must use the options mode.
     for (final domain in SyncDomain.values) domain: 0,
   };
   Timer? _saveSeqDebounceTimer;
+  int? _saveSeqFirstScheduledAtMs;
   bool _saveFirstLoadedSeqQueued = false;
   Timer? _saveSessionsCacheDebounceTimer;
   final Map<String, Timer> _saveMsgsDebounceTimers = {};

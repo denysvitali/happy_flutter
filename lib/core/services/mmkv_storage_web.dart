@@ -23,11 +23,15 @@ import 'logger_service.dart' show logger;
 
 // Web `compute` shares the browser event loop, so message-cache persistence
 // continues through IndexedDB instead of these native-worker entry points.
-String? readSessionMessagesEncodedInWorker(String sessionId) => null;
+String? readSessionMessagesEncodedInWorker(
+  String sessionId,
+  String rootDir,
+) => null;
 
 bool writeSessionMessagesEncodedInWorker(
   String sessionId,
   String encodedMessages,
+  String rootDir,
 ) => false;
 
 /// Storage key constants (mirrors mmkv_storage_native.dart)
@@ -71,9 +75,20 @@ class MMKVStorage {
     required int actualBytes,
     required bool isLinux,
     int minFileBytes = 64 * 1024 * 1024,
-    int minReclaimableBytes = 32 * 1024 * 1024,
-    int minWasteRatio = 2,
   }) => false;
+
+  @visibleForTesting
+  static bool debugCrossesMessageCacheCompactionWriteTrigger({
+    required int accumulatedBytes,
+    required int writeBytes,
+    int triggerBytes = 32 * 1024 * 1024,
+  }) => accumulatedBytes + writeBytes >= triggerBytes;
+
+  /// Web has no native mmap for worker isolates.
+  String? get nativeWorkerRootDir => null;
+
+  /// Web persistence does not use MMKV append files.
+  void noteMessageCacheWrite(int encodedBytes) {}
 
   Database? _db;
   final Map<String, String> _cache = {};

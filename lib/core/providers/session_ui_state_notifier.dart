@@ -263,9 +263,13 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
   int _lastScaleTraceAtMs = 0;
   int _lastSlowLogAtMs = 0;
   int _fullComputeCount = 0;
+  int _targetedEntryMapCopyCount = 0;
 
   @visibleForTesting
   int get debugFullComputeCount => _fullComputeCount;
+
+  @visibleForTesting
+  int get debugTargetedEntryMapCopyCount => _targetedEntryMapCopyCount;
 
   static const int _slowComputeMs = 16;
   static const int _scaleTraceMinSessions = 11;
@@ -292,7 +296,9 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
 
     final dataCounter = sync.dataChangeCounter;
     final sessionsDomainCounter = sync.domainChangeCounter(SyncDomain.sessions);
-    final messagesDomainCounter = sync.domainChangeCounter(SyncDomain.messages);
+    final messagesDomainCounter = sync.domainChangeCounter(
+      SyncDomain.messages,
+    );
 
     if (dataCounter == _lastDataChangeCounter &&
         sessionsDomainCounter == _lastSessionsDomainCounter &&
@@ -324,9 +330,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     if (!sync.isInitialized) return;
     _lastDataChangeCounter = sync.dataChangeCounter;
     _lastSessionsDomainCounter = sync.domainChangeCounter(SyncDomain.sessions);
-    final messagesDomainCounter = sync.domainChangeCounter(
-      SyncDomain.messages,
-    );
+    final messagesDomainCounter = sync.domainChangeCounter(SyncDomain.messages);
     final pairedMessageEvent =
         messagesDomainCounter != _lastMessagesDomainCounter;
     _lastMessagesDomainCounter = messagesDomainCounter;
@@ -379,23 +383,27 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
     final session = sessions[sessionId];
     final span = _startScaleTrace('single', sessions.length);
     final previous = state.bySessionId[sessionId];
-    final nextEntries = Map<String, SessionUiEntry>.from(state.bySessionId);
     var changed = 0;
+    SessionUiEntry? next;
 
     if (session == null) {
-      if (nextEntries.remove(sessionId) != null) changed = 1;
+      if (state.bySessionId.containsKey(sessionId)) changed = 1;
       _messageRevisions.remove(sessionId);
       _hasUnsettledSend.remove(sessionId);
     } else {
       final usage = sync.sessionUsageView[sessionId];
-      final next = _computeEntry(sessionId, previous, usage);
-      if (!identical(next, previous)) {
-        nextEntries[sessionId] = next;
-        changed = 1;
-      }
+      next = _computeEntry(sessionId, previous, usage);
+      if (!identical(next, previous)) changed = 1;
     }
 
     if (changed > 0) {
+      _targetedEntryMapCopyCount++;
+      final nextEntries = Map<String, SessionUiEntry>.from(state.bySessionId);
+      if (session == null) {
+        nextEntries.remove(sessionId);
+      } else {
+        nextEntries[sessionId] = next!;
+      }
       var ordering = state.ordering;
       final nextTimestamp = nextEntries[sessionId]?.lastMessageTimestamp;
       final orderingChanged =

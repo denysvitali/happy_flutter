@@ -422,6 +422,17 @@ extension SyncTestHelpers on Sync {
     SyncSocket._saveMsgsMaxDelayMs = SyncSocket._saveMsgsMaxDelayMsDefault;
   }
 
+  /// Exposes the cursor-save trailing/ceiling geometry without starting a
+  /// real timer or touching MMKV.
+  @visibleForTesting
+  static int testComputeSeqSaveDelay({
+    required int nowMs,
+    required int? firstScheduledAtMs,
+  }) => SyncSocket._computeSeqSaveDelayMs(
+    nowMs: nowMs,
+    firstScheduledAtMs: firstScheduledAtMs,
+  );
+
   /// Test helper: invoke [_flushPendingMessageSaves] so the lifecycle
   /// flush behaviour can be asserted in isolation.
   @visibleForTesting
@@ -855,6 +866,9 @@ extension SyncTestHelpers on Sync {
   /// Mirrors the per-session fields cleared by `shutdown()`.
   @visibleForTesting
   void testClearAllSessionMessageState() {
+    _saveSeqDebounceTimer?.cancel();
+    _saveSeqDebounceTimer = null;
+    _saveSeqFirstScheduledAtMs = null;
     _saveFirstLoadedSeqQueued = false;
     for (final entry in _postSendCatchUpTimers.entries.toList()) {
       entry.value.cancel();

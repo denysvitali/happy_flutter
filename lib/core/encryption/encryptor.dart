@@ -66,6 +66,12 @@ class SecretBoxEncryption implements Encryptor {
 /// Format: [1-byte version (0)][12-byte IV][ciphertext][16-byte auth tag]
 class AES256Encryption implements Encryptor {
   AES256Encryption(this._secretKey);
+
+  /// Small Dart fallback batches are cheaper inline than a fresh isolate.
+  /// Live Linux profiling measured worker execution at 0.3-11 ms while every
+  /// call still paid isolate startup and payload-copy overhead.
+  static const int encodedBatchIsolateThreshold = 8;
+
   final Uint8List _secretKey;
 
   /// Expose key for isolate-based decryption.
@@ -180,6 +186,7 @@ class AES256Encryption implements Encryptor {
       final keyLocal = _secretKey;
       isolateResults = await Isolate.run(
         () => AesGcmEncryption.decryptBatch(stripped, keyLocal),
+        debugName: 'crypto.aes.decrypt-batch',
       );
     } catch (e, stack) {
       // Isolate spawn failed (e.g. certain test environments).
@@ -226,6 +233,7 @@ class AES256Encryption implements Encryptor {
       final keyLocal = _secretKey;
       encrypted = await Isolate.run(
         () => AesGcmEncryption.encryptBatch(data, keyLocal),
+        debugName: 'crypto.aes.encrypt-batch',
       );
     } catch (e, stack) {
       // Isolate spawn failed (e.g. certain test environments).
@@ -335,24 +343,29 @@ class AES256Encryption implements Encryptor {
       );
     }
 
-    EncodedDecryptResult result;
-    try {
-      // Hoist `_secretKey` into a local so the closure captures only
-      // sendable data — see [decryptInIsolate].
-      final keyLocal = _secretKey;
-      result = await Isolate.run(
-        () => AesGcmEncryption.decryptEncodedBatch(encoded, keyLocal),
-      );
-    } catch (e, stack) {
-      // Isolate spawn failed (e.g. certain test environments).
-      // Fall back to main-thread decryption.
-      logger.warning(
-        'AES256Encryption: isolate spawn failed, '
-        'falling back to main-thread decrypt',
-        e,
-        stack,
-      );
-      return AesGcmEncryption.decryptEncodedBatch(encoded, _secretKey);
+    late final EncodedDecryptResult result;
+    if (encoded.length < encodedBatchIsolateThreshold) {
+      result = await AesGcmEncryption.decryptEncodedBatch(encoded, _secretKey);
+    } else {
+      try {
+        // Hoist `_secretKey` into a local so the closure captures only
+        // sendable data — see [decryptInIsolate].
+        final keyLocal = _secretKey;
+        result = await Isolate.run(
+          () => AesGcmEncryption.decryptEncodedBatch(encoded, keyLocal),
+          debugName: 'crypto.aes.decrypt-encoded-batch',
+        );
+      } catch (e, stack) {
+        // Isolate spawn failed (e.g. certain test environments).
+        // Fall back to main-thread decryption.
+        logger.warning(
+          'AES256Encryption: isolate spawn failed, '
+          'falling back to main-thread decrypt',
+          e,
+          stack,
+        );
+        return AesGcmEncryption.decryptEncodedBatch(encoded, _secretKey);
+      }
     }
     final decodeFailed = Set<int>.of(result.decodeFailures);
     var failCount = 0;

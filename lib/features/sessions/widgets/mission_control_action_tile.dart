@@ -85,14 +85,15 @@ class MissionActionRow extends StatelessWidget {
         : '$workspace  ·  $activityText';
     final since =
         entry.lastMessageTimestamp ?? session.lastMessageAt ?? session.activeAt;
+    final nowMs = missionNowOf(context);
     // Freshness reads the shared Mission Control clock, so the pill and
     // glow age without any per-row timer.
     final freshness = streamFreshness(
-      nowMs: missionNowOf(context),
+      nowMs: nowMs,
       lastActivityAt: since,
       live: lane == MissionLane.live,
     );
-    final silenceMs = missionNowOf(context) - since;
+    final silenceMs = nowMs - since;
     final isSilent =
         lane == MissionLane.live &&
         silenceMs >= missionSilentThreshold.inMilliseconds;
@@ -235,6 +236,7 @@ class MissionActionRow extends StatelessWidget {
                       lane: lane,
                       entry: entry,
                       since: since,
+                      nowMs: nowMs,
                       live: lane == MissionLane.live,
                       onMarkRead: lane == MissionLane.unread && !selected
                           ? onMarkRead
@@ -340,6 +342,7 @@ class _OutcomePill extends StatelessWidget {
     required this.lane,
     required this.entry,
     required this.since,
+    required this.nowMs,
     required this.live,
     this.onMarkRead,
   });
@@ -347,6 +350,7 @@ class _OutcomePill extends StatelessWidget {
   final MissionLane lane;
   final SessionUiEntry entry;
   final int since;
+  final int nowMs;
 
   /// Whether the agent is still marked as working — gates the "silent"
   /// stall hint, which would be nonsense on a finished session.
@@ -359,10 +363,9 @@ class _OutcomePill extends StatelessWidget {
     final l10n = context.l10n;
     final color = missionLaneColor(context, lane);
 
-    // Live pills read the shared clock: silence age normally, and an
-    // amber "N m silent" stall hint once the stream stops updating while
-    // still claiming to work (threshold aligned with StuckAgentSentinel).
-    final silenceMs = missionNowOf(context) - since;
+    // MissionActionRow captures the shared clock once and passes it down so
+    // this child does not register a duplicate inherited dependency.
+    final silenceMs = nowMs - since;
     final isSilent =
         live && silenceMs >= missionSilentThreshold.inMilliseconds;
     final pillColor = isSilent

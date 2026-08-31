@@ -192,6 +192,34 @@ void main() {
   // notification per thinking session. These tests pin the coalescing and
   // presentation dedup that bound that work.
   group('SessionActivityCoordinator event coalescing', () {
+    test(
+      'periodic refresh sleeps while idle but domain events discover work',
+      () async {
+        final sync = createTestSync();
+        sync.testSessions['s1'] = _makeSession(id: 's1');
+        final c = SessionActivityCoordinator(
+          refreshInterval: const Duration(milliseconds: 20),
+          eventReconcileCooldown: const Duration(milliseconds: 20),
+        )..attach(sync);
+
+        await Future<void>.delayed(const Duration(milliseconds: 70));
+        expect(c.debugReconcileCount, 0);
+        await c.detach();
+
+        final discovery = SessionActivityCoordinator(
+          refreshInterval: const Duration(hours: 1),
+          eventReconcileCooldown: const Duration(milliseconds: 20),
+        )..attach(sync);
+        sync.testSessions['s1'] = _makeSession(id: 's1', thinking: true);
+        sync.testEmitDomainChanged(SyncDomain.sessions);
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+
+        expect(discovery.debugReconcileCount, 1);
+        expect(discovery.debugTrackedSessions, contains('s1'));
+        await discovery.detach();
+      },
+    );
+
     test('a sessions-domain burst walks the catalog at most twice and '
         'posts the notification once', () async {
       final sync = createTestSync();

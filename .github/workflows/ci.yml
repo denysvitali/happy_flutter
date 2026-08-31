@@ -801,6 +801,18 @@ jobs:
           restore-keys: |
             pub-v3-${{ runner.os }}-${{ runner.arch }}-
 
+      - name: Cache Linux native core
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/happy_core/target
+          key: >-
+            cargo-${{ runner.os }}-${{
+            hashFiles('rust/happy_core/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+
       - name: Get dependencies
         run: mise exec -- flutter pub get
 
@@ -819,6 +831,13 @@ jobs:
           mise exec -- flutter build linux --release --no-pub \
             --dart-define=SENTRY_RELEASE=${{ steps.build_meta.outputs.SENTRY_RELEASE }} \
             --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
+
+      - name: Verify Linux native core bundle
+        run: |
+          CORE=build/linux/x64/release/bundle/lib/libhappy_core.so
+          test -s "$CORE"
+          ldd "$CORE"
+          ldd "$CORE" | awk '/not found/ { missing = 1 } END { exit missing }'
 
       - name: Bundle release archive
         run: |

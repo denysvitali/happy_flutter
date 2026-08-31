@@ -27,7 +27,7 @@ class SessionCollectionSnapshot extends UnmodifiableMapView<String, Session> {
     return SessionCollectionSnapshot._(
       values,
       collectionRevision,
-      _computeMissionControlRevision(values, collectionRevision),
+      _computeMissionControlRevision(values),
     );
   }
 
@@ -73,20 +73,52 @@ int _computeCollectionRevision(Map<String, Session> sessions) {
   );
 }
 
-int _computeMissionControlRevision(
-  Map<String, Session> sessions,
-  int collectionRevision,
-) {
+const int _missionControlTimestampBucketMs = 1000;
+
+int? _missionControlTimestampBucket(int? timestamp) =>
+    timestamp == null ? null : timestamp ~/ _missionControlTimestampBucketMs;
+
+/// Revision for fields consumed by the Mission Control root model.
+///
+/// Membership, grouping, lane, thinking, and permission inputs invalidate
+/// immediately. The three high-frequency activity timestamps are rounded to
+/// one-second buckets: workspace recency can lag by at most one second, while
+/// token-batch `activeAt` updates no longer rebuild the entire dashboard.
+int _computeMissionControlRevision(Map<String, Session> sessions) {
   return Object.hash(
-    collectionRevision,
+    sessions.length,
     Object.hashAllUnordered(
-      sessions.values.map(
-        (session) => Object.hash(
-          session.id,
+      sessions.entries.map((entry) {
+        final session = entry.value;
+        final metadata = session.metadata;
+        final requests = session.agentState?.requests;
+        return Object.hashAll([
+          entry.key,
+          session.archived,
+          session.active,
+          session.presence,
+          _missionControlTimestampBucket(session.activeAt),
+          _missionControlTimestampBucket(session.updatedAt),
+          _missionControlTimestampBucket(session.lastMessageAt),
+          session.folder,
+          session.lifecycleStateCleartext,
+          metadata?.name,
+          metadata?.path,
+          metadata?.machineId,
+          metadata?.host,
+          metadata?.homeDir,
+          metadata?.summary?.text,
+          metadata?.lifecycleState,
+          metadata?.lifecycleStateSince,
           session.thinking,
-          session.agentState?.requests?.isNotEmpty ?? false,
-        ),
-      ),
+          Object.hashAllUnordered(
+            requests?.entries.map(
+                  (request) => Object.hash(request.key, request.value),
+                ) ??
+                const <Object>[],
+          ),
+        ]);
+      }),
     ),
   );
 }

@@ -86,9 +86,17 @@ class SessionActivityCoordinator {
     if (!kIsWeb) {
       _refreshTimer = Timer.periodic(
         _refreshInterval,
-        (_) => _reconcileCatalog(),
+        (_) => _refreshTrackedActivities(),
       );
     }
+  }
+
+  void _refreshTrackedActivities() {
+    // Domain events perform discovery immediately. The periodic pass exists
+    // only to refresh elapsed labels for notifications already being shown,
+    // so an idle catalog needs no recurring O(session count) walk.
+    if (_active.isEmpty) return;
+    _reconcileCatalog();
   }
 
   /// Coalesce sessions-domain events into at most one full-catalog walk per

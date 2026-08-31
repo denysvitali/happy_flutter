@@ -143,22 +143,13 @@ class MissionControlSessionProjection {
         revision: sessions.missionControlRevision,
       );
     }
-    final base = SessionCollectionProjection.fromSessions(sessions);
-    final revision = Object.hash(
-      base.revision,
-      Object.hashAllUnordered(
-        sessions.values.map(
-          (session) => Object.hash(
-            session.id,
-            session.thinking,
-            session.agentState?.requests?.isNotEmpty ?? false,
-          ),
-        ),
-      ),
-    );
+    // Focused tests and provider overrides may expose a plain map. Production
+    // receives SessionCollectionSnapshot and pays this preparation once when
+    // SessionsNotifier publishes.
+    final prepared = SessionCollectionSnapshot(sessions);
     return MissionControlSessionProjection._(
       sessions: sessions,
-      revision: revision,
+      revision: prepared.missionControlRevision,
     );
   }
 

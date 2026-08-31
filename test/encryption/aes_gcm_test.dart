@@ -649,6 +649,10 @@ void main() {
     });
 
     group('Encoded batch decrypt path (base64 decode in the worker)', () {
+      test('small fallback batches stay below the isolate threshold', () {
+        expect(AES256Encryption.encodedBatchIsolateThreshold, 8);
+      });
+
       test('roundtrips a 500-row mixed batch including 20KB bodies',
           () async {
         final key = _generateKey();
