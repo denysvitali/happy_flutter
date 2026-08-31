@@ -96,10 +96,7 @@ class WebSearchView extends StatelessWidget {
     return _buildClaudeWebSearch(context);
   }
 
-  Widget _buildMcpGroups(
-    BuildContext context,
-    List<SearchResultGroup> groups,
-  ) {
+  Widget _buildMcpGroups(BuildContext context, List<SearchResultGroup> groups) {
     final theme = Theme.of(context);
     final inputQuery = WireParsers.asMap(tool['input'])?['query'] as String?;
 
@@ -111,11 +108,7 @@ class WebSearchView extends StatelessWidget {
           for (final group in groups) ...[
             Row(
               children: [
-                Icon(
-                  Icons.search,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.search, size: 18, color: theme.colorScheme.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -159,6 +152,7 @@ class WebSearchView extends StatelessWidget {
     final sources = _sources(result);
     final state = tool['state'] as String? ?? '';
     final isCompleted = state == 'completed';
+    final isOtherActivity = _actionType(input, result) == 'other';
     final hasSources = sources.isNotEmpty;
     final hasExtraQueries =
         queries.length > 1 || (queries.length == 1 && queries.first != query);
@@ -174,7 +168,11 @@ class WebSearchView extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  query.isEmpty ? 'Searching the web' : query,
+                  query.isNotEmpty
+                      ? query
+                      : isCompleted && isOtherActivity
+                      ? l10n.webSearchActivityCompleted
+                      : 'Searching the web',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -210,9 +208,7 @@ class WebSearchView extends StatelessWidget {
                         width: 4,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -237,7 +233,9 @@ class WebSearchView extends StatelessWidget {
           ] else if (isCompleted) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              l10n.webSearchNoResultsNote,
+              isOtherActivity
+                  ? l10n.webSearchNoActivityDetailsNote
+                  : l10n.webSearchNoResultsNote,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontStyle: FontStyle.italic,
@@ -247,6 +245,23 @@ class WebSearchView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String? _actionType(
+    Map<String, dynamic>? input,
+    Map<String, dynamic>? result,
+  ) {
+    for (final candidate in [
+      WireParsers.asMap(input?['action']),
+      WireParsers.asMap(result?['action']),
+      WireParsers.asMap(WireParsers.asMap(result?['result'])?['action']),
+      input,
+      result,
+    ]) {
+      final type = candidate?['type'];
+      if (type is String && type.isNotEmpty) return type;
+    }
+    return null;
   }
 
   String _query(Map<String, dynamic>? input, Map<String, dynamic>? result) {

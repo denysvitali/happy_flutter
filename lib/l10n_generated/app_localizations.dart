@@ -2341,6 +2341,18 @@ abstract class AppLocalizations {
   /// **'Search completed — result pages are not included in the transcript.'**
   String get webSearchNoResultsNote;
 
+  /// No description provided for @webSearchActivityCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Web activity completed'**
+  String get webSearchActivityCompleted;
+
+  /// No description provided for @webSearchNoActivityDetailsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'No search query or result details were included in the transcript.'**
+  String get webSearchNoActivityDetailsNote;
+
   /// No description provided for @messageFocusSelectText.
   ///
   /// In en, this message translates to:

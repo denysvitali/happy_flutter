@@ -166,9 +166,7 @@ void main() {
 
   // ── WebSearchView body (rendered in the detail screen) ────────────────
 
-  testWidgets('WebSearchView body shows expanded queries list', (
-    tester,
-  ) async {
+  testWidgets('WebSearchView body shows expanded queries list', (tester) async {
     await tester.pumpWidget(
       _wrapBody(
         WebSearchView(
@@ -204,10 +202,7 @@ void main() {
     // Queries label + each expanded query.
     expect(find.text('Queries'), findsOneWidget);
     expect(find.text('CVE-2026-12015'), findsOneWidget);
-    expect(
-      find.text('chromium autofill use-after-free'),
-      findsOneWidget,
-    );
+    expect(find.text('chromium autofill use-after-free'), findsOneWidget);
     expect(find.text('CVE-2026-12015 patch'), findsOneWidget);
   });
 
@@ -242,6 +237,45 @@ void main() {
           findRichText: true,
         ),
         findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'WebSearchView labels completed action=other without invented search',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrapBody(
+          WebSearchView(
+            tool: {
+              'name': 'WebSearch',
+              'state': 'completed',
+              'toolUseId': 'ws-other',
+              'input': {
+                'action': {'type': 'other'},
+                'query': '',
+              },
+              'result': <String, dynamic>{},
+            },
+          ),
+        ),
+      );
+
+      expect(find.text('Web activity completed'), findsOneWidget);
+      expect(find.text('Searching the web'), findsNothing);
+      expect(
+        find.textContaining(
+          'No search query or result details were included',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'result pages are not included',
+          findRichText: true,
+        ),
+        findsNothing,
       );
     },
   );
@@ -300,10 +334,7 @@ void main() {
     // The tile shows the host, not the full URL — the raw link read as
     // noise next to the title.
     expect(find.text('docs.flutter.dev'), findsOneWidget);
-    expect(
-      find.text('Build apps from a single codebase.'),
-      findsOneWidget,
-    );
+    expect(find.text('Build apps from a single codebase.'), findsOneWidget);
     // No "not in transcript" note when sources are present.
     expect(
       find.textContaining(
@@ -374,8 +405,10 @@ void main() {
       find.textContaining('2026-06-09', findRichText: true),
       findsOneWidget,
     );
-    expect(find.text('A ranked comparison of the 12 best libraries.'),
-        findsOneWidget);
+    expect(
+      find.text('A ranked comparison of the 12 best libraries.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('batched search renders one group per query', (tester) async {
@@ -391,13 +424,19 @@ void main() {
                 {
                   'query': 'riverpod 3 migration',
                   'results': [
-                    {'title': 'Riverpod 3 guide', 'url': 'https://riverpod.dev'},
+                    {
+                      'title': 'Riverpod 3 guide',
+                      'url': 'https://riverpod.dev',
+                    },
                   ],
                 },
                 {
                   'query': 'flutter 3.41 release notes',
                   'results': [
-                    {'title': 'Flutter 3.41', 'url': 'https://docs.flutter.dev'},
+                    {
+                      'title': 'Flutter 3.41',
+                      'url': 'https://docs.flutter.dev',
+                    },
                   ],
                 },
               ],
@@ -451,10 +490,7 @@ void main() {
     );
 
     // Header summarizes the payload; body is behind a tap.
-    expect(
-      find.textContaining('15 results', findRichText: true),
-      findsNothing,
-    );
+    expect(find.textContaining('15 results', findRichText: true), findsNothing);
     await tester.tap(find.byType(InkWell).first);
     await tester.pumpAndSettle();
 

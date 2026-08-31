@@ -1248,6 +1248,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Search completed — result pages are not included in the transcript.';
 
   @override
+  String get webSearchActivityCompleted => 'Web activity completed';
+
+  @override
+  String get webSearchNoActivityDetailsNote =>
+      'No search query or result details were included in the transcript.';
+
+  @override
   String get messageFocusSelectText => 'Select text';
 
   @override

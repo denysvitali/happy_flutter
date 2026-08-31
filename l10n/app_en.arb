@@ -604,6 +604,8 @@
   "messageDetailDescription": "Description",
   "webSearchQueriesLabel": "Queries",
   "webSearchNoResultsNote": "Search completed — result pages are not included in the transcript.",
+  "webSearchActivityCompleted": "Web activity completed",
+  "webSearchNoActivityDetailsNote": "No search query or result details were included in the transcript.",
   "messageFocusSelectText": "Select text",
   "messageFocusSpeak": "Speak",
   "messageFocusStopSpeaking": "Stop",
