@@ -81,6 +81,17 @@ void main() {
       expect(metadata.namespace, 'agents');
     });
 
+    test('parses daemon startup resume settings', () {
+      final metadata = Metadata.fromJson({
+        'host': 'devbox',
+        'resumeOnDaemonStart': true,
+        'resumeOnDaemonStartMessage': 'continue',
+      });
+
+      expect(metadata.resumeOnDaemonStart, isTrue);
+      expect(metadata.resumeOnDaemonStartMessage, 'continue');
+    });
+
     test('accepts legacy string summary from restored Claude sessions', () {
       final metadata = Metadata.fromJson(<String, dynamic>{
         'host': 'devbox',

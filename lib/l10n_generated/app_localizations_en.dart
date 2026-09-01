@@ -2588,6 +2588,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionInfoSectionQuickActions => 'Quick Actions';
 
   @override
+  String get sessionStartupResumeSection => 'Startup Resume';
+
+  @override
+  String get sessionStartupResumeTitle => 'Resume when the daemon starts';
+
+  @override
+  String get sessionStartupResumeDescription =>
+      'Restore this session after the machine or daemon restarts, then send the message below.';
+
+  @override
+  String get sessionStartupResumeMessageLabel => 'Message after restore';
+
+  @override
+  String get sessionStartupResumeMessageRequired =>
+      'Enter a message to send after restoring the session.';
+
+  @override
+  String get sessionStartupResumeSaved => 'Startup resume setting saved.';
+
+  @override
+  String get sessionStartupResumeSaveFailed =>
+      'Could not save the startup resume setting.';
+
+  @override
   String get sessionInfoActionExportDebug => 'Export Debug Info';
 
   @override

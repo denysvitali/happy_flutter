@@ -199,6 +199,8 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiBoolNullable) bool? sandboxEnforced,
     @JsonKey(fromJson: _asApiStringNullable) String? sandboxBackend,
     @JsonKey(fromJson: _asApiStringNullable) String? sandboxReason,
+    @Default(false) bool resumeOnDaemonStart,
+    @JsonKey(fromJson: _asApiStringNullable) String? resumeOnDaemonStartMessage,
   }) = _Metadata;
 
   factory Metadata.fromJson(Map<String, dynamic> json) =>

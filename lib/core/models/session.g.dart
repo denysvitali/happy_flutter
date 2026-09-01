@@ -43,6 +43,10 @@ _Metadata _$MetadataFromJson(Map<String, dynamic> json) => _Metadata(
   sandboxEnforced: _asApiBoolNullable(json['sandboxEnforced']),
   sandboxBackend: _asApiStringNullable(json['sandboxBackend']),
   sandboxReason: _asApiStringNullable(json['sandboxReason']),
+  resumeOnDaemonStart: json['resumeOnDaemonStart'] as bool? ?? false,
+  resumeOnDaemonStartMessage: _asApiStringNullable(
+    json['resumeOnDaemonStartMessage'],
+  ),
 );
 
 Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
@@ -80,6 +84,8 @@ Map<String, dynamic> _$MetadataToJson(_Metadata instance) => <String, dynamic>{
   'sandboxEnforced': instance.sandboxEnforced,
   'sandboxBackend': instance.sandboxBackend,
   'sandboxReason': instance.sandboxReason,
+  'resumeOnDaemonStart': instance.resumeOnDaemonStart,
+  'resumeOnDaemonStartMessage': instance.resumeOnDaemonStartMessage,
 };
 
 _Summary _$SummaryFromJson(Map<String, dynamic> json) => _Summary(

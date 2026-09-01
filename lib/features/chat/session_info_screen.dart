@@ -9,9 +9,9 @@ import '../../core/components/app_section_header.dart';
 import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/session.dart';
-import '../../core/rpc/rpc_types.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/routing/safe_pop.dart';
+import '../../core/rpc/rpc_types.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_color_scheme.dart';
@@ -92,12 +92,70 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
   bool _podLoading = false;
   bool _podActionRunning = false;
   Object? _podError;
+  late final TextEditingController _startupResumeMessageController;
+  late bool _startupResumeEnabled;
+  bool _startupResumeSaving = false;
 
   @override
   void initState() {
     super.initState();
+    _startupResumeEnabled =
+        widget.session.metadata?.resumeOnDaemonStart ?? false;
+    _startupResumeMessageController = TextEditingController(
+      text: widget.session.metadata?.resumeOnDaemonStartMessage ?? 'continue',
+    );
     if (widget.session.isKubernetesSession) {
       Future<void>.microtask(_refreshPod);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _SessionInfoBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldMetadata = oldWidget.session.metadata;
+    final metadata = widget.session.metadata;
+    if (!_startupResumeSaving &&
+        (oldMetadata?.resumeOnDaemonStart != metadata?.resumeOnDaemonStart ||
+            oldMetadata?.resumeOnDaemonStartMessage !=
+                metadata?.resumeOnDaemonStartMessage)) {
+      _startupResumeEnabled = metadata?.resumeOnDaemonStart ?? false;
+      _startupResumeMessageController.text =
+          metadata?.resumeOnDaemonStartMessage ?? 'continue';
+    }
+  }
+
+  @override
+  void dispose() {
+    _startupResumeMessageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveStartupResume() async {
+    final metadata = widget.session.metadata;
+    final machineId = metadata?.machineId;
+    if (machineId == null || machineId.isEmpty) return;
+    final message = _startupResumeMessageController.text.trim();
+    if (_startupResumeEnabled && message.isEmpty) {
+      _showError(context.l10n.sessionStartupResumeMessageRequired);
+      return;
+    }
+    setState(() => _startupResumeSaving = true);
+    try {
+      await sync.machineSetSessionStartupResume(
+        machineId: machineId,
+        sessionId: widget.session.id,
+        enabled: _startupResumeEnabled,
+        message: message,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.sessionStartupResumeSaved)),
+      );
+    } catch (error, stack) {
+      logger.warning('Failed to update startup resume setting', error, stack);
+      _showError(context.l10n.sessionStartupResumeSaveFailed);
+    } finally {
+      if (mounted) setState(() => _startupResumeSaving = false);
     }
   }
 
@@ -356,8 +414,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(
               color:
-                  (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
+                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
                       .glassBorder,
             ),
           ),
@@ -492,8 +549,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(
               color:
-                  (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
+                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
                       .glassBorder,
             ),
           ),
@@ -530,6 +586,69 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ),
 
+        if (meta?.machineId?.isNotEmpty ?? false) ...[
+          const SizedBox(height: AppSpacing.lg),
+          AppSectionHeader(
+            title: l10n.sessionStartupResumeSection,
+            uppercase: true,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Card(
+            elevation: 0,
+            color: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              side: BorderSide(
+                color:
+                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                        .glassBorder,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.sessionStartupResumeTitle),
+                    subtitle: Text(l10n.sessionStartupResumeDescription),
+                    value: _startupResumeEnabled,
+                    onChanged: _startupResumeSaving
+                        ? null
+                        : (value) =>
+                              setState(() => _startupResumeEnabled = value),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  TextField(
+                    controller: _startupResumeMessageController,
+                    enabled: _startupResumeEnabled && !_startupResumeSaving,
+                    decoration: InputDecoration(
+                      labelText: l10n.sessionStartupResumeMessageLabel,
+                      hintText: 'continue',
+                      border: const OutlineInputBorder(),
+                    ),
+                    minLines: 1,
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton.icon(
+                    onPressed: _startupResumeSaving ? null : _saveStartupResume,
+                    icon: _startupResumeSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: Text(l10n.commonSave),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
         const SizedBox(height: AppSpacing.lg),
         AppSectionHeader(
           title: l10n.sessionInfoSectionQuickActions,
@@ -543,8 +662,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(
               color:
-                  (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
+                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
                       .glassBorder,
             ),
           ),
@@ -602,11 +720,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               side: BorderSide(
-              color:
-                  (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
-                      .glassBorder,
-            ),
+                color:
+                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                        .glassBorder,
+              ),
             ),
             child: Column(
               children: [
@@ -726,11 +843,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               side: BorderSide(
-              color:
-                  (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
-                      .glassBorder,
-            ),
+                color:
+                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                        .glassBorder,
+              ),
             ),
             child: Column(
               children: [
@@ -768,8 +884,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             borderRadius: BorderRadius.circular(AppRadius.md),
             side: BorderSide(
               color:
-                  (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
+                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
                       .glassBorder,
             ),
           ),
@@ -809,11 +924,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppRadius.md),
               side: BorderSide(
-              color:
-                  (theme.extension<AppColorScheme>() ??
-                          AppColorScheme.dark())
-                      .glassBorder,
-            ),
+                color:
+                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                        .glassBorder,
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),

@@ -11,6 +11,34 @@ extension SyncMachineRpcOperations on Sync {
   static const int _codexModelsSuccessTtlMs = 60 * 60 * 1000;
   static const int _codexModelsFailureTtlMs = 30 * 1000;
 
+  /// Configure a daemon-owned session to be restored on the next daemon
+  /// startup and submit [message] as its first resumed user turn.
+  Future<void> machineSetSessionStartupResume({
+    required String machineId,
+    required String sessionId,
+    required bool enabled,
+    required String message,
+  }) async {
+    await _typedMachineRPC<Object?>(
+      machineId,
+      'session-startup-resume-set',
+      <String, dynamic>{
+        'sessionId': sessionId,
+        'enabled': enabled,
+        'message': message,
+      },
+      (json) {
+        if (json['ok'] != true) {
+          throw StateError(
+            json['error']?.toString() ?? 'Failed to update startup resume',
+          );
+        }
+        return null;
+      },
+      timeout: const Duration(seconds: 15),
+    );
+  }
+
   Future<SessionPodsResponse> machineListSessionPods({
     required String machineId,
     bool includeArchived = true,
@@ -336,9 +364,7 @@ extension SyncMachineRpcOperations on Sync {
         // Daemon-side `codex debug models` SIGKILL (OOM). Catalog is
         // optional chrome; keep the failure in the cache TTL but do
         // not open a GlitchTip error (issues 8603/8606).
-        logger.info(
-          'machineGetCodexModels: daemon subprocess killed — $error',
-        );
+        logger.info('machineGetCodexModels: daemon subprocess killed — $error');
       } else {
         logger.error('machineGetCodexModels error', error, stackTrace);
       }

@@ -4903,6 +4903,48 @@ abstract class AppLocalizations {
   /// **'Quick Actions'**
   String get sessionInfoSectionQuickActions;
 
+  /// No description provided for @sessionStartupResumeSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup Resume'**
+  String get sessionStartupResumeSection;
+
+  /// No description provided for @sessionStartupResumeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume when the daemon starts'**
+  String get sessionStartupResumeTitle;
+
+  /// No description provided for @sessionStartupResumeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore this session after the machine or daemon restarts, then send the message below.'**
+  String get sessionStartupResumeDescription;
+
+  /// No description provided for @sessionStartupResumeMessageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Message after restore'**
+  String get sessionStartupResumeMessageLabel;
+
+  /// No description provided for @sessionStartupResumeMessageRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a message to send after restoring the session.'**
+  String get sessionStartupResumeMessageRequired;
+
+  /// No description provided for @sessionStartupResumeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Startup resume setting saved.'**
+  String get sessionStartupResumeSaved;
+
+  /// No description provided for @sessionStartupResumeSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the startup resume setting.'**
+  String get sessionStartupResumeSaveFailed;
+
   /// No description provided for @sessionInfoActionExportDebug.
   ///
   /// In en, this message translates to:
