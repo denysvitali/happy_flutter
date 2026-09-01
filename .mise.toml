@@ -10,7 +10,7 @@
 # dart / java / make land on PATH the moment you `cd` into the repo.
 [tools]
 flutter = "3.41.9"
-dart    = "3.11.5"
+dart    = "3.13.3"
 java    = "21.0.2"
 make    = "4.4.1"
 
