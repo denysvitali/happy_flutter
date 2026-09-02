@@ -37,9 +37,10 @@ are latest-wins.
 The signed APK remains arm64-only, R8-minified, resource-shrunk, and uploaded
 with its debug information. Dart obfuscation is deliberately off — the app is
 open source and unobfuscated release stacks make GlitchTip triage cheaper.
-The x64 Linux archive is built on `ubuntu-latest`; the arm64 archive uses
-GitHub's native `ubuntu-24.04-arm` runner. Both archives and the web
-deployment remain part of the same workflow.
+The x64 Linux archive is built on `ubuntu-22.04`; the arm64 archive uses
+GitHub's native `ubuntu-22.04-arm` runner. Both Linux jobs use the Ubuntu 22.04
+glibc baseline to avoid requiring newer libc symbols on supported systems. Both
+archives and the web deployment remain part of the same workflow.
 
 ## Test sharding
 

@@ -778,11 +778,13 @@ jobs:
       matrix:
         include:
           - architecture: x64
-            runner: ubuntu-latest
-          # Native ARM64 GitHub-hosted runner; avoids emulation for the
-          # Flutter desktop build and the Rust hot-path core.
+            # Build against the oldest supported GitHub Ubuntu image so the
+            # release does not pick up newer glibc symbols from ubuntu-latest.
+            runner: ubuntu-22.04
+          # Native ARM64 runner; avoids emulation while using the same glibc
+          # deployment baseline as the x64 release.
           - architecture: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
 
     steps:
       - name: Checkout repository
@@ -822,9 +824,9 @@ jobs:
             ~/.cargo/git
             rust/happy_core/target
           key: >-
-            cargo-${{ runner.os }}-${{ runner.arch }}-${{
+            cargo-${{ matrix.runner }}-${{ runner.arch }}-${{
             hashFiles('rust/happy_core/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+          restore-keys: cargo-${{ matrix.runner }}-${{ runner.arch }}-
 
       - name: Get dependencies
         run: mise exec -- flutter pub get

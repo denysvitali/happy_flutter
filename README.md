@@ -156,6 +156,9 @@ tar -xzf "happy-flutter-linux-${ARCH}.tar.gz"
 This installs the app under `~/.local/share/happy_flutter`, provides
 `~/.local/bin/happy_flutter`, and adds it to desktop launchers.
 
+Linux archives target glibc-based distributions. Alpine and other musl-based
+systems are not supported by the Flutter Linux runtime in these bundles.
+
 #### Auto-updates
 
 Local installs keep themselves current, both while the app is running and in
