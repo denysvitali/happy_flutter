@@ -8010,6 +8010,12 @@ abstract class AppLocalizations {
   /// **'Showing {displayed} of {total} characters'**
   String codeBlockTruncated(int displayed, int total);
 
+  /// Safe preview notice for markdown content too large to parse
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {displayed} of {total} characters'**
+  String markdownContentTruncated(int displayed, int total);
+
   /// Tooltip for a button that dismisses a banner or notice
   ///
   /// In en, this message translates to:

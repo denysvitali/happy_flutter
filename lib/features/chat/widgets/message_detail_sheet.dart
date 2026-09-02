@@ -10,6 +10,11 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
 
+/// Maximum raw message content laid out in one selectable text widget.
+/// Keeping the reader paged prevents a very large message from exhausting
+/// the UI isolate's text-layout stack after the timeline safely truncates it.
+const int _rawMarkdownPageSize = 12 * 1024;
+
 // ---------------------------------------------------------------------------
 // Message detail bottom sheet (tap on bot message)
 // ---------------------------------------------------------------------------
@@ -42,8 +47,8 @@ void showMessageDetailSheet(
   final now = DateTime.now();
 
   final messageId = messageData['id']?.toString();
-  final messageText =
-      (messageData['content'] ?? messageData['text'] ?? '').toString();
+  final messageText = (messageData['content'] ?? messageData['text'] ?? '')
+      .toString();
   final canSpeak =
       !kIsWeb && messageText.trim().isNotEmpty && messageId != null;
 
@@ -210,8 +215,8 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
               // scrolls. Clamping its descendants lets the drag fall through.
               child: ScrollConfiguration(
                 behavior: const NeutralizeInnerScrollBehavior(),
-                child: SelectableText(
-                  markdown,
+                child: _PagedRawMarkdown(
+                  markdown: markdown,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontFamily: 'monospace',
                     fontSize: AppFontSize.md,
@@ -225,6 +230,70 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
       ),
     ),
   );
+}
+
+/// Selectable raw markdown reader that lays out one bounded page at a time.
+/// Copy still receives the complete source through [markdown], while the
+/// visible reader never constructs a 300k-character paragraph.
+class _PagedRawMarkdown extends StatefulWidget {
+  const _PagedRawMarkdown({required this.markdown, required this.style});
+
+  final String markdown;
+  final TextStyle? style;
+
+  @override
+  State<_PagedRawMarkdown> createState() => _PagedRawMarkdownState();
+}
+
+class _PagedRawMarkdownState extends State<_PagedRawMarkdown> {
+  int _page = 0;
+
+  int get _pageCount =>
+      (widget.markdown.length / _rawMarkdownPageSize).ceil().clamp(1, 1 << 20);
+
+  String get _pageText {
+    final start = _page * _rawMarkdownPageSize;
+    final end = (start + _rawMarkdownPageSize).clamp(0, widget.markdown.length);
+    return widget.markdown.substring(start, end);
+  }
+
+  @override
+  void didUpdateWidget(_PagedRawMarkdown oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.markdown != widget.markdown) {
+      _page = _page.clamp(0, _pageCount - 1);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pageCount = _pageCount;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SelectableText(_pageText, style: widget.style),
+        if (pageCount > 1)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Previous page',
+                onPressed: _page == 0 ? null : () => setState(() => _page--),
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Text('${_page + 1} / $pageCount'),
+              IconButton(
+                tooltip: 'Next page',
+                onPressed: _page + 1 >= pageCount
+                    ? null
+                    : () => setState(() => _page++),
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -351,9 +420,7 @@ class _SpeakRow extends ConsumerWidget {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isPlaying
-                          ? Icons.stop_rounded
-                          : Icons.volume_up_rounded,
+                      isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded,
                       size: 18,
                       color: cs.primary,
                     ),
@@ -367,10 +434,7 @@ class _SpeakRow extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: cs.onSurfaceVariant,
-                  ),
+                  Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant),
                 ],
               ),
             ),

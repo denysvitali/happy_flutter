@@ -2497,6 +2497,18 @@
       }
     }
   },
+  "markdownContentTruncated": "Showing {displayed} of {total} characters",
+  "@markdownContentTruncated": {
+    "description": "Safe preview notice for markdown content too large to parse",
+    "placeholders": {
+      "displayed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "commonDismiss": "Dismiss",
   "@commonDismiss": {
     "description": "Tooltip for a button that dismisses a banner or notice"

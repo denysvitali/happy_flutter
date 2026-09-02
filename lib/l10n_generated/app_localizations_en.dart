@@ -4513,6 +4513,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String markdownContentTruncated(int displayed, int total) {
+    return 'Showing $displayed of $total characters';
+  }
+
+  @override
   String get commonDismiss => 'Dismiss';
 
   @override

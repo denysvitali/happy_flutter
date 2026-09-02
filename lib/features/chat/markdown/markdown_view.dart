@@ -9,6 +9,7 @@ import 'package:markdown/markdown.dart' as md;
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -20,6 +21,19 @@ typedef OptionPressedCallback = void Function(String option);
 /// Intrinsic sizing preserves readable cells and activates the renderer's
 /// built-in horizontal table scroller when the table exceeds its viewport.
 const TableColumnWidth _scrollableTableColumnWidth = IntrinsicColumnWidth();
+
+/// Maximum source size passed to [MarkdownBody]. The markdown parser builds an
+/// AST and a widget tree synchronously; very large documents can exhaust the
+/// UI isolate's stack before Flutter gets a chance to paint the message.
+const int _markdownBodyMaxChars = 12 * 1024;
+
+/// Maximum source size included in the safe plain-text preview for an
+/// oversized document. The preview is intentionally much smaller than the
+/// parser limit so its layout remains bounded as well.
+const int _markdownPreviewChars = 4000;
+
+/// Maximum number of visual lines shown for an oversized document.
+const int _markdownPreviewLines = 18;
 
 /// Maximum characters shown as plain text while streaming; older content
 /// collapses into a leading ellipsis until the message completes.
@@ -140,11 +154,9 @@ class _MarkdownViewState extends State<MarkdownView> {
         color: onSurface.withValues(alpha: 0.04),
         border: Border(
           left: BorderSide(
-            color:
-                (theme.extension<AppColorScheme>() ??
-                        AppColorScheme.dark())
-                    .accentGradient
-                    .first,
+            color: (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                .accentGradient
+                .first,
             width: 3,
           ),
         ),
@@ -158,9 +170,8 @@ class _MarkdownViewState extends State<MarkdownView> {
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
-          color:
-              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                  .glassBorder,
+          color: (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+              .glassBorder,
           width: AppBorder.hairline,
         ),
       ),
@@ -208,7 +219,24 @@ class _MarkdownViewState extends State<MarkdownView> {
       return RepaintBoundary(
         child: Text(
           _streamingTail(markdown),
+          maxLines: _markdownPreviewLines,
+          overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium?.copyWith(color: widget.textColor),
+        ),
+      );
+    }
+
+    // Never hand an untrusted, arbitrarily large message to the markdown
+    // parser. In addition to the parser's AST, flutter_markdown_plus creates
+    // a nested widget tree and inline spans synchronously; a single pasted
+    // 300k-character message can overflow the UI isolate's stack during the
+    // next build. Keep the complete source in the message model for copy /
+    // send semantics, but make the timeline render a bounded preview.
+    if (markdown.length > _markdownBodyMaxChars) {
+      return RepaintBoundary(
+        child: _OversizedMarkdownPreview(
+          content: markdown,
+          textColor: widget.textColor,
         ),
       );
     }
@@ -272,11 +300,9 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         color: onSurface.withValues(alpha: 0.04),
         border: Border(
           left: BorderSide(
-            color:
-                (theme.extension<AppColorScheme>() ??
-                        AppColorScheme.dark())
-                    .accentGradient
-                    .first,
+            color: (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                .accentGradient
+                .first,
             width: 3,
           ),
         ),
@@ -290,9 +316,8 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
-          color:
-              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                  .glassBorder,
+          color: (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+              .glassBorder,
           width: AppBorder.hairline,
         ),
       ),
@@ -322,6 +347,12 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
 
     final markdown = widget.markdown;
 
+    if (markdown.length > _markdownBodyMaxChars) {
+      return RepaintBoundary(
+        child: _OversizedMarkdownPreview(content: markdown),
+      );
+    }
+
     return RepaintBoundary(
       child: MarkdownBody(
         data: markdown,
@@ -330,6 +361,46 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
         styleSheet: _styleSheet!,
         onTapLink: (text, href, title) => _openMarkdownLink(href),
       ),
+    );
+  }
+}
+
+/// Plain-text fallback for markdown content that is too large to parse in a
+/// chat build. It deliberately receives only the bounded preview string, so
+/// both parsing and paragraph layout stay independent of the full payload.
+class _OversizedMarkdownPreview extends StatelessWidget {
+  const _OversizedMarkdownPreview({required this.content, this.textColor});
+
+  final String content;
+  final Color? textColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final preview = content.substring(0, _markdownPreviewChars);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          context.l10n.markdownContentTruncated(
+            _markdownPreviewChars,
+            content.length,
+          ),
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: (textColor ?? theme.colorScheme.onSurfaceVariant).withValues(
+              alpha: 0.8,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          preview,
+          maxLines: _markdownPreviewLines,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+        ),
+      ],
     );
   }
 }

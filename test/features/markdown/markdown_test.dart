@@ -6,6 +6,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/markdown/markdown.dart';
@@ -57,6 +58,18 @@ void main() {
   // ── SimpleMarkdownView ────────────────────────────────────────────────────
 
   group('SimpleMarkdownView', () {
+    testWidgets('bounds oversized content without invoking the parser', (
+      tester,
+    ) async {
+      final content = List.filled(303003, 'x').join();
+
+      await pumpMarkdown(tester, SimpleMarkdownView(markdown: content));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MarkdownBody), findsNothing);
+      expect(find.text('Showing 4000 of 303003 characters'), findsOneWidget);
+    });
+
     testWidgets('renders plain text', (tester) async {
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: 'Hello World'));
       expect(find.text('Hello World'), findsOneWidget);
@@ -352,6 +365,18 @@ void main() {
   // ── MarkdownView ──────────────────────────────────────────────────────────
 
   group('MarkdownView', () {
+    testWidgets('bounds oversized content without invoking the parser', (
+      tester,
+    ) async {
+      final content = List.filled(303003, 'x').join();
+
+      await pumpMarkdown(tester, MarkdownView(markdown: content));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MarkdownBody), findsNothing);
+      expect(find.text('Showing 4000 of 303003 characters'), findsOneWidget);
+    });
+
     testWidgets('renders plain text', (tester) async {
       await pumpMarkdown(tester, MarkdownView(markdown: 'Hello World'));
       expect(find.text('Hello World'), findsOneWidget);
