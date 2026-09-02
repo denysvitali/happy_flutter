@@ -3,6 +3,7 @@ import 'dart:async' show unawaited;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'core/services/logger_service.dart';
@@ -27,13 +28,32 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
   // Runtime identity from the APK/IPA, not a compile-time dart-define.
   // CI must set SENTRY_RELEASE for sentry_dart_plugin to the same string:
   // happy_flutter@${version}+${buildNumber}.
-  final packageInfo = await PackageInfoCache.get();
+  //
+  // Release Linux bundles already provide both values at build time. Do not
+  // make startup depend on the package-info platform plugin in that case:
+  // package-info is a Dart-only plugin on Linux and older Flutter runtimes
+  // can fail its registration before the first frame. A telemetry identity
+  // must never prevent the application window from opening.
+  PackageInfo? packageInfo;
+  if (_sentryReleaseOverride.isEmpty || _sentryDistOverride.isEmpty) {
+    try {
+      packageInfo = await PackageInfoCache.get();
+    } catch (error, stack) {
+      logger.warning(
+        '[Sentry] package metadata unavailable; using unset release',
+        error,
+        stack,
+      );
+    }
+  }
   final release = _sentryReleaseOverride.isNotEmpty
       ? _sentryReleaseOverride
+      : packageInfo == null
+      ? null
       : 'happy_flutter@${packageInfo.version}+${packageInfo.buildNumber}';
   final dist = _sentryDistOverride.isNotEmpty
       ? _sentryDistOverride
-      : packageInfo.buildNumber;
+      : packageInfo?.buildNumber;
 
   await SentryFlutter.init((options) {
     options
