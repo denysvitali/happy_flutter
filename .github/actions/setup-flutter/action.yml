@@ -167,6 +167,14 @@ runs:
           "$FLUTTER_ROOT/bin/internal/update_dart_sdk.sh"
         fi
 
+        # The archive also contains an x64 Flutter tool snapshot. Rebuild it
+        # once with the ARM64 Dart VM before invoking the Flutter wrapper.
+        ARM_SNAPSHOT_MARKER="$FLUTTER_ROOT/bin/cache/flutter_tools.arm64"
+        if [ ! -f "$ARM_SNAPSHOT_MARKER" ]; then
+          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.snapshot"
+          rm -f "$FLUTTER_ROOT/bin/cache/flutter_tools.stamp"
+        fi
+
         # Keep using `mise exec` for repository commands without asking mise
         # to resolve the x64-only Flutter entry in the project config.
         MISE_CONFIG_FILE="$RUNNER_TEMP/mise-arm64.toml"
@@ -180,6 +188,7 @@ runs:
         if [ '${{ steps.flutter-host-arm.outputs.cache-hit }}' != 'true' ]; then
           mise exec -- flutter precache --linux
         fi
+        touch "$ARM_SNAPSHOT_MARKER"
 
     - name: Warm Flutter CLI
       if: inputs.platform != 'host-arm64'
