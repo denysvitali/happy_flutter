@@ -224,6 +224,11 @@ extension SyncSessionOperations on Sync {
       profile: selectedProfile,
       modelMode: normalizedModelMode,
       agent: agent,
+      // createSession's modelMode is ambient state (lastUsedModelMode)
+      // unless the new-session screen explicitly threads a pick; the
+      // profile-pinned Codex model must keep winning over stale globals
+      // (e0e18dc7).
+      explicitModelPick: false,
     );
     final effectiveProfileId = spawnProfileResolution.profile != null
         ? selectedProfileId

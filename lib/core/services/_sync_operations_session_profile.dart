@@ -130,11 +130,26 @@ extension SyncSpawnProfileResolution on Sync {
     return <String, String>{...?base};
   }
 
+  /// Resolve the profile/model pair a spawn should use.
+  ///
+  /// [explicitModelPick] marks a model selection the user made for THIS
+  /// send/session (composer picker), as opposed to ambient state like
+  /// `lastUsedModelMode` threaded through createSession. The Codex
+  /// profile-pinned model (defaultModelMode → openaiConfig.model →
+  /// OPENAI_MODEL env) must beat stale ambient defaults (e0e18dc7) but
+  /// must NOT beat an explicit pick: on idle-respawn the pinned model
+  /// silently replaced the picker selection, so every respawned Codex
+  /// session ran the profile default (llm-proxy `opencode/x-preview-f-free`
+  /// → Grok free tier → 402 "Grok Build usage balance exhausted") while
+  /// the picker kept showing the user's model (session
+  /// c71e354191746dd1a19c8a020, 2026-09-02). A live child adopts the pick
+  /// from message meta, so only the respawn path dropped it.
   ({AIBackendProfile? profile, String? modelMode})
   _resolveEffectiveProfileForSpawn({
     required AIBackendProfile? profile,
     required String? modelMode,
     required String? agent,
+    bool explicitModelPick = false,
   }) {
     if (profile == null) {
       return (profile: null, modelMode: modelMode);
@@ -163,7 +178,7 @@ extension SyncSpawnProfileResolution on Sync {
         modelMode: 'default',
       );
     }
-    if (agent == 'codex') {
+    if (agent == 'codex' && !explicitModelPick) {
       final profileModelMode = _codexModelModeForProfile(profile);
       if (profileModelMode != null && profileModelMode != modelMode) {
         logger.info(
@@ -931,6 +946,9 @@ extension SyncSpawnProfileResolution on Sync {
         profile: spawnResult.profile,
         modelMode: modelMode,
         agent: sessionAgent,
+        // The send path carries the composer's current picker selection;
+        // it must survive the respawn instead of the profile default.
+        explicitModelPick: modelMode != null && modelMode != 'default',
       );
       final effectiveModelMode = spawnProfileResolution.modelMode;
       final effectiveEnvVars = spawnProfileResolution.profile != null

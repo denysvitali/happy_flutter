@@ -1868,6 +1868,184 @@ void main() {
       expect(envVars['CODEX_MODEL_REASONING_EFFORT'], 'high');
     });
 
+    // The c71e354191746dd1a19c8a020 incident (2026-09-02): an idle Codex
+    // session respawns on send while the composer shows the user's pick.
+    // The profile-pinned model must not replace that explicit selection,
+    // or every respawn silently switches provider (llm-proxy
+    // `opencode/x-preview-f-free` → Grok free tier → 402 balance
+    // exhausted) while live turns honor the pick.
+    test('explicit Codex pick beats profile model on send respawn', () async {
+      const sessionId = 'untracked-codex-explicit-pick-beats-profile-model';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'llm-proxy-codex',
+      );
+      final existing = sync.testSessions[sessionId]!;
+      // Durable metadata carries the profile default the previous process
+      // ran — the exact sticky state the incident session had.
+      sync.testSessions[sessionId] = existing.copyWith(
+        metadata: existing.metadata?.copyWith(flavor: 'codex'),
+        modelMode: 'opencode/x-preview-f-free',
+      );
+
+      final profile = AIBackendProfile(
+        id: 'llm-proxy-codex',
+        name: 'LLM Proxy Codex',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: 'https://llm-proxy.example.com/v1',
+          ),
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: 'sk-test'),
+          EnvironmentVariable(
+            name: 'OPENAI_MODEL',
+            value: 'opencode/x-preview-f-free',
+          ),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+          pi: false,
+        ),
+      );
+      sync.testGetSpawnEnvVarsOverride = (_) async => (
+        envVars: {
+          for (final env in profile.environmentVariables) env.name: env.value,
+        },
+        profile: profile,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(
+          sessionId,
+          'hello',
+          modelMode: 'opencode-go/glm-5.3-flash',
+          profileId: 'llm-proxy-codex',
+        );
+      } catch (_) {
+        // REST POST is not mocked; the spawn contract is the assertion.
+      }
+
+      expect(capturedSpawnParams, isNotNull);
+      expect(
+        capturedSpawnParams!['model'],
+        'opencode-go/glm-5.3-flash',
+        reason:
+            'The composer pick must survive the respawn; the profile '
+            'default must only apply when no explicit selection exists.',
+      );
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>;
+      expect(
+        envVars['OPENAI_MODEL'],
+        'opencode-go/glm-5.3-flash',
+        reason: 'Env must be rebound to the pick so the daemon child agrees.',
+      );
+    });
+
+    // e0e18dc7 preserved on the send path: with no explicit selection
+    // ('default'), the profile-pinned Codex model still wins.
+    test('default Codex send still uses the profile model', () async {
+      const sessionId = 'untracked-codex-default-uses-profile-model';
+      Map<String, dynamic>? capturedSpawnParams;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'kimi-codex',
+      );
+      final existing = sync.testSessions[sessionId]!;
+      // Session is down (archived/offline) so the send takes the
+      // auto-restore path without a model-change kill.
+      sync.testSessions[sessionId] = existing.copyWith(
+        presence: 'offline',
+        metadata: existing.metadata?.copyWith(
+          flavor: 'codex',
+          lifecycleState: 'archived',
+        ),
+      );
+
+      final profile = AIBackendProfile(
+        id: 'kimi-codex',
+        name: 'Kimi Codex',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'OPENAI_BASE_URL',
+            value: 'https://api.kimi.com/coding/v1',
+          ),
+          EnvironmentVariable(name: 'OPENAI_MODEL', value: 'kimi-k2.7-code'),
+          EnvironmentVariable(name: 'OPENAI_API_KEY', value: 'sk-test'),
+        ],
+        compatibility: const ProfileCompatibility(
+          claude: false,
+          codex: true,
+          gemini: false,
+          pi: false,
+        ),
+      );
+      sync.testGetSpawnEnvVarsOverride = (_) async => (
+        envVars: {
+          for (final env in profile.environmentVariables) env.name: env.value,
+        },
+        profile: profile,
+      );
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          capturedSpawnParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': sessionId,
+            'dataEncryptionKey': null,
+          };
+        }
+        return <String, dynamic>{'type': 'error'};
+      };
+      sync.testFetchSingleSessionOverride = (_) async => null;
+
+      try {
+        await sync.sendMessage(
+          sessionId,
+          'hello',
+          modelMode: 'default',
+          profileId: 'kimi-codex',
+        );
+      } catch (_) {
+        // REST POST is not mocked; the spawn contract is the assertion.
+      }
+
+      expect(capturedSpawnParams, isNotNull);
+      expect(
+        capturedSpawnParams!['model'],
+        'kimi-k2.7-code',
+        reason:
+            'Without an explicit pick the profile pin must keep winning '
+            '(e0e18dc7).',
+      );
+      final envVars =
+          capturedSpawnParams!['environmentVariables'] as Map<String, dynamic>;
+      expect(envVars['OPENAI_MODEL'], 'kimi-k2.7-code');
+    });
+
     test('untracked Codex session does not respawn when encrypted metadata '
         'already carries the selected model', () async {
       const sessionId = 'untracked-codex-same-encrypted-model';

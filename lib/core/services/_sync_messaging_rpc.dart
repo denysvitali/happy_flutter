@@ -591,6 +591,11 @@ extension SyncMessagingRpc on Sync {
         profile: spawnResult.profile,
         modelMode: normalizedModelMode,
         agent: sessionAgent,
+        // The session's stored model is what the previous process was
+        // running; restoring with the profile default instead would silently
+        // switch providers under a permission answer.
+        explicitModelPick: normalizedModelMode != null &&
+            normalizedModelMode != 'default',
       );
       final effectiveModelMode = spawnProfileResolution.modelMode;
       final effectiveEnvVars = spawnProfileResolution.profile != null
