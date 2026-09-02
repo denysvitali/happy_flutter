@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Installer for the Happy Flutter Linux x64 release bundle.
+# Installer for the Happy Flutter Linux x64 or arm64 release bundle.
 #
 #   ./install-linux.sh                 install/upgrade into ~/.local/share
 #   ./install-linux.sh --no-autoupdate install without the background timer

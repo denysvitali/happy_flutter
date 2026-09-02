@@ -143,11 +143,13 @@ mise exec -- flutter build ios --release
 
 ### Install the Linux release
 
-Download and extract the `happy-flutter-linux-x64.tar.gz` asset from a GitHub
-Release, then run the included installer:
+Download and extract the `happy-flutter-linux-x64.tar.gz` asset for Intel/AMD
+Linux, or `happy-flutter-linux-arm64.tar.gz` for ARM64 Linux, from a GitHub
+Release. Then run the included installer:
 
 ```bash
-tar -xzf happy-flutter-linux-x64.tar.gz
+ARCH=x64 # use arm64 on ARM64 Linux
+tar -xzf "happy-flutter-linux-${ARCH}.tar.gz"
 ./install-linux.sh
 ```
 

@@ -765,14 +765,24 @@ jobs:
           retention-days: 90
 
   build-linux:
-    name: Build Linux x64
-    runs-on: ubuntu-latest
+    name: Build Linux ${{ matrix.architecture }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     if: |
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.build_type == 'release' || github.event.inputs.build_type == 'both')) ||
       startsWith(github.ref, 'refs/tags/v') ||
       github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            runner: ubuntu-latest
+          # Native ARM64 GitHub-hosted runner; avoids emulation for the
+          # Flutter desktop build and the Rust hot-path core.
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Checkout repository
@@ -809,9 +819,9 @@ jobs:
             ~/.cargo/git
             rust/happy_core/target
           key: >-
-            cargo-${{ runner.os }}-${{
+            cargo-${{ runner.os }}-${{ runner.arch }}-${{
             hashFiles('rust/happy_core/Cargo.lock') }}
-          restore-keys: cargo-${{ runner.os }}-
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Get dependencies
         run: mise exec -- flutter pub get
@@ -822,19 +832,20 @@ jobs:
           BUILD_NUMBER=$(( ${{ github.run_number }} * 100 ))
           SEMVER=$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d'+' -f1 | tr -d ' ')
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "SEMVER=$SEMVER" >> $GITHUB_OUTPUT
           echo "SENTRY_RELEASE=happy_flutter@${SEMVER}+${BUILD_NUMBER}" >> $GITHUB_OUTPUT
 
-      - name: Build Linux x64 Release
+      - name: Build Linux ${{ matrix.architecture }} Release
         run: |
-          # Linux keeps dart-define for Sentry identity (no PackageInfo
-          # path change required for this platform in this PR).
+          # Linux keeps dart-define for Sentry identity because PackageInfo
+          # does not receive the CI build number on this platform.
           mise exec -- flutter build linux --release --no-pub \
             --dart-define=SENTRY_RELEASE=${{ steps.build_meta.outputs.SENTRY_RELEASE }} \
             --dart-define=SENTRY_DIST=${{ steps.build_meta.outputs.BUILD_NUMBER }}
 
       - name: Verify Linux native core bundle
         run: |
-          CORE=build/linux/x64/release/bundle/lib/libhappy_core.so
+          CORE=build/linux/${{ matrix.architecture }}/release/bundle/lib/libhappy_core.so
           test -s "$CORE"
           ldd "$CORE"
           ldd "$CORE" | awk '/not found/ { missing = 1 } END { exit missing }'
@@ -843,7 +854,7 @@ jobs:
         run: |
           SEMVER=${{ steps.build_meta.outputs.SEMVER }}
           BUILD_NUMBER=${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          BUNDLE=build/linux/x64/release/bundle
+          BUNDLE=build/linux/${{ matrix.architecture }}/release/bundle
           cp scripts/install-linux.sh scripts/update-linux.sh \
             assets/icon/app_icon.png "$BUNDLE/"
           chmod +x "$BUNDLE/install-linux.sh" "$BUNDLE/update-linux.sh"
@@ -858,13 +869,13 @@ jobs:
           }
           EOF
           cd "$BUNDLE"
-          tar -czf ../../../../../happy-flutter-linux-x64.tar.gz .
+          tar -czf ../../../../../happy-flutter-linux-${{ matrix.architecture }}.tar.gz .
 
-      - name: Upload Linux x64 Bundle
+      - name: Upload Linux ${{ matrix.architecture }} Bundle
         uses: actions/upload-artifact@v7
         with:
-          name: happy-flutter-linux-x64-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          path: happy-flutter-linux-x64.tar.gz
+          name: happy-flutter-linux-${{ matrix.architecture }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: happy-flutter-linux-${{ matrix.architecture }}.tar.gz
           retention-days: 14
 
   attach-linux:
@@ -882,15 +893,16 @@ jobs:
        github.ref == 'refs/heads/main')
 
     steps:
-      - name: Download Linux x64 bundle
+      - name: Download Linux bundles
         uses: actions/download-artifact@v8
         with:
-          name: >-
-            happy-flutter-linux-x64-b${{
+          pattern: >-
+            happy-flutter-linux-*-b${{
             needs.build-release.outputs.build_number }}
           path: release-assets
+          merge-multiple: true
 
-      - name: Attach Linux x64 bundle
+      - name: Attach Linux bundles
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.build-release.outputs.release_tag }}
@@ -898,7 +910,9 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: false
-          files: release-assets/happy-flutter-linux-x64.tar.gz
+          files: |
+            release-assets/happy-flutter-linux-x64.tar.gz
+            release-assets/happy-flutter-linux-arm64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

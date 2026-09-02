@@ -21,7 +21,16 @@
 
 set -euo pipefail
 
-ASSET_NAME="happy-flutter-linux-x64.tar.gz"
+case "$(uname -m)" in
+  x86_64|amd64) LINUX_ARCH="x64" ;;
+  aarch64|arm64) LINUX_ARCH="arm64" ;;
+  *)
+    echo "unsupported Linux architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+ASSET_NAME="happy-flutter-linux-${LINUX_ARCH}.tar.gz"
 MANIFEST_NAME="manifest.json"
 REPO="${HAPPY_UPDATE_REPO:-denysvitali/happy_flutter}"
 

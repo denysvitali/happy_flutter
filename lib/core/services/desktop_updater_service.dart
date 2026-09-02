@@ -1,7 +1,8 @@
 // Desktop (Linux) self-update engine.
 //
-// The release pipeline publishes `happy-flutter-linux-x64.tar.gz` as an
-// asset on every GitHub Release (`v<semver>-<build>`). When the app runs
+// The release pipeline publishes `happy-flutter-linux-x64.tar.gz` and
+// `happy-flutter-linux-arm64.tar.gz` as assets on every GitHub Release
+// (`v<semver>-<build>`). When the app runs
 // from the managed install directory created by `scripts/install-linux.sh`
 // (`$XDG_DATA_HOME/happy_flutter`), this service can:
 //
@@ -20,6 +21,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ffi' show Abi;
 import 'dart:io'
     show
         Directory,
@@ -141,7 +143,13 @@ class DesktopUpdaterService {
   static final DesktopUpdaterService shared = DesktopUpdaterService();
 
   /// Wire format shared with `scripts/update-linux.sh`.
-  static const bundleAssetName = 'happy-flutter-linux-x64.tar.gz';
+  static String get bundleAssetName => switch (Abi.current()) {
+    Abi.linuxX64 => 'happy-flutter-linux-x64.tar.gz',
+    Abi.linuxArm64 => 'happy-flutter-linux-arm64.tar.gz',
+    _ => throw UnsupportedError(
+      'unsupported Linux architecture: ${Abi.current()}',
+    ),
+  };
   static const manifestFileName = 'manifest.json';
 
   /// Set `HAPPY_FORCE_UPDATER=1` to enable the updater in debug builds that

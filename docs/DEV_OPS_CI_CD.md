@@ -20,8 +20,8 @@ suppressing the per-commit Android release.
 | Quality Gate | Combine analyze, codegen, iOS, test, and golden results |
 | Build Debug APK | Build non-main and manually requested debug artifacts |
 | Build Release APK | Build and immediately publish the signed production APK |
-| Build Linux x64 | Build and archive the Linux desktop bundle |
-| Attach Linux | Add the Linux archive to the existing GitHub Release |
+| Build Linux x64 + arm64 | Build both Linux desktop bundles on native x64 and ARM64 runners |
+| Attach Linux | Add both Linux archives to the existing GitHub Release |
 | Build/Deploy Web | Build the web app and deploy GitHub Pages |
 
 ## Release invariant
@@ -37,7 +37,9 @@ are latest-wins.
 The signed APK remains arm64-only, R8-minified, resource-shrunk, and uploaded
 with its debug information. Dart obfuscation is deliberately off — the app is
 open source and unobfuscated release stacks make GlitchTip triage cheaper.
-The Linux archive and web deployment remain part of the same workflow.
+The x64 Linux archive is built on `ubuntu-latest`; the arm64 archive uses
+GitHub's native `ubuntu-24.04-arm` runner. Both archives and the web
+deployment remain part of the same workflow.
 
 ## Test sharding
 
