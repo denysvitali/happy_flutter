@@ -3,5 +3,7 @@ bool get isAndroid => false;
 bool get isIOS => false;
 bool get isLinux => false;
 
+String get linuxArchitecture => 'unknown';
+
 /// Web has no process RSS; 0 disables memory sampling.
 int get currentRssBytes => 0;

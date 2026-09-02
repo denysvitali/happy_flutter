@@ -21,7 +21,6 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi' show Abi;
 import 'dart:io'
     show
         Directory,
@@ -42,6 +41,8 @@ import '../config/app_config.dart';
 import '../utils/package_info_cache.dart';
 import 'desktop_updater_models.dart';
 import 'logger_service.dart';
+import '../../platform_io.dart'
+    if (dart.library.js_interop) '../../platform_stub.dart';
 
 Future<DesktopRemoteRelease?> fetchReleaseFromGitHub(Uri uri) async {
   final client = http.Client();
@@ -143,11 +144,11 @@ class DesktopUpdaterService {
   static final DesktopUpdaterService shared = DesktopUpdaterService();
 
   /// Wire format shared with `scripts/update-linux.sh`.
-  static String get bundleAssetName => switch (Abi.current()) {
-    Abi.linuxX64 => 'happy-flutter-linux-x64.tar.gz',
-    Abi.linuxArm64 => 'happy-flutter-linux-arm64.tar.gz',
+  static String get bundleAssetName => switch (linuxArchitecture) {
+    'x64' => 'happy-flutter-linux-x64.tar.gz',
+    'arm64' => 'happy-flutter-linux-arm64.tar.gz',
     _ => throw UnsupportedError(
-      'unsupported Linux architecture: ${Abi.current()}',
+      'unsupported Linux architecture: $linuxArchitecture',
     ),
   };
   static const manifestFileName = 'manifest.json';
