@@ -1,10 +1,12 @@
 name: Setup Flutter (prewarmed)
 description: >
-  Install Flutter via mise and restore a platform-trimmed, prewarmed SDK.
+  Install Flutter via mise (or the ARM64 host fallback) and restore a
+  platform-trimmed, prewarmed SDK.
 
 inputs:
   platform:
-    description: SDK payload required by this job (host, android, ios, or web).
+    description: >
+      SDK payload required by this job (host, host-arm64, android, ios, or web).
     required: false
     default: host
   cache-write:
@@ -18,6 +20,24 @@ runs:
     - name: Restore host Flutter SDK
       id: flutter-host
       if: inputs.platform == 'host'
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
+        key: >-
+          mise-flutter-host-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+        restore-keys: |
+          mise-flutter-host-v4-${{ runner.os }}-${{ runner.arch }}-
+
+    # Flutter 3.41.9 does not publish a Linux ARM64 host SDK. The ARM job
+    # seeds the same cache with the x64 Flutter framework/tool bundle plus the
+    # ARM64 Dart SDK and Linux engine artifacts in the next steps.
+    - name: Restore ARM64 host Flutter SDK
+      id: flutter-host-arm
+      if: inputs.platform == 'host-arm64'
       uses: actions/cache/restore@v5
       with:
         path: |
@@ -104,6 +124,7 @@ runs:
           mise-flutter-prewarmed-v3-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Setup mise (Flutter + Java)
+      if: inputs.platform != 'host-arm64'
       uses: jdx/mise-action@v3
       with:
         install: true
@@ -114,7 +135,50 @@ runs:
         # in the cache. mise-action's internal cache saves before warm.
         cache: false
 
+    - name: Setup mise (Java on ARM64)
+      if: inputs.platform == 'host-arm64'
+      uses: jdx/mise-action@v3
+      with:
+        install: true
+        install_args: java
+        cache: false
+
+    - name: Setup ARM64 host Flutter SDK
+      if: inputs.platform == 'host-arm64'
+      shell: bash
+      run: |
+        set -euo pipefail
+        FLUTTER_VERSION=$(awk '/^flutter =/ {gsub(/"/, "", $3); print $3}' .mise.toml)
+        FLUTTER_ROOT="$HOME/.local/share/mise/installs/flutter/$FLUTTER_VERSION"
+        if [ ! -x "$FLUTTER_ROOT/bin/flutter" ]; then
+          mkdir -p "$FLUTTER_ROOT"
+          curl -fsSL --retry 3 \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" \
+            | tar -xJ --strip-components=1 -C "$FLUTTER_ROOT"
+        fi
+
+        # The Flutter archive contains an x64 Dart SDK. Replace it with the
+        # ARM64 SDK from the matching engine revision so the Flutter tool runs
+        # natively on this runner.
+        export PATH="$FLUTTER_ROOT/bin:$FLUTTER_ROOT/bin/cache/dart-sdk/bin:$PATH"
+        if ! "$FLUTTER_ROOT/bin/cache/dart-sdk/bin/dart" --version >/dev/null 2>&1; then
+          rm -rf "$FLUTTER_ROOT/bin/cache/dart-sdk"
+          rm -f "$FLUTTER_ROOT/bin/cache/engine-dart-sdk.stamp"
+          "$FLUTTER_ROOT/bin/internal/update_dart_sdk.sh"
+        fi
+
+        export MISE_CONFIG_FILE=/dev/null
+        echo "$FLUTTER_ROOT/bin" >> "$GITHUB_PATH"
+        echo "$FLUTTER_ROOT/bin/cache/dart-sdk/bin" >> "$GITHUB_PATH"
+        echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
+        echo "MISE_CONFIG_FILE=/dev/null" >> "$GITHUB_ENV"
+        mise exec -- flutter --version
+        if [ '${{ steps.flutter-host-arm.outputs.cache-hit }}' != 'true' ]; then
+          mise exec -- flutter precache --linux
+        fi
+
     - name: Warm Flutter CLI
+      if: inputs.platform != 'host-arm64'
       shell: bash
       run: |
         set -euo pipefail
@@ -150,6 +214,21 @@ runs:
       if: >-
         ${{ inputs.platform == 'host' && inputs.cache-write == 'true' &&
         steps.flutter-host.outputs.cache-hit != 'true' &&
+        github.event_name != 'pull_request' }}
+      uses: actions/cache/save@v5
+      with:
+        path: |
+          ~/.local/share/mise
+          !~/.local/share/mise/http-tarballs/*/bin/cache/artifacts/engine/android-*/**
+          !~/.local/share/mise/http-tarballs/*/bin/cache/flutter_web_sdk/**
+        key: >-
+          mise-flutter-host-v4-${{ runner.os }}-${{ runner.arch }}-${{
+          hashFiles('.mise.toml') }}
+
+    - name: Save ARM64 host Flutter SDK
+      if: >-
+        ${{ inputs.platform == 'host-arm64' && inputs.cache-write == 'true' &&
+        steps.flutter-host-arm.outputs.cache-hit != 'true' &&
         github.event_name != 'pull_request' }}
       uses: actions/cache/save@v5
       with:

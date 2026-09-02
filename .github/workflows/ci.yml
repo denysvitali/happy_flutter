@@ -798,8 +798,11 @@ jobs:
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
         with:
-          # Analyze is the single trusted host-SDK cache writer.
-          cache-write: 'false'
+          # The ARM matrix entry uses a native ARM Dart/Flutter host setup;
+          # x64 continues to use the prewarmed mise host SDK. ARM writes its
+          # architecture-specific cache after the first uncached build.
+          platform: ${{ matrix.architecture == 'arm64' && 'host-arm64' || 'host' }}
+          cache-write: ${{ matrix.architecture == 'arm64' && 'true' || 'false' }}
 
       - name: Cache pub package downloads
         uses: actions/cache@v5
