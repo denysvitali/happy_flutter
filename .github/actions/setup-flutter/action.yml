@@ -167,11 +167,15 @@ runs:
           "$FLUTTER_ROOT/bin/internal/update_dart_sdk.sh"
         fi
 
-        export MISE_CONFIG_FILE=/dev/null
+        # Keep using `mise exec` for repository commands without asking mise
+        # to resolve the x64-only Flutter entry in the project config.
+        MISE_CONFIG_FILE="$RUNNER_TEMP/mise-arm64.toml"
+        touch "$MISE_CONFIG_FILE"
+        export MISE_CONFIG_FILE
         echo "$FLUTTER_ROOT/bin" >> "$GITHUB_PATH"
         echo "$FLUTTER_ROOT/bin/cache/dart-sdk/bin" >> "$GITHUB_PATH"
         echo "FLUTTER_ROOT=$FLUTTER_ROOT" >> "$GITHUB_ENV"
-        echo "MISE_CONFIG_FILE=/dev/null" >> "$GITHUB_ENV"
+        echo "MISE_CONFIG_FILE=$MISE_CONFIG_FILE" >> "$GITHUB_ENV"
         mise exec -- flutter --version
         if [ '${{ steps.flutter-host-arm.outputs.cache-hit }}' != 'true' ]; then
           mise exec -- flutter precache --linux
