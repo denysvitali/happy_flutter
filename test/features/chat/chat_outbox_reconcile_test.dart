@@ -176,8 +176,12 @@ void main() {
       );
       expect(find.text('Failed — tap to retry'), findsWidgets);
 
-      // Drain the debounced message-save timer the notification schedules.
-      await tester.pump(const Duration(seconds: 2));
+      // Dispose the screen before canceling session work. TestWidgets checks
+      // pending timers before the outer tearDown callback runs.
+      await tester.pumpWidget(const SizedBox.shrink());
+      sync.testClearSessionMessageState(_sessionId);
+      expect(sync.testHasPendingSaveTimer(_sessionId), isFalse);
+      await tester.pump();
     },
   );
 }

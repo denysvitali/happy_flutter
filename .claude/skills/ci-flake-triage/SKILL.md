@@ -20,6 +20,7 @@ Note which job/shard failed and the first real error line.
 | Signature | Cause | Action |
 |-----------|-------|--------|
 | Test job killed after ~2.5 min, no test failure output | CI runner reclaim — `flutter_test` shutdown hang; pods die past ~2.5 min | Known infra issue; `ci.yml` has a timeout-wrapper workaround. Retry the job, don't debug tests. |
+| `chat_outbox_reconcile_test.dart` pending timer from `_scheduleSaveMessages` | Widget timer invariants run before outer `tearDown`; a fixed two-second pump does not guarantee cleanup after asynchronous loading | Unmount the screen and call `testClearSessionMessageState` inside the widget test before it returns. |
 | Timer/clock assertion flake, passes on rerun | fakeAsync-vs-real-clock gate pattern | Rerun. If recurrent in one file, wrap the gate in fakeAsync properly. |
 | `ApiClient` not initialized in a shard | Pre-existing shard failure (seen in the 2026-06-13 and 2026-06-30 main-red episodes) | Not caused by your commit — check if the same shard failed on the parent commit. |
 | Secure-storage / encryption fake setup errors across shards 1/5/6/7/8 | Same 2026-06-30 episode family | Same check: compare with parent commit's run. |
