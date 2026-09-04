@@ -647,7 +647,7 @@ extension SyncSpawnProfileResolution on Sync {
           error.message.contains('unknown field') &&
           error.message.contains('isRestore');
       if (!req.isRestore || !rejectedIsRestore) rethrow;
-      logger.warning(
+      logger.info(
         '[spawn] daemon on machine=$machineId rejected the isRestore '
         'field (pre-field daemon); retrying spawn without it',
       );

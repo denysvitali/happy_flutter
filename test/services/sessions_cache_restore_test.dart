@@ -1,7 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
+import 'package:happy_flutter/core/encryption/encryptor.dart';
+import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 
 import '../helpers/test_helpers.dart';
@@ -39,6 +42,35 @@ void main() {
           'the good session must survive a neighbour with a corrupt data key',
     );
   });
+
+  test('deferred cached sessions restore their encryption context', () async {
+    final sessions = <Map<String, dynamic>>[
+      for (var i = 0; i < 6; i++)
+        _rawSession('s-$i')..['updatedAt'] = 1700000000000 + i,
+    ];
+    final encryptedDataKeys = <String, String>{
+      for (var i = 0; i < 6; i++) 's-$i': 'key-$i',
+    };
+
+    await sync.testRestoreSessionsCacheFrom({
+      'sessions': sessions,
+      'encryptedDataKeys': encryptedDataKeys,
+      'lastFetchedAt': 1700000000000,
+    });
+    // The sixth session is restored after a zero-duration yield so startup
+    // can paint first. Give that deferred batch its event-loop turn.
+    await Future<void>.delayed(Duration.zero);
+
+    expect(sync.sessions, contains('s-0'));
+    expect(
+      sync.encryption.getSessionEncryption('s-0'),
+      isNotNull,
+      reason:
+          'sessions beyond the five-row startup window must retain their '
+          'cached DEK instead of waiting for a socket payload to force a '
+          'network recovery',
+    );
+  });
 }
 
 Map<String, dynamic> _rawSession(String id) => <String, dynamic>{
@@ -59,6 +91,8 @@ class _RestoreFakeEncryption implements Encryption {
   _RestoreFakeEncryption({required this.failingKey});
 
   final String failingKey;
+  final Map<String, SessionEncryption> _sessionEncryptions = {};
+  final EncryptionCache _cache = EncryptionCache();
 
   @override
   Future<Uint8List?> decryptEncryptionKey(String encrypted) async {
@@ -69,8 +103,36 @@ class _RestoreFakeEncryption implements Encryption {
   }
 
   @override
-  Future<dynamic> openEncryption(Uint8List? dataEncryptionKey) async => null;
+  Future<dynamic> openEncryption(Uint8List? dataEncryptionKey) async =>
+      const _NoopEncryptor();
+
+  @override
+  SessionEncryption? getSessionEncryption(String sessionId) =>
+      _sessionEncryptions[sessionId];
+
+  @override
+  void setSessionEncryption(String sessionId, SessionEncryption encryption) {
+    _sessionEncryptions[sessionId] = encryption;
+  }
+
+  @override
+  void removeSessionEncryption(String sessionId) {
+    _sessionEncryptions.remove(sessionId);
+  }
+
+  @override
+  EncryptionCache get cache => _cache;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopEncryptor implements Encryptor {
+  const _NoopEncryptor();
+
+  @override
+  Future<List<dynamic>> decrypt(List<Uint8List> data) async => const [];
+
+  @override
+  Future<List<Uint8List>> encrypt(List<dynamic> data) async => const [];
 }

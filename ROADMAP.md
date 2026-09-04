@@ -2,7 +2,35 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-08-30
+**Last Updated**: 2026-09-04
+
+### Production audit, 2026-09-04 (build 275300)
+
+The latest unresolved GlitchTip page contains warnings only. Issues 8755 and
+8756 identified a concrete cold-start encryption race: the sessions cache
+restored only the five newest sessions' encrypted data keys, then added the
+deferred tail to `_sessions` without opening its cached encryption contexts.
+A socket update for one of those known sessions was therefore skipped and
+forced a single-session network recovery. Deferred cache batches now retain
+all cached encrypted keys and initialize their session encryption before
+publishing each batch; the restore regression covers a sixth cached session.
+
+Two other new rows were expected degraded-operation paths rather than failed
+recovery. Issue 5987 shows the compatibility retry for a daemon that predates
+the additive `isRestore` field; the fallback completed, so that line is now
+info-level. Issue 8757 is a user tapping Stop after the session RPC handler had
+already gone offline; the retry snackbar remains, while the structured
+`handler_offline` race is logged at info. The `/v2/sessions` receive timeout
+and retry-budget pair (4972/8758) followed a Cronet connection abort and stays
+warning-level as the intentional server-stall signal. The remaining
+machine-RPC slow/failed, spawn-readiness, and daemon capability rows are
+existing daemon/network observability families, not new Flutter failures.
+
+GlitchTip's shared trace id still produced no matching Flutter, server, or
+daemon Loki stream for the event window, so event breadcrumbs and decrypted
+session wire history were used for correlation. Both encryption-warning
+sessions contain later persisted messages, confirming recovery rather than
+message loss.
 
 ### Production audit, 2026-08-30 (build 273300)
 
@@ -1373,6 +1401,8 @@ The current test count is not enough if this contract can break without failing 
 | `ServerConfigStorage: Sync init failed` (MMKV not initialized) | Warning | 258 | Fixed on main, shipped automatically on the next `main` commit | Expected startup state, misreported as a defect: `main.dart` deliberately resolves a provisional server URL while storage is still warming, so `MMKV('server-config')` throws "forget initialize MMKV first?" and the old code logged a warning (forwarded to Sentry) on every pre-warmup read. `_syncInit` now logs one info line per process and retries silently until the engine is up; callers already fell back to the default URL and re-resolved after warmup. |
 | `Failed to fetch usage for kimi/…` HTTP 429 (insufficient balance) | Warning | 173 | Fixed on main, shipped automatically on the next `main` commit | A Kimi account out of balance answers 429 forever; the per-account strike/backoff map was process-local, so every launch re-emitted up to two full warning stacks (forwarded to Sentry) and re-hit the provider immediately. Strikes now hydrate from / persist to secure storage (`provider_usage_failures` key), preserving the 30 s→15 min backoff and warn→info demotion across restarts. The usage card still surfaces the error to the user. |
 | Cronet `ERR_CONNECTION_ABORTED` on message fetch (issues 4900/8573) | Error | 7 + 1 | Fixed on main, shipped automatically on the next `main` commit | Device network transitions (VPN handoff, wifi↔cellular) mid-fetch exhausted the InvalidateSync retries and the raw Cronet error was forwarded as an error-level issue, even though the client preserved cached messages and re-armed recovery (`fetchMessages: network changed with pending gap`). A new `isConnectionLevelNetworkError` classifier (Cronet `ERR_*`, DNS, socket resets — NOT receive timeouts/5xx) demotes only the connection-level family to info at both the `InvalidateSync: max retries exceeded` and ChatScreen `background messagesSync awaitQueue failed` sites; server-side failures keep error level because they are the brownout signal (`test/core/utils/network_errors_test.dart`, `test/utils/invalidate_sync_test.dart`). |
+| Deferred cached sessions missing encryption (issues 8755/8756) | Warning (message recovery) | 2 | Fixed on main, ships with next `main` commit | Cold start opened cached DEKs only for the five synchronously restored sessions. The deferred tail became known to the UI without a `SessionEncryption`, so its next socket payload was skipped and recovered through an avoidable network fetch. Restore now retains every cached encrypted key and initializes deferred encryption in bounded parallel batches before publishing the session batch; `sessions_cache_restore_test.dart` pins the sixth-session boundary. |
+| Expected compatibility/Stop races promoted as issues (issues 5987/8757) | Warning | 48 + 1 | Fixed on main, ships with next `main` commit | Retrying a pre-`isRestore` daemon without the additive field is successful compatibility behavior, and `handler_offline` after a Stop tap means the target process already disappeared. Both paths retain their fallback/retry UX but log at info instead of opening GlitchTip issues. |
 | Outbox-acked send trips `unmatched_optimistic` | Error | 3 | Fixed on main, shipped automatically on the next `main` commit | Issue 8566 (2026-08-26): a 24-attempt transient outbox retry (~4 h, server brownout) acked 50 ms after the session was archived — the resident window was empty, the optimistic placeholder long gone, identity held, message delivered. `recordAck` now takes `sessionResidentRowCount` and suppresses `unmatched_optimistic` when the client holds zero rows for the session (restart / idle-shrink / archived clear); duplicate and unknown-acked checks still fire. Contract tests in `test/utils/message_invariant_monitor_test.dart`. |
 | Socket echo of a seeded, non-resident `localId` trips `unmatched_optimistic` | Error | 2 | Fix on main, shipped automatically on the next `main` commit | Issues 8592/8594 (2026-08-27, build 270800 — first occurrences past both prior fixes): `_handleNewMessage` taps `'sent'` for every socket row carrying a `localId`, so a re-broadcast of an old message (row evicted by idle/budget shrink) or another device's send reads as rowCount=0 over a held transcript (13–32 rows). Those ids are only *seeded* (cache restore / every upserted batch — `_sync_messaging_merge.dart`), never minted in the running process. `recordAck` now requires an in-process mint (`_sentAtMs`) to fire `unmatched_optimistic`; duplicate/unknown checks and minted-id strictness are unchanged. Contract tests in `test/utils/message_invariant_monitor_test.dart`. |
 | `[Perf] sessions UI state compute` at extreme catalogs | Warning | 2 (one device, 463–465 sessions) | Open — needs its own measured pass | Issues 8589/8590 (2026-08-27): `trigger=single changed=1` 209 ms and `trigger=sessions_and_messages changed=3` 211 ms at 465 sessions. The single path pays a 465-entry map copy + ordering/MissionControl reconcile; the all-sessions path walks every entry (~0.45 ms each) even when only 3 changed — incremental reconciliation is the fix shape, not a same-day patch. Re-check the fleet tail via `app.sessions.ui_state_compute` by `session_count_bucket` before designing. |

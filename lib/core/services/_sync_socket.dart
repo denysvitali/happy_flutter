@@ -755,10 +755,10 @@ extension SyncSocket on Sync {
         _sessionEncryptedDataKeys.clear();
         // Collect all entries first, then decrypt in parallel instead of
         // sequentially awaiting each one.
-        // Only initialize encryption for the sessions we restored
-        // synchronously — the rest are initialized on-demand when
-        // the user opens the session.
-        final entries = encryptedKeysRaw.entries
+        // Decrypt keys for the synchronously restored sessions on the
+        // startup path. Keep every encrypted key in memory so the deferred
+        // restore can initialize its own batch before publishing it.
+        final cachedKeyEntries = encryptedKeysRaw.entries
             .where(
               (e) =>
                   e.key is String &&
@@ -766,11 +766,13 @@ extension SyncSocket on Sync {
                   (e.value as String).isNotEmpty,
             )
             .map((e) => (e.key as String, e.value as String))
-            .where((e) => _sessions.containsKey(e.$1))
             .toList();
-        for (final (id, key) in entries) {
+        for (final (id, key) in cachedKeyEntries) {
           _sessionEncryptedDataKeys[id] = key;
         }
+        final entries = cachedKeyEntries
+            .where((e) => _sessions.containsKey(e.$1))
+            .toList();
         if (entries.isNotEmpty) {
           // Per-entry guard: one undecryptable key (rotated key, corrupt
           // cache row) must not reject the whole Future.wait and fall into
@@ -1042,7 +1044,10 @@ extension SyncSocket on Sync {
   /// the event loop between batches so frames can still render. The
   /// most-recent sessions are already in [_sessions] from the synchronous
   /// pass in [_restoreSessionsCache]; this pass fills in the inbox so
-  /// scroll-to-bottom and older-session searches work as expected.
+  /// scroll-to-bottom and older-session searches work as expected. Each
+  /// batch opens its cached encryption contexts before notifying listeners,
+  /// so a concurrent socket payload cannot observe a known-but-undecryptable
+  /// session.
   Future<void> _restoreRemainingSessionsAsync(
     List<Map<String, dynamic>> remaining,
   ) async {
@@ -1050,11 +1055,13 @@ extension SyncSocket on Sync {
     await Future<void>.delayed(Duration.zero);
     if (!isInitialized) return;
 
+    final runtimeGeneration = _runtimeGeneration;
     final stopwatch = Stopwatch()..start();
     var processedInBatch = 0;
     var totalAdded = 0;
+    final batchSessionIds = <String>[];
     for (final raw in remaining) {
-      if (!isInitialized) return;
+      if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
       try {
         final session = Session.fromJson(raw);
         // Preserve any session that was updated by the server while
@@ -1065,6 +1072,7 @@ extension SyncSocket on Sync {
           _sessions[session.id] = session;
           totalAdded++;
         }
+        batchSessionIds.add(session.id);
       } catch (error, stack) {
         logger.warning(
           'Skipping malformed cached session during deferred restore',
@@ -1074,11 +1082,32 @@ extension SyncSocket on Sync {
       }
       processedInBatch++;
       if (processedInBatch >= _coldStartSessionRestoreBatchSize) {
+        await Future.wait(
+          batchSessionIds.map(
+            (sessionId) => _restoreCachedSessionEncryption(
+              sessionId,
+              runtimeGeneration: runtimeGeneration,
+            ),
+          ),
+        );
+        if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+        batchSessionIds.clear();
         processedInBatch = 0;
         _notifyDataChanged({SyncDomain.sessions});
         // Yield to the event loop so any pending frames can render.
         await Future<void>.delayed(Duration.zero);
       }
+    }
+    if (batchSessionIds.isNotEmpty) {
+      await Future.wait(
+        batchSessionIds.map(
+          (sessionId) => _restoreCachedSessionEncryption(
+            sessionId,
+            runtimeGeneration: runtimeGeneration,
+          ),
+        ),
+      );
+      if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
     }
     if (totalAdded > 0) {
       _notifyDataChanged({SyncDomain.sessions});
@@ -1086,6 +1115,32 @@ extension SyncSocket on Sync {
     logger.info(
       'Restored remaining ${remaining.length} cached sessions '
       '(added=$totalAdded, elapsedMs=${stopwatch.elapsedMilliseconds})',
+    );
+  }
+
+  Future<void> _restoreCachedSessionEncryption(
+    String sessionId, {
+    required int runtimeGeneration,
+  }) async {
+    Uint8List? dataKey;
+    final encryptedKey = _sessionEncryptedDataKeys[sessionId];
+    if (encryptedKey != null) {
+      try {
+        dataKey = await encryption.decryptEncryptionKey(encryptedKey);
+      } catch (error, stack) {
+        logger.warning(
+          'Skipping cached session $sessionId: data key could not be '
+          'decrypted during deferred restore',
+          error,
+          stack,
+        );
+      }
+    }
+    if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+    await _ensureSessionEncryptionInitialized(
+      sessionId,
+      dataKey,
+      runtimeGeneration: runtimeGeneration,
     );
   }
 

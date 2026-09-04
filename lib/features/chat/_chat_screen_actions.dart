@@ -706,12 +706,19 @@ extension _ChatScreenActions on _ChatScreenState {
       // The request never landed: don't keep claiming the turn is stopping.
       _clearStopRequest();
       if (mounted) {
-        logger.warning(
-          '[ChatScreen] _abortSession failed: '
-          'sessionId=${widget.sessionId} $e',
-          e,
-          st,
-        );
+        final handlerUnavailable =
+            e is RpcException && e.code == RpcErrorCode.handlerOffline;
+        final message =
+            '[ChatScreen] _abortSession failed: '
+            'sessionId=${widget.sessionId} $e';
+        if (handlerUnavailable) {
+          // The process can exit between painting Stop and handling the tap.
+          // Keep the retry affordance, but do not open a production issue for
+          // that expected race.
+          logger.info(message);
+        } else {
+          logger.warning(message, e, st);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
