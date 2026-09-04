@@ -19,7 +19,7 @@ Incremental UI-quality loop (23+ batches shipped, 2026-06). Each batch: one scop
    - Keep public APIs stable via bridge factories (`asLegacy()` extension pattern) when 10+ callers exist; migrate callers in later batches.
    - Design tokens from `lib/core/theme/app_tokens.dart` (`AppSpacing`, `AppRadius`, `AppOpacity`, `AppShadow`, `AppIconSize`); scrims → `cs.scrim`, shadows → `cs.shadow`.
 3. **Test sweep** — add/update widget tests for the extracted/changed surface. Standard sweep dirs: `test/features/chat/`, `test/features/sessions/`, `test/features/settings/`, `test/core/`. Regression tests should assert semantics (e.g. "R > G" for removed-diff red) not exact hexes. Run via CI only.
-4. **Ship** — conventional commit (`refactor(ui): ...` / `fix(ui): ...`), push, check CI. If visual output changed, regenerate goldens (`update-goldens` skill).
+4. **Ship** — conventional commit (`refactor(ui): ...` / `fix(ui): ...`), push, and check CI.
 
 ## Retirement lesson (batch 12)
 

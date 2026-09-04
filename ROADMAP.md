@@ -1524,7 +1524,7 @@ For core chat flows, no layer may invent a second message identity when a canoni
 | UI Components | Done | Shimmer loading, command palette, diff view, tab bar, avatars, status bar theming |
 | Dev Tools | Done | Dev logs, encryption debug, network inspector, notification test, session debug |
 | i18n | Partial | Framework in place (`flutter: generate: true`). **English only** — one ARB file, `l10n/app_en.arb` (note: `arb-dir: l10n` in `l10n.yaml`, not `lib/l10n`), generated into `lib/l10n_generated/`. No other locale exists yet; adding one means adding `l10n/app_<code>.arb`. |
-| CI/CD | Done | 7-job pipeline (analyze, test + coverage, golden, build-debug, build-release, build-web, deploy-web), caching, automatic per-commit releases to GitHub (Dart obfuscation dropped 2026-08-26 — open-source app), Codecov |
+| CI/CD | Done | Multi-job pipeline (analyze, test + coverage, builds, release, web deploy), caching, automatic per-commit releases to GitHub (Dart obfuscation dropped 2026-08-26 — open-source app), Codecov |
 | Native | Partial | TTS, video call stubs, push stubs — WebRTC/biometric/audio not started |
 
 ---

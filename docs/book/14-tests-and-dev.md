@@ -12,7 +12,6 @@ How the app is tested, how to run it locally, and how CI works. The test pyramid
                             │
                 ┌───────────┴───────────┐
                 │  Widget tests         │  test/widgets/, test/features/
-                │  + golden tests       │  test/golden/
                 └───────────┬───────────┘
                             │
        ┌────────────────────┴────────────────────┐
@@ -30,7 +29,6 @@ How the app is tested, how to run it locally, and how CI works. The test pyramid
 - `test/core/` — unit tests for core (providers, models, etc.).
 - `test/features/` — feature-specific unit/widget tests.
 - `test/widgets/` — widget tests.
-- `test/golden/` — golden screenshot tests. **Update after any UI change.**
 - `test/helpers/` — `test_helpers.dart` with `createTestSync()`, `mockResponse<T>()`, etc.
 
 ## The e2e helpers
@@ -80,8 +78,8 @@ final response = mockResponse<List<Session>>(
 `test/flutter_test_config.dart` runs before every test file. It:
 
 - Calls `TestWidgetsFlutterBinding.ensureInitialized()`
-- Disables Google Fonts runtime fetching
-- Loads Roboto Mono for golden screenshots
+- Loads the app's Inter font
+- Registers the MMKV test fake
 
 You don't need to call these in your test files. They're already done.
 
@@ -147,22 +145,6 @@ when(dio.post(any)).thenAnswer((_) async => Response(
 
 Use `mockResponse<T>(...)` from `test_helpers.dart` to avoid the boilerplate.
 
-## Golden screenshots
-
-The golden test is `test/golden/golden_test.dart`. It renders the showcase screens and compares to PNGs in `test/golden/goldens/`. The PNGs are **showcase images** used in the README and to track visual regressions.
-
-**Viewport:** phone, set via `tester.view.physicalSize = Size(390*2, 844*2)` with `devicePixelRatio = 2.0`.
-
-**When to update goldens:** after **any** UI change that affects visual output. Run:
-
-```bash
-mise exec -- flutter test test/golden/golden_test.dart --update-goldens
-```
-
-Then commit the updated PNGs. Do not leave stale goldens — they will cause false test failures for other contributors.
-
-**Git LFS:** the PNGs are tracked via Git LFS (see `.gitattributes`). Contributors must have `git-lfs` installed (`git lfs install`).
-
 ## Dev loop: mise
 
 The app uses [mise](https://mise.jdx.dev/) to pin Flutter, Dart, Java, and
@@ -184,9 +166,6 @@ mise exec -- flutter test
 
 # Run a specific test
 mise exec -- flutter test test/services/sync_service_test.dart
-
-# Update goldens
-mise exec -- flutter test test/golden/golden_test.dart --update-goldens
 
 # Code generation (after changing ApiClient public API)
 mise exec -- flutter pub run build_runner build
@@ -216,11 +195,10 @@ The CI pipeline runs on GitHub Actions. The jobs (from `docs/DEV_OPS_CI_CD.md`):
 
 1. **analyze** — `flutter analyze --no-fatal-infos --no-fatal-warnings`
 2. **test + coverage** — `flutter test --coverage` with Codecov upload
-3. **golden** — golden tests (read-only; no `--update-goldens`)
-4. **build-debug** — debug APK
-5. **build-release** — release APK
-6. **build-web** — web build
-7. **deploy-web** — deploy web build (on `v*` tags only)
+3. **build-debug** — debug APK
+4. **build-release** — release APK
+5. **build-web** — web build
+6. **deploy-web** — deploy web build
 
 The `v*` tag pipeline attaches the APK to the GitHub release. The Linux x64 binary attachment was added in `2d19860f`. Dart obfuscation was dropped 2026-08-26 — the app is open source.
 
@@ -268,7 +246,6 @@ When asked about app crashes, production errors, regressions, or latest issues, 
 - `test/integration/mock_sync_server.dart` — the mock
 - `test/integration/fake_session_encryption.dart` — the fake encryption
 - `test/fsm/message_state_machine_contract_test.dart` — the contract
-- `test/golden/golden_test.dart` — the goldens
 - `docs/DEV_OPS_CI_CD.md` — CI reference
 - `ROADMAP.md` — production issues and priorities
 
@@ -277,7 +254,6 @@ When asked about app crashes, production errors, regressions, or latest issues, 
 - `Sync()` is a singleton. Tests must reset it. Use `createTestSync()`.
 - The `mockResponse<T>()` helper requires `RequestOptions(path: '')`. Don't forget it.
 - Widget tests that touch MMKV need a `_FakeMMKVPlatform` registration. Don't forget it.
-- Golden tests are read-only in CI. Locally, update with `--update-goldens` and commit the new PNGs.
 - The dev loop goes through `mise exec --`. Don't run `flutter` directly.
 - The CI blocks on errors only. Warnings/infos don't block.
 - The build flavors are Android-only. iOS has no flavor separation.

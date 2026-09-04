@@ -16,14 +16,6 @@ workflow runs, and scheduled loops from the chat workspace menu. Empty chats
 offer editable task starters plus file, slash-command, and voice hints; active
 Codex turns distinguish updates to the running turn from queued follow-ups.
 
-## Screenshots
-
-<p>
-  <img src="test/golden/goldens/sessions_light.png" width="240" alt="Sessions list screen">
-  <img src="test/golden/goldens/chat_running_light.png" width="240" alt="Chat running screen">
-  <img src="test/golden/goldens/settings_light.png" width="240" alt="Settings screen">
-</p>
-
 ## Architecture
 
 The project follows **Feature-Based Clean Architecture** with clear separation of concerns:
@@ -246,7 +238,6 @@ Providers live in `lib/core/providers/`, one notifier per file. `app_providers.d
 - **Unit tests**: Comprehensive test suites for providers, APIs, and services
 - **Widget tests**: Key UI components tested
 - **Integration / e2e**: ~18 e2e files in `test/integration/` covering session spawning, message dedup, pagination, cold starts, reconnection, concurrent sends. Backed by `mock_sync_server.dart` and `fake_session_encryption.dart`, plus replay fixtures in `test/integration/jsonl_replay/`.
-- **Golden screenshots**: `test/golden/golden_test.dart` — phone viewport (390×844 @ 2x). PNGs tracked via Git LFS. Update with `--update-goldens` after any UI change.
 - **Mock generation**: Mockito for `ApiClient` mocking; `.mocks.dart` files sit next to each test
 - **Test command**: `mise exec -- flutter test`
 
@@ -261,7 +252,6 @@ test/
 ├── providers/              # State management tests
 ├── services/               # Service tests
 ├── integration/            # End-to-end tests + mock_sync_server + jsonl_replay
-├── golden/                 # Golden screenshots (Git LFS)
 └── helpers/                # createTestSync(), mockResponse<T>(), shared helpers
 ```
 

@@ -82,7 +82,6 @@ Data Layer
 | 0.4 | Audit top crash sites from force-unwraps | `features/chat/chat_screen.dart`, `features/machine/machine_detail_screen.dart`, `core/widgets/error_boundary.dart` | Open 5 most frequent `!` sites and replace with pattern matching or `WireParsers` |
 | 0.5 | Add defensive null handling to `ChatScreen._loadInitialSettings` | `ROADMAP.md` notes 9 fatal/day from `session!.permissionMode!` | No force-unwraps in async init paths |
 | 0.6 | Fix `InvalidateSync` disposed race | `lib/core/utils/invalidate_sync.dart` | Dispose no longer throws `StateError`; add stress test |
-| 0.7 | Move goldens to Git LFS | `test/golden/goldens/`, `.gitattributes` | `git lfs ls-files` lists the golden PNGs |
 
 **Estimated effort:** 1–2 weeks  
 **Parallelizable:** Yes; can split across 2 engineers.
@@ -350,7 +349,6 @@ For risky changes (messaging, session creation), consider gating behind a remote
 | Q1 | Pin `record: ^6.2.1` and fix `pubspec.yaml` | 1 hr | Unblocks local build |
 | Q2 | Unify CI + local Flutter to 3.44.x or 3.41.x | 2 hr | Eliminates "works on my machine" |
 | Q3 | Replace top 10 `!` crash sites with pattern matching | 1 day | Reduces fatal crashes |
-| Q4 | Move goldens to Git LFS | 30 min | Stops repo bloat |
 | Q5 | Centralize `_formatError` duplicates | 2 hr | Removes duplicate code |
 | Q6 | Delete/merge 22 copied `_stubAllSyncs` into `test_helpers.dart` | 1 day | Cleaner tests |
 | Q7 | Add `flutter build ios --no-codesign` CI job | 2 hr | Catches iOS regressions |

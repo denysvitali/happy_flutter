@@ -14,10 +14,9 @@ suppressing the per-commit Android release.
 | Analyze Code | Strict Flutter analysis with dependency resolution skipped |
 | Verify Generated Code | Reject generated Dart and localization drift |
 | Build iOS | Compile an unsigned release-mode iOS app |
-| Test | 10 main / 15 other duration-balanced non-golden test shards |
+| Test | 10 main / 15 other duration-balanced test shards |
 | Upload Coverage | Merge shard coverage and upload it to Codecov |
-| Golden Screenshots | Verify PR goldens or generate requested replacements |
-| Quality Gate | Combine analyze, codegen, iOS, test, and golden results |
+| Quality Gate | Combine analyze, codegen, iOS, test, and Rust results |
 | Build Debug APK | Build non-main and manually requested debug artifacts |
 | Build Release APK | Build and immediately publish the signed production APK |
 | Build Linux x64 + arm64 | Build both Linux desktop bundles on native x64 and ARM64 runners |
@@ -52,7 +51,7 @@ before the longer Android and iOS builds. Pull requests and develop use 15
 shards for lower isolated latency. New tests receive the configured default
 estimate (the median measured file), so they are included automatically even
 before timing data is refreshed; the analyze job runs
-`select_test_shard.py --check` to prove every non-golden file lands in exactly
+`select_test_shard.py --check` to prove every test file lands in exactly
 one shard for both shard counts. Each shard runs `flutter test
 --concurrency=4` (one `flutter_tester` per vCPU of the GitHub-hosted runner;
 test files are separate processes with in-process MMKV fakes, so they share no
@@ -61,8 +60,7 @@ state) and writes `--file-reporter=json:test-results.json`, uploaded as the
 `.github/scripts/update_test_durations.py` (see its docstring); it also parses
 legacy serial expanded-reporter logs.
 
-Golden tests are excluded from these shards and run only in the dedicated
-golden job. Full Flutter tests and golden updates must run in CI, not locally.
+Full Flutter test runs must run in CI, not locally.
 
 ## Caching
 
@@ -90,5 +88,5 @@ SHA/build-number APK cache without recompiling.
 ## Manual operations
 
 The workflow dispatch inputs select debug/release builds and the target flavor.
-Set `update_goldens` to generate and upload refreshed golden PNGs. Releases are
-created by pushes to `main`; do not create tags or GitHub Releases manually.
+Releases are created by pushes to `main`; do not create tags or GitHub Releases
+manually.

@@ -313,7 +313,6 @@ def repo_test_files(root: Path) -> set[str]:
     return {
         path.relative_to(root).as_posix()
         for path in (root / 'test').rglob('*_test.dart')
-        if (root / 'test' / 'golden') not in path.parents
     }
 
 

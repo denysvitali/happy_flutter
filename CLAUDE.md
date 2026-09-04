@@ -21,7 +21,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Repo-local skills in `.claude/skills/` encode recurring workflows — prefer them over ad-hoc approaches:
 
 - `glitchtip-triage` — production-issue audit (GlitchTip → Loki → stale-build check → ROADMAP)
-- `update-goldens` — regenerate golden screenshots via CI and commit LFS PNGs
 - `ci-flake-triage` — match red CI against the known-flake corpus before diagnosing
 - `contract-test` — scaffold/extend core-messaging `localId` contract tests
 - `loki-trace` — cross-service log correlation via `trace_id` / `app_launch_id`
@@ -143,9 +142,6 @@ mise exec -- flutter analyze
 # Testing (run in CI only — never locally)
 mise exec -- flutter test
 mise exec -- flutter test test/services/sync_service_test.dart
-
-# Golden screenshots — update after UI changes (run in CI only)
-mise exec -- flutter test test/golden/golden_test.dart --update-goldens
 
 # Code generation (after changing freezed/json_serializable models or ApiClient public API)
 mise exec -- flutter pub run build_runner build --delete-conflicting-outputs
@@ -361,7 +357,7 @@ import 'package:flutter/material.dart' hide TabBar;
 
 **Unit, widget, and integration tests.** Integration tests in `test/integration/` cover session spawning, message deduplication, routing, pagination, cold starts, reconnection, and concurrent sends (27 files, 20 of them `*_e2e_test.dart`). They use `mock_sync_server.dart` and `fake_session_encryption.dart` helpers, plus replay fixtures under `test/integration/jsonl_replay/`.
 
-**Global test config:** `test/flutter_test_config.dart` runs before every test file — calls `TestWidgetsFlutterBinding.ensureInitialized()`, disables Google Fonts runtime fetching, loads Roboto Mono for golden screenshots.
+**Global test config:** `test/flutter_test_config.dart` runs before every test file — calls `TestWidgetsFlutterBinding.ensureInitialized()`, loads the app's Inter font, and registers the MMKV test fake.
 
 **Provider tests:** Use `ProviderContainer` directly. Always `container.dispose()` in `tearDown`.
 
@@ -386,21 +382,6 @@ ProviderContainer(overrides: [
 **Finder gotcha (rediscovered twice — broke tests both times):** `find.text(x, findRichText: true)` is an EXACT match. A header rendering title+subtitle in one RichText (e.g. `'Apply Changes  new_file.dart'`) won't match `'Apply Changes'` — use `find.textContaining(x, findRichText: true)`.
 
 **Test helpers** in `test/helpers/test_helpers.dart`: `createTestSync()`, `mockResponse<T>()`.
-
-### Golden Screenshots
-
-Golden screenshots in `test/golden/goldens/` are **showcase images** used in the README and to track visual regressions. They **must always be kept up-to-date** when the UI changes.
-
-**After any UI change that affects visual output**, update goldens via CI — do not run the golden update command locally (see the "Never run tests locally" workflow rule above). Commit the updated PNGs produced by the CI run. Do not leave stale goldens — they will cause false test failures for other contributors.
-
-Use the `Happy Flutter CI/CD` workflow's `update_goldens` manual-dispatch
-input to generate the PNG artifact when working directly on `main`. If the
-workflow cannot be dispatched, include `[update-goldens]` in the triggering
-commit message instead.
-
-**Git LFS:** Golden PNGs are tracked via Git LFS (see `.gitattributes`). Contributors must have `git-lfs` installed (`git lfs install`). The golden test file is `test/golden/golden_test.dart`.
-
-**Viewport:** Phone viewport set via `tester.view.physicalSize = Size(390*2, 844*2)` with `devicePixelRatio = 2.0`.
 
 ### Benchmarks
 

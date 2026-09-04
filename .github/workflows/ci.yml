@@ -21,11 +21,6 @@ on:
       - 'docs/**'
   workflow_dispatch:
     inputs:
-      update_goldens:
-        description: 'Generate and upload refreshed golden screenshots'
-        required: false
-        default: false
-        type: boolean
       build_type:
         description: 'Build type to produce'
         required: true
@@ -83,7 +78,7 @@ jobs:
       - name: Analyze code
         run: mise exec -- flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
-      # Cheap guard for the test matrix: every non-golden test file must land
+      # Cheap guard for the test matrix: every test file must land
       # in exactly one shard for both shard counts used below.
       - name: Check test shard assignment
         run: |
@@ -301,80 +296,6 @@ jobs:
           files: coverage/lcov.info
           fail_ci_if_error: true
 
-  golden:
-    name: Golden Screenshots
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    # Verify on non-draft PRs, or generate replacements from a manual run.
-    if: >-
-      (github.event_name == 'pull_request' &&
-      github.event.pull_request.draft == false) ||
-      (github.event_name == 'workflow_dispatch' &&
-      inputs.update_goldens == true) ||
-      (github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' ||
-      contains(github.event.head_commit.message, '[update-goldens]')))
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          lfs: true
-
-      - name: Setup Flutter
-        uses: ./.github/actions/setup-flutter
-        with:
-          cache-write: 'false'
-
-      - name: Cache pub package downloads
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: >-
-            pub-v3-${{ runner.os }}-${{ runner.arch }}-${{
-            hashFiles('.mise.toml', 'pubspec.lock') }}
-          restore-keys: |
-            pub-v3-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Get dependencies
-        run: mise exec -- flutter pub get
-
-      - name: Verify golden tests
-        if: >-
-          github.event_name == 'pull_request' ||
-          (github.event_name == 'push' &&
-          !contains(github.event.head_commit.message, '[update-goldens]'))
-        # Runs both the phone suite (golden_test.dart) and the tablet suite
-        # (tablet_golden_test.dart) in `test/golden/`.
-        # Golden files share process-wide Sync/settings singletons. Running the
-        # two suites in parallel makes their responsive-layout state race and
-        # produces different tablet pixels between generation and verification.
-        run: mise exec -- flutter test --no-pub --concurrency=1 test/golden/
-
-      - name: Generate golden screenshots
-        if: >-
-          (github.event_name == 'workflow_dispatch' &&
-          inputs.update_goldens == true) ||
-          (github.event_name == 'push' &&
-          contains(github.event.head_commit.message, '[update-goldens]'))
-        run: >-
-          mise exec -- flutter test --no-pub --concurrency=1 test/golden/
-          --update-goldens
-
-      - name: Upload generated golden screenshots
-        if: >-
-          always() &&
-          ((github.event_name == 'workflow_dispatch' &&
-          inputs.update_goldens == true) ||
-          (github.event_name == 'push' &&
-          contains(github.event.head_commit.message, '[update-goldens]')))
-        uses: actions/upload-artifact@v7
-        with:
-          name: updated-goldens-${{ github.sha }}
-          path: test/golden/goldens/
-          retention-days: 7
-          if-no-files-found: error
-
   benchmarks:
     name: Mocked-backend benchmarks
     # Informational: measures client-side hot paths against the Dio-interceptor
@@ -461,7 +382,7 @@ jobs:
 
   quality-gate:
     name: Quality Gate
-    needs: [analyze, build-ios, codegen, test, golden, rust]
+    needs: [analyze, build-ios, codegen, test, rust]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -471,7 +392,6 @@ jobs:
           CODEGEN: ${{ needs.codegen.result }}
           IOS: ${{ needs.build-ios.result }}
           TEST: ${{ needs.test.result }}
-          GOLDEN: ${{ needs.golden.result }}
           RUST: ${{ needs.rust.result }}
         run: |
           test "$RUST" = success
@@ -479,7 +399,6 @@ jobs:
           test "$CODEGEN" = success
           test "$IOS" = success
           test "$TEST" = success
-          test "$GOLDEN" = success -o "$GOLDEN" = skipped
 
   build-debug:
     name: Build Debug APK

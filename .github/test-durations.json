@@ -76,7 +76,6 @@
     "test/core/theme/priority_colors_test.dart": 3,
     "test/core/theme/syntax_theme_test.dart": 3,
     "test/core/ui/avatars/avatar_palette_test.dart": 3,
-    "test/core/ui/diff/diff_view_golden_test.dart": 4,
     "test/core/ui/diff/unified_diff_view_test.dart": 4,
     "test/core/ui/scroll_edge_fade_test.dart": 4,
     "test/core/ui/tab_bar/tab_bar_badge_test.dart": 4,

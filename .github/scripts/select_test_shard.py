@@ -4,7 +4,7 @@
     python3 .github/scripts/select_test_shard.py --shard 3 --total-shards 10
     python3 .github/scripts/select_test_shard.py --check --total-shards 10
 
-`--check` assigns every shard and fails unless each non-golden test file
+`--check` assigns every shard and fails unless each test file
 lands in exactly one shard; it also prints the per-shard estimate so an
 unbalanced split is visible.  Durations come from
 `.github/test-durations.json` (regenerate with
@@ -51,10 +51,9 @@ def discover_tests(root: Path = Path('.')) -> list[str]:
     tests = sorted(
         path.relative_to(root).as_posix()
         for path in (root / 'test').rglob('*_test.dart')
-        if (root / 'test' / 'golden') not in path.parents
     )
     if not tests:
-        raise RuntimeError('No non-golden tests found')
+        raise RuntimeError('No tests found')
     return tests
 
 

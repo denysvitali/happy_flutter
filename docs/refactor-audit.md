@@ -355,8 +355,7 @@ content-handler shared decode, artifact form, profile row, usage/limits
 section. Platform pairs annotated and left alone. *(Est. 1 day.)*
 
 **Batch 9 — `refactor:` widget extraction on the five 270+ line `build()`
-methods.** Real sub-widgets, not helper methods. Requires
-`update-goldens` via CI afterwards. *(Est. 1 day.)*
+methods.** Real sub-widgets, not helper methods. *(Est. 1 day.)*
 
 **Batch 10 — `refactor:` `lib/core/utils/` dissolution + `Clock` injection at
 the three time-dependent boundaries.** *(Est. 1 day.)*
