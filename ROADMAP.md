@@ -6,7 +6,7 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 ### Production audit, 2026-09-04 (build 275300)
 
-Implementation follow-up (pending CI): the app now owns an absolute HTTP
+Implementation follow-up (app PR #62, server PR #42): the app now owns an absolute HTTP
 cancellation deadline, cancels background reads, normalizes legacy `default`
 spawn profiles, and treats missing Codex as cached provider availability with
 setup guidance in the picker. Native-boundary timings separate header wait,
@@ -23,9 +23,10 @@ coverage checks normal code semantics, long unfinished input and both renderers.
 Release assets now retain Dart symbols alongside the APK so artifact expiry
 cannot prevent another crash investigation.
 
-The Go follow-up makes response subscriptions wait for Redis acknowledgement
+The Go follow-up (merged to `master` at `505b79a`) makes response subscriptions wait for Redis acknowledgement
 before forwarding RPCs (the previous asynchronous setup could lose fast replies
-until the 3-second retry). A repeated immediate-response Redis test covers this.
+until the 3-second retry). A repeated immediate-response Redis test covers this. Full Go tests, targeted
+race checks and real-stack E2E passed with the CI-pinned provider CLI.
 The daemon also returns typed `providerUnavailable` and invalidates its catalog
 cache when Codex is installed or replaced. Production latency/crash improvements
 still require observation after rollout; telemetry issues remain unresolved.

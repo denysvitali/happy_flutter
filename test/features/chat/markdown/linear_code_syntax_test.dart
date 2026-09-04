@@ -28,7 +28,8 @@ void main() {
   test('long ordinary code and unfinished input preserve all content', () {
     final code = List.filled(1500, 'value ').join();
     expect(render('`$code`'), contains('<code>$code</code>'));
-    expect(render('`$code'), contains('`$code'));
+    // Paragraph parsing trims trailing whitespace outside a code span.
+    expect(render('`$code'), '<p>`${code.trimRight()}</p>\n');
   });
 
   testWidgets('both chat markdown views install the safe inline parser', (
