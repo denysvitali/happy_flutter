@@ -144,7 +144,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'deepseek':
@@ -172,7 +172,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'zai':
@@ -207,7 +207,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'minimax':
@@ -247,7 +247,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'xiaomi-mimo':
@@ -288,15 +288,14 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'qwen':
       return AIBackendProfile(
         id: 'qwen',
         name: 'Qwen (Token Plan)',
-        description:
-            'Qwen Cloud Token Plan via Anthropic-compatible interface',
+        description: 'Qwen Cloud Token Plan via Anthropic-compatible interface',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -330,7 +329,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'openrouter':
@@ -369,7 +368,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'openai':
@@ -390,7 +389,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'azure-openai':
@@ -411,7 +410,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'qwen-token-plan-codex':
@@ -437,7 +436,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
     case 'custom-codex-proxy':
@@ -467,7 +466,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
     default:

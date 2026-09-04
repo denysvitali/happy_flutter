@@ -145,28 +145,28 @@ PerMachineWarnings _$PerMachineWarningsFromJson(Map<String, dynamic> json) =>
     PerMachineWarnings(
       claude: json['claude'] as bool?,
       codex: json['codex'] as bool?,
-      gemini: json['gemini'] as bool?,
+      agy: json['agy'] as bool?,
     );
 
 Map<String, dynamic> _$PerMachineWarningsToJson(PerMachineWarnings instance) =>
     <String, dynamic>{
       'claude': instance.claude,
       'codex': instance.codex,
-      'gemini': instance.gemini,
+      'agy': instance.agy,
     };
 
 GlobalWarnings _$GlobalWarningsFromJson(Map<String, dynamic> json) =>
     GlobalWarnings(
       claude: json['claude'] as bool?,
       codex: json['codex'] as bool?,
-      gemini: json['gemini'] as bool?,
+      agy: json['agy'] as bool?,
     );
 
 Map<String, dynamic> _$GlobalWarningsToJson(GlobalWarnings instance) =>
     <String, dynamic>{
       'claude': instance.claude,
       'codex': instance.codex,
-      'gemini': instance.gemini,
+      'agy': instance.agy,
     };
 
 AIBackendProfile _$AIBackendProfileFromJson(
@@ -216,7 +216,7 @@ AIBackendProfile _$AIBackendProfileFromJson(
       (json['models'] as List<dynamic>?)?.map((e) => e as String).toList() ??
       const [],
   compatibility: json['compatibility'] == null
-      ? const ProfileCompatibility(claude: true, codex: true, gemini: true)
+      ? const ProfileCompatibility(claude: true, codex: true, agy: true)
       : ProfileCompatibility.fromJson(
           json['compatibility'] as Map<String, dynamic>,
         ),
@@ -353,7 +353,7 @@ ProfileCompatibility _$ProfileCompatibilityFromJson(
 ) => ProfileCompatibility(
   claude: json['claude'] as bool? ?? true,
   codex: json['codex'] as bool? ?? true,
-  gemini: json['gemini'] as bool? ?? true,
+  agy: json['agy'] as bool? ?? true,
   pi: json['pi'] as bool? ?? true,
 );
 
@@ -362,6 +362,6 @@ Map<String, dynamic> _$ProfileCompatibilityToJson(
 ) => <String, dynamic>{
   'claude': instance.claude,
   'codex': instance.codex,
-  'gemini': instance.gemini,
+  'agy': instance.agy,
   'pi': instance.pi,
 };

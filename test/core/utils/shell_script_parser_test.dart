@@ -60,7 +60,7 @@ void main() {
 
       expect(compatibility.claude, isTrue);
       expect(compatibility.codex, isFalse);
-      expect(compatibility.gemini, isFalse);
+      expect(compatibility.agy, isFalse);
     });
 
     test('targets Codex for OpenAI variables', () {
@@ -70,7 +70,7 @@ void main() {
 
       expect(compatibility.claude, isFalse);
       expect(compatibility.codex, isTrue);
-      expect(compatibility.gemini, isFalse);
+      expect(compatibility.agy, isFalse);
     });
 
     test('supports both when provider variables are mixed', () {
@@ -81,7 +81,7 @@ void main() {
 
       expect(compatibility.claude, isTrue);
       expect(compatibility.codex, isTrue);
-      expect(compatibility.gemini, isFalse);
+      expect(compatibility.agy, isFalse);
     });
 
     test('keeps generic scripts compatible with every agent', () {
@@ -91,7 +91,7 @@ void main() {
 
       expect(compatibility.claude, isTrue);
       expect(compatibility.codex, isTrue);
-      expect(compatibility.gemini, isTrue);
+      expect(compatibility.agy, isTrue);
     });
   });
 

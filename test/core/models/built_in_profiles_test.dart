@@ -19,7 +19,7 @@ void main() {
       expect(profile.defaultModelMode, 'qwen3.7-max');
       expect(profile.compatibility.codex, isTrue);
       expect(profile.compatibility.claude, isFalse);
-      expect(profile.compatibility.gemini, isFalse);
+      expect(profile.compatibility.agy, isFalse);
       expect(profile.compatibility.supportsAgent('codex'), isTrue);
       expect(profile.compatibility.supportsAgent('claude'), isFalse);
     });
@@ -30,43 +30,37 @@ void main() {
         builtInProfiles.map((p) => p.id),
         contains('qwen-token-plan-codex'),
       );
-      expect(
-        resolveProfile('qwen-token-plan-codex', const []),
-        isNotNull,
-      );
+      expect(resolveProfile('qwen-token-plan-codex', const []), isNotNull);
     });
 
-    test(
-      'emits the OpenAI-compatible spawn env the daemon translates into '
-      'Codex provider flags',
-      () {
-        final env = {
-          for (final e in profile!.environmentVariables) e.name: e.value,
-        };
+    test('emits the OpenAI-compatible spawn env the daemon translates into '
+        'Codex provider flags', () {
+      final env = {
+        for (final e in profile!.environmentVariables) e.name: e.value,
+      };
 
-        // OPENAI_BASE_URL: Singapore Token Plan OpenAI-compatible endpoint.
-        expect(
-          _envDefault(env['OPENAI_BASE_URL']!),
-          'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
-        );
+      // OPENAI_BASE_URL: Singapore Token Plan OpenAI-compatible endpoint.
+      expect(
+        _envDefault(env['OPENAI_BASE_URL']!),
+        'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1',
+      );
 
-        // OPENAI_MODEL defaults to qwen3.7-max.
-        expect(_envDefault(env['OPENAI_MODEL']!), 'qwen3.7-max');
+      // OPENAI_MODEL defaults to qwen3.7-max.
+      expect(_envDefault(env['OPENAI_MODEL']!), 'qwen3.7-max');
 
-        // The stored Qwen key becomes OPENAI_API_KEY: the value uses the
-        // same `${QWEN_API_KEY:-}` daemon expansion as the Claude
-        // 'Qwen (Token Plan)' profile's ANTHROPIC_AUTH_TOKEN, so one
-        // daemon-side QWEN_API_KEY export feeds both agents.
-        expect(env['OPENAI_API_KEY'], r'${QWEN_API_KEY:-}');
-        final claudeQwen = getBuiltInProfile('qwen')!;
-        expect(
-          claudeQwen.environmentVariables
-              .firstWhere((e) => e.name == 'ANTHROPIC_AUTH_TOKEN')
-              .value,
-          r'${QWEN_API_KEY:-}',
-        );
-      },
-    );
+      // The stored Qwen key becomes OPENAI_API_KEY: the value uses the
+      // same `${QWEN_API_KEY:-}` daemon expansion as the Claude
+      // 'Qwen (Token Plan)' profile's ANTHROPIC_AUTH_TOKEN, so one
+      // daemon-side QWEN_API_KEY export feeds both agents.
+      expect(env['OPENAI_API_KEY'], r'${QWEN_API_KEY:-}');
+      final claudeQwen = getBuiltInProfile('qwen')!;
+      expect(
+        claudeQwen.environmentVariables
+            .firstWhere((e) => e.name == 'ANTHROPIC_AUTH_TOKEN')
+            .value,
+        r'${QWEN_API_KEY:-}',
+      );
+    });
 
     test('exposes the stable Token Plan codex model slugs', () {
       expect(qwenTokenPlanCodexModels, [
@@ -112,34 +106,31 @@ void main() {
       expect(profile!.isBuiltIn, isTrue);
       expect(profile.compatibility.codex, isTrue);
       expect(profile.compatibility.claude, isFalse);
-      expect(profile.compatibility.gemini, isFalse);
+      expect(profile.compatibility.agy, isFalse);
       expect(builtInProfileIds, contains('custom-codex-proxy'));
       expect(resolveProfile('custom-codex-proxy', const []), isNotNull);
     });
 
-    test(
-      'carries the optional Codex provider-definition overrides the daemon '
-      'translates into -c model_providers flags',
-      () {
-        final env = {
-          for (final e in profile!.environmentVariables) e.name: e.value,
-        };
+    test('carries the optional Codex provider-definition overrides the daemon '
+        'translates into -c model_providers flags', () {
+      final env = {
+        for (final e in profile!.environmentVariables) e.name: e.value,
+      };
 
-        // Base URL is required but has no default — an unconfigured profile
-        // must not route codex anywhere.
-        expect(_envDefault(env['OPENAI_BASE_URL']!), '');
+      // Base URL is required but has no default — an unconfigured profile
+      // must not route codex anywhere.
+      expect(_envDefault(env['OPENAI_BASE_URL']!), '');
 
-        // env_key override defaults to OPENAI_API_KEY; wire_api defaults to
-        // chat (OpenAI-compatible gateways); name override stays empty so
-        // the daemon keeps its own default display name.
-        expect(
-          _envDefault(env['HAPPY_CODEX_PROVIDER_ENV_KEY']!),
-          'OPENAI_API_KEY',
-        );
-        expect(_envDefault(env['HAPPY_CODEX_PROVIDER_WIRE_API']!), 'chat');
-        expect(_envDefault(env['HAPPY_CODEX_PROVIDER_NAME']!), '');
-      },
-    );
+      // env_key override defaults to OPENAI_API_KEY; wire_api defaults to
+      // chat (OpenAI-compatible gateways); name override stays empty so
+      // the daemon keeps its own default display name.
+      expect(
+        _envDefault(env['HAPPY_CODEX_PROVIDER_ENV_KEY']!),
+        'OPENAI_API_KEY',
+      );
+      expect(_envDefault(env['HAPPY_CODEX_PROVIDER_WIRE_API']!), 'chat');
+      expect(_envDefault(env['HAPPY_CODEX_PROVIDER_NAME']!), '');
+    });
 
     test('catalog and wizard entries mirror the built-in profile', () {
       final option = profileSetupOption('custom-codex-proxy');

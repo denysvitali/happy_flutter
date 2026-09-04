@@ -30,7 +30,7 @@ enum NewSessionCreateBlocker {
   syncNotReady,
 }
 
-const _agentIds = ['claude', 'codex', 'gemini', 'pi', 'opencode', 'grok'];
+const _agentIds = ['claude', 'codex', 'agy', 'pi', 'opencode', 'grok'];
 
 NewSessionCreateBlocker? newSessionCreateBlocker({
   required Machine? machine,
@@ -1238,7 +1238,7 @@ class _DialogRequirementStatus extends StatelessWidget {
 String _agentLabel(AppLocalizations l10n, String agent) {
   return switch (agent) {
     'codex' => l10n.sessionsCodex,
-    'gemini' => l10n.sessionsGemini,
+    'agy' => l10n.sessionsAgy,
     'pi' => l10n.sessionsPi,
     'opencode' => l10n.sessionsOpencode,
     'grok' => l10n.sessionsGrok,
@@ -1249,7 +1249,7 @@ String _agentLabel(AppLocalizations l10n, String agent) {
 IconData _agentIcon(String agent) {
   return switch (agent) {
     'codex' => Icons.terminal_rounded,
-    'gemini' => Icons.auto_awesome_rounded,
+    'agy' => Icons.auto_awesome_rounded,
     'pi' => Icons.memory_rounded,
     'opencode' => Icons.code_rounded,
     'grok' => Icons.rocket_launch_rounded,

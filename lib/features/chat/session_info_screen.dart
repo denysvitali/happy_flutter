@@ -237,7 +237,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     if (flavor == null) return l10n.commonUnknown;
     if (flavor == 'claude') return 'Claude';
     if (flavor == 'gpt' || flavor == 'openai') return 'Codex';
-    if (flavor == 'gemini') return 'Gemini';
+    if (flavor == 'agy' || flavor == 'gemini') return 'AGY';
     if (flavor == 'pi') return 'pi';
     if (flavor == 'opencode') return 'OpenCode';
     if (flavor == 'grok' || flavor == 'grok-build') return l10n.sessionsGrok;

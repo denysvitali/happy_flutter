@@ -64,13 +64,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
   bool _submitting = false;
   String? _error;
 
-  static const _agents = <String>[
-    'claude',
-    'codex',
-    'gemini',
-    'opencode',
-    'grok',
-  ];
+  static const _agents = <String>['claude', 'codex', 'agy', 'opencode', 'grok'];
 
   @override
   void initState() {

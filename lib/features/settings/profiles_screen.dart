@@ -51,8 +51,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final codexProfiles = allProfiles
         .where((profile) => profile.compatibility.supportsAgent('codex'))
         .toList();
-    final geminiProfiles = allProfiles
-        .where((profile) => profile.compatibility.supportsAgent('gemini'))
+    final agyProfiles = allProfiles
+        .where((profile) => profile.compatibility.supportsAgent('agy'))
         .toList();
 
     final isWide = MasterDetailScaffold.isWide(context);
@@ -109,9 +109,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         ),
         _buildAgentSection(
           context: context,
-          title: l10n.sessionsGemini,
-          profiles: geminiProfiles,
-          agent: 'gemini',
+          title: l10n.sessionsAgy,
+          profiles: agyProfiles,
+          agent: 'agy',
           isWide: isWide,
         ),
       ],
@@ -366,10 +366,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       return;
     }
 
-    final name = _deriveProfileName(
-      result,
-      l10n.profilesImportedFallbackName,
-    );
+    final name = _deriveProfileName(result, l10n.profilesImportedFallbackName);
     final profile = buildProfileFromEnvVars(name, result);
 
     final settings = ref.read(settingsNotifierProvider);
@@ -480,8 +477,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     final now = DateTime.now().millisecondsSinceEpoch;
     final duplicate = AIBackendProfile(
       id: 'custom_$now',
-      name:
-          '${profile.name}${AppLocalizations.of(context).profilesCopySuffix}',
+      name: '${profile.name}${AppLocalizations.of(context).profilesCopySuffix}',
       description: profile.description,
       startupBashScript: profile.startupBashScript,
       environmentVariables: profile.environmentVariables
@@ -567,7 +563,7 @@ String _primaryAgentForProfile(AIBackendProfile profile) {
   final compatibility = profile.compatibility;
   if (compatibility.claude) return 'claude';
   if (compatibility.codex) return 'codex';
-  if (compatibility.gemini) return 'gemini';
+  if (compatibility.agy) return 'agy';
   return 'claude';
 }
 

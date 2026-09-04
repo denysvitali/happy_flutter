@@ -19,7 +19,7 @@ void main() {
 
       expect(settings.lastUsedProfileForAgent('codex'), 'openai');
       expect(settings.lastUsedProfileForAgent('claude'), 'anthropic');
-      expect(settings.lastUsedProfileForAgent('gemini'), isNull);
+      expect(settings.lastUsedProfileForAgent('agy'), isNull);
     });
 
     test('does not share a scoped Codex profile with Claude', () {
@@ -65,6 +65,31 @@ void main() {
 
       expect(restored.lastUsedProfileForAgent('claude'), 'anthropic');
       expect(restored.lastUsedProfileForAgent('codex'), 'openai');
+    });
+
+    test('migrates retired Gemini profile selections to AGY', () {
+      final restored = Settings.fromJson({
+        ...Settings().toJson(),
+        'lastUsedAgent': 'gemini',
+        'lastUsedProfilesByAgent': {'gemini': 'legacy-profile'},
+      });
+
+      expect(restored.lastUsedAgent, 'agy');
+      expect(restored.lastUsedProfileForAgent('agy'), 'legacy-profile');
+      expect(restored.lastUsedProfilesByAgent, {'agy': 'legacy-profile'});
+    });
+
+    test('prefers an existing AGY profile over retired Gemini data', () {
+      final restored = Settings.fromJson({
+        ...Settings().toJson(),
+        'lastUsedProfilesByAgent': {
+          'gemini': 'legacy-profile',
+          'agy': 'current-profile',
+        },
+      });
+
+      expect(restored.lastUsedProfileForAgent('agy'), 'current-profile');
+      expect(restored.lastUsedProfilesByAgent, {'agy': 'current-profile'});
     });
 
     test('fallback decode preserves existing values for partial payloads', () {
@@ -226,7 +251,8 @@ void main() {
       expect(normalizeAgentKey('pi'), 'pi');
       expect(normalizeAgentKey('claude'), 'claude');
       expect(normalizeAgentKey('codex'), 'codex');
-      expect(normalizeAgentKey('gemini'), 'gemini');
+      expect(normalizeAgentKey('agy'), 'agy');
+      expect(normalizeAgentKey('gemini'), 'agy');
       expect(normalizeAgentKey('opencode'), 'opencode');
       expect(normalizeAgentKey('grok'), 'grok');
       expect(normalizeAgentKey('grok-build'), 'grok');
@@ -291,7 +317,7 @@ void main() {
           compatibility: const ProfileCompatibility(
             claude: false,
             codex: false,
-            gemini: false,
+            agy: false,
             pi: true,
           ),
         );
@@ -301,7 +327,7 @@ void main() {
           compatibility: const ProfileCompatibility(
             claude: true,
             codex: false,
-            gemini: false,
+            agy: false,
             pi: false,
           ),
         );
@@ -330,7 +356,7 @@ void main() {
           compatibility: const ProfileCompatibility(
             claude: true,
             codex: false,
-            gemini: false,
+            agy: false,
             pi: false,
           ),
         );

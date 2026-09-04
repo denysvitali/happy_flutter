@@ -339,7 +339,7 @@ class InputToolbar extends StatelessWidget {
               onModeChanged: onPermissionModeChanged,
               availableModes: sessionFlavor == 'codex'
                   ? perm.PermissionModeExtension.codexModes
-                  : perm.PermissionModeExtension.claudeGeminiModes,
+                  : perm.PermissionModeExtension.claudeAgyModes,
             ),
             const SizedBox(width: AppSpacing.xs),
           ],

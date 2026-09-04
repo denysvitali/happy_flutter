@@ -183,9 +183,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         ..add(
           EnvironmentVariable(name: 'OPENAI_API_KEY', value: _apiKeyCtrl.text),
         )
-        ..add(
-          EnvironmentVariable(name: 'OPENAI_MODEL', value: _modelCtrl.text),
-        )
+        ..add(EnvironmentVariable(name: 'OPENAI_MODEL', value: _modelCtrl.text))
         ..add(
           EnvironmentVariable(
             name: 'HAPPY_CODEX_PROVIDER_ENV_KEY',
@@ -199,10 +197,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           ),
         )
         ..add(
-          EnvironmentVariable(
-            name: 'HAPPY_CODEX_PROVIDER_NAME',
-            value: '',
-          ),
+          EnvironmentVariable(name: 'HAPPY_CODEX_PROVIDER_NAME', value: ''),
         );
       if (_timeoutCtrl.text.isNotEmpty) {
         envVars.add(
@@ -261,8 +256,9 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
           envVars
             ..addAll(
               buildAnthropicModelEnvVars(
-                mainModel:
-                    _modelCtrl.text.isNotEmpty ? _modelCtrl.text : 'glm-5.1',
+                mainModel: _modelCtrl.text.isNotEmpty
+                    ? _modelCtrl.text
+                    : 'glm-5.1',
                 fastModel: _smallFastModelCtrl.text.isNotEmpty
                     ? _smallFastModelCtrl.text
                     : null,
@@ -420,13 +416,13 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
         return const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         );
       default:
         return const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         );
     }
   }
@@ -771,7 +767,7 @@ String _primaryAgentForProfile(AIBackendProfile profile) {
   final compatibility = profile.compatibility;
   if (compatibility.claude) return 'claude';
   if (compatibility.codex) return 'codex';
-  if (compatibility.gemini) return 'gemini';
+  if (compatibility.agy) return 'agy';
   return 'claude';
 }
 

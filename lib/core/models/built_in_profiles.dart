@@ -198,7 +198,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
           pi: true,
         ),
       );
@@ -239,7 +239,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
           pi: true,
         ),
       );
@@ -284,7 +284,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
           pi: true,
         ),
       );
@@ -337,7 +337,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
           pi: true,
         ),
       );
@@ -393,7 +393,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
           pi: true,
         ),
       );
@@ -447,7 +447,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
           pi: true,
         ),
       );
@@ -489,7 +489,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
           pi: true,
         ),
       );
@@ -515,7 +515,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
           pi: false,
         ),
       );
@@ -542,7 +542,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
           pi: false,
         ),
       );
@@ -585,7 +585,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
           pi: false,
         ),
       );
@@ -635,7 +635,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
           pi: false,
         ),
       );

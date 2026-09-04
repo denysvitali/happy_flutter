@@ -1207,11 +1207,11 @@ abstract class AppLocalizations {
   /// **'Codex'**
   String get agentAgentCodex;
 
-  /// No description provided for @agentAgentGemini.
+  /// No description provided for @agentAgentAgy.
   ///
   /// In en, this message translates to:
-  /// **'Gemini'**
-  String get agentAgentGemini;
+  /// **'AGY'**
+  String get agentAgentAgy;
 
   /// Desktop self-updater: a newer release was found
   ///
@@ -1693,11 +1693,11 @@ abstract class AppLocalizations {
   /// **'Codex'**
   String get sessionsCodex;
 
-  /// No description provided for @sessionsGemini.
+  /// No description provided for @sessionsAgy.
   ///
   /// In en, this message translates to:
-  /// **'Gemini'**
-  String get sessionsGemini;
+  /// **'AGY'**
+  String get sessionsAgy;
 
   /// No description provided for @sessionsPi.
   ///

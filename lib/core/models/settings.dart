@@ -23,10 +23,9 @@ class Settings {
   factory Settings.fromJsonWithFallback(
     Map<String, dynamic> json,
     Settings fallback,
-  ) =>
-      _$SettingsFromJson(
-        _normalizeSettingsJson(json, fallback: fallback.toJson()),
-      );
+  ) => _$SettingsFromJson(
+    _normalizeSettingsJson(json, fallback: fallback.toJson()),
+  );
 
   int schemaVersion = 2;
   String themeMode = 'system';
@@ -322,8 +321,7 @@ class Settings {
       ..agentInputEnterToSend =
           agentInputEnterToSend ?? this.agentInputEnterToSend
       ..developerModeEnabled = developerModeEnabled ?? this.developerModeEnabled
-      ..toolCallDebugEnabled =
-          toolCallDebugEnabled ?? this.toolCallDebugEnabled
+      ..toolCallDebugEnabled = toolCallDebugEnabled ?? this.toolCallDebugEnabled
       ..avatarStyle = avatarStyle ?? this.avatarStyle
       ..showFlavorIcons = showFlavorIcons ?? this.showFlavorIcons
       ..compactSessionView = compactSessionView ?? this.compactSessionView
@@ -404,7 +402,7 @@ class Settings {
 String normalizeAgentKey(String? agent) {
   return switch (agent) {
     'codex' => 'codex',
-    'gemini' => 'gemini',
+    'agy' || 'gemini' => 'agy',
     'pi' => 'pi',
     'opencode' => 'opencode',
     'grok' || 'grok-build' => 'grok',
@@ -474,13 +472,19 @@ Map<String, dynamic> _normalizeSettingsJson(
           lastUsedProfilesByAgent is Map &&
           dismissed is Map &&
           dismissed['perMachine'] is Map &&
-          dismissed['global'] is Map) {
+          dismissed['global'] is Map &&
+          json['lastUsedAgent'] != 'gemini' &&
+          !lastUsedProfilesByAgent.containsKey('gemini')) {
         return json;
       }
     }
   }
 
   final normalized = <String, dynamic>{...defaults, ...json};
+
+  if (normalized['lastUsedAgent'] == 'gemini') {
+    normalized['lastUsedAgent'] = 'agy';
+  }
 
   for (final entry in defaults.entries) {
     if (json[entry.key] == null) {
@@ -503,10 +507,16 @@ Map<String, dynamic> _normalizeSettingsJson(
 
   final lastUsedProfilesByAgent = normalized['lastUsedProfilesByAgent'];
   if (lastUsedProfilesByAgent is Map) {
-    normalized['lastUsedProfilesByAgent'] = {
+    final profilesByAgent = <String, String>{
       for (final entry in lastUsedProfilesByAgent.entries)
-        if (entry.value != null) entry.key.toString(): entry.value.toString(),
+        if (entry.value != null && entry.key.toString() != 'gemini')
+          entry.key.toString(): entry.value.toString(),
     };
+    final legacyAgyProfile = lastUsedProfilesByAgent['gemini'];
+    if (!profilesByAgent.containsKey('agy') && legacyAgyProfile != null) {
+      profilesByAgent['agy'] = legacyAgyProfile.toString();
+    }
+    normalized['lastUsedProfilesByAgent'] = profilesByAgent;
   } else {
     normalized['lastUsedProfilesByAgent'] = defaults['lastUsedProfilesByAgent'];
   }
@@ -560,28 +570,36 @@ class DismissedCLIWarnings {
 
 @JsonSerializable()
 class PerMachineWarnings {
-  PerMachineWarnings({this.claude, this.codex, this.gemini});
+  PerMachineWarnings({this.claude, this.codex, this.agy});
 
   factory PerMachineWarnings.fromJson(Map<String, dynamic> json) =>
-      _$PerMachineWarningsFromJson(json);
+      _$PerMachineWarningsFromJson({
+        ...json,
+        if (!json.containsKey('agy') && json.containsKey('gemini'))
+          'agy': json['gemini'],
+      });
 
   bool? claude;
   bool? codex;
-  bool? gemini;
+  bool? agy;
 
   Map<String, dynamic> toJson() => _$PerMachineWarningsToJson(this);
 }
 
 @JsonSerializable()
 class GlobalWarnings {
-  GlobalWarnings({this.claude, this.codex, this.gemini});
+  GlobalWarnings({this.claude, this.codex, this.agy});
 
   factory GlobalWarnings.fromJson(Map<String, dynamic> json) =>
-      _$GlobalWarningsFromJson(json);
+      _$GlobalWarningsFromJson({
+        ...json,
+        if (!json.containsKey('agy') && json.containsKey('gemini'))
+          'agy': json['gemini'],
+      });
 
   bool? claude;
   bool? codex;
-  bool? gemini;
+  bool? agy;
 
   Map<String, dynamic> toJson() => _$GlobalWarningsToJson(this);
 }
@@ -615,7 +633,7 @@ class AIBackendProfile {
     this.compatibility = const ProfileCompatibility(
       claude: true,
       codex: true,
-      gemini: true,
+      agy: true,
     ),
     this.isBuiltIn = false,
     this.createdAt = 0,
@@ -932,16 +950,22 @@ class ProfileCompatibility {
   const ProfileCompatibility({
     this.claude = true,
     this.codex = true,
-    this.gemini = true,
+    this.agy = true,
     this.pi = true,
   });
 
   factory ProfileCompatibility.fromJson(Map<String, dynamic> json) =>
-      _$ProfileCompatibilityFromJson(json);
+      _$ProfileCompatibilityFromJson({
+        ...json,
+        // Migrate profiles written by the retired Gemini agent name while
+        // keeping AGY as the only current agent key.
+        if (!json.containsKey('agy') && json.containsKey('gemini'))
+          'agy': json['gemini'],
+      });
 
   final bool claude;
   final bool codex;
-  final bool gemini;
+  final bool agy;
   final bool pi;
 
   Map<String, dynamic> toJson() => _$ProfileCompatibilityToJson(this);
@@ -952,8 +976,8 @@ class ProfileCompatibility {
         return claude;
       case 'codex':
         return codex;
-      case 'gemini':
-        return gemini;
+      case 'agy':
+        return agy;
       case 'pi':
         return pi;
       // OpenCode and Grok Build use machine-local auth / default profiles;

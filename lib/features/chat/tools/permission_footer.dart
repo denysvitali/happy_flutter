@@ -38,7 +38,7 @@ class PermissionFooter extends StatefulWidget {
   /// The tool input (for showing what will be allowed).
   final Map<String, dynamic>? toolInput;
 
-  /// The session flavor (e.g. 'claude', 'codex', 'gemini').
+  /// The session flavor (e.g. 'claude', 'codex', 'agy').
   final String? flavor;
 
   /// Whether the session's CLI process is online.

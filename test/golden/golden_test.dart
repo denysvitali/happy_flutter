@@ -339,7 +339,7 @@ class _MockChatView extends StatelessWidget {
                   // Permission mode selector (Claude modes only).
                   PermissionModeSelector(
                     selectedMode: PermissionMode.defaultMode,
-                    availableModes: PermissionModeExtension.claudeGeminiModes,
+                    availableModes: PermissionModeExtension.claudeAgyModes,
                   ),
                   const SizedBox(width: AppSpacing.xs + 2),
                   // Model selector pill.

@@ -5,7 +5,7 @@ import 'api_client.dart';
 import 'base_api_exception.dart';
 
 /// Connected Services API client
-/// Handles connecting/disconnecting third-party services (Claude, GitHub, Gemini, OpenAI)
+/// Handles connecting/disconnecting third-party services (Claude, GitHub, OpenAI)
 /// Based on React Native's apiServices.ts
 class ServicesApi {
   ServicesApi({ApiClient? client}) : _client = client ?? ApiClient();
@@ -92,7 +92,7 @@ class ServicesApi {
 
   /// Get connection status for all supported services
   Future<Map<String, bool>> getAllConnectionStatus() async {
-    const services = ['github', 'claude', 'gemini', 'openai'];
+    const services = ['github', 'claude', 'openai'];
     final results = await Future.wait(
       services.map((service) async {
         try {
@@ -124,16 +124,6 @@ class ServicesApi {
   /// Disconnect Claude service (convenience method)
   Future<void> disconnectClaude() async {
     await disconnectService('claude');
-  }
-
-  /// Connect Gemini service (convenience method)
-  Future<void> connectGemini(String token) async {
-    await connectService('gemini', token);
-  }
-
-  /// Disconnect Gemini service (convenience method)
-  Future<void> disconnectGemini() async {
-    await disconnectService('gemini');
   }
 
   /// Connect OpenAI service (convenience method)

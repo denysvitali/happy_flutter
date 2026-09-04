@@ -201,7 +201,7 @@
   "toolDetailsButtonHint": "Use the details button to view input & output",
   "agentAgentClaude": "Claude",
   "agentAgentCodex": "Codex",
-  "agentAgentGemini": "Gemini",
+  "agentAgentAgy": "AGY",
   "desktopUpdateAvailable": "Version {version} is available",
   "@desktopUpdateAvailable": {
     "description": "Desktop self-updater: a newer release was found",
@@ -381,7 +381,7 @@
   "sessionsWorktree": "Worktree",
   "sessionsClaude": "Claude",
   "sessionsCodex": "Codex",
-  "sessionsGemini": "Gemini",
+  "sessionsAgy": "AGY",
   "sessionsPi": "pi",
   "sessionsOpencode": "OpenCode",
   "sessionsGrok": "Grok",

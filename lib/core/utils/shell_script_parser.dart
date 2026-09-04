@@ -152,7 +152,7 @@ ProfileCompatibility inferProfileCompatibility(
   return ProfileCompatibility(
     claude: hasAnthropic,
     codex: hasOpenAi,
-    gemini: false,
+    agy: false,
     pi: hasAnthropic,
   );
 }

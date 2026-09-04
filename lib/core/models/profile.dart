@@ -250,7 +250,6 @@ String? _nullableString(dynamic value) {
 enum ConnectedService {
   claude('Claude', 'https://claude.com'),
   github('GitHub', 'https://github.com'),
-  gemini('Gemini', 'https://gemini.google.com'),
   openai('OpenAI', 'https://openai.com');
 
   const ConnectedService(this.displayName, this.websiteUrl);

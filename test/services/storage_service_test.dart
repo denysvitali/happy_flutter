@@ -149,10 +149,10 @@ void main() {
             'machine1': PerMachineWarnings(
               claude: true,
               codex: false,
-              gemini: true,
+              agy: true,
             ),
           }
-          ..global = GlobalWarnings(claude: false, codex: true, gemini: false);
+          ..global = GlobalWarnings(claude: false, codex: true, agy: false);
         final settings = Settings()..dismissedCLIWarnings = warnings;
 
         await storage.saveSettings(settings);

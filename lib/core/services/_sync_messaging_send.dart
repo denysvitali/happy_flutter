@@ -485,8 +485,6 @@ extension SyncMessagingSend on Sync {
         final effectiveModelMode =
             requestedModelMode != null && requestedModelMode != 'default'
             ? requestedModelMode
-            : flavor == 'gemini'
-            ? 'gemini-2.5-pro'
             : 'default';
         return (
           effectivePermissionMode: effectivePermissionMode,

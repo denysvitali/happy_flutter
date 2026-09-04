@@ -127,7 +127,7 @@ void main() {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
 
@@ -200,7 +200,7 @@ void main() {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
 
@@ -238,7 +238,7 @@ void main() {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
 
@@ -446,7 +446,7 @@ void main() {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
 
@@ -487,7 +487,7 @@ void main() {
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
 
@@ -509,14 +509,12 @@ void main() {
       final profile = AIBackendProfile(
         id: 'llm-proxy',
         name: 'LLM Proxy',
-        anthropicConfig: AnthropicConfig(
-          baseUrl: 'http://llm-proxy.example',
-        ),
+        anthropicConfig: AnthropicConfig(baseUrl: 'http://llm-proxy.example'),
         models: const ['apodex/apodex-1.1'],
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
-          gemini: false,
+          agy: false,
         ),
       );
 
@@ -530,47 +528,42 @@ void main() {
       );
     });
 
-    test(
-      'drops a vendor pick the Claude gateway profile does not own',
-      () {
-        // Production shape (session cddc18c35de421108622d20da): the pick
-        // `grok/grok-4.6` arrived while the profile's stored model list was
-        // stale, so ownership failed and the pick downgraded to 'default' —
-        // the spawn then ran the profile's dead default model. The downgrade
-        // itself is the designed guard; this pins it (and it now logs).
-        final profile = AIBackendProfile(
-          id: 'llm-proxy',
-          name: 'LLM Proxy',
-          anthropicConfig: AnthropicConfig(
-            baseUrl: 'http://llm-proxy.example',
-          ),
-          models: const ['opencode/x-preview-f-free'],
-          compatibility: const ProfileCompatibility(
-            claude: true,
-            codex: false,
-            gemini: false,
-          ),
-        );
+    test('drops a vendor pick the Claude gateway profile does not own', () {
+      // Production shape (session cddc18c35de421108622d20da): the pick
+      // `grok/grok-4.6` arrived while the profile's stored model list was
+      // stale, so ownership failed and the pick downgraded to 'default' —
+      // the spawn then ran the profile's dead default model. The downgrade
+      // itself is the designed guard; this pins it (and it now logs).
+      final profile = AIBackendProfile(
+        id: 'llm-proxy',
+        name: 'LLM Proxy',
+        anthropicConfig: AnthropicConfig(baseUrl: 'http://llm-proxy.example'),
+        models: const ['opencode/x-preview-f-free'],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          agy: false,
+        ),
+      );
 
-        expect(
-          sync.testNormalizeModelModeForAgentWithProfile(
-            'grok/grok-4.6',
-            'claude',
-            profile,
-          ),
-          'default',
-        );
-        // The profile's own model still passes: ownership is per model, not
-        // per profile.
-        expect(
-          sync.testNormalizeModelModeForAgentWithProfile(
-            'opencode/x-preview-f-free',
-            'claude',
-            profile,
-          ),
+      expect(
+        sync.testNormalizeModelModeForAgentWithProfile(
+          'grok/grok-4.6',
+          'claude',
+          profile,
+        ),
+        'default',
+      );
+      // The profile's own model still passes: ownership is per model, not
+      // per profile.
+      expect(
+        sync.testNormalizeModelModeForAgentWithProfile(
           'opencode/x-preview-f-free',
-        );
-      },
-    );
+          'claude',
+          profile,
+        ),
+        'opencode/x-preview-f-free',
+      );
+    });
   });
 }

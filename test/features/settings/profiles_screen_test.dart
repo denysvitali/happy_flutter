@@ -41,8 +41,10 @@ void main() {
       // "Codex" don't render and (b) routes profile taps into the editor
       // pane instead of updating lastUsedProfile.
       final binding = TestWidgetsFlutterBinding.instance;
-      binding.platformDispatcher.views.first.physicalSize =
-          const Size(390 * 3, 4000 * 3);
+      binding.platformDispatcher.views.first.physicalSize = const Size(
+        390 * 3,
+        4000 * 3,
+      );
       binding.platformDispatcher.views.first.devicePixelRatio = 3.0;
     });
 
@@ -289,7 +291,7 @@ void main() {
             compatibility: const ProfileCompatibility(
               claude: true,
               codex: false,
-              gemini: false,
+              agy: false,
             ),
           ),
           AIBackendProfile(
@@ -298,7 +300,7 @@ void main() {
             compatibility: const ProfileCompatibility(
               claude: false,
               codex: true,
-              gemini: false,
+              agy: false,
             ),
           ),
         ];

@@ -54,7 +54,7 @@ class SessionAvatar extends StatelessWidget {
   /// Optional thumbhash for progressive image loading.
   final String? thumbhash;
 
-  /// The AI provider flavor (claude, codex, gemini) for the flavor icon.
+  /// The AI provider flavor (claude, codex, agy) for the flavor icon.
   final String? flavor;
 
   /// The avatar style to use (defaults to hash-based rotation).
@@ -184,8 +184,9 @@ class SessionAvatar extends StatelessWidget {
             // (alpha: 0.15) was always-on-top black regardless of theme.
             boxShadow: [
               BoxShadow(
-                color: theme.colorScheme.shadow
-                    .withValues(alpha: AppOpacity.soft),
+                color: theme.colorScheme.shadow.withValues(
+                  alpha: AppOpacity.soft,
+                ),
                 offset: const Offset(0, 1),
                 blurRadius: 2,
                 spreadRadius: 0,
@@ -221,7 +222,7 @@ class SessionAvatar extends StatelessWidget {
     return switch (flavorName) {
       'claude' => 'assets/images/icon-claude.png',
       'codex' => 'assets/images/icon-gpt.png',
-      'gemini' => 'assets/images/icon-gemini.png',
+      'agy' || 'gemini' => 'assets/images/icon-gpt.png',
       'pi' => 'assets/images/icon-pi.png',
       'opencode' => 'assets/images/icon-gpt.png',
       // No dedicated Grok asset yet; reuse the GPT icon as a neutral stand-in.
@@ -234,7 +235,7 @@ class SessionAvatar extends StatelessWidget {
     return switch (flavorName) {
       'claude' => Icons.auto_awesome,
       'codex' => Icons.code,
-      'gemini' => Icons.auto_awesome,
+      'agy' || 'gemini' => Icons.auto_awesome,
       'pi' => Icons.psychology_alt_outlined,
       'opencode' => Icons.smart_toy_outlined,
       'grok' || 'grok-build' => Icons.rocket_launch_outlined,

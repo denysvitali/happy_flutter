@@ -145,7 +145,8 @@ const Map<String, String> _brandCasings = {
   'chrome': 'Chrome',
   'happy': 'Happy',
   'codex': 'Codex',
-  'gemini': 'Gemini',
+  'agy': 'AGY',
+  'gemini': 'AGY',
 };
 
 /// Humanizes an unknown tool name for display.

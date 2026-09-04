@@ -163,8 +163,8 @@ extension PermissionModeExtension on PermissionMode {
     }
   }
 
-  /// Check if this is a Claude/Gemini compatible mode
-  bool get isClaudeGeminiMode {
+  /// Check if this is a Claude/AGY compatible mode
+  bool get isClaudeAgyMode {
     return this == PermissionMode.defaultMode ||
         this == PermissionMode.acceptEdits ||
         this == PermissionMode.plan ||
@@ -179,8 +179,8 @@ extension PermissionModeExtension on PermissionMode {
         this == PermissionMode.yolo;
   }
 
-  /// Get modes for Claude/Gemini agents
-  static List<PermissionMode> get claudeGeminiModes => [
+  /// Get modes for Claude/AGY agents
+  static List<PermissionMode> get claudeAgyModes => [
     PermissionMode.defaultMode,
     PermissionMode.acceptEdits,
     PermissionMode.plan,

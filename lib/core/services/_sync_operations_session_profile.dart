@@ -538,7 +538,7 @@ extension SyncSpawnProfileResolution on Sync {
     if (profile == null) return null;
     final compatibility = profile.compatibility;
     if (compatibility.codex && !compatibility.claude) return 'codex';
-    if (compatibility.gemini && !compatibility.claude) return 'gemini';
+    if (compatibility.agy && !compatibility.claude) return 'agy';
     if (compatibility.pi && !compatibility.claude) return 'pi';
     return 'claude';
   }

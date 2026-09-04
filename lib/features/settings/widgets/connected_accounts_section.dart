@@ -82,8 +82,6 @@ class ServiceTile extends StatelessWidget {
         return Icons.auto_awesome;
       case ConnectedService.github:
         return Icons.code;
-      case ConnectedService.gemini:
-        return Icons.auto_awesome;
       case ConnectedService.openai:
         return Icons.psychology;
     }
@@ -95,8 +93,6 @@ class ServiceTile extends StatelessWidget {
         return AppColors.warning;
       case ConnectedService.github:
         return cs.onSurface;
-      case ConnectedService.gemini:
-        return cs.primary;
       case ConnectedService.openai:
         return AppColors.success;
     }

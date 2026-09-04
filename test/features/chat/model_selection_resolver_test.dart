@@ -82,7 +82,7 @@ void main() {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
           pi: false,
         ),
       );
@@ -347,36 +347,33 @@ void main() {
       expect(profileBackendHost(profile), 'api.anthropic.com');
     });
 
-    test(
-      r'expands ${VAR:-default} base URLs so built-in Qwen is third-party',
-      () {
-        // Built-in profiles store daemon expansion refs, not bare URLs.
-        // Without expanding the default, host parse fails and Qwen is
-        // misclassified as official Anthropic (Claude aliases stay on).
-        final profile = _profile(
-          id: 'qwen',
-          environmentVariables: [
-            EnvironmentVariable(
-              name: 'ANTHROPIC_BASE_URL',
-              value:
-                  r'${QWEN_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic}',
-            ),
-          ],
-        );
-
-        expect(
-          expandEnvDefault(
-            r'${QWEN_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic}',
+    test(r'expands ${VAR:-default} base URLs so built-in Qwen is third-party', () {
+      // Built-in profiles store daemon expansion refs, not bare URLs.
+      // Without expanding the default, host parse fails and Qwen is
+      // misclassified as official Anthropic (Claude aliases stay on).
+      final profile = _profile(
+        id: 'qwen',
+        environmentVariables: [
+          EnvironmentVariable(
+            name: 'ANTHROPIC_BASE_URL',
+            value:
+                r'${QWEN_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic}',
           ),
-          'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic',
-        );
-        expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isTrue);
-        expect(
-          profileBackendHost(profile),
-          'token-plan.ap-southeast-1.maas.aliyuncs.com',
-        );
-      },
-    );
+        ],
+      );
+
+      expect(
+        expandEnvDefault(
+          r'${QWEN_BASE_URL:-https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic}',
+        ),
+        'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic',
+      );
+      expect(profileUsesThirdPartyAnthropicBaseUrl(profile), isTrue);
+      expect(
+        profileBackendHost(profile),
+        'token-plan.ap-southeast-1.maas.aliyuncs.com',
+      );
+    });
 
     test('surfaces host for a misnamed custom profile pointing at Kimi', () {
       // Regression: name "Qwen 3.8" + env → kimi.com was invisible in the
@@ -398,35 +395,37 @@ void main() {
     });
   });
   group('provider-owned Codex effort round-trip', () {
-    test('resolved provider-owned effort model is selectable in the picker',
-        () {
-      // A Codex session whose profile owns the model: the user picked an
-      // effort (qwen3.7-max:high) and it was saved as the draft model mode.
-      final result = resolveModelSelection(
-        savedPermissionMode: null,
-        savedModelMode: 'qwen3.7-max:high',
-        savedProfileId: null,
-        sessionModelMode: null,
-        sessionPermissionMode: null,
-        flavor: 'codex',
-        settingsProfiles: const [],
-        builtInProfiles: const [],
-        lastUsedModelMode: null,
-      );
+    test(
+      'resolved provider-owned effort model is selectable in the picker',
+      () {
+        // A Codex session whose profile owns the model: the user picked an
+        // effort (qwen3.7-max:high) and it was saved as the draft model mode.
+        final result = resolveModelSelection(
+          savedPermissionMode: null,
+          savedModelMode: 'qwen3.7-max:high',
+          savedProfileId: null,
+          sessionModelMode: null,
+          sessionPermissionMode: null,
+          flavor: 'codex',
+          settingsProfiles: const [],
+          builtInProfiles: const [],
+          lastUsedModelMode: null,
+        );
 
-      expect(result.resolvedRawModelString, 'qwen3.7-max:high');
-      expect(result.resolvedModelMode.modeString, 'qwen3.7-max:high');
-      expect(result.resolvedModelMode.isCodex, isTrue);
+        expect(result.resolvedRawModelString, 'qwen3.7-max:high');
+        expect(result.resolvedModelMode.modeString, 'qwen3.7-max:high');
+        expect(result.resolvedModelMode.isCodex, isTrue);
 
-      // The picker options built from the provider-owned model must
-      // contain the resolved selection so it highlights on reopen.
-      final options = ChatModelMode.availableForProfile(
-        flavor: 'codex',
-        claudeCompatible: false,
-        providerOwnedCodexModel: result.resolvedRawModelString,
-      );
-      expect(options, contains(result.resolvedModelMode));
-    });
+        // The picker options built from the provider-owned model must
+        // contain the resolved selection so it highlights on reopen.
+        final options = ChatModelMode.availableForProfile(
+          flavor: 'codex',
+          claudeCompatible: false,
+          providerOwnedCodexModel: result.resolvedRawModelString,
+        );
+        expect(options, contains(result.resolvedModelMode));
+      },
+    );
   });
   group('profile-configured model list', () {
     test('saved profile model survives restore as both UI model and raw '
@@ -526,7 +525,7 @@ void main() {
           compatibility: const ProfileCompatibility(
             claude: false,
             codex: true,
-            gemini: false,
+            agy: false,
             pi: false,
           ),
           models: const ['venice/stealth-ox-alpha'],
@@ -614,31 +613,35 @@ void main() {
       expect(result.resolvedModelMode.reasoningEffort, 'high');
     });
 
-    test('official-profile drafts still normalize unknown slugs to default',
-        () {
-      // Preservation is scoped to profiles that actually route to a
-      // third-party gateway; an official-Anthropic profile must keep
-      // rejecting unknown slugs.
-      final official = _profile(
-        id: 'anthropic',
-        anthropicConfig: AnthropicConfig(baseUrl: 'https://api.anthropic.com'),
-      );
+    test(
+      'official-profile drafts still normalize unknown slugs to default',
+      () {
+        // Preservation is scoped to profiles that actually route to a
+        // third-party gateway; an official-Anthropic profile must keep
+        // rejecting unknown slugs.
+        final official = _profile(
+          id: 'anthropic',
+          anthropicConfig: AnthropicConfig(
+            baseUrl: 'https://api.anthropic.com',
+          ),
+        );
 
-      final result = resolveModelSelection(
-        savedPermissionMode: null,
-        savedModelMode: 'deepseek-chat:high',
-        savedProfileId: 'anthropic',
-        sessionModelMode: null,
-        sessionPermissionMode: null,
-        flavor: 'claude',
-        settingsProfiles: const [],
-        builtInProfiles: [official],
-        lastUsedModelMode: null,
-      );
+        final result = resolveModelSelection(
+          savedPermissionMode: null,
+          savedModelMode: 'deepseek-chat:high',
+          savedProfileId: 'anthropic',
+          sessionModelMode: null,
+          sessionPermissionMode: null,
+          flavor: 'claude',
+          settingsProfiles: const [],
+          builtInProfiles: [official],
+          lastUsedModelMode: null,
+        );
 
-      expect(result.resolvedRawModelString, 'default');
-      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
-    });
+        expect(result.resolvedRawModelString, 'default');
+        expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+      },
+    );
   });
 }
 

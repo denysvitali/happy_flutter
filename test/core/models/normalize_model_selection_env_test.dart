@@ -17,7 +17,7 @@ void main() {
     compatibility: const ProfileCompatibility(
       claude: true,
       codex: false,
-      gemini: false,
+      agy: false,
     ),
   );
 
@@ -157,7 +157,7 @@ void main() {
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
-          gemini: false,
+          agy: false,
         ),
       );
 

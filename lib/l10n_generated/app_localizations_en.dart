@@ -597,7 +597,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentAgentCodex => 'Codex';
 
   @override
-  String get agentAgentGemini => 'Gemini';
+  String get agentAgentAgy => 'AGY';
 
   @override
   String desktopUpdateAvailable(String version) {
@@ -873,7 +873,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionsCodex => 'Codex';
 
   @override
-  String get sessionsGemini => 'Gemini';
+  String get sessionsAgy => 'AGY';
 
   @override
   String get sessionsPi => 'pi';

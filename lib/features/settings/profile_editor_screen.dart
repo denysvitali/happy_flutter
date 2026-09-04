@@ -407,7 +407,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     final selectedCount = [
       _compatibility.claude,
       _compatibility.codex,
-      _compatibility.gemini,
+      _compatibility.agy,
     ].where((value) => value).length;
     if (!selected && selectedCount == 1) {
       context.showSnack(context.l10n.profilesAtLeastOneAgent);
@@ -418,7 +418,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       _compatibility = ProfileCompatibility(
         claude: agent == 'claude' ? selected : _compatibility.claude,
         codex: agent == 'codex' ? selected : _compatibility.codex,
-        gemini: agent == 'gemini' ? selected : _compatibility.gemini,
+        agy: agent == 'agy' ? selected : _compatibility.agy,
         pi: _compatibility.pi,
       );
     });
@@ -514,10 +514,10 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                           _setAgentCompatibility('codex', selected),
                     ),
                     FilterChip(
-                      label: Text(l10n.agentAgentGemini),
-                      selected: _compatibility.gemini,
+                      label: Text(l10n.agentAgentAgy),
+                      selected: _compatibility.agy,
                       onSelected: (selected) =>
-                          _setAgentCompatibility('gemini', selected),
+                          _setAgentCompatibility('agy', selected),
                     ),
                   ],
                 ),
