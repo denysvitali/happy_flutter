@@ -35,14 +35,15 @@ class RequestBudget {
     if (token.isCancelled) throw token.cancelError!;
     final ready = Completer<void>();
     final timer = Timer(delay, ready.complete);
+    final cancellation = token.whenCancel.asStream().listen((error) {
+      if (!ready.isCompleted) ready.completeError(error);
+    });
     try {
-      await Future.any<void>([
-        ready.future,
-        token.whenCancel.then<void>((error) => throw error),
-      ]);
+      await ready.future;
       if (token.isCancelled) throw token.cancelError!;
     } finally {
       timer.cancel();
+      await cancellation.cancel();
     }
   }
 

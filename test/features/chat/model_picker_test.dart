@@ -14,6 +14,7 @@ void main() {
     WidgetTester tester, {
     required List<ChatModelMode> models,
     ValueChanged<ChatModelMode>? onChanged,
+    String? catalogNotice,
   }) async {
     // The Claude picker now has up to 13 tiles (default + sonnet/opus +
     // 5 efforts each). Use a tall viewport so every tile is hit-testable.
@@ -35,6 +36,7 @@ void main() {
                     ChatModelMode.defaultModel,
                     models,
                     onChanged ?? (_) {},
+                    catalogNotice: catalogNotice,
                   );
                 },
                 child: const Text('Open'),
@@ -48,6 +50,22 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
+
+  testWidgets('missing provider shows setup guidance without hiding Default', (
+    tester,
+  ) async {
+    await pumpPickerHost(
+      tester,
+      models: const [ChatModelMode.defaultModel],
+      catalogNotice: 'Install Codex on this machine to load its models.',
+    );
+    expect(
+      find.text('Install Codex on this machine to load its models.'),
+      findsOneWidget,
+    );
+    expect(find.text('Default'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('codex sessions show OpenAI model and effort choices', (
     tester,

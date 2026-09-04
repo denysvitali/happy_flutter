@@ -55,6 +55,7 @@ void main() {
   tearDown(() {
     if (!adapter.release.isCompleted)
       adapter.release.complete(ResponseBody.fromString('', 200));
+    retry.dispose();
     dio.close(force: true);
   });
 
@@ -70,6 +71,22 @@ void main() {
       await request.timeout(const Duration(seconds: 2));
       await adapter.canceled.future;
       expect(adapter.calls, 1);
+    },
+  );
+
+  test(
+    'retry shares the original deadline when the next attempt hangs',
+    () async {
+      adapter.failFirst = true;
+      await expectLater(
+        dio.post<dynamic>(
+          '/v1/sessions/session/messages',
+          data: {'localId': 'same-message'},
+        ),
+        canceled,
+      );
+      expect(adapter.calls, 2);
+      expect(adapter.localIds, ['same-message', 'same-message']);
     },
   );
 
