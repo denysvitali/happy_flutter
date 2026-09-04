@@ -119,13 +119,6 @@ Future<void> _tapText(WidgetTester tester, String text) async {
   await _settle(tester);
 }
 
-/// Publishes an unchanged collection so `MissionControlView` seeds its
-/// Live wire baseline (first `didUpdateWidget`) before a real change.
-Future<void> _seedWireBaseline(WidgetTester tester, _ListHarness h) async {
-  h.sessions.replace(h.sessions.state[contractAlphaId]!);
-  await _settle(tester);
-}
-
 void _expectOpened(_ListHarness h, String id) {
   expect(h.recorder.opened, [id]);
   expect(find.text('chat:$id'), findsOneWidget);
@@ -283,10 +276,7 @@ void main() {
 
     testWidgets('live wire row opens the session that joined', (tester) async {
       final h = await _pumpList(tester, viewStyle: 'mission_control');
-      // The wire diffs active-session snapshots; the first update only
-      // seeds the baseline, so a session joining afterwards produces one
-      // tappable "joined" row.
-      await _seedWireBaseline(tester, h);
+      // The first real update after mounting must produce a joined row.
       const golfId = 'c0ffee0007';
       const golfLabel = 'Golf review';
       h.sessions.replace(
@@ -312,7 +302,6 @@ void main() {
       tester,
     ) async {
       final h = await _pumpList(tester, viewStyle: 'mission_control');
-      await _seedWireBaseline(tester, h);
       const golfId = 'c0ffee0007';
       const golfLabel = 'Golf review';
       h.sessions.replace(

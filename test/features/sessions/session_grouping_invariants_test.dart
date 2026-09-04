@@ -108,9 +108,11 @@ void main() {
       expect(bucketOf(ms(monthStart)), DateGroup.thisMonth);
     });
 
-    test('anything before this month is Older', () {
+    test('dates before this month and outside the recent week are Older', () {
       final monthStart = DateTime(now.year, now.month);
-      expect(bucketOf(ms(monthStart) - 1), DateGroup.older);
+      // Recent days retain their week bucket across a month boundary.
+      final outsideRecentWeek = monthStart.subtract(const Duration(days: 7));
+      expect(bucketOf(ms(outsideRecentWeek)), DateGroup.older);
       expect(
         bucketOf(ms(today.subtract(const Duration(days: 400)))),
         DateGroup.older,

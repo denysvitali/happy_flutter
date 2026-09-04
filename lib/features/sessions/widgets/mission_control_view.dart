@@ -178,6 +178,13 @@ class _MissionControlViewState extends State<MissionControlView> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Seed from the mounted snapshot so the first actual update is diffed.
+    _observeWireEvents();
+  }
+
+  @override
   void dispose() {
     _allClearTimer?.cancel();
     super.dispose();
@@ -199,9 +206,8 @@ class _MissionControlViewState extends State<MissionControlView> {
   /// Diffs the previous active-session snapshot against the current one
   /// and folds any changes into the Live wire buffer.
   ///
-  /// Runs in [didUpdateWidget] so it never mutates state during build;
-  /// the first call only seeds the baseline, which is why opening the
-  /// board does not flood the wire with rows for existing sessions.
+  /// Seeds in [initState], then diffs in [didUpdateWidget]. Opening the
+  /// board does not emit joined rows for the initial session collection.
   void _observeWireEvents() {
     final next = _buildWireSnapshot();
     if (!_wireSeeded) {
@@ -213,11 +219,7 @@ class _MissionControlViewState extends State<MissionControlView> {
     _wirePrevious = next;
     if (previous == null) return;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final fresh = diffWireEvents(
-      previous: previous,
-      next: next,
-      nowMs: nowMs,
-    );
+    final fresh = diffWireEvents(previous: previous, next: next, nowMs: nowMs);
     if (fresh.isEmpty) return;
     setState(() {
       _wireEvents = mergeWireEvents(_wireEvents, fresh, nowMs: nowMs);
@@ -508,9 +510,7 @@ class _MissionControlViewState extends State<MissionControlView> {
 
     if (_showAllClear) {
       slivers.add(
-        SliverToBoxAdapter(
-          child: RepaintBoundary(child: _AllClearBanner()),
-        ),
+        SliverToBoxAdapter(child: RepaintBoundary(child: _AllClearBanner())),
       );
     }
 

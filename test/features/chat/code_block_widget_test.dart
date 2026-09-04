@@ -12,7 +12,8 @@ Finder _lineNumbers() => find.byWidgetPredicate(
 );
 
 /// Finds the number rendered for logical line [n] in wrapped mode.
-Finder _wrappedNumber(int n) => find.byKey(ValueKey<String>('code-line-number-$n'));
+Finder _wrappedNumber(int n) =>
+    find.byKey(ValueKey<String>('code-line-number-$n'));
 
 /// Finds the row rendered for logical line [n] in wrapped mode.
 Finder _wrappedLine(int n) => find.byKey(ValueKey<String>('code-line-$n'));
@@ -157,7 +158,8 @@ void main() {
         'with its first visual row', (tester) async {
       // Line 1 is long enough to wrap over several visual rows at the
       // 800x600 default test viewport.
-      final code = '${"averyLongToken " * 40}\nsecond();\nthird();';
+      // Stay within the inline preview budget while wrapping the first line.
+      final code = '${"averyLongToken " * 16}\nsecond();\nthird();';
       await tester.pumpWidget(
         wrap(CodeBlockWidget(code: code, language: 'dart', fontSize: 13)),
       );

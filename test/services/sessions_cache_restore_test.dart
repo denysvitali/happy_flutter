@@ -25,6 +25,7 @@ void main() {
   });
 
   tearDown(() {
+    sync.testIsInitialized = false;
     sync.testSessions.clear();
   });
 
@@ -52,14 +53,19 @@ void main() {
       for (var i = 0; i < 6; i++) 's-$i': 'key-$i',
     };
 
+    sync.testIsInitialized = true;
+    final restored = sync.onDataChanged.firstWhere(
+      (_) =>
+          sync.sessions.containsKey('s-0') &&
+          sync.encryption.getSessionEncryption('s-0') != null,
+    );
     await sync.testRestoreSessionsCacheFrom({
       'sessions': sessions,
       'encryptedDataKeys': encryptedDataKeys,
       'lastFetchedAt': 1700000000000,
     });
-    // The sixth session is restored after a zero-duration yield so startup
-    // can paint first. Give that deferred batch its event-loop turn.
-    await Future<void>.delayed(Duration.zero);
+    // Wait for the complete deferred batch, including its encryption context.
+    await restored.timeout(const Duration(seconds: 3));
 
     expect(sync.sessions, contains('s-0'));
     expect(

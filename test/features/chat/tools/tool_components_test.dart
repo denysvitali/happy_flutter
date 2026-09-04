@@ -161,7 +161,9 @@ void main() {
       );
 
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byIcon(Icons.autorenew_rounded), findsOneWidget);
+      // The bounded pulse must not introduce a perpetual spinner ticker.
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
     testWidgets('applies custom color', (tester) async {
