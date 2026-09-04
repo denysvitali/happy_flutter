@@ -30,6 +30,7 @@ class RequestBudget {
   Timer? _timer;
   StreamSubscription<DioException>? _callerSubscription;
   bool _finished = false;
+  bool get isFinished => _finished;
 
   Future<void> wait(Duration delay) async {
     if (token.isCancelled) throw token.cancelError!;

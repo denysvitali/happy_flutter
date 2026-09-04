@@ -229,7 +229,8 @@ class RetryInterceptor extends Interceptor {
     _markCallback(options);
     // An adapter must preserve the dispatched options. Without the original
     // budget we cannot safely replay its credentials, body or cancellation.
-    if (options.extra[RequestBudget.extraKey] is! RequestBudget) {
+    final budget = options.extra[RequestBudget.extraKey];
+    if (budget is! RequestBudget || budget.isFinished) {
       return handler.next(err);
     }
     // Don't retry if request was cancelled
