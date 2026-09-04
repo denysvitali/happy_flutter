@@ -70,6 +70,26 @@ void main() {
       expect(find.text('Showing 4000 of 303003 characters'), findsOneWidget);
     });
 
+    testWidgets('opens the complete oversized message in bounded pages', (
+      tester,
+    ) async {
+      final content = '${List.filled(13000, 'x').join()}tail sentinel';
+
+      await pumpMarkdown(tester, SimpleMarkdownView(markdown: content));
+
+      await tester.tap(find.text('Show full message'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 / 2'), findsOneWidget);
+      expect(find.textContaining('tail sentinel'), findsNothing);
+
+      await tester.tap(find.byTooltip('Next page'));
+      await tester.pump();
+
+      expect(find.text('2 / 2'), findsOneWidget);
+      expect(find.textContaining('tail sentinel'), findsOneWidget);
+    });
+
     testWidgets('renders plain text', (tester) async {
       await pumpMarkdown(tester, SimpleMarkdownView(markdown: 'Hello World'));
       expect(find.text('Hello World'), findsOneWidget);

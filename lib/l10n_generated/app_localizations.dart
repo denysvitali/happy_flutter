@@ -8016,6 +8016,12 @@ abstract class AppLocalizations {
   /// **'Showing {displayed} of {total} characters'**
   String markdownContentTruncated(int displayed, int total);
 
+  /// Button that opens the complete content of a truncated message
+  ///
+  /// In en, this message translates to:
+  /// **'Show full message'**
+  String get markdownShowFullMessage;
+
   /// Tooltip for a button that dismisses a banner or notice
   ///
   /// In en, this message translates to:

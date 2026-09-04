@@ -2509,6 +2509,10 @@
       }
     }
   },
+  "markdownShowFullMessage": "Show full message",
+  "@markdownShowFullMessage": {
+    "description": "Button that opens the complete content of a truncated message"
+  },
   "commonDismiss": "Dismiss",
   "@commonDismiss": {
     "description": "Tooltip for a button that dismisses a banner or notice"

@@ -4518,6 +4518,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get markdownShowFullMessage => 'Show full message';
+
+  @override
   String get commonDismiss => 'Dismiss';
 
   @override

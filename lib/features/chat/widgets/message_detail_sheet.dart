@@ -148,7 +148,11 @@ String formatMessageTimestamp(int milliseconds, DateTime now) {
 /// and a copy-all button. This provides a reliable way to
 /// copy message content on Android where SelectionArea can
 /// be unreliable.
-void showRawMarkdownSheet(BuildContext context, String markdown) {
+void showRawMarkdownSheet(
+  BuildContext context,
+  String markdown, {
+  String? title,
+}) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final l10n = context.l10n;
@@ -179,7 +183,7 @@ void showRawMarkdownSheet(BuildContext context, String markdown) {
               children: [
                 Expanded(
                   child: Text(
-                    l10n.chatCopyMessage,
+                    title ?? l10n.chatCopyMessage,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),

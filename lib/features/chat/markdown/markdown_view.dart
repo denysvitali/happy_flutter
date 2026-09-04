@@ -14,6 +14,7 @@ import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../code_block_widget.dart';
+import '../widgets/message_detail_sheet.dart';
 
 /// Callback type for when an option is pressed in an options block.
 typedef OptionPressedCallback = void Function(String option);
@@ -399,6 +400,21 @@ class _OversizedMarkdownPreview extends StatelessWidget {
           maxLines: _markdownPreviewLines,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium?.copyWith(color: textColor),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        TextButton.icon(
+          onPressed: () => showRawMarkdownSheet(
+            context,
+            content,
+            title: context.l10n.markdownShowFullMessage,
+          ),
+          icon: const Icon(Icons.open_in_full_rounded),
+          label: Text(context.l10n.markdownShowFullMessage),
+          style: TextButton.styleFrom(
+            foregroundColor: textColor,
+            minimumSize: const Size(0, AppTouchTarget.min),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          ),
         ),
       ],
     );
