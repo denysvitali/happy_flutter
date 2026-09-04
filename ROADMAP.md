@@ -1369,10 +1369,80 @@ The current test count is not enough if this contract can break without failing 
 | User-visible core E2E scenarios | In Progress | Sync integration suites cover rapid follow-ups, background/resume, disconnected sockets with REST persistence, and sends while thinking. Widget regressions cover queued-to-delivered state, permission tap/retry/navigation races, and opening the first newly joined Live wire session. Device/browser coverage connecting the app to the real Go server and deterministic provider remains outstanding. |
 | Invariant telemetry | In Progress | Triage 2026-08-27 (issues 8592/8594) closed the third `unmatched_optimistic` false-positive hole: the invariant now requires an in-process mint (`_sentAtMs`), so socket echoes of seeded, non-resident ids (re-broadcasts, other devices' sends, evicted rows) stay silent. Audit 2026-08-25 fixed the production build-267200 burst (~198 `unmatched_optimistic`): the `fetchMessages` pre-page loop acked known-but-not-resident history ids before merging their page; it now seeds identity/outbox state only, so history is never treated as a send ack (`test/services/message_ack_cache_truncation_test.dart`). Triage 2026-08-26 (issue 8566) fixed the sibling false positive: a 24-attempt outbox retry acked right after the session was archived (resident rows cleared), correctly delivering the message but tripping `unmatched_optimistic` — `recordAck` now takes `sessionResidentRowCount` and suppresses the violation when the client holds zero rows for the session (restart / idle-shrink / archived clear); duplicate and unknown-acked checks are unaffected (`test/utils/message_invariant_monitor_test.dart`). Earlier audits removed foreign-history unknown-ack noise and shipped restart-safe seeding, per-localId ack dedupe, all four counters, denominators, and the send tap→ack histogram; the `> 0` Prometheus alert rules remain under the monitoring HA item. |
 
+### Production audit, 2026-09-04 (GlitchTip, Jaeger, Loki)
+
+Read-only audit of recent unresolved app errors and sampled September 4 slow
+traces. Counts below are issue totals, not daily rates or affected-user counts.
+Latest fetched tag: `v1.0.0-276800`; sampled events are builds 274000–276300.
+Event timestamps can precede GlitchTip last-seen/ingestion timestamps. These
+samples do not establish recurrence or resolution on 276800. No issues were
+resolved or ignored.
+
+1. **P1: make retry deadlines and suspension behavior real.** Issues 8770,
+   8769, 8768, 8767 and 8667 share a background timeout burst on build 276200.
+   Event time is 14:17:12 UTC: the app suspended at 14:16:44, several GETs
+   retried together, and a nominal 20,000 ms budget lasted 33,227–33,555 ms.
+   `_nextRetryDelay` checks elapsed time plus backoff but does not bound the
+   following attempt's 23-second receive timeout. Add a cancellable overall
+   deadline, clamp attempt timeouts to the remaining budget, and defer optional
+   refreshes while suspended. Tests should combine hanging requests, suspension
+   during backoff, cached UI availability, and a single refresh on resume.
+   Issue 8761 (build 275300) additionally shows Cronet `ERR_NAME_NOT_RESOLVED`
+   during outbox delivery; it retained the message for retry, so this is not
+   evidence of message loss. Preserve localId and test eventual recovery.
+
+2. **P1: investigate default-profile respawns on the send path.** Issue 5198,
+   build 276300, logs `default -> default` while a session is online/running.
+   Jaeger trace `6a434176e8e775ee938e858ef5eacb2b` measures 3,232.559 ms total,
+   3,161.417 ms target resolution, and only 64.141 ms for message POST.
+   Loki matches request `mrpc_8644a440c5487cfea6f39201`: the app reports
+   rpc-capabilities at 3,085 ms and the server publishes an RPC forward retry.
+   Check omitted/null/default profile identity and restored spawn tracking;
+   retain intentional profile/model changes. Add a no-op-default-send contract
+   and cross-replica capability-routing test. The default-to-default log alone
+   does not prove equivalent internal profile identifiers. The profile fix
+   `e9914bda` is already an ancestor of 276300, so do not dismiss this sample as
+   predating that fix. Server attribution is partial: no matched daemon log.
+
+3. **P1 investigation: symbolicate the remaining stack overflow.** Issue 8750
+   has one event on September 2, build 275100; its stack contains native
+   addresses without usable Dart function names. The earlier ErrorWidget
+   recursion fix `d3185a0e` is an ancestor of this build. Obtain the exact build
+   symbols and reproduce the identified path before claiming a root cause or
+   duplicate. Issue 8731 is a separate unsymbolicated web layout failure on
+   build 274000 and also needs matching source maps. No newer recurrence was
+   established by this sample.
+
+4. **P2: represent an absent Codex installation as unavailable capability.**
+   Issue 8763 on build 275900 and Loki at 09:11:02 UTC agree that
+   `get-codex-models` failed because the daemon could not find the executable.
+   `machineGetCodexModels` still falls through to error logging for this
+   response. Return typed provider-unavailable metadata, display setup status,
+   and avoid repeated model discovery until capabilities change. Test a machine
+   without Codex alongside an installed machine; do not hide other handler
+   failures or treat the missing binary as a client crash.
+
+5. **P2: measure transport/callback delay separately from backend work.**
+   Trace `3e93600c6fbe1d3263dc1a00d84f4db6` has a 5,886.8 ms client session-list
+   span but only 4.449 ms server work (ListSessionsV2: 1.019 ms). Instrument
+   DNS/connect/TLS/first-byte/body/callback phases and lifecycle state before
+   deciding whether Cronet, connectivity, or isolate scheduling is responsible.
+   The timeout event's Sentry trace `818255445c2d4461a129b93c46444847` is absent
+   from Jaeger, so do not claim that the slow successful trace explains that
+   exact timeout. Also inspect repeated HTTP completion breadcrumbs during
+   nested retries: they may be duplicate instrumentation, not duplicate sends.
+   A sampled 112.7-second `subagent.spawn` span represents task lifetime and is
+   not, by itself, evidence of a UI stall.
+
 ### Production Bugs (from GlitchTip, May 2026)
 
 | Issue | Severity | Count | Status | Description |
 |-------|----------|-------|--------|-------------|
+| Retry deadline overshoot / background refresh burst (8770/8769/8768/8767/8667) | Warning / Error | 1 / 1 / 1 / 1 / 2 | Open — P1 | Build 276200: 20s budget lasts about 33s after suspension. Bound each attempt and overall deadline; preserve offline outbox identity. See September 4 audit. |
+| Send target resolution / default-profile respawn (5198) | Warning | 161 issue total | Open — P1 investigation | Build 276300: 3.16s target resolution versus 64ms POST; Loki correlates capability RPC forward retry. Verify profile identity and routing separately. |
+| Stack overflow (8750) | Error | 1 | Open — needs exact-build symbols | Build 275100 already contains d3185a0e; native-address-only stack does not identify the cause. |
+| Codex executable absent during model discovery (8763) | Error | 1 | Open — P2 | Build 275900 and Loki agree on missing daemon executable; expose provider unavailable and avoid repeated discovery. |
+
 | InvalidateSync disposed crash | Fatal | 55 | Shipped in v1.0.0-154901 (1ba4ebc) | App suspend races with in-flight `invalidateAndAwait()`; `dispose()` now completes normally instead of throwing `StateError`. |
 | Null check operator (chat load) | Fatal | 9 | Shipped in v1.0.0-154901 (51f1189) | `session!.permissionMode!` and `selectedProfile!.defaultModelMode` force-unwraps in `_loadInitialSettings` when async gap allowed session/profile to become null. Fixed with safe pattern-matching (`case final x?`). Residual GlitchTip events (HAPPY_FLUTTER-17O/3C0/382) are historical aggregate; no new shape identified in audit 2026-05-22. |
 | Null check operator (general) | Error | 12 | Shipped in v1.0.0-154901 (51f1189) | Same root cause as above. |
