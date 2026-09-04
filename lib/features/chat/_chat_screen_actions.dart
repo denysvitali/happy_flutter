@@ -345,8 +345,7 @@ extension _ChatScreenActions on _ChatScreenState {
             queueFuture
                 .timeout(_backgroundAwaitBudget)
                 .catchError((Object e, StackTrace st) {
-                  final networkTransition =
-                      isConnectionLevelNetworkError(e);
+                  final networkTransition = isConnectionLevelNetworkError(e);
                   backgroundOutcome = e is TimeoutException
                       ? 'timeout'
                       : (networkTransition ? 'network' : 'error');
@@ -586,9 +585,21 @@ extension _ChatScreenActions on _ChatScreenState {
       final response = await ref
           .read(chatActionNotifierProvider.notifier)
           .loadCodexModels(machineId);
-      if (!mounted || !response.success || response.models.isEmpty) return;
+      if (!mounted || _session?.metadata?.machineId != machineId) return;
+      if (response.providerUnavailable) {
+        if (_codexModelCatalogNotice != response.error ||
+            _codexModelCatalogNoticeMachineId != machineId) {
+          setState(() {
+            _codexModelCatalogNotice = response.error;
+            _codexModelCatalogNoticeMachineId = machineId;
+          });
+        }
+        return;
+      }
+      if (!response.success || response.models.isEmpty) return;
       final modes = ChatModelMode.fromCodexCatalog(response.models);
       setState(() {
+        _codexModelCatalogNotice = null;
         _codexModelModes = modes;
         _codexModelModesMachineId = machineId;
       });

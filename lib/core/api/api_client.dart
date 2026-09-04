@@ -23,6 +23,7 @@ import 'http_cache.dart';
 import 'native_adapter_helper.dart'
     if (dart.library.js_interop) 'native_adapter_helper_web.dart';
 import 'retry_interceptor.dart';
+import 'timed_http_adapter.dart';
 
 /// Custom Dio client with user CA certificate support and proper
 /// error handling
@@ -32,6 +33,15 @@ class ApiClient {
   static final ApiClient _instance = ApiClient._();
 
   Dio? _dio;
+  RetryInterceptor? _retryInterceptor;
+  bool _suspended = false;
+
+  /// Cancel optional reads while backgrounded; resume sync schedules refreshes.
+  void setSuspended(bool suspended) {
+    _suspended = suspended;
+    _retryInterceptor?.setSuspended(suspended);
+  }
+
   final _httpCache = HttpResponseCache();
 
   // Request deduplication: tracks active in-flight requests
@@ -145,13 +155,13 @@ class ApiClient {
     // it can classify status failures, which `validateStatus` keeps out of
     // the error chain) and last on the error chain.
     dio.interceptors.add(
-      RetryInterceptor(
+      _retryInterceptor = RetryInterceptor(
         dioGetter: () => dio,
         maxRetries: 3,
         baseDelayMs: 1000,
         maxDelayMs: 10000,
         maxTotalElapsedMs: 20000,
-      ),
+      )..setSuspended(_suspended),
     );
 
     dio.interceptors.add(
@@ -185,6 +195,7 @@ class ApiClient {
           // span reports only the last attempt's duration.
           _endRetriedAttemptSpan(options);
           final startedAtMs = DateTime.now().millisecondsSinceEpoch;
+          options.extra['_otelFinished'] = false;
           options.extra['_otelStart'] = startedAtMs;
           options.extra['_otelFirstStart'] ??= startedAtMs;
           options.extra['_otelReqBytes'] = _estimateRequestBytes(options.data);
@@ -332,7 +343,8 @@ class ApiClient {
           // Downgrade transient connection errors (e.g. Cronet
           // aborting connections when the app is backgrounded)
           // to info so they don't create Sentry noise.
-          if (isTransientConnectionError(error) ||
+          if (error.type == DioExceptionType.cancel ||
+              isTransientConnectionError(error) ||
               error.response?.statusCode == 404) {
             logger.info(
               'Dio ${error.response?.statusCode == 404 ? '404' : 'transient'} '
@@ -474,6 +486,13 @@ class ApiClient {
   static void _endRetriedAttemptSpan(RequestOptions options) {
     final span = options.extra['_otelSpan'] as OTelSpan?;
     if (span != null) options.extra.remove('_otelSpan');
+    final timing =
+        options.extra[HttpTransportTiming.extraKey] as HttpTransportTiming?;
+    for (final entry
+        in timing?.attributes().entries ??
+            const <MapEntry<String, Object?>>[]) {
+      span?.setAttribute(entry.key, entry.value);
+    }
 
     final startMs = options.extra['_otelStart'] as int?;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -514,10 +533,19 @@ class ApiClient {
     DioException? error,
     StackTrace? stackTrace,
   }) {
+    if (options.extra['_otelFinished'] == true) return;
+    options.extra['_otelFinished'] = true;
     final span = options.extra['_otelSpan'] as OTelSpan?;
     // Drop the reference so a later interceptor pass (or a retry that
     // reuses these options) cannot end the same span twice.
     if (span != null) options.extra.remove('_otelSpan');
+    final timing =
+        options.extra[HttpTransportTiming.extraKey] as HttpTransportTiming?;
+    for (final entry
+        in timing?.attributes().entries ??
+            const <MapEntry<String, Object?>>[]) {
+      span?.setAttribute(entry.key, entry.value);
+    }
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final startMs = options.extra['_otelStart'] as int?;
@@ -673,6 +701,8 @@ class ApiClient {
     int? responseBytes,
   ) {
     final id = options.extra['_trackId'] as int?;
+    if (id == null || options.extra['_recordedTrackId'] == id) return;
+    options.extra['_recordedTrackId'] = id;
     final startMs = options.extra['_trackStart'] as int?;
     final requestBytes = options.extra['_trackReqBytes'] as int?;
     final now = DateTime.now();
@@ -712,6 +742,11 @@ class ApiClient {
               'requestBytes': requestBytes,
               'responseBytes': responseBytes,
               'cached': options.extra['fromCache'] == true,
+              'traceparent': options.headers['traceparent'],
+              ...(options.extra[HttpTransportTiming.extraKey]
+                          as HttpTransportTiming?)
+                      ?.attributes() ??
+                  {},
             },
           ),
         ),
@@ -751,7 +786,10 @@ class ApiClient {
         nativeAdapter.close(force: true);
         return;
       }
-      dio.httpClientAdapter = nativeAdapter;
+      dio.httpClientAdapter = TimedHttpAdapter(
+        nativeAdapter,
+        lifecycle: () => _suspended ? 'suspended' : 'active',
+      );
       logger.info(
         'Native HTTP adapter configured for platform-specific CA support',
       );
@@ -1084,6 +1122,8 @@ class ApiClient {
   }
 
   void _disposeCurrentDio() {
+    _retryInterceptor?.dispose();
+    _retryInterceptor = null;
     _dioGeneration++;
     _httpCache.clear();
     _activeRequests.clear();

@@ -2352,6 +2352,41 @@ void main() {
       );
     });
 
+    test('explicit Default does NOT kill session when '
+        'spawn tracking contains the legacy default marker', () async {
+      const sessionId = 'legacy-default-to-default';
+      var spawnCalled = false;
+
+      primeOnlineSession(
+        sessionId: sessionId,
+        machineId: 'machine-1',
+        path: '/home/user/project',
+        spawnedProfileId: 'default',
+      );
+
+      sync.testGetSpawnEnvVarsOverride = (_) async =>
+          (envVars: <String, String>{}, profile: null);
+
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          spawnCalled = true;
+        }
+        return <String, dynamic>{'type': 'success', 'sessionId': sessionId};
+      };
+
+      try {
+        await sync.sendMessage(sessionId, 'hello', profileId: 'default');
+      } catch (_) {
+        // REST POST not mocked.
+      }
+
+      expect(
+        spawnCalled,
+        isFalse,
+        reason: 'A no-op send (Default → Default) must not respawn',
+      );
+    });
+
     test('spawn rejected with unknown-field isRestore is retried without '
         'the field (pre-field daemon compat)', () async {
       const sessionId = 'legacy-daemon-isrestore';

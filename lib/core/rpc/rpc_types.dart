@@ -133,6 +133,7 @@ class CodexModelsResponse {
     required this.success,
     required this.models,
     this.error,
+    this.providerUnavailable = false,
   });
 
   factory CodexModelsResponse.fromJson(Map<String, dynamic> json) {
@@ -140,6 +141,7 @@ class CodexModelsResponse {
     return CodexModelsResponse(
       success: json['success'] as bool? ?? false,
       error: json['error'] as String?,
+      providerUnavailable: json['providerUnavailable'] == true,
       models: rawModels is List
           ? rawModels
                 .whereType<Map>()
@@ -152,6 +154,9 @@ class CodexModelsResponse {
   final bool success;
   final List<CodexModelInfo> models;
   final String? error;
+
+  /// The machine has no Codex executable; installing it enables this catalog.
+  final bool providerUnavailable;
 }
 
 class CodexModelInfo {

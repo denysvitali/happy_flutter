@@ -625,9 +625,9 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: false
-          files: >-
-            build/app/outputs/flutter-apk/app-${{
-            steps.build_meta.outputs.FLAVOR }}-release.apk
+          files: |
+            build/app/outputs/flutter-apk/app-${{ steps.build_meta.outputs.FLAVOR }}-release.apk
+            build/debug-info/*.symbols
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

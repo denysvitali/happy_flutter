@@ -38,6 +38,12 @@ class MockApiClient extends _i1.Mock implements _i3.ApiClient {
   }
 
   @override
+  void setSuspended(bool? suspended) => super.noSuchMethod(
+    Invocation.method(#setSuspended, [suspended]),
+    returnValueForMissingStub: null,
+  );
+
+  @override
   _i4.Future<void> initialize({required String? serverUrl}) =>
       (super.noSuchMethod(
             Invocation.method(#initialize, [], {#serverUrl: serverUrl}),

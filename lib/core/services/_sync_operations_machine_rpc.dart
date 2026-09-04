@@ -289,7 +289,9 @@ extension SyncMachineRpcOperations on Sync {
     final cached = _codexModelsCache[machineId];
     final cachedAtMs = _codexModelsCacheAtMs[machineId];
     if (cached != null && cachedAtMs != null) {
-      final ttlMs = cached.success
+      final ttlMs = cached.providerUnavailable
+          ? 5 * 60 * 1000
+          : cached.success
           ? _codexModelsSuccessTtlMs
           : _codexModelsFailureTtlMs;
       if (nowMs - cachedAtMs < ttlMs) {
@@ -341,7 +343,19 @@ extension SyncMachineRpcOperations on Sync {
         CodexModelsResponse.fromJson,
       );
     } catch (error, stackTrace) {
-      if (error is StateError && error.message.contains('not connected')) {
+      if (error is RpcException &&
+          error.code == RpcErrorCode.handlerError &&
+          error.message.contains('codex debug models: exec: "codex":') &&
+          error.message.contains('executable file not found')) {
+        logger.info('machineGetCodexModels: Codex is not installed');
+        return const CodexModelsResponse(
+          success: false,
+          models: [],
+          providerUnavailable: true,
+          error: 'Install Codex on this machine to load its models.',
+        );
+      } else if (error is StateError &&
+          error.message.contains('not connected')) {
         logger.info('machineGetCodexModels: machine offline');
         return const CodexModelsResponse(
           success: false,

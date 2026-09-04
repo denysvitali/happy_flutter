@@ -6,6 +6,31 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 ### Production audit, 2026-09-04 (build 275300)
 
+Implementation follow-up (pending CI): the app now owns an absolute HTTP
+cancellation deadline, cancels background reads, normalizes legacy `default`
+spawn profiles, and treats missing Codex as cached provider availability with
+setup guidance in the picker. Native-boundary timings separate header wait,
+body consumption and callback processing; DNS/TCP/TLS remain unavailable from
+the adapter API. Completion metrics/breadcrumbs are idempotent across retries.
+
+Issue 8750 was symbolized using the exact build 275100 artifact from CI run
+33612731392. Its ELF build ID matches the breadcrumb's
+`7a3ef930439fc89a3fa36f07bd235ddd`. The top frames are
+`_RegExp._ExecuteMatchSticky → CodeSyntax.tryMatch → InlineParser.parse →
+_MarkdownWidgetState._parseMarkdown`. Both chat Markdown views now install a
+linear inline-code scanner, including unmatched-delimiter handling. Regression
+coverage checks normal code semantics, long unfinished input and both renderers.
+Release assets now retain Dart symbols alongside the APK so artifact expiry
+cannot prevent another crash investigation.
+
+The Go follow-up makes response subscriptions wait for Redis acknowledgement
+before forwarding RPCs (the previous asynchronous setup could lose fast replies
+until the 3-second retry). A repeated immediate-response Redis test covers this.
+The daemon also returns typed `providerUnavailable` and invalidates its catalog
+cache when Codex is installed or replaced. Production latency/crash improvements
+still require observation after rollout; telemetry issues remain unresolved.
+
+
 The latest unresolved GlitchTip page contains warnings only. Issues 8755 and
 8756 identified a concrete cold-start encryption race: the sessions cache
 restored only the five newest sessions' encrypted data keys, then added the

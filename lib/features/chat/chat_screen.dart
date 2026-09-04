@@ -236,6 +236,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   List<AIBackendProfile> _availableProfiles = const [];
   List<ChatModelMode> _codexModelModes = const [ChatModelMode.defaultModel];
   String? _codexModelModesMachineId;
+  String? _codexModelCatalogNotice;
+  String? _codexModelCatalogNoticeMachineId;
   bool _isLoadingCodexModelModes = false;
   Session? _session;
   String? _lastLoggedLifecycleError;
@@ -1611,6 +1613,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,
             availableModels: availableModels,
+            modelCatalogNotice:
+                _session?.metadata?.flavor == 'codex' &&
+                    _session?.metadata?.machineId ==
+                        _codexModelCatalogNoticeMachineId
+                ? _codexModelCatalogNotice
+                : null,
             sessionFlavor: _session?.metadata?.flavor,
             availableSlashCommands:
                 _session?.metadata?.slashCommands ?? const [],

@@ -14,6 +14,7 @@ import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../code_block_widget.dart';
+import 'linear_code_syntax.dart';
 import '../widgets/message_detail_sheet.dart';
 
 /// Callback type for when an option is pressed in an options block.
@@ -254,6 +255,7 @@ class _MarkdownViewState extends State<MarkdownView> {
       child: MarkdownBody(
         data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
+        inlineSyntaxes: _safeInlineSyntaxes,
         builders: _effectiveBuilders,
         blockSyntaxes: _optionsBlockSyntaxes,
         styleSheet: _styleSheet!,
@@ -358,6 +360,7 @@ class _SimpleMarkdownViewState extends State<SimpleMarkdownView> {
       child: MarkdownBody(
         data: markdown,
         extensionSet: _gitHubFlavoredExtensionSet,
+        inlineSyntaxes: _safeInlineSyntaxes,
         builders: _simpleBuilders,
         styleSheet: _styleSheet!,
         onTapLink: (text, href, title) => _openMarkdownLink(href),
@@ -701,3 +704,5 @@ class _OptionsChips extends StatelessWidget {
     );
   }
 }
+
+final _safeInlineSyntaxes = <md.InlineSyntax>[LinearCodeSyntax()];

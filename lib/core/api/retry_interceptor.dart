@@ -6,6 +6,8 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/logger_service.dart' show logger;
 import '../services/token_refresh_manager.dart';
+import 'request_budget.dart';
+import 'timed_http_adapter.dart';
 
 /// Returns true for transient connection errors that are not actionable
 /// (e.g. Cronet aborting a request because the OS killed the connection
@@ -55,9 +57,7 @@ bool isTransientConnectionError(DioException error) {
 /// ([retryStartKey], stamped in [onRequest]): without it, 4 attempts plus
 /// 1s+2s+4s of backoff (plus per-attempt timeouts) could keep a single
 /// logical send in flight for the better part of a minute. The budget is an
-/// admission check — an attempt that is already in flight is bounded by its
-/// own Dio timeouts, not by the budget — so the sequence can overrun it by
-/// at most one attempt's timeout.
+/// absolute deadline: cancellation bounds in-flight transport and backoff.
 class RetryInterceptor extends Interceptor {
   RetryInterceptor({
     required Dio Function() dioGetter,
@@ -77,6 +77,45 @@ class RetryInterceptor extends Interceptor {
   final int _maxDelayMs;
   final int _maxTotalElapsedMs;
   final Random _jitterRng = Random();
+  final Set<RequestBudget> _activeBudgets = {};
+  bool _suspended = false;
+
+  /// Reads can be refreshed on resume. Never cancel durable writes here.
+  void setSuspended(bool suspended) {
+    _suspended = suspended;
+    if (suspended) {
+      for (final budget in _activeBudgets.toList()) {
+        if (_isOptionalRead(budget.options)) {
+          budget.token.cancel('App suspended; refresh deferred until resume');
+        }
+      }
+    }
+  }
+
+  void dispose() {
+    for (final budget in _activeBudgets.toList()) {
+      budget.token.cancel('HTTP client disposed');
+      budget.finish();
+    }
+  }
+
+  bool _isOptionalRead(RequestOptions options) =>
+      options.method == 'GET' &&
+      !options.path.startsWith(_authPathPrefix) &&
+      options.extra['allowInBackground'] != true;
+
+  void _markCallback(RequestOptions options) {
+    final timing =
+        options.extra[HttpTransportTiming.extraKey] as HttpTransportTiming?;
+    if (timing != null) timing.callbackUs ??= timing.clock.elapsedMicroseconds;
+  }
+
+  void _finish(RequestOptions options) {
+    (options.extra[RequestBudget.extraKey] as RequestBudget?)?.finish();
+  }
+
+  Future<void> _wait(RequestOptions options, Duration delay) =>
+      (options.extra[RequestBudget.extraKey] as RequestBudget).wait(delay);
 
   /// [RequestOptions.extra] key holding the number of retries already
   /// performed for this request.
@@ -107,13 +146,26 @@ class RetryInterceptor extends Interceptor {
   static const _authPathPrefix = '/v1/auth/';
 
   @override
-  void onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     // A retried attempt re-enters onRequest with the same RequestOptions,
     // so only the first attempt stamps the budget clock.
     options.extra[retryStartKey] ??= DateTime.now().millisecondsSinceEpoch;
+    if (options.extra[RequestBudget.extraKey] == null) {
+      final budget = RequestBudget(
+        options,
+        Duration(milliseconds: _maxTotalElapsedMs),
+        _activeBudgets.remove,
+      );
+      options.extra[RequestBudget.extraKey] = budget;
+      _activeBudgets.add(budget);
+      if (_suspended && _isOptionalRead(options)) {
+        budget.token.cancel('App suspended; refresh deferred until resume');
+      }
+    }
+    if (options.cancelToken?.isCancelled == true) {
+      _finish(options);
+      return handler.reject(options.cancelToken!.cancelError!, true);
+    }
     handler.next(options);
   }
 
@@ -123,74 +175,88 @@ class RetryInterceptor extends Interceptor {
     ResponseInterceptorHandler handler,
   ) async {
     final options = response.requestOptions;
+    _markCallback(options);
     final statusCode = response.statusCode;
 
     if (statusCode == null || statusCode < 400) {
+      _finish(options);
       return handler.next(response);
     }
 
     if (statusCode == 401) {
       _handleUnauthorized(options);
+      _finish(options);
       return handler.next(response);
     }
 
     if (options.extra['disableRetry'] == true ||
         !_isRetryableStatus(statusCode)) {
+      _finish(options);
       return handler.next(response);
     }
 
     final delay = _nextRetryDelay(options, statusCode: statusCode);
     if (delay == null) {
+      _finish(options);
       return handler.next(response);
     }
 
-    await Future<void>.delayed(delay);
-    _markAttempt(options, statusCode: statusCode);
-
     try {
+      await _wait(options, delay);
+      _markAttempt(options, statusCode: statusCode);
       // `fetch` replays the full interceptor chain, so the retried attempt
       // gets its own span / tracker entry; resolve (not next) here so the
       // outer attempt does not record the same response a second time.
-      return handler.resolve(await _dioGetter().fetch<dynamic>(options));
+      final response = await _dioGetter().fetch<dynamic>(options);
+      _finish(options);
+      return handler.resolve(response);
     } on DioException catch (e) {
+      _finish(options);
       // `true` = keep running the following error interceptors, so the
       // tracing / request-tracker interceptors still close the attempt.
       // Plain reject() completes the request without them and leaks the
       // span opened for this attempt.
       return handler.reject(e, true);
     } catch (e, s) {
+      _finish(options);
       return handler.reject(_unexpectedRetryError(options, e, s), true);
     }
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
+    final options = err.requestOptions;
+    _markCallback(options);
     // Don't retry if request was cancelled
     if (err.type == DioExceptionType.cancel) {
+      _finish(options);
       return handler.next(err);
     }
 
-    final options = err.requestOptions;
     final statusCode = err.response?.statusCode;
 
     // Reachable only for adapters/tests that do raise on status codes —
     // the app's own Dio never does (see the class doc).
     if (statusCode == 401) {
       _handleUnauthorized(options);
+      _finish(options);
       return handler.next(err);
     }
 
     if (options.extra['disableRetry'] == true) {
+      _finish(options);
       return handler.next(err);
     }
 
     // Don't retry 4xx client errors except 429 (rate limit).
     if (statusCode != null && !_isRetryableStatus(statusCode)) {
+      _finish(options);
       return handler.next(err);
     }
 
     // Check if this error is retryable
     if (!_isRetryable(err)) {
+      _finish(options);
       return handler.next(err);
     }
 
@@ -200,19 +266,22 @@ class RetryInterceptor extends Interceptor {
       errorType: err.type,
     );
     if (delay == null) {
+      _finish(options);
       return handler.next(err);
     }
 
-    await Future<void>.delayed(delay);
-    _markAttempt(options, statusCode: statusCode, errorType: err.type);
-
     try {
+      await _wait(options, delay);
+      _markAttempt(options, statusCode: statusCode, errorType: err.type);
       final response = await _dioGetter().fetch<dynamic>(options);
+      _finish(options);
       return handler.resolve(response);
     } on DioException catch (e) {
+      _finish(options);
       // If retry fails, pass through onError again for potential retry
       return handler.next(e);
     } catch (e, s) {
+      _finish(options);
       // Non-Dio errors should not be retried; log since this is unexpected
       return handler.next(_unexpectedRetryError(options, e, s));
     }

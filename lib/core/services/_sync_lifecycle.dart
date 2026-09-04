@@ -65,6 +65,7 @@ extension SyncLifecycle on Sync {
   /// drain while the app is backgrounded.
   void suspend() {
     if (!isInitialized) return;
+    ApiClient().setSuspended(true);
     powerDiagnostics.recordLifecycle('sync.suspend');
     logger.info('[Sync] suspending');
     unawaited(
@@ -219,6 +220,7 @@ extension SyncLifecycle on Sync {
   /// changes that happened while the app was backgrounded are fetched.
   void resume() {
     if (!isInitialized) return;
+    ApiClient().setSuspended(false);
     powerDiagnostics.recordLifecycle('sync.resume');
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;

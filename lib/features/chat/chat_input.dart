@@ -53,6 +53,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.modelMode,
     this.onModelModeChanged,
     this.availableModels = ChatModelMode.values,
+    this.modelCatalogNotice,
     this.availableSlashCommands = const [],
     this.fileSuggestions = const [],
     this.onFileSuggestionsRequested,
@@ -110,6 +111,9 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Model options available for the current session flavor.
   final List<ChatModelMode> availableModels;
+
+  /// Machine setup guidance when the optional model catalog is unavailable.
+  final String? modelCatalogNotice;
 
   /// Agent flavor for the session (`claude`, `codex`, and so on).
   final String? sessionFlavor;
@@ -907,6 +911,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       widget.availableModels,
       (model) => widget.onModelModeChanged?.call(model),
       settings: settings,
+      catalogNotice: widget.modelCatalogNotice,
       onCustomModelsChanged: (customModels) {
         ref
             .read(settingsNotifierProvider.notifier)

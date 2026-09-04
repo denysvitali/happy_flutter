@@ -56,6 +56,43 @@ void main() {
     expect(calls, 1);
   });
 
+  test('missing Codex is a cached unavailable capability', () async {
+    var calls = 0;
+    sync.testMachineRPCOverride = (machineId, method, params) async {
+      calls++;
+      throw const RpcException(
+        code: RpcErrorCode.handlerError,
+        message:
+            'codex debug models: exec: "codex": '
+            'executable file not found in \$PATH',
+        retryable: false,
+      );
+    };
+    LoggerService().clear();
+    final first = await sync.machineGetCodexModels(machineId: 'machine-1');
+    final second = await sync.machineGetCodexModels(machineId: 'machine-1');
+    expect(first.providerUnavailable, isTrue);
+    expect(second.providerUnavailable, isTrue);
+    expect(first.error, contains('Install Codex'));
+    expect(calls, 1);
+    expect(
+      LoggerService().getLogs().where(
+        (entry) =>
+            entry.level == LogLevel.error &&
+            entry.message.contains('machineGetCodexModels'),
+      ),
+      isEmpty,
+    );
+    await sync.machineGetCodexModels(machineId: 'machine-2');
+    expect(calls, 2, reason: 'Availability belongs to one machine');
+    sync.testClearCodexModelsCache();
+    sync.testMachineRPCOverride = (_, __, ___) async => _catalog('gpt-5.6');
+    expect(
+      (await sync.machineGetCodexModels(machineId: 'machine-1')).success,
+      isTrue,
+    );
+  });
+
   test('daemon SIGKILL on get-codex-models is info, not error', () async {
     sync.testMachineRPCOverride = (machineId, method, params) async {
       throw const RpcException(
@@ -81,8 +118,7 @@ void main() {
     expect(
       logs.any(
         (e) =>
-            e.level == LogLevel.info &&
-            e.message.contains('subprocess killed'),
+            e.level == LogLevel.info && e.message.contains('subprocess killed'),
       ),
       isTrue,
     );

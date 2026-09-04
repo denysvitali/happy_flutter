@@ -72,11 +72,7 @@ Widget _buildModelTile(
       ),
       child: Row(
         children: [
-          _modelLeading(
-            cs,
-            icon: iconForModel(model),
-            highlighted: isSelected,
-          ),
+          _modelLeading(cs, icon: iconForModel(model), highlighted: isSelected),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
@@ -111,6 +107,7 @@ void showModelPickerSheet(
   List<ChatModelMode> models,
   ValueChanged<ChatModelMode> onChanged, {
   Settings? settings,
+  String? catalogNotice,
   ValueChanged<List<String>>? onCustomModelsChanged,
 }) {
   final theme = Theme.of(context);
@@ -134,6 +131,11 @@ void showModelPickerSheet(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (catalogNotice != null)
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        child: Text(catalogNotice),
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         AppSpacing.lg,
@@ -369,11 +371,7 @@ class _GroupedModelPickerContentState
         ),
         child: Row(
           children: [
-            _modelLeading(
-              cs,
-              icon: iconForModel(model),
-              highlighted: selected,
-            ),
+            _modelLeading(cs, icon: iconForModel(model), highlighted: selected),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
@@ -397,10 +395,7 @@ class _GroupedModelPickerContentState
   /// The first stop is the effort-less "Auto" variant; subsequent stops map to
   /// the model's `claudeEfforts` (Low → Max). Dragging applies the selection
   /// live without dismissing the sheet so the user can fine-tune.
-  Widget _buildEffortSlider(
-    BuildContext context,
-    List<ChatModelMode> models,
-  ) {
+  Widget _buildEffortSlider(BuildContext context, List<ChatModelMode> models) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final labels = [
@@ -552,11 +547,7 @@ class _GroupedModelPickerContentState
         ),
         child: Row(
           children: [
-            _modelLeading(
-              cs,
-              icon: Icons.add_rounded,
-              highlighted: false,
-            ),
+            _modelLeading(cs, icon: Icons.add_rounded, highlighted: false),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
@@ -604,10 +595,12 @@ class _GroupedModelPickerContentState
                   for (final effort in ChatModelMode.claudeEfforts)
                     DropdownMenuItem(
                       value: effort,
-                      child: Text(ChatModelMode.custom(
-                        slug: '',
-                        effort: effort,
-                      ).reasoningEffortLabel),
+                      child: Text(
+                        ChatModelMode.custom(
+                          slug: '',
+                          effort: effort,
+                        ).reasoningEffortLabel,
+                      ),
                     ),
                 ],
                 onChanged: (v) => setDialogState(() => selectedEffort = v),

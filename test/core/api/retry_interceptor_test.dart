@@ -306,7 +306,12 @@ void main() {
       );
       dio.httpClientAdapter = adapter;
 
-      final response = await dio.get<dynamic>('/v1/machines');
+      await expectLater(
+        dio.get<dynamic>('/v1/machines'),
+        throwsA(isA<DioException>().having(
+          (e) => e.type, 'type', DioExceptionType.cancel,
+        )),
+     );
 
       expect(
         adapter.calls,
@@ -315,7 +320,7 @@ void main() {
             'the first attempt already blew the budget, so no retry may '
             'be admitted',
       );
-      expect(response.statusCode, 503);
+
     });
   });
 

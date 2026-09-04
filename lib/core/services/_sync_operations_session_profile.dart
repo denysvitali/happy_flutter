@@ -683,7 +683,10 @@ extension SyncSpawnProfileResolution on Sync {
     // fallback), fall back to MMKV. Composer sends use the explicit `default`
     // marker for no profile, so they never depend on an asynchronous MMKV
     // removal completing before target resolution.
-    final mmkvProfileId = await MMKVStorage().getSessionProfile(sessionId);
+    final storedProfileId = profileId == null
+        ? await MMKVStorage().getSessionProfile(sessionId)
+        : null;
+    final mmkvProfileId = storedProfileId == 'default' ? null : storedProfileId;
     // `default` is the wire-level marker for an explicit no-profile choice.
     // Keep it distinct from an omitted profile while resolving intent, then
     // normalize it to null before comparing with spawn tracking. Otherwise a
@@ -700,7 +703,10 @@ extension SyncSpawnProfileResolution on Sync {
     // though _sessionSpawnedProfile was registered. Treat absence-of-MMKV +
     // recently-spawned as "no information" rather than "user wants Default",
     // otherwise we kill freshly-created sessions on their first send.
-    final spawnedProfileId = _sessionSpawnedProfile[sessionId];
+    final storedSpawnedProfileId = _sessionSpawnedProfile[sessionId];
+    final spawnedProfileId = storedSpawnedProfileId == 'default'
+        ? null
+        : storedSpawnedProfileId;
     final mmkvUnknownForFreshSpawn =
         recentlySpawned && profileId == null && mmkvProfileId == null;
     // For sessions not tracked by this app run, only treat an explicit
