@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,6 +69,79 @@ void main() {
       expect(actions.single.sessionId, 's1');
       expect(actions.single.permissionId, 'perm-1');
       expect(actions.single.toolName, 'ExitPlanMode');
+    });
+
+    testWidgets('in-flight approval suppresses conflicting taps', (
+      tester,
+    ) async {
+      final completion = Completer<void>();
+      final actions = <PermissionAction>[];
+      await tester.pumpWidget(
+        _wrapToolView(
+          tool: _planTool(),
+          permissionActionDelegate: (action) {
+            actions.add(action);
+            return completion.future;
+          },
+        ),
+      );
+
+      await tester.tap(find.text('Allow'));
+      // Tap before rebuilding too: the guard must cover the same frame.
+      await tester.tap(find.text('Deny'));
+      await tester.pump();
+      expect(actions, hasLength(1));
+      expect(actions.single.kind, PermissionActionKind.allow);
+      completion.complete();
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('failed permission action can be retried with same id', (
+      tester,
+    ) async {
+      final actions = <PermissionAction>[];
+      await tester.pumpWidget(
+        _wrapToolView(
+          tool: _planTool(),
+          permissionActionDelegate: (action) async {
+            actions.add(action);
+            if (actions.length == 1) throw StateError('transport unavailable');
+          },
+        ),
+      );
+
+      await tester.tap(find.text('Allow'));
+      await tester.pump();
+      final context = tester.element(find.byType(ToolView));
+      expect(find.text(context.l10n.permissionActionFailed), findsOneWidget);
+      await tester.tap(find.text('Allow'));
+      await tester.pump();
+      expect(actions, hasLength(2));
+      expect(actions.map((action) => action.permissionId), [
+        'perm-1',
+        'perm-1',
+      ]);
+      expect(actions.every((action) => action.sessionId == 's1'), isTrue);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('permission completion after navigation is safe', (
+      tester,
+    ) async {
+      final completion = Completer<void>();
+      await tester.pumpWidget(
+        _wrapToolView(
+          tool: _planTool(),
+          permissionActionDelegate: (_) => completion.future,
+        ),
+      );
+      await tester.tap(find.text('Allow'));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      completion.completeError(StateError('transport unavailable'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('All edits emits allow-all-edits action', (tester) async {
