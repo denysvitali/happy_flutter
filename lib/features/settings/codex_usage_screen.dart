@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/components/settings_section.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/codex_usage_summary.dart';
+import '../../core/services/opentelemetry_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
@@ -24,13 +27,11 @@ class CodexUsageScreen extends StatelessWidget {
       emptyIcon: Icons.code,
       emptyTitle: l10n.codexUsageNotAvailable,
       emptySubtitle: l10n.codexUsageNotAvailableSubtitle,
+      operationName: 'providers.codex_usage.load',
       fetch: (machineId) async {
-        final response = await Sync().machineGetCodexUsage(
-          machineId: machineId,
-        );
-        final resetCredits = response.success
-            ? await Sync().machineGetCodexResetCredits(machineId: machineId)
-            : null;
+        final usageFuture = Sync().machineGetCodexUsage(machineId: machineId);
+        final resetCreditsFuture = _fetchResetCredits(machineId);
+        final response = await usageFuture;
 
         if (!response.success || response.data == null) {
           return MachineUsageSnapshot<CodexUsageSummary>.error(
@@ -38,6 +39,7 @@ class CodexUsageScreen extends StatelessWidget {
           );
         }
 
+        final resetCredits = await resetCreditsFuture;
         return MachineUsageSnapshot<CodexUsageSummary>.data(
           resetCredits == null
               ? response.data!
@@ -80,10 +82,7 @@ class CodexUsageScreen extends StatelessWidget {
                   UsageWindowRow(
                     icon: Icons.schedule,
                     title: l10n.codexUsageFiveHourWindow,
-                    percent: report
-                        .rateLimit!
-                        .primaryWindow!
-                        .usedPercent
+                    percent: report.rateLimit!.primaryWindow!.usedPercent
                         .toDouble(),
                     iconColor: AppColors.warning,
                     footer: _windowFooter(
@@ -95,10 +94,7 @@ class CodexUsageScreen extends StatelessWidget {
                   UsageWindowRow(
                     icon: Icons.date_range_outlined,
                     title: l10n.codexUsageWeeklyWindow,
-                    percent: report
-                        .rateLimit!
-                        .secondaryWindow!
-                        .usedPercent
+                    percent: report.rateLimit!.secondaryWindow!.usedPercent
                         .toDouble(),
                     iconColor: AppColors.success,
                     footer: _windowFooter(
@@ -199,6 +195,34 @@ class CodexUsageScreen extends StatelessWidget {
   }
 }
 
+Future<CodexRateLimitResetCredits?> _fetchResetCredits(String machineId) async {
+  final stopwatch = Stopwatch()..start();
+  var outcome = 'ok';
+  try {
+    final result = await Sync()
+        .machineGetCodexResetCredits(machineId: machineId)
+        .timeout(const Duration(seconds: 2));
+    if (result == null) outcome = 'unavailable';
+    return result;
+  } on TimeoutException {
+    outcome = 'timeout';
+    return null;
+  } catch (_) {
+    outcome = 'error';
+    return null;
+  } finally {
+    OpenTelemetryService().recordDuration(
+      'app.operation.stage',
+      stopwatch.elapsed,
+      attributes: {
+        'operation': 'providers.codex_usage.load',
+        'stage': 'reset_credits',
+        'outcome': outcome,
+      },
+    );
+  }
+}
+
 /// Footer line under a [UsageWindowRow]: the localized absolute reset
 /// time when known, else a "Resets in …" duration.
 Widget? _windowFooter(BuildContext context, CodexUsageWindow window) {
@@ -213,10 +237,7 @@ Widget? _windowFooter(BuildContext context, CodexUsageWindow window) {
   );
 }
 
-String? _formatResetDescription(
-  BuildContext context,
-  CodexUsageWindow window,
-) {
+String? _formatResetDescription(BuildContext context, CodexUsageWindow window) {
   final expiresAt = window.expiresAt?.toLocal();
   if (expiresAt != null) {
     final locale = Localizations.localeOf(context).toLanguageTag();

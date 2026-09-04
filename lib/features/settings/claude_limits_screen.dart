@@ -21,8 +21,7 @@ class ClaudeLimitsScreen extends ConsumerStatefulWidget {
   const ClaudeLimitsScreen({super.key});
 
   @override
-  ConsumerState<ClaudeLimitsScreen> createState() =>
-      _ClaudeLimitsScreenState();
+  ConsumerState<ClaudeLimitsScreen> createState() => _ClaudeLimitsScreenState();
 }
 
 class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
@@ -45,6 +44,7 @@ class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
       emptyIcon: Icons.speed,
       emptyTitle: l10n.claudeLimitsNotAvailable,
       emptySubtitle: l10n.claudeLimitsNotAvailableSubtitle,
+      operationName: 'providers.claude_usage.load',
       fetch: _fetch,
       actionsBuilder: (controller) => [
         IconButton(

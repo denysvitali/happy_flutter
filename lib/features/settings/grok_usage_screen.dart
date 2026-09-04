@@ -24,10 +24,9 @@ class GrokUsageScreen extends StatelessWidget {
       emptyIcon: Icons.auto_awesome,
       emptyTitle: l10n.grokUsageNotAvailable,
       emptySubtitle: l10n.grokUsageNotAvailableSubtitle,
+      operationName: 'providers.grok_usage.load',
       fetch: (machineId) async {
-        final response = await Sync().machineGetGrokUsage(
-          machineId: machineId,
-        );
+        final response = await Sync().machineGetGrokUsage(machineId: machineId);
         if (!response.success || response.data == null) {
           return MachineUsageSnapshot<GrokUsageSummary>.error(
             response.error ?? 'Unknown error',

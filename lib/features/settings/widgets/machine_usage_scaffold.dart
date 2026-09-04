@@ -8,6 +8,7 @@ import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/components/settings_section.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'machine_picker.dart';
@@ -74,6 +75,7 @@ class MachineUsageScaffold<T> extends ConsumerStatefulWidget {
     required this.emptyIcon,
     required this.emptyTitle,
     required this.emptySubtitle,
+    required this.operationName,
     required this.fetch,
     required this.contentBuilder,
     this.actionsBuilder,
@@ -93,6 +95,7 @@ class MachineUsageScaffold<T> extends ConsumerStatefulWidget {
   final IconData emptyIcon;
   final String emptyTitle;
   final String emptySubtitle;
+  final String operationName;
 
   final MachineUsageFetcher<T> fetch;
   final MachineUsageContentBuilder<T> contentBuilder;
@@ -139,7 +142,26 @@ class _MachineUsageScaffoldState<T>
       _report = null;
     });
 
-    final snapshot = await widget.fetch(machineId);
+    final stopwatch = Stopwatch()..start();
+    MachineUsageSnapshot<T> snapshot;
+    try {
+      snapshot = await widget.fetch(machineId);
+    } catch (_) {
+      OpenTelemetryService().recordDuration(
+        'app.operation',
+        stopwatch.elapsed,
+        attributes: {'operation': widget.operationName, 'outcome': 'exception'},
+      );
+      rethrow;
+    }
+    OpenTelemetryService().recordDuration(
+      'app.operation',
+      stopwatch.elapsed,
+      attributes: {
+        'operation': widget.operationName,
+        'outcome': snapshot.error == null ? 'ok' : 'error',
+      },
+    );
     if (!mounted) return;
 
     setState(() {

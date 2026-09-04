@@ -13,7 +13,8 @@
   and transient-error backoff.
 - OpenTelemetry histograms now cover first frame, essential startup readiness,
   deferred initialization, message fetch, optimistic-row latency, slow chat-list
-  builds, and aggregate build/raster/total frame duration.
+  builds, aggregate build/raster/total frame duration, and end-to-end
+  machine-usage operations with named enrichment stages.
 - Frame reporting distinguishes slow frames (over the 60 Hz budget) from frozen
   frames (100ms+); only frozen frames create Sentry transactions.
 - Active trace context is Zone-local, so concurrent sends, socket events, and
