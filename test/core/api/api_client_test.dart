@@ -9,6 +9,7 @@ import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/api/retry_interceptor.dart';
 import 'package:happy_flutter/core/services/opentelemetry_service.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
 
 void main() {
   group('ApiClient Retry Logic', () {
@@ -21,6 +22,25 @@ void main() {
 
     tearDown(() {
       apiClient.dispose();
+    });
+
+    test('resume before auth restoration releases suspended reads', () async {
+      final sync = Sync();
+      final wasInitialized = sync.testIsInitialized;
+      sync.testIsInitialized = false;
+      apiClient.setSuspended(true);
+      apiClient.testDio!.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) => handler.resolve(
+          Response<dynamic>(requestOptions: options, statusCode: 200), true),
+      ));
+      try {
+        sync.resume();
+        expect((await apiClient.testDio!.get<dynamic>('/v1/sessions'))
+            .statusCode, 200);
+      } finally {
+        sync.testIsInitialized = wasInitialized;
+        apiClient.setSuspended(false);
+      }
     });
 
     test('retry interceptor exists and is configured', () async {

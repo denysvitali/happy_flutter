@@ -219,8 +219,10 @@ extension SyncLifecycle on Sync {
   /// Reconnects the socket and invalidates all syncs so any server-side
   /// changes that happened while the app was backgrounded are fetched.
   void resume() {
-    if (!isInitialized) return;
+    // Resume can precede auth restoration. Do not leave a previous runtime's
+    // background policy blocking the new account's initial reads.
     ApiClient().setSuspended(false);
+    if (!isInitialized) return;
     powerDiagnostics.recordLifecycle('sync.resume');
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
