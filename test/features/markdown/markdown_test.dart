@@ -83,6 +83,8 @@ void main() {
       expect(find.text('1 / 2'), findsOneWidget);
       expect(find.textContaining('tail sentinel'), findsNothing);
 
+      await tester.ensureVisible(find.byTooltip('Next page'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Next page'));
       await tester.pump();
 
