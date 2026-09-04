@@ -421,7 +421,13 @@ class _ThrowingAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    onFetch();
+    try {
+      onFetch();
+    } on DioException catch (error) {
+      // Real adapters attach the dispatched options (including cancellation,
+      // auth and retry identity); a fresh RequestOptions loses that contract.
+      throw error.copyWith(requestOptions: options);
+    }
     return ResponseBody.fromString(
       jsonEncode({'ok': true}),
       200,

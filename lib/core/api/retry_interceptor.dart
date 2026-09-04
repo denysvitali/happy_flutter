@@ -227,6 +227,11 @@ class RetryInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final options = err.requestOptions;
     _markCallback(options);
+    // An adapter must preserve the dispatched options. Without the original
+    // budget we cannot safely replay its credentials, body or cancellation.
+    if (options.extra[RequestBudget.extraKey] is! RequestBudget) {
+      return handler.next(err);
+    }
     // Don't retry if request was cancelled
     if (err.type == DioExceptionType.cancel) {
       _finish(options);
