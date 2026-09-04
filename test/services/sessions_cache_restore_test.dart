@@ -54,7 +54,7 @@ void main() {
     };
 
     sync.testIsInitialized = true;
-    final restored = sync.onDataChanged.firstWhere(
+    final restored = sync.onDomainChanged.firstWhere(
       (_) =>
           sync.sessions.containsKey('s-0') &&
           sync.encryption.getSessionEncryption('s-0') != null,
