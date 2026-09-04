@@ -390,9 +390,7 @@ class SettingsStorage {
   Future<void> _normalizeStaleBuiltInProfileDefaults(Settings settings) async {
     var changed = false;
     final updatedProfiles = settings.profiles.map((profile) {
-      var updated = normalizeModelSelectionEnv(profile);
-      if (!identical(updated, profile)) changed = true;
-      updated = normalizeBuiltInProfileDefaults(updated);
+      final updated = normalizeBuiltInProfileDefaults(profile);
       if (!identical(updated, profile)) changed = true;
       return updated;
     }).toList();
@@ -400,7 +398,7 @@ class SettingsStorage {
 
     settings.profiles = updatedProfiles;
     await _storage.saveSettings(settings);
-    logger.info('SettingsStorage: normalized profile model selections');
+    logger.info('SettingsStorage: normalized built-in profile defaults');
   }
 
   /// Load API keys from secure storage into settings object
