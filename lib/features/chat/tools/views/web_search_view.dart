@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../tool_section_view.dart';
 import '../tool_view_helpers.dart'
@@ -102,7 +104,7 @@ class WebSearchView extends StatelessWidget {
 
     return ToolSectionView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final group in groups) ...[
@@ -133,7 +135,7 @@ class WebSearchView extends StatelessWidget {
             ),
             for (final result in group.results)
               Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
                 child: _SourceTile(source: result),
               ),
             if (group != groups.last) const SizedBox(height: AppSpacing.md),
@@ -159,7 +161,7 @@ class WebSearchView extends StatelessWidget {
 
     return ToolSectionView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
@@ -227,7 +229,7 @@ class WebSearchView extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             for (final source in sources)
               Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
                 child: _SourceTile(source: source),
               ),
           ] else if (isCompleted) ...[
@@ -337,16 +339,15 @@ class _SourceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final title =
-        source['title'] ?? source['name'] ?? source['url'] ?? 'Result';
     final url = source['url'] ?? source['link'] ?? source['href'];
+    final uri = _webUri(url);
+    final title = source['title'] ?? source['name'] ?? url ?? 'Result';
     final snippet =
         source['snippet'] ?? source['description'] ?? source['summary'];
     // Providers that returned this hit, plus its publication date when the
     // backend knows one — the raw JSON carried both and they read as noise
     // in a URL line, so they get their own muted meta row.
     final meta = <String>[
-      if (url != null) _host(url.toString()),
       if (source['published'] is String &&
           (source['published'] as String).isNotEmpty)
         source['published'] as String,
@@ -354,50 +355,114 @@ class _SourceTile extends StatelessWidget {
         (source['source'] as String).replaceAll(',', ' · '),
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title.toString(),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
+    return Semantics(
+      link: uri != null,
+      child: Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: uri == null ? null : () => _openPage(context, uri),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title.toString(),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: uri == null
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    if (uri != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Icon(
+                        Icons.open_in_new_rounded,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ],
+                  ],
+                ),
+                if (url != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _host(url.toString()),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+                if (snippet != null && snippet.toString().trim().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: Text(
+                      snippet.toString(),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        height: 1.4,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                if (meta.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: Text(
+                      meta.join(' · '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
-          if (meta.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xxs),
-              child: Text(
-                meta.join('  ·  '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          if (snippet != null)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xxs),
-              child: Text(
-                snippet.toString(),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
+    );
+  }
+
+  static Uri? _webUri(dynamic value) {
+    if (value is! String) return null;
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null ||
+        !uri.hasAuthority ||
+        uri.host.isEmpty ||
+        (uri.scheme != 'https' && uri.scheme != 'http')) {
+      return null;
+    }
+    return uri;
+  }
+
+  Future<void> _openPage(BuildContext context, Uri uri) async {
+    try {
+      if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    } catch (error, stackTrace) {
+      logger.warning('Failed to open search result', error, stackTrace);
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.webSearchOpenPageFailed)),
     );
   }
 

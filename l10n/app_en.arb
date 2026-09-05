@@ -602,6 +602,7 @@
   "messageDetailState": "State",
   "messageDetailAgentType": "Agent type",
   "messageDetailDescription": "Description",
+  "webSearchOpenPageFailed": "Unable to open this web page.",
   "webSearchQueriesLabel": "Queries",
   "webSearchNoResultsNote": "Search completed — result pages are not included in the transcript.",
   "webSearchActivityCompleted": "Web activity completed",

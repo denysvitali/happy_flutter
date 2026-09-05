@@ -1241,6 +1241,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageDetailDescription => 'Description';
 
   @override
+  String get webSearchOpenPageFailed => 'Unable to open this web page.';
+
+  @override
   String get webSearchQueriesLabel => 'Queries';
 
   @override

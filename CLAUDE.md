@@ -353,6 +353,10 @@ keys are cleared on sign-out so they cannot cross account boundaries.
 import 'package:flutter/material.dart' hide TabBar;
 ```
 
+**Web search results:** Claude and MCP search detail views share full-width
+source cards. Keep the entire card tappable for HTTP(S) URLs, with a separate
+domain line and visible browser-launch failure feedback.
+
 **Screen types:**
 - `ConsumerStatefulWidget` + `ConsumerState` — screens with local state or sync subscriptions (majority)
 - `ConsumerWidget` — stateless read-only screens

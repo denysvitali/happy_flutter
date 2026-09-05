@@ -15,6 +15,8 @@ keeps navigation state alive between tabs, and surfaces each session's files,
 workflow runs, and scheduled loops from the chat workspace menu. Empty chats
 offer editable task starters plus file, slash-command, and voice hints; active
 Codex turns distinguish updates to the running turn from queued follow-ups.
+Web search details show aligned result cards with titles, domains, and snippets;
+tap a result to open its web page in your browser.
 
 ## Architecture
 

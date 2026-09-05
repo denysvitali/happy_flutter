@@ -2329,6 +2329,12 @@ abstract class AppLocalizations {
   /// **'Description'**
   String get messageDetailDescription;
 
+  /// No description provided for @webSearchOpenPageFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open this web page.'**
+  String get webSearchOpenPageFailed;
+
   /// No description provided for @webSearchQueriesLabel.
   ///
   /// In en, this message translates to:

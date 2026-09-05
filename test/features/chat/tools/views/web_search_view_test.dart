@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -52,6 +53,149 @@ Widget _wrapBody(Widget child) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  const launcher = MethodChannel('plugins.flutter.io/url_launcher');
+  final launches = <MethodCall>[];
+  var launchSucceeds = true;
+  var launchThrows = false;
+
+  setUp(() {
+    launches.clear();
+    launchSucceeds = true;
+    launchThrows = false;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(launcher, (call) async {
+          launches.add(call);
+          if (launchThrows) throw PlatformException(code: 'launch_failed');
+          return launchSucceeds;
+        });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(launcher, null);
+  });
+
+  for (final field in ['url', 'link', 'href']) {
+    testWidgets('search result opens the full $field in the browser', (
+      tester,
+    ) async {
+      const url = 'https://example.com/article?q=flutter#details';
+      await tester.pumpWidget(
+        _wrapBody(
+          WebSearchView(
+            tool: {
+              'state': 'completed',
+              'result': {
+                'sources': [
+                  {'title': 'Article', field: url, 'snippet': 'Read this page'},
+                ],
+              },
+            },
+          ),
+        ),
+      );
+
+      // The snippet is part of the same full-card tap target.
+      await tester.tap(find.text('Read this page'));
+      await tester.pumpAndSettle();
+      expect(launches, hasLength(1));
+      expect(launches.single.arguments['url'], url);
+      expect(launches.single.arguments['useWebView'], isFalse);
+    });
+  }
+
+  for (final throws in [false, true]) {
+    testWidgets('failed browser launch shows feedback (throws: $throws)', (
+      tester,
+    ) async {
+      launchSucceeds = false;
+      launchThrows = throws;
+      await tester.pumpWidget(
+        _wrapBody(
+          WebSearchView(
+            tool: {
+              'state': 'completed',
+              'result': {
+                'sources': [
+                  {'title': 'Article', 'url': 'https://example.com/article'},
+                ],
+              },
+            },
+          ),
+        ),
+      );
+      await tester.tap(find.text('Article'));
+      await tester.pumpAndSettle();
+      expect(find.text('Unable to open this web page.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('missing and non-web URLs remain readable without launching', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrapBody(
+        WebSearchView(
+          tool: {
+            'state': 'completed',
+            'result': {
+              'sources': [
+                {'title': 'Missing'},
+                {'title': 'Invalid', 'url': 'https://'},
+                {'title': 'Other scheme', 'url': 'happy://account'},
+              ],
+            },
+          },
+        ),
+      ),
+    );
+    for (final title in ['Missing', 'Invalid', 'Other scheme']) {
+      await tester.tap(find.text(title));
+    }
+    expect(launches, isEmpty);
+    expect(find.byIcon(Icons.open_in_new_rounded), findsNothing);
+  });
+
+  testWidgets('cards align at narrow width with enlarged text', (tester) async {
+    await tester.pumpWidget(
+      _wrapBody(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.5)),
+          child: SizedBox(
+            width: 320,
+            child: WebSearchView(
+              tool: {
+                'state': 'completed',
+                'result': {
+                  'sources': [
+                    {'title': 'Short', 'url': 'https://example.com'},
+                    {
+                      'title': 'A much longer search result title that wraps',
+                      'url': 'https://example.com/a-long-page-path',
+                      'snippet':
+                          'A longer snippet with additional page details.',
+                      'source': 'first,second,third',
+                      'published': '2026-09-05',
+                    },
+                  ],
+                },
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    final cards = find.byType(InkWell);
+    expect(cards, findsNWidgets(2));
+    final first = tester.getRect(cards.at(0));
+    final second = tester.getRect(cards.at(1));
+    expect(first.width, 320);
+    expect(first.left, second.left);
+    expect(first.right, second.right);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('WebSearch renders its query as a compact summary', (
     tester,
@@ -408,6 +552,15 @@ void main() {
     expect(
       find.text('A ranked comparison of the 12 best libraries.'),
       findsOneWidget,
+    );
+    await tester.tap(
+      find.text('A ranked comparison of the 12 best libraries.'),
+    );
+    await tester.pumpAndSettle();
+    expect(launches, hasLength(1));
+    expect(
+      launches.single.arguments['url'],
+      'https://designrevision.com/blog/best-react-component-libraries',
     );
   });
 
