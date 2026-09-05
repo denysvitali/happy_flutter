@@ -2,7 +2,40 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-04
+**Last Updated**: 2026-09-05
+
+### Production audit, 2026-09-05 (build 277500)
+
+Reviewed the latest 15 unresolved issues and 10 unresolved errors, with event
+details for settings, machine RPCs and the prior HTTP timeout burst. Counts
+are lifetime issue totals, not daily rates. Latest fetched tag is 277600.
+
+- **P1: settings-write timeout recovery (4717, 17 total).** The September 5
+  09:11:58 UTC event is on 277500, which contains e4dad040's HTTP fixes.
+  `SettingsManager.syncSettings` still wraps POST in a separate 10s Future
+  timeout and catches it without rethrowing. Breadcrumbs then report
+  `syncSettings` completed with zero retries. Pending settings remain, but
+  this failure does not trigger queue retry; the underlying POST can also
+  finish after the wrapper times out. Use coordinated cancellation/deadlines
+  and explicit retry/conflict reconciliation. Cover delayed POST completion
+  and edits arriving during a write. The same event shows an uncached chat
+  load failing after 12,002ms; investigate that separately rather than
+  attributing it to settings without a matching request trace.
+- **P1 investigation: machine RPC latency/recovery.** Build 277500 reports
+  a 30,000ms Bash ACK timeout (3702, 24 total) and a 3,066ms ping
+  (3627, 318 total). Build 276800 reports sequential ping/capability calls
+  taking 3,129ms and 3,153ms (5198, 162 total). Loki confirms the latest
+  ping by request ID, but matching server/daemon queries returned no logs.
+  Verify deployed RPC routing/reply-subscription behavior; the timing alone
+  does not prove the previously fixed Redis race recurred.
+- **Prior HTTP burst is pre-fix evidence.** The latest sampled 8677/8667
+  events are on 276200, which does not contain e4dad040. Build 277500 does.
+  Do not treat those September 4 events as a deadline-fix regression.
+  No newer error-level occurrence appeared in the sampled latest-error page.
+
+The shared Sentry trace produced no matching Loki logs for the settings
+window, including a follow-up using the launch ID obtained from the ping.
+No GlitchTip issues were resolved or ignored.
 
 ### Production audit, 2026-09-04 (build 275300)
 
@@ -1464,6 +1497,8 @@ resolved or ignored.
 
 | Issue | Severity | Count | Status | Description |
 |-------|----------|-------|--------|-------------|
+| Settings POST timeout swallowed (4717) | Warning | 17 issue total | Open — P1 | Build 277500: 10s POST wrapper times out, then sync queue reports success with zero retries. Pending edits remain but recovery needs another invalidation; reconcile late POST completion and version conflicts. See September 5 audit. |
+| Machine RPC timeout / slow ping (3702/3627) | Warning | 24 / 318 issue totals | Open — investigate deployed routing | Build 277500: Bash ACK timeout at 30s and ping at 3,066ms. Client Loki confirms ping; no matched server/daemon evidence establishes cause. |
 | Retry deadline overshoot / background refresh burst (8770/8769/8768/8767/8667) | Warning / Error | 1 / 1 / 1 / 1 / 2 | Open — P1 | Build 276200: 20s budget lasts about 33s after suspension. Bound each attempt and overall deadline; preserve offline outbox identity. See September 4 audit. |
 | Send target resolution / default-profile respawn (5198) | Warning | 161 issue total | Open — P1 investigation | Build 276300: 3.16s target resolution versus 64ms POST; Loki correlates capability RPC forward retry. Verify profile identity and routing separately. |
 | Stack overflow (8750) | Error | 1 | Open — needs exact-build symbols | Build 275100 already contains d3185a0e; native-address-only stack does not identify the cause. |
