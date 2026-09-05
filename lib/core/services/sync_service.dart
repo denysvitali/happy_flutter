@@ -1130,9 +1130,9 @@ what you have, you must use the options mode.
   // sessions appearing online for up to 60 s).
   final Map<String, int> _lastEphemeralAt = {};
 
-  /// Sessions that have been archived locally but the server hasn't confirmed
-  /// yet (replication lag). These are filtered from the active sessions list
-  /// to prevent the "archive then reappear" bug.
+  /// Explicitly archived sessions hidden until unarchive or runtime reset.
+  /// Catalog refreshes must preserve these overrides, including when the
+  /// server confirms archival or returns an inactive session.
   final Set<String> _optimisticallyArchivedSessions = {};
 
   /// Tool results that arrived before their corresponding tool-call message.

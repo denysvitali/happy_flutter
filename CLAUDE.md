@@ -86,6 +86,10 @@ See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key
 
 ## Core Invariants
 
+- **Archive overrides survive catalog refreshes** — inactivity, archive
+  confirmation, and omission from a fetch must not clear explicit session
+  hiding; only unarchive or runtime reset clears it.
+
 - **One tap, one logical message**
 - **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
 - **Repeated text like `continue` is never identity**

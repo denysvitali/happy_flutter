@@ -88,6 +88,54 @@ void main() {
       instance.testIsInitialized = false;
     });
 
+    for (final archived in [false, true]) {
+      test('archive stays hidden across full and delta refresh '
+          '(server archived=$archived)', () async {
+        const id = 'archived-session';
+        instance.markSessionArchived(id);
+        addTearDown(() => instance.markSessionUnarchived(id));
+        ApiClient().testDio!.interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              handler.resolve(
+                Response<dynamic>(
+                  requestOptions: options,
+                  statusCode: 200,
+                  data: <String, dynamic>{
+                    'sessions': [
+                      {
+                        'id': id,
+                        'seq': 1,
+                        'createdAt': 1700000000000,
+                        'updatedAt': 1700000000001,
+                        'active': false,
+                        'archived': archived,
+                        'activeAt': 1700000000001,
+                        'metadata': 'opaque-payload',
+                        'metadataVersion': 1,
+                        'agentStateVersion': 1,
+                      },
+                    ],
+                    'hasNext': false,
+                  },
+                ),
+              );
+            },
+          ),
+        );
+
+        // Returning from chat refreshes the catalog repeatedly.
+        for (var refresh = 0; refresh < 3; refresh++) {
+          await instance.fetchSessions();
+          expect(instance.sessions[id], isNotNull);
+          expect(instance.isSessionOptimisticallyArchived(id), isTrue);
+        }
+
+        instance.markSessionUnarchived(id);
+        expect(instance.isSessionOptimisticallyArchived(id), isFalse);
+      });
+    }
+
     test(
       'retains sessions when metadata payload has legacy-invalid fields',
       () async {

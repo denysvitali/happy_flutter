@@ -105,9 +105,8 @@ extension SyncOperations on Sync {
   /// Mark a session as optimistically archived.
   ///
   /// Call this after a successful archive API call. The session will be
-  /// filtered from the active list until the server confirms with
-  /// `active: false`. This prevents the "archive then reappear" bug caused
-  /// by server replication lag.
+  /// hidden across catalog refreshes until explicitly unarchived.
+  /// Neither inactivity nor archive confirmation should clear this override.
   void markSessionArchived(String sessionId) {
     _optimisticallyArchivedSessions.add(sessionId);
     _notifyDataChanged({SyncDomain.sessions});

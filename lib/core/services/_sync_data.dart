@@ -441,21 +441,10 @@ extension SyncData on Sync {
         }
       }
 
-      // Clear optimistic archive flags for sessions that the server
-      // has confirmed as archived or inactive. This prevents the
-      // "archive then reappear" bug.
-      for (final session in decryptedSessions) {
-        if (session.archived || !session.active) {
-          _optimisticallyArchivedSessions.remove(session.id);
-        }
-      }
-      // On full fetch, clear any optimistic archives for sessions not
-      // in the response (deleted or truly archived on server).
-      if (changedSince == null) {
-        _optimisticallyArchivedSessions.removeWhere(
-          (sessionId) => !_sessions.containsKey(sessionId),
-        );
-      }
+      // Catalog refreshes must not undo an explicit archive. Inactivity
+      // is unrelated to archiving, and archived sessions can still be
+      // returned by the catalog. Keep the hide override until an explicit
+      // unarchive event/action (or runtime reset).
 
       // Start 60 s staleness timers for sessions that came back
       // 'online' but don't already have a running timer. Existing
