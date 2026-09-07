@@ -137,8 +137,12 @@ extension SyncMachineRpcOperations on Sync {
         BashResponse.fromJson,
       );
     } catch (error, stackTrace) {
-      if (error is StateError && error.message.contains('not connected')) {
+      if (error is SocketNotConnectedException) {
         logger.info('machineBash: socket not connected');
+        return const BashResponse(success: false, stderr: 'machine offline');
+      } else if (error is SocketAckTimeoutException) {
+        logger.info('machineBash: RPC ACK timeout');
+        return const BashResponse(success: false, stderr: 'RPC ACK timeout');
       } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineBash: transient RPC failure — $error');
       } else {
@@ -161,8 +165,12 @@ extension SyncMachineRpcOperations on Sync {
         ReadFileResponse.fromJson,
       );
     } catch (error, stackTrace) {
-      if (error is StateError && error.message.contains('not connected')) {
+      if (error is SocketNotConnectedException) {
         logger.info('machineReadFile: socket not connected');
+        return const ReadFileResponse(success: false, error: 'machine offline');
+      } else if (error is SocketAckTimeoutException) {
+        logger.info('machineReadFile: RPC ACK timeout');
+        return const ReadFileResponse(success: false, error: 'RPC ACK timeout');
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info(
           'machineReadFile: RPC method not available '
@@ -204,11 +212,17 @@ extension SyncMachineRpcOperations on Sync {
         timeout: const Duration(seconds: 15),
       );
     } catch (error, stackTrace) {
-      if (error is StateError && error.message.contains('not connected')) {
+      if (error is SocketNotConnectedException) {
         logger.info('machineGetClaudeUsageLimits: machine offline');
         return const ClaudeUsageLimitsResponse(
           success: false,
           error: 'machine offline',
+        );
+      } else if (error is SocketAckTimeoutException) {
+        logger.info('machineGetClaudeUsageLimits: RPC ACK timeout');
+        return const ClaudeUsageLimitsResponse(
+          success: false,
+          error: 'RPC ACK timeout',
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info(
@@ -252,11 +266,17 @@ extension SyncMachineRpcOperations on Sync {
         timeout: const Duration(seconds: 15),
       );
     } catch (error, stackTrace) {
-      if (error is StateError && error.message.contains('not connected')) {
+      if (error is SocketNotConnectedException) {
         logger.info('machineGetClaudeLocalUsage: machine offline');
         return const ClaudeLocalUsageResponse(
           success: false,
           error: 'machine offline',
+        );
+      } else if (error is SocketAckTimeoutException) {
+        logger.info('machineGetClaudeLocalUsage: RPC ACK timeout');
+        return const ClaudeLocalUsageResponse(
+          success: false,
+          error: 'RPC ACK timeout',
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info(
@@ -354,13 +374,19 @@ extension SyncMachineRpcOperations on Sync {
           providerUnavailable: true,
           error: 'Install Codex on this machine to load its models.',
         );
-      } else if (error is StateError &&
-          error.message.contains('not connected')) {
+      } else if (error is SocketNotConnectedException) {
         logger.info('machineGetCodexModels: machine offline');
         return const CodexModelsResponse(
           success: false,
           models: [],
           error: 'machine offline',
+        );
+      } else if (error is SocketAckTimeoutException) {
+        logger.info('machineGetCodexModels: RPC ACK timeout');
+        return const CodexModelsResponse(
+          success: false,
+          models: [],
+          error: 'RPC ACK timeout',
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info(
@@ -552,7 +578,7 @@ PY
       }
       return response;
     } catch (error, stackTrace) {
-      if (error is StateError && error.message.contains('not connected')) {
+      if (error is SocketNotConnectedException) {
         logger.info('machineGetCodexUsage: machine offline');
         return const CodexUsageSummaryResponse(
           success: false,
@@ -562,6 +588,12 @@ PY
         logger.info(
           'machineGetCodexUsage: RPC method not available '
           '(daemon too old); falling back to machineBash',
+        );
+      } else if (error is SocketAckTimeoutException) {
+        logger.info('machineGetCodexUsage: RPC ACK timeout');
+        return const CodexUsageSummaryResponse(
+          success: false,
+          error: 'RPC ACK timeout',
         );
       } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineGetCodexUsage: transient RPC failure — $error');
@@ -850,11 +882,17 @@ PY
       }
       return response;
     } catch (error, stackTrace) {
-      if (error is StateError && error.message.contains('not connected')) {
+      if (error is SocketNotConnectedException) {
         logger.info('machineGetGrokUsage: machine offline');
         return const GrokUsageSummaryResponse(
           success: false,
           error: 'machine offline',
+        );
+      } else if (error is SocketAckTimeoutException) {
+        logger.info('machineGetGrokUsage: RPC ACK timeout');
+        return const GrokUsageSummaryResponse(
+          success: false,
+          error: 'RPC ACK timeout',
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
         logger.info(

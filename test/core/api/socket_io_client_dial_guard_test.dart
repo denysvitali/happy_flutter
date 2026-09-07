@@ -170,8 +170,29 @@ void main() {
         'rpc-call',
         <String, dynamic>{},
       );
+      final sw = Stopwatch()..start();
       socketIoClient.disconnect();
 
+      await expectLater(pending, throwsA(isA<SocketNotConnectedException>()));
+      expect(
+        sw.elapsed,
+        lessThan(const Duration(seconds: 1)),
+        reason: 'A disconnect must settle the in-flight ACK immediately',
+      );
+    });
+
+    test('rejects a call when its socket generation is replaced', () async {
+      socketIoClient.connect(serverUrl: 'http://127.0.0.1:1', token: 'token');
+      socketIoClient.testConnectionStatus = ConnectionStatus.connected;
+      final generation = socketIoClient.connectionGeneration;
+      final pending = socketIoClient.emitWithAck(
+        'rpc-call',
+        <String, dynamic>{},
+      );
+
+      socketIoClient.reconnect(force: true, reason: DialReason.zombieDetected);
+
+      expect(socketIoClient.connectionGeneration, greaterThan(generation));
       await expectLater(pending, throwsA(isA<SocketNotConnectedException>()));
     });
   });

@@ -831,12 +831,19 @@ class SocketIoClient {
     dynamic data, {
     Duration timeout = const Duration(seconds: 30),
   }) async {
+    final generation = _connectionGeneration;
     final deadline = DateTime.now().add(timeout);
     final connected = await waitForConnection(timeout: timeout);
     if (!connected) {
       // Throw a typed exception instead of returning null — null propagates
       // silently and produces confusing "RPC failed: null" errors that are
       // hard to distinguish from other failures.
+      throw SocketNotConnectedException(event);
+    }
+    // A reconnect may have made the status stream report connected after the
+    // call started. Do not put an RPC on a socket generation that the caller
+    // did not observe becoming ready; callers can retry on the fresh socket.
+    if (generation != _connectionGeneration) {
       throw SocketNotConnectedException(event);
     }
     // Re-read the socket AFTER the await: a lifecycle suspend or a
@@ -858,6 +865,25 @@ class SocketIoClient {
     }
     powerDiagnostics.recordSocketSend(event, ack: true);
     final completer = Completer<dynamic>();
+    void finishWithDisconnect(ConnectionStatus status) {
+      if (status == ConnectionStatus.connected &&
+          generation == _connectionGeneration) {
+        return;
+      }
+      if (!completer.isCompleted) {
+        completer.completeError(SocketNotConnectedException(event));
+      }
+    }
+
+    final removeStatusListener = onStatusChange(finishWithDisconnect);
+    // Disconnect can happen between the readiness check and listener
+    // registration. Recheck both the generation and the socket before send.
+    if (generation != _connectionGeneration ||
+        _socket != socket ||
+        _status != ConnectionStatus.connected) {
+      removeStatusListener();
+      throw SocketNotConnectedException(event);
+    }
     socket.emitWithAck(
       event,
       data,
@@ -870,6 +896,8 @@ class SocketIoClient {
     } on TimeoutException {
       // Treat ACK timeout as transient — Socket.IO will retry or reconnect.
       throw SocketAckTimeoutException(event);
+    } finally {
+      removeStatusListener();
     }
   }
 
