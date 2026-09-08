@@ -14,6 +14,7 @@ class HttpTransportTiming {
   final Stopwatch clock = Stopwatch()..start();
   int? headersUs;
   int? bodyDoneUs;
+  int bodyBytes = 0;
   int? failedUs;
   int? callbackUs;
   String? lifecycleAtHeaders;
@@ -65,7 +66,10 @@ class TimedHttpAdapter implements HttpClientAdapter {
     HttpTransportTiming timing,
   ) async* {
     try {
-      yield* source;
+      await for (final chunk in source) {
+        timing.bodyBytes += chunk.length;
+        yield chunk;
+      }
       timing.bodyDoneUs = timing.clock.elapsedMicroseconds;
     } catch (_) {
       timing.failedUs = timing.clock.elapsedMicroseconds;

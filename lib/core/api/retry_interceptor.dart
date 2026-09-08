@@ -9,6 +9,15 @@ import '../services/token_refresh_manager.dart';
 import 'request_budget.dart';
 import 'timed_http_adapter.dart';
 
+/// Intentional cancellation reasons, distinct from deadlines and failures.
+enum HttpCancellationReason { appSuspended }
+
+/// Deadlines, disposal, and caller cancellation remain failures.
+bool isAppSuspensionCancellation(Object? error) =>
+    error is DioException &&
+    error.type == DioExceptionType.cancel &&
+    error.error == HttpCancellationReason.appSuspended;
+
 /// Returns true for transient connection errors that are not actionable
 /// (e.g. Cronet aborting a request because the OS killed the connection
 /// while the app was backgrounded).
@@ -86,7 +95,7 @@ class RetryInterceptor extends Interceptor {
     if (suspended) {
       for (final budget in _activeBudgets.toList()) {
         if (_isOptionalRead(budget.options)) {
-          budget.token.cancel('App suspended; refresh deferred until resume');
+          budget.token.cancel(HttpCancellationReason.appSuspended);
         }
       }
     }
@@ -159,7 +168,7 @@ class RetryInterceptor extends Interceptor {
       options.extra[RequestBudget.extraKey] = budget;
       _activeBudgets.add(budget);
       if (_suspended && _isOptionalRead(options)) {
-        budget.token.cancel('App suspended; refresh deferred until resume');
+        budget.token.cancel(HttpCancellationReason.appSuspended);
       }
     }
     if (options.cancelToken?.isCancelled == true) {

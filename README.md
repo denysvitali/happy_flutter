@@ -68,6 +68,11 @@ lib/
 - **Service/API Duality**: Some domains expose both a singleton `XxxService` (production) and an injectable `XxxApi` class (tests).
 - **Platform-Specific Code**: Conditional exports — `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`
 
+Background suspension cancels optional HTTP reads while retaining cached
+catalogs for resume. Telemetry distinguishes these cancellations from real
+failures and measures response bytes at the transport boundary instead of
+guessing from decoded JSON collection sizes.
+
 ## Technology Stack
 
 - **Flutter**: 3.41.x via mise (Dart 3.11+)

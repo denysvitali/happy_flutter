@@ -231,7 +231,7 @@ class ApiClient {
           _finishOtelHttpSpan(
             response.requestOptions,
             statusCode: response.statusCode,
-            responseBytes: _estimateResponseBytes(response),
+            responseBytes: responseBodyBytes(response),
           );
           return handler.next(response);
         },
@@ -241,7 +241,7 @@ class ApiClient {
             statusCode: error.response?.statusCode,
             responseBytes: error.response == null
                 ? null
-                : _estimateResponseBytes(error.response!),
+                : responseBodyBytes(error.response!),
             error: error,
             stackTrace: error.stackTrace,
           );
@@ -263,7 +263,7 @@ class ApiClient {
           _recordTrackedRequest(
             response.requestOptions,
             response.statusCode,
-            _estimateResponseBytes(response),
+            responseBodyBytes(response),
           );
           return handler.next(response);
         },
@@ -409,10 +409,15 @@ class ApiClient {
     String? outcomeOverride,
     String? errorTypeOverride,
   }) {
-    final errorType = error?.type.name ?? errorTypeOverride;
+    final lifecycleCancellation = isAppSuspensionCancellation(error);
+    final errorType = lifecycleCancellation
+        ? null
+        : error?.type.name ?? errorTypeOverride;
     final outcome =
         outcomeOverride ??
-        (error != null
+        (lifecycleCancellation
+            ? 'cancelled'
+            : error != null
             ? 'transport_error'
             : (statusCode != null && statusCode >= 400
                   ? 'http_error'
@@ -423,6 +428,7 @@ class ApiClient {
       'http.route': normalizePathForTracing(options.path),
       'phase': phase,
       'outcome': outcome,
+      if (lifecycleCancellation) 'http.cancellation.reason': 'app_suspended',
       'http.cache_hit': options.extra['fromCache'] == true,
       if (statusCode != null) ...<String, Object?>{
         'http.response.status_code': statusCode,
@@ -584,12 +590,19 @@ class ApiClient {
         ?..setAttribute('http.retry_count', retryCount)
         ..setAttribute('http.attempt', retryCount + 1);
     }
-    if (error != null) {
+    final lifecycleCancellation = isAppSuspensionCancellation(error);
+    if (lifecycleCancellation) {
+      span?.setAttribute('http.cancellation.reason', 'app_suspended');
+    } else if (error != null) {
       span
         ?..setAttribute('error.type', error.type.name)
         ..recordError(error, stackTrace);
     }
-    span?.end(ok: error == null && (statusCode == null || statusCode < 500));
+    span?.end(
+      ok:
+          (error == null || lifecycleCancellation) &&
+          (statusCode == null || statusCode < 500),
+    );
   }
 
   @visibleForTesting
@@ -676,22 +689,25 @@ class ApiClient {
     return 0;
   }
 
-  static int? _estimateResponseBytes(Response<dynamic> response) {
+  /// Bytes observed at the adapter boundary, without re-encoding decoded JSON.
+  /// A stream is complete only after its final chunk; partial counts and
+  /// collection-size guesses must never be reported as a response body size.
+  @visibleForTesting
+  static int? responseBodyBytes(Response<dynamic> response) {
+    final timing =
+        response.requestOptions.extra[HttpTransportTiming.extraKey]
+            as HttpTransportTiming?;
+    if (timing?.bodyDoneUs != null) return timing!.bodyBytes;
     final cl = response.headers.value(Headers.contentLengthHeader);
-    if (cl != null) {
-      final parsed = int.tryParse(cl);
-      if (parsed != null && parsed > 0) return parsed;
-    }
+    final declaredBytes = cl == null ? null : int.tryParse(cl);
+    if (declaredBytes != null && declaredBytes >= 0) return declaredBytes;
+    // Bytes responses are already encoded. Decoded collections/strings have
+    // unknown wire size when no transport measurement or header is present.
     final data = response.data;
-    if (data == null) return 0;
-    if (data is String) return data.length;
-    if (data is List<int>) return data.length;
-    // For Map/List, skip expensive jsonEncode — use rough approximation.
-    if (data is Map) {
-      // ~250 bytes per entry on average (keys + values overhead).
-      return data.length * 250;
+    if (response.requestOptions.responseType == ResponseType.bytes &&
+        data is List<int>) {
+      return data.length;
     }
-    if (data is List) return data.length * 150;
     return null;
   }
 
