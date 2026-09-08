@@ -2,7 +2,83 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-05
+**Last Updated**: 2026-09-08
+
+### Production audit, 2026-09-08 (builds 277800 / 277900)
+
+Three parallel audits used GlitchTip, Loki, Jaeger and Prometheus for
+September 7 06:40 through September 8 06:40 UTC. Five implementation agents
+handled the confirmed source defects and CI failure. Counts below are exact
+bounded Loki counts or explicitly labeled estimates; GlitchTip issue totals
+are lifetime counts. No issues were resolved or ignored.
+
+- **P0: partial message-batch delivery gap.** Loki recorded two message-store
+  deadline failures and three row-lock retry warnings. Source inspection and
+  failing-then-passing contract tests confirmed that a later failed chunk
+  discarded the earlier committed results, preventing their live notification;
+  retries deduplicated those rows and never notified them. Go commit `a9ef61a`
+  returns and notifies the committed prefix before the error, reserves event
+  sequences before persistence, and detaches bounded fanout from request
+  cancellation. Tests cover canonical IDs, identical content with distinct
+  IDs, canceled requests and retry notification counts. The observed store
+  errors do not prove production message loss. Process-crash-safe notification
+  still requires a transactional event outbox; replay remains the fallback.
+- **P1: Bash RPC timeout cleanup.** Build 277900 reported a 30,003ms ACK
+  timeout at 06:06:41 while socket and machine heartbeats remained healthy.
+  Server request `mrpc_2e2b554dbf86ec4037cb3a77` retried through Redis at
+  approximately +3/+9/+21s. A separate source defect was reproduced: a 200ms
+  Bash timeout returned after five seconds and left descendants running.
+  Go `f513cc9` stops the Unix process group and bounds pipe draining to 250ms;
+  RPC tests, targeted race tests and vet passed. Its role in that specific
+  production timeout is unproven; monitor after rollout.
+- **False suspension errors, fixed in source.** GlitchTip 8771/8772 contain
+  six lifetime machine-fetch cancellation events on 277800. Jaeger trace
+  `cd0cd3859a88325d4cb1c5d4ea7b6c9b` also marks an intentionally suspended
+  sessions GET as ERROR. Flutter `b2c46d1c` / `3373d1a5` use a typed lifecycle
+  reason for spans, metrics, machine fetch and exhausted refresh logging.
+  Cached state and failed-attempt recovery remain intact; deadline, disposal
+  and arbitrary cancellation errors stay visible.
+- **Incorrect payload telemetry, fixed in source.** Trace
+  `aafd207dbab01b5c8b879bc41bc40f85` reports 1,198,850 server bytes but only
+  500 client bytes because the client guessed from top-level JSON map size.
+  Flutter `b2c46d1c` counts consumed adapter bytes and omits unknown decoded
+  sizes. That sample took 9.396s client-side versus 88.962ms server-side
+  (5.694s to headers, 3.670s consuming the body); it does not establish a
+  database bottleneck.
+- **CI artifact quota.** Go Test run 34183970130 and Benchmarks run
+  34167335781 failed solely while uploading diagnostics. Go `be33fb2` makes
+  those uploads best-effort with visible warnings and three-day retention.
+  Test/benchmark failures and required release artifacts remain blocking.
+
+Operational follow-up remains necessary:
+
+- The observed server runs `4f97bfd8b97e` (August 27), 29 commits behind the
+  pre-audit Go HEAD `3226917`. Verify deployment of the new fixes and previous
+  lifecycle/RPC fixes; a source commit or published image is not rollout proof.
+- Push is disabled by missing FCM configuration: 15 Loki `/v1/push/send-all`
+  501 responses, with Prometheus `unconfigured` increase approximately 15.
+  Supply the server's `FCM_PROJECT_ID` and application credentials; retries
+  cannot repair missing provider configuration.
+- Daemon logs show 15 Kubernetes API deadline/lease-loss cycles, each recovering
+  at attempt 1/5. Recent heartbeats are healthy. Inspect control-plane latency
+  if this repeats; lowercase/unknown severity labels require text filtering.
+- Settings-write timeout recovery (4717, 17 lifetime) remains open. Existing
+  uncommitted settings work was preserved and is outside this batch.
+- CLI GlitchTip has no events newer than July 18; verify ingestion and release
+  labels before using an empty recent issue page as health evidence. Observed
+  server/CLI environment labels are `dev` / `unknown`.
+
+Prometheus estimates for the audit window: fetchMessages p95 1.72s (about 370
+observations), send p95 0.746s (about 41), chat content-ready p95 0.474s. Of
+approximately 173,431 chat frames, 873 were slow (0.50%) and 20 frozen (0.012%).
+These are limited samples, not a fleet availability or send-success ratio.
+Short-lived counters can miss initial events; absent series do not mean zero
+failures. One 445.77s CLI DNS error span is still unexplained: both the trace
+revision and current source already have 30s connection and 15s dial limits.
+
+Flutter regression execution and full Go/PostgreSQL verification use CI;
+targeted local Go contracts passed, with database-dependent cases skipped
+because `DATABASE_URL` was unset. Post-deployment observation is still needed.
 
 ### Production audit, 2026-09-05 (build 277500)
 
@@ -1497,8 +1573,10 @@ resolved or ignored.
 
 | Issue | Severity | Count | Status | Description |
 |-------|----------|-------|--------|-------------|
+| Committed batch prefix misses live notification | P0 | 2 store deadlines / audit 24h; loss not proven | Source fix `happy-cli-go a9ef61a`; verify rollout | Failed later chunks used to discard prior committed results; retry deduplication suppressed their notification. Deterministic contract now covers prefix fanout and retry identity. |
+| Expected machine-refresh suspension reported as error (8771/8772) | Error telemetry | 6 lifetime | Source fix `b2c46d1c` / `3373d1a5`; verify rollout | Build 277800 cancellation is now typed and logged without an error span; cached machines and retry state survive. True deadline failures remain errors. |
 | Settings POST timeout swallowed (4717) | Warning | 17 issue total | Open — P1 | Build 277500: 10s POST wrapper times out, then sync queue reports success with zero retries. Pending edits remain but recovery needs another invalidation; reconcile late POST completion and version conflicts. See September 5 audit. |
-| Machine RPC timeout / slow ping (3702/3627) | Warning | 24 / 318 issue totals | Open — investigate deployed routing | Build 277500: Bash ACK timeout at 30s and ping at 3,066ms. Client Loki confirms ping; no matched server/daemon evidence establishes cause. |
+| Machine RPC timeout / slow ping (3702/3627) | Warning | Current-build recurrence | Open — verify Bash cleanup and deployed routing | Build 277900 Bash ACK timeout at 30s correlates with server Redis retries. Go `f513cc9` fixes independently reproduced descendant pipe hangs; causality for the live RPC remains unproven. See September 8 audit. |
 | Retry deadline overshoot / background refresh burst (8770/8769/8768/8767/8667) | Warning / Error | 1 / 1 / 1 / 1 / 2 | Open — P1 | Build 276200: 20s budget lasts about 33s after suspension. Bound each attempt and overall deadline; preserve offline outbox identity. See September 4 audit. |
 | Send target resolution / default-profile respawn (5198) | Warning | 161 issue total | Open — P1 investigation | Build 276300: 3.16s target resolution versus 64ms POST; Loki correlates capability RPC forward retry. Verify profile identity and routing separately. |
 | Stack overflow (8750) | Error | 1 | Open — needs exact-build symbols | Build 275100 already contains d3185a0e; native-address-only stack does not identify the cause. |
