@@ -55,7 +55,7 @@ dependencies:
   fuzzy: ^0.5.1
   # record 7.x requires Dart >=3.12 (Flutter 3.44), but mise pins Flutter
   # 3.41 (Dart 3.11). Keep 6.x until the project moves to Flutter 3.44+.
-  record: ^6.2.1
+  record: ^7.0.0
   archive: ^4.0.9
   sherpa_onnx: ^1.13.0
 
