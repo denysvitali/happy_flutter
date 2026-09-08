@@ -137,6 +137,15 @@ void main() {
     testWidgets('takeover without MaterialApp does not throw', (tester) async {
       final originalOnError = FlutterError.onError;
       final originalBuilder = ErrorWidget.builder;
+      final injectedError = StateError('boom');
+      // The boundary intentionally forwards new errors to the previous
+      // handler. Ignore only this injected error; report unexpected fallback
+      // failures normally, regardless of the cross-test dedupe window.
+      FlutterError.onError = (details) {
+        if (!identical(details.exception, injectedError)) {
+          originalOnError?.call(details);
+        }
+      };
       addTearDown(() {
         FlutterError.onError = originalOnError;
         ErrorWidget.builder = originalBuilder;
@@ -146,9 +155,7 @@ void main() {
         ProviderScope(child: ErrorBoundary(child: const SizedBox.shrink())),
       );
 
-      FlutterError.onError?.call(
-        FlutterErrorDetails(exception: StateError('boom')),
-      );
+      FlutterError.onError?.call(FlutterErrorDetails(exception: injectedError));
       await tester.pump();
 
       expect(tester.takeException(), isNull);

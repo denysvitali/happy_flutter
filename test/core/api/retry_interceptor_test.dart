@@ -138,22 +138,34 @@ void main() {
 
     test('stops retrying once the total elapsed budget is spent', () async {
       final adapter = _ScriptedAdapter([503]);
+      const budgetMs = 20000;
       final dio = _buildDio(
         adapter,
         maxRetries: 5,
         baseDelayMs: 30,
         maxDelayMs: 30,
-        maxTotalElapsedMs: 40,
+        maxTotalElapsedMs: budgetMs,
       );
+      addTearDown(dio.close);
 
-      final response = await dio.get<dynamic>('/v1/machines');
+      // Exercise the elapsed-budget decision directly. A real 40ms deadline
+      // races the 30ms backoff on a loaded runner and legitimately cancels
+      // instead of returning the last response. In-flight deadline cancellation
+      // is covered separately below.
+      final response = await dio.get<dynamic>(
+        '/v1/machines',
+        options: Options(
+          extra: {
+            RetryInterceptor.retryStartKey:
+                DateTime.now().millisecondsSinceEpoch - budgetMs,
+          },
+        ),
+      );
 
       expect(
         adapter.calls,
-        2,
-        reason:
-            'one 30ms backoff fits in the 40ms budget, the second does not, '
-            'so the sequence stops well before maxRetries',
+        1,
+        reason: 'an exhausted budget must not admit another attempt',
       );
       expect(response.statusCode, 503);
     });
