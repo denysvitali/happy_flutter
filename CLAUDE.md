@@ -272,6 +272,12 @@ catalog.
 
 See @docs/SYNC_PATTERNS.md for subscription template and details.
 
+HTTP suspension cancellations carry `HttpCancellationReason.appSuspended`.
+They remain failed refresh attempts with cached state preserved, but do not
+produce error spans or machine-fetch errors. Deadlines, disposal and arbitrary
+caller cancellation remain errors. HTTP response sizes use consumed adapter
+bytes or a declared size; unknown decoded JSON sizes are omitted.
+
 ### Navigation
 
 Routes defined in `lib/core/routing/app_router.dart` (not `main.dart`). 57 flat `GoRoute` entries. Use named routes:

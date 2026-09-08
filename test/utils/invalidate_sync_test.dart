@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/api/retry_interceptor.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -436,6 +438,61 @@ void main() {
         );
         expect(levels, isNotEmpty);
         expect(levels.every((l) => l == LogLevel.error), isTrue);
+      });
+
+      test(
+        'suspension cancellation logs at info and retains failure',
+        () async {
+          logger.clear();
+          final failure = DioException(
+            requestOptions: RequestOptions(path: '/v1/machines'),
+            type: DioExceptionType.cancel,
+            error: HttpCancellationReason.appSuspended,
+          );
+          var suspended = true;
+          final sync = InvalidateSync(() async {
+            if (suspended) throw failure;
+          }, maxRetries: 0);
+          addTearDown(sync.dispose);
+
+          sync.invalidate();
+          await expectLater(sync.awaitQueue(), throwsA(same(failure)));
+
+          expect(hasUnrecoveredSyncFailure(sync), isTrue);
+          expect(
+            logger.getLogs().where(
+              (entry) =>
+                  entry.message.contains('max retries exceeded') &&
+                  entry.level == LogLevel.error,
+            ),
+            isEmpty,
+          );
+          expect(
+            logger.getLogs().where(
+              (entry) =>
+                  entry.message.contains('app suspended;') &&
+                  entry.level == LogLevel.info,
+            ),
+            hasLength(1),
+          );
+
+          suspended = false;
+          sync.invalidate();
+          await sync.awaitQueue();
+          expect(hasUnrecoveredSyncFailure(sync), isFalse);
+        },
+      );
+
+      test('deadline cancellation still logs at error', () async {
+        final levels = await exhaustAndCollectLevels(
+          DioException(
+            requestOptions: RequestOptions(path: '/v1/machines'),
+            type: DioExceptionType.cancel,
+            error: 'Request deadline exceeded',
+          ),
+        );
+        expect(levels, isNotEmpty);
+        expect(levels.every((level) => level == LogLevel.error), isTrue);
       });
     });
   });

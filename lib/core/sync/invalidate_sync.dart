@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../api/retry_interceptor.dart';
 import '../services/failure_telemetry.dart';
 import '../services/logger_service.dart';
 import '../services/power_diagnostics_service.dart';
@@ -283,7 +284,12 @@ class InvalidateSync {
           // defects (GlitchTip 4900/8573). Server-side failures (receive
           // timeouts, 5xx) stay at error level — they are the brownout
           // signal.
-          if (isConnectionLevelNetworkError(error)) {
+          if (isAppSuspensionCancellation(error)) {
+            logger.info(
+              'InvalidateSync: max retries exceeded (app suspended; '
+              'retry re-arms on next invalidation) name=${_name ?? 'unknown'}',
+            );
+          } else if (isConnectionLevelNetworkError(error)) {
             logger.info(
               'InvalidateSync: max retries exceeded (network transition; '
               'retry re-arms on next invalidation) name=${_name ?? 'unknown'} '

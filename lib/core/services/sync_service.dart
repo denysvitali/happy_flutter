@@ -12,6 +12,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../sentry_config.dart';
 import '../api/api_client.dart';
+import '../api/retry_interceptor.dart';
 import '../api/sessions_api.dart';
 import '../api/socket_io_client.dart';
 import '../encryption/aes_gcm.dart';

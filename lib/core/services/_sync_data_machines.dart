@@ -494,6 +494,12 @@ extension SyncDataMachines on Sync {
         throw StateError('fetchMachines failed: statusCode=$statusCode');
       }
     } catch (error, stack) {
+      if (isAppSuspensionCancellation(error)) {
+        // Lifecycle cancellation is expected. Preserve both the cached
+        // catalog and the failed attempt so the sync manager can retry.
+        logger.info('fetchMachines: request canceled');
+        rethrow;
+      }
       if (Sync._isTransientConnectionError(error)) {
         unawaited(
           Sentry.addBreadcrumb(
