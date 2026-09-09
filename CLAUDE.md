@@ -363,6 +363,11 @@ import 'package:flutter/material.dart' hide TabBar;
 source cards. Keep the entire card tappable for HTTP(S) URLs, with a separate
 domain line and visible browser-launch failure feedback.
 
+**Display text:** Session previews and profile avatar initials must use
+`characters` (grapheme clusters), never UTF-16 indexing or fixed-offset
+`substring` cuts. Sanitize malformed remote text before rendering; ingestion
+sanitization cannot prevent a later display slice from splitting an emoji.
+
 **Screen types:**
 - `ConsumerStatefulWidget` + `ConsumerState` — screens with local state or sync subscriptions (majority)
 - `ConsumerWidget` — stateless read-only screens

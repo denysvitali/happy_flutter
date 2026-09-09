@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/utf16_sanitizer.dart';
 
 /// A settings row that shows a horizontal strip of profile avatar circles
 /// (up to [maxVisible]) plus a "See all" trailing chevron.
@@ -149,7 +150,7 @@ class _ProfileAvatar extends StatelessWidget {
         ? colorForProfile(profile.id)
         : cs.primary;
     final initial = profile.name.isNotEmpty
-        ? profile.name[0].toUpperCase()
+        ? sanitizeUtf16(profile.name).characters.first.toUpperCase()
         : '?';
     final fontSize = size * 0.45;
 

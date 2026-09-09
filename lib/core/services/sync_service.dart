@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:isolate';
 import 'dart:math';
 
+import 'package:characters/characters.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
@@ -73,6 +74,7 @@ import '../types/message_retry_result.dart';
 // ignore: unused_import
 import '../types/message_state.dart';
 import '../types/remote_feature_failure.dart';
+import '../utils/utf16_sanitizer.dart';
 import '../utils/image_content_blocks.dart';
 import '../utils/codex_provider_config.dart';
 import '../sync/invalidate_sync.dart';
@@ -1769,8 +1771,10 @@ what you have, you must use the options mode.
     ]) {
       final value = input[key];
       if (value is String && value.trim().isNotEmpty) {
-        final hint = value.trim();
-        return hint.length > 60 ? '${hint.substring(0, 60)}…' : hint;
+        final hint = sanitizeUtf16(value).trim();
+        return hint.characters.length > 60
+            ? '${hint.characters.take(60)}…'
+            : hint;
       }
     }
     return null;
@@ -1779,7 +1783,7 @@ what you have, you must use the options mode.
   /// Strips markdown formatting, collapses whitespace, and truncates
   /// [raw] to a clean single-line preview string.
   static String _cleanPreviewText(String raw) {
-    var text = raw;
+    var text = sanitizeUtf16(raw);
     // Fenced code blocks
     text = text.replaceAll(
       RegExp(r'```[\s\S]*?```', multiLine: true),
@@ -1805,8 +1809,8 @@ what you have, you must use the options mode.
     // Collapse whitespace
     text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
     // Truncate
-    if (text.length > _kPreviewMaxLen) {
-      text = '${text.substring(0, _kPreviewMaxLen)}…';
+    if (text.characters.length > _kPreviewMaxLen) {
+      text = '${text.characters.take(_kPreviewMaxLen)}…';
     }
     return text;
   }

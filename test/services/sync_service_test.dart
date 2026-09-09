@@ -1087,6 +1087,44 @@ void main() {
       expect(instance.getLastMessagePreview('s1'), isNull);
     });
 
+    test('preview truncation preserves a boundary emoji', () {
+      final prefix = 'a' * 119;
+      instance.testSetSessionMessages('unicode-preview', [
+        {'role': 'user', 'text': '${prefix}👩🏽‍💻 trailing', 'createdAt': 1},
+      ]);
+      expect(
+        instance.getLastMessagePreview('unicode-preview'),
+        '${prefix}👩🏽‍💻…',
+      );
+    });
+
+    test('preview replaces malformed cached text before display', () {
+      instance.testSetSessionMessages('malformed-preview', [
+        {'role': 'user', 'text': 'bad \uD800 text', 'createdAt': 1},
+      ]);
+      expect(
+        instance.getLastMessagePreview('malformed-preview'),
+        'bad \uFFFD text',
+      );
+    });
+
+    test('tool hint truncation preserves a boundary emoji', () {
+      final prefix = 'a' * 59;
+      instance.testSetSessionMessages('unicode-tool', [
+        {
+          'role': 'agent',
+          'kind': 'tool-call',
+          'name': 'Bash',
+          'input': {'command': '${prefix}😀 trailing'},
+          'createdAt': 1,
+        },
+      ]);
+      expect(
+        instance.getLastMessagePreview('unicode-tool'),
+        'Used Bash · ${prefix}😀…',
+      );
+    });
+
     test('finds last user message', () {
       instance.testSetSessionMessages('s1', [
         {'role': 'agent', 'text': 'hello', 'createdAt': 1},

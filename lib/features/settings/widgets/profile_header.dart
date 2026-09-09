@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/profile.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/utf16_sanitizer.dart';
 import '../../../core/widgets/network_avatar_image.dart';
 
 /// Compact account summary used at the top of Settings.
@@ -14,17 +15,19 @@ class ProfileHeader extends StatelessWidget {
 
   static String _initialForName(String value) {
     if (value.isEmpty) return '?';
-    return value.substring(0, 1).toUpperCase();
+    return value.characters.first.toUpperCase();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final name = profile?.displayName?.trim();
+    final name = sanitizeUtf16(profile?.displayName ?? '').trim();
     final avatarUrl = profile?.avatarUrl;
-    final displayName = (name == null || name.isEmpty) ? 'Happy' : name;
-    final bio = profile?.bio ?? 'Secure mobile companion for your sessions';
+    final displayName = name.isEmpty ? 'Happy' : name;
+    final bio = sanitizeUtf16(
+      profile?.bio ?? 'Secure mobile companion for your sessions',
+    );
 
     return Semantics(
       button: onTap != null,

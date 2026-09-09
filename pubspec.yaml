@@ -9,6 +9,7 @@ environment:
   flutter: '>=3.38.0'
 
 dependencies:
+  characters: ^1.4.0
   flutter:
     sdk: flutter
   flutter_localizations:
