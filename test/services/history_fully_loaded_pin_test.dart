@@ -243,6 +243,56 @@ void main() {
     expect(sync.testHistoryFullyLoaded(sessionId), isFalse);
     expect(sync.hasOlderMessages(sessionId), isTrue);
   });
+
+  test('a boundary frozen at 1 is repaired once seq 1 leaves the window', () {
+    // Production shape, 2026-09-11 (sessions cbc91e75…/c085d4fd…, 8k and
+    // 16k seqs): the orphan walk-back reaches startSeq 0 and writes the
+    // resident minimum, which lands on 1. `hasOlderMessages` is
+    // `boundary > 1`, so a 1 reads as "beginning of conversation" — the
+    // chat renders the label over a window that no longer holds the start
+    // and `fetchOlderMessages` early-returns on `firstLoaded <= 1` forever,
+    // because the repair hook only looked at 0/null boundaries.
+    sync.testSetSessionFirstLoadedSeq(sessionId, 1);
+    sync.testSetSessionMessages(sessionId, [_msg('m-900', 900)]);
+    expect(sync.hasOlderMessages(sessionId), isFalse);
+
+    // A tail row arrives through the real upsert path — far below the cap,
+    // so nothing is trimmed. The oldest resident row is seq 900 now.
+    sync.testUpsertSessionMessages(sessionId, [_msg('m-901', 901)]);
+
+    expect(
+      sync.testSessionFirstLoadedSeq(sessionId),
+      900,
+      reason: 'the boundary must follow the in-memory minimum, not stay at 1',
+    );
+    expect(
+      sync.hasOlderMessages(sessionId),
+      isTrue,
+      reason: 'seq 1 is gone — older messages must stay loadable instead of '
+          'a dead "beginning of conversation"',
+    );
+    expect(sync.testHistoryFullyLoaded(sessionId), isFalse);
+  });
+
+  test('locally-seeded rows (seq <= 0) never define the boundary', () {
+    // createSession seeds the initial message with `seq: 0` and the send
+    // coordinator uses `seq: -1`. Those are not server history; counting
+    // them drags the resident minimum to 0, which every repair guard reads
+    // as "already handled" and which flips `hasOlderMessages` false.
+    sync.testSetSessionFirstLoadedSeq(sessionId, 0);
+    sync.testSetSessionMessages(sessionId, [
+      _msg('initial-1', 0),
+      _msg('m-900', 900),
+    ]);
+    sync.testUpsertSessionMessages(sessionId, [_msg('m-901', 901)]);
+
+    expect(
+      sync.testSessionFirstLoadedSeq(sessionId),
+      900,
+      reason: 'a pending local row is not the beginning of the transcript',
+    );
+    expect(sync.hasOlderMessages(sessionId), isTrue);
+  });
 }
 
 Map<String, dynamic> _msg(String id, int seq) => <String, dynamic>{

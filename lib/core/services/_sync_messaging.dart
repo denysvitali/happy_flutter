@@ -1908,17 +1908,26 @@ extension SyncMessaging on Sync {
   bool _sessionWindowAtTrimCap(String sessionId) =>
       (_sessionMessages[sessionId]?.length ?? 0) >= _sessionTrimCap(sessionId);
 
-  /// Smallest `seq` currently resident for [sessionId], or null when the
-  /// window is empty. The list is createdAt-ordered, so the minimum is
-  /// almost always the head; the scan stays because out-of-order createdAt
-  /// values can bury a lower seq deeper in.
+  /// Smallest server `seq` currently resident for [sessionId], or null when
+  /// the window holds no server history. The list is createdAt-ordered, so
+  /// the minimum is almost always the head; the scan stays because
+  /// out-of-order createdAt values can bury a lower seq deeper in.
+  ///
+  /// Rows with `seq <= 0` are local-only placeholders (optimistic sends and
+  /// the `initial-…` row `createSession` seeds with `seq: 0`; the send
+  /// coordinator uses `-1`), not server history. Counting them would drag
+  /// the boundary to 0 and make the chat render "beginning of conversation"
+  /// while the real transcript is still paged out — and no writer can ever
+  /// re-arm a boundary of 0 because `_ensureFirstLoadedSeq` only repairs
+  /// values that say "not loaded yet".
   int? _minLoadedSeq(String sessionId) {
     final messages = _sessionMessages[sessionId];
     if (messages == null || messages.isEmpty) return null;
     int? minSeq;
     for (final m in messages) {
       final seq = m['seq'] as int?;
-      if (seq != null && (minSeq == null || seq < minSeq)) {
+      if (seq == null || seq <= 0) continue;
+      if (minSeq == null || seq < minSeq) {
         minSeq = seq;
       }
     }
@@ -1943,9 +1952,18 @@ extension SyncMessaging on Sync {
     if (_sessionsHistoryFullyLoaded.contains(sessionId)) return;
 
     final current = _sessionFirstLoadedSeq[sessionId];
-    // Only fix when the boundary claims "all loaded" (0 or null) but
-    // in-memory data suggests otherwise.
-    if (current != null && current != 0) return;
+    // Repair a boundary that says "no older messages" (0, 1 or null) but
+    // in-memory data contradicts it. A boundary of exactly 1 is treated as
+    // repairable too: the orphan walk-back writes the resident minimum when
+    // it reaches startSeq 0, so `1` means "seq 1 was resident at that
+    // instant", not "the start is permanently loaded". Once the newest-N
+    // trim drops that row the in-memory minimum rises, and because
+    // `hasOlderMessages` is `boundary > 1` a frozen 1 leaves the chat
+    // showing a false "beginning of conversation" with scroll-back dead —
+    // `fetchOlderMessages` early-returns on `firstLoaded <= 1`. Observed in
+    // production 2026-09-11 on 8k/16k-seq sessions whose orphan sweep
+    // repeatedly walked to seq 0.
+    if (current != null && current > 1) return;
 
     final minSeq = _minLoadedSeq(sessionId);
     if (minSeq != null && minSeq > 1) {
