@@ -19,6 +19,7 @@ import '../../core/utils/snack.dart';
 import 'send/chat_attachment_controller.dart';
 import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
+import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_input_buttons.dart';
 import 'widgets/file_autocomplete.dart';
 import 'widgets/fullscreen_composer.dart';
@@ -809,44 +810,83 @@ class _ChatInputState extends ConsumerState<ChatInput>
               ),
             ],
           ),
-          Divider(
-            height: AppBorder.hairline,
-            thickness: AppBorder.hairline,
-            indent: AppSpacing.md,
-            endIndent: AppSpacing.md,
-            color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xsm,
-              AppSpacing.xxs,
-              AppSpacing.xs,
-              AppSpacing.xxs,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: InputToolbar(
-                    permissionMode: widget.permissionMode,
-                    onPermissionModeChanged: widget.onPermissionModeChanged,
-                    modelMode: widget.modelMode,
-                    availableModels: widget.availableModels,
-                    onShowModelPicker: () => widget.onModelModeChanged != null
-                        ? _showModelPicker(context)
-                        : null,
-                    selectedProfile: widget.selectedProfile,
-                    onShowProfilePicker: () => _showProfilePicker(context),
-                    contextSize: widget.contextSize,
-                    sessionFlavor: widget.sessionFlavor,
-                    maxContext: widget.maxContext,
-                  ),
-                ),
-                ExpandComposerButton(onTap: _openFullscreenComposer),
-              ],
-            ),
-          ),
+          _buildSelectorRow(context, cs),
         ],
       ),
+    );
+  }
+
+  /// The composer's second row — permission mode, model, profile, context
+  /// usage, and the full-screen-expand affordance.
+  ///
+  /// A **tight** chat pane (Android split screen, a short desktop window)
+  /// cannot afford it while the user is reading: two rows of composer plus
+  /// the app bar and the activity chrome cost more than the pane, and the
+  /// transcript is what gets squeezed out. The row therefore folds away when
+  /// the field is idle and empty and returns the moment the field is focused
+  /// or holds content, so every control stays one tap on the message field
+  /// away. Full-height panes always keep it. The fold is intentionally
+  /// unintimated — it coincides with the keyboard's own open/close
+  /// animation, which already moves the field.
+  Widget _buildSelectorRow(BuildContext context, ColorScheme cs) {
+    final density = ChatChromeScope.of(context);
+    if (!density.isTight) return _selectorRow(context, cs);
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        _isFocused,
+        widget.controller,
+        if (widget.attachmentController != null) widget.attachmentController!,
+      ]),
+      builder: (context, _) {
+        if (!_isFocused.value && !_hasSendableContent) {
+          return const SizedBox.shrink();
+        }
+        return _selectorRow(context, cs);
+      },
+    );
+  }
+
+  Widget _selectorRow(BuildContext context, ColorScheme cs) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Divider(
+          height: AppBorder.hairline,
+          thickness: AppBorder.hairline,
+          indent: AppSpacing.md,
+          endIndent: AppSpacing.md,
+          color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xsm,
+            AppSpacing.xxs,
+            AppSpacing.xs,
+            AppSpacing.xxs,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: InputToolbar(
+                  permissionMode: widget.permissionMode,
+                  onPermissionModeChanged: widget.onPermissionModeChanged,
+                  modelMode: widget.modelMode,
+                  availableModels: widget.availableModels,
+                  onShowModelPicker: () => widget.onModelModeChanged != null
+                      ? _showModelPicker(context)
+                      : null,
+                  selectedProfile: widget.selectedProfile,
+                  onShowProfilePicker: () => _showProfilePicker(context),
+                  contextSize: widget.contextSize,
+                  sessionFlavor: widget.sessionFlavor,
+                  maxContext: widget.maxContext,
+                ),
+              ),
+              ExpandComposerButton(onTap: _openFullscreenComposer),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

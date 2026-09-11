@@ -14,6 +14,7 @@ import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'agents_list_sheet.dart';
+import 'chat_chrome_density.dart';
 
 /// Sticky banner shown above the chat messages when a session has any
 /// spawned sub-agents (Task/Agent tool calls). Communicates overall
@@ -299,10 +300,15 @@ class _BannerBody extends StatelessWidget {
     }
     final dimForeground = foregroundColor.withValues(alpha: 0.8);
 
+    // Short panes drop the floating margin and the row's breathing room —
+    // the banner is a status signal, not a destination, and the transcript
+    // needs the height more than the card needs its silhouette.
+    final dense = ChatChromeScope.of(context).isDense;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        vertical: dense ? AppSpacing.xxs : AppSpacing.xs,
       ),
       child: Material(
         color: backgroundColor,
@@ -329,9 +335,9 @@ class _BannerBody extends StatelessWidget {
                 minHeight: AppTouchTarget.min,
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                   horizontal: AppSpacing.smd,
-                  vertical: AppSpacing.xsm,
+                  vertical: dense ? AppSpacing.xxs : AppSpacing.xsm,
                 ),
                 child: Row(
                   children: [

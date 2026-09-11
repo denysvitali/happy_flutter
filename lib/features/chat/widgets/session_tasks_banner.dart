@@ -12,6 +12,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'chat_chrome_density.dart';
 
 /// A sticky banner at the bottom of the chat session that shows the
 /// current agent task list for the active session.
@@ -54,15 +55,19 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     final total = items.length;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    // A short pane cannot afford the two-line header, the 32 px tile and the
+    // segmented meter — see ChatChromeDensity. The dense form keeps the same
+    // tap-to-expand row and "View all" link, just on one line.
+    final dense = ChatChromeScope.of(context).isDense;
 
     // Aurora glass dock: a floating capsule above the composer instead of a
     // full-width slab, so the composer stays the hero and progress reads as
     // material. The expanded list keeps the capsule's rounded silhouette.
     final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        vertical: dense ? AppSpacing.xxs : AppSpacing.xs,
       ),
       child: Material(
         color: cs.surfaceContainerLow.withValues(alpha: 0.92),
@@ -84,6 +89,7 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
               running: running,
               total: total,
               expanded: _expanded,
+              dense: dense,
               onTap: () {
                 HapticFeedback.selectionClick();
                 setState(() => _expanded = !_expanded);
@@ -123,6 +129,7 @@ class _Header extends StatelessWidget {
     required this.expanded,
     required this.onTap,
     required this.onViewAll,
+    this.dense = false,
   });
 
   final int completed;
@@ -131,6 +138,10 @@ class _Header extends StatelessWidget {
   final bool expanded;
   final VoidCallback onTap;
   final VoidCallback onViewAll;
+
+  /// Renders the one-line header for short panes: no icon tile, no
+  /// segmented meter, no stacked labels.
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -155,107 +166,28 @@ class _Header extends StatelessWidget {
               child: InkWell(
                 onTap: onTap,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: AppTouchTarget.comfortable,
+                  constraints: BoxConstraints(
+                    minHeight: dense
+                        ? AppTouchTarget.min
+                        : AppTouchTarget.comfortable,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsets.fromLTRB(
                       AppSpacing.md,
-                      AppSpacing.xsm,
+                      dense ? AppSpacing.xxs : AppSpacing.xsm,
                       AppSpacing.xs,
-                      AppSpacing.xsm,
+                      dense ? AppSpacing.xxs : AppSpacing.xsm,
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          // All-done gets a filled success tile; active gets
-                          // the signature gradient — one glance tells you
-                          // whether the session's plan is finished.
-                          decoration: BoxDecoration(
-                            gradient: allDone
-                                ? null
-                                : LinearGradient(
-                                    colors: appCs.accentGradient,
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                            color: allDone
-                                ? AppColors.success.withValues(
-                                    alpha: AppOpacity.subtle,
-                                  )
-                                : null,
-                            borderRadius: BorderRadius.circular(AppRadius.smd),
+                    child: dense
+                        ? _denseRow(context, theme, cs, detailLabel, allDone)
+                        : _fullRow(
+                            context,
+                            theme,
+                            cs,
+                            appCs,
+                            detailLabel,
+                            allDone,
                           ),
-                          child: Icon(
-                            allDone
-                                ? Icons.check_rounded
-                                : Icons.checklist_rounded,
-                            size: AppIconSize.lg,
-                            color: allDone
-                                ? AppColors.success
-                                : Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.smd),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                context.l10n.tasksTitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: cs.onSurface,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.1,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xxs),
-                              Text(
-                                detailLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.xs),
-                              _SegmentedProgress(
-                                key: const ValueKey('session-tasks-progress'),
-                                completed: completed,
-                                total: total,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: cs.surfaceContainerHighest.withValues(
-                              alpha: 0.7,
-                            ),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: AnimatedRotation(
-                            duration: AppDuration.fast,
-                            turns: expanded ? 0.5 : 0.0,
-                            child: Icon(
-                              Icons.expand_more_rounded,
-                              size: AppIconSize.lg,
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -277,6 +209,159 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(width: AppSpacing.xs),
       ],
+    );
+  }
+
+  /// Describes the plan in the space a two-line header would spend on
+  /// repetition: icon, title and progress all on the touch-target row.
+  Widget _denseRow(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme cs,
+    String detailLabel,
+    bool allDone,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(
+          allDone ? Icons.check_circle_rounded : Icons.checklist_rounded,
+          size: AppIconSize.md,
+          color: allDone ? AppColors.success : cs.primary,
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          context.l10n.tasksTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: cs.onSurface,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            detailLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        _ExpandChevron(expanded: expanded, cs: cs),
+      ],
+    );
+  }
+
+  /// The full-height header: gradient tile, stacked labels, segmented meter.
+  Widget _fullRow(
+    BuildContext context,
+    ThemeData theme,
+    ColorScheme cs,
+    AppColorScheme appCs,
+    String detailLabel,
+    bool allDone,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          // All-done gets a filled success tile; active gets the signature
+          // gradient — one glance tells you whether the session's plan is
+          // finished.
+          decoration: BoxDecoration(
+            gradient: allDone
+                ? null
+                : LinearGradient(
+                    colors: appCs.accentGradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+            color: allDone
+                ? AppColors.success.withValues(alpha: AppOpacity.subtle)
+                : null,
+            borderRadius: BorderRadius.circular(AppRadius.smd),
+          ),
+          child: Icon(
+            allDone ? Icons.check_rounded : Icons.checklist_rounded,
+            size: AppIconSize.lg,
+            color: allDone ? AppColors.success : Colors.white,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.smd),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                context.l10n.tasksTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                detailLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              _SegmentedProgress(
+                key: const ValueKey('session-tasks-progress'),
+                completed: completed,
+                total: total,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        _ExpandChevron(expanded: expanded, cs: cs),
+      ],
+    );
+  }
+}
+
+/// The pill chevron that tells the header its tap target expands a list.
+class _ExpandChevron extends StatelessWidget {
+  const _ExpandChevron({required this.expanded, required this.cs});
+
+  final bool expanded;
+  final ColorScheme cs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: AnimatedRotation(
+        duration: AppDuration.fast,
+        turns: expanded ? 0.5 : 0.0,
+        child: Icon(
+          Icons.expand_more_rounded,
+          size: AppIconSize.lg,
+          color: cs.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }

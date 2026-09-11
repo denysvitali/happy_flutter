@@ -60,6 +60,7 @@ import 'session_info_screen.dart';
 import 'widgets/agents_list_sheet.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_app_bar.dart';
+import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_messages_body.dart';
 import 'widgets/chat_search_bar.dart';
 import 'widgets/cleared_divider.dart';
@@ -1734,6 +1735,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = _isChatWide(constraints.maxWidth);
+        // The pane's height decides how much chrome the transcript can
+        // afford — see ChatChromeDensity. Computed here because this is the
+        // only place that knows the height the route was actually given;
+        // MediaQuery reports the window, which is wrong inside a split
+        // screen pane or a master-detail master column.
+        final chromeDensity = ChatChromeDensity.fromPaneHeight(
+          constraints.maxHeight,
+        );
         return ValueListenableBuilder<TextEditingValue>(
           valueListenable: _controller,
           builder: (context, value, child) {
@@ -1769,11 +1778,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
               ),
             ),
-            body: _buildScaffoldBody(
-              isWide: isWide,
-              hideToolCalls: hideToolCalls,
-              enterToSend: enterToSend,
-              availableModels: availableModels,
+            body: ChatChromeScope(
+              density: chromeDensity,
+              child: _buildScaffoldBody(
+                isWide: isWide,
+                hideToolCalls: hideToolCalls,
+                enterToSend: enterToSend,
+                availableModels: availableModels,
+              ),
             ),
           ),
         );
