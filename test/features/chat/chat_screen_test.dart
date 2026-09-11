@@ -85,6 +85,12 @@ Widget _buildApp({required Widget child, Settings? settings}) {
   );
 }
 
+/// The search tint inside the row identified by [messageId].
+Finder _tintOn(String messageId) => find.descendant(
+  of: find.byKey(ValueKey(messageId)),
+  matching: find.byKey(const ValueKey('chat-search-active-match')),
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -1402,6 +1408,121 @@ void main() {
       await tester.pump();
 
       expect(find.text('Unsent message'), findsOneWidget);
+    });
+  });
+
+  group('ChatScreen in-conversation search', () {
+    // Drives the real app-bar toggle and query field so a regression in the
+    // wiring (search action missing, index not rebuilt, counter wrong,
+    // highlight not applied) fails here rather than in a manual check.
+    Future<void> pumpChat(WidgetTester tester) async {
+      sync.isInitialized = true;
+      sync.testEncryptionInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        <String, dynamic>{
+          'id': 'm1',
+          'seq': 1,
+          'createdAt': 1,
+          'role': 'user',
+          'kind': 'text',
+          'content': 'first needle',
+        },
+        <String, dynamic>{
+          'id': 'm2',
+          'seq': 2,
+          'createdAt': 2,
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'nothing here',
+        },
+        <String, dynamic>{
+          'id': 'm3',
+          'seq': 3,
+          'createdAt': 3,
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'second needle',
+        },
+      ]);
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('counts matches, highlights one and pages between them', (
+      tester,
+    ) async {
+      await pumpChat(tester);
+
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('chat-search-bar')),
+        findsOneWidget,
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey('chat-search-field')),
+        'needle',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 of 2'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('chat-search-active-match')),
+        findsOneWidget,
+      );
+      // The tint sits on the first matching row, not just anywhere.
+      expect(_tintOn('m1'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('chat-search-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('2 of 2'), findsOneWidget);
+      expect(_tintOn('m1'), findsNothing);
+      expect(_tintOn('m3'), findsOneWidget);
+
+      // Wraps back to the first hit.
+      await tester.tap(find.byKey(const ValueKey('chat-search-next')));
+      await tester.pumpAndSettle();
+      expect(find.text('1 of 2'), findsOneWidget);
+      expect(_tintOn('m1'), findsOneWidget);
+    });
+
+    testWidgets('a query with no hits reports it and highlights nothing', (
+      tester,
+    ) async {
+      await pumpChat(tester);
+
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('chat-search-field')),
+        'zzz-not-present',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No matches in loaded messages'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('chat-search-active-match')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('closing search restores the session title', (tester) async {
+      await pumpChat(tester);
+
+      await tester.tap(find.byIcon(Icons.search_rounded));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('chat-search-bar')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('chat-search-close')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('chat-search-bar')), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
     });
   });
 

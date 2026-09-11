@@ -1476,6 +1476,20 @@
   "authApprovalFailedTitle": "Scan not completed",
   "authApprovalFailedBody": "This can happen if the desktop app closed or the request timed out. Try scanning the QR code again.",
   "chatBeginningOfConversation": "Beginning of conversation",
+  "chatSearchMessages": "Search messages",
+  "chatSearchHint": "Search in conversation",
+  "chatSearchClose": "Close search",
+  "chatSearchPrevious": "Previous match",
+  "chatSearchNext": "Next match",
+  "chatSearchCounter": "{current} of {total}",
+  "@chatSearchCounter": {
+    "description": "Chat search: which match is selected out of how many were found",
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "chatSearchNoMatches": "No matches in loaded messages",
   "chatFailedToDeleteSession": "Failed to delete session",
   "chatLastSeenJustNow": "Last seen just now",
   "chatSuggestionDebugIssueDesc": "Find and fix a bug in your code",

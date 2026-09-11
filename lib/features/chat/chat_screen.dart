@@ -44,6 +44,7 @@ import '../sessions/widgets/session_cards.dart' show parseAvatarStyle;
 import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
 import 'chat_list_pipeline.dart';
+import 'chat_message_search.dart';
 import 'chat_tts_gate.dart';
 import 'helpers/chat_dialogs.dart';
 import 'loop_command_parser.dart';
@@ -60,6 +61,7 @@ import 'widgets/agents_list_sheet.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_messages_body.dart';
+import 'widgets/chat_search_bar.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
 import 'widgets/model_change_divider.dart';
@@ -303,6 +305,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// inline cap on ungrouped sidechain orphans for this session.
   bool _sidechainOrphansExpanded = false;
 
+  // ── In-conversation search ──────────────────────────────────────────────
+  final TextEditingController _searchController = TextEditingController();
+  bool _searchOpen = false;
+  /// Prepared rows for the resident window; rebuilt when the transcript
+  /// changes so each keystroke is a plain `indexOf` over short strings.
+  List<ChatSearchIndexEntry> _searchEntries = const [];
+  List<ChatSearchMatch> _searchMatches = const [];
+  int _searchCurrent = -1;
+  int _searchEntriesRevision = -1;
+  List<Map<String, dynamic>>? _searchEntriesSource;
+  /// Manual "search further back" budget while typing with zero hits.
+  static const int _searchOlderPageBudget = 8;
+  bool _isSearchLoadingOlder = false;
+  Timer? _searchRefreshDebounce;
+  static const Duration _searchRefreshDebounceDelay = Duration(
+    milliseconds: 400,
+  );
+  /// Row build contexts captured while a reveal scroll is in flight, keyed by
+  /// reverse-list index so the reveal can bisect toward an unbuilt row.
+  final Map<int, BuildContext> _revealRowContexts = {};
+  String? _pendingRevealKey;
+
   bool _initialLoadComplete = false;
   final Set<String> _seenMessageIds = {};
   final ChatTtsGate _ttsGate = ChatTtsGate();
@@ -449,11 +473,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _dataSyncSubscription?.cancel();
     _messageSyncSubscription?.cancel();
     _messageRefreshDebounce?.cancel();
+    _searchRefreshDebounce?.cancel();
     _stopConfirmTimer?.cancel();
     _paginationErrorSubscription?.cancel();
     _autoRestoreFailureSubscription?.cancel();
     _controller.dispose();
     _attachmentController.dispose();
+    _searchController.dispose();
     _scrollController.dispose();
     _autoScrollNotifier.dispose();
     _messagePaneRevision.dispose();
@@ -754,6 +780,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _composerRevision.value++;
         }
       }
+    }
+
+    if (messagesChanged) {
+      // Keeps search hits in sync with the transcript without stealing the
+      // list position (see `_runSearch(reveal:)`).
+      _refreshSearchIndex();
     }
 
     final continueHistoryLoadAfterServerPage =
@@ -1106,6 +1138,253 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _canTriggerHistoryLoad = true;
     _bumpMessagePaneRevision();
     _loadMore();
+  }
+
+  // ── In-conversation search ──────────────────────────────────────────────
+
+  void _toggleSearch() => _searchOpen ? _closeSearch() : _openSearch();
+
+  void _openSearch() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _searchOpen = true;
+      // A reveal must be able to address any resident row, so the list stops
+      // paginating locally while search is open.
+      _visibleCount = _messages.length;
+      _searchEntriesSource = null;
+      _searchEntriesRevision = -1;
+    });
+    _bumpMessagePaneRevision();
+    _ensureSearchEntries();
+  }
+
+  void _closeSearch() {
+    _searchRefreshDebounce?.cancel();
+    _searchController.clear();
+    setState(() {
+      _searchOpen = false;
+      _searchMatches = const [];
+      _searchCurrent = -1;
+      _searchEntries = const [];
+      _searchEntriesSource = null;
+      _searchEntriesRevision = -1;
+      _isSearchLoadingOlder = false;
+      _pendingRevealKey = null;
+      _revealRowContexts.clear();
+    });
+    _bumpMessagePaneRevision();
+  }
+
+  /// Builds the per-row search index once per transcript revision.
+  ///
+  /// Flattening a row walks its content (tool inputs, results, sidechain
+  /// children), so it is done here rather than on every keystroke.
+  void _ensureSearchEntries() {
+    if (!_searchOpen) return;
+    final revision = sync.messagesRevision(widget.sessionId);
+    if (revision == _searchEntriesRevision &&
+        identical(_searchEntriesSource, _messages)) {
+      return;
+    }
+    _searchEntriesSource = _messages;
+    _searchEntriesRevision = revision;
+    _searchEntries = buildChatSearchIndex(_messages);
+  }
+
+  void _onSearchQueryChanged(String query) {
+    _runSearch(query, selectFirst: true);
+  }
+
+  void _runSearch(
+    String query, {
+    required bool selectFirst,
+    bool reveal = true,
+  }) {
+    _ensureSearchEntries();
+    final matches = findChatSearchMatches(query, index: _searchEntries);
+    setState(() {
+      _searchMatches = matches;
+      if (selectFirst) {
+        _searchCurrent = matches.isEmpty ? -1 : 0;
+      } else if (matches.isEmpty) {
+        _searchCurrent = -1;
+      } else if (_searchCurrent < 0 || _searchCurrent >= matches.length) {
+        _searchCurrent = 0;
+      }
+    });
+    // The message pane is cached behind its revision, so the highlight (and
+    // the key→index map the reveal walks) only refresh on a bump.
+    _bumpMessagePaneRevision();
+    final trimmed = query.trim();
+    final current = _searchCurrent;
+    if (matches.isNotEmpty) {
+      // A transcript refresh must not yank the list back to the first hit on
+      // every streaming tick — only an explicit query or navigation moves it.
+      if (reveal) unawaited(_revealSearchMatch(matches[current].key));
+    } else if (trimmed.isNotEmpty) {
+      unawaited(_searchOlderForMatches(trimmed));
+    }
+  }
+
+  /// Re-runs the active query after the transcript changed (new socket rows,
+  /// a finished page load). No-op while search is closed.
+  ///
+  /// Debounced: a streaming turn re-delivers rows many times a second, and
+  /// re-flattening the whole resident window on every tick is wasted work
+  /// when the user is reading the hits already found.
+  void _refreshSearchIndex() {
+    if (!_searchOpen) return;
+    final needsFullWindow = _visibleCount != _messages.length;
+    _visibleCount = _messages.length;
+    if (needsFullWindow) _bumpMessagePaneRevision();
+    _searchRefreshDebounce?.cancel();
+    _searchRefreshDebounce = Timer(_searchRefreshDebounceDelay, () {
+      if (!mounted || !_searchOpen) return;
+      if (_searchController.text.trim().isEmpty) {
+        _searchEntriesSource = null;
+        _ensureSearchEntries();
+        return;
+      }
+      _runSearch(_searchController.text, selectFirst: false, reveal: false);
+    });
+  }
+
+  /// Pages history in while the query has no hit in the resident window.
+  ///
+  /// Bounded deliberately: this is a background widening of the search, not a
+  /// promise to scan a 16k-seq session, and the user can keep scrolling.
+  Future<void> _searchOlderForMatches(String query) async {
+    if (_isSearchLoadingOlder) return;
+    if (!mounted || !_searchOpen) return;
+    final sessionId = widget.sessionId;
+    _isSearchLoadingOlder = true;
+    try {
+      for (var page = 0; page < _searchOlderPageBudget; page++) {
+        if (!mounted || !_searchOpen) return;
+        if (_searchController.text.trim() != query) return;
+        if (!sync.hasOlderMessages(sessionId)) return;
+        if (sync.isLoadingOlderMessages(sessionId)) {
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+          continue;
+        }
+        await sync.fetchOlderMessages(sessionId);
+        if (!mounted || !_searchOpen) return;
+        if (_searchController.text.trim() != query) return;
+        // The window grew — rebuild the index over the wider transcript.
+        _searchEntriesSource = null;
+        _ensureSearchEntries();
+        final matches = findChatSearchMatches(query, index: _searchEntries);
+        if (matches.isNotEmpty) {
+          setState(() {
+            _searchMatches = matches;
+            _searchCurrent = 0;
+          });
+          _bumpMessagePaneRevision();
+          unawaited(_revealSearchMatch(matches.first.key));
+          return;
+        }
+      }
+    } finally {
+      _isSearchLoadingOlder = false;
+      // Repaint the counter (the "…" placeholder becomes a result count).
+      if (mounted) setState(() {});
+    }
+  }
+
+  void _searchNext() => _selectSearchMatch(1);
+
+  void _searchPrevious() => _selectSearchMatch(-1);
+
+  void _selectSearchMatch(int delta) {
+    if (_searchMatches.isEmpty) return;
+    final count = _searchMatches.length;
+    final next = (_searchCurrent + delta) % count;
+    final index = next < 0 ? next + count : next;
+    setState(() => _searchCurrent = index);
+    _bumpMessagePaneRevision();
+    unawaited(_revealSearchMatch(_searchMatches[index].key));
+  }
+
+  /// Key of the selected match, or null when nothing is selected.
+  String? get _activeSearchKey {
+    if (!_searchOpen || _searchCurrent < 0) return null;
+    if (_searchCurrent >= _searchMatches.length) return null;
+    return _searchMatches[_searchCurrent].key;
+  }
+
+  /// Scrolls the transcript so the row identified by [key] is on screen.
+  ///
+  /// Rows are lazily built and vary wildly in height (tool output, diffs,
+  /// sub-agent transcripts), so there is no offset to compute up front. The
+  /// reveal jumps to a proportional estimate and then bisects using the
+  /// reverse-list indices of the rows that actually got built around the
+  /// target; that converges in a handful of frames regardless of how uneven
+  /// the row heights are.
+  Future<void> _revealSearchMatch(String key) async {
+    if (!mounted || !_searchOpen) return;
+    _pendingRevealKey = key;
+    _revealRowContexts.clear();
+    var lo = 0.0;
+    var hi = 1.0;
+    var ratio = -1.0;
+    try {
+      for (var attempt = 0; attempt < 8; attempt++) {
+        if (!mounted || !_searchOpen) return;
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted || !_searchOpen) return;
+        if (!_scrollController.hasClients) return;
+        final target = _cachedKeyToListIndex?[key];
+        if (target == null) continue; // list has not rebuilt yet
+        final rowContext = _revealRowContexts[target];
+        if (rowContext != null && rowContext.mounted) {
+          await Scrollable.ensureVisible(
+            rowContext,
+            alignment: 0.35,
+            duration: AppDuration.fast,
+            curve: AppCurve.enter,
+          );
+          return;
+        }
+        if (ratio < 0) {
+          final total = _cachedListItems?.length ?? 0;
+          ratio = total <= 1 ? 0.0 : (target / (total - 1)).clamp(0.0, 1.0);
+        }
+        if (_revealRowContexts.isNotEmpty) {
+          var minBuilt = _revealRowContexts.keys.first;
+          var maxBuilt = minBuilt;
+          for (final index in _revealRowContexts.keys) {
+            if (index < minBuilt) minBuilt = index;
+            if (index > maxBuilt) maxBuilt = index;
+          }
+          if (target < minBuilt) {
+            hi = ratio;
+          } else if (target > maxBuilt) {
+            lo = ratio;
+          } else {
+            // Inside the built range but not built: the row is grouped away
+            // (nested under another row), so there is nothing to reveal.
+            return;
+          }
+          ratio = (lo + hi) / 2;
+        }
+        _jumpToRevealRatio(ratio);
+      }
+    } finally {
+      _pendingRevealKey = null;
+      _revealRowContexts.clear();
+    }
+  }
+
+  void _jumpToRevealRatio(double ratio) {
+    if (!_scrollController.hasClients) return;
+    final offset = ratio.clamp(0.0, 1.0) *
+        _scrollController.position.maxScrollExtent;
+    _isAdjustingHistoryScroll = true;
+    try {
+      _scrollController.jumpTo(offset);
+    } finally {
+      _isAdjustingHistoryScroll = false;
+    }
   }
 
   Future<List<AutocompleteSuggestion>> _loadFileSuggestions(
@@ -1670,6 +1949,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         onAbort: _abortSession,
       ),
       onBackTap: widget.onBack,
+      onSearchTap: _openSearch,
+      searchField: _searchOpen
+          ? ChatSearchBar(
+              controller: _searchController,
+              matchCount: _searchMatches.length,
+              currentIndex: _searchCurrent,
+              onChanged: _onSearchQueryChanged,
+              onPrevious: _searchPrevious,
+              onNext: _searchNext,
+              onClose: _closeSearch,
+              isSearchingOlderMessages: _isSearchLoadingOlder,
+            )
+          : null,
     );
   }
 

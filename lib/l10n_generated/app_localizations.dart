@@ -6061,6 +6061,48 @@ abstract class AppLocalizations {
   /// **'Beginning of conversation'**
   String get chatBeginningOfConversation;
 
+  /// No description provided for @chatSearchMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Search messages'**
+  String get chatSearchMessages;
+
+  /// No description provided for @chatSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search in conversation'**
+  String get chatSearchHint;
+
+  /// No description provided for @chatSearchClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close search'**
+  String get chatSearchClose;
+
+  /// No description provided for @chatSearchPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous match'**
+  String get chatSearchPrevious;
+
+  /// No description provided for @chatSearchNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next match'**
+  String get chatSearchNext;
+
+  /// Chat search: which match is selected out of how many were found
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String chatSearchCounter(int current, int total);
+
+  /// No description provided for @chatSearchNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches in loaded messages'**
+  String get chatSearchNoMatches;
+
   /// No description provided for @chatFailedToDeleteSession.
   ///
   /// In en, this message translates to:

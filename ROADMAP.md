@@ -2,7 +2,39 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-08
+**Last Updated**: 2026-09-11
+
+### Scroll-back regression, 2026-09-11 (build 279400)
+
+User report: a long-running session (16,180 seqs) rendered "Beginning of
+conversation" at the top of the transcript with no way to page further back.
+Root cause confirmed from the user's own device logs: the sidechain orphan
+walk-back writes the *resident minimum seq* as the history boundary when it
+reaches `startSeq 0` ("walked to seq 0 with a trimmed window (minSeq=1)" —
+observed repeatedly on sessions cbc91e75…/c085d4fd…), and
+`_ensureFirstLoadedSeq`, the hook that re-arms a stale boundary from the
+in-memory minimum, only repaired `0`/`null`. `hasOlderMessages` is
+`boundary > 1`, so a boundary frozen at 1 both rendered the false label and
+made `fetchOlderMessages` early-return on `firstLoaded <= 1` forever: once
+the newest-N trim dropped the seq-1 row there was no path back to the
+beginning short of a restart. Fixed in `c0ed3768`: a boundary of 1 is
+repairable, and locally-seeded rows (`seq: 0` from `createSession`,
+`seq: -1` from the send coordinator) no longer count toward the resident
+minimum. Contract coverage in
+`test/services/history_fully_loaded_pin_test.dart` (both regression tests
+fail on the pre-fix code).
+
+Shipped alongside: in-conversation message search — app-bar search field
+with match counter, wrap-around prev/next navigation that scrolls to the
+hit, a tint on the active row, and a bounded background walk of older pages
+when the query has no hit in the resident window. Matching is pure
+(`lib/features/chat/chat_message_search.dart`): rows are flattened to
+bounded plain text (content, tool name/input/result, sidechain children)
+and indexed once per transcript revision so keystrokes stay allocation-free.
+Coverage: `test/features/chat/chat_message_search_test.dart`,
+`test/features/chat/widgets/chat_search_bar_test.dart`, and the
+`ChatScreen in-conversation search` group in
+`test/features/chat/chat_screen_test.dart`.
 
 ### Production audit, 2026-09-08 (builds 277800 / 277900)
 

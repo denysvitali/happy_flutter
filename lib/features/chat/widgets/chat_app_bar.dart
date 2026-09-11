@@ -33,6 +33,8 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
     this.avatarStyle,
     this.machineVitals,
     this.onBackTap,
+    this.onSearchTap,
+    this.searchField,
     super.key,
   });
 
@@ -45,6 +47,12 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final AvatarStyle? avatarStyle;
   final ChatMachineVitals? machineVitals;
   final VoidCallback? onBackTap;
+
+  /// Opens in-conversation search. The action is hidden when null.
+  final VoidCallback? onSearchTap;
+
+  /// Replaces the title (and the trailing actions) while search is open.
+  final Widget? searchField;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -66,34 +74,42 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
               onPressed: onBackTap,
             ),
       titleSpacing: AppSpacing.sm,
-      title: _buildTitle(context, ref),
+      title: searchField ?? _buildTitle(context, ref),
       backgroundColor: cs.surface.withValues(alpha: 0.94),
       surfaceTintColor: Colors.transparent,
       shape: Border(
         bottom: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
       ),
       scrolledUnderElevation: 0.5,
-      actions: [
-        // Loop count badge — appears only when the session has loops.
-        LoopCountBadge(sessionId: sessionId),
-        // Agents list button with progress
-        _AgentsListButton(
-          progress: AgentsListSheet.computeTaskProgress(sessionId),
-          sessionId: sessionId,
-        ),
-        if (machineVitals != null) _VitalsButton(vitals: machineVitals!),
-        _AppBarAction(
-          icon: Icons.info_outline_rounded,
-          tooltip: context.l10n.chatSessionSettings,
-          onPressed: onInfoTap,
-        ),
-        _AppBarAction(
-          icon: Icons.more_horiz_rounded,
-          tooltip: context.l10n.chatMoreOptions,
-          onPressed: onMenuTap,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-      ],
+      actions: searchField != null
+          ? const <Widget>[SizedBox(width: AppSpacing.sm)]
+          : [
+              // Loop count badge — appears only when the session has loops.
+              LoopCountBadge(sessionId: sessionId),
+              // Agents list button with progress
+              _AgentsListButton(
+                progress: AgentsListSheet.computeTaskProgress(sessionId),
+                sessionId: sessionId,
+              ),
+              if (machineVitals != null) _VitalsButton(vitals: machineVitals!),
+              if (onSearchTap != null)
+                _AppBarAction(
+                  icon: Icons.search_rounded,
+                  tooltip: context.l10n.chatSearchMessages,
+                  onPressed: onSearchTap!,
+                ),
+              _AppBarAction(
+                icon: Icons.info_outline_rounded,
+                tooltip: context.l10n.chatSessionSettings,
+                onPressed: onInfoTap,
+              ),
+              _AppBarAction(
+                icon: Icons.more_horiz_rounded,
+                tooltip: context.l10n.chatMoreOptions,
+                onPressed: onMenuTap,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+            ],
     );
   }
 

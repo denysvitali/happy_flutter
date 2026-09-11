@@ -3234,6 +3234,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatBeginningOfConversation => 'Beginning of conversation';
 
   @override
+  String get chatSearchMessages => 'Search messages';
+
+  @override
+  String get chatSearchHint => 'Search in conversation';
+
+  @override
+  String get chatSearchClose => 'Close search';
+
+  @override
+  String get chatSearchPrevious => 'Previous match';
+
+  @override
+  String get chatSearchNext => 'Next match';
+
+  @override
+  String chatSearchCounter(int current, int total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get chatSearchNoMatches => 'No matches in loaded messages';
+
+  @override
   String get chatFailedToDeleteSession => 'Failed to delete session';
 
   @override

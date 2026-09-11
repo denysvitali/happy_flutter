@@ -12,6 +12,10 @@ const double _chatListCacheExtent = 600;
 extension _ChatScreenBuilders on _ChatScreenState {
   Widget _buildMessageList({required bool hideToolCalls}) {
     final stopwatch = Stopwatch()..start();
+    // A reveal in flight re-collects the contexts of the rows this build
+    // actually materialises, then bisects toward the target (see
+    // `_revealSearchMatch`).
+    if (_pendingRevealKey != null) _revealRowContexts.clear();
     final totalCount = _messages.length;
     final startIndex = (totalCount - _visibleCount).clamp(0, totalCount);
 
@@ -227,6 +231,9 @@ extension _ChatScreenBuilders on _ChatScreenState {
     }
 
     final reversedIndex = items.length - 1 - adjusted;
+    if (_pendingRevealKey != null) {
+      _revealRowContexts[reversedIndex] = context;
+    }
     final item = items[reversedIndex];
 
     if (item == null) {
@@ -303,34 +310,47 @@ extension _ChatScreenBuilders on _ChatScreenState {
         (_session?.thinking ?? false) &&
         message['role'] == 'agent' &&
         !isToolCall;
-    return RepaintBoundary(
-      key: ValueKey(messageKey),
-      child: Padding(
-        padding: EdgeInsets.only(bottom: bottomPad),
-        child: MessageWidget(
-          messageData: message,
-          isFromCurrentUser: message['role'] == 'user',
-          metadata: metadataJson,
-          messages: needsMessages ? _messages : null,
-          sessionId: widget.sessionId,
-          isSessionOnline:
-              (_session?.isOnline ?? false) ||
-              ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
-                  (_session?.metadata?.path?.isNotEmpty ?? false)),
-          onOptionPress: _onOptionPress,
-          onRetry:
-              message['role'] == 'user' && message['sendStatus'] == 'failed'
-              ? () => _retryMessage(message)
-              : null,
-          animate:
-              _initialLoadComplete && !_seenMessageIds.contains(messageKey),
-          isFirstInGroup: isFirstInGroup,
-          isLastInGroup: isLastInGroup,
-          isStreaming: isStreaming,
-          isCompact: isCompact,
-        ),
+    Widget row = Padding(
+      padding: EdgeInsets.only(bottom: bottomPad),
+      child: MessageWidget(
+        messageData: message,
+        isFromCurrentUser: message['role'] == 'user',
+        metadata: metadataJson,
+        messages: needsMessages ? _messages : null,
+        sessionId: widget.sessionId,
+        isSessionOnline:
+            (_session?.isOnline ?? false) ||
+            ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
+                (_session?.metadata?.path?.isNotEmpty ?? false)),
+        onOptionPress: _onOptionPress,
+        onRetry:
+            message['role'] == 'user' && message['sendStatus'] == 'failed'
+            ? () => _retryMessage(message)
+            : null,
+        animate: _initialLoadComplete && !_seenMessageIds.contains(messageKey),
+        isFirstInGroup: isFirstInGroup,
+        isLastInGroup: isLastInGroup,
+        isStreaming: isStreaming,
+        isCompact: isCompact,
       ),
     );
+
+    // Tint the row the search field is currently parked on. Wrapped only when
+    // active so the resting render path is unchanged.
+    if (messageKey == _activeSearchKey) {
+      row = DecoratedBox(
+        key: const ValueKey('chat-search-active-match'),
+        decoration: BoxDecoration(
+          color: Theme.of(
+            context,
+          ).colorScheme.primary.withValues(alpha: AppOpacity.subtle),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        child: row,
+      );
+    }
+
+    return RepaintBoundary(key: ValueKey(messageKey), child: row);
   }
 
   bool _shouldHideToolCall(
