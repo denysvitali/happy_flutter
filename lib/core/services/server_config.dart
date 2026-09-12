@@ -98,7 +98,8 @@ class ServerUrlValidation {
 
 /// Validate a server URL
 /// Production credentials must only be sent over HTTPS. Debug builds permit
-/// plain HTTP solely for loopback development servers.
+/// plain HTTP for loopback development servers, while Tailscale endpoints in
+/// the `100.64.0.0/10` CGNAT range are allowed in all build modes.
 ServerUrlValidation validateServerUrl(String url) {
   if (!url.trim().isNotEmpty) {
     return const ServerUrlValidation(
@@ -111,14 +112,15 @@ ServerUrlValidation validateServerUrl(String url) {
     final uri = Uri.parse(url);
     final isLoopback =
         uri.host == 'localhost' || uri.host == '127.0.0.1' || uri.host == '::1';
-    final isAllowedDebugHttp =
-        !kReleaseMode && uri.scheme == 'http' && isLoopback;
-    if (uri.scheme != 'https' && !isAllowedDebugHttp) {
+    final isAllowedHttp =
+        uri.scheme == 'http' &&
+        ((!kReleaseMode && isLoopback) || _isTailscaleAddress(uri.host));
+    if (uri.scheme != 'https' && !isAllowedHttp) {
       return const ServerUrlValidation(
         valid: false,
         error:
             'Server URL must use HTTPS (HTTP is allowed only for '
-            'loopback development servers)',
+            'loopback development or Tailscale endpoints)',
       );
     }
     if (uri.host.isEmpty) {
@@ -139,6 +141,21 @@ ServerUrlValidation validateServerUrl(String url) {
   } catch (e) {
     return ServerUrlValidation(valid: false, error: 'Invalid URL format: $e');
   }
+}
+
+/// Whether [host] is an IPv4 address in Tailscale's CGNAT allocation.
+bool _isTailscaleAddress(String host) {
+  final octets = host.split('.');
+  if (octets.length != 4) return false;
+
+  final address = <int>[];
+  for (final octet in octets) {
+    final value = int.tryParse(octet);
+    if (value == null || value < 0 || value > 255) return false;
+    address.add(value);
+  }
+
+  return address[0] == 100 && address[1] >= 64 && address[1] <= 127;
 }
 
 /// Verify server URL is reachable by making a simple request

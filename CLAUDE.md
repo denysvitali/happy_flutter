@@ -328,9 +328,10 @@ Some domains have both `XxxService` (production) and `XxxApi` (injectable for te
 
 `Storage().initialize()` inits all. SharedPreferences → MMKV migration runs once on first init.
 
-Production custom servers must use HTTPS. Debug builds permit HTTP only for
-loopback (`localhost`, `127.0.0.1`, `::1`) development endpoints. Provider API
-keys are cleared on sign-out so they cannot cross account boundaries.
+Production custom servers must use HTTPS, except for Tailscale endpoints in
+the `100.64.0.0/10` CGNAT range. Debug builds also permit HTTP for loopback
+(`localhost`, `127.0.0.1`, `::1`) development endpoints. Provider API keys are
+cleared on sign-out so they cannot cross account boundaries.
 
 ## Models
 

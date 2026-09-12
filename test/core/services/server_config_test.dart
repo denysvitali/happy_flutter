@@ -19,6 +19,13 @@ void main() {
       expect(result.error, isNull);
     });
 
+    test('validates HTTP Tailscale URL', () {
+      final result = validateServerUrl('http://100.100.100.100:3000');
+
+      expect(result.valid, isTrue);
+      expect(result.error, isNull);
+    });
+
     test('validates URL with port', () {
       final result = validateServerUrl('https://api.example.com:8443');
 
@@ -84,6 +91,11 @@ void main() {
 
       expect(result.valid, isFalse);
       expect(result.error, contains('HTTPS'));
+    });
+
+    test('rejects HTTP outside the Tailscale address range', () {
+      expect(validateServerUrl('http://100.63.255.255').valid, isFalse);
+      expect(validateServerUrl('http://100.128.0.1').valid, isFalse);
     });
 
     test('rejects credentials, query, and fragment', () {
