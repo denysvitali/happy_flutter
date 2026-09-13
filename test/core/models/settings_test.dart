@@ -67,6 +67,18 @@ void main() {
       expect(restored.lastUsedProfileForAgent('codex'), 'openai');
     });
 
+    test('serializes and restores session permission selections', () {
+      final settings = Settings()
+        ..permissionModesBySession = {'session-a': 'yolo', 'session-b': 'plan'};
+
+      final restored = Settings.fromJson(settings.toJson());
+
+      expect(restored.permissionModesBySession, {
+        'session-a': 'yolo',
+        'session-b': 'plan',
+      });
+    });
+
     test('migrates retired Gemini profile selections to AGY', () {
       final restored = Settings.fromJson({
         ...Settings().toJson(),

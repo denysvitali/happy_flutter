@@ -71,6 +71,8 @@ extension _ChatScreenActions on _ChatScreenState {
       savedProfileId: savedProfileId,
       sessionModelMode: session?.modelMode,
       sessionPermissionMode: session?.permissionMode,
+      syncedSessionPermissionMode: settings.permissionModesBySession[sessionId],
+      lastUsedPermissionMode: settings.lastUsedPermissionMode,
       flavor: flavor,
       settingsProfiles: settings.profiles,
       builtInProfiles: builtInProfiles,

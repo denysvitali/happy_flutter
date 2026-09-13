@@ -44,6 +44,9 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
       .toList()
   ..lastUsedAgent = json['lastUsedAgent'] as String?
   ..lastUsedPermissionMode = json['lastUsedPermissionMode'] as String?
+  ..permissionModesBySession = Map<String, String>.from(
+    json['permissionModesBySession'] as Map,
+  )
   ..lastUsedModelMode = json['lastUsedModelMode'] as String?
   ..customModelModes = (json['customModelModes'] as List<dynamic>)
       .map((e) => e as String)
@@ -105,6 +108,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
       .toList(),
   'lastUsedAgent': instance.lastUsedAgent,
   'lastUsedPermissionMode': instance.lastUsedPermissionMode,
+  'permissionModesBySession': instance.permissionModesBySession,
   'lastUsedModelMode': instance.lastUsedModelMode,
   'customModelModes': instance.customModelModes,
   'profiles': instance.profiles.map((e) => e.toJson()).toList(),

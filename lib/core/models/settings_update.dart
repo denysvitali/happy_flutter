@@ -103,6 +103,13 @@ final class SettingsUpdate {
       'lastUsedPermissionMode' => settings.copyWith(
         lastUsedPermissionMode: value as String?,
       ),
+      'permissionModesBySession' => settings.copyWith(
+        permissionModesBySession:
+            (value as Map<dynamic, dynamic>?)?.map(
+              (key, value) => MapEntry(key.toString(), value.toString()),
+            ) ??
+            {},
+      ),
       'lastUsedModelMode' => settings.copyWith(
         lastUsedModelMode: value as String?,
       ),
@@ -189,6 +196,7 @@ final class SettingsUpdate {
       ..recentMachinePaths = updated.recentMachinePaths
       ..lastUsedAgent = updated.lastUsedAgent
       ..lastUsedPermissionMode = updated.lastUsedPermissionMode
+      ..permissionModesBySession = updated.permissionModesBySession
       ..lastUsedModelMode = updated.lastUsedModelMode
       ..customModelModes = updated.customModelModes
       ..profiles = updated.profiles

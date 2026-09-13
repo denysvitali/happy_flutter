@@ -47,9 +47,10 @@ class ModelSelectionResolution {
   final bool hadGhostProfileReference;
 }
 
-/// Resolves the saved-draft > session > profile-default > global-default
-/// priority chain used to restore permission mode, model mode, and AI
-/// backend profile when a chat session is reopened.
+/// Resolves the saved-draft > synced session > server session >
+/// profile-default > global-default priority chain used to restore
+/// permission mode, model mode, and AI backend profile when a chat session is
+/// reopened.
 ///
 /// Pure function - no Flutter, no I/O. Callers (e.g.
 /// `_ChatScreenState._loadInitialSettings`) read the raw inputs from
@@ -66,6 +67,8 @@ ModelSelectionResolution resolveModelSelection({
   required List<AIBackendProfile> settingsProfiles,
   required List<AIBackendProfile> builtInProfiles,
   required String? lastUsedModelMode,
+  String? syncedSessionPermissionMode,
+  String? lastUsedPermissionMode,
 }) {
   var permissionMode = PermissionMode.defaultMode;
   var shouldPersistPermissionMode = false;
@@ -73,9 +76,22 @@ ModelSelectionResolution resolveModelSelection({
     permissionMode =
         PermissionModeExtension.fromString(savedPermissionMode) ??
         PermissionMode.defaultMode;
+  } else if (syncedSessionPermissionMode != null) {
+    permissionMode =
+        PermissionModeExtension.fromString(syncedSessionPermissionMode) ??
+        PermissionMode.defaultMode;
+    shouldPersistPermissionMode = true;
   } else if (sessionPermissionMode != null) {
     permissionMode =
         PermissionModeExtension.fromString(sessionPermissionMode) ??
+        PermissionMode.defaultMode;
+    shouldPersistPermissionMode = true;
+  } else if (lastUsedPermissionMode != null) {
+    // Older versions only synchronized this global value. Use it as a
+    // migration fallback for sessions that have no scoped or server value;
+    // new picker changes are stored in `permissionModesBySession`.
+    permissionMode =
+        PermissionModeExtension.fromString(lastUsedPermissionMode) ??
         PermissionMode.defaultMode;
     shouldPersistPermissionMode = true;
   }

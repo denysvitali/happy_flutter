@@ -103,12 +103,24 @@ class ChatActionNotifier extends Notifier<void> {
   /// Save the permission mode for a session and update settings.
   void savePermissionMode(String sessionId, String modeString) {
     unawaited(DraftStorage().savePermissionMode(sessionId, modeString));
+    // Keep a session-scoped copy in synced settings so another device can
+    // restore this exact session without inheriting a different session's
+    // most recently used mode. Keep the legacy global value for new-session
+    // defaults and migration from older app versions.
+    final settings = ref.read(settingsNotifierProvider);
+    final permissionModesBySession = {
+      ...settings.permissionModesBySession,
+      sessionId: modeString,
+    };
+    final notifier = ref.read(settingsNotifierProvider.notifier);
     // updateSetting() calls sync.applySettings() internally.
     unawaited(
-      ref
-          .read(settingsNotifierProvider.notifier)
-          .updateSetting('lastUsedPermissionMode', modeString),
+      notifier.updateSetting(
+        'permissionModesBySession',
+        permissionModesBySession,
+      ),
     );
+    unawaited(notifier.updateSetting('lastUsedPermissionMode', modeString));
   }
 
   /// Save the model mode for a session and update settings.

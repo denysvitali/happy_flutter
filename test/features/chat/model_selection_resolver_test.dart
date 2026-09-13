@@ -76,6 +76,42 @@ void main() {
       expect(result.shouldPersistPermissionMode, isTrue);
     });
 
+    test('restores a synced permission mode scoped to this session', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: 'plan',
+        syncedSessionPermissionMode: 'yolo',
+        flavor: 'codex',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedPermissionMode, PermissionMode.yolo);
+      expect(result.shouldPersistPermissionMode, isTrue);
+    });
+
+    test('uses the legacy global permission mode as a migration fallback', () {
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: null,
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        lastUsedPermissionMode: 'yolo',
+        flavor: 'codex',
+        settingsProfiles: const [],
+        builtInProfiles: const [],
+        lastUsedModelMode: null,
+      );
+
+      expect(result.resolvedPermissionMode, PermissionMode.yolo);
+      expect(result.shouldPersistPermissionMode, isTrue);
+    });
+
     test('flags ghost profile reference and filters available profiles', () {
       final codexOnly = _profile(
         id: 'codex',

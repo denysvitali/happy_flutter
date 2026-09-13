@@ -71,6 +71,11 @@ class Settings {
   List<RecentMachinePath> recentMachinePaths = [];
   String? lastUsedAgent;
   String? lastUsedPermissionMode;
+
+  /// Permission mode choices scoped to a session and synchronized across
+  /// devices. The legacy [lastUsedPermissionMode] remains the fallback for
+  /// sessions saved by older app versions.
+  Map<String, String> permissionModesBySession = {};
   String? lastUsedModelMode;
   List<String> customModelModes = [];
   // Profile API keys excluded from serialization via toJsonWithoutApiKeys()
@@ -118,6 +123,10 @@ class Settings {
           usagePeriod == other.usagePeriod &&
           lastUsedAgent == other.lastUsedAgent &&
           lastUsedPermissionMode == other.lastUsedPermissionMode &&
+          _stringMapsEqual(
+            permissionModesBySession,
+            other.permissionModesBySession,
+          ) &&
           lastUsedModelMode == other.lastUsedModelMode &&
           customModelModes.length == other.customModelModes.length &&
           customModelModes.asMap().entries.every(
@@ -151,6 +160,11 @@ class Settings {
     preferredLanguage,
     usagePeriod,
     lastUsedProfile,
+    Object.hashAll(
+      permissionModesBySession.entries.map(
+        (entry) => Object.hash(entry.key, entry.value),
+      ),
+    ),
     Object.hashAll(
       lastUsedProfilesByAgent.entries.map(
         (entry) => Object.hash(entry.key, entry.value),
@@ -238,6 +252,9 @@ class Settings {
       ..recentMachinePaths = List<RecentMachinePath>.from(recentMachinePaths)
       ..lastUsedAgent = lastUsedAgent
       ..lastUsedPermissionMode = lastUsedPermissionMode
+      ..permissionModesBySession = Map<String, String>.from(
+        permissionModesBySession,
+      )
       ..lastUsedModelMode = lastUsedModelMode
       ..profiles = List<AIBackendProfile>.from(profiles)
       ..lastUsedProfile = lastUsedProfile
@@ -288,6 +305,7 @@ class Settings {
     List<RecentMachinePath>? recentMachinePaths,
     Object? lastUsedAgent = _unset,
     Object? lastUsedPermissionMode = _unset,
+    Map<String, String>? permissionModesBySession,
     Object? lastUsedModelMode = _unset,
     List<String>? customModelModes,
     List<AIBackendProfile>? profiles,
@@ -360,6 +378,11 @@ class Settings {
       ..lastUsedPermissionMode = identical(lastUsedPermissionMode, _unset)
           ? this.lastUsedPermissionMode
           : lastUsedPermissionMode as String?
+      ..permissionModesBySession = permissionModesBySession != null
+          ? (identical(permissionModesBySession, this.permissionModesBySession)
+                ? this.permissionModesBySession
+                : Map<String, String>.from(permissionModesBySession))
+          : this.permissionModesBySession
       ..lastUsedModelMode = identical(lastUsedModelMode, _unset)
           ? this.lastUsedModelMode
           : lastUsedModelMode as String?
@@ -469,6 +492,7 @@ Map<String, dynamic> _normalizeSettingsJson(
           json['favoriteDirectories'] is List &&
           json['favoriteMachines'] is List &&
           json['folders'] is List &&
+          json['permissionModesBySession'] is Map &&
           lastUsedProfilesByAgent is Map &&
           dismissed is Map &&
           dismissed['perMachine'] is Map &&
@@ -504,6 +528,18 @@ Map<String, dynamic> _normalizeSettingsJson(
   normalizeListField('favoriteDirectories');
   normalizeListField('favoriteMachines');
   normalizeListField('folders');
+
+  final permissionModesBySession = normalized['permissionModesBySession'];
+  if (permissionModesBySession is Map) {
+    normalized['permissionModesBySession'] = <String, String>{
+      for (final entry in permissionModesBySession.entries)
+        if (entry.key != null && entry.value != null)
+          entry.key.toString(): entry.value.toString(),
+    };
+  } else {
+    normalized['permissionModesBySession'] =
+        defaults['permissionModesBySession'];
+  }
 
   final lastUsedProfilesByAgent = normalized['lastUsedProfilesByAgent'];
   if (lastUsedProfilesByAgent is Map) {
