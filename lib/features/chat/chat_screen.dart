@@ -118,9 +118,25 @@ class _SessionSendIssue {
 
 /// Chat screen for a session
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({required this.sessionId, this.onBack, super.key});
+  const ChatScreen({
+    required this.sessionId,
+    this.onBack,
+    this.embedded = false,
+    super.key,
+  });
   final String sessionId;
   final VoidCallback? onBack;
+
+  /// Whether this pane is laid out *inside* another screen — the wide-layout
+  /// master-detail detail column in `SessionsScreen` — instead of being
+  /// pushed as its own `/chat/:sessionId` route.
+  ///
+  /// An embedded pane never owns the `chat` route: the sessions shell stays
+  /// the top route while this pane is the surface the user is reading, so a
+  /// plain route-name visibility check classifies it as covered and drops
+  /// every live message update (new messages only appeared after some other
+  /// action recreated the pane's state). See [_isChatRouteActive].
+  final bool embedded;
 
   /// Test-only hook: when non-null, `_loadInitialSettings` awaits it after
   /// the `DraftStorage` reads have resolved but before this resolution is
@@ -597,9 +613,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     await _doInitialLoad();
   }
 
+  /// Whether this chat pane is the surface the user is currently looking at.
+  ///
+  /// The per-message listeners skip their refresh while the pane is covered
+  /// (the power-saving intent), so this decides whether live updates land.
+  /// `currentRoute` comes from the router's navigator observer and is only
+  /// ever `chat` for a pushed `/chat/:sessionId` route — see
+  /// [ChatScreen.embedded] for why an embedded detail pane must also count as
+  /// visible.
   bool get _isChatRouteActive {
     final route = PerformanceContextService().currentRoute;
-    return route == null || route == 'chat';
+    if (route == null || route == 'chat') return true;
+    return widget.embedded && (route == 'sessions' || route == 'home');
   }
 
   void _handleRouteChanged() {

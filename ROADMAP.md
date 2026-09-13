@@ -2,7 +2,31 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-11
+**Last Updated**: 2026-09-13
+
+### Desktop master-detail chat dropped live messages, 2026-09-13
+
+User report: on Linux a conversation's messages only appeared after some other
+action. Root cause: the wide layout (window width ≥ `AppBreakpoint.masterDetail`
+= 736) renders `ChatScreen` inside `SessionsScreen`'s master-detail detail
+column, not as a pushed route, so `PerformanceContextService.currentRoute`
+stays `sessions` while the pane is the surface the user is reading. Both live
+listeners in `_initializeSyncBackedChat` gate on `_isChatRouteActive`
+(`currentRoute == null || 'chat'`), so every socket message event — and every
+sessions-domain update — was dropped for that pane; the transcript only caught
+up when an ungated path ran (send, pagination, session switch, a route change
+back into the shell). The same gate has also muted the pane's screen-awake
+handling since it landed in `ca2916ff` ("reduce mobile sync power usage"), so
+the bug predates any recent work.
+
+Fixed by marking the pane for what it is: `ChatScreen.embedded` (set by
+`SessionsScreen`) keeps the per-message gate honest — an embedded pane counts
+as visible while the shell route (`sessions`/`home`) is on top, and a pushed
+`/chat/:sessionId` pane keeps the previous behaviour, including the
+power-saving skip while another route covers it. Coverage in
+`test/features/chat/chat_screen_test.dart` ("embedded detail pane receives live
+messages…" fails on the pre-fix gate; "a covered pushed chat pane still skips
+live updates" pins the gate the fix must not remove).
 
 ### Scroll-back regression, 2026-09-11 (build 279400)
 

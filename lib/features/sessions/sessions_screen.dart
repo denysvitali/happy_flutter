@@ -627,6 +627,9 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
                 // chat stuck on a shimmer.
                 key: ValueKey<String>(_selectedSessionId!),
                 sessionId: _selectedSessionId!,
+                // The pane lives inside this shell route, so its live
+                // message updates must not be gated on the `chat` route.
+                embedded: true,
                 onBack: () => setState(() {
                   _selectedSessionId = null;
                   _tabletSelectionDismissed = true;

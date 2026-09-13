@@ -15,6 +15,7 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
+import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
@@ -123,6 +124,7 @@ void main() {
     sync.testMachineRPCOverride = null;
     sync.testClearCodexModelsCache();
     ChatScreen.testInitialSettingsApplyBarrier = null;
+    PerformanceContextService().resetForTesting();
     await TtsService().dispose();
   });
 
@@ -291,6 +293,78 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.textContaining('streaming token'), findsOneWidget);
+    });
+
+    testWidgets('embedded detail pane receives live messages while the '
+        'sessions shell route is on top', (tester) async {
+      // Wide (desktop/tablet) layouts render this chat inside the sessions
+      // shell's master-detail detail column, so the router's top route stays
+      // `sessions` while the pane is the surface the user is reading. Gating
+      // live updates on the route name alone classified the visible pane as
+      // covered and dropped every message until some other action recreated
+      // its state.
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetVisibleSessionId('session_1');
+      sync.testSetSessionMessages('session_1', [
+        {'id': 'msg_1', 'role': 'user', 'content': 'Hello there'},
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+      PerformanceContextService().setCurrentRoute('sessions');
+
+      await tester.pumpWidget(
+        _buildApp(
+          child: ChatScreen(
+            sessionId: 'session_1',
+            embedded: true,
+            onBack: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Hello there'), findsOneWidget);
+
+      sync.testUpsertSessionMessages('session_1', [
+        {'id': 'msg_2', 'role': 'assistant', 'content': 'Live reply'},
+      ]);
+      await tester.pump(const Duration(milliseconds: 220));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Live reply'), findsOneWidget);
+    });
+
+    testWidgets('a covered pushed chat pane still skips live updates', (
+      tester,
+    ) async {
+      // The power-saving intent this gate exists for: a ChatScreen pushed as
+      // its own `/chat/:sessionId` route stops refreshing while another route
+      // covers it. Only the embedded detail pane is exempt.
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetVisibleSessionId('session_1');
+      sync.testSetSessionMessages('session_1', [
+        {'id': 'msg_1', 'role': 'user', 'content': 'Hello there'},
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+      PerformanceContextService().setCurrentRoute('message-detail');
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Hello there'), findsOneWidget);
+
+      sync.testUpsertSessionMessages('session_1', [
+        {'id': 'msg_2', 'role': 'assistant', 'content': 'Live reply'},
+      ]);
+      await tester.pump(const Duration(milliseconds: 220));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Live reply'), findsNothing);
     });
 
     testWidgets('shows explicitly queued Codex messages and queue action', (
