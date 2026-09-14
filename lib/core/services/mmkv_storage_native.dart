@@ -64,32 +64,57 @@ Map<String, Object> _compactDefaultMMKVIfNeeded(Map<String, Object> request) {
   // the live store initialized by the UI isolate with an application root.
   // Address the same mmap explicitly so the maintenance pass trims the store
   // whose size triggered it.
-  final rootDir = request['rootDir']! as String;
-  final mmkv = MMKV('mmkv.default', rootDir: rootDir);
-  final totalBefore = mmkv.totalSize;
-  final actualBefore = mmkv.actualSize;
-  if (!MMKVStorage.debugShouldCompactMessageCache(
-    totalBytes: totalBefore,
-    actualBytes: actualBefore,
-    isLinux: Platform.isLinux,
-    minFileBytes: request['minFileBytes']! as int,
-  )) {
+  final rootDirArg = request['rootDir'];
+  final minFileBytesArg = request['minFileBytes'];
+  if (rootDirArg is! String || minFileBytesArg is! int) {
     return <String, Object>{
       'trimmed': false,
+      'rootDir': rootDirArg is String ? rootDirArg : '',
+      'error': 'invalid-request',
+      'errorDetail': 'rootDir=${rootDirArg.runtimeType} '
+          'minFileBytes=${minFileBytesArg.runtimeType}',
+    };
+  }
+  final rootDir = rootDirArg;
+  try {
+    final mmkv = MMKV('mmkv.default', rootDir: rootDir);
+    final totalBefore = mmkv.totalSize;
+    final actualBefore = mmkv.actualSize;
+    if (!MMKVStorage.debugShouldCompactMessageCache(
+      totalBytes: totalBefore,
+      actualBytes: actualBefore,
+      isLinux: Platform.isLinux,
+      minFileBytes: minFileBytesArg,
+    )) {
+      return <String, Object>{
+        'trimmed': false,
+        'rootDir': rootDir,
+        'totalBefore': totalBefore,
+        'actualBefore': actualBefore,
+        'totalAfter': totalBefore,
+      };
+    }
+    mmkv.trim();
+    return <String, Object>{
+      'trimmed': true,
       'rootDir': rootDir,
       'totalBefore': totalBefore,
       'actualBefore': actualBefore,
-      'totalAfter': totalBefore,
+      'totalAfter': mmkv.totalSize,
+    };
+  } catch (error) {
+    // A `compute` isolate has no platform channels, so opening (or
+    // trimming) the MMKV handle can fail here on some platforms. Return a
+    // structured reason: previously this escaped as a bare
+    // `Null check operator used on a null value` from inside the worker,
+    // which said nothing about which step failed (GlitchTip 8725).
+    return <String, Object>{
+      'trimmed': false,
+      'rootDir': rootDir,
+      'error': error.runtimeType.toString(),
+      'errorDetail': error.toString(),
     };
   }
-  mmkv.trim();
-  return <String, Object>{
-    'trimmed': true,
-    'rootDir': rootDir,
-    'totalBefore': totalBefore,
-    'actualBefore': actualBefore,
-    'totalAfter': mmkv.totalSize,
-  };
 }
 
 /// Storage keys for MMKV
@@ -384,6 +409,10 @@ class MMKVStorage {
   Timer? _messageCacheCompactionTimer;
   bool _messageCacheCompactionScheduled = false;
   bool _messageCacheCompactionInFlight = false;
+  /// Set once the worker compaction pass reports it cannot run on this
+  /// platform, so the known limitation is logged once per process rather
+  /// than on every cold start.
+  bool _messageCacheCompactionUnavailable = false;
   int _messageCacheBytesSinceCompaction = 0;
 
   static const int _messageCacheCompactionMinFileBytes = 64 * 1024 * 1024;
@@ -521,6 +550,7 @@ class MMKVStorage {
     _instance._messageCacheCompactionTimer = null;
     _instance._messageCacheCompactionScheduled = false;
     _instance._messageCacheCompactionInFlight = false;
+    _instance._messageCacheCompactionUnavailable = false;
     _instance._messageCacheBytesSinceCompaction = 0;
   }
 
@@ -976,6 +1006,23 @@ class MMKVStorage {
             'rootDir': MMKV.rootDir,
             'minFileBytes': _messageCacheCompactionMinFileBytes,
           }, debugLabel: 'mmkv.compact.default');
+      final failure = result['error'];
+      if (failure != null) {
+        // Best-effort maintenance: the store simply stays uncompacted, which
+        // costs disk and page-cache slack but never correctness. A worker
+        // isolate has no platform channels, so this is a known platform
+        // limitation rather than a defect — report it once per process at
+        // info (with the reason it failed) instead of opening a warning-level
+        // issue on every cold start (GlitchTip 8725).
+        if (_messageCacheCompactionUnavailable) return;
+        _messageCacheCompactionUnavailable = true;
+        logger.info(
+          '[MMKVStorage] Message-cache compaction unavailable in worker '
+          'root=${result['rootDir']} error=$failure '
+          'detail=${result['errorDetail']}',
+        );
+        return;
+      }
       logger.info(
         '[MMKVStorage] Message-cache compaction check '
         'root=${result['rootDir']} '
