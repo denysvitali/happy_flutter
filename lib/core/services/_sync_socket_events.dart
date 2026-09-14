@@ -783,11 +783,17 @@ extension SyncSocketEvents on Sync {
 
   /// Handle server-side error events.
   ///
-  /// When the server emits `{code: "session-invalid", sid: "..."}` it
-  /// means the session has been deleted server-side while the client
-  /// still holds a reference.  We treat this identically to a
-  /// `delete-session` update so all local state is cleaned up and the
-  /// UI stops showing the stale session.
+  /// `{code: "session-invalid", sid: "..."}` means the session has been
+  /// deleted server-side while the client still holds a reference. We treat
+  /// it identically to a `delete-session` update so all local state is
+  /// cleaned up and the UI stops showing the stale session.
+  ///
+  /// `{code: "message-failed", sid, localId}` is emitted from the server's
+  /// store-failure path: the row could not be persisted, so it never got a
+  /// sequence and the client's gap recovery cannot see it. The client used
+  /// to ignore this code entirely — there were zero references to
+  /// `message-failed` anywhere in `lib/` — so the one signal the server
+  /// sends about lost messages was silently dropped (2026-09-14 audit).
   void _handleErrorEvent(dynamic data) {
     final payload = _normalizeSocketPayload(
       data,
@@ -800,6 +806,22 @@ extension SyncSocketEvents on Sync {
       if (sid != null) {
         logger.info('Received session-invalid for $sid — removing local state');
         _handleDeleteSession({'sid': sid});
+      }
+      return;
+    }
+    if (code == 'message-failed') {
+      final sid = payload['sid'] as String?;
+      final localId = payload['localId'] as String?;
+      PowerDiagnosticsOtelReporter.instance.recordServerDroppedMessage();
+      logger.warning(
+        'Server could not persist a message — sid=${sid ?? '?'} '
+        'localId=${localId ?? '?'}',
+      );
+      // Daemon-originated frames have no optimistic row here, so this is a
+      // no-op for them; a user send still awaiting its ack gets the canonical
+      // "Failed — tap to retry" affordance, which preserves the localId.
+      if (sid != null && localId != null) {
+        _updateMessageSendStatus(sid, localId, 'failed');
       }
     }
   }

@@ -71,6 +71,46 @@ streams, not a selectable label, so per-build stream filters silently return
 empty; production server/daemon records are labelled
 `deployment_environment="dev"`; GlitchTip trace ids do not resolve in Loki.
 
+**Follow-up: did the 78 `persist-failed` drops lose user messages?** The
+contradiction between "the client lost nothing" (gap recovery repaired every
+seq gap) and "78 messages dropped server-side" resolves mostly in the client's
+favour, with one gap that is now closed:
+
+- **App sends are REST-first.** `_notifyDaemonOfStoredMessage`
+  (`_sync_messaging_send.dart:1373`) documents the socket emit as a redundant
+  notification of a row `POST /v3/sessions/:id/messages` already committed,
+  and the server stores via an idempotent `ON CONFLICT (session_id, local_id)`
+  upsert. A persist failure on that redundant emit cannot destroy a committed
+  row. Measured: user sends succeeded inside the 09-12 burst
+  (`localId=29aad41d-…` → `status=200` → `ACK … seq=18782` on session
+  `c6fd0d01…`, one of the affected sessions).
+- **Counter semantics:** `happy_ws_messages_dropped_total{reason="persist-failed"}`
+  increments once per **terminal** failure, 1:1 with `ws: message: failed to
+  create message` ERROR lines (+45 ↔ 45 in 09-12 14:00–15:07Z). Retries are not
+  counted, so 78 is a floor, not a total; `isSessionGoneError` returns without
+  incrementing, so that drop class is uncounted entirely. ~4-day Jaeger
+  retention has expired the 09-09/09-10 windows, so the original burst
+  attribution cannot be re-verified.
+- **Still indeterminate:** a `persist-failed` on a *daemon-originated* frame
+  has no REST fallback and would be real loss. `happy-daemon` emits nothing to
+  Loki, so user-vs-agent classification of the drops could not be established.
+- **Closed — the client ignored the server's loss signal.** The server emits
+  `{code: "message-failed", sid, localId}` from its store-failure path, and
+  the client had **zero** references to `message-failed` anywhere in `lib/`:
+  `_handleErrorEvent` handled only `session-invalid`, so the one signal the
+  server sends about a lost message was dropped without a log or a counter.
+  It now counts (`happy_flutter.app.messaging.server_dropped`), warns, and
+  marks a still-pending optimistic row `'failed'` so the canonical
+  "Failed — tap to retry" affordance appears with its `localId` intact
+  (`test/services/socket_message_failed_test.dart`).
+- **Not a defect:** two user messages (`f5d31772-…`, `14014d3a-…`, session
+  `ce3ac255…`) are still `dead=true retryCount=3` on build 280400. That is the
+  documented **permanent**-class path (4xx / session-gone) — permanent dead
+  letters stay user-retry-only by design, and `_retryFromDeadLetter` can
+  rebuild the send after a cold start or cache eviction. Worth confirming the
+  user actually sees the retry row for a session whose transcript row was
+  evicted: `reconcileOutboxStatuses` skips a row that is no longer resident.
+
 ### Desktop master-detail chat dropped live messages, 2026-09-13
 
 User report: on Linux a conversation's messages only appeared after some other

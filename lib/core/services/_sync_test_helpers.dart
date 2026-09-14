@@ -75,6 +75,11 @@ extension SyncTestHelpers on Sync {
     }
   }
 
+  /// Drives the server-side socket `error` event handler without a live
+  /// socket, so `message-failed` handling can be pinned.
+  @visibleForTesting
+  void testHandleServerErrorEvent(dynamic data) => _handleErrorEvent(data);
+
   @visibleForTesting
   List<String> testSortedSessionIdsForCacheWarmup() {
     final entries = _sessions.entries.toList()

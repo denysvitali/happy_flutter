@@ -73,7 +73,11 @@ class PowerDiagnosticsOtelReporter {
     int delta = 1,
     Map<String, String> attributes = const {},
   }) {
-    debugBumpTotals.update(name, (value) => value + delta, ifAbsent: () => delta);
+    debugBumpTotals.update(
+      name,
+      (value) => value + delta,
+      ifAbsent: () => delta,
+    );
     // Web builds never initialize OTel (see OpenTelemetryService.initialize);
     // bail before the uninitialized SDK raises per call. Pre-init bumps on
     // native already failed inside the try below, so nothing new is dropped.
@@ -225,6 +229,20 @@ class PowerDiagnosticsOtelReporter {
     description: 'Unmatched tool results dropped at the pending-queue cap',
     unit: '{results}',
     delta: count,
+  );
+
+  /// Server-reported terminal message drops.
+  ///
+  /// The server emits `{code: "message-failed", sid, localId}` from its
+  /// store-failure path: the row could not be persisted, so no sequence was
+  /// allocated and the client's gap recovery cannot detect it. Before
+  /// 2026-09-14 the client ignored the code entirely (zero references in
+  /// `lib/`), which left this class of loss invisible to the UI, to the
+  /// logs, and to any alert.
+  void recordServerDroppedMessage() => _bump(
+    'happy_flutter.app.messaging.server_dropped',
+    description: 'Server reported a message it could not persist',
+    unit: '{messages}',
   );
 
   /// Messaging-invariant violation counters. [tag] is one of the four
