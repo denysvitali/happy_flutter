@@ -22,6 +22,7 @@ import '../wire/wire_parsers.dart';
 class SettingsManager {
   SettingsManager({
     required Encryption encryption,
+    ApiClient? client,
     required int nativeUpdateFreshnessMs,
     required bool Function(Object) isTransientConnectionError,
     required InvalidateSync Function() settingsSyncGetter,
@@ -29,6 +30,7 @@ class SettingsManager {
     required InvalidateSync Function() purchasesSyncGetter,
     required void Function(Set<SyncDomain>) onDataChanged,
   })  : _encryption = encryption,
+        _client = client ?? ApiClient(),
         _nativeUpdateFreshnessMs = nativeUpdateFreshnessMs,
         _isTransientConnectionError = isTransientConnectionError,
         _settingsSyncGetter = settingsSyncGetter,
@@ -37,6 +39,8 @@ class SettingsManager {
         _onDataChanged = onDataChanged;
 
   final Encryption _encryption;
+  final ApiClient _client;
+  int _generation = 0;
   final int _nativeUpdateFreshnessMs;
   final bool Function(Object) _isTransientConnectionError;
   final InvalidateSync Function() _settingsSyncGetter;
@@ -97,19 +101,21 @@ class SettingsManager {
   /// Sync settings with the server: POST pending deltas, then GET latest.
   Future<void> syncSettings() async {
     logger.info('Syncing settings...');
+    final generation = _generation;
 
     try {
-      final apiClient = ApiClient();
+      final apiClient = _client;
 
       // Apply pending settings
       var postedSuccessfully = false;
       if (_pendingSettings.isNotEmpty) {
+        final postedDelta = Map<String, dynamic>.of(_pendingSettings);
         final mergedJson = <String, dynamic>{
           ..._settingsSnapshot.toJson(),
-          ..._pendingSettings,
+          ...postedDelta,
         };
-        final mergedSettings = Settings.fromJson(mergedJson);
         final encryptedPending = await _encryption.encryptRaw(mergedJson);
+        if (generation != _generation) return;
 
         final updateResponse = await apiClient
             .post(
@@ -118,14 +124,22 @@ class SettingsManager {
                 'settings': encryptedPending,
                 'expectedVersion': _settingsVersion,
               },
-            )
-            .timeout(const Duration(seconds: 10));
+            );
+        if (generation != _generation) return;
 
         final updateData = WireParsers.asMap(updateResponse.data);
         final updateSuccess = updateData?['success'] == true;
         if (apiClient.isSuccess(updateResponse) && updateSuccess) {
-          _settingsSnapshot = mergedSettings;
-          _pendingSettings.clear();
+          // A response acknowledges only the submitted values. Edits made
+          // during encryption/HTTP remain pending and visible.
+          _pendingSettings.removeWhere(
+            (key, value) => postedDelta.containsKey(key) &&
+                postedDelta[key] == value,
+          );
+          _settingsSnapshot = Settings.fromJson({
+            ...mergedJson,
+            ..._pendingSettings,
+          });
           final newVersion = _asInt(updateData?['settingsVersion']);
           if (newVersion != null) {
             _settingsVersion = newVersion;
@@ -143,6 +157,7 @@ class SettingsManager {
                   await _encryption.decryptRaw(currentSettingsEncrypted),
                 )
               : null;
+          if (generation != _generation) return;
           final serverSettings = serverSettingsMap != null
               ? Settings.fromJsonWithFallback(
                   serverSettingsMap,
@@ -157,6 +172,12 @@ class SettingsManager {
           );
           _settingsVersion = currentVersion;
           _onDataChanged({SyncDomain.settings});
+          // Re-enter through InvalidateSync's bounded retry/backoff. A GET
+          // here would overwrite the optimistic snapshot and finish without
+          // posting the rebased delta.
+          throw StateError('Settings version conflict; retry pending edits');
+        } else {
+          throw StateError('Settings write was not acknowledged');
         }
       }
 
@@ -166,6 +187,7 @@ class SettingsManager {
           final response = await apiClient
               .get('/v1/account/settings')
               .timeout(const Duration(seconds: 10));
+          if (generation != _generation) return;
 
           if (apiClient.isSuccess(response)) {
             final data = WireParsers.asMap(response.data);
@@ -175,11 +197,16 @@ class SettingsManager {
               final decrypted = WireParsers.asMap(
                 await _encryption.decryptRaw(encryptedSettings),
               );
+              if (generation != _generation) return;
               if (decrypted != null) {
-                _settingsSnapshot = Settings.fromJsonWithFallback(
+                final fetched = Settings.fromJsonWithFallback(
                   decrypted,
                   _settingsSnapshot,
                 );
+                _settingsSnapshot = Settings.fromJson({
+                  ...fetched.toJson(),
+                  ..._pendingSettings,
+                });
                 _settingsVersion =
                     _asInt(data?['settingsVersion']) ?? _settingsVersion;
                 _onDataChanged({SyncDomain.settings});
@@ -205,12 +232,11 @@ class SettingsManager {
           );
         }
       }
-    } on TimeoutException catch (e) {
-      logger.warning('Settings sync timed out: $e');
-    } on DioException {
+    } catch (error) {
+      if (generation != _generation) return;
+      // HTTP owns the cancellable write deadline. Let InvalidateSync retry
+      // failed writes, including conflicts after an ambiguous server commit.
       rethrow;
-    } catch (error, stack) {
-      logger.error('Error syncing settings', error, stack);
     }
   }
 
@@ -400,6 +426,7 @@ class SettingsManager {
 
   /// Clears all managed state.
   void clear() {
+    _generation++;
     _settingsSnapshot = Settings();
     _settingsVersion = 0;
     _pendingSettings.clear();

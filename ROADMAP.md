@@ -118,8 +118,14 @@ Operational follow-up remains necessary:
 - Daemon logs show 15 Kubernetes API deadline/lease-loss cycles, each recovering
   at attempt 1/5. Recent heartbeats are healthy. Inspect control-plane latency
   if this repeats; lowercase/unknown severity labels require text filtering.
-- Settings-write timeout recovery (4717, 17 lifetime) remains open. Existing
-  uncommitted settings work was preserved and is outside this batch.
+- Settings-write timeout recovery (4717, 17 lifetime) is fixed in source
+  (2026-09-14): the 10s `Future` wrapper is gone and HTTP owns the write
+  deadline, failures rethrow so `InvalidateSync` retries, only acknowledged
+  pending keys are cleared, version conflicts rebase the pending delta, and a
+  `_generation` guard stops a late POST/GET from resurrecting settings after a
+  runtime reset. Six contract tests in
+  `test/core/sync/settings_manager_test.dart`. Awaiting a post-fix build window
+  before closing the issue.
 - CLI GlitchTip has no events newer than July 18; verify ingestion and release
   labels before using an empty recent issue page as health evidence. Observed
   server/CLI environment labels are `dev` / `unknown`.
@@ -1631,7 +1637,7 @@ resolved or ignored.
 |-------|----------|-------|--------|-------------|
 | Committed batch prefix misses live notification | P0 | 2 store deadlines / audit 24h; loss not proven | Source fix `happy-cli-go a9ef61a`; verify rollout | Failed later chunks used to discard prior committed results; retry deduplication suppressed their notification. Deterministic contract now covers prefix fanout and retry identity. |
 | Expected machine-refresh suspension reported as error (8771/8772) | Error telemetry | 6 lifetime | Source fix `b2c46d1c` / `3373d1a5`; verify rollout | Build 277800 cancellation is now typed and logged without an error span; cached machines and retry state survive. True deadline failures remain errors. |
-| Settings POST timeout swallowed (4717) | Warning | 17 issue total | Open — P1 | Build 277500: 10s POST wrapper times out, then sync queue reports success with zero retries. Pending edits remain but recovery needs another invalidation; reconcile late POST completion and version conflicts. See September 5 audit. |
+| Settings POST timeout swallowed (4717) | Warning | 17 issue total | Fixed in source (2026-09-14), ships with next `main` commit | Build 277500: the 10s POST wrapper timed out and the queue then reported success with zero retries. The wrapper is removed (HTTP owns the deadline), failures rethrow into `InvalidateSync`'s bounded retry, only acknowledged pending keys are cleared so edits made during the write survive, version conflicts rebase and retry, and a `_generation` guard blocks late POST/GET completion after `clear()`. Six contract tests in `test/core/sync/settings_manager_test.dart`, covering delayed POST past the old deadline, deadline failure, edits during write, conflict rebase, late POST after runtime reset, and edits during GET. |
 | Machine RPC timeout / slow ping (3702/3627) | Warning | Current-build recurrence | Open — verify Bash cleanup and deployed routing | Build 277900 Bash ACK timeout at 30s correlates with server Redis retries. Go `f513cc9` fixes independently reproduced descendant pipe hangs; causality for the live RPC remains unproven. See September 8 audit. |
 | Retry deadline overshoot / background refresh burst (8770/8769/8768/8767/8667) | Warning / Error | 1 / 1 / 1 / 1 / 2 | Open — P1 | Build 276200: 20s budget lasts about 33s after suspension. Bound each attempt and overall deadline; preserve offline outbox identity. See September 4 audit. |
 | Send target resolution / default-profile respawn (5198) | Warning | 161 issue total | Open — P1 investigation | Build 276300: 3.16s target resolution versus 64ms POST; Loki correlates capability RPC forward retry. Verify profile identity and routing separately. |
