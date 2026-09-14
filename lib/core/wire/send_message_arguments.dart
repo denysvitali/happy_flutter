@@ -104,14 +104,33 @@ String? sendMessageResultText(dynamic result) {
 
 String? _sendMessageContentText(dynamic value) {
   final decoded = value is String ? _decodeJson(value) : value;
+  final map = WireParsers.asMap(decoded);
+  if (map != null) {
+    for (final key in const [
+      'message',
+      'content',
+      'result',
+      'output',
+      'status',
+    ]) {
+      final nested = map[key];
+      if (nested is String && nested.trim().isNotEmpty) return nested;
+      final nestedText = _sendMessageContentText(nested);
+      if (nestedText != null) return nestedText;
+    }
+  }
+
   final blocks = WireParsers.asList(decoded);
   if (blocks == null || blocks.isEmpty) return null;
 
   final texts = <String>[];
   for (final block in blocks) {
-    final map = WireParsers.asMap(block);
-    final text = map?['text'];
-    if (text is String && text.trim().isNotEmpty) texts.add(text);
+    final blockMap = WireParsers.asMap(block);
+    final text = blockMap?['text'];
+    if (text is String && text.trim().isNotEmpty) {
+      final parsedText = _sendMessageContentText(text);
+      texts.add(parsedText ?? text);
+    }
   }
   return texts.isEmpty ? null : texts.join('\n');
 }

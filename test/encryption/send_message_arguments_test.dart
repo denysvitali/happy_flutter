@@ -41,7 +41,7 @@ void main() {
         {'type': 'resource_link', 'uri': 'happy://agent/abc'},
       ]);
 
-      expect(text, '{"success":true,"message":"Message queued"}');
+      expect(text, 'Message queued');
     });
     test('handles malformed or non-map input without throwing', () {
       final args = SendMessageArguments.from('["not", "an", "object"]');
