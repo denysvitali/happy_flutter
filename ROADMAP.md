@@ -2,7 +2,74 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-13
+**Last Updated**: 2026-09-14
+
+### Telemetry audit and client fixes, 2026-09-14 (builds 279400–280300)
+
+Four parallel agents swept Prometheus, Jaeger, Loki and GlitchTip over
+2026-09-07 → 09-14. Builds live in the window: **280300** (newest), 280100,
+279900, 279800, 279400 — the previous "279400" anchor was ~3 builds stale.
+Six client defects were fixed; two findings are **outside this repo**.
+
+**Server: still on the Aug-27 image.** Every `happy-server` line in the window
+carries `service_version="master+4f97bfd8b97e"`, so the 2026-09-08 Go fixes
+(`a9ef61a`, `505b79a`, `f513cc9`, `be33fb2`) are **still not deployed 6 days
+later**. Measured against it: **62** `failed to create message` + **89**
+`atomic message store blocked` (`SQLSTATE 55P03`, `sessions` row lock), and
+**78** `happy_ws_messages_dropped_total{reason="persist-failed"}` — ~72% of the
+week's failures in one 09-12 14:00–16:20Z burst that coincides with daemon
+lease churn. `happy-postgres-8` shows 5 restarts (last reason `Error`), and
+`happy-postgres-9` is absent from the series. Push is still 100 %
+`outcome="unconfigured"` (79/7d). Client-side gap recovery repaired every
+observed seq gap, so the symptom is delay, not loss — but a persist failure
+never gets a seq, so those 78 rows are not gap-recoverable and the loss
+question is unresolved. **Deploy the server image.**
+
+**Client fixes shipped in this batch:**
+
+- **ErrorBoundary latch oscillation (GlitchTip 4902, fatal, 280100).**
+  `error_boundary.dart` cleared `_error` whenever `oldWidget.child !=
+  widget.child`; a parent rebuilding with a fresh child instance cleared it on
+  essentially every rebuild, so the fallback and the failing subtree alternated
+  at ~1 Hz (repeating `Null check operator` + `ErrorWidget built` breadcrumbs)
+  until the isolate ANR'd. A different subtree (type or key change) still
+  clears; a like-for-like rebuild now gets 3 bounded retries, then the
+  fallback holds. Regression test fails pre-fix at 13 child renders vs ≤4.
+- **Our own cancellation reported fatal (8776).** The request budget's
+  deadline cancel escaped an async gap to `PlatformDispatcher.onError` and was
+  filed as a fatal. `sentry_config.dart` gained
+  `isExpectedHttpCancellation`, wired as `beforeSend` on both platforms.
+- **`ref` after unmount (8778 / 8806 / 8804).** `showSessionMenu` popped the
+  sheet and then read `ref` from the unmounted `Consumer`; the notifier is now
+  resolved before the pop.
+- **Silent tool-result loss.** `_queuePendingToolResults` shed unmatched
+  results at INFO with no counter (six drops in 3.4 s on one live session); it
+  is now a WARN plus `happy_flutter.tool_results.dropped`.
+- **StuckAgentSentinel walked an empty catalog** every 60 s unconditionally;
+  now returns on empty, mirroring `SessionActivityCoordinator`.
+- **MMKV compaction null-check (8725).** The worker body force-unwrapped its
+  request map and escaped as a bare null-check. It now validates inputs,
+  returns a structured reason, and the known worker-isolate limitation is
+  logged once per process at info.
+
+**Confirmed healthy:** idle rendering is clean (`activity="idle"` windows
+empty across three independent checks — the historical pulse/spinner family is
+gone); `unmatched_optimistic` / `unknown_acked_local_id` / `CryptoSecretBox
+decrypt failed` all empty for 7d; zero outbox dead-letters; cold start 0.79 s
+mean / 2.32 s p95; send `target_resolution` p99 4.23 s → 0.22 s (fixed at
+280100); session-collection compute ≤10 ms in every bucket.
+
+**Watch:** chat sustains ~87–95 fps (mostly legitimate token streaming); a
+>1 s frozen-frame tail reproduces on 280100/279900/279800 but not 280300; a
+341 ms `ListSessionsV2` outlier; session-lifecycle skew still firing on 280300
+(10 auto-restores on 09-14).
+
+**Observability gaps worth fixing:** `happy-daemon` emits **no ERROR and no
+WARN** at all (2,090 info + 96 `unknown`) — absence of daemon errors is not
+daemon health; `service_build` is structured metadata on `happy-flutter`
+streams, not a selectable label, so per-build stream filters silently return
+empty; production server/daemon records are labelled
+`deployment_environment="dev"`; GlitchTip trace ids do not resolve in Loki.
 
 ### Desktop master-detail chat dropped live messages, 2026-09-13
 
