@@ -956,7 +956,14 @@ extension SyncMessagingMerge on Sync {
     if (queue.length > Sync.maxPendingToolResultsPerSession) {
       final dropped = queue.length - Sync.maxPendingToolResultsPerSession;
       queue.removeRange(0, dropped);
-      logger.info(
+      // This is real loss: a dropped result can never be matched to its
+      // tool call, so the row renders without output. Keep it visible as a
+      // warning and count it, so a `> 0` alert can fire — the queue used to
+      // shed results at INFO with no counter, which hid the loss entirely.
+      PowerDiagnosticsOtelReporter.instance.recordToolResultDropped(
+        count: dropped,
+      );
+      logger.warning(
         '[toolResults] pending queue for $sessionId over cap — '
         'dropped $dropped oldest unmatched result(s)',
       );

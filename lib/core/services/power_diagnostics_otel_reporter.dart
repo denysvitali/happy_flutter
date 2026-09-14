@@ -197,6 +197,20 @@ class PowerDiagnosticsOtelReporter {
     unit: '{events}',
   );
 
+  /// Unmatched tool results discarded because a session's pending queue hit
+  /// [Sync.maxPendingToolResultsPerSession].
+  ///
+  /// A dropped result can no longer be matched to its tool call, so the row
+  /// renders without its output. This was an INFO log with no counter, which
+  /// made the loss invisible to any `> 0` alert — the 2026-09-14 audit found
+  /// six drops in 3.4 s on a single live session.
+  void recordToolResultDropped({required int count}) => _bump(
+    'happy_flutter.tool_results.dropped',
+    description: 'Unmatched tool results dropped at the pending-queue cap',
+    unit: '{results}',
+    delta: count,
+  );
+
   /// Messaging-invariant violation counters. [tag] is one of the four
   /// `MessageInvariant` tags. Primed with `delta: 0` at monitor
   /// construction so ALL four series exist from app start (audit
