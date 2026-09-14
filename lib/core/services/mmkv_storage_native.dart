@@ -525,6 +525,15 @@ class MMKVStorage {
     return isLinux && totalBytes >= minFileBytes;
   }
 
+  /// Runs the worker compaction body inline, so tests can pin that a bad
+  /// request comes back as a structured error. It used to escape as a bare
+  /// `Null check operator used on a null value` from inside the worker,
+  /// which named neither the failing step nor the reason (GlitchTip 8725).
+  @visibleForTesting
+  static Map<String, Object> debugCompactDefaultMMKVIfNeeded(
+    Map<String, Object> request,
+  ) => _compactDefaultMMKVIfNeeded(request);
+
   @visibleForTesting
   static bool debugCrossesMessageCacheCompactionWriteTrigger({
     required int accumulatedBytes,

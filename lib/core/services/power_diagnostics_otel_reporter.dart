@@ -1,5 +1,6 @@
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
     show Counter;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart';
 
 import 'logger_service.dart';
@@ -42,6 +43,20 @@ class PowerDiagnosticsOtelReporter {
     return FlutterOTel.meter(name: 'happy_flutter.power_diagnostics');
   }
 
+  /// Every bump this process has attempted, keyed by metric name, tallied
+  /// *before* the OTel gate below.
+  ///
+  /// OTel is never initialized under `flutter test`, so without this a metric
+  /// that only matters in production — a drop counter, an invariant violation
+  /// — would be unobservable in exactly the tests written to pin it. This
+  /// records intent, not export success; it is not a substitute for reading
+  /// the real series.
+  @visibleForTesting
+  final Map<String, int> debugBumpTotals = {};
+
+  @visibleForTesting
+  void resetDebugBumpTotals() => debugBumpTotals.clear();
+
   /// Adds [delta] to the counter named [name], creating it on first use.
   ///
   /// [attributes] must be low-cardinality: a value that can take an unbounded
@@ -58,6 +73,7 @@ class PowerDiagnosticsOtelReporter {
     int delta = 1,
     Map<String, String> attributes = const {},
   }) {
+    debugBumpTotals.update(name, (value) => value + delta, ifAbsent: () => delta);
     // Web builds never initialize OTel (see OpenTelemetryService.initialize);
     // bail before the uninitialized SDK raises per call. Pre-init bumps on
     // native already failed inside the try below, so nothing new is dropped.

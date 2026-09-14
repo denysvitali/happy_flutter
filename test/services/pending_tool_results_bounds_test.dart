@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/services/power_diagnostics_otel_reporter.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tool_result_processor.dart';
 
@@ -32,6 +33,7 @@ void main() {
     // Sync is a singleton — clear queue state left by earlier tests.
     sync.testClearAllSessionMessageState();
     sync.testPendingToolResultNowMsOverride = 1000;
+    PowerDiagnosticsOtelReporter.instance.resetDebugBumpTotals();
   });
 
   tearDown(() {
@@ -54,6 +56,26 @@ void main() {
         pending.first['toolUseId'],
         'tool-50',
         reason: 'oldest entries must be the ones dropped',
+      );
+    });
+
+    // A dropped result can never be matched to its tool call, so the row
+    // renders without its output. This used to be INFO-only with no counter,
+    // which hid the loss from any `> 0` alert (2026-09-14 audit: six drops in
+    // 3.4 s on one live session).
+    test('overflow is counted, not just logged', () {
+      sync.testSetSessionMessages('s1', const []);
+      const overflow = 50;
+      sync.testApplyToolResults(
+        's1',
+        results(Sync.maxPendingToolResultsPerSession + overflow),
+      );
+
+      expect(
+        PowerDiagnosticsOtelReporter
+            .instance
+            .debugBumpTotals['happy_flutter.tool_results.dropped'],
+        overflow,
       );
     });
 
