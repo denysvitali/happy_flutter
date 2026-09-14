@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 
 /// Normalized arguments for Claude Code's `SendMessage` tool.
@@ -79,6 +81,10 @@ class SendMessageArguments {
 String? sendMessageResultText(dynamic result) {
   if (result == null) return null;
   if (result is String) return result.trim().isEmpty ? null : result;
+
+  final directText = _sendMessageContentText(result);
+  if (directText != null) return directText;
+
   final map = WireParsers.asMap(result);
   if (map == null) return result.toString();
   for (final key in const [
@@ -90,6 +96,32 @@ String? sendMessageResultText(dynamic result) {
   ]) {
     final value = map[key];
     if (value is String && value.trim().isNotEmpty) return value;
+    final nestedText = _sendMessageContentText(value);
+    if (nestedText != null) return nestedText;
   }
   return null;
+}
+
+String? _sendMessageContentText(dynamic value) {
+  final decoded = value is String ? _decodeJson(value) : value;
+  final blocks = WireParsers.asList(decoded);
+  if (blocks == null || blocks.isEmpty) return null;
+
+  final texts = <String>[];
+  for (final block in blocks) {
+    final map = WireParsers.asMap(block);
+    final text = map?['text'];
+    if (text is String && text.trim().isNotEmpty) texts.add(text);
+  }
+  return texts.isEmpty ? null : texts.join('\n');
+}
+
+dynamic _decodeJson(String value) {
+  final trimmed = value.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+  try {
+    return jsonDecode(trimmed);
+  } on FormatException {
+    return null;
+  }
 }

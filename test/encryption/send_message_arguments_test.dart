@@ -28,10 +28,21 @@ void main() {
 
     test('recognizes qualified provider tool names', () {
       expect(SendMessageArguments.isToolName('SendMessage'), isTrue);
-      expect(SendMessageArguments.isToolName('mcp__collab__send_message'), isTrue);
+      expect(
+        SendMessageArguments.isToolName('mcp__collab__send_message'),
+        isTrue,
+      );
       expect(SendMessageArguments.isToolName('Bash'), isFalse);
     });
 
+    test('unwraps MCP content blocks in result', () {
+      final text = sendMessageResultText([
+        {'type': 'text', 'text': '{"success":true,"message":"Message queued"}'},
+        {'type': 'resource_link', 'uri': 'happy://agent/abc'},
+      ]);
+
+      expect(text, '{"success":true,"message":"Message queued"}');
+    });
     test('handles malformed or non-map input without throwing', () {
       final args = SendMessageArguments.from('["not", "an", "object"]');
 
@@ -42,36 +53,39 @@ void main() {
     });
   });
 
-  test('normalizes Codex SendMessage tool-call input and preserves identity', () {
-    final result = processDecryptedMessages(
-      decryptedJsonList: [
-        {
-          'role': 'agent',
-          'content': {
-            'type': 'codex',
-            'data': {
-              'type': 'tool-call',
-              'name': 'SendMessage',
-              'arguments':
-                  '{"arguments":{"to":"reviewer",'
-                  '"content":"Check this"}}',
-              'callId': 'send-1',
+  test(
+    'normalizes Codex SendMessage tool-call input and preserves identity',
+    () {
+      final result = processDecryptedMessages(
+        decryptedJsonList: [
+          {
+            'role': 'agent',
+            'content': {
+              'type': 'codex',
+              'data': {
+                'type': 'tool-call',
+                'name': 'SendMessage',
+                'arguments':
+                    '{"arguments":{"to":"reviewer",'
+                    '"content":"Check this"}}',
+                'callId': 'send-1',
+              },
             },
           },
-        },
-      ],
-      wireMessages: [
-        {'id': 'm1', 'seq': 1, 'createdAt': 1000},
-      ],
-      sessionId: 's1',
-    );
+        ],
+        wireMessages: [
+          {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+        ],
+        sessionId: 's1',
+      );
 
-    expect(result.messages, hasLength(1));
-    expect(result.messages.first['name'], 'SendMessage');
-    expect(result.messages.first['input'], {
-      'to': 'reviewer',
-      'content': 'Check this',
-    });
-    expect(result.messages.first['toolUseId'], 'send-1');
-  });
+      expect(result.messages, hasLength(1));
+      expect(result.messages.first['name'], 'SendMessage');
+      expect(result.messages.first['input'], {
+        'to': 'reviewer',
+        'content': 'Check this',
+      });
+      expect(result.messages.first['toolUseId'], 'send-1');
+    },
+  );
 }
