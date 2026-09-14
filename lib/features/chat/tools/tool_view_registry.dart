@@ -17,6 +17,7 @@ import 'views/grep_view.dart';
 import 'views/ls_view.dart';
 import 'views/multi_edit_view.dart';
 import 'views/read_view.dart';
+import 'views/send_message_view.dart';
 import 'views/task_tool_view.dart';
 import 'views/task_view.dart';
 import 'views/todo_view.dart';
@@ -56,6 +57,7 @@ class ToolViewRegistry {
           for (final name in KnownTools.codexMcpToolNames)
             name: (t, m, s) => CodexMcpView(tool: t, metadata: m),
         },
+        'SendMessage': (t, m, s) => SendMessageView(tool: t),
         'TaskCreate': (t, m, s) =>
             TaskToolView(tool: t, metadata: m, sessionId: s),
         'TaskUpdate': (t, m, s) =>

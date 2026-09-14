@@ -86,10 +86,10 @@ void _processAcpContent({
         toolCall['kind'] ??
         data['name'];
     final rawInput =
-        WireParsers.asMap(toolCall['input']) ??
-        WireParsers.asMap(toolCall['rawInput']) ??
-        WireParsers.asMap(data['input']) ??
-        WireParsers.asMap(data['rawInput']) ??
+        WireParsers.asMapOrJson(toolCall['input']) ??
+        WireParsers.asMapOrJson(toolCall['rawInput']) ??
+        WireParsers.asMapOrJson(data['input']) ??
+        WireParsers.asMapOrJson(data['rawInput']) ??
         <String, dynamic>{};
     // Unwrap Grok use_tool / CallMcpTool meta-dispatch so UI shows real MCP
     // tool (mcp__server__tool) instead of the dispatcher wrapper.

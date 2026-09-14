@@ -23,6 +23,7 @@ export 'views/grep_view.dart';
 export 'views/ls_view.dart';
 export 'views/multi_edit_view.dart';
 export 'views/read_view.dart';
+export 'views/send_message_view.dart';
 export 'views/task_view.dart';
 export 'views/todo_view.dart';
 export 'views/web_fetch_view.dart';

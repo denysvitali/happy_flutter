@@ -40,7 +40,7 @@ void _processPiContent({
 
   if (dataType == DataType.toolCall) {
     final toolName = data['toolName'] ?? data['name'] ?? 'unknown';
-    final toolInput = data['args'] ?? data['input'] ?? <String, dynamic>{};
+    final toolInput = WireParsers.toolInput(data);
     messages.add({
       'id': id,
       'localId': localId,
@@ -170,10 +170,7 @@ void _processPiContent({
         final toolUseId = block['id'] as String?;
         final rawName = block['name'] ?? block['server_name'];
         final toolName = rawName?.toString().trim() ?? '';
-        final input =
-            WireParsers.asMap(block['input']) ??
-            WireParsers.asMap(block['arguments']) ??
-            <String, dynamic>{};
+        final input = WireParsers.toolInput(block);
         final inputText = block['inputText']?.toString().trim() ?? '';
         final isPlaceholder =
             toolName.isEmpty &&
@@ -273,11 +270,7 @@ void _processPiContent({
           'role': 'agent',
           'kind': 'tool-call',
           'name': row['toolName'] ?? row['name'] ?? 'unknown',
-          'input':
-              WireParsers.asMap(row['arguments']) ??
-              WireParsers.asMap(row['args']) ??
-              WireParsers.asMap(row['input']) ??
-              <String, dynamic>{},
+          'input': WireParsers.toolInput(row),
           'toolUseId': callId,
           'state': _webSearchState(row['status'] as String?),
           'content': row,

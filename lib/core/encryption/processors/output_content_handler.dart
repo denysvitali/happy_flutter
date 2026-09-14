@@ -366,7 +366,7 @@ void _processOutputContent({
           'role': 'agent',
           'kind': 'tool-call',
           'name': block['name'] ?? block['server_name'] ?? type,
-          'input': WireParsers.asMap(block['input']) ?? <String, dynamic>{},
+          'input': WireParsers.toolInput(block),
           'toolUseId': block['id'],
           'state': 'running',
           'content': block,
@@ -501,11 +501,7 @@ void _processOutputContent({
           'role': 'agent',
           'kind': 'tool-call',
           'name': row['toolName'] ?? row['name'] ?? 'unknown',
-          'input':
-              WireParsers.asMap(row['arguments']) ??
-              WireParsers.asMap(row['args']) ??
-              WireParsers.asMap(row['input']) ??
-              <String, dynamic>{},
+          'input': WireParsers.toolInput(row),
           'toolUseId': callId,
           'state': _webSearchState(row['status'] as String?),
           'content': row,

@@ -12,6 +12,7 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/ui/neutralize_inner_scroll.dart';
 import '../../../core/utils/grok_acp_normalize.dart';
 import '../../../core/utils/tool_error_parser.dart';
+import '../../../core/wire/send_message_arguments.dart';
 import '../../../core/wire/wire_parsers.dart';
 import '../message_render_signature.dart';
 import 'json_viewer.dart';
@@ -507,9 +508,14 @@ class _ToolViewState extends ConsumerState<ToolView>
     final theme = Theme.of(context);
     // Defense-in-depth: unwrap Grok use_tool for historical messages that
     // were stored before happy-cli-go / ACP normalize rewrote the name.
+    final rawToolName = widget.tool['name'] as String? ?? 'Unknown';
+    final rawInput = WireParsers.asMap(widget.tool['input']);
     final displayDispatch = normalizeGrokToolCall(
-      widget.tool['name'] as String? ?? 'Unknown',
-      WireParsers.asMap(widget.tool['input']),
+      rawToolName,
+      rawInput ??
+          (SendMessageArguments.isToolName(rawToolName)
+              ? SendMessageArguments.fromTool(widget.tool).input
+              : null),
     );
     final toolName = displayDispatch.name;
     final toolState = widget.tool['state'] as String? ?? 'pending';

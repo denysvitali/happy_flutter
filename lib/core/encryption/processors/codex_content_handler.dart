@@ -63,11 +63,15 @@ void _processCodexContent({
     // Handle old (name/input), current (toolName/args), and Responses-style
     // (name/arguments) tool calls from happy-cli-go/Codex.
     final toolName = data['toolName'] ?? data['name'] ?? 'unknown';
-    final toolInput =
+    final rawInput =
         data['args'] ??
         data['input'] ??
         data['arguments'] ??
         <String, dynamic>{};
+    final parsedInput = WireParsers.asMapOrJson(rawInput);
+    final normalizedInput = parsedInput == null
+        ? rawInput
+        : WireParsers.toolInput({'input': parsedInput});
     messages.add({
       'id': id,
       'localId': localId,
@@ -76,7 +80,7 @@ void _processCodexContent({
       'role': 'agent',
       'kind': 'tool-call',
       'name': toolName,
-      'input': toolInput,
+      'input': normalizedInput,
       'toolUseId': data['callId'],
       'state': 'running',
       'content': data,

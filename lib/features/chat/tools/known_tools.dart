@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/utils/command_utils.dart';
 import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
+import 'package:happy_flutter/core/wire/send_message_arguments.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/agent_steps.dart';
 
@@ -112,10 +113,22 @@ class KnownTools {
     'mcp__happy__todo_remove': 'TaskUpdate',
     'mcp__happy__todo_list': 'TaskList',
     'mcp__happy__todo_get': 'TaskGet',
+    'sendmessage': 'SendMessage',
+    'send_message': 'SendMessage',
+    'mcp__sendmessage': 'SendMessage',
+    'mcp__send_message': 'SendMessage',
   };
 
   /// Returns the canonical definition name for [name].
-  static String canonicalName(String name) => aliases[name] ?? name;
+  static String canonicalName(String name) {
+    final alias = aliases[name];
+    if (alias != null) return alias;
+    return SendMessageArguments.isToolName(name) ? 'SendMessage' : name;
+  }
+
+  /// Icon factory for SendMessage tool calls.
+  static Widget sendMessageIcon(double size, Color color) =>
+      Icon(Icons.forward_to_inbox_outlined, size: size, color: color);
 
   /// Icon factory for task/agent tools.
   static Widget taskIcon(double size, Color color) =>
@@ -200,6 +213,13 @@ class KnownTools {
 
   /// Registry of known tool definitions.
   static final Map<String, ToolDefinition> tools = {
+    'SendMessage': ToolDefinition(
+      icon: sendMessageIcon,
+      title: 'Send Message',
+      minimal: false,
+      extractSubtitle: (tool, _) =>
+          SendMessageArguments.fromTool(tool).subtitle,
+    ),
     'Task': ToolDefinition(
       icon: taskIcon,
       title: 'Task',

@@ -12,6 +12,7 @@ import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/ansi_span_cache.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/command_utils.dart';
+import '../../core/wire/send_message_arguments.dart';
 import '../../core/wire/wire_parsers.dart';
 import 'tools/json_viewer.dart';
 import 'tools/known_tools.dart';
@@ -19,6 +20,7 @@ import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart' show parseToolState;
 import 'tools/views/codex_mcp_view.dart';
 import 'tools/views/mcp_exec_view.dart';
+import 'tools/views/send_message_view.dart';
 import 'tools/views/web_search_view.dart';
 
 const int _largePayloadThreshold = 16 * 1024;
@@ -136,8 +138,11 @@ class _ToolDetailView extends StatelessWidget {
     final theme = Theme.of(context);
     final toolName = data['name'] as String? ?? 'Unknown';
     final toolState = data['state'] as String? ?? 'pending';
-    final input = WireParsers.asMap(data['input']);
+    final input = SendMessageArguments.isToolName(toolName)
+        ? SendMessageArguments.from(data['input']).input
+        : WireParsers.asMap(data['input']);
     final result = data['result'];
+    final isSendMessage = SendMessageArguments.isToolName(toolName);
     final permission = WireParsers.asMap(data['permission']);
     final messages = WireParsers.asList(data['messages']);
 
@@ -216,7 +221,12 @@ class _ToolDetailView extends StatelessWidget {
         // the detail screen is informative even when the daemon's
         // result envelope is empty (Codex web_search items carry no
         // result pages on the wire).
-        if (isWebSearch && !hasLargePayload) ...[
+        if (isSendMessage && !hasLargePayload) ...[
+          SendMessageView(tool: data, boxed: false),
+          const SizedBox(height: AppSpacing.md),
+          _RawPayloadDisclosure(input: input, result: result, state: state),
+          const SizedBox(height: AppSpacing.md),
+        ] else if (isWebSearch && !hasLargePayload) ...[
           WebSearchView(tool: data),
           if (input != null || result != null) ...[
             const SizedBox(height: AppSpacing.md),
