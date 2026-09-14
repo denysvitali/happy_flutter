@@ -155,6 +155,12 @@ class StuckAgentSentinel {
   void _reconcileCatalog() {
     final sync = _sync;
     if (sync == null) return;
+    // Nothing to reconcile over an empty catalog — and the periodic timer
+    // fires regardless of activity, so without this guard a signed-out or
+    // freshly-started app pays a full walk every interval for no work.
+    // Mirrors [SessionActivityCoordinator], which returns on an empty
+    // active set.
+    if (sync.sessionsView.isEmpty) return;
     final stopwatch = Stopwatch()..start();
     reconcile(sync.sessionsView.values);
     OpenTelemetryService().recordDuration(

@@ -121,4 +121,28 @@ void main() {
     expect(cancelled, isEmpty);
     await sentinel.detach();
   });
+
+  // The periodic safety-net timer fires regardless of activity, so an empty
+  // catalog (signed out, or before the first sessions fetch) used to pay a
+  // full walk every interval for no work. Mirrors
+  // SessionActivityCoordinator's empty-active-set return.
+  test('skips the walk when the catalog is empty', () async {
+    final sync = createTestSync();
+    // Sync is a singleton: earlier cases in this file leave sessions behind.
+    sync.testSessions.clear();
+    final sentinel = StuckAgentSentinel(
+      stallThreshold: Duration.zero,
+      eventReconcileCooldown: Duration.zero,
+      checkInterval: const Duration(hours: 1),
+      visibleSessionResolver: () => null,
+      showAlert: (_) async {},
+      cancelAlert: (_) async {},
+    )..attach(sync);
+
+    sync.testEmitDomainChanged(SyncDomain.sessions);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    expect(sentinel.debugReconcileCount, 0);
+    await sentinel.detach();
+  });
 }
