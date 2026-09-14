@@ -164,9 +164,21 @@ void showSessionMenu(
                   ),
                   onTap: () {
                     HapticFeedback.heavyImpact();
+                    // Resolve the notifier *before* the pop. `ref` belongs to
+                    // this sheet's Consumer, which the pop unmounts; reading a
+                    // disposed ref throws
+                    // `Using "ref" when a widget is about to or has been
+                    // unmounted is unsafe` (GlitchTip 8778/8806/8804).
+                    final chatActions = ref.read(
+                      chatActionNotifierProvider.notifier,
+                    );
                     Navigator.pop(sheetContext);
                     unawaited(
-                      _confirmStopAgentProcess(outerContext, ref, sessionId),
+                      _confirmStopAgentProcess(
+                        outerContext,
+                        chatActions,
+                        sessionId,
+                      ),
                     );
                   },
                 ),
@@ -198,7 +210,7 @@ void showSessionMenu(
 
 Future<void> _confirmStopAgentProcess(
   BuildContext context,
-  WidgetRef ref,
+  ChatActionNotifier chatActions,
   String sessionId,
 ) async {
   final l10n = context.l10n;
@@ -211,9 +223,7 @@ Future<void> _confirmStopAgentProcess(
   );
   if (!confirmed || !context.mounted) return;
   try {
-    await ref
-        .read(chatActionNotifierProvider.notifier)
-        .stopSessionProcess(sessionId);
+    await chatActions.stopSessionProcess(sessionId);
     if (context.mounted) {
       context.showSnack(l10n.chatStopAgentProcessSuccess);
     }
