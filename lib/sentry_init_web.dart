@@ -30,6 +30,11 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..release = _sentryRelease.isNotEmpty ? _sentryRelease : null
       ..dist = _sentryDist.isNotEmpty ? _sentryDist : null
       ..environment = kReleaseMode ? 'production' : 'debug'
+      // Our own deadline / suspension cancellations must never open a fatal
+      // issue — see [isExpectedHttpCancellation]. Parenthesised so the
+      // cascade does not bind into the lambda body.
+      ..beforeSend = ((event, hint) =>
+          isExpectedHttpCancellation(event.throwable) ? null : event)
       // ── Breadcrumb limits ──
       ..maxBreadcrumbs = sentryMaxBreadcrumbs
       ..attachStacktrace = true

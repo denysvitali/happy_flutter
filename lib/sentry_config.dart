@@ -3,7 +3,34 @@
 // Imported by both `sentry_init_native.dart` and `sentry_init_web.dart`
 // so the DSN is defined in exactly one place.
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:http/http.dart' as http;
+
+/// True when [throwable] is one of our own intentional HTTP cancellations
+/// rather than a failure worth a crash report.
+///
+/// The request budget cancels a request's `CancelToken` when its deadline
+/// elapses, and app suspension cancels the same token
+/// (`HttpCancellationReason.appSuspended`). Dio surfaces both as
+/// [DioExceptionType.cancel], and the native adapters turn the abort into
+/// [http.ClientException] ("Request aborted by `abortTrigger`").
+///
+/// When either escapes an async gap it reaches `PlatformDispatcher.onError`,
+/// where the SDK files it as an unhandled **fatal**. That opened issues
+/// against a deadline we set ourselves — GlitchTip 8776 (build 279900) is a
+/// 20s budget firing on `GET /v3/sessions/:id/messages`, with breadcrumbs
+/// showing our own `type: cancel` immediately before. A cancellation is a
+/// decision, never a crash.
+bool isExpectedHttpCancellation(Object? throwable) {
+  if (throwable is DioException) {
+    return throwable.type == DioExceptionType.cancel;
+  }
+  if (throwable is http.ClientException) {
+    return throwable.message.contains('abortTrigger');
+  }
+  return false;
+}
 
 /// Keep GlitchTip enabled for crash capture.
 const sentryEnabled = true;

@@ -65,6 +65,11 @@ Future<void> initSentryForPlatform([Future<void> Function()? appRunner]) async {
       ..release = release
       ..dist = dist
       ..environment = kReleaseMode ? 'production' : 'debug'
+      // Our own deadline / suspension cancellations must never open a fatal
+      // issue — see [isExpectedHttpCancellation]. Parenthesised so the
+      // cascade does not bind into the lambda body.
+      ..beforeSend = ((event, hint) =>
+          isExpectedHttpCancellation(event.throwable) ? null : event)
       // ANR detection: capture foreground "Application Not Responding" events.
       ..anrEnabled = sentryAnrEnabled
       ..anrTimeoutInterval = Duration(seconds: sentryAnrTimeoutSeconds)
