@@ -165,6 +165,92 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
 
+    // GlitchTip 4902 (build 280100, fatal): a parent that rebuilds while the
+    // child keeps throwing cleared the error latch on every rebuild, so the
+    // fallback and the failing subtree alternated (~1 Hz in production,
+    // visible as repeating `Null check operator` + `ErrorWidget built`
+    // breadcrumbs) until the isolate ANR'd.
+    testWidgets('a repeatedly rebuilt failing child stops re-rendering', (
+      tester,
+    ) async {
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (_) {};
+      addTearDown(() => FlutterError.onError = originalOnError);
+
+      var childBuilds = 0;
+
+      // A fresh boundary *and* a fresh child instance every pump — exactly
+      // what a parent re-running its build produces, and what made
+      // `oldWidget.child != widget.child` true on every rebuild.
+      Widget tree() => ProviderScope(
+        child: ErrorBoundary(
+          child: _CountingChild(onBuild: () => childBuilds++),
+        ),
+      );
+
+      Future<void> failAgain() async {
+        FlutterError.onError?.call(
+          FlutterErrorDetails(exception: StateError('boom')),
+        );
+        await tester.pump();
+      }
+
+      await tester.pumpWidget(tree());
+      await tester.pump();
+      final initialBuilds = childBuilds;
+      expect(initialBuilds, greaterThan(0));
+
+      await failAgain();
+      expect(find.text('Try Again'), findsOneWidget);
+
+      for (var i = 0; i < 12; i++) {
+        await tester.pumpWidget(tree());
+        await tester.pump();
+        // A real failing subtree throws every time it renders — that is what
+        // made the fallback and the child alternate. Re-fail unconditionally
+        // so this measures the latch rather than how often the test happened
+        // to inject.
+        await failAgain();
+      }
+
+      // Bounded retries, then the fallback holds. Pre-fix this kept
+      // climbing: one extra render of the failing child per pump, forever.
+      expect(childBuilds, lessThanOrEqualTo(initialBuilds + 3));
+      expect(find.text('Try Again'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('a replaced child clears the latch', (tester) async {
+      final originalOnError = FlutterError.onError;
+      FlutterError.onError = (_) {};
+      addTearDown(() => FlutterError.onError = originalOnError);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: ErrorBoundary(child: _CountingChild(onBuild: () {})),
+        ),
+      );
+      await tester.pump();
+      FlutterError.onError?.call(
+        FlutterErrorDetails(exception: StateError('boom')),
+      );
+      await tester.pump();
+      expect(find.text('Try Again'), findsOneWidget);
+
+      // A different subtree is a real replacement, not a like-for-like
+      // rebuild, so it must get a chance to render.
+      await tester.pumpWidget(
+        ProviderScope(child: ErrorBoundary(child: _OtherChild())),
+      );
+      await tester.pump();
+
+      expect(find.byType(_OtherChild), findsOneWidget);
+      expect(find.text('Try Again'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
     testWidgets('ErrorWidget.builder without Theme ancestor does not recurse', (
       tester,
     ) async {
@@ -196,4 +282,33 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     });
   });
+}
+
+/// Reports every build through [onBuild]. The test injects the failure
+/// explicitly rather than throwing here: throwing during build would drive
+/// [ErrorBoundary]'s `setState` from the build phase, which is a different
+/// (and much noisier) failure mode than the latch loop under test.
+///
+/// Returns a layout-free widget on purpose — [ErrorBoundary] can sit above
+/// `MaterialApp`, so a child that needs `Directionality` (e.g. `Text`) would
+/// throw for reasons unrelated to the latch.
+class _CountingChild extends StatelessWidget {
+  const _CountingChild({required this.onBuild});
+
+  final VoidCallback onBuild;
+
+  @override
+  Widget build(BuildContext context) {
+    onBuild();
+    return const SizedBox.shrink();
+  }
+}
+
+/// A distinct child type, so the boundary sees a genuine replacement rather
+/// than a like-for-like rebuild.
+class _OtherChild extends StatelessWidget {
+  const _OtherChild();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

@@ -74,6 +74,30 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   Object? _error;
   StackTrace? _stackTrace;
 
+  /// Semantic identity (type + key) of the child subtree that produced
+  /// [_error], captured when the error is latched. Distinguishes a genuine
+  /// replacement (different screen, or a re-keyed instance — the router keys
+  /// chat routes by session id) from a like-for-like rebuild.
+  Type? _failedChildType;
+  Key? _failedChildKey;
+
+  /// How many times the latch has been auto-cleared for the *same* failing
+  /// subtree. Bounded so a parent that rebuilds while the child keeps
+  /// throwing settles on the fallback instead of oscillating — see
+  /// [didUpdateWidget].
+  int _autoResets = 0;
+
+  /// Maximum automatic re-renders of a failing subtree before the fallback
+  /// is held until the user taps Retry or the subtree is replaced.
+  static const _maxConsecutiveAutoResets = 3;
+
+  void _clearError() {
+    _error = null;
+    _stackTrace = null;
+    _failedChildType = null;
+    _failedChildKey = null;
+  }
+
   // Dedupe identical errors so a widget that throws on every frame does
   // not generate one logger entry + one Sentry envelope per failed
   // subtree per frame. Without this, a single null-unwrap in a tool
@@ -177,6 +201,8 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
       setState(() {
         _error = errorDetails.exception;
         _stackTrace = errorDetails.stack;
+        _failedChildType = widget.child.runtimeType;
+        _failedChildKey = widget.child.key;
       });
     }
 
@@ -203,10 +229,34 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   @override
   void didUpdateWidget(ErrorBoundary oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.child != widget.child) {
-      _error = null;
-      _stackTrace = null;
+    if (oldWidget.child == widget.child || _error == null) return;
+
+    // A different subtree (different widget type, or a different key) is a
+    // genuine replacement rather than a like-for-like rebuild: clear the
+    // error and hand the new subtree a fresh retry budget.
+    final replaced = widget.child.runtimeType != _failedChildType ||
+        widget.child.key != _failedChildKey;
+    if (replaced) {
+      _autoResets = 0;
+      _clearError();
+      return;
     }
+
+    // Same failing subtree, rebuilt. A parent that re-runs build constructs
+    // a fresh but equivalent child object, so comparing child *instance*
+    // identity here cleared the latch on essentially every rebuild: the
+    // fallback was replaced by the failing subtree, which threw again,
+    // which re-armed the fallback — once per parent rebuild. In production
+    // this oscillated at ~1 Hz (repeating `Null check operator` +
+    // `ErrorWidget built` breadcrumbs) and surfaced as a background ANR
+    // (GlitchTip 4902, build 280100). The `_buildingErrorWidget` latch only
+    // guards *nested* recursion, not this loop.
+    //
+    // Retry a bounded number of times — enough for a transient cause to
+    // clear — then hold the fallback, which offers a working Retry action.
+    if (_autoResets >= _maxConsecutiveAutoResets) return;
+    _autoResets++;
+    _clearError();
   }
 
   @override
@@ -244,9 +294,10 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
           stackTrace: _stackTrace,
           toolError: toolError,
           onRetry: () {
+            // An explicit user retry earns a fresh automatic-retry budget.
             setState(() {
-              _error = null;
-              _stackTrace = null;
+              _autoResets = 0;
+              _clearError();
             });
           },
         );
@@ -447,7 +498,7 @@ class ErrorSnackbarManager {
   static GlobalKey<ScaffoldMessengerState> _scaffoldKey =
       GlobalKey<ScaffoldMessengerState>();
 
-  /// Active dedup entries keyed by "<title>|<message>".
+  /// Active dedup entries keyed by ``"<title>|<message>"``.
   static final Map<String, _DedupEntry> _dedupeMap = {};
 
   /// Time window within which identical errors are batched together.
