@@ -8,6 +8,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/services/message_cache_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../../core/utils/text_truncate.dart';
 import 'mission_control_types.dart';
 import 'session_cards.dart';
 import 'workspace_identity.dart';
@@ -352,8 +353,8 @@ String? peekToolSummary(Map<String, dynamic> message) {
       }
     }
   }
-  if (target != null && target.length > 60) {
-    target = '${target.substring(0, 60)}…';
+  if (target != null) {
+    target = truncateGraphemes(target, 60);
   }
   return cleanPeekText(
     target == null ? 'Used $name' : 'Used $name · $target',
@@ -368,10 +369,9 @@ String cleanPeekText(String raw, {required int maxLen}) {
       .replaceAll(RegExp(r'`[^`]+`'), ' [code]')
       .replaceAll(RegExp(r'!\[([^\]]*)\]\([^)]+\)'), ' [image]');
   text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-  if (text.length > maxLen) {
-    text = '${text.substring(0, maxLen)}…';
-  }
-  return text;
+  // Shared by every peek label, so a UTF-16 cut through a surrogate pair
+  // here would take out any caller — see text_truncate.dart.
+  return truncateGraphemes(text, maxLen);
 }
 
 class _LaneBadge extends StatelessWidget {

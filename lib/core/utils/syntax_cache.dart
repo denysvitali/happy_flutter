@@ -1,9 +1,13 @@
 import '../../features/chat/syntax_highlighter.dart';
 import '../../features/chat/syntax_tokenizer.dart';
 import '../utils/lru_cache.dart';
+import 'text_truncate.dart';
 
-/// Characters of trailing content rendered as plain text while a code block
-/// is still streaming; the completed block is tokenized (and cached) once.
+/// User-perceived characters of trailing content rendered as plain text while
+/// a code block is still streaming; the completed block is tokenized (and
+/// cached) once.
+///
+/// Counted in graphemes, not UTF-16 code units — see [tailGraphemes].
 const int syntaxStreamingTailUnits = 2000;
 
 /// Global cache for syntax-highlighted code tokenization results.
@@ -60,13 +64,15 @@ class SyntaxTokenCache {
 
   /// Plain monochrome tokens for at most [syntaxStreamingTailUnits]
   /// trailing characters — no tokenizer run, no cache write.
+  ///
+  /// The tail is taken on grapheme boundaries. A code-unit offset here can
+  /// land between the halves of a surrogate pair, and the leftover low
+  /// surrogate at the *start* of the tail is just as malformed as one at the
+  /// end — the text layout rejects both (see text_truncate.dart).
   static List<SyntaxToken> _streamingTokens(String code) {
-    final start = code.length <= syntaxStreamingTailUnits
-        ? 0
-        : code.length - syntaxStreamingTailUnits;
     return [
       SyntaxToken(
-        text: start == 0 ? code : code.substring(start),
+        text: tailGraphemes(code, syntaxStreamingTailUnits),
         type: SyntaxTokenType.default_,
       ),
     ];

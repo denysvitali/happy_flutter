@@ -7,6 +7,7 @@ import '../../../core/components/task_detail_dialog.dart';
 import '../../../core/models/todo.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/text_truncate.dart';
 
 /// A single zen todo row wrapped in a [Dismissible] for swipe-to-complete.
 ///
@@ -188,8 +189,9 @@ class _TodoRow extends StatelessWidget {
 
   String _abbreviated(String description) {
     const maxChars = 80;
-    if (description.length <= maxChars) return description;
-    return '${description.substring(0, maxChars).trimRight()}…';
+    // Task descriptions are free-form model output, so the cut has to land
+    // on a grapheme boundary — see text_truncate.dart.
+    return truncateGraphemes(description, maxChars);
   }
 
   Color _statusColor(ThemeData theme) {

@@ -13,6 +13,7 @@ import '../../core/theme/code_viewer_theme.dart';
 import '../../core/theme/language_colors.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/syntax_cache.dart';
+import '../../core/utils/text_truncate.dart';
 import 'code_block_line_spans.dart';
 import 'syntax_highlighter.dart';
 
@@ -292,7 +293,7 @@ class _CodeBlockWidgetState extends State<CodeBlockWidget> {
       // shared token cache) on every delta; render a bounded plain tail,
       // matching MarkdownView's streaming behavior, and swap in the
       // highlighted full block once streaming ends.
-      code = '…${code.substring(code.length - syntaxStreamingTailUnits)}';
+      code = '…${tailGraphemes(code, syntaxStreamingTailUnits)}';
     }
     _displayCode = _truncateForDisplay(code);
     _isTruncated = !_streaming && _displayCode.length != code.length;

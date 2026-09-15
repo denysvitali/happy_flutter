@@ -8,6 +8,8 @@
 /// command dumps a wall of centered text into the transcript.
 library;
 
+import 'package:characters/characters.dart';
+
 /// Maximum characters kept in a task chip label.
 const int kMaxTaskLabelChars = 120;
 
@@ -18,6 +20,12 @@ const int kMaxTaskLabelChars = 120;
 /// Returns an empty string for blank input.
 String compactTaskLabel(String raw, {int maxChars = kMaxTaskLabelChars}) {
   final flattened = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
-  if (flattened.length <= maxChars) return flattened;
-  return '${flattened.substring(0, maxChars).trimRight()}…';
+  // Grapheme-safe. This field is free-form CLI text and for `local_bash` it
+  // is the whole shell command, so it can contain emoji and other non-BMP
+  // characters. A UTF-16 cut through a surrogate pair leaves a lone
+  // surrogate, which the text layout rejects with
+  // `string is not well-formed UTF-16` — see text_truncate.dart.
+  final characters = flattened.characters;
+  if (characters.length <= maxChars) return flattened;
+  return '${characters.take(maxChars).toString().trimRight()}…';
 }
