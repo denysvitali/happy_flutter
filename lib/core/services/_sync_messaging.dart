@@ -793,7 +793,11 @@ extension SyncMessaging on Sync {
                 'limit': Sync._messageFetchPageSize,
               },
               options: Options(
-                extra: const {'bypassCache': true, 'disableRetry': true},
+                extra: const {
+                  'bypassCache': true,
+                  'disableRetry': true,
+                  RetryInterceptor.requestBudgetMsKey: 40000,
+                },
                 connectTimeout: Sync._messageFetchConnectTimeout,
                 receiveTimeout: Sync._messageFetchReceiveTimeout,
               ),
@@ -1698,7 +1702,11 @@ extension SyncMessaging on Sync {
           '/v3/sessions/$sessionId/messages',
           queryParameters: {'after_seq': startSeq, 'limit': effectivePageSize},
           options: Options(
-            extra: const {'bypassCache': true, 'disableRetry': true},
+            extra: const {
+              'bypassCache': true,
+              'disableRetry': true,
+              RetryInterceptor.requestBudgetMsKey: 40000,
+            },
             connectTimeout: Sync._messageFetchConnectTimeout,
             receiveTimeout: Sync._messageFetchReceiveTimeout,
           ),

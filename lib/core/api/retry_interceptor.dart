@@ -126,6 +126,13 @@ class RetryInterceptor extends Interceptor {
   Future<void> _wait(RequestOptions options, Duration delay) =>
       (options.extra[RequestBudget.extraKey] as RequestBudget).wait(delay);
 
+  /// [RequestOptions.extra] key for a request-specific absolute budget.
+  ///
+  /// Large message pages use a 40 s budget to match Sync's page crawl
+  /// deadline. Without this override, the interceptor's 20 s generic budget
+  /// cancels the page before its 30 s receive timeout can do so.
+  static const requestBudgetMsKey = '_requestBudgetMs';
+
   /// [RequestOptions.extra] key holding the number of retries already
   /// performed for this request.
   static const retryCountKey = '_retryCount';
@@ -160,9 +167,11 @@ class RetryInterceptor extends Interceptor {
     // so only the first attempt stamps the budget clock.
     options.extra[retryStartKey] ??= DateTime.now().millisecondsSinceEpoch;
     if (options.extra[RequestBudget.extraKey] == null) {
+      final budgetMs =
+          options.extra[requestBudgetMsKey] as int? ?? _maxTotalElapsedMs;
       final budget = RequestBudget(
         options,
-        Duration(milliseconds: _maxTotalElapsedMs),
+        Duration(milliseconds: budgetMs),
         _activeBudgets.remove,
       );
       options.extra[RequestBudget.extraKey] = budget;

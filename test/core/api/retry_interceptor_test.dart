@@ -337,6 +337,35 @@ void main() {
   });
 
   group('RetryInterceptor retry failures', () {
+    test('supports a request-specific deadline for large message pages', () async {
+      final adapter = _SlowAdapter(
+        delay: const Duration(milliseconds: 150),
+        statusCode: 200,
+      );
+      late final Dio dio;
+      dio = Dio(
+        BaseOptions(
+          baseUrl: 'https://test.example.com',
+          validateStatus: (_) => true,
+        ),
+      );
+      dio.interceptors.add(
+        RetryInterceptor(dioGetter: () => dio, maxTotalElapsedMs: 50),
+      );
+      dio.httpClientAdapter = adapter;
+
+      final response = await dio.get<dynamic>(
+        '/v3/sessions/abc/messages',
+        options: Options(
+          extra: {RetryInterceptor.requestBudgetMsKey: 300},
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      expect(adapter.calls, 1);
+      dio.close(force: true);
+    });
+
     test('a failed retry still runs the following error interceptors',
         () async {
       // The retried fetch fails before any interceptor chain runs (e.g. the
