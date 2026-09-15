@@ -363,9 +363,16 @@ extension SyncMachineRpcOperations on Sync {
         CodexModelsResponse.fromJson,
       );
     } catch (error, stackTrace) {
+      // Identify "Codex is not on the daemon's PATH" by the message, not by
+      // the error code. The same condition reaches the client as
+      // `handler_error` when the daemon's handler raises, and as `unknown`
+      // when it surfaces the failure generically: GlitchTip 8763 is the
+      // `handler_error` shape while 8729/8748 are `unknown`. Gating on
+      // `handlerError` alone let those two fall through to the error logger
+      // and open an issue for a machine that simply has no Codex installed.
+      // The message itself is unambiguous — this is the daemon's own text.
       if (error is RpcException &&
-          error.code == RpcErrorCode.handlerError &&
-          error.message.contains('codex debug models: exec: "codex":') &&
+          error.message.contains('codex') &&
           error.message.contains('executable file not found')) {
         logger.info('machineGetCodexModels: Codex is not installed');
         return const CodexModelsResponse(

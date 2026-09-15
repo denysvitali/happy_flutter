@@ -93,6 +93,44 @@ void main() {
     );
   });
 
+  // GlitchTip 8729/8748: the same "Codex is not installed" condition reaches
+  // the client as RpcErrorCode.unknown, not handlerError, depending on how the
+  // daemon surfaced it. The detector gated on the code, so both of those fell
+  // through to the error logger and opened an issue for a machine that simply
+  // has no Codex — while 8763, the handlerError shape, was handled correctly.
+  test('missing Codex is unavailable however the daemon codes it', () async {
+    for (final code in [RpcErrorCode.handlerError, RpcErrorCode.unknown]) {
+      sync
+        ..testClearCodexModelsCache()
+        ..testMachineRPCOverride = (machineId, method, params) async {
+          throw RpcException(
+            code: code,
+            message:
+                'codex debug models: exec: "codex": '
+                'executable file not found in \$PATH',
+            retryable: false,
+          );
+        };
+      LoggerService().clear();
+
+      final response = await sync.machineGetCodexModels(
+        machineId: 'machine-1',
+      );
+
+      expect(response.providerUnavailable, isTrue, reason: 'code=$code');
+      expect(response.error, contains('Install Codex'), reason: 'code=$code');
+      expect(
+        LoggerService().getLogs().where(
+          (entry) =>
+              entry.level == LogLevel.error &&
+              entry.message.contains('machineGetCodexModels'),
+        ),
+        isEmpty,
+        reason: 'code=$code must not open an error issue',
+      );
+    }
+  });
+
   test('daemon SIGKILL on get-codex-models is info, not error', () async {
     sync.testMachineRPCOverride = (machineId, method, params) async {
       throw const RpcException(
