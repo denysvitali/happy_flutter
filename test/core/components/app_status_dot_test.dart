@@ -136,12 +136,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 2));
 
-      // Disabling the inherited ticker stops the controller. The animated
-      // widget remains in the tree, but receives no frame callbacks.
-      final controller = tester
-          .widget<AnimatedBuilder>(find.byType(AnimatedBuilder).first)
-          .animation as AnimationController;
-      expect(controller.isAnimating, isFalse);
+      // Disabling the inherited ticker silences the controller. The animated
+      // widget remains in the tree, but no transient frame callback remains
+      // scheduled after the controller is stopped.
+      expect(tester.binding.transientCallbackCount, 0);
       expect(find.byType(AppStatusDot), findsOneWidget);
     });
     testWidgets('pulse=true shows AnimatedBuilder', (tester) async {
