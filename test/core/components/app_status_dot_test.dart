@@ -136,15 +136,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 2));
 
-      // Disabling the inherited ticker stops the controller and removes the
-      // animated tree; the static dot remains visible.
-      expect(
-        find.descendant(
-          of: find.byType(AppStatusDot),
-          matching: find.byType(AnimatedBuilder),
-        ),
-        findsNothing,
-      );
+      // Disabling the inherited ticker stops the controller. The animated
+      // widget remains in the tree, but receives no frame callbacks.
+      final controller = tester
+          .widget<AnimatedBuilder>(find.byType(AnimatedBuilder).first)
+          .animation as AnimationController;
+      expect(controller.isAnimating, isFalse);
       expect(find.byType(AppStatusDot), findsOneWidget);
     });
     testWidgets('pulse=true shows AnimatedBuilder', (tester) async {
