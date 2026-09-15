@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/components/app_status_dot.dart';
-import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -125,24 +124,30 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 400));
-      final before = tester
-          .widget<AnimatedBuilder>(find.byType(AnimatedBuilder).first)
-          .animation
-          .value;
+      expect(
+        find.descendant(
+          of: find.byType(AppStatusDot),
+          matching: find.byType(AnimatedBuilder),
+        ),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('disable'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 2));
 
-      final after = tester
-          .widget<AnimatedBuilder>(find.byType(AnimatedBuilder).first)
-          .animation
-          .value;
-      expect(after, closeTo(0, 0.001));
-      expect(before, greaterThan(0));
+      // Disabling the inherited ticker stops the controller and removes the
+      // animated tree; the static dot remains visible.
+      expect(
+        find.descendant(
+          of: find.byType(AppStatusDot),
+          matching: find.byType(AnimatedBuilder),
+        ),
+        findsNothing,
+      );
+      expect(find.byType(AppStatusDot), findsOneWidget);
     });
-
-
+    testWidgets('pulse=true shows AnimatedBuilder', (tester) async {
       await tester.pumpWidget(
         buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
       );
@@ -155,7 +160,6 @@ void main() {
         findsWidgets,
       );
     });
-
     testWidgets('pulse uses static dot when accessible navigation is enabled', (
       tester,
     ) async {
