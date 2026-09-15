@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/opentelemetry_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
@@ -257,6 +258,51 @@ void main() {
       expect(metric.name, 'app.sessions.ui_state_compute');
       expect(metric.attributes['compute_trigger'], 'single');
       expect(metric.attributes['session_count_bucket'], '1-10');
+    });
+
+    // GlitchTip 8807: a 210-session, changed=0, 16 ms compute opened a
+    // warning issue. 16 ms is exactly one frame — the budget a normal
+    // derivation is supposed to fit inside — so the warning was firing on
+    // healthy work. These pin the boundary, not the arithmetic.
+    group('slow-compute warning gating', () {
+      test('a single frame of work is not a defect', () {
+        expect(SessionUiStateNotifier.debugShouldWarnSlowCompute(0), isFalse);
+        expect(SessionUiStateNotifier.debugShouldWarnSlowCompute(15), isFalse);
+        expect(
+          SessionUiStateNotifier.debugShouldWarnSlowCompute(16),
+          isFalse,
+          reason: 'the 8807 case: one 60fps frame, changed=0',
+        );
+      });
+
+      test('warns once the compute costs multiple frames', () {
+        expect(SessionUiStateNotifier.debugShouldWarnSlowCompute(49), isFalse);
+        expect(SessionUiStateNotifier.debugShouldWarnSlowCompute(50), isTrue);
+        expect(
+          SessionUiStateNotifier.debugShouldWarnSlowCompute(209),
+          isTrue,
+          reason: 'the 463-session case this warning exists for (8589/8590)',
+        );
+      });
+
+      test('a normal targeted compute logs no warning', () {
+        sync
+          ..testSessions['session-1'] = makeSession(id: 'session-1')
+          ..testSetSessionMessages('session-1', const []);
+        LoggerService().clear();
+
+        container
+            .read(sessionUiStateNotifierProvider.notifier)
+            .loadSessionFromSync('session-1');
+
+        final slowWarnings = LoggerService()
+            .getLogsByLevel(LogLevel.warning)
+            .where(
+              (entry) => entry.message.contains('sessions UI state compute'),
+            )
+            .toList();
+        expect(slowWarnings, isEmpty);
+      });
     });
 
     test('clear resets state and counters', () {

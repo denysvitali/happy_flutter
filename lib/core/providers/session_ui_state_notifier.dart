@@ -271,9 +271,28 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
   @visibleForTesting
   int get debugTargetedEntryMapCopyCount => _targetedEntryMapCopyCount;
 
-  static const int _slowComputeMs = 16;
+  /// Threshold for the "this compute was pathological" warning.
+  ///
+  /// 16 ms is one frame at 60 fps — the budget a normal derivation is meant to
+  /// fit inside, not a symptom of exceeding it. At 16 the warning fired on a
+  /// `changed=0` no-op recompute (GlitchTip 8807: 210 sessions, 16 ms, one
+  /// event, no user-visible effect) and opened an issue for work that was
+  /// behaving exactly as designed. The cases this warning exists for are the
+  /// multi-frame ones — 209-211 ms at 463-465 sessions (ROADMAP 8589/8590) —
+  /// so the line sits at three dropped frames.
+  ///
+  /// The histogram still records every compute with its
+  /// `changed_count_bucket`, so raising this loses no measurement; it only
+  /// stops a same-frame derivation from being reported as a defect.
+  static const int _slowComputeMs = 50;
   static const int _scaleTraceMinSessions = 11;
   static const int _telemetryThrottleMs = 30000;
+
+  /// Whether a compute that took [elapsedMs] deserves a warning — see
+  /// [_slowComputeMs] for why the line is where it is.
+  @visibleForTesting
+  static bool debugShouldWarnSlowCompute(int elapsedMs) =>
+      elapsedMs >= _slowComputeMs;
 
   @override
   SessionUiState build() {
@@ -638,7 +657,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       ..end();
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (duration.inMilliseconds >= _slowComputeMs &&
+    if (debugShouldWarnSlowCompute(duration.inMilliseconds) &&
         now - _lastSlowLogAtMs >= _telemetryThrottleMs) {
       _lastSlowLogAtMs = now;
       logger.warning(
