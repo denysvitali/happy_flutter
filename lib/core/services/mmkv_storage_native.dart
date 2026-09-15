@@ -21,10 +21,7 @@ String _encodeJsonForStorage(Object? value) => jsonEncode(value);
 ///
 /// MMKV's Dart root is isolate-local, so workers receive the main isolate's
 /// resolved root and reopen that exact mmap explicitly.
-String? readSessionMessagesEncodedInWorker(
-  String sessionId,
-  String rootDir,
-) {
+String? readSessionMessagesEncodedInWorker(String sessionId, String rootDir) {
   try {
     return MMKV(
       'mmkv.default',
@@ -42,10 +39,10 @@ bool writeSessionMessagesEncodedInWorker(
   String rootDir,
 ) {
   try {
-    return MMKV('mmkv.default', rootDir: rootDir).encodeString(
-      'session-messages-$sessionId',
-      encodedMessages,
-    );
+    return MMKV(
+      'mmkv.default',
+      rootDir: rootDir,
+    ).encodeString('session-messages-$sessionId', encodedMessages);
   } catch (_) {
     return false;
   }
@@ -71,7 +68,8 @@ Map<String, Object> _compactDefaultMMKVIfNeeded(Map<String, Object> request) {
       'trimmed': false,
       'rootDir': rootDirArg is String ? rootDirArg : '',
       'error': 'invalid-request',
-      'errorDetail': 'rootDir=${rootDirArg.runtimeType} '
+      'errorDetail':
+          'rootDir=${rootDirArg.runtimeType} '
           'minFileBytes=${minFileBytesArg.runtimeType}',
     };
   }
@@ -409,6 +407,7 @@ class MMKVStorage {
   Timer? _messageCacheCompactionTimer;
   bool _messageCacheCompactionScheduled = false;
   bool _messageCacheCompactionInFlight = false;
+
   /// Set once the worker compaction pass reports it cannot run on this
   /// platform, so the known limitation is logged once per process rather
   /// than on every cold start.
@@ -416,8 +415,7 @@ class MMKVStorage {
   int _messageCacheBytesSinceCompaction = 0;
 
   static const int _messageCacheCompactionMinFileBytes = 64 * 1024 * 1024;
-  static const int _messageCacheCompactionWriteTriggerBytes =
-      32 * 1024 * 1024;
+  static const int _messageCacheCompactionWriteTriggerBytes = 32 * 1024 * 1024;
   static const Duration _messageCacheCompactionIdleDelay = Duration(
     seconds: 10,
   );
@@ -965,10 +963,7 @@ class MMKVStorage {
 
   void saveSessionMessagesEncoded(String sessionId, String encodedMessages) {
     final wrote =
-        _mmkv?.encodeString(
-          'session-messages-$sessionId',
-          encodedMessages,
-        ) ??
+        _mmkv?.encodeString('session-messages-$sessionId', encodedMessages) ??
         false;
     if (wrote) noteMessageCacheWrite(encodedMessages.length);
   }
@@ -1041,10 +1036,17 @@ class MMKVStorage {
         'totalAfter=${result['totalAfter']}',
       );
     } catch (error) {
-      logger.warning(
-        '[MMKVStorage] Message-cache compaction check failed '
-        'root=${MMKV.rootDir}: $error',
-      );
+      // A failure before the worker can return its structured result (for
+      // example, isolate startup or message serialization) is the same
+      // best-effort platform limitation. Keep it out of warning-level
+      // telemetry and apply the same once-per-process latch as worker errors.
+      if (!_messageCacheCompactionUnavailable) {
+        _messageCacheCompactionUnavailable = true;
+        logger.info(
+          '[MMKVStorage] Message-cache compaction unavailable in worker '
+          'root=${MMKV.rootDir} error=${error.runtimeType} detail=$error',
+        );
+      }
     } finally {
       _messageCacheCompactionInFlight = false;
       _messageCacheCompactionScheduled = false;
