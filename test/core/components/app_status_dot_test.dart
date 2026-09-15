@@ -104,7 +104,45 @@ void main() {
       expect(decoration.boxShadow, isNotEmpty);
     });
 
-    testWidgets('pulse=true shows AnimatedBuilder', (tester) async {
+    testWidgets('pulse pauses when TickerMode is disabled', (tester) async {
+      var tickerEnabled = true;
+      await tester.pumpWidget(
+        StatefulBuilder(
+          builder: (context, setState) => buildApp(
+            child: TickerMode(
+              enabled: tickerEnabled,
+              child: Column(
+                children: [
+                  const AppStatusDot(color: Colors.green, pulse: true),
+                  TextButton(
+                    onPressed: () => setState(() => tickerEnabled = false),
+                    child: const Text('disable'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      final before = tester
+          .widget<AnimatedBuilder>(find.byType(AnimatedBuilder).first)
+          .animation
+          .value;
+
+      await tester.tap(find.text('disable'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+
+      final after = tester
+          .widget<AnimatedBuilder>(find.byType(AnimatedBuilder).first)
+          .animation
+          .value;
+      expect(after, closeTo(0, 0.001));
+      expect(before, greaterThan(0));
+    });
+
+
       await tester.pumpWidget(
         buildApp(child: const AppStatusDot(color: Colors.green, pulse: true)),
       );

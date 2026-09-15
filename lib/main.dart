@@ -700,11 +700,13 @@ class _HappyAppState extends ConsumerState<HappyApp>
             // App is no longer visible — disconnect the socket and cancel
             // all timers to ensure zero network traffic and battery drain.
             FrameMetricsService.instance.detach();
+            FrameMetricsService.instance.setAppActive(false);
             sync.suspend();
             storage.SettingsStorage().suspend();
           },
           onResume: () {
             _recordLifecycleEdge('resumed');
+            FrameMetricsService.instance.setAppActive(true);
             // App is foregrounded — reconnect and catch up on missed events.
             FrameMetricsService.instance.attach(
               enableSentryTransactions:
@@ -716,7 +718,12 @@ class _HappyAppState extends ConsumerState<HappyApp>
           },
         );
       case AppLifecycleState.inactive:
+        // Desktop focus loss can leave the window attached and receiving
+        // frames. Keep collecting metrics, but do not call that work an idle
+        // battery-render defect while the host is inactive.
+        FrameMetricsService.instance.setAppActive(false);
       case AppLifecycleState.detached:
+        FrameMetricsService.instance.setAppActive(false);
         break;
     }
   }

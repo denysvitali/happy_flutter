@@ -176,6 +176,12 @@ class FrameMetricsService {
   DateTime? _windowStartedAt;
   int _windowLifecycleChanges = 0;
 
+  /// Whether Flutter considers the host window active. Desktop can emit
+  /// `inactive` while the app remains attached and continues to receive
+  /// frame callbacks; those frames are not an idle battery defect in the
+  /// visible app, and must not open a Sentry warning.
+  bool _appActive = true;
+
   DateTime? _lastIdleRenderWarnAt;
 
   int _lastWindowFrames = 0;
@@ -230,6 +236,16 @@ class FrameMetricsService {
   bool get debugLastWindowIdle => _lastWindowIdle;
 
   @visibleForTesting
+  void debugSetAppActive(bool value) => _appActive = value;
+
+  @visibleForTesting
+  bool get debugAppActive => _appActive;
+
+  /// Mark the host window active/inactive without detaching frame metrics.
+  /// Desktop focus changes can be inactive while still visible and attached.
+  void setAppActive(bool value) => _appActive = value;
+
+  @visibleForTesting
   void debugRecordPointerEvent() => _pointerEvents++;
 
   @visibleForTesting
@@ -251,6 +267,7 @@ class FrameMetricsService {
     _lastWindowFrames = 0;
     _lastWindowIdle = false;
     _lastIdleRenderWarnAt = null;
+    _appActive = true;
   }
 
   @visibleForTesting
@@ -570,12 +587,19 @@ class FrameMetricsService {
         lifecycleChanges > 0 &&
         windowDuration < const Duration(seconds: _flushIntervalSeconds);
     final idleWindow =
+        _appActive &&
         pointerEvents == 0 &&
         activityTicks == 0 &&
         !lifecycleBoundedPartialWindow;
+    final windowActivity = !_appActive
+        ? 'inactive'
+        : idleWindow
+        ? 'idle'
+        : 'active';
     final windowAttributes = <String, Object?>{
       ...attributes,
-      'activity': idleWindow ? 'idle' : 'active',
+      'activity': windowActivity,
+      'app_active': _appActive,
       'pointer_events': pointerEvents,
       'data_changes': dataChanges,
       'message_changes': messageChanges,
@@ -603,7 +627,7 @@ class FrameMetricsService {
             'sustained frame rate — the denominator for app.ui.window_frames',
       );
     final windowFps = _windowFps(frameCount, windowDuration);
-    if (idleWindow && windowFps >= _idleRenderWarnFps) {
+    if (_appActive && idleWindow && windowFps >= _idleRenderWarnFps) {
       _warnIdleRender(route, frameCount, windowDuration, windowFps);
     }
 

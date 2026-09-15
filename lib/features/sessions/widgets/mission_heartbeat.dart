@@ -93,12 +93,22 @@ class MissionClock extends StatefulWidget {
 class _MissionClockState extends State<MissionClock> {
   Timer? _timer;
   int _nowMs = DateTime.now().millisecondsSinceEpoch;
+  bool _tickerActive = true;
 
   static const _tick = Duration(seconds: 15);
 
   @override
   void initState() {
     super.initState();
+    _arm();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tickerActive = TickerMode.valuesOf(context).enabled;
+    if (_tickerActive == tickerActive) return;
+    _tickerActive = tickerActive;
     _arm();
   }
 
@@ -110,7 +120,7 @@ class _MissionClockState extends State<MissionClock> {
 
   void _arm() {
     _timer?.cancel();
-    _timer = widget.active
+    _timer = widget.active && _tickerActive
         ? Timer.periodic(_tick, (_) {
             if (!mounted) return;
             setState(() {

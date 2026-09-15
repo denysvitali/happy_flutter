@@ -54,6 +54,7 @@ class _AppStatusDotState extends State<AppStatusDot>
   late Animation<double> _opacity;
   late Animation<double> _scale;
   bool _reduceMotion = false;
+  bool _tickerActive = true;
 
   @override
   void initState() {
@@ -76,11 +77,15 @@ class _AppStatusDotState extends State<AppStatusDot>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final tickerActive = TickerMode.valuesOf(context).enabled;
     final mediaQuery = MediaQuery.maybeOf(context);
     final reduceMotion =
         (mediaQuery?.disableAnimations ?? false) ||
         (mediaQuery?.accessibleNavigation ?? false);
-    if (_reduceMotion == reduceMotion) return;
+    final tickerChanged = _tickerActive != tickerActive;
+    final motionChanged = _reduceMotion != reduceMotion;
+    if (!tickerChanged && !motionChanged) return;
+    _tickerActive = tickerActive;
     _reduceMotion = reduceMotion;
     _syncAnimation();
   }
@@ -92,7 +97,7 @@ class _AppStatusDotState extends State<AppStatusDot>
   }
 
   void _syncAnimation() {
-    if (widget.pulse && !_reduceMotion) {
+    if (widget.pulse && !_reduceMotion && _tickerActive) {
       _controller.repeat(reverse: true);
     } else {
       _controller

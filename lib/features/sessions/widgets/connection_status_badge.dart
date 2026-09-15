@@ -25,6 +25,7 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  bool _tickerActive = true;
 
   @override
   void initState() {
@@ -51,7 +52,20 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (AppMotion.reduceMotion(context)) {
+    final tickerActive = TickerMode.valuesOf(context).enabled;
+    final motionReduced = AppMotion.reduceMotion(context);
+    if (_tickerActive == tickerActive) {
+      if (motionReduced) {
+        _pulseController
+          ..stop()
+          ..value = 1;
+      } else {
+        _updateAnimation();
+      }
+      return;
+    }
+    _tickerActive = tickerActive;
+    if (motionReduced) {
       _pulseController
         ..stop()
         ..value = 1;
@@ -61,7 +75,7 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
   }
 
   void _updateAnimation() {
-    if (widget.status == ConnectionStatus.connecting) {
+    if (widget.status == ConnectionStatus.connecting && _tickerActive) {
       _pulseController.repeat(reverse: true);
     } else {
       _pulseController

@@ -483,6 +483,17 @@ void main() {
       expect(FrameMetricsService.instance.debugLastWindowFrames, 3);
     });
 
+    test('inactive window is not classified as battery-idle rendering', () {
+      final service = FrameMetricsService.instance;
+      service.debugSetAppActive(false);
+      recordSmoothFrames(3);
+      service.debugFlush();
+
+      expect(service.debugLastWindowIdle, isFalse);
+      expect(attributes['app.ui.window_frames']?['activity'], 'inactive');
+      expect(attributes['app.ui.window_frames']?['app_active'], isFalse);
+    });
+
     test('a pointer event makes the window active', () {
       FrameMetricsService.instance
         ..debugRecordPointerEvent()
