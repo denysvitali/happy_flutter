@@ -4,26 +4,48 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-09-14
 
-### Telemetry audit and client fixes, 2026-09-14 (builds 279400–280300)
+**Battery idle-render follow-up, 2026-09-15 (issue 8809).** The Linux
+280300 event reported 598 frames/30s at 19.9 fps while `in_foreground=false`
+and `current_lifecycle_state=inactive`. Source tracing confirmed a real
+focus-loss rendering path: `AppStatusDot` and `ConnectionStatusBadge` pulse
+controllers, plus `MissionClock`, continued running while desktop focus was
+lost. Existing route `TickerMode` wrappers did not cover app-level inactive
+state. Fixed in `2b914aa3`: decorative tickers now respect inherited
+`TickerMode`, Sync remains live for visible-but-unfocused desktop windows, and
+frame metrics label inactive windows as `activity="inactive"` instead of
+classifying them as battery-idle; the idle warning is suppressed for that
+state. Regression coverage pins ticker silencing and inactive-window metrics.
 
-Four parallel agents swept Prometheus, Jaeger, Loki and GlitchTip over
-2026-09-07 → 09-14. Builds live in the window: **280300** (newest), 280100,
-279900, 279800, 279400 — the previous "279400" anchor was ~3 builds stale.
-Six client defects were fixed; two findings are **outside this repo**.
+**MMKV compaction / tool-result telemetry status.** Issues 8725/8808 and
+8815/8830+ were emitted by build 280300/281000, before the current source
+fixes. The MMKV worker now returns structured failures and logs the known
+best-effort limitation once per process. The tool-result correctness fix is
+`c939ce5c`: history backfill no longer queues results from pages that are
+immediately trimmed from the resident window, so unmatchable results cannot
+evict genuinely pending ones. The warning events are therefore stale-build
+telemetry; re-check after 281000+ rollout rather than treating their presence
+as a current regression.
 
-**Server: still on the Aug-27 image.** Every `happy-server` line in the window
-carries `service_version="master+4f97bfd8b97e"`, so the 2026-09-08 Go fixes
-(`a9ef61a`, `505b79a`, `f513cc9`, `be33fb2`) are **still not deployed 6 days
-later**. Measured against it: **62** `failed to create message` + **89**
+**Server rollout.** The happy-server production Deployment now runs
+`ghcr.io/denysvitali/happy-server-go:ff1cd91` (3/3 Ready, Argo Synced/Healthy,
+2026-09-14). This tag contains the Sep-8 Go fixes that were missing from the
+previous Aug-27 `4f97bfd` pods.
+
+
+**Historical audit window: server was still on the Aug-27 image.** Every
+`happy-server` line in the 2026-09-07→09-14 audit window carried
+`service_version="master+4f97bfd8b97e"`, so the 2026-09-08 Go fixes
+(`a9ef61a`, `505b79a`, `f513cc9`, `be33fb2`) were not deployed during that
+window. Measured against it: **62** `failed to create message` + **89**
 `atomic message store blocked` (`SQLSTATE 55P03`, `sessions` row lock), and
 **78** `happy_ws_messages_dropped_total{reason="persist-failed"}` — ~72% of the
-week's failures in one 09-12 14:00–16:20Z burst that coincides with daemon
-lease churn. `happy-postgres-8` shows 5 restarts (last reason `Error`), and
-`happy-postgres-9` is absent from the series. Push is still 100 %
+week's failures in one 09-12 14:00–16:20Z burst that coincided with daemon
+lease churn. `happy-postgres-8` showed 5 restarts (last reason `Error`), and
+`happy-postgres-9` was absent from the series. Push was still 100 %
 `outcome="unconfigured"` (79/7d). Client-side gap recovery repaired every
-observed seq gap, so the symptom is delay, not loss — but a persist failure
-never gets a seq, so those 78 rows are not gap-recoverable and the loss
-question is unresolved. **Deploy the server image.**
+observed seq gap, so the symptom was delay, not loss — but a persist failure
+never gets a seq, so those 78 rows were not gap-recoverable and the loss
+question remained unresolved. The rollout is now recorded above.
 
 **Client fixes shipped in this batch:**
 
