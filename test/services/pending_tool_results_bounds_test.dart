@@ -78,6 +78,77 @@ void main() {
         overflow,
       );
     });
+  });
+
+  // GlitchTip 8832 / 8831: the sidechain orphan sweep calls
+  // `fetchOlderMessages`, which merges a page from far behind the resident
+  // window and then immediately trims it away. Every tool result on that page
+  // is unmatchable by construction, yet they were all queued — one page on
+  // session c11a301a contributed 154 of them, pushed the queue past its cap
+  // and dropped the 151 oldest entries, which were the results still waiting
+  // for a tool-call that had not arrived yet.
+  group('history backfill must not queue unmatchable tool results', () {
+    List<Map<String, dynamic>> residentCalls(List<String> ids) => [
+      for (final id in ids)
+        {'kind': 'tool-call', 'toolUseId': id, 'state': 'running'},
+    ];
+
+    test('a backfill burst leaves genuinely pending results untouched', () {
+      sync.testSetSessionMessages('s1', residentCalls(const ['resident-1']));
+
+      // A result whose tool-call is still in flight over the socket: this is
+      // exactly what the queue exists for, and it must survive.
+      sync.testApplyToolResults('s1', results(1, prefix: 'waiting'));
+      expect(sync.testPendingToolResults('s1'), hasLength(1));
+
+      // History backfill far behind the window — none of these can match.
+      sync.testApplyToolResults(
+        's1',
+        results(Sync.maxPendingToolResultsPerSession + 50, prefix: 'backfill'),
+        queueUnmatched: false,
+      );
+
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(1));
+      expect(pending.single['toolUseId'], 'waiting-0');
+      expect(
+        PowerDiagnosticsOtelReporter
+            .instance
+            .debugBumpTotals['happy_flutter.tool_results.dropped'],
+        isNull,
+        reason: 'nothing matchable should have been evicted',
+      );
+    });
+
+    test('the socket path still queues results whose call has not arrived', () {
+      sync.testSetSessionMessages('s1', residentCalls(const ['resident-1']));
+
+      sync.testApplyToolResults('s1', results(2, prefix: 'late'));
+
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(2));
+      expect(
+        pending.map((r) => r['toolUseId']),
+        containsAll(<String>['late-0', 'late-1']),
+      );
+    });
+
+    test('a backfill result that does match its resident call still applies', () {
+      sync.testSetSessionMessages('s1', residentCalls(const ['shared-0']));
+
+      sync.testApplyToolResults(
+        's1',
+        results(1, prefix: 'shared'),
+        queueUnmatched: false,
+      );
+
+      expect(sync.testPendingToolResults('s1'), isEmpty);
+      expect(
+        sync.testSessionMessages('s1')!.single['state'],
+        'completed',
+        reason: 'suppressing the queue must not suppress the match',
+      );
+    });
 
     test('queued entries carry the local-clock stamp used for expiry', () {
       sync.testSetSessionMessages('s1', const []);

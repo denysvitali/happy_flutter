@@ -1781,7 +1781,24 @@ extension SyncMessaging on Sync {
         _upsertSessionMessages(sessionId, processed.messages);
       }
       if (processed.toolResults.isNotEmpty) {
-        _applyToolResults(sessionId, processed.toolResults);
+        // queueUnmatched: false. This page is history backfill for the
+        // sidechain orphan sweep, fetched far behind the resident window: the
+        // rows are upserted and then immediately trimmed away by the newest-N
+        // cap, so a result whose tool-call is not already resident can never
+        // match. Queueing it is pure pollution that evicts results which
+        // could still match.
+        //
+        // Measured on session c11a301a10aa01007d78b5e70 (GlitchTip 8832): one
+        // fetchOlderMessages page — maxSeq 11300 against a window ending at
+        // 22513, `upsert before=866 after=1000 mode=merge` — contributed 154
+        // permanently-unmatchable results, pushed the queue past its cap and
+        // dropped the 151 oldest entries, which were the ones still waiting
+        // on a tool-call that had not arrived yet.
+        _applyToolResults(
+          sessionId,
+          processed.toolResults,
+          queueUnmatched: false,
+        );
       }
       // Apply any pending tool results that arrived before these
       // messages. Only drain matched results.

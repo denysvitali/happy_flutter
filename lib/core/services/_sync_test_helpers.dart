@@ -354,9 +354,14 @@ extension SyncTestHelpers on Sync {
   @visibleForTesting
   void testApplyToolResults(
     String sessionId,
-    List<Map<String, dynamic>> toolResults,
-  ) {
-    _applyToolResults(sessionId, toolResults);
+    List<Map<String, dynamic>> toolResults, {
+    bool queueUnmatched = true,
+  }) {
+    _applyToolResults(
+      sessionId,
+      toolResults,
+      queueUnmatched: queueUnmatched,
+    );
   }
 
   @visibleForTesting

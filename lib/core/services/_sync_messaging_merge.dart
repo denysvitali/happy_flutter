@@ -886,10 +886,16 @@ extension SyncMessagingMerge on Sync {
   ///
   /// Returns the set of toolUseIds that were matched, so callers can
   /// drain only those from the pending queue.
+  ///
+  /// [queueUnmatched] must be false when the caller's page cannot become
+  /// resident — the history-backfill path (`fetchOlderMessages`) — because a
+  /// queued result there is unmatchable by construction and only evicts
+  /// results that would have matched. See [_queuePendingToolResults].
   Set<String> _applyToolResults(
     String sessionId,
-    List<Map<String, dynamic>> toolResults,
-  ) {
+    List<Map<String, dynamic>> toolResults, {
+    bool queueUnmatched = true,
+  }) {
     if (toolResults.isEmpty) return const {};
 
     // The retry path in the orchestrator / legacy messaging code passes
@@ -909,7 +915,7 @@ extension SyncMessagingMerge on Sync {
     if (existing.isEmpty) {
       // Queue tool results that arrived before their tool-call message.
       // They will be applied when the tool-call message arrives.
-      if (!isPendingReplay) {
+      if (!isPendingReplay && queueUnmatched) {
         _queuePendingToolResults(sessionId, toolResults);
       }
       return const {};
@@ -928,7 +934,7 @@ extension SyncMessagingMerge on Sync {
     // seen from same-millisecond Codex events) is silently dropped
     // once the session already has prior messages, leaving the
     // tool-call stuck in `running` state forever.
-    if (!isPendingReplay) {
+    if (!isPendingReplay && queueUnmatched) {
       final unmatched = toolResults
           .where((r) => !result.matchedIds.contains(r['toolUseId']))
           .toList();
@@ -942,6 +948,12 @@ extension SyncMessagingMerge on Sync {
 
   /// Append tool results to the session's pending queue with a local-clock
   /// stamp, enforcing the TTL and the per-session FIFO cap.
+  ///
+  /// Only results whose tool-call can still arrive belong here: a result
+  /// queued for a page that will never be resident (history backfill) is
+  /// unmatchable and its only effect is to evict a result that would have
+  /// matched when the cap is reached. Callers in that position pass
+  /// `queueUnmatched: false` to [_applyToolResults].
   void _queuePendingToolResults(
     String sessionId,
     List<Map<String, dynamic>> results,
