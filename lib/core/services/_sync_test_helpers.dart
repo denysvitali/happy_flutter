@@ -75,6 +75,14 @@ extension SyncTestHelpers on Sync {
     }
   }
 
+  /// Emits a history-pagination failure without making a network request.
+  @visibleForTesting
+  void testEmitPaginationError(String sessionId) {
+    if (!_paginationErrorController.isClosed) {
+      _paginationErrorController.add(sessionId);
+    }
+  }
+
   /// Drives the server-side socket `error` event handler without a live
   /// socket, so `message-failed` handling can be pinned.
   @visibleForTesting

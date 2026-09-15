@@ -27,6 +27,7 @@ import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart'
     show ModelChip;
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
+import 'package:happy_flutter/features/chat/widgets/pagination_failure_retry.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
@@ -1467,6 +1468,36 @@ void main() {
         isTrue,
       );
       sync.testFlushPendingMessageSaves();
+    });
+
+    testWidgets('pagination failure uses inline retry without a SnackBar', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {
+          'id': 'msg_2',
+          'seq': 2,
+          'role': 'assistant',
+          'content': 'Recent message',
+          'createdAt': 1700000002000,
+        },
+      ]);
+      sync.testSetSessionFirstLoadedSeq('session_1', 2);
+      sync.testSessions['session_1'] = _makeSession();
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      sync.testEmitPaginationError('session_1');
+      await tester.pump();
+
+      expect(find.byType(PaginationFailureRetry), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
     });
 
     testWidgets('PopScope handles unsent message dialog', (tester) async {

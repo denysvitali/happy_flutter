@@ -575,20 +575,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             _continueHistoryLoadAfterServerPage = false;
             _canTriggerHistoryLoad = true;
             _bumpMessagePaneRevision();
-            // Defer until after the first frame so context is available.
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(context.l10n.chatFailedToLoadMessages),
-                  duration: const Duration(seconds: 4),
-                  action: SnackBarAction(
-                    label: context.l10n.commonRetry,
-                    onPressed: _retryHistoryLoad,
-                  ),
-                ),
-              );
-            });
+            // The transcript header already exposes a persistent, contextual
+            // retry row for this state. Do not also enqueue a SnackBar: action
+            // SnackBars do not time out while accessible navigation is on,
+            // which can leave this duplicate error covering the composer.
           }
         });
 
