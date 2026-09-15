@@ -676,6 +676,16 @@ jobs:
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
           SENTRY_RELEASE: ${{ steps.build_meta.outputs.SENTRY_RELEASE }}
 
+      # The upload above is conditional, so an unset secret skips it silently
+      # and every crash stays unsymbolicated with no signal that anything is
+      # missing. Say so out loud instead (GlitchTip 8796/8797 were diagnosed
+      # this way: the step was simply absent from the job log).
+      - name: Warn that debug symbols were not uploaded
+        if: env.SENTRY_AUTH_TOKEN == ''
+        run: |
+          echo "::warning title=Symbols not uploaded::SENTRY_AUTH_TOKEN is not set, so 'Upload debug symbols to Sentry' was skipped. Crash stacks for this build stay unsymbolicated; resolve them from the debug-info artifact instead."
+
+
       - name: Upload debug info artifact
         uses: actions/upload-artifact@v7
         with:
@@ -916,6 +926,16 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_DIST: ${{ steps.build_meta.outputs.BUILD_NUMBER }}
           SENTRY_RELEASE: ${{ steps.build_meta.outputs.SENTRY_RELEASE }}
+
+      # Same conditional-upload trap as the release job: with no token the
+      # step above vanishes from the log and every web stack stays minified
+      # (`minified:awo#78c2a`), which is exactly why GlitchTip 8796/8797 could
+      # not be attributed to a widget.
+      - name: Warn that web source maps were not uploaded
+        if: ${{ env.SENTRY_AUTH_TOKEN == '' }}
+        run: |
+          echo "::warning title=Web source maps not uploaded::SENTRY_AUTH_TOKEN is not set, so 'Upload web source maps to Sentry' was skipped. GlitchTip web stacks stay minified and cannot be symbolicated."
+
 
       - name: Cache-bust assets
         run: |
