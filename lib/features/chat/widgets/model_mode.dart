@@ -1,6 +1,7 @@
 import '../../../core/models/built_in_profiles.dart';
 import '../../../core/models/settings.dart' show extendedContextWindowTokens;
 import '../../../core/rpc/rpc_types.dart';
+import '../../../core/utils/model_selection.dart';
 
 /// Model mode options exposed by the shared chat composer.
 class ChatModelMode {
@@ -98,7 +99,7 @@ class ChatModelMode {
   );
 
   /// Effort levels supported by the `claude` CLI's `--effort` flag.
-  static const claudeEfforts = ['low', 'medium', 'high', 'xhigh', 'max'];
+  static const claudeEfforts = claudeModelEfforts;
 
   /// Canonical effort suffixes understood by current Codex releases.
   /// `ultra` is a Codex orchestration preset: models advertise it only when
@@ -443,15 +444,8 @@ class ChatModelMode {
   /// so the base slug can be reused across effort variants. Only known
   /// effort suffixes are stripped, so model slugs that legitimately
   /// contain a colon are left intact.
-  static String _stripEffortSuffix(String raw) {
-    final idx = raw.lastIndexOf(':');
-    if (idx <= 0 || idx == raw.length - 1) return raw;
-    final suffix = raw.substring(idx + 1);
-    if (codexEfforts.contains(suffix) || claudeEfforts.contains(suffix)) {
-      return raw.substring(0, idx);
-    }
-    return raw;
-  }
+  static String _stripEffortSuffix(String raw) =>
+      stripModelEffortSuffix(raw, codexEfforts.followedBy(claudeEfforts));
 
   static List<ChatModelMode> fromCodexCatalog(List<CodexModelInfo> catalog) {
     final models = <ChatModelMode>[defaultModel];

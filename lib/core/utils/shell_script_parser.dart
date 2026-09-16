@@ -1,4 +1,5 @@
 import '../models/settings.dart';
+import 'model_selection.dart';
 
 /// Parsed result from a shell script containing export statements.
 class ShellScriptParseResult {
@@ -68,19 +69,19 @@ List<EnvironmentVariable> buildAnthropicModelEnvVars({
   required String mainModel,
   String? fastModel,
 }) {
-  final fast = (fastModel == null || fastModel.isEmpty) ? mainModel : fastModel;
+  final fast = (fastModel == null || fastModel.isEmpty)
+      ? normalizeProviderModelSelection(mainModel)
+      : normalizeProviderModelSelection(fastModel);
+  final main = normalizeProviderModelSelection(mainModel);
   return [
-    EnvironmentVariable(name: 'ANTHROPIC_MODEL', value: mainModel),
+    EnvironmentVariable(name: 'ANTHROPIC_MODEL', value: main),
     EnvironmentVariable(name: 'ANTHROPIC_SMALL_FAST_MODEL', value: fast),
-    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: mainModel),
+    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_OPUS_MODEL', value: main),
     EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_SONNET_MODEL', value: fast),
     EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', value: fast),
-    EnvironmentVariable(
-      name: 'ANTHROPIC_DEFAULT_FABLE_MODEL',
-      value: mainModel,
-    ),
-    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_MODEL', value: mainModel),
-    EnvironmentVariable(name: 'CLAUDE_CODE_SUBAGENT_MODEL', value: mainModel),
+    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_FABLE_MODEL', value: main),
+    EnvironmentVariable(name: 'ANTHROPIC_DEFAULT_MODEL', value: main),
+    EnvironmentVariable(name: 'CLAUDE_CODE_SUBAGENT_MODEL', value: main),
   ];
 }
 
@@ -99,28 +100,26 @@ Map<String, String> applyModelSelectionToEnv(
   Map<String, String> envVars,
   String mainModel,
 ) {
-  // `[1m]` is Claude Code CLI syntax for requesting extended context, not
-  // part of the upstream provider's model id. Passing it through ANTHROPIC_*
-  // makes compatible gateways miss the selected model and use a fallback.
-  final providerModel = mainModel.endsWith('[1m]')
-      ? mainModel.substring(0, mainModel.length - '[1m]'.length)
-      : mainModel;
-  final previousMain =
-      envVars['ANTHROPIC_MODEL'] ?? envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'];
+  // Compare provider identities, not UI effort/context selections.
+  final previousMain = normalizeProviderModelSelection(
+    envVars['ANTHROPIC_MODEL'] ?? envVars['ANTHROPIC_DEFAULT_OPUS_MODEL'] ?? '',
+  );
   String? fast;
   for (final name in const [
     'ANTHROPIC_SMALL_FAST_MODEL',
     'ANTHROPIC_DEFAULT_HAIKU_MODEL',
   ]) {
     final v = envVars[name];
-    if (v != null && v.isNotEmpty && v != previousMain) {
+    if (v != null &&
+        v.isNotEmpty &&
+        normalizeProviderModelSelection(v) != previousMain) {
       fast = v;
       break;
     }
   }
   final out = <String, String>{...envVars};
   for (final env in buildAnthropicModelEnvVars(
-    mainModel: providerModel,
+    mainModel: mainModel,
     fastModel: fast,
   )) {
     out[env.name] = env.value;

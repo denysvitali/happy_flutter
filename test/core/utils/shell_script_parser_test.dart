@@ -4,6 +4,41 @@ import 'package:happy_flutter/core/utils/shell_script_parser.dart';
 
 void main() {
   group('buildAnthropicModelEnvVars', () {
+    for (final selection in [
+      'openrouter/stealth/union-alpha:max',
+      'openrouter/stealth/union-alpha:max[1m]',
+    ]) {
+      test('normalizes every routing value for $selection', () {
+        final env = buildAnthropicModelEnvVars(mainModel: selection);
+        expect(env, hasLength(8));
+        for (final entry in env) {
+          expect(
+            entry.value,
+            'openrouter/stealth/union-alpha',
+            reason: entry.name,
+          );
+        }
+      });
+    }
+
+    test('normalizes main and dedicated fast models independently', () {
+      final env = {
+        for (final entry in buildAnthropicModelEnvVars(
+          mainModel: 'provider/main:free:max[1m]',
+          fastModel: 'provider/fast:nitro:low[1m]',
+        ))
+          entry.name: entry.value,
+      };
+      expect(env['ANTHROPIC_MODEL'], 'provider/main:free');
+      expect(env['CLAUDE_CODE_SUBAGENT_MODEL'], 'provider/main:free');
+      for (final key in [
+        'ANTHROPIC_SMALL_FAST_MODEL',
+        'ANTHROPIC_DEFAULT_SONNET_MODEL',
+        'ANTHROPIC_DEFAULT_HAIKU_MODEL',
+      ]) {
+        expect(env[key], 'provider/fast:nitro');
+      }
+    });
     test('maps main model to every selection knob', () {
       final envVars = buildAnthropicModelEnvVars(mainModel: 'mimo-v2.5-pro');
       final byName = {for (final e in envVars) e.name: e.value};
@@ -146,5 +181,34 @@ void main() {
       expect(bound['ANTHROPIC_DEFAULT_OPUS_MODEL'], 'apodex/apodex-1.1');
       expect(bound['CLAUDE_CODE_SUBAGENT_MODEL'], 'apodex/apodex-1.1');
     });
+
+    test(
+      'an effort-only difference does not make the old main a fast model',
+      () {
+        final bound = applyModelSelectionToEnv({
+          'ANTHROPIC_MODEL': 'glm-4.7:high[1m]',
+          'ANTHROPIC_SMALL_FAST_MODEL': 'glm-4.7:low',
+        }, 'glm-5:max[1m]');
+        expect(bound['ANTHROPIC_SMALL_FAST_MODEL'], 'glm-5');
+        expect(bound['ANTHROPIC_DEFAULT_HAIKU_MODEL'], 'glm-5');
+      },
+    );
+
+    test(
+      'keeps provider variants while dropping terminal effort and context',
+      () {
+        final bound = applyModelSelectionToEnv({
+          'ANTHROPIC_BASE_URL': 'https://proxy.example/anthropic',
+          'ANTHROPIC_SMALL_FAST_MODEL': 'provider/fast:nitro:low',
+        }, 'openrouter/stealth/union-alpha:max[1m]');
+
+        expect(bound['ANTHROPIC_MODEL'], 'openrouter/stealth/union-alpha');
+        expect(
+          bound['CLAUDE_CODE_SUBAGENT_MODEL'],
+          'openrouter/stealth/union-alpha',
+        );
+        expect(bound['ANTHROPIC_SMALL_FAST_MODEL'], 'provider/fast:nitro');
+      },
+    );
   });
 }
