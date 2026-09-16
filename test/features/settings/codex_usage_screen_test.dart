@@ -287,7 +287,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Reserve'), findsOneWidget);
+      expect(find.text('RESERVE'), findsOneWidget);
       expect(find.text('Primary window'), findsNWidgets(2));
       expect(find.text('5-hour window'), findsNothing);
       expect(find.text('Weekly window'), findsNothing);
