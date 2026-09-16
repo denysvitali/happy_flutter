@@ -270,7 +270,7 @@ catalog.
 
 **Lifecycle handling:** `Sync.suspend()` disconnects socket after a 2s grace (deferred timer; cancels if resumed sooner), cancels all timers, flushes MMKV. `Sync.resume()` reconnects the socket and invalidates syncs; it also forces a fresh connection when a socket still claims `connected` after >45s backgrounded (zombie — the server-side session dies ~45s after heartbeats stop). Rapid lifecycle cycling (resume→suspend within 2s) keeps socket connected to avoid reconnect cascades. A 15s reconnect watchdog armed on resume re-arms itself while disconnected (cancelled on connect/suspend), and `Sync.forceReconnect()` is the manual "Reconnect now" entry point (offline banner) — it dials fresh and arms the same watchdog.
 
-See @docs/SYNC_PATTERNS.md for subscription template and details.
+See `docs/SYNC_PATTERNS.md` for subscription template and details.
 
 HTTP suspension cancellations carry `HttpCancellationReason.appSuspended`.
 They remain failed refresh attempts with cached state preserved, but do not
@@ -452,10 +452,10 @@ them — several encode Flutter-SDK constraints that a bump silently breaks:
 
 | Doc | Purpose |
 |-----|---------|
-| @docs/SYNC_PATTERNS.md | Sync subscription templates and InvalidateSync usage |
+| `docs/SYNC_PATTERNS.md` | Sync subscription templates and InvalidateSync usage |
 | @ROADMAP.md | Production bugs, sprint priorities, feature status |
 | @docs/AGENTS.md | Repository-local agent instructions for docs-specific overrides |
-| @docs/ARCHITECTURE.md | Architecture review (Sync god object, known issues) |
+| `docs/ARCHITECTURE.md` | Architecture review (Sync god object, known issues) |
 | `docs/` | 13 internal docs on security, protocol, UI/UX, sync, and operations, plus `docs/book/` (15 chapters) |
 
 ## Logs & Metrics — Observability

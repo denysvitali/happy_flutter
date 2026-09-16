@@ -10,6 +10,7 @@ REFACTOR_PLAN.md
 LOOPS.md
 UI_UX_REVIEW.md
 DEV_OPS_CI_CD.md
+roadmap-archive/2026-H1.md
 book/00-index.md
 book/01-big-picture.md
 book/02-directory-tour.md
