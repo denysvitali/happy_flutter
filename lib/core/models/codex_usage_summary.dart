@@ -278,11 +278,18 @@ class CodexUsageAdditionalRateLimit {
   final CodexUsageSummaryRateLimit? rateLimit;
 
   String get displayName {
+    if (isReserve) return 'Reserve';
     if (limitName != null && limitName!.isNotEmpty) return limitName!;
     if (meteredFeature != null && meteredFeature!.isNotEmpty) {
       return meteredFeature!;
     }
     return 'Additional Limit';
+  }
+
+  /// Codex calls the fallback quota `gpt-reserve` in the usage payload.
+  bool get isReserve {
+    final names = [limitName, meteredFeature];
+    return names.any((name) => name?.trim().toLowerCase() == 'gpt-reserve');
   }
 }
 

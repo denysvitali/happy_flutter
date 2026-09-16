@@ -238,6 +238,28 @@ void main() {
       expect(summary.additionalRateLimits.last.rateLimit!.allowed, isFalse);
     });
 
+    test('labels the GPT Reserve additional limit', () {
+      final summary = CodexUsageSummary.fromJson({
+        'additional_rate_limits': [
+          {
+            'limit_name': 'gpt-reserve',
+            'metered_feature': 'base_model_inference',
+            'rate_limit': {
+              'allowed': true,
+              'primary_window': {
+                'used_percent': 0,
+                'limit_window_seconds': 604800,
+              },
+            },
+          },
+        ],
+      });
+
+      final reserve = summary.additionalRateLimits.single;
+      expect(reserve.isReserve, isTrue);
+      expect(reserve.displayName, 'Reserve');
+    });
+
     test('parses Codex payload from happy usage command output', () {
       final summary = CodexUsageSummary.fromJson({
         'exitCode': 0,

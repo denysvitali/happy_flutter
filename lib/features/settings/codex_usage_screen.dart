@@ -81,7 +81,7 @@ class CodexUsageScreen extends StatelessWidget {
                 if (report.rateLimit!.primaryWindow != null)
                   UsageWindowRow(
                     icon: Icons.schedule,
-                    title: l10n.codexUsageFiveHourWindow,
+                    title: l10n.codexUsagePrimaryWindow,
                     percent: report.rateLimit!.primaryWindow!.usedPercent
                         .toDouble(),
                     iconColor: AppColors.warning,
@@ -93,7 +93,7 @@ class CodexUsageScreen extends StatelessWidget {
                 if (report.rateLimit!.secondaryWindow != null)
                   UsageWindowRow(
                     icon: Icons.date_range_outlined,
-                    title: l10n.codexUsageWeeklyWindow,
+                    title: l10n.codexUsageSecondaryWindow,
                     percent: report.rateLimit!.secondaryWindow!.usedPercent
                         .toDouble(),
                     iconColor: AppColors.success,

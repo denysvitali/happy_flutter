@@ -485,6 +485,8 @@ request = urllib.request.Request(
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'User-Agent': 'codex-cli',
+        # Ask Codex to include additional pools such as GPT Reserve.
+        'x-openai-codex-luna-reserve': '1',
     },
 )
 

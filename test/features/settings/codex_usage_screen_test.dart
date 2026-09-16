@@ -227,4 +227,70 @@ void main() {
       expect(find.text('31 days left · $secondDate'), findsOneWidget);
     });
   });
+
+  group('CodexUsageScreen rate limits', () {
+    testWidgets('shows Reserve and uses generic window labels', (tester) async {
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'get-codex-usage') {
+          return <String, dynamic>{
+            'success': true,
+            'data': <String, dynamic>{
+              'email': 'codex@example.com',
+              'rate_limit': <String, dynamic>{
+                'allowed': true,
+                'primary_window': <String, dynamic>{
+                  'used_percent': 15,
+                  'limit_window_seconds': 604800,
+                },
+              },
+              'additional_rate_limits': [
+                <String, dynamic>{
+                  'limit_name': 'gpt-reserve',
+                  'metered_feature': 'base_model_inference',
+                  'rate_limit': <String, dynamic>{
+                    'allowed': true,
+                    'primary_window': <String, dynamic>{
+                      'used_percent': 0,
+                      'limit_window_seconds': 604800,
+                    },
+                  },
+                },
+              ],
+            },
+          };
+        }
+        if (method == 'bash') {
+          return <String, dynamic>{
+            'success': false,
+            'error': 'reset details unavailable',
+          };
+        }
+        throw StateError('Unexpected method: $method');
+      };
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            machinesNotifierProvider.overrideWith(
+              () => _StubMachinesNotifier({
+                'm-codex': _onlineMachine(id: 'm-codex'),
+              }),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const CodexUsageScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Reserve'), findsOneWidget);
+      expect(find.text('Primary window'), findsNWidgets(2));
+      expect(find.text('5-hour window'), findsNothing);
+      expect(find.text('Weekly window'), findsNothing);
+    });
+  });
 }
