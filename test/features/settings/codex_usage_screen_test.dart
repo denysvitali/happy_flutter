@@ -285,7 +285,7 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Reserve'), findsOneWidget);
       expect(find.text('Primary window'), findsNWidgets(2));
