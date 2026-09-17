@@ -14,6 +14,7 @@ import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/safe_ui_messages.dart';
 import '../../core/models/built_in_profiles.dart';
+import '../../core/models/favorite_model.dart';
 import '../../core/models/loop.dart';
 import '../../core/models/outgoing_image.dart';
 import '../../core/models/session.dart';

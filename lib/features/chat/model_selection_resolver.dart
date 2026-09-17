@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
+import '../../core/models/favorite_model.dart';
 import '../../core/models/settings.dart';
 import 'widgets/model_mode.dart';
 import 'widgets/permission_mode_selector.dart';
@@ -48,9 +49,9 @@ class ModelSelectionResolution {
 }
 
 /// Resolves the saved-draft > synced session > server session >
-/// profile-default > global-default priority chain used to restore
-/// permission mode, model mode, and AI backend profile when a chat session is
-/// reopened.
+/// provider-favorite > profile-default > global-default priority chain used
+/// to restore permission mode, model mode, and AI backend profile when a chat
+/// session is reopened.
 ///
 /// Pure function - no Flutter, no I/O. Callers (e.g.
 /// `_ChatScreenState._loadInitialSettings`) read the raw inputs from
@@ -67,6 +68,7 @@ ModelSelectionResolution resolveModelSelection({
   required List<AIBackendProfile> settingsProfiles,
   required List<AIBackendProfile> builtInProfiles,
   required String? lastUsedModelMode,
+  Map<String, String> favoriteModelsByProfile = const {},
   String? syncedSessionPermissionMode,
   String? lastUsedPermissionMode,
 }) {
@@ -164,14 +166,28 @@ ModelSelectionResolution resolveModelSelection({
     );
   }
 
-  // Priority: saved draft > session model > profile default > settings
-  // default.
+  // No explicit pick anywhere: fall back to the provider's saved favorite.
+  // The ghost guard keeps a favorite belonging to a vanished profile from
+  // silently steering a session that no longer has that profile.
+  final favoriteModel = hadGhostProfileReference
+      ? null
+      : favoriteModelForProvider(
+          favoriteModelsByProfile,
+          selectedProfile,
+          flavor,
+        );
+
+  // Priority: saved draft > session model > provider favorite > profile
+  // default > settings default.
   if (savedModelMode != null) {
     rawModelModeString = normalizeRaw(savedModelMode);
     modelMode = normalizeModel(rawModelModeString);
   } else if (sessionModelMode != null) {
     rawModelModeString = normalizeRaw(sessionModelMode);
     modelMode = normalizeModel(rawModelModeString);
+  } else if (favoriteModel != null) {
+    rawModelModeString = normalizeRaw(favoriteModel);
+    modelMode = normalizeModel(favoriteModel);
   } else if (selectedProfile?.defaultModelMode case final profileModelMode?) {
     rawModelModeString = normalizeRaw(profileModelMode);
     modelMode = normalizeModel(rawModelModeString);

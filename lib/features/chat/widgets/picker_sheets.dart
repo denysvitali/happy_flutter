@@ -6,6 +6,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../model_selection_resolver.dart';
+import 'favorite_model_picker.dart';
 import 'model_mode.dart';
 
 // ---------------------------------------------------------------------------
@@ -109,6 +110,8 @@ void showModelPickerSheet(
   Settings? settings,
   String? catalogNotice,
   ValueChanged<List<String>>? onCustomModelsChanged,
+  String? favorite,
+  ValueChanged<String?>? onFavoriteChanged,
 }) {
   final theme = Theme.of(context);
   final hasGroupedModels = models.any((m) => m.modelSlug != null);
@@ -165,6 +168,13 @@ void showModelPickerSheet(
                         ],
                       ),
                     ),
+                    if (onFavoriteChanged != null)
+                      FavoriteModelPicker(
+                        models: models,
+                        current: current,
+                        favorite: favorite,
+                        onChanged: onFavoriteChanged,
+                      ),
                   ],
                 )
               : _GroupedModelPickerContent(
@@ -173,6 +183,8 @@ void showModelPickerSheet(
                   onChanged: onChanged,
                   settings: settings,
                   onCustomModelsChanged: onCustomModelsChanged,
+                  favorite: favorite,
+                  onFavoriteChanged: onFavoriteChanged,
                 ),
         ),
       ),
@@ -187,6 +199,8 @@ class _GroupedModelPickerContent extends StatefulWidget {
     required this.onChanged,
     this.settings,
     this.onCustomModelsChanged,
+    this.favorite,
+    this.onFavoriteChanged,
   });
 
   final ChatModelMode current;
@@ -194,6 +208,8 @@ class _GroupedModelPickerContent extends StatefulWidget {
   final ValueChanged<ChatModelMode> onChanged;
   final Settings? settings;
   final ValueChanged<List<String>>? onCustomModelsChanged;
+  final String? favorite;
+  final ValueChanged<String?>? onFavoriteChanged;
 
   @override
   State<_GroupedModelPickerContent> createState() =>
@@ -234,6 +250,7 @@ class _GroupedModelPickerContentState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final onFavoriteChanged = widget.onFavoriteChanged;
     final defaultModel = widget.models
         .where((model) => model == ChatModelMode.defaultModel)
         .toList();
@@ -338,6 +355,13 @@ class _GroupedModelPickerContentState
           ],
           Divider(height: 1, color: cs.outlineVariant.withValues(alpha: 0.5)),
           _buildCustomTile(context, cs, theme),
+          if (onFavoriteChanged != null)
+            FavoriteModelPicker(
+              models: widget.models,
+              current: widget.current,
+              favorite: widget.favorite,
+              onChanged: onFavoriteChanged,
+            ),
         ],
       ),
     );
@@ -564,68 +588,9 @@ class _GroupedModelPickerContentState
   }
 
   Future<void> _showCustomModelDialog(BuildContext context) async {
-    final slugController = TextEditingController();
-    String? selectedEffort;
-
     final result = await showDialog<ChatModelMode>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Custom Model'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: slugController,
-                decoration: const InputDecoration(
-                  hintText: 'claude-opus-4-8',
-                  labelText: 'Model slug',
-                ),
-                autofocus: true,
-                textInputAction: TextInputAction.next,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              DropdownButtonFormField<String>(
-                initialValue: selectedEffort,
-                decoration: const InputDecoration(
-                  labelText: 'Effort (optional)',
-                ),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('None')),
-                  for (final effort in ChatModelMode.claudeEfforts)
-                    DropdownMenuItem(
-                      value: effort,
-                      child: Text(
-                        ChatModelMode.custom(
-                          slug: '',
-                          effort: effort,
-                        ).reasoningEffortLabel,
-                      ),
-                    ),
-                ],
-                onChanged: (v) => setDialogState(() => selectedEffort = v),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final slug = slugController.text.trim();
-                if (slug.isEmpty) return;
-                Navigator.pop(
-                  ctx,
-                  ChatModelMode.custom(slug: slug, effort: selectedEffort),
-                );
-              },
-              child: const Text('Confirm'),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _CustomModelDialog(),
     );
 
     if (result != null && context.mounted) {
@@ -633,6 +598,81 @@ class _GroupedModelPickerContentState
       Navigator.pop(context);
       widget.onChanged(result);
     }
+  }
+}
+
+class _CustomModelDialog extends StatefulWidget {
+  const _CustomModelDialog();
+
+  @override
+  State<_CustomModelDialog> createState() => _CustomModelDialogState();
+}
+
+class _CustomModelDialogState extends State<_CustomModelDialog> {
+  final _slugController = TextEditingController();
+  String? _selectedEffort;
+
+  @override
+  void dispose() {
+    _slugController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Custom Model'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _slugController,
+            decoration: const InputDecoration(
+              hintText: 'claude-opus-4-8',
+              labelText: 'Model slug',
+            ),
+            autofocus: true,
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedEffort,
+            decoration: const InputDecoration(labelText: 'Effort (optional)'),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('None')),
+              for (final effort in ChatModelMode.claudeEfforts)
+                DropdownMenuItem(
+                  value: effort,
+                  child: Text(
+                    ChatModelMode.custom(
+                      slug: '',
+                      effort: effort,
+                    ).reasoningEffortLabel,
+                  ),
+                ),
+            ],
+            onChanged: (value) => setState(() => _selectedEffort = value),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final slug = _slugController.text.trim();
+            if (slug.isEmpty) return;
+            Navigator.pop(
+              context,
+              ChatModelMode.custom(slug: slug, effort: _selectedEffort),
+            );
+          },
+          child: const Text('Confirm'),
+        ),
+      ],
+    );
   }
 }
 

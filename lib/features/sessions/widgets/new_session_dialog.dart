@@ -5,6 +5,7 @@ import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/components/app_status_dot.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
+import '../../../core/models/favorite_model.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
 import '../../../core/models/settings.dart' show AIBackendProfile;
@@ -609,22 +610,21 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       final updatedSettings = ref.read(settingsNotifierProvider);
       String? modelMode;
       AIBackendProfile? selectedProfile;
+      var hadGhostProfileReference = false;
       if (profileId != null) {
         selectedProfile = updatedSettings.profiles
             .where((p) => p.id == profileId)
             .firstOrNull;
         selectedProfile ??= getBuiltInProfile(profileId);
-        modelMode ??= selectedProfile?.defaultModelMode;
+        if (selectedProfile == null) hadGhostProfileReference = true;
       }
-      // Fall back to the user's last explicit model selection so profile
-      // switches don't regress the model choice — but never re-apply a
-      // Claude model onto a third-party Anthropic-compatible gateway
-      // (Grok proxy / MiniMax / etc.), which the daemon aborts as
-      // provider_model_mismatch.
-      final lastUsedModelMode = updatedSettings.lastUsedModelMode;
-      if (lastUsedModelMode != null) {
+      String? normalizeProfileCandidate(String? raw) {
+        if (raw == null) return null;
+        // The daemon aborts Claude-alias models on third-party
+        // Anthropic-compatible gateways (Grok proxy / MiniMax / etc.) as
+        // provider_model_mismatch, so such candidates are rejected.
         final candidate = ChatModelMode.normalizeRawForFlavor(
-          lastUsedModelMode,
+          raw,
           _selectedAgent,
           preserveProviderOwned:
               (_selectedAgent == 'codex' &&
@@ -636,11 +636,32 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         final thirdParty =
             _selectedAgent == 'claude' &&
             profileUsesThirdPartyAnthropicBaseUrl(selectedProfile);
-        final claudeCandidate = _isClaudeModelAliasForDialog(candidate);
-        if (!(thirdParty && claudeCandidate)) {
-          modelMode ??= candidate;
+        if (thirdParty && _isClaudeModelAliasForDialog(candidate)) {
+          return null;
         }
+        return candidate;
       }
+
+      // The provider's saved favorite/default model wins over the profile's
+      // defaultModelMode so the picker's "favorite" choice is honored for
+      // brand-new sessions too. A ghost profileId (no matching profile) does
+      // not inherit a favorite — mirroring the resolver's guard so a favorite
+      // belonging to a vanished profile cannot steer the new session.
+      if (!hadGhostProfileReference) {
+        modelMode = normalizeProfileCandidate(
+          favoriteModelForProvider(
+            updatedSettings.favoriteModelsByProfile,
+            selectedProfile,
+            _selectedAgent,
+          ),
+        );
+        modelMode ??= selectedProfile?.defaultModelMode;
+      }
+      // Fall back to the user's last explicit model selection so profile
+      // switches don't regress the model choice.
+      modelMode ??= normalizeProfileCandidate(
+        updatedSettings.lastUsedModelMode,
+      );
       if (!_canUseRef) return;
       if (modelMode != null) {
         modelMode = applyProfileContextWindowSuffix(

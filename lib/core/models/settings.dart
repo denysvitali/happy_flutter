@@ -82,6 +82,10 @@ class Settings {
   List<AIBackendProfile> profiles = [];
   String? lastUsedProfile;
   Map<String, String> lastUsedProfilesByAgent = {};
+
+  /// Favorite model id per profile id (profileId -> model id),
+  /// synchronized across devices so model picks follow each profile.
+  Map<String, String> favoriteModelsByProfile = {};
   List<String> favoriteDirectories = ['~/src', '~/Desktop', '~/Documents'];
   List<String> favoriteMachines = [];
   List<String> folders = [];
@@ -137,6 +141,10 @@ class Settings {
             lastUsedProfilesByAgent,
             other.lastUsedProfilesByAgent,
           ) &&
+          _stringMapsEqual(
+            favoriteModelsByProfile,
+            other.favoriteModelsByProfile,
+          ) &&
           folders == other.folders &&
           profiles.length == other.profiles.length &&
           profiles.asMap().entries.every(
@@ -167,6 +175,11 @@ class Settings {
     ),
     Object.hashAll(
       lastUsedProfilesByAgent.entries.map(
+        (entry) => Object.hash(entry.key, entry.value),
+      ),
+    ),
+    Object.hashAllUnordered(
+      favoriteModelsByProfile.entries.map(
         (entry) => Object.hash(entry.key, entry.value),
       ),
     ),
@@ -261,6 +274,9 @@ class Settings {
       ..lastUsedProfilesByAgent = Map<String, String>.from(
         lastUsedProfilesByAgent,
       )
+      ..favoriteModelsByProfile = Map<String, String>.from(
+        favoriteModelsByProfile,
+      )
       ..favoriteDirectories = List<String>.from(favoriteDirectories)
       ..favoriteMachines = List<String>.from(favoriteMachines)
       ..folders = List<String>.from(folders)
@@ -311,6 +327,7 @@ class Settings {
     List<AIBackendProfile>? profiles,
     Object? lastUsedProfile = _unset,
     Map<String, String>? lastUsedProfilesByAgent,
+    Map<String, String>? favoriteModelsByProfile,
     List<String>? favoriteDirectories,
     List<String>? favoriteMachines,
     List<String>? folders,
@@ -402,6 +419,11 @@ class Settings {
                 ? this.lastUsedProfilesByAgent
                 : Map<String, String>.from(lastUsedProfilesByAgent))
           : this.lastUsedProfilesByAgent
+      ..favoriteModelsByProfile = favoriteModelsByProfile != null
+          ? (identical(favoriteModelsByProfile, this.favoriteModelsByProfile)
+                ? this.favoriteModelsByProfile
+                : Map<String, String>.from(favoriteModelsByProfile))
+          : this.favoriteModelsByProfile
       ..favoriteDirectories = favoriteDirectories != null
           ? (identical(favoriteDirectories, this.favoriteDirectories)
                 ? this.favoriteDirectories
@@ -486,6 +508,7 @@ Map<String, dynamic> _normalizeSettingsJson(
       // every collection key is already a List/Map of the right shape
       // we can return `json` directly. Verify cheaply.
       final lastUsedProfilesByAgent = json['lastUsedProfilesByAgent'];
+      final favoriteModelsByProfile = json['favoriteModelsByProfile'];
       final dismissed = json['dismissedCLIWarnings'];
       if (json['recentMachinePaths'] is List &&
           json['profiles'] is List &&
@@ -494,6 +517,7 @@ Map<String, dynamic> _normalizeSettingsJson(
           json['folders'] is List &&
           json['permissionModesBySession'] is Map &&
           lastUsedProfilesByAgent is Map &&
+          favoriteModelsByProfile is Map<String, String> &&
           dismissed is Map &&
           dismissed['perMachine'] is Map &&
           dismissed['global'] is Map &&
@@ -555,6 +579,17 @@ Map<String, dynamic> _normalizeSettingsJson(
     normalized['lastUsedProfilesByAgent'] = profilesByAgent;
   } else {
     normalized['lastUsedProfilesByAgent'] = defaults['lastUsedProfilesByAgent'];
+  }
+
+  final favoriteModelsByProfile = normalized['favoriteModelsByProfile'];
+  if (favoriteModelsByProfile is Map) {
+    normalized['favoriteModelsByProfile'] = <String, String>{
+      for (final entry in favoriteModelsByProfile.entries)
+        if (entry.key != null && entry.value != null)
+          entry.key.toString(): entry.value.toString(),
+    };
+  } else {
+    normalized['favoriteModelsByProfile'] = defaults['favoriteModelsByProfile'];
   }
 
   final dismissed = normalized['dismissedCLIWarnings'];

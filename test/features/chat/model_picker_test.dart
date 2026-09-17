@@ -15,6 +15,8 @@ void main() {
     required List<ChatModelMode> models,
     ValueChanged<ChatModelMode>? onChanged,
     String? catalogNotice,
+    String? favorite,
+    ValueChanged<String?>? onFavoriteChanged,
   }) async {
     // The Claude picker now has up to 13 tiles (default + sonnet/opus +
     // 5 efforts each). Use a tall viewport so every tile is hit-testable.
@@ -37,6 +39,8 @@ void main() {
                     models,
                     onChanged ?? (_) {},
                     catalogNotice: catalogNotice,
+                    favorite: favorite,
+                    onFavoriteChanged: onFavoriteChanged,
                   );
                 },
                 child: const Text('Open'),
@@ -888,5 +892,76 @@ void main() {
     await tester.drag(find.byType(Slider), const Offset(75, 0));
     await tester.pumpAndSettle();
     expect(selected, 'GLM-5:high');
+  });
+
+  group('favorite / default model picker', () {
+    // The FavoriteModelPicker's items reuse the model tiles' labels, so
+    // closed-state lookups are scoped to the dropdown to avoid colliding
+    // with the session-model tiles above it. Open-menu items render in
+    // the root overlay route — outside the form field's subtree — so taps
+    // there use find.text().last instead: the button's hidden IndexedStack
+    // copies are skipped while the menu is open and the overlay copy is
+    // last in tree order.
+    Finder dropdownItem(String label) => find.descendant(
+      of: find.byType(DropdownButtonFormField<String>),
+      matching: find.text(label),
+    );
+
+    testWidgets('omitted when the host does not wire a favorite callback', (
+      tester,
+    ) async {
+      await pumpPickerHost(
+        tester,
+        models: ChatModelMode.availableForFlavor('claude'),
+      );
+      expect(find.text('Favorite / default model'), findsNothing);
+    });
+
+    testWidgets('renders the saved favorite and emits a new pick without '
+        'changing the session model', (tester) async {
+      final models = ChatModelMode.availableForFlavor('claude');
+      String? sessionPicked;
+      String? favoritePicked;
+
+      await pumpPickerHost(
+        tester,
+        models: models,
+        onChanged: (m) => sessionPicked = m.modeString,
+        favorite: 'opus',
+        onFavoriteChanged: (f) => favoritePicked = f,
+      );
+
+      expect(find.text('Favorite / default model'), findsOneWidget);
+      // The current favorite ('opus' → 'Opus') is the dropdown value and
+      // is offered as a choice even though it is not in the tile list.
+      expect(dropdownItem('Opus'), findsOneWidget);
+
+      // Open the dropdown and pick Sonnet as the new favorite.
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sonnet').last);
+      await tester.pumpAndSettle();
+
+      expect(favoritePicked, 'sonnet');
+      // Setting a favorite must not touch the active session model.
+      expect(sessionPicked, isNull);
+    });
+
+    testWidgets('clearing the favorite emits null', (tester) async {
+      String? favoritePicked;
+      await pumpPickerHost(
+        tester,
+        models: ChatModelMode.availableForFlavor('claude'),
+        favorite: 'sonnet',
+        onFavoriteChanged: (f) => favoritePicked = f,
+      );
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('No favorite').last);
+      await tester.pumpAndSettle();
+
+      expect(favoritePicked, isNull);
+    });
   });
 }

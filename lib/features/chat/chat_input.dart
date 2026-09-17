@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/i18n/app_localizations.dart';
+import '../../core/models/favorite_model.dart';
 import '../../core/models/outgoing_image.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
@@ -952,6 +953,29 @@ class _ChatInputState extends ConsumerState<ChatInput>
       (model) => widget.onModelModeChanged?.call(model),
       settings: settings,
       catalogNotice: widget.modelCatalogNotice,
+      favorite: favoriteModelForProvider(
+        settings.favoriteModelsByProfile,
+        widget.selectedProfile,
+        widget.sessionFlavor,
+      ),
+      onFavoriteChanged: (favorite) {
+        // Re-read so a favorite set while the sheet was open (or a sync
+        // landing in between) is never clobbered by the stale snapshot.
+        final latest = ref.read(settingsNotifierProvider);
+        final key = favoriteModelProviderKey(
+          widget.selectedProfile,
+          widget.sessionFlavor,
+        );
+        final next = {...latest.favoriteModelsByProfile};
+        if (favorite == null) {
+          next.remove(key);
+        } else {
+          next[key] = favorite;
+        }
+        ref
+            .read(settingsNotifierProvider.notifier)
+            .updateSetting('favoriteModelsByProfile', next);
+      },
       onCustomModelsChanged: (customModels) {
         ref
             .read(settingsNotifierProvider.notifier)

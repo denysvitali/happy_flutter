@@ -58,6 +58,9 @@ Settings _$SettingsFromJson(Map<String, dynamic> json) => Settings()
   ..lastUsedProfilesByAgent = Map<String, String>.from(
     json['lastUsedProfilesByAgent'] as Map,
   )
+  ..favoriteModelsByProfile = Map<String, String>.from(
+    json['favoriteModelsByProfile'] as Map,
+  )
   ..favoriteDirectories = (json['favoriteDirectories'] as List<dynamic>)
       .map((e) => e as String)
       .toList()
@@ -114,6 +117,7 @@ Map<String, dynamic> _$SettingsToJson(Settings instance) => <String, dynamic>{
   'profiles': instance.profiles.map((e) => e.toJson()).toList(),
   'lastUsedProfile': instance.lastUsedProfile,
   'lastUsedProfilesByAgent': instance.lastUsedProfilesByAgent,
+  'favoriteModelsByProfile': instance.favoriteModelsByProfile,
   'favoriteDirectories': instance.favoriteDirectories,
   'favoriteMachines': instance.favoriteMachines,
   'folders': instance.folders,

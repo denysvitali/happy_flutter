@@ -77,6 +77,7 @@ extension _ChatScreenActions on _ChatScreenState {
       settingsProfiles: settings.profiles,
       builtInProfiles: builtInProfiles,
       lastUsedModelMode: settings.lastUsedModelMode,
+      favoriteModelsByProfile: settings.favoriteModelsByProfile,
     );
 
     // Test-only hook (see `testInitialSettingsApplyBarrier` doc comment):
@@ -627,7 +628,12 @@ extension _ChatScreenActions on _ChatScreenState {
         profile != null && profile.models.contains(currentModelMode);
     final profileDefaultModelMode = profileSupportsCurrentModel
         ? currentModelMode
-        : profile?.inferredDefaultModelMode;
+        : (favoriteModelForProvider(
+              ref.read(settingsNotifierProvider).favoriteModelsByProfile,
+              profile,
+              _session?.metadata?.flavor,
+            ) ??
+            profile?.inferredDefaultModelMode);
     final rawModelString = profileDefaultModelMode != null
         ? ChatModelMode.normalizeRawForFlavor(
             profileDefaultModelMode,

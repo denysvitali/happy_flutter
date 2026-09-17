@@ -124,6 +124,15 @@ final class SettingsUpdate {
         lastUsedProfilesByAgent:
             (value as Map<dynamic, dynamic>?)?.cast<String, String>() ?? {},
       ),
+      'favoriteModelsByProfile' => settings.copyWith(
+        favoriteModelsByProfile: value is Map
+            ? <String, String>{
+                for (final entry in value.entries)
+                  if (entry.key != null && entry.value != null)
+                    entry.key.toString(): entry.value.toString(),
+              }
+            : <String, String>{},
+      ),
       'favoriteDirectories' => settings.copyWith(
         favoriteDirectories: (value as List<dynamic>?)?.cast<String>() ?? [],
       ),
@@ -202,6 +211,7 @@ final class SettingsUpdate {
       ..profiles = updated.profiles
       ..lastUsedProfile = updated.lastUsedProfile
       ..lastUsedProfilesByAgent = updated.lastUsedProfilesByAgent
+      ..favoriteModelsByProfile = updated.favoriteModelsByProfile
       ..favoriteDirectories = updated.favoriteDirectories
       ..favoriteMachines = updated.favoriteMachines
       ..folders = updated.folders
