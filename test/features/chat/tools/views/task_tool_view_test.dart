@@ -716,6 +716,147 @@ void main() {
       );
     });
 
+    testWidgets('older replayed TaskUpdate delete does not remove newer row', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      // Newer create replays first (reverse-order cold load).
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskCreate',
+        'toolUseId': 'call-1',
+        'createdAt': 3000,
+        'input': {'subject': 'Live task'},
+        'result': 'Task #1 created successfully: Live task',
+      }, 's1');
+      // Older delete replays afterwards.
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskUpdate',
+        'toolUseId': 'call-2',
+        'createdAt': 2000,
+        'input': {'taskId': '1', 'status': 'deleted'},
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items.single.id, '1');
+
+      // A fresh (newer) delete still works.
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskUpdate',
+        'toolUseId': 'call-3',
+        'createdAt': 4000,
+        'input': {'taskId': '1', 'status': 'deleted'},
+      }, 's1');
+      expect(
+        container.read(todoStateNotifierProvider).bySession['s1'],
+        isEmpty,
+      );
+    });
+
+    testWidgets(
+      'timestamp-less Happy snapshots replay newest-first keep all rows',
+      (tester) async {
+        final container = await pumpHost(tester);
+        // Cold load mounts the newest tool call first. Each add echoes the
+        // full list at that point, carrying no wire timestamp.
+        List<String> snapshot(int n) => [
+          for (var i = 1; i <= n; i++) '#$i [pending] Task $i',
+        ];
+        for (var n = 6; n >= 1; n--) {
+          TaskToolView.pushToolToGlobalState(ctx, {
+            'name': 'mcp__happy__todo_add',
+            'toolUseId': 'call-add-$n',
+            'input': {'id': '$n', 'content': 'Task $n'},
+            'result':
+                'Added #$n: Task $n\n$n items, $n open\n'
+                '${snapshot(n).join('\n')}',
+          }, 's1');
+        }
+
+        final items = container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!;
+        expect(items.map((e) => e.id), ['1', '2', '3', '4', '5', '6']);
+      },
+    );
+
+    testWidgets('errored TaskUpdate on empty state creates no placeholder', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskUpdate',
+        'toolUseId': 'call-1',
+        'state': 'error',
+        'createdAt': 1000,
+        'input': {'taskId': '1', 'subject': 'Phantom', 'status': 'completed'},
+      }, 's1');
+
+      expect(
+        container.read(todoStateNotifierProvider).bySession['s1'],
+        isEmpty,
+      );
+    });
+
+    testWidgets('errored TaskUpdate leaves existing state untouched', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskCreate',
+        'toolUseId': 'call-1',
+        'createdAt': 1000,
+        'input': {'subject': 'Real task'},
+        'result': 'Task #1 created successfully: Real task',
+      }, 's1');
+      final before = container.read(todoStateNotifierProvider).bySession['s1']!;
+      for (final status in ['completed', 'deleted']) {
+        TaskToolView.pushToolToGlobalState(ctx, {
+          'name': 'TaskUpdate',
+          'toolUseId': 'call-$status',
+          'state': 'error',
+          'createdAt': 2000,
+          'input': {'taskId': '1', 'subject': 'Wrong title', 'status': status},
+        }, 's1');
+
+        final items = container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!;
+        expect(items, before);
+        expect(items.single.content, 'Real task');
+        expect(items.single.status, TodoState.pending);
+      }
+    });
+
+    testWidgets('timestamp-less smaller TaskList keeps absent rows', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskCreate',
+        'toolUseId': 'call-1',
+        'createdAt': 1000,
+        'input': {'subject': 'Kept'},
+        'result': 'Task #1 created successfully: Kept',
+      }, 's1');
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskCreate',
+        'toolUseId': 'call-2',
+        'createdAt': 1100,
+        'input': {'subject': 'Also kept'},
+        'result': 'Task #2 created successfully: Also kept',
+      }, 's1');
+      // Partial list snapshot without a wire timestamp — replayed late, so
+      // ordering cannot be trusted; it must not evict task 2.
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'TaskList',
+        'toolUseId': 'call-3',
+        'result': '#1 [completed] Kept',
+      }, 's1');
+
+      final items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items.map((e) => e.id), containsAll(['1', '2']));
+    });
+
     testWidgets('TaskList plain-text result replaces the bucket', (
       tester,
     ) async {
