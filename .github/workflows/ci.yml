@@ -654,6 +654,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # The publish step has died twice in its asset-upload phase (run
+      # 35246981253, both attempts) without an error annotation, leaving no
+      # tag, no release, and no downloadable APK. Always leave the signed APK
+      # as a job artifact so a failed publish is recoverable.
+      - name: Upload release APK artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-apk-${{ steps.build_meta.outputs.FLAVOR }}-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: build/app/outputs/flutter-apk/app-${{ steps.build_meta.outputs.FLAVOR }}-release.apk
+          if-no-files-found: error
+
       - name: Save prebuilt release APK
         if: >-
           success() &&
