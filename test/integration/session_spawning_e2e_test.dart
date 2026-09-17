@@ -16,6 +16,8 @@ import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
+import 'package:happy_flutter/core/services/message_outbox.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -33,8 +35,20 @@ void main() {
   // wait through (15 s spawn-readiness wait, 1 s hydration retries, 5 s
   // webhook-timeout recovery). Attempt counts and code paths are unchanged;
   // only the wall-clock between them is.
-  setUp(_useFastSpawnTimings);
-  tearDown(Sync.testResetTimingOverrides);
+  late _FakeOutboxStorage outboxStorage;
+  setUp(() {
+    _useFastSpawnTimings();
+    messageOutbox.dispose();
+    // Readiness can defer delivery into the durable outbox. Native storage
+    // availability must not determine whether a spawn scenario succeeds.
+    outboxStorage = _FakeOutboxStorage();
+    messageOutbox.testStorage = outboxStorage;
+  });
+  tearDown(() {
+    messageOutbox.dispose();
+    messageOutbox.testStorage = MMKVStorage.testConstructor();
+    Sync.testResetTimingOverrides();
+  });
 
   group('createSession E2E flow', () {
     late Sync sync;
@@ -2003,6 +2017,8 @@ void main() {
       'session never becomes ready and durable enqueue is unavailable',
       () async {
         final sessionId = 'e2e-startup-timeout';
+        const localId = 'startup-timeout-local-id';
+        outboxStorage.failWrites = true;
 
         sync.testMachineRPCOverride = (machineId, method, params) async {
           return <String, dynamic>{
@@ -2020,19 +2036,34 @@ void main() {
 
         sync.testFetchSingleSessionOverride = (_) async => null;
 
-        final sentId = await sync.sendMessage(sessionId, 'Will fail');
+        final sentId = await sync.sendMessage(
+          sessionId,
+          'Will fail',
+          clientLocalId: localId,
+        );
         expect(sentId, sessionId);
 
-        await sync.lastCompleteSendFuture;
+        await expectLater(
+          sync.lastCompleteSendFuture,
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.message,
+              'message',
+              'Failed to persist message outbox entry',
+            ),
+          ),
+        );
 
         final updatedMsgs = sync.testSessionMessages(sessionId)!;
-        final queuedMsg = updatedMsgs.firstWhere(
-          (m) => m['content'] == 'Will fail',
-        );
-        // The test runner has no secure-storage plugin. A message that cannot
-        // be made durable must be retryable as the same canonical row, not
-        // left in a misleading perpetual sending state.
-        expect(queuedMsg['sendStatus'], 'failed');
+        final failedRows = updatedMsgs.where((m) => m['localId'] == localId);
+        // An explicit storage failure must reach the completion caller and
+        // retain exactly one retryable row with the original identity/payload.
+        expect(failedRows, hasLength(1));
+        expect(failedRows.single['content'], 'Will fail');
+        expect(failedRows.single['sendStatus'], 'failed');
+        expect(failedRows.single['raw'], isA<Map<String, dynamic>>());
+        expect(messageOutbox.entries, isEmpty);
+        expect(messageOutbox.deadEntries, isEmpty);
       },
     );
 
@@ -2478,6 +2509,22 @@ void _stubAllSyncs(Sync instance, {Future<void> Function()? sessionsFn}) {
 // ---------------------------------------------------------------------------
 // Fake encryption
 // ---------------------------------------------------------------------------
+
+class _FakeOutboxStorage extends MMKVStorage {
+  _FakeOutboxStorage() : super.testConstructor();
+
+  String? _data;
+  bool failWrites = false;
+
+  @override
+  Future<String?> getOutboxEntries() async => _data;
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    if (failWrites) throw StateError('disk write failed');
+    _data = json;
+  }
+}
 
 class _FakeEncryption implements Encryption {
   _FakeEncryption({this.customSessionEncryption});

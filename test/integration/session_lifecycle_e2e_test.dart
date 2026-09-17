@@ -9,6 +9,8 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
+import 'package:happy_flutter/core/services/message_outbox.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -17,8 +19,18 @@ void main() {
   // wait through (15 s spawn-readiness wait, 1 s hydration retries, 5 s
   // webhook-timeout recovery). Attempt counts and code paths are unchanged;
   // only the wall-clock between them is.
-  setUp(_useFastSpawnTimings);
-  tearDown(Sync.testResetTimingOverrides);
+  setUp(() {
+    _useFastSpawnTimings();
+    messageOutbox.dispose();
+    // Readiness can defer delivery into the durable outbox. Keep these
+    // lifecycle tests independent of native storage and keychain plugins.
+    messageOutbox.testStorage = _FakeOutboxStorage();
+  });
+  tearDown(() {
+    messageOutbox.dispose();
+    messageOutbox.testStorage = MMKVStorage.testConstructor();
+    Sync.testResetTimingOverrides();
+  });
 
   // ── Group 1: waitForAgentReady lifecycle checks ─────────────────────────
 
@@ -778,6 +790,20 @@ void _stubAllSyncs(Sync instance, {Future<void> Function()? sessionsFn}) {
   instance.artifactsSync = InvalidateSync(() async {});
   instance.sessionGitStatusSync = InvalidateSync(() async {});
   instance.messagesSync.clear();
+}
+
+class _FakeOutboxStorage extends MMKVStorage {
+  _FakeOutboxStorage() : super.testConstructor();
+
+  String? _data;
+
+  @override
+  Future<String?> getOutboxEntries() async => _data;
+
+  @override
+  Future<void> saveOutboxEntries(String json) async {
+    _data = json;
+  }
 }
 
 // ── Fake encryption ──────────────────────────────────────────────────────────

@@ -520,9 +520,7 @@ extension SyncDataMachines on Sync {
         // capture them as exceptions.
         rethrow;
       } else {
-        (error is DioException && CancelToken.isCancel(error)
-                ? logger.warning
-                : logger.error)('Error fetching machines', error, stack);
+        logger.error('Error fetching machines', error, stack);
         if (error is StateError &&
             error.message.startsWith('fetchMachines failed:')) {
           rethrow;

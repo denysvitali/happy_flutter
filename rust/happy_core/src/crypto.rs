@@ -456,7 +456,8 @@ mod tests {
         let plaintext = r#"{"v":9}"#;
 
         for variant in accepted_variants(&envelope) {
-            let results = decrypt_base64_batch(&key(), &[variant.clone()], b"");
+            let results =
+                decrypt_base64_batch(&key(), std::slice::from_ref(&variant), b"");
             assert_eq!(
                 results[0].as_deref(),
                 Some(plaintext),
