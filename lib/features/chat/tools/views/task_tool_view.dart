@@ -56,15 +56,21 @@ class TaskToolView extends ConsumerStatefulWidget {
     BuildContext context,
   ) {
     final existing = _currentSessionItemsFor(session, context);
+    // A failed call must not mutate task state: the input of an errored
+    // `todo_update` used to mint a "Task #<id>" placeholder row and show
+    // one phantom task next to the real ones.
+    if ((tool['state'] as String?) == 'error') return existing;
     final now = DateTime.now().millisecondsSinceEpoch;
     // Wall-clock of the tool event itself. Pushes can replay out of
     // chronological order (the chat ListView is reversed, so a cold load
     // mounts the newest tool first) — per-item guards below use this to
-    // keep older events from clobbering newer state.
-    final eventAt =
+    // keep older events from clobbering newer state. When the wire carries
+    // no timestamp the fallback wall clock is UNRELIABLE for ordering:
+    // every older push replayed later carries a later `now`.
+    final realAt =
         WireParsers.parseInt(tool['completedAt']) ??
-        WireParsers.parseInt(tool['createdAt']) ??
-        now;
+        WireParsers.parseInt(tool['createdAt']);
+    final eventAt = realAt ?? now;
     final name = KnownTools.canonicalName((tool['name'] as String?) ?? '');
     final toolId = _toolIdFor(tool);
 
@@ -79,8 +85,18 @@ class TaskToolView extends ConsumerStatefulWidget {
           0,
           (max, e) => e.updatedAt > max ? e.updatedAt : max,
         );
-        if (eventAt < newestKnown) return existing;
-        return snapshot;
+        if (realAt != null) {
+          // Real wire timestamp: comparison with the resident state is
+          // trustworthy, so an older snapshot loses outright.
+          if (eventAt < newestKnown) return existing;
+          return snapshot;
+        }
+        // No wire timestamp — the wall-clock fallback is later for every
+        // older push replayed in reverse order, so ordering by eventAt is
+        // meaningless (a cold load collapsed six adds into the single
+        // oldest add's one-row snapshot). Union instead: rows the snapshot
+        // names take its state, rows it does not name survive.
+        return _mergeById(existing, snapshot);
       }
     }
 
@@ -154,6 +170,13 @@ class TaskToolView extends ConsumerStatefulWidget {
         if (rawStatus == 'deleted' ||
             rawName == 'todo_remove' ||
             rawName == 'mcp__happy__todo_remove') {
+          final delIdx = existing.indexWhere((e) => e.id == explicitId);
+          if (delIdx == -1) return existing;
+          // Same stale-event guard as the mutation path: an older replayed
+          // delete must not remove a row a newer event still describes.
+          if (realAt != null && eventAt < existing[delIdx].updatedAt) {
+            return existing;
+          }
           return existing.where((e) => e.id != explicitId).toList();
         }
         final newSubject =
@@ -228,6 +251,7 @@ class TaskToolView extends ConsumerStatefulWidget {
           0,
           (max, e) => e.updatedAt > max ? e.updatedAt : max,
         );
+        if (realAt == null) return _mergeById(existing, parsed);
         if (eventAt < newestKnown) return existing;
         return parsed;
 
@@ -281,6 +305,14 @@ class TaskToolView extends ConsumerStatefulWidget {
         return existing;
     }
   }
+
+  static List<TodoItem> _mergeById(
+    List<TodoItem> existing,
+    List<TodoItem> snapshot,
+  ) => {
+    for (final item in existing) item.id: item,
+    for (final item in snapshot) item.id: item,
+  }.values.toList();
 
   /// Subject shown for an item whose TaskUpdate was processed before its
   /// TaskCreate (reverse-order replay). The create call replaces it.
