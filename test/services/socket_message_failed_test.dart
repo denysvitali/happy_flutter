@@ -44,6 +44,24 @@ void main() {
     );
   });
 
+  test('unacknowledged sent rows fail but persisted sends stay sent', () {
+    sync.testSetSessionMessages('s1', [
+      {'localId': localId, 'sendStatus': 'sent'},
+      {'localId': 'confirmed', 'id': 'server-id', 'sendStatus': 'sent'},
+    ]);
+    for (final id in [localId, 'confirmed']) {
+      sync.testHandleServerErrorEvent({
+        'code': 'message-failed',
+        'sid': 's1',
+        'localId': id,
+      });
+    }
+    final messages = sync.testSessionMessages('s1')!;
+    expect(messages.first['localId'], localId);
+    expect(messages.first['sendStatus'], 'failed');
+    expect(messages.last['sendStatus'], 'sent');
+  });
+
   test('a message-failed event is counted even with no row to mark', () {
     // The common production case: a daemon-originated frame has no
     // optimistic row on this client, so there is nothing to mark — but the

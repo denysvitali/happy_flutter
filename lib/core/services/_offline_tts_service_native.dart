@@ -386,7 +386,7 @@ class OfflineTtsService {
   bool get isSpeaking => _currentToken.value != null;
 
   /// Whether the offline engine is usable on this platform.
-  bool get isSupported => !kIsWeb;
+  bool get isSupported => !kIsWeb && !Platform.isLinux;
 
   /// All voices the user can choose from.
   List<OfflineTtsModel> get voices =>

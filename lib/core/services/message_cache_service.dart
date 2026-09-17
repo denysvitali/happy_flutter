@@ -103,23 +103,39 @@ Map<String, dynamic> _sanitizeCacheMessageTree(
   Map<String, dynamic> message, [
   int depth = 0,
 ]) {
-  final sanitized = stripInlineImageData(message);
+  // The shared helper materializes a content list even on its no-op path.
+  // Probe first so ordinary rows (including the budget's rejected row) do
+  // not allocate a throwaway list.
+  final raw = message['raw'];
+  final content = raw is Map<String, dynamic> ? raw['content'] : null;
+  final hasInlineImage = content is List && content.any((block) {
+    if (block is! Map<String, dynamic> || block['type'] != 'image') {
+      return false;
+    }
+    final source = block['source'];
+    if (source is! Map<String, dynamic> || source['type'] != 'base64') {
+      return false;
+    }
+    final data = source['data'];
+    return data is String && data.isNotEmpty;
+  });
+  final sanitized = hasInlineImage ? stripInlineImageData(message) : message;
   if (depth >= 32) return sanitized;
   final children = sanitized['children'];
   if (children is! List<dynamic>) return sanitized;
 
-  var changed = false;
-  final sanitizedChildren = <dynamic>[];
-  for (final child in children) {
-    if (child is Map<String, dynamic>) {
-      final sanitizedChild = _sanitizeCacheMessageTree(child, depth + 1);
-      sanitizedChildren.add(sanitizedChild);
-      changed = changed || !identical(sanitizedChild, child);
-    } else {
-      sanitizedChildren.add(child);
+  List<dynamic>? sanitizedChildren;
+  for (var i = 0; i < children.length; i++) {
+    final child = children[i];
+    final sanitizedChild = child is Map<String, dynamic>
+        ? _sanitizeCacheMessageTree(child, depth + 1)
+        : child;
+    if (!identical(sanitizedChild, child)) {
+      sanitizedChildren ??= List<dynamic>.of(children);
+      sanitizedChildren[i] = sanitizedChild;
     }
   }
-  if (!changed) return sanitized;
+  if (sanitizedChildren == null) return sanitized;
   return <String, dynamic>{...sanitized, 'children': sanitizedChildren};
 }
 

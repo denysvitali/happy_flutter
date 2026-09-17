@@ -1105,19 +1105,8 @@ extension SyncMessaging on Sync {
           }
 
           // ── Apply tool results + usage ──
-          if (processed.toolResults.isNotEmpty) {
-            final matchedToolResults = _applyToolResults(
-              sessionId,
-              processed.toolResults,
-            );
-            if (matchedToolResults.isNotEmpty) {
-              didMutateMessages = true;
-              didMutateAuxState = true;
-            }
-          }
-          // Apply any pending tool results that arrived before these
-          // messages. Only drain matched results so cross-path ordering
-          // can't lose results.
+          // Replay against newly resident calls before fresh unmatched
+          // results can fill the queue and evict their pending outputs.
           final pending = _pendingToolResults[sessionId];
           if (pending != null && pending.isNotEmpty) {
             final matched = _applyToolResults(sessionId, pending);
@@ -1128,6 +1117,16 @@ extension SyncMessaging on Sync {
               if (pending.isEmpty) {
                 _pendingToolResults.remove(sessionId);
               }
+            }
+          }
+          if (processed.toolResults.isNotEmpty) {
+            final matchedToolResults = _applyToolResults(
+              sessionId,
+              processed.toolResults,
+            );
+            if (matchedToolResults.isNotEmpty) {
+              didMutateMessages = true;
+              didMutateAuxState = true;
             }
           }
           for (final u in processed.usageUpdates) {
@@ -1788,6 +1787,18 @@ extension SyncMessaging on Sync {
       if (processed.messages.isNotEmpty) {
         _upsertSessionMessages(sessionId, processed.messages);
       }
+      // Replay first, as on live ingestion, while keeping backfill results
+      // out of the pending queue. Replay also prunes expired entries.
+      final pending = _pendingToolResults[sessionId];
+      if (pending != null && pending.isNotEmpty) {
+        final matched = _applyToolResults(sessionId, pending);
+        if (matched.isNotEmpty) {
+          pending.removeWhere((r) => matched.contains(r['toolUseId']));
+          if (pending.isEmpty) {
+            _pendingToolResults.remove(sessionId);
+          }
+        }
+      }
       if (processed.toolResults.isNotEmpty) {
         // queueUnmatched: false. This page is history backfill for the
         // sidechain orphan sweep, fetched far behind the resident window: the
@@ -1807,18 +1818,6 @@ extension SyncMessaging on Sync {
           processed.toolResults,
           queueUnmatched: false,
         );
-      }
-      // Apply any pending tool results that arrived before these
-      // messages. Only drain matched results.
-      final pending = _pendingToolResults[sessionId];
-      if (pending != null && pending.isNotEmpty) {
-        final matched = _applyToolResults(sessionId, pending);
-        if (matched.isNotEmpty) {
-          pending.removeWhere((r) => matched.contains(r['toolUseId']));
-          if (pending.isEmpty) {
-            _pendingToolResults.remove(sessionId);
-          }
-        }
       }
       for (final u in processed.usageUpdates) {
         final usageMap = WireParsers.asMap(u['usage']);

@@ -70,7 +70,7 @@ extension SyncData on Sync {
           }
           _presenceTimers.clear();
           _sessions = <String, Session>{};
-          _optimisticallyArchivedSessions.clear();
+          // Explicit hiding survives omission, even an empty catalog.
           _lastSessionsFetchedAt = fetchStartMs;
           _scheduleSaveSessionsCache();
           _notifyDataChanged({SyncDomain.sessions});
@@ -138,6 +138,7 @@ extension SyncData on Sync {
                 }),
           ),
         );
+        if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
 
         for (var i = 0; i < sessionDecryptTasks.length; i++) {
           final sessionId = sessionDecryptTasks[i].sessionId;
@@ -190,6 +191,7 @@ extension SyncData on Sync {
           ),
         ),
       );
+      if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
 
       // Pre-decrypt metadata + agentState for every session concurrently
       // before the assembly loop. The loop used to `await` each

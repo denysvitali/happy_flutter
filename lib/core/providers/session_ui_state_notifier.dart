@@ -7,6 +7,8 @@
 // Widgets access per-session derived data via [sessionUiEntryProvider]
 // and the optimistic-archived set via [optimisticallyArchivedIdsProvider]
 // (added in `derived_view_providers.dart`).
+import 'dart:collection';
+
 import 'package:flutter/foundation.dart';
 import 'package:riverpod/riverpod.dart';
 
@@ -15,6 +17,54 @@ import '../services/logger_service.dart' show logger;
 import '../services/opentelemetry_service.dart';
 import '../services/sync_service.dart';
 import '../utils/performance_buckets.dart';
+
+/// Immutable single-entry patch. Periodic compaction bounds lookup depth;
+/// ordinary streaming updates share the untouched catalog with the last state.
+class _PatchedSessionMap<V> extends MapBase<String, V> {
+  _PatchedSessionMap(Map<String, V> previous, this._key, this._value)
+    : _previous = previous is _PatchedSessionMap<V> && previous._depth >= 16
+          ? Map<String, V>.unmodifiable(previous)
+          : previous {
+    _depth = switch (_previous) {
+      final _PatchedSessionMap<V> chain => chain._depth + 1,
+      _ => 1,
+    };
+  }
+
+  final Map<String, V> _previous;
+  final String _key;
+  final V? _value;
+  late final int _depth;
+
+  @override
+  V? operator [](Object? key) => key == _key ? _value : _previous[key];
+
+  @override
+  bool containsKey(Object? key) =>
+      key == _key ? _value != null : _previous.containsKey(key);
+
+  @override
+  int get length => _previous.length +
+      (_previous.containsKey(_key) ? 0 : 1) - (_value == null ? 1 : 0);
+
+  @override
+  Iterable<String> get keys sync* {
+    for (final key in _previous.keys) {
+      if (key != _key || _value != null) yield key;
+    }
+    if (_value != null && !_previous.containsKey(_key)) yield _key;
+  }
+
+  @override
+  void operator []=(String key, V value) =>
+      throw UnsupportedError('Immutable session map');
+
+  @override
+  V? remove(Object? key) => throw UnsupportedError('Immutable session map');
+
+  @override
+  void clear() => throw UnsupportedError('Immutable session map');
+}
 
 /// Per-session derived UI data, all of which used to be read directly
 /// from the `Sync` singleton inside widget `build()` methods.
@@ -417,12 +467,11 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
 
     if (changed > 0) {
       _targetedEntryMapCopyCount++;
-      final nextEntries = Map<String, SessionUiEntry>.from(state.bySessionId);
-      if (session == null) {
-        nextEntries.remove(sessionId);
-      } else {
-        nextEntries[sessionId] = next!;
-      }
+      final nextEntries = _PatchedSessionMap<SessionUiEntry>(
+        state.bySessionId,
+        sessionId,
+        next,
+      );
       var ordering = state.ordering;
       final nextTimestamp = nextEntries[sessionId]?.lastMessageTimestamp;
       final orderingChanged =
@@ -450,7 +499,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         );
       }
       state = SessionUiState(
-        bySessionId: Map<String, SessionUiEntry>.unmodifiable(nextEntries),
+        bySessionId: nextEntries,
         optimisticallyArchivedIds: state.optimisticallyArchivedIds,
         ordering: ordering,
         missionControl: _reconcileMissionControlEntry(
@@ -593,17 +642,12 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
         (entry != null || !previous.bySessionId.containsKey(sessionId))) {
       return previous;
     }
-    final entries = Map<String, MissionControlUiEntry>.from(
-      previous.bySessionId,
-    );
-    if (next == null) {
-      entries.remove(sessionId);
-    } else {
-      entries[sessionId] = next;
-    }
-    return MissionControlUiProjection.reconcile(
-      previous: previous,
-      entries: entries,
+    return MissionControlUiProjection._(
+      _PatchedSessionMap<MissionControlUiEntry>(
+        previous.bySessionId,
+        sessionId,
+        next,
+      ),
     );
   }
 

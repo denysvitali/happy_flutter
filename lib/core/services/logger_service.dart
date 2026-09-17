@@ -142,12 +142,16 @@ class LoggerService {
     _otelLogSink = null;
   }
 
-  /// Add a log entry
+  /// Add a log entry.
+  ///
+  /// [reportToSentry] opts this single entry out of Sentry forwarding;
+  /// buffer, console, and OTel export are unaffected.
   void log(
     String message, {
     LogLevel level = LogLevel.info,
     dynamic error,
     StackTrace? stackTrace,
+    bool reportToSentry = true,
   }) {
     // Level / mode gate — bail before doing any allocation work.
     if (!shouldLog(level)) {
@@ -194,8 +198,13 @@ class LoggerService {
     }
 
     // Forwarding is deliberately outside the buffer guard — see above.
+    // `reportToSentry: false` opts a single entry out of Sentry only:
+    // buffer, console, and OTel export still apply, so expected/benign
+    // warnings stay queryable in Loki without opening GlitchTip issues.
     if (shouldForward) {
-      _forwardToSentry(entry);
+      if (reportToSentry) {
+        _forwardToSentry(entry);
+      }
       _forwardToOtel(entry);
     }
 
@@ -591,6 +600,20 @@ class LoggerService {
   /// Log a warning message
   void warning(String message, [dynamic error, StackTrace? stackTrace]) {
     log(message, level: LogLevel.warning, error: error, stackTrace: stackTrace);
+  }
+
+  /// Log a warning that stays local: buffered, console, and OTel-exported,
+  /// but never forwarded to Sentry. For expected/benign conditions — e.g.
+  /// an offline machine's transport failures — that should remain queryable
+  /// in Loki without opening GlitchTip issues.
+  void warningLocal(String message, [dynamic error, StackTrace? stackTrace]) {
+    log(
+      message,
+      level: LogLevel.warning,
+      error: error,
+      stackTrace: stackTrace,
+      reportToSentry: false,
+    );
   }
 
   /// Log an error message

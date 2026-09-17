@@ -538,7 +538,9 @@ class MessageOutbox {
   /// User-driven (the failed row's retry affordance) — revives ANY class,
   /// including permanent ones: a user tap is an explicit "try again".
   Future<bool> reviveDead(String localId) async {
-    final entry = _dead.remove(localId);
+    // Let add own the move: it retains the dead entry for rollback until
+    // the new pending snapshot is durable.
+    final entry = _dead[localId];
     if (entry == null) return false;
     logger.info('[MessageOutbox] reviving dead entry localId=$localId');
     await add(entry.copyWith(retryCount: 0, dead: false));
@@ -567,8 +569,7 @@ class MessageOutbox {
       '($reason)',
     );
     for (final entry in candidates) {
-      _dead.remove(entry.localId);
-      await add(entry.copyWith(retryCount: 0, dead: false));
+      await reviveDead(entry.localId);
     }
     return candidates.length;
   }

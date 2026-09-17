@@ -363,6 +363,30 @@ void main() {
 
     group('illegal/no-op transitions never invent identity or '
         'regress state', () {
+      for (final kind in [
+        MessageEventKind.serverAcked,
+        MessageEventKind.fetchedFromServer,
+        MessageEventKind.socketObserved,
+      ]) {
+        for (final serverId in <String?>[null, '']) {
+          test('$kind rejects serverId=$serverId without changing state', () {
+            final fsm = MessageStateMachine();
+            final payload = <String, Object?>{
+              'localId': _kLocalId,
+              if (serverId != null) 'serverId': serverId,
+            };
+            expect(() => fsm.apply(_ev(kind, payload)), throwsArgumentError);
+            expect(fsm.snapshot, isEmpty);
+
+            fsm.apply(_ev(MessageEventKind.optimisticAppended,
+                {'localId': _kLocalId, 'text': 'hi'}));
+            final before = fsm.stateFor(_kLocalId);
+            expect(() => fsm.apply(_ev(kind, payload)), throwsArgumentError);
+            expect(identical(fsm.stateFor(_kLocalId), before), isTrue);
+          });
+        }
+      }
+
       test('optimisticAppended on existing Sending is a no-op '
           '(prevents duplicate-row creation)', () {
         final fsm = MessageStateMachine();

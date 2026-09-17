@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
+import 'package:happy_flutter/core/services/offline_tts_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/tts_service.dart';
 
@@ -9,8 +12,38 @@ void main() {
 
   tearDown(() async {
     await TtsService().dispose();
+    debugDefaultTargetPlatformOverride = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(ttsChannel, null);
+  });
+
+  test('Linux unavailable speech never calls the system plugin', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    final calls = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(ttsChannel, (call) async {
+          calls.add(call.method);
+          return 1;
+        });
+    final service = TtsService();
+    expect(service.isUnavailable, isTrue);
+    expect(OfflineTtsService().isSupported, isFalse);
+    for (var i = 0; i < 3; i++) {
+      await service.init();
+      await service.speak('Hello');
+      await service.enqueueSpeak('Hello');
+      expect(await service.getEngines(), isEmpty);
+      expect(await service.getLanguages(), isEmpty);
+    }
+    expect(calls, isEmpty);
+    expect(service.currentToken.value, isNull);
+    expect(service.queuedCount, 0);
+    expect(
+      logger.getLogsByLevel(LogLevel.info).where(
+        (entry) => entry.message == '[TTS] speech unavailable on this platform',
+      ),
+      hasLength(1),
+    );
   });
 
   test('getEngines accepts string payloads from plugin', () async {

@@ -232,11 +232,10 @@ class InvalidateSync {
     try {
       await _action();
 
-      _lastSuccessAt = DateTime.now();
-
       await transaction.finish();
 
       if (generation != _runGeneration) return;
+      _lastSuccessAt = DateTime.now();
 
       // Add breadcrumb for successful completion
       unawaited(
@@ -250,11 +249,11 @@ class InvalidateSync {
         ),
       );
     } catch (error) {
-      _lastFailureAt = DateTime.now();
-      _lastFailureKind = classifySyncFailureReason(error);
       await transaction.finish(status: const SpanStatus.internalError());
 
       if (generation != _runGeneration) return;
+      _lastFailureAt = DateTime.now();
+      _lastFailureKind = classifySyncFailureReason(error);
 
       _retryCount++;
       if (_retryCount <= _maxRetries) {

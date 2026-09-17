@@ -91,60 +91,66 @@ void main() {
     expect(manager.settingsVersion, 1);
   });
 
-  test('write deadline failure reaches queue and keeps pending edits', () async {
-    await manager.applySettings({'lastUsedAgent': 'codex'});
-    api.respond = () async => throw DioException(
-      requestOptions: RequestOptions(path: '/v1/account/settings'),
-      type: DioExceptionType.cancel,
-      error: 'HTTP request deadline exceeded',
-    );
-    await expectLater(manager.syncSettings(), throwsA(isA<DioException>()));
-    expect(manager.pendingSettings['lastUsedAgent'], 'codex');
-    api.respond = () async => _response({
-      'success': true, 'settingsVersion': 1,
-    });
-    await manager.syncSettings();
-    expect(manager.pendingSettings, isEmpty);
-    expect(api.writes, hasLength(2));
-  });
+  test(
+    'write deadline failure reaches queue and keeps pending edits',
+    () async {
+      await manager.applySettings({'lastUsedAgent': 'codex'});
+      api.respond = () async => throw DioException(
+        requestOptions: RequestOptions(path: '/v1/account/settings'),
+        type: DioExceptionType.cancel,
+        error: 'HTTP request deadline exceeded',
+      );
+      await expectLater(manager.syncSettings(), throwsA(isA<DioException>()));
+      expect(manager.pendingSettings['lastUsedAgent'], 'codex');
+      api.respond = () async =>
+          _response({'success': true, 'settingsVersion': 1});
+      await manager.syncSettings();
+      expect(manager.pendingSettings, isEmpty);
+      expect(api.writes, hasLength(2));
+    },
+  );
 
-  test('POST completion preserves edits made while awaiting response', () async {
-    await manager.applySettings({'lastUsedAgent': 'claude'});
-    final response = Completer<Response<dynamic>>();
-    api.respond = () => response.future;
-    final write = manager.syncSettings();
-    await Future<void>.delayed(Duration.zero);
-    await manager.applySettings({'lastUsedAgent': 'codex'});
-    response.complete(_response({'success': true, 'settingsVersion': 1}));
-    await write;
-    expect(manager.settingsSnapshot.lastUsedAgent, 'codex');
-    expect(manager.pendingSettings['lastUsedAgent'], 'codex');
-    api.respond = () async => _response({
-      'success': true, 'settingsVersion': 2,
-    });
-    await manager.syncSettings();
-    expect(api.writes.last['expectedVersion'], 1);
-    expect(manager.pendingSettings, isEmpty);
-  });
+  test(
+    'POST completion preserves edits made while awaiting response',
+    () async {
+      await manager.applySettings({'lastUsedAgent': 'claude'});
+      final response = Completer<Response<dynamic>>();
+      api.respond = () => response.future;
+      final write = manager.syncSettings();
+      await Future<void>.delayed(Duration.zero);
+      await manager.applySettings({'lastUsedAgent': 'codex'});
+      response.complete(_response({'success': true, 'settingsVersion': 1}));
+      await write;
+      expect(manager.settingsSnapshot.lastUsedAgent, 'codex');
+      expect(manager.pendingSettings['lastUsedAgent'], 'codex');
+      api.respond = () async =>
+          _response({'success': true, 'settingsVersion': 2});
+      await manager.syncSettings();
+      expect(api.writes.last['expectedVersion'], 1);
+      expect(manager.pendingSettings, isEmpty);
+    },
+  );
 
-  test('conflict rebases pending edits and fails for automatic retry', () async {
-    await manager.applySettings({'lastUsedAgent': 'codex'});
-    api.respond = () async => _response({
-      'error': 'version-mismatch',
-      'currentVersion': 7,
-      'currentSettings': jsonEncode({'lastUsedAgent': 'claude'}),
-    });
-    await expectLater(manager.syncSettings(), throwsA(isA<StateError>()));
-    expect(manager.settingsVersion, 7);
-    expect(manager.settingsSnapshot.lastUsedAgent, 'codex');
-    expect(api.reads, 0);
-    api.respond = () async => _response({
-      'success': true, 'settingsVersion': 8,
-    });
-    await manager.syncSettings();
-    expect(api.writes.last['expectedVersion'], 7);
-    expect(manager.pendingSettings, isEmpty);
-  });
+  test(
+    'conflict rebases pending edits and fails for automatic retry',
+    () async {
+      await manager.applySettings({'lastUsedAgent': 'codex'});
+      api.respond = () async => _response({
+        'error': 'version-mismatch',
+        'currentVersion': 7,
+        'currentSettings': jsonEncode({'lastUsedAgent': 'claude'}),
+      });
+      await expectLater(manager.syncSettings(), throwsA(isA<StateError>()));
+      expect(manager.settingsVersion, 7);
+      expect(manager.settingsSnapshot.lastUsedAgent, 'codex');
+      expect(api.reads, 0);
+      api.respond = () async =>
+          _response({'success': true, 'settingsVersion': 8});
+      await manager.syncSettings();
+      expect(api.writes.last['expectedVersion'], 7);
+      expect(manager.pendingSettings, isEmpty);
+    },
+  );
 
   test('late POST cannot restore settings after runtime reset', () async {
     await manager.applySettings({'lastUsedAgent': 'codex'});
@@ -160,15 +166,39 @@ void main() {
     expect(manager.lastSettingsPostAtMs, isNull);
   });
 
+  test(
+    'overlapping syncs serialize and use the acknowledged version',
+    () async {
+      await manager.applySettings({'lastUsedAgent': 'claude'});
+      final first = Completer<Response<dynamic>>();
+      api.respond = () => first.future;
+      final write = manager.syncSettings();
+      await Future<void>.delayed(Duration.zero);
+      await manager.applySettings({'lastUsedAgent': 'codex'});
+      final next = manager.syncSettings();
+      await Future<void>.delayed(Duration.zero);
+      expect(api.writes, hasLength(1));
+      api.respond = () async =>
+          _response({'success': true, 'settingsVersion': 2});
+      first.complete(_response({'success': true, 'settingsVersion': 1}));
+      await Future.wait([write, next]);
+      expect(api.writes.last['expectedVersion'], 1);
+      expect(manager.settingsVersion, 2);
+      expect(manager.pendingSettings, isEmpty);
+    },
+  );
+
   test('GET completion overlays edits made during the fetch', () async {
     final response = Completer<Response<dynamic>>();
     api.respond = () => response.future;
     final read = manager.syncSettings();
     await manager.applySettings({'lastUsedAgent': 'codex'});
-    response.complete(_response({
-      'settings': jsonEncode({'lastUsedAgent': 'claude'}),
-      'settingsVersion': 3,
-    }));
+    response.complete(
+      _response({
+        'settings': jsonEncode({'lastUsedAgent': 'claude'}),
+        'settingsVersion': 3,
+      }),
+    );
     await read;
     expect(manager.settingsSnapshot.lastUsedAgent, 'codex');
     expect(manager.pendingSettings['lastUsedAgent'], 'codex');

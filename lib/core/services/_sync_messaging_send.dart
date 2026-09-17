@@ -190,6 +190,22 @@ extension SyncMessagingSend on Sync {
     // one retryable row carrying the same canonical localId.
     final localId = clientLocalId ?? createLocalMessageId();
     final runtimeGeneration = _runtimeGeneration;
+    // Reserve the shared delivery lane before preparation can yield. The
+    // reservation also remains held through delivery, so retries cannot pass.
+    final prepared = Completer<Future<void> Function()?>();
+    final completeSendFuture = messageOutbox.serialize<void>(
+      sessionId,
+      () async {
+        final deliver = await prepared.future;
+        if (deliver != null) await deliver();
+      },
+    );
+    lastCompleteSendFuture = completeSendFuture;
+    unawaited(
+      completeSendFuture.catchError((Object error, StackTrace stack) {
+        logger.error('Send completion failed', error, stack);
+      }),
+    );
     final optimisticInsertedAtStart = _insertPreparingOptimistic(
       sessionId: sessionId,
       localId: localId,
@@ -237,8 +253,11 @@ extension SyncMessagingSend on Sync {
         sendSpan: sendSpan,
         prepareStopwatch: prepareStopwatch,
         optimisticInsertedAtStart: optimisticInsertedAtStart,
+        runtimeGeneration: runtimeGeneration,
+        prepared: prepared,
       );
     } catch (error, stack) {
+      if (!prepared.isCompleted) prepared.complete(null);
       _preserveFailedPreparation(
         sessionId: sessionId,
         localId: localId,
@@ -366,6 +385,8 @@ extension SyncMessagingSend on Sync {
     required OTelSpan? sendSpan,
     required Stopwatch prepareStopwatch,
     required bool optimisticInsertedAtStart,
+    required int runtimeGeneration,
+    required Completer<Future<void> Function()?> prepared,
     String? clientLocalId,
     String? displayText,
     String? permissionMode,
@@ -374,6 +395,13 @@ extension SyncMessagingSend on Sync {
     List<OutgoingImage>? images,
     String? codexDeliveryMode,
   }) async {
+    void checkRuntime() {
+      if (!isInitialized || runtimeGeneration != _runtimeGeneration) {
+        throw StateError('Send cancelled by runtime reset');
+      }
+    }
+
+    checkRuntime();
     var sessionEncryption = await _measureSendPreparation<SessionEncryption>(
       otelService: otelService,
       parentSpan: sendSpan,
@@ -387,14 +415,17 @@ extension SyncMessagingSend on Sync {
           );
           // Try fetching just this session before doing a full list re-fetch.
           await fetchSingleSession(sessionId);
+          checkRuntime();
           resolved = encryption.getSessionEncryption(sessionId);
           if (resolved == null) {
             await _boundedSessionsRefresh();
+            checkRuntime();
             resolved = encryption.getSessionEncryption(sessionId);
           }
           if (resolved == null) {
             _forceFullFetchNext = true;
             await _boundedSessionsRefresh();
+            checkRuntime();
             resolved = encryption.getSessionEncryption(sessionId);
           }
           if (resolved == null) {
@@ -407,6 +438,7 @@ extension SyncMessagingSend on Sync {
       },
     );
 
+    checkRuntime();
     var session = await _measureSendPreparation<Session>(
       otelService: otelService,
       parentSpan: sendSpan,
@@ -416,9 +448,11 @@ extension SyncMessagingSend on Sync {
         if (resolved == null) {
           // Try fetching just this session instead of a full list re-fetch.
           resolved = await fetchSingleSession(sessionId);
+          checkRuntime();
           if (resolved == null) {
             _forceFullFetchNext = true;
             await _boundedSessionsRefresh();
+            checkRuntime();
             resolved = _sessions[sessionId];
           }
         }
@@ -446,6 +480,7 @@ extension SyncMessagingSend on Sync {
       },
     );
 
+    checkRuntime();
     final resolvedOptions = await _measureSendPreparation<_ResolvedSendOptions>(
       otelService: otelService,
       parentSpan: sendSpan,
@@ -475,6 +510,7 @@ extension SyncMessagingSend on Sync {
         final sendProfile = profileId != null
             ? _resolveProfile(profileId)
             : await _sessionProfileForNormalization(sessionId);
+        checkRuntime();
         final requestedModelMode = flavor == 'codex' && modelMode != null
             ? (_isClaudeModelAlias(modelMode) ? 'default' : modelMode)
             : _normalizeModelModeForAgent(
@@ -492,6 +528,7 @@ extension SyncMessagingSend on Sync {
         );
       },
     );
+    checkRuntime();
     final effectivePermissionMode = resolvedOptions.effectivePermissionMode;
     final effectiveModelMode = resolvedOptions.effectiveModelMode;
 
@@ -515,6 +552,7 @@ extension SyncMessagingSend on Sync {
             modelMode: effectiveModelMode,
           ),
         );
+    checkRuntime();
     final targetSessionId = sendTarget.sessionId;
     session = sendTarget.session;
     sessionEncryption = sendTarget.sessionEncryption;
@@ -609,6 +647,7 @@ extension SyncMessagingSend on Sync {
       parentSpan: sendSpan,
       phase: 'optimistic_insert',
       body: () {
+        checkRuntime();
         // Ensure catch-up polling is active for this session. Without this,
         // sends before onSessionVisible() never start response catch-up.
         if (!messagesSync.containsKey(targetSessionId)) {
@@ -661,6 +700,7 @@ extension SyncMessagingSend on Sync {
       },
     );
 
+    checkRuntime();
     // Encrypt after the optimistic insert so the user sees instant feedback.
     // The encrypted record is only needed for the HTTP POST to the server.
     final encryptedRawRecord = await _measureSendPreparation<String>(
@@ -680,6 +720,7 @@ extension SyncMessagingSend on Sync {
       },
     );
 
+    checkRuntime();
     _recordSendPreparationTotal(
       otelService,
       prepareStopwatch,
@@ -694,6 +735,7 @@ extension SyncMessagingSend on Sync {
     final prepareMs = prepareStopwatch.elapsedMilliseconds;
     Future<void> completeSend() => _completeSend(
       prepareMs: prepareMs,
+      runtimeGeneration: runtimeGeneration,
       targetSessionId: targetSessionId,
       localId: localId,
       text: displayContent,
@@ -702,14 +744,16 @@ extension SyncMessagingSend on Sync {
       transaction: sendTransaction,
       otelSpan: sendSpan,
     );
-    final completeSendFuture = messageOutbox.serialize(
-      targetSessionId,
-      () => sendSpan == null
+    prepared.complete(() {
+      Future<void> deliver() => sendSpan == null
           ? completeSend()
-          : otelService.withActiveSpan(sendSpan, completeSend),
-    );
-    lastCompleteSendFuture = completeSendFuture;
-    unawaited(completeSendFuture);
+          : otelService.withActiveSpan(sendSpan, completeSend);
+      // Most sends retain their session. A replacement session also needs
+      // its own outbox lane; never recursively acquire the same lane.
+      return targetSessionId == sessionId
+          ? deliver()
+          : messageOutbox.serialize(targetSessionId, deliver);
+    });
 
     return targetSessionId;
   }
@@ -736,6 +780,7 @@ extension SyncMessagingSend on Sync {
   /// Background half of [sendMessage]: waits for agent, POSTs to REST,
   /// emits socket event, and updates the optimistic message status.
   Future<void> _completeSend({
+    required int runtimeGeneration,
     required int prepareMs,
     required String targetSessionId,
     required String localId,
@@ -745,9 +790,9 @@ extension SyncMessagingSend on Sync {
     required ISentrySpan transaction,
     required OTelSpan? otelSpan,
   }) async {
-    final runtimeGeneration = _runtimeGeneration;
     bool runtimeIsStale() =>
         runtimeGeneration != _runtimeGeneration || !isInitialized;
+    if (runtimeIsStale()) return;
     final apiClient = ApiClient();
     final sendStopwatch = Stopwatch()..start();
     // A freshly-spawned session legitimately needs up to
@@ -980,6 +1025,7 @@ extension SyncMessagingSend on Sync {
         outcome = 'deadline_exceeded';
         unawaited(postSpan.finish(status: const SpanStatus.deadlineExceeded()));
         await transaction.finish(status: const SpanStatus.deadlineExceeded());
+        if (runtimeIsStale()) return;
         PowerDiagnosticsOtelReporter.instance.recordAppError(
           'app.send.deadline_exceeded',
         );
@@ -1055,7 +1101,7 @@ extension SyncMessagingSend on Sync {
             _emitSocketMessage(targetSessionId, encryptedRawRecord, localId);
             sent = true;
             outcome = 'socket_fallback';
-            _updateMessageSendStatus(targetSessionId, localId, 'sent');
+            _updateMessageSendStatus(targetSessionId, localId, 'pending');
             _notifySessionMessagesChanged(targetSessionId);
           } else {
             final err = StateError(
@@ -1102,6 +1148,7 @@ extension SyncMessagingSend on Sync {
           outcome = 'permanent_failure';
           transaction.setData('error', error.toString());
           await transaction.finish(status: const SpanStatus.internalError());
+          if (runtimeIsStale()) return;
           otelSpan?.recordError(error, StackTrace.current);
           _updateMessageSendStatus(targetSessionId, localId, 'failed');
           _notifySessionMessagesChanged(targetSessionId);
@@ -1130,6 +1177,7 @@ extension SyncMessagingSend on Sync {
       }
       transaction.setData('error', e.toString());
       await transaction.finish(status: const SpanStatus.internalError());
+      if (runtimeIsStale()) return;
       otelSpan?.recordError(e, stack);
       outcome = permanent ? 'permanent_failure' : 'error';
       if (permanent) {
@@ -1137,14 +1185,12 @@ extension SyncMessagingSend on Sync {
         _notifySessionMessagesChanged(targetSessionId);
       } else if (!sent) {
         // Queue in the outbox for automatic retry with backoff.
-        unawaited(
-          _queueMessageRetry(
-            sessionId: targetSessionId,
-            localId: localId,
-            text: text,
-            encryptedRawRecord: encryptedRawRecord,
-            rawRecord: rawRecord,
-          ),
+        await _queueMessageRetry(
+          sessionId: targetSessionId,
+          localId: localId,
+          text: text,
+          encryptedRawRecord: encryptedRawRecord,
+          rawRecord: rawRecord,
         );
         // The outbox onStatusChanged callback sets 'pending' status.
       }
@@ -1176,7 +1222,9 @@ extension SyncMessagingSend on Sync {
       // Wake any listener that is still waiting on the send attempt; real
       // message mutations above use _notifySessionMessagesChanged and bump
       // the revision.
-      _notifySessionMessagesChangedUiOnly(targetSessionId);
+      if (!runtimeIsStale()) {
+        _notifySessionMessagesChangedUiOnly(targetSessionId);
+      }
     }
   }
 
@@ -1198,6 +1246,7 @@ extension SyncMessagingSend on Sync {
     required Map<String, dynamic> rawRecord,
     int retryCount = 0,
   }) {
+    final runtimeGeneration = _runtimeGeneration;
     return messageOutbox
         .add(
           OutboxEntry(
@@ -1217,8 +1266,11 @@ extension SyncMessagingSend on Sync {
             error,
             stack,
           );
-          _updateMessageSendStatus(sessionId, localId, 'failed');
-          _notifySessionMessagesChanged(sessionId);
+          if (isInitialized && runtimeGeneration == _runtimeGeneration) {
+            _updateMessageSendStatus(sessionId, localId, 'failed');
+            _notifySessionMessagesChanged(sessionId);
+          }
+          Error.throwWithStackTrace(error, stack);
         });
   }
 
@@ -1509,6 +1561,12 @@ extension SyncMessagingSend on Sync {
   /// selects the outbox retry budget (transient retries for hours,
   /// permanent dead-letters quickly).
   Future<OutboxDeliveryFailure?> _deliverOutboxEntry(OutboxEntry entry) async {
+    final runtimeGeneration = _runtimeGeneration;
+    bool stale() => !isInitialized || runtimeGeneration != _runtimeGeneration;
+    const resetFailure = OutboxDeliveryFailure(
+      OutboxFailureClass.transient,
+      'runtime_reset',
+    );
     if (!isInitialized) {
       return const OutboxDeliveryFailure(
         OutboxFailureClass.transient,
@@ -1530,6 +1588,7 @@ extension SyncMessagingSend on Sync {
     final apiClient = ApiClient();
     final Response<dynamic> response;
     try {
+      if (stale()) return resetFailure;
       response = await apiClient.post(
         '/v3/sessions/${entry.sessionId}/messages',
         options: Options(
@@ -1543,6 +1602,7 @@ extension SyncMessagingSend on Sync {
         },
       );
     } on DioException catch (e, stack) {
+      if (stale()) return resetFailure;
       final serverResponse = e.response;
       if (serverResponse == null) {
         // No HTTP response means the request never reached the server
@@ -1590,6 +1650,7 @@ extension SyncMessagingSend on Sync {
       return null;
     }
 
+    if (stale()) return resetFailure;
     if (!apiClient.isSuccess(response)) {
       logger.warning(
         '[MessageOutbox] re-send failed '
@@ -1721,7 +1782,10 @@ extension SyncMessagingSend on Sync {
       final currentStatus = msgs[firstIdx]['sendStatus'] as String?;
       // Server acknowledgement is terminal. A delayed retry timer or outbox
       // status callback must never regress a confirmed row to pending/failed.
-      if (currentStatus == 'sent' && status != 'sent') return;
+      final serverId = msgs[firstIdx]['id'];
+      final persisted =
+          serverId is String && serverId.isNotEmpty && serverId != localId;
+      if (currentStatus == 'sent' && status != 'sent' && persisted) return;
       msgs[firstIdx] = {...msgs[firstIdx], 'sendStatus': status};
       _invalidateMessageCaches(sessionId);
     }
@@ -1845,9 +1909,15 @@ extension SyncMessagingSend on Sync {
   /// row that was never persisted with its payload).
   ///
   /// Returns `true` when a dead-lettered entry was requeued.
-  Future<bool> _retryFromDeadLetter(String sessionId, String localId) async {
+  Future<bool> _retryFromDeadLetter(
+    String sessionId,
+    String localId,
+    int runtimeGeneration,
+  ) async {
+    if (!isInitialized || runtimeGeneration != _runtimeGeneration) return false;
     if (messageOutbox.deadEntry(localId) == null) return false;
     final revived = await messageOutbox.reviveDead(localId);
+    if (!isInitialized || runtimeGeneration != _runtimeGeneration) return false;
     if (!revived) return false;
     _updateMessageSendStatus(sessionId, localId, 'sending');
     logger.info(
@@ -1867,9 +1937,17 @@ extension SyncMessagingSend on Sync {
     String sessionId,
     String localId,
   ) async {
+    final runtimeGeneration = _runtimeGeneration;
+    void checkRuntime() {
+      if (!isInitialized || runtimeGeneration != _runtimeGeneration) {
+        throw StateError('Retry cancelled by runtime reset');
+      }
+    }
+
+    checkRuntime();
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) {
-      if (await _retryFromDeadLetter(sessionId, localId)) {
+      if (await _retryFromDeadLetter(sessionId, localId, runtimeGeneration)) {
         return const MessageRetryResult(MessageRetryOutcome.queued);
       }
       logger.warning('[retryFailedMessage] session not found: $sessionId');
@@ -1885,7 +1963,7 @@ extension SyncMessagingSend on Sync {
     }
 
     if (failedMessage == null) {
-      if (await _retryFromDeadLetter(sessionId, localId)) {
+      if (await _retryFromDeadLetter(sessionId, localId, runtimeGeneration)) {
         return const MessageRetryResult(MessageRetryOutcome.queued);
       }
       logger.warning(
@@ -1897,7 +1975,7 @@ extension SyncMessagingSend on Sync {
 
     final raw = failedMessage['raw'];
     if (raw == null || raw is! Map<String, dynamic>) {
-      if (await _retryFromDeadLetter(sessionId, localId)) {
+      if (await _retryFromDeadLetter(sessionId, localId, runtimeGeneration)) {
         return const MessageRetryResult(MessageRetryOutcome.queued);
       }
       logger.warning(
@@ -1911,6 +1989,12 @@ extension SyncMessagingSend on Sync {
     // and sending a hollow base64 block would deliver a broken image to
     // the agent. Leave the row in 'failed' state; the user must re-attach.
     if (hasStrippedImageBlocks(raw)) {
+      // The cache may have stripped pixels while the durable encrypted
+      // payload remains intact. Prefer that payload before asking to reattach.
+      if (await _retryFromDeadLetter(sessionId, localId, runtimeGeneration)) {
+        return const MessageRetryResult(MessageRetryOutcome.queued);
+      }
+      checkRuntime();
       logger.warning(
         '[retryFailedMessage] image data stripped by cache, cannot retry: '
         'sessionId=$sessionId localId=$localId',
@@ -1957,7 +2041,9 @@ extension SyncMessagingSend on Sync {
       );
       try {
         await fetchSingleSession(sessionId);
+        checkRuntime();
       } catch (e, stack) {
+        checkRuntime();
         logger.warning(
           '[retryFailedMessage] encryption recovery failed for '
           'session=$sessionId localId=$localId',
@@ -1982,7 +2068,9 @@ extension SyncMessagingSend on Sync {
     late final String encryptedRawRecord;
     try {
       encryptedRawRecord = await sessionEncryption.encryptRawRecord(raw);
+      checkRuntime();
     } catch (e, stack) {
+      checkRuntime();
       logger.warning(
         '[retryFailedMessage] encryption failed for '
         'session=$sessionId localId=$localId',
@@ -2003,6 +2091,7 @@ extension SyncMessagingSend on Sync {
       retryCount: 0,
     );
 
+    checkRuntime();
     logger.info(
       '[retryFailedMessage] queued for retry: '
       'sessionId=$sessionId localId=$localId',

@@ -1,10 +1,45 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/encryption_manager.dart';
+import 'package:happy_flutter/core/encryption/message_processor.dart';
+import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/services/power_diagnostics_otel_reporter.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/services/tool_result_processor.dart';
 
 import '../helpers/test_helpers.dart';
+
+class _BatchSessionEncryption implements SessionEncryption {
+  _BatchSessionEncryption(this.batch);
+
+  final ProcessedMessages batch;
+
+  @override
+  bool get canDecryptAes => true;
+
+  @override
+  Future<ProcessedMessages> decryptAndProcessMessages(
+    List<Map<String, dynamic>> messages,
+    String sessionId,
+  ) async => batch;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _BatchEncryption implements Encryption {
+  _BatchEncryption(ProcessedMessages batch)
+    : sessionEncryption = _BatchSessionEncryption(batch);
+
+  final SessionEncryption sessionEncryption;
+
+  @override
+  SessionEncryption? getSessionEncryption(String sessionId) =>
+      sessionEncryption;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 /// Progressive-lag remediation, 2026-08-24.
 ///
@@ -43,6 +78,95 @@ void main() {
   });
 
   group('pending tool-result queue bounds', () {
+    test('duplicate toolUseId refreshes payload and re-arms one entry', () {
+      sync.testApplyToolResults('s1', results(2));
+      sync.testPendingToolResultNowMsOverride = 2000;
+      sync.testApplyToolResults('s1', [
+        {'toolUseId': 'tool-0', 'result': 'new output', 'createdAt': 10},
+        {'toolUseId': 'tool-0', 'result': 'latest output', 'createdAt': 11},
+      ]);
+
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(2));
+      expect(pending.last['toolUseId'], 'tool-0');
+      expect(pending.last['result'], 'latest output');
+      expect(pending.last[Sync.pendingToolResultQueuedAtKey], 2000);
+      sync.testPendingToolResultNowMsOverride =
+          1000 + Sync.pendingToolResultTtlMs + 1;
+      sync.testApplyToolResults('s1', pending);
+      expect(pending.single['toolUseId'], 'tool-0');
+    });
+
+    test('append prunes expired entries before charging cap losses', () {
+      sync.testApplyToolResults(
+        's1',
+        results(Sync.maxPendingToolResultsPerSession),
+      );
+      sync.testPendingToolResultNowMsOverride =
+          1000 + Sync.pendingToolResultTtlMs + 1;
+      sync.testApplyToolResults('s1', results(1, prefix: 'fresh'));
+
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(1));
+      expect(pending.single['toolUseId'], 'fresh-0');
+      expect(
+        PowerDiagnosticsOtelReporter
+            .instance
+            .debugBumpTotals['happy_flutter.tool_results.dropped'],
+        isNull,
+      );
+    });
+
+    test('ingestion replays pending before inserting fresh results', () async {
+      sync.testApplyToolResults(
+        's1',
+        results(Sync.maxPendingToolResultsPerSession),
+      );
+      sync.encryption = _BatchEncryption(
+        ProcessedMessages(
+          messages: [
+            {
+              'id': 'arriving-call',
+              'seq': 1,
+              'createdAt': 1,
+              'kind': 'tool-call',
+              'toolUseId': 'tool-0',
+              'state': 'running',
+            },
+          ],
+          toolResults: results(1, prefix: 'fresh'),
+          usageUpdates: const [],
+          maxSeq: 1,
+        ),
+      );
+
+      await sync.ingestFromHttp(
+        FetchResponseBatch(
+          sessionId: 's1',
+          rawMessages: [
+            {'id': 'wire-1', 'seq': 1, 'content': 'encrypted'},
+          ],
+          traceId: 'pending-replay-order',
+          isVisibleSession: true,
+        ),
+        applyMutations: true,
+      );
+
+      final row = sync.testSessionMessages('s1')!.single;
+      expect(row['state'], 'completed');
+      expect(row['result'], 'output 0');
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(Sync.maxPendingToolResultsPerSession));
+      expect(pending.any((r) => r['toolUseId'] == 'tool-0'), isFalse);
+      expect(pending.last['toolUseId'], 'fresh-0');
+      expect(
+        PowerDiagnosticsOtelReporter
+            .instance
+            .debugBumpTotals['happy_flutter.tool_results.dropped'],
+        isNull,
+      );
+    });
+
     test('queue is FIFO-capped per session', () {
       sync.testSetSessionMessages('s1', const []);
       sync.testApplyToolResults(
@@ -133,22 +257,25 @@ void main() {
       );
     });
 
-    test('a backfill result that does match its resident call still applies', () {
-      sync.testSetSessionMessages('s1', residentCalls(const ['shared-0']));
+    test(
+      'a backfill result that does match its resident call still applies',
+      () {
+        sync.testSetSessionMessages('s1', residentCalls(const ['shared-0']));
 
-      sync.testApplyToolResults(
-        's1',
-        results(1, prefix: 'shared'),
-        queueUnmatched: false,
-      );
+        sync.testApplyToolResults(
+          's1',
+          results(1, prefix: 'shared'),
+          queueUnmatched: false,
+        );
 
-      expect(sync.testPendingToolResults('s1'), isEmpty);
-      expect(
-        sync.testSessionMessages('s1')!.single['state'],
-        'completed',
-        reason: 'suppressing the queue must not suppress the match',
-      );
-    });
+        expect(sync.testPendingToolResults('s1'), isEmpty);
+        expect(
+          sync.testSessionMessages('s1')!.single['state'],
+          'completed',
+          reason: 'suppressing the queue must not suppress the match',
+        );
+      },
+    );
 
     test('queued entries carry the local-clock stamp used for expiry', () {
       sync.testSetSessionMessages('s1', const []);
@@ -346,7 +473,8 @@ void main() {
       expect(
         rowById('parked')['state'],
         'running',
-        reason: 'a row waiting on an unresolved permission is parked, '
+        reason:
+            'a row waiting on an unresolved permission is parked, '
             'not stuck',
       );
       expect(rowById('done')['state'], 'completed');

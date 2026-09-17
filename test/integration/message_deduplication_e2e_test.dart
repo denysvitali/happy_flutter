@@ -445,8 +445,8 @@ void main() {
       expect(serverCopies.single['sendStatus'], 'sent');
     });
 
-    test('server user record without localId replaces one matching optimistic '
-        'row without collapsing repeated text', () {
+    test('unidentified server row preserves both identical sends until '
+        'authoritative localIds deliver them', () {
       const sessionId = 'optimistic-merge-without-localid';
       sync.testSetSessionMessages(sessionId, [
         {
@@ -480,13 +480,41 @@ void main() {
       ]);
 
       final msgs = sync.testSessionMessages(sessionId)!;
-      expect(msgs, hasLength(2));
-      expect(msgs.where((m) => m['id'] == 'local-1'), isEmpty);
+      expect(msgs, hasLength(3));
+      expect(msgs.where((m) => m['id'] == 'local-1'), hasLength(1));
       expect(msgs.where((m) => m['id'] == 'local-2'), hasLength(1));
       expect(
         msgs.singleWhere((m) => m['id'] == 'server-msg-1')['localId'],
-        'local-1',
+        isNull,
       );
+
+      // Out-of-order acknowledgments must use identity, not equal text.
+      for (final i in [2, 1]) {
+        sync.testUpsertSessionMessages(sessionId, [
+          {
+            'id': 'server-msg-$i',
+            'localId': 'local-$i',
+            'seq': i,
+            'role': 'user',
+            'createdAt': 1700000000000 + i,
+            'content': 'continue',
+            'sendStatus': 'sent',
+          },
+        ]);
+        final delivered = sync.testSessionMessages(sessionId)!;
+        expect(delivered.where((m) => m['id'] == 'local-$i'), isEmpty);
+        expect(
+          delivered.singleWhere((m) => m['id'] == 'server-msg-$i')['localId'],
+          'local-$i',
+        );
+      }
+      final delivered = sync.testSessionMessages(sessionId)!;
+      expect(delivered, hasLength(2));
+      expect(
+        delivered.map((m) => m['localId']),
+        unorderedEquals(['local-1', 'local-2']),
+      );
+      expect(delivered.every((m) => m['sendStatus'] == 'sent'), isTrue);
     });
   });
 

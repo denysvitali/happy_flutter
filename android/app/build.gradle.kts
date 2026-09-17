@@ -32,18 +32,6 @@ android {
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-
-        // Force arm64-v8a only. `flutter build apk --target-platform
-        // android-arm64` filters the Flutter ENGINE libs but NOT the plugin
-        // AAR native libs (libonnxruntime/sherpa/barhopper ship arm64 +
-        // armeabi-v7a + x86_64), so the release APK still bundled three ABIs
-        // (~124MB of .so). arm64-v8a covers every modern phone; 32-bit ARM /
-        // x86 emulators can use a debug `flutter run`. Clear first so a
-        // plugin-populated filter list can't re-add the other ABIs.
-        ndk {
-            abiFilters.clear()
-            abiFilters.add("arm64-v8a")
-        }
     }
 
     flavorDimensions += "environment"
@@ -90,6 +78,13 @@ android {
             }
         }
         getByName("release") {
+            // Restrict release APKs only: --target-platform filters Flutter
+            // engine libs but not plugin AARs (onnxruntime/sherpa/barhopper).
+            // Keep debug builds available for 32-bit ARM / x86 emulators.
+            ndk {
+                abiFilters.clear()
+                abiFilters.add("arm64-v8a")
+            }
             // R8 + resource shrink on. The previous ANR/bloat root cause was
             // flutter_gemma pulling in MediaPipe + Qdrant vector DB (250MB of
             // native libs loaded at boot via GeneratedPluginRegistrant). With
@@ -109,7 +104,7 @@ android {
         }
     }
 
-    // ABI is pinned to arm64-v8a via defaultConfig.ndk.abiFilters above.
+    // Release ABI is pinned to arm64-v8a via buildTypes.release.ndk above.
     // We intentionally do NOT use `splits { abi { isUniversalApk = true } }`
     // — that emitted a *universal* fat APK bundling all three ABIs (~124MB
     // of .so) and is what blew the release APK past 130MB.

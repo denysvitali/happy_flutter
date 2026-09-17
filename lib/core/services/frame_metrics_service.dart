@@ -352,6 +352,9 @@ class FrameMetricsService {
         buildMicros: buildMicros,
         rasterMicros: rasterMicros,
         totalMicros: totalMicros,
+        route: PerformanceContextService().currentRoute,
+        sessionsView: PerformanceContextService().currentSessionsView,
+        sessionCountBucket: collectionSizeBucket(sync.sessionCount),
       ));
       if (_recentFrozenFrames.length > _maxJankBuffer) {
         _recentFrozenFrames.removeAt(0);
@@ -409,7 +412,7 @@ class FrameMetricsService {
 
   /// Best-effort read of the EncryptionCache byte budgets. [Sync] only
   /// holds an encryption instance after a successful login, so pre-auth
-  /// windows have nothing to report — that reads as 0 (sample skipped), it
+  /// windows have nothing retained — that emits an explicit zero, it
   /// is not an error. Sampling telemetry must never throw out of a flush.
   int _encryptionCacheRetainedBytes() {
     final override = debugEncryptionRetainedBytes;
@@ -431,8 +434,6 @@ class FrameMetricsService {
     // make the *next* window look active and mask a real idle-render burst.
     final activityCounter = _activityCounter();
     final activityTicks = activityCounter - _lastActivityCounter;
-    final dataChanges = _windowDataChanges;
-    final messageChanges = _windowMessageChanges;
     final pointerEvents = _pointerEvents;
     _lastActivityCounter = activityCounter;
     _windowDataChanges = 0;
@@ -462,6 +463,20 @@ class FrameMetricsService {
             'Process resident set size sampled once per metrics window — '
             'quantile this per build to see progressive heap growth',
       );
+      // The pinned runtime has no supported release-mode Dart heap/external
+      // counters. Emit explicit unavailable zeros, never infer them from RSS.
+      for (final name in ['dart_heap', 'dart_external']) {
+        OpenTelemetryService().recordValue(
+          'app.memory.${name}_mb',
+          0,
+          unit: 'MB',
+          boundaries: _rssMbBuckets,
+          attributes: attributes,
+          description:
+              'Dart $name memory per metrics window; '
+              'zero means unavailable on this runtime, not measured usage',
+        );
+      }
       // RSS says how much; these say where.
       final imageCacheBytes =
           PaintingBinding.instance.imageCache.currentSizeBytes;
@@ -477,18 +492,16 @@ class FrameMetricsService {
             'images out',
       );
       final encryptionRetainedBytes = _encryptionCacheRetainedBytes();
-      if (encryptionRetainedBytes > 0) {
-        OpenTelemetryService().recordValue(
-          'app.memory.encryption_cache_mb',
-          encryptionRetainedBytes / (1024 * 1024),
-          unit: 'MB',
-          boundaries: _encryptionCacheMbBuckets,
-          attributes: attributes,
-          description:
-              'EncryptionCache retained bytes sampled once per metrics '
-              'window — exposes a breach of its ~19 MB byte budgets',
-        );
-      }
+      OpenTelemetryService().recordValue(
+        'app.memory.encryption_cache_mb',
+        encryptionRetainedBytes / (1024 * 1024),
+        unit: 'MB',
+        boundaries: _encryptionCacheMbBuckets,
+        attributes: attributes,
+        description:
+            'EncryptionCache retained bytes sampled once per metrics '
+            'window; zero before login',
+      );
       OpenTelemetryService().recordValue(
         'app.memory.resident_rows',
         sync.residentMessageRowCount.toDouble(),
@@ -600,10 +613,6 @@ class FrameMetricsService {
       ...attributes,
       'activity': windowActivity,
       'app_active': _appActive,
-      'pointer_events': pointerEvents,
-      'data_changes': dataChanges,
-      'message_changes': messageChanges,
-      'lifecycle_changes': lifecycleChanges,
     };
     _lastWindowFrames = frameCount;
     _lastWindowIdle = idleWindow;
@@ -683,23 +692,32 @@ class FrameMetricsService {
       'sessions_view': sessionsViewAtOpen ?? currentSessionsView ?? 'none',
     };
     for (final sample in snapshot) {
+      // Capture each frame's bounded context, not the first frame's context
+      // for the whole window. Unknown startup context can still backfill.
+      final sampleAttributes = <String, Object?>{
+        'current_route': sample.route == null || sample.route!.isEmpty
+            ? route
+            : sample.route,
+        'session_count_bucket': sample.sessionCountBucket,
+        'sessions_view': sample.sessionsView ?? currentSessionsView ?? 'none',
+      };
       otel
         ..recordDuration(
           'app.ui.frozen_frame',
           Duration(microseconds: sample.totalMicros),
-          attributes: frozenAttributes,
+          attributes: sampleAttributes,
           description: 'Duration of a single frozen (>=100ms) frame',
         )
         ..recordDuration(
           'app.ui.frozen_frame_build',
           Duration(microseconds: sample.buildMicros),
-          attributes: frozenAttributes,
+          attributes: sampleAttributes,
           description: 'Build component of a frozen (>=100ms) frame',
         )
         ..recordDuration(
           'app.ui.frozen_frame_raster',
           Duration(microseconds: sample.rasterMicros),
-          attributes: frozenAttributes,
+          attributes: sampleAttributes,
           description: 'Raster component of a frozen (>=100ms) frame',
         );
     }
@@ -847,4 +865,7 @@ typedef _FrozenFrameSample = ({
   int buildMicros,
   int rasterMicros,
   int totalMicros,
+  String? route,
+  String? sessionsView,
+  String sessionCountBucket,
 });

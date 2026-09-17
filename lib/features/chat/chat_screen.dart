@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart'
-    show ValueListenable, kDebugMode, visibleForTesting;
+    show ValueListenable, kDebugMode, listEquals, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,6 +49,7 @@ import 'chat_tts_gate.dart';
 import 'helpers/chat_dialogs.dart';
 import 'loop_command_parser.dart';
 import 'message_detail_screen.dart';
+import 'message_render_signature.dart';
 import 'message_widget.dart';
 import 'model_selection_resolver.dart';
 import 'send/chat_attachment_controller.dart';
@@ -317,6 +318,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool? _cachedListItemsHideToolCalls;
   bool? _cachedListItemsOrphansExpanded;
   Map<String, int>? _cachedKeyToListIndex;
+  List<String>? _cachedItemKeys;
+  final Map<String, ({Object signature, Widget widget})> _cachedRowWidgets = {};
 
   /// Whether the user tapped "show N more sub-agent messages", lifting the
   /// inline cap on ungrouped sidechain orphans for this session.
@@ -677,7 +680,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (!mounted) return;
 
     if (messagesChanged) {
-      _invalidateNeighborCache();
+      // Keep immutable snapshots to reuse unchanged visible projections.
+      // An in-place revision cannot be compared against its old contents.
+      if (identical(latestMessages, _messages) && revisionChanged) {
+        _invalidateNeighborCache();
+        _cachedVisibleMessages = null;
+      }
+      _cachedVisibleSource = null;
+      if (revisionChanged) _cachedListItemsSource = null;
     }
 
     final hadRequests = _session?.agentState?.requests?.isNotEmpty ?? false;
@@ -931,6 +941,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   /// Invalidates the neighbor cache. Call when the messages list changes.
   void _invalidateNeighborCache() {
+    _cachedRowWidgets.clear();
     _neighborCache.clear();
     _neighborCacheSource = null;
     _neighborCacheLength = -1;
@@ -1551,7 +1562,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     var lastVisibleCreatedAt = 0;
     var foundVisible = false;
     var maxSeq = -1;
-    for (var i = _messages.length - 1; i >= 0; i--) {
+    // Status chrome summarizes the newest resident tail, not scroll-back.
+    // In particular debug watermarks must not turn streaming into a full
+    // transcript scan when the user has loaded extensive history.
+    final start = (_messages.length - 1000).clamp(0, _messages.length);
+    for (var i = _messages.length - 1; i >= start; i--) {
       final message = _messages[i];
       if (!foundVisible && message['isSidechain'] != true) {
         final ts = message['createdAt'];
@@ -1567,7 +1582,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         }
       }
       if (kDebugMode) {
-        // Debug seq watermark needs the full list; skip early exit.
+        // Debug seq watermark covers the same bounded status window.
         final s = message['seq'];
         if (s is int && s > maxSeq) maxSeq = s;
       } else if (foundVisible && latestUserStatus != null) {

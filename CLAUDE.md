@@ -79,10 +79,8 @@ mcp__glitchtip__.list_issues(
 
 ## Current Priorities
 
-See @ROADMAP.md for production bugs, immediate fixes, and sprint priorities. Key items as of Apr 2026:
-- **P0**: Core messaging invariants (contract tests for `localId` identity, out-of-order delivery)
-- **Fixes needed**: InvalidateSync disposed crash (55 fatal/day), Null check operators (chat load + general), back button error rate (37.5%)
-- **Quick wins**: Guard offline machine in session creation, clear stale profile references
+See @ROADMAP.md for live priorities, production bugs, and implementation status.
+Keep messaging reliability and canonical `localId` contracts as P0.
 
 ## Core Invariants
 

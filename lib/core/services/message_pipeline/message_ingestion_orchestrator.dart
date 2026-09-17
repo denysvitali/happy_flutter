@@ -576,6 +576,19 @@ extension SyncMessagePipeline on Sync {
         _upsertSessionMessages(sessionId, renderableMessages);
         shouldNotify = true;
       }
+      // Match newly resident calls before fresh results can evict their
+      // previously queued outputs. Fresh results then win over older copies.
+      final pending = _pendingToolResults[sessionId];
+      if (pending != null && pending.isNotEmpty) {
+        final matched = _applyToolResults(sessionId, pending);
+        if (matched.isNotEmpty) {
+          pending.removeWhere((r) => matched.contains(r['toolUseId']));
+          if (pending.isEmpty) {
+            _pendingToolResults.remove(sessionId);
+          }
+          shouldNotify = true;
+        }
+      }
       if (processed.toolResults.isNotEmpty) {
         _applyToolResults(sessionId, processed.toolResults);
         shouldNotify = true;
@@ -599,18 +612,6 @@ extension SyncMessagePipeline on Sync {
 
       if (shouldYieldMutationPhases) {
         await _yieldPostDecryptMutationPhase();
-      }
-
-      final pending = _pendingToolResults[sessionId];
-      if (pending != null && pending.isNotEmpty) {
-        final matched = _applyToolResults(sessionId, pending);
-        if (matched.isNotEmpty) {
-          pending.removeWhere((r) => matched.contains(r['toolUseId']));
-          if (pending.isEmpty) {
-            _pendingToolResults.remove(sessionId);
-          }
-          shouldNotify = true;
-        }
       }
 
       // Group sidechain children under their parent Task/Agent/Workflow

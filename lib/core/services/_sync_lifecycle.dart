@@ -25,6 +25,7 @@ const List<int> _reconnectWatchdogLadderMs = <int>[
   60 * 1000,
   120 * 1000,
   300 * 1000,
+  _reconnectWatchdogMaxDelayMs,
 ];
 
 /// Fraction of the base delay added as random jitter, so devices that
@@ -219,6 +220,7 @@ extension SyncLifecycle on Sync {
   /// Reconnects the socket and invalidates all syncs so any server-side
   /// changes that happened while the app was backgrounded are fetched.
   void resume() {
+    final runtimeGeneration = _runtimeGeneration;
     // Resume can precede auth restoration. Do not leave a previous runtime's
     // background policy blocking the new account's initial reads.
     ApiClient().setSuspended(false);
@@ -362,6 +364,7 @@ extension SyncLifecycle on Sync {
     _deferredResumeInvalidationTimer = Timer(
       const Duration(milliseconds: 500),
       () {
+        if (runtimeGeneration != _runtimeGeneration) return;
         _deferredResumeInvalidationTimer = null;
         if (!isInitialized || InvalidateSync.isBackgrounded) {
           return;
@@ -559,6 +562,10 @@ extension SyncLifecycle on Sync {
                   },
                 )
                 .then((_) {
+                  if (!isInitialized ||
+                      runtimeGeneration != _runtimeGeneration ||
+                      InvalidateSync.isBackgrounded)
+                    return;
                   for (final sessionId in sessionsToRefresh) {
                     final cursorSeq = _sessionLastSeq[sessionId] ?? 0;
                     final serverLastSeq = _sessions[sessionId]?.lastSeq ?? 0;
@@ -590,6 +597,10 @@ extension SyncLifecycle on Sync {
                   }
                 })
                 .catchError((Object e, StackTrace st) {
+                  if (!isInitialized ||
+                      runtimeGeneration != _runtimeGeneration ||
+                      InvalidateSync.isBackgrounded)
+                    return;
                   // A TimeoutException here just means sessionsSync did not
                   // settle within [_resumeSessionsAwaitTimeout]. The
                   // underlying invalidate() is still in flight and will
@@ -623,6 +634,10 @@ extension SyncLifecycle on Sync {
                   );
                 })
                 .whenComplete(() {
+                  if (!isInitialized ||
+                      runtimeGeneration != _runtimeGeneration ||
+                      InvalidateSync.isBackgrounded)
+                    return;
                   // ALWAYS advance — even on failure — so the
                   // "Fetching conversations" bar never hangs at
                   // "0 of N complete".
@@ -638,9 +653,13 @@ extension SyncLifecycle on Sync {
           sessionsSync.invalidate();
         } else if (shouldRunGlobalInvalidation) {
           unawaited(
-            sessionsSync.awaitQueue().whenComplete(
-              _schedulePostResumeNonCriticalSyncs,
-            ),
+            sessionsSync.awaitQueue().whenComplete(() {
+              if (!isInitialized ||
+                  runtimeGeneration != _runtimeGeneration ||
+                  InvalidateSync.isBackgrounded)
+                return;
+              _schedulePostResumeNonCriticalSyncs();
+            }),
           );
         }
       },
@@ -828,6 +847,7 @@ extension SyncLifecycle on Sync {
     bool assumeDisconnected = false,
     bool resetBackoff = false,
   }) {
+    final runtimeGeneration = _runtimeGeneration;
     _reconnectWatchdogTimer?.cancel();
     if (resetBackoff) {
       _reconnectWatchdogAttempt = 0;
@@ -845,6 +865,7 @@ extension SyncLifecycle on Sync {
     _reconnectWatchdogTimer = Timer(
       Duration(milliseconds: _reconnectWatchdogDelayWithJitterMs(attempt)),
       () {
+        if (runtimeGeneration != _runtimeGeneration) return;
         _reconnectWatchdogTimer = null;
         if (!isInitialized || InvalidateSync.isBackgrounded) return;
 
@@ -913,6 +934,10 @@ extension SyncLifecycle on Sync {
         if (_visibleSessionId != null) {
           unawaited(
             sessionsSync.awaitQueue().then((_) {
+              if (!isInitialized ||
+                  runtimeGeneration != _runtimeGeneration ||
+                  InvalidateSync.isBackgrounded)
+                return;
               final vid = _visibleSessionId;
               if (vid != null) {
                 messagesSync[vid]?.invalidate();
@@ -968,6 +993,12 @@ extension SyncLifecycle on Sync {
     // from the old account observes a stale generation and cannot resurrect
     // sessions, machines, or readiness after logout.
     _runtimeGeneration++;
+    _deferredResumeInvalidationTimer?.cancel();
+    _deferredResumeInvalidationTimer = null;
+    _deferredSyncsTimer?.cancel();
+    _deferredSyncsTimer = null;
+    _backgroundSyncsTimer?.cancel();
+    _backgroundSyncsTimer = null;
     _isReady = false;
     isInitialized = false;
     _criticalSyncManagersInitialized = false;

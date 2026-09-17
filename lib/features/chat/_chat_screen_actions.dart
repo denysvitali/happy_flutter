@@ -724,8 +724,8 @@ extension _ChatScreenActions on _ChatScreenState {
         final message =
             '[ChatScreen] _abortSession failed: '
             'sessionId=${widget.sessionId} $e';
-        if (handlerUnavailable) {
-          // The process can exit between painting Stop and handling the tap.
+        if (handlerUnavailable || sync.isExpectedSocketTransportError(e)) {
+          // The process or connection can disappear while Stop is in flight.
           // Keep the retry affordance, but do not open a production issue for
           // that expected race.
           logger.info(message);

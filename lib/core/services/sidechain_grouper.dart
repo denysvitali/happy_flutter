@@ -58,7 +58,11 @@ class SidechainGrouper {
       List<dynamic> values, {
       required bool topLevel,
       String? ancestorTaskId,
+      int depth = 0,
     }) {
+      // Mirror the Dart walk's nesting bound: rows beyond the limit are left
+      // for the existing orphan/orphan-retry policy, matching the fallback.
+      if (depth >= _maxNestingDepth) return;
       for (final value in values) {
         if (value is! Map<String, dynamic> || !visited.add(value)) continue;
         final kind = stringValue(value['kind']);
@@ -95,6 +99,7 @@ class SidechainGrouper {
             children,
             topLevel: false,
             ancestorTaskId: isTask ? id : ancestorTaskId,
+            depth: depth + 1,
           );
         }
       }

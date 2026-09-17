@@ -7,6 +7,7 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/workflow_run.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 import '../helpers/test_helpers.dart';
 
@@ -75,6 +76,7 @@ void main() {
   });
 
   tearDown(() {
+    InvalidateSync.isBackgrounded = false;
     sync.testSessionRPCOverride = null;
     sync.testSocketConnectedOverride = null;
     sync.testSetVisibleSessionId(null);
@@ -124,6 +126,30 @@ void main() {
 
     response.complete({'ok': true, 'workflows': <dynamic>[]});
     await Future.wait([first, second]);
+  });
+
+  test('snapshot polling pauses offline and suspended, then resumes', () async {
+    var calls = 0;
+    sync.testSessionRPCOverride = (sessionId, method, params) async {
+      calls++;
+      return {
+        'ok': true,
+        'snapshot': {
+          'runId': 'run-1',
+          'workflowName': 'Audit',
+          'status': WorkflowStatus.running,
+        },
+      };
+    };
+    sync.testSocketConnectedOverride = false;
+    expect(await sync.fetchWorkflowSnapshot('s1', 'run-1'), isNull);
+    sync.testSocketConnectedOverride = true;
+    InvalidateSync.isBackgrounded = true;
+    expect(await sync.fetchWorkflowSnapshot('s1', 'run-1'), isNull);
+    expect(calls, 0);
+    InvalidateSync.isBackgrounded = false;
+    expect(await sync.fetchWorkflowSnapshot('s1', 'run-1'), isNotNull);
+    expect(calls, 1);
   });
 
   test('concurrent snapshot fetches share one RPC', () async {

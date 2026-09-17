@@ -1,9 +1,7 @@
-import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
-    show Counter;
-import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart';
+import 'dart:convert';
 
-import 'logger_service.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'opentelemetry_service.dart';
 
 /// Forwards [PowerDiagnosticsService] counter increments to OpenTelemetry
@@ -15,14 +13,9 @@ import 'opentelemetry_service.dart';
 /// **Every method here is best-effort and never throws.** OTel counter
 /// creation can fail (uninitialized SDK, no exporter, misconfigured meter) and
 /// such a failure must never break local diagnostics or the host flow that is
-/// merely trying to record a metric. All swallowing happens in exactly one
-/// place — [_bump] — so there is a single documented failure policy rather
-/// than eleven bare `catch (_) {}` blocks.
-///
-/// Swallowed is not the same as invisible: [_bump] logs the first failure per
-/// counter name. The previous bare `catch (_) {}` is why the empty-resource
-/// export bug (see `OpenTelemetryService._applyResourceToMeterProvider`) ran
-/// unnoticed for the lifetime of the metric pipeline.
+/// merely trying to record a metric. SDK failures are handled by the common
+/// [OpenTelemetryService.recordCount] path, which also attaches build identity
+/// and reports pipeline failures.
 class PowerDiagnosticsOtelReporter {
   PowerDiagnosticsOtelReporter._();
 
@@ -31,17 +24,35 @@ class PowerDiagnosticsOtelReporter {
 
   static PowerDiagnosticsOtelReporter get instance => _instance;
 
-  /// Counters, created on first bump and keyed by full metric name, so a
-  /// counter that is never bumped is never created.
-  final Map<String, Counter<int>> _counters = {};
+  // Aggregate rather than retain individual events during SDK startup.
+  // The cap also bounds memory on web, where OTel is never initialized.
+  final Map<String, _PendingCounter> _pending = {};
+  static const _maxPendingSeries = 256;
 
-  /// Metric names whose failure has already been logged, so a counter that
-  /// fails on every call logs once per process instead of once per event.
-  final Set<String> _reportedFailures = {};
-
-  UIMeter get _meter {
-    return FlutterOTel.meter(name: 'happy_flutter.power_diagnostics');
+  /// Called after the common metric identity and SDK are ready. Zero-valued
+  /// entries are retained: absence of violations must be an exported series.
+  void flushPendingCounters() {
+    if (!OpenTelemetryService().isInitialized) return;
+    final pending = _pending.values.toList();
+    _pending.clear();
+    for (final entry in pending) {
+      OpenTelemetryService().recordCount(
+        entry.name,
+        value: entry.value,
+        unit: entry.unit,
+        description: entry.description,
+        attributes: entry.attributes,
+      );
+    }
   }
+
+  // Reserve the four fixed invariant series independently of the general cap.
+  static const _invariantTags = {
+    'unmatched_optimistic',
+    'duplicate_local_id',
+    'unknown_acked_local_id',
+    'retry_created_duplicate',
+  };
 
   /// Every bump this process has attempted, keyed by metric name, tallied
   /// *before* the OTel gate below.
@@ -64,8 +75,7 @@ class PowerDiagnosticsOtelReporter {
   /// Prometheus series per value and will take the collector down. Callers are
   /// responsible for bucketing before they get here.
   ///
-  /// Swallows every error: see the class doc. This is the only place in the
-  /// class that catches, and it logs the first failure per [name].
+  /// SDK failures are handled by the common metric recording path.
   void _bump(
     String name, {
     required String description,
@@ -78,39 +88,37 @@ class PowerDiagnosticsOtelReporter {
       (value) => value + delta,
       ifAbsent: () => delta,
     );
-    // Web builds never initialize OTel (see OpenTelemetryService.initialize);
-    // bail before the uninitialized SDK raises per call. Pre-init bumps on
-    // native already failed inside the try below, so nothing new is dropped.
-    if (!OpenTelemetryService().isInitialized) return;
-    try {
-      final counter = _counters.putIfAbsent(
+    if (delta < 0) return;
+    if (!OpenTelemetryService().isInitialized) {
+      final keys = attributes.keys.toList()..sort();
+      final key = jsonEncode([
         name,
-        () => _meter.createCounter<int>(
-          name: name,
-          description: description,
-          unit: unit,
-        ),
-      );
-      if (attributes.isEmpty) {
-        counter.add(delta);
-      } else {
-        counter.addWithMap(delta, attributes);
-      }
-    } catch (e, stack) {
-      // Best-effort: OTel failures must not break local diagnostics — but
-      // they must not be invisible either.
-      //
-      // Counters recorded before `OpenTelemetryService.initialize()` finishes
-      // are expected to fail and are not worth reporting; anything after it
-      // is a real pipeline defect.
-      if (OpenTelemetryService().isInitialized && _reportedFailures.add(name)) {
-        logger.warning(
-          '[PowerDiagnosticsOtel] counter $name unavailable: $e',
-          e,
-          stack,
+        for (final key in keys) [key, attributes[key]],
+      ]);
+      final existing = _pending[key];
+      if (existing != null) {
+        existing.value += delta;
+      } else if (_pending.length < _maxPendingSeries ||
+          _invariantTags.any(
+            (tag) => name == 'happy_flutter.app.messaging.invariant.$tag',
+          )) {
+        _pending[key] = _PendingCounter(
+          name,
+          description,
+          unit,
+          delta,
+          Map.of(attributes),
         );
       }
+      return;
     }
+    OpenTelemetryService().recordCount(
+      name,
+      value: delta,
+      unit: unit,
+      description: description,
+      attributes: attributes,
+    );
   }
 
   void recordHttpBytes({
@@ -201,7 +209,8 @@ class PowerDiagnosticsOtelReporter {
   /// [reason] follows the same bucketing rule as [recordOutboxFailure].
   void recordOutboxDeadLetter({String reason = 'unknown'}) => _bump(
     'happy_flutter.outbox.dead_lettered',
-    description: 'Messages dead-lettered after exhausting the outbox '
+    description:
+        'Messages dead-lettered after exhausting the outbox '
         'retry budget (potential permanent loss)',
     unit: '{messages}',
     attributes: {'reason': reason},
@@ -273,4 +282,20 @@ class PowerDiagnosticsOtelReporter {
     description: 'Server acks for user messages',
     unit: '{acks}',
   );
+}
+
+class _PendingCounter {
+  _PendingCounter(
+    this.name,
+    this.description,
+    this.unit,
+    this.value,
+    this.attributes,
+  );
+
+  final String name;
+  final String description;
+  final String unit;
+  int value;
+  final Map<String, String> attributes;
 }

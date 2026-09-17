@@ -9,6 +9,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/text_truncate.dart';
 import '../markdown/markdown.dart';
 import 'message_focus_view.dart';
 import 'send_status_indicator.dart';
@@ -83,11 +84,8 @@ class _UserBubbleState extends State<UserBubble> {
   /// from exactly where the finger is.
   final GlobalKey _anchorKey = GlobalKey();
 
-  String _truncateForLabel(String text) {
-    const maxLength = 100;
-    if (text.length <= maxLength) return text;
-    return '${text.substring(0, maxLength)}...';
-  }
+  String _truncateForLabel(String text) =>
+      truncateGraphemes(text, 100, ellipsis: '...');
 
   void _openFocusView() {
     HapticFeedback.heavyImpact();

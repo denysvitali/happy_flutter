@@ -85,7 +85,10 @@ void main() {
       service.detach();
 
       expect(attributes['app.ui.window_frames']?['activity'], 'active');
-      expect(attributes['app.ui.window_frames']?['lifecycle_changes'], 2);
+      expect(
+        attributes['app.ui.window_frames'],
+        isNot(contains('lifecycle_changes')),
+      );
       expect(
         attributes['app.ui.render_windows']?['window_fps_bucket'],
         '30fps_plus',
@@ -165,9 +168,8 @@ void main() {
       expect(byName['app.memory.resident_rows']!, 3);
     });
 
-    // Sync.encryption only exists after login. A pre-auth window must skip
-    // its encryption-cache sample rather than throw out of the flush.
-    test('skips the encryption gauge before login instead of throwing', () {
+    // Sync.encryption only exists after login. Emit a healthy zero before it.
+    test('records zero encryption bytes before login instead of throwing', () {
       final samples = <(String, double)>[];
       OpenTelemetryService.debugValueSink = (name, value, attributes) {
         samples.add((name, value));
@@ -185,7 +187,9 @@ void main() {
 
       final names = samples.map(((sample) => sample.$1)).toSet();
       expect(names, contains('app.memory.rss_mb'));
-      expect(names, isNot(contains('app.memory.encryption_cache_mb')));
+      expect(samples, contains(('app.memory.encryption_cache_mb', 0.0)));
+      expect(samples, contains(('app.memory.dart_heap_mb', 0.0)));
+      expect(samples, contains(('app.memory.dart_external_mb', 0.0)));
     });
   });
 
@@ -409,6 +413,36 @@ void main() {
       );
     }
 
+    test('keeps all three frozen observations on each frame context', () {
+      final labels = <String, List<Map<String, Object?>>>{};
+      OpenTelemetryService.debugDurationSink = (name, duration, attributes) {
+        labels.putIfAbsent(name, () => []).add(Map.of(attributes));
+      };
+      addTearDown(() => OpenTelemetryService.debugDurationSink = null);
+      PerformanceContextService().setCurrentRoute('chat');
+      recordFrozenFrame();
+      PerformanceContextService().setCurrentRoute('home');
+      recordFrozenFrame();
+      PerformanceContextService().setCurrentRoute('settings');
+      FrameMetricsService.instance.debugFlush();
+      for (final name in [
+        'app.ui.frozen_frame',
+        'app.ui.frozen_frame_build',
+        'app.ui.frozen_frame_raster',
+      ]) {
+        expect(labels[name]!.map((a) => a['current_route']), ['chat', 'home']);
+        expect(labels[name], labels['app.ui.frozen_frame']);
+        expect(
+          labels[name]!.first.keys,
+          unorderedEquals([
+            'current_route',
+            'session_count_bucket',
+            'sessions_view',
+          ]),
+        );
+      }
+    });
+
     test('uses the route known when the jank started', () {
       PerformanceContextService().setCurrentRoute('chat');
       recordFrozenFrame();
@@ -517,10 +551,9 @@ void main() {
       expect(FrameMetricsService.instance.debugLastWindowIdle, isFalse);
     });
 
-    // The aggregate active/idle label cannot distinguish a blocked isolate
-    // from ordinary input-driven repaints. These low-cardinality counts are
-    // the discriminator for the production "low fps with fast frames" signal.
-    test('counts pointer, data, and message activity separately', () {
+    // Raw activity counts fragment cumulative frame counters into a new
+    // series each window. Keep only the bounded activity classification.
+    test('activity counts are not metric dimensions', () {
       FrameMetricsService.instance.debugRecordPointerEvent();
       sync.testNotifyDataChanged();
       sync.testNotifySessionMessagesChanged('session-1');
@@ -528,9 +561,18 @@ void main() {
       FrameMetricsService.instance.debugFlush();
 
       expect(attributes['app.ui.window_frames']?['activity'], 'active');
-      expect(attributes['app.ui.window_frames']?['pointer_events'], 1);
-      expect(attributes['app.ui.window_frames']?['data_changes'], 1);
-      expect(attributes['app.ui.window_frames']?['message_changes'], 1);
+      expect(
+        attributes['app.ui.window_frames'],
+        isNot(contains('pointer_events')),
+      );
+      expect(
+        attributes['app.ui.window_frames'],
+        isNot(contains('data_changes')),
+      );
+      expect(
+        attributes['app.ui.window_frames'],
+        isNot(contains('message_changes')),
+      );
     });
 
     test('activity counters reset with the window', () {
@@ -545,9 +587,10 @@ void main() {
         ..debugFlush();
 
       final window = attributes['app.ui.window_frames']!;
-      expect(window['pointer_events'], 0);
-      expect(window['data_changes'], 0);
-      expect(window['message_changes'], 0);
+      expect(window['activity'], 'idle');
+      expect(window, isNot(contains('pointer_events')));
+      expect(window, isNot(contains('data_changes')));
+      expect(window, isNot(contains('message_changes')));
     });
 
     // The reset has to happen before the zero-frame early return, or a tap

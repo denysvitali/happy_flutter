@@ -29,14 +29,14 @@ class SettingsManager {
     required InvalidateSync Function() profileSyncGetter,
     required InvalidateSync Function() purchasesSyncGetter,
     required void Function(Set<SyncDomain>) onDataChanged,
-  })  : _encryption = encryption,
-        _client = client ?? ApiClient(),
-        _nativeUpdateFreshnessMs = nativeUpdateFreshnessMs,
-        _isTransientConnectionError = isTransientConnectionError,
-        _settingsSyncGetter = settingsSyncGetter,
-        _profileSyncGetter = profileSyncGetter,
-        _purchasesSyncGetter = purchasesSyncGetter,
-        _onDataChanged = onDataChanged;
+  }) : _encryption = encryption,
+       _client = client ?? ApiClient(),
+       _nativeUpdateFreshnessMs = nativeUpdateFreshnessMs,
+       _isTransientConnectionError = isTransientConnectionError,
+       _settingsSyncGetter = settingsSyncGetter,
+       _profileSyncGetter = profileSyncGetter,
+       _purchasesSyncGetter = purchasesSyncGetter,
+       _onDataChanged = onDataChanged;
 
   final Encryption _encryption;
   final ApiClient _client;
@@ -52,6 +52,7 @@ class SettingsManager {
   int _settingsVersion = 0;
   final Map<String, dynamic> _pendingSettings = {};
   int? _lastSettingsPostAtMs;
+  Future<void>? _settingsOpQueue;
 
   Profile? _profile;
   Purchases _purchases = Purchases.defaults;
@@ -99,9 +100,27 @@ class SettingsManager {
   }
 
   /// Sync settings with the server: POST pending deltas, then GET latest.
-  Future<void> syncSettings() async {
-    logger.info('Syncing settings...');
+  ///
+  /// Overlapping calls serialize on a manager-owned lane independent of
+  /// InvalidateSync suspension, so a queued call observes the version the
+  /// previous write acknowledged instead of racing it with a stale
+  /// expectedVersion. Each call keeps the generation captured at entry, so a
+  /// runtime reset between enqueue and run can never mutate fresh state.
+  Future<void> syncSettings() {
     final generation = _generation;
+    final previous = _settingsOpQueue;
+    final operation = previous == null
+        ? _runSettingsSync(generation)
+        : previous.then((_) => _runSettingsSync(generation));
+    // Keep the lane usable after failure without swallowing the caller's
+    // error (InvalidateSync must retry failed writes).
+    _settingsOpQueue = operation.then<void>((_) {}, onError: (Object _) {});
+    return operation;
+  }
+
+  Future<void> _runSettingsSync(int generation) async {
+    if (generation != _generation) return;
+    logger.info('Syncing settings...');
 
     try {
       final apiClient = _client;
@@ -109,7 +128,10 @@ class SettingsManager {
       // Apply pending settings
       var postedSuccessfully = false;
       if (_pendingSettings.isNotEmpty) {
+        // Capture the document and the version it is based on together, so
+        // the POST cannot pair a re-read version with a stale merged body.
         final postedDelta = Map<String, dynamic>.of(_pendingSettings);
+        final expectedVersion = _settingsVersion;
         final mergedJson = <String, dynamic>{
           ..._settingsSnapshot.toJson(),
           ...postedDelta,
@@ -117,14 +139,13 @@ class SettingsManager {
         final encryptedPending = await _encryption.encryptRaw(mergedJson);
         if (generation != _generation) return;
 
-        final updateResponse = await apiClient
-            .post(
-              '/v1/account/settings',
-              data: {
-                'settings': encryptedPending,
-                'expectedVersion': _settingsVersion,
-              },
-            );
+        final updateResponse = await apiClient.post(
+          '/v1/account/settings',
+          data: {
+            'settings': encryptedPending,
+            'expectedVersion': expectedVersion,
+          },
+        );
         if (generation != _generation) return;
 
         final updateData = WireParsers.asMap(updateResponse.data);
@@ -133,8 +154,8 @@ class SettingsManager {
           // A response acknowledges only the submitted values. Edits made
           // during encryption/HTTP remain pending and visible.
           _pendingSettings.removeWhere(
-            (key, value) => postedDelta.containsKey(key) &&
-                postedDelta[key] == value,
+            (key, value) =>
+                postedDelta.containsKey(key) && postedDelta[key] == value,
           );
           _settingsSnapshot = Settings.fromJson({
             ...mergedJson,
@@ -164,12 +185,10 @@ class SettingsManager {
                   _settingsSnapshot,
                 )
               : _settingsSnapshot;
-          _settingsSnapshot = Settings.fromJson(
-            <String, dynamic>{
-              ...serverSettings.toJson(),
-              ..._pendingSettings,
-            },
-          );
+          _settingsSnapshot = Settings.fromJson(<String, dynamic>{
+            ...serverSettings.toJson(),
+            ..._pendingSettings,
+          });
           _settingsVersion = currentVersion;
           _onDataChanged({SyncDomain.settings});
           // Re-enter through InvalidateSync's bounded retry/backoff. A GET
@@ -260,10 +279,11 @@ class SettingsManager {
 
   /// Fetch profile from server. Also extracts purchases data.
   Future<void> fetchProfile() async {
+    final generation = _generation;
     logger.info('Fetching profile...');
 
     try {
-      final apiClient = ApiClient();
+      final apiClient = _client;
 
       // Bound the fetch so a stalled connection cannot hang the bootstrap
       // fan-out (profile fires alongside settings/machines/sessions on
@@ -273,6 +293,7 @@ class SettingsManager {
       final response = await apiClient
           .get('/v1/account/profile')
           .timeout(const Duration(seconds: 10));
+      if (generation != _generation) return;
 
       if (apiClient.isSuccess(response)) {
         final data = response.data;
@@ -296,6 +317,7 @@ class SettingsManager {
     } on DioException {
       rethrow;
     } catch (error, stack) {
+      if (generation != _generation) return;
       logger.error('Error fetching profile', error, stack);
     }
   }
@@ -312,6 +334,7 @@ class SettingsManager {
 
   /// Fetch native app update status.
   Future<void> fetchNativeUpdate() async {
+    final generation = _generation;
     if (kIsWeb) {
       _nativeUpdateUrl = null;
       return;
@@ -329,8 +352,7 @@ class SettingsManager {
 
     final lastFetched = _lastNativeUpdateFetchedAt;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (lastFetched != null &&
-        nowMs - lastFetched < _nativeUpdateFreshnessMs) {
+    if (lastFetched != null && nowMs - lastFetched < _nativeUpdateFreshnessMs) {
       logger.debug(
         'Skipping native update fetch '
         '(${(nowMs - lastFetched) ~/ 1000}s since last)',
@@ -341,7 +363,7 @@ class SettingsManager {
     logger.info('Fetching native update...');
 
     try {
-      final apiClient = ApiClient();
+      final apiClient = _client;
       final response = await apiClient.post(
         '/v1/version',
         data: <String, dynamic>{
@@ -356,6 +378,7 @@ class SettingsManager {
           ),
         },
       );
+      if (generation != _generation) return;
       if (!apiClient.isSuccess(response)) {
         _nativeUpdateUrl = null;
         return;
@@ -369,6 +392,7 @@ class SettingsManager {
           : null;
       _lastNativeUpdateFetchedAt = nowMs;
     } catch (error, stack) {
+      if (generation != _generation) return;
       if (_isTransientConnectionError(error)) {
         logger.info('Native update fetch aborted (transient): $error');
       } else {
@@ -380,6 +404,7 @@ class SettingsManager {
 
   /// Register or refresh device push token.
   Future<void> syncPushToken() async {
+    final generation = _generation;
     logger.info('Syncing push token...');
     if (kIsWeb) {
       return;
@@ -393,9 +418,11 @@ class SettingsManager {
 
       final messaging = FirebaseMessaging.instance;
       var notificationSettings = await messaging.getNotificationSettings();
+      if (generation != _generation) return;
       if (notificationSettings.authorizationStatus ==
           AuthorizationStatus.notDetermined) {
         notificationSettings = await messaging.requestPermission();
+        if (generation != _generation) return;
       }
       if (notificationSettings.authorizationStatus ==
               AuthorizationStatus.denied ||
@@ -409,6 +436,7 @@ class SettingsManager {
       }
 
       final token = await messaging.getToken();
+      if (generation != _generation) return;
       if (token == null || token.isEmpty) {
         return;
       }
@@ -418,8 +446,10 @@ class SettingsManager {
       }
 
       await PushApi().registerToken(token);
+      if (generation != _generation) return;
       _registeredPushToken = token;
     } catch (error, stack) {
+      if (generation != _generation) return;
       logger.error('Failed to sync push token', error, stack);
     }
   }
@@ -427,6 +457,7 @@ class SettingsManager {
   /// Clears all managed state.
   void clear() {
     _generation++;
+    _settingsOpQueue = null;
     _settingsSnapshot = Settings();
     _settingsVersion = 0;
     _pendingSettings.clear();

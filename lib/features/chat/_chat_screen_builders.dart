@@ -25,7 +25,20 @@ extension _ChatScreenBuilders on _ChatScreenState {
       _cachedVisibleSource = _messages;
       _cachedMessagesLength = totalCount;
       _cachedVisibleCount = _visibleCount;
-      _cachedVisibleMessages = _messages.sublist(startIndex);
+      final previous = _cachedVisibleMessages;
+      var unchanged = previous != null &&
+          previous.length == totalCount - startIndex;
+      if (unchanged) {
+        for (var i = 0; i < previous.length; i++) {
+          if (!identical(previous[i], _messages[startIndex + i])) {
+            unchanged = false;
+            break;
+          }
+        }
+      }
+      if (!unchanged) {
+        _cachedVisibleMessages = _messages.sublist(startIndex);
+      }
     }
     final visibleMessages = _cachedVisibleMessages ?? const [];
 
@@ -76,14 +89,22 @@ extension _ChatScreenBuilders on _ChatScreenState {
         },
       );
 
-      final keyToListIndex = <String, int>{};
-      for (var i = 0; i < items.length; i++) {
-        final m = items[i];
-        if (m == null) continue;
-        final k = canonicalMessageIdentityKey(m);
-        if (k.isNotEmpty) {
-          keyToListIndex[k] = items.length - 1 - i;
+      final keys = [
+        for (final item in items)
+          item == null ? '' : canonicalMessageIdentityKey(item),
+      ];
+      var keyToListIndex = _cachedKeyToListIndex;
+      if (keyToListIndex == null || !listEquals(keys, _cachedItemKeys)) {
+        keyToListIndex = <String, int>{};
+        for (var i = 0; i < keys.length; i++) {
+          if (keys[i].isNotEmpty) {
+            keyToListIndex[keys[i]] = items.length - 1 - i;
+          }
         }
+        _cachedItemKeys = keys;
+        _cachedRowWidgets.removeWhere(
+          (key, _) => !keyToListIndex!.containsKey(key),
+        );
       }
 
       _cachedListItemsSource = visibleMessages;
@@ -310,6 +331,30 @@ extension _ChatScreenBuilders on _ChatScreenState {
         (_session?.thinking ?? false) &&
         message['role'] == 'agent' &&
         !isToolCall;
+    final animate =
+        _initialLoadComplete && !_seenMessageIds.contains(messageKey);
+    final online = (_session?.isOnline ?? false) ||
+        ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
+            (_session?.metadata?.path?.isNotEmpty ?? false));
+    final signature = (
+      messageRenderSignature(message),
+      metadataJson,
+      needsMessages ? _messages : null,
+      needsMessages ? _lastMessagesRevision : null,
+      bottomPad,
+      isFirstInGroup,
+      isLastInGroup,
+      isCompact,
+      isStreaming,
+      animate,
+      online,
+      messageKey == _activeSearchKey,
+      Theme.of(context),
+      Localizations.localeOf(context),
+    );
+    final cached = _cachedRowWidgets[messageKey];
+    if (cached != null && cached.signature == signature) return cached.widget;
+
     Widget row = Padding(
       padding: EdgeInsets.only(bottom: bottomPad),
       child: MessageWidget(
@@ -318,16 +363,13 @@ extension _ChatScreenBuilders on _ChatScreenState {
         metadata: metadataJson,
         messages: needsMessages ? _messages : null,
         sessionId: widget.sessionId,
-        isSessionOnline:
-            (_session?.isOnline ?? false) ||
-            ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
-                (_session?.metadata?.path?.isNotEmpty ?? false)),
+        isSessionOnline: online,
         onOptionPress: _onOptionPress,
         onRetry:
             message['role'] == 'user' && message['sendStatus'] == 'failed'
             ? () => _retryMessage(message)
             : null,
-        animate: _initialLoadComplete && !_seenMessageIds.contains(messageKey),
+        animate: animate,
         isFirstInGroup: isFirstInGroup,
         isLastInGroup: isLastInGroup,
         isStreaming: isStreaming,
@@ -350,7 +392,13 @@ extension _ChatScreenBuilders on _ChatScreenState {
       );
     }
 
-    return RepaintBoundary(key: ValueKey(messageKey), child: row);
+    final result = RepaintBoundary(key: ValueKey(messageKey), child: row);
+    // Bound retained widgets independently of scroll-back depth.
+    if (_cachedRowWidgets.length >= 256) {
+      _cachedRowWidgets.remove(_cachedRowWidgets.keys.first);
+    }
+    _cachedRowWidgets[messageKey] = (signature: signature, widget: result);
+    return result;
   }
 
   bool _shouldHideToolCall(

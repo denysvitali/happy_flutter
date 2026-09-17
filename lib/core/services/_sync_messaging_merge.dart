@@ -21,51 +21,6 @@ extension SyncMessagingMerge on Sync {
         '${content.substring(length - 32)}';
   }
 
-  /// Finds an optimistic user row whose server echo omitted `localId`.
-  ///
-  /// `localId` is the authoritative identity.  This fallback is only for
-  /// legacy/history records that lose it in transit, and is deliberately
-  /// constrained to a pending user row with the same content and a nearby
-  /// timestamp.  Matching by text alone would collapse repeated sends such
-  /// as two consecutive `continue` messages.
-  String? _findUnidentifiedOptimisticUser(
-    Iterable<Map<String, dynamic>> existing,
-    Map<String, dynamic> incoming,
-  ) {
-    if (incoming['role'] != 'user') return null;
-    if (incoming['localId'] is String &&
-        (incoming['localId'] as String).isNotEmpty) {
-      return null;
-    }
-
-    final incomingSignature = _messageContentSignature(incoming);
-    if (incomingSignature == null) return null;
-    final incomingCreatedAt = _asInt(incoming['createdAt']);
-    if (incomingCreatedAt == null) return null;
-
-    String? bestId;
-    var bestDistance = 5 * 60 * 1000 + 1;
-    for (final candidate in existing) {
-      if (candidate['role'] != 'user' ||
-          candidate['id'] != candidate['localId']) {
-        continue;
-      }
-      final status = candidate['sendStatus'];
-      if (status != 'sending' && status != 'failed') continue;
-      if (_messageContentSignature(candidate) != incomingSignature) {
-        continue;
-      }
-      final candidateCreatedAt = _asInt(candidate['createdAt']);
-      if (candidateCreatedAt == null) continue;
-      final distance = (candidateCreatedAt - incomingCreatedAt).abs();
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestId = candidate['localId'] as String?;
-      }
-    }
-    return bestId;
-  }
-
   /// Detects the agent-side prompt echo emitted by some CLI output streams.
   ///
   /// These records are distinct from the user's persisted message: their
@@ -958,11 +913,17 @@ extension SyncMessagingMerge on Sync {
     String sessionId,
     List<Map<String, dynamic>> results,
   ) {
+    // Pruning may remove the session entry; acquire the queue afterward.
+    _prunePendingToolResults(sessionId);
     final queue = _pendingToolResults.putIfAbsent(sessionId, () => []);
     final nowMs =
         testPendingToolResultNowMsOverride ??
         DateTime.now().millisecondsSinceEpoch;
     for (final r in results) {
+      // A retransmission refreshes the payload and re-arms its FIFO/TTL
+      // position, rather than consuming another slot for the same call.
+      final toolUseId = r['toolUseId'];
+      queue.removeWhere((pending) => pending['toolUseId'] == toolUseId);
       queue.add({...r, Sync.pendingToolResultQueuedAtKey: nowMs});
     }
     if (queue.length > Sync.maxPendingToolResultsPerSession) {
@@ -1643,19 +1604,8 @@ extension SyncMessagingMerge on Sync {
       }
       final localId = message['localId'] as String?;
       final hasLocalId = localId != null && localId.isNotEmpty;
-      if (!hasLocalId && message['role'] == 'user') {
-        final fallbackLocalId = _findUnidentifiedOptimisticUser(
-          merged.values,
-          message,
-        );
-        if (fallbackLocalId != null) {
-          merged.remove(fallbackLocalId);
-          // Preserve the canonical client identity even when the incoming
-          // record came through a path that dropped localId.
-          message['localId'] = fallbackLocalId;
-          message['sendStatus'] = 'sent';
-        }
-      }
+      // A server row without localId cannot identify an optimistic send.
+      // Equal content and nearby timestamps are not authoritative identity.
       // If this is an incoming server message whose localId matches an
       // optimistic placeholder, remove the placeholder first.
       // Sidechain messages (sub-agent tool calls, sidechain-root

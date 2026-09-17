@@ -142,7 +142,8 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
   }
 
   Future<void> _refresh() async {
-    if (!sync.isInitialized || _refreshing) return;
+    // Keep the timer armed so resume/reconnect recovers on its next tick.
+    if (!mounted || !sync.canFetchWorkflowSnapshot || _refreshing) return;
     _refreshing = true;
     if (_error != null) setState(() => _error = null);
     try {
@@ -156,6 +157,10 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
         _updatePolling();
       }
     } catch (e, st) {
+      if (sync.isExpectedSocketTransportError(e)) {
+        logger.info('WorkflowRunScreen refresh deferred: $e');
+        return;
+      }
       logger.warning('WorkflowRunScreen refresh failed: $e', e, st);
       if (mounted) {
         setState(

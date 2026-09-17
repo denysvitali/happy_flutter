@@ -40,7 +40,6 @@ linter:
     - avoid_escaping_inner_quotes
     - avoid_function_literals_in_foreach_calls
     - avoid_init_to_null
-    - avoid_null_checks_in_equality_operators
     - avoid_relative_lib_imports
     - avoid_returning_null_for_void
     - avoid_returning_this
@@ -141,7 +140,6 @@ linter:
     - unnecessary_this
     - unrelated_type_equality_checks
     - use_full_hex_values_for_flutter_colors
-    - use_if_null_to_convert_nulls_to_bools
     - use_is_even_rather_than_modulo
     - use_named_constants
     - use_raw_strings

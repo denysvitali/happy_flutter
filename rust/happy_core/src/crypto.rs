@@ -265,10 +265,34 @@ pub(crate) fn decrypt_base64_one(
     encoded: &str,
     associated_data: &[u8],
 ) -> Result<String, DecryptError> {
-    let raw = BASE64
-        .decode(encoded.as_bytes())
-        .map_err(|_| DecryptError::BadBase64)?;
+    let raw = decode_base64(encoded)?;
     decrypt_one(cipher, &raw, associated_data)
+}
+
+/// Mirror Base64Utils.decode: accept either alphabet, strip ECMAScript `\s`,
+/// and restore missing padding before decoding. Keep this separate from GCM
+/// so authentication failures can never be mistaken for encoding failures.
+fn decode_base64(encoded: &str) -> Result<Vec<u8>, DecryptError> {
+    let mut normalized = String::with_capacity(encoded.len());
+    for ch in encoded.chars() {
+        match ch {
+            '-' => normalized.push('+'),
+            '_' => normalized.push('/'),
+            // Dart RegExp follows ECMAScript, not Rust's is_whitespace:
+            // U+FEFF is whitespace there, while U+0085 is not.
+            '\u{0009}'..='\u{000d}' | '\u{0020}' | '\u{00a0}' | '\u{1680}'
+            | '\u{2000}'..='\u{200a}' | '\u{2028}' | '\u{2029}' | '\u{202f}'
+            | '\u{205f}' | '\u{3000}' | '\u{feff}' => {}
+            _ => normalized.push(ch),
+        }
+    }
+    let padding = (4 - normalized.len() % 4) % 4;
+    for _ in 0..padding {
+        normalized.push('=');
+    }
+    BASE64
+        .decode(normalized.as_bytes())
+        .map_err(|_| DecryptError::BadBase64)
 }
 
 /// Seal one UTF-8 JSON plaintext into the app's envelope.
@@ -404,6 +428,122 @@ mod tests {
 
         assert_eq!(results[0].as_deref(), Some(r#"{"a":2}"#));
         assert_eq!(results[1], None);
+    }
+
+    /// Build every representation Dart's `Base64Utils.decode` accepts for one
+    /// envelope: standard padded, URL-safe unpadded, whitespace-embedded, and
+    /// a mixed-alphabet variant. All must decode to identical bytes.
+    fn accepted_variants(envelope: &[u8]) -> Vec<String> {
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        let standard = BASE64.encode(envelope);
+        let url_safe = URL_SAFE_NO_PAD.encode(envelope);
+        let mut embedded = standard.clone();
+        embedded.insert(3, '\n');
+        embedded.insert(17, '\t');
+        embedded.push_str("  ");
+        // Splice the two alphabets: every swapped char maps back to the same
+        // 6-bit value after Dart's '-'/'_' → '+'/'/' rewrite. Cut on a 4-char
+        // block so padding stays well-formed.
+        let cut = (standard.len() / 2 / 4) * 4;
+        let mixed = format!("{}{}", &standard[..cut], &url_safe[cut..]);
+        vec![standard, url_safe, embedded, mixed]
+    }
+
+    #[test]
+    fn accepts_every_base64_representation_dart_accepts() {
+        let cipher = cipher_for(&key()).unwrap();
+        let envelope = encrypt_one(&cipher, r#"{"v":9}"#, &nonce(), b"").unwrap();
+        let plaintext = r#"{"v":9}"#;
+
+        for variant in accepted_variants(&envelope) {
+            let results = decrypt_base64_batch(&key(), &[variant.clone()], b"");
+            assert_eq!(
+                results[0].as_deref(),
+                Some(plaintext),
+                "variant {variant:?} must decrypt like Dart does",
+            );
+        }
+    }
+
+    #[test]
+    fn mixed_alphabet_variants_stay_aligned_in_a_batch() {
+        let cipher = cipher_for(&key()).unwrap();
+        let envelope = encrypt_one(&cipher, r#"{"n":1}"#, &nonce(), b"").unwrap();
+        let mut variants = accepted_variants(&envelope);
+        // Index alignment survives a genuinely invalid row in the middle.
+        variants.insert(2, "%%nope%%".into());
+
+        let results = decrypt_base64_batch(&key(), &variants, b"");
+
+        assert_eq!(results.len(), variants.len());
+        for (i, result) in results.iter().enumerate() {
+            if i == 2 {
+                assert_eq!(result, &None, "invalid row yields null");
+            } else {
+                assert_eq!(result.as_deref(), Some(r#"{"n":1}"#));
+            }
+        }
+    }
+
+    #[test]
+    fn genuinely_invalid_base64_is_rejected() {
+        let cipher = cipher_for(&key()).unwrap();
+        let envelope = encrypt_one(&cipher, "{}", &nonce(), b"").unwrap();
+        let standard = BASE64.encode(&envelope);
+        // Remainder 1 cannot exist in any base64 body (Dart's base64Decode
+        // throws on it too, after the same pad-to-multiple-4 step).
+        assert_eq!(
+            decrypt_base64_one(&cipher, &standard[..standard.len() - 3], b""),
+            Err(DecryptError::BadBase64),
+        );
+        assert_eq!(
+            decrypt_base64_one(&cipher, "!!not base64", b""),
+            Err(DecryptError::BadBase64),
+        );
+    }
+
+    #[test]
+    fn a_mac_failure_never_reports_as_bad_base64_and_vice_versa() {
+        let cipher = cipher_for(&key()).unwrap();
+        let mut envelope = encrypt_one(&cipher, "{}", &nonce(), b"").unwrap();
+        let last = envelope.len() - 1;
+        envelope[last] ^= 0x01;
+        // Tampered ciphertext wrapped in an unusual-but-Dart-accepted
+        // representation still authenticates as a MAC failure, not a decode
+        // failure.
+        let tampered_url_safe_unpadded = BASE64
+            .encode(&envelope)
+            .replace('+', "-")
+            .replace('/', "_")
+            .replace('=', "");
+        assert_eq!(
+            decrypt_base64_one(&cipher, &tampered_url_safe_unpadded, b""),
+            Err(DecryptError::AuthFailed),
+        );
+        assert_eq!(
+            decrypt_base64_one(&cipher, "!!not base64", b""),
+            Err(DecryptError::BadBase64),
+        );
+    }
+
+    #[test]
+    fn whitespace_follows_the_ecmascript_set_dart_uses() {
+        // U+0085 (NEL) is NOT ECMAScript \s — Dart's RegExp keeps it, so it
+        // must stay an invalid character. U+FEFF IS \s there. Both prove the
+        // Rust char::is_whitespace shortcut was not taken.
+        let cipher = cipher_for(&key()).unwrap();
+        let envelope = encrypt_one(&cipher, "{}", &nonce(), b"").unwrap();
+        let body = BASE64.encode(&envelope);
+
+        let mut nbsp = body.clone();
+        nbsp.insert(5, '\u{00a0}');
+        assert!(decode_base64(&nbsp).is_ok(), "NBSP is \\s for Dart");
+        let mut feff = body.clone();
+        feff.insert(5, '\u{feff}');
+        assert!(decode_base64(&feff).is_ok(), "U+FEFF is \\s for Dart");
+        let mut nel = body;
+        nel.insert(5, '\u{0085}');
+        assert_eq!(decode_base64(&nel), Err(DecryptError::BadBase64));
     }
 }
 

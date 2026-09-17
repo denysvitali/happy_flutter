@@ -8,6 +8,11 @@ class _ServerRPCNoHandlerError extends StateError {
 }
 
 extension SyncMessagingRpc on Sync {
+  /// Expected socket transport failures, rather than application failures.
+  bool isExpectedSocketTransportError(Object error) =>
+      error is SocketNotConnectedException ||
+      error is SocketAckTimeoutException;
+
   Future<dynamic> machineRPC(
     String machineId,
     String method,
@@ -78,11 +83,26 @@ extension SyncMessagingRpc on Sync {
           'error_class': error.runtimeType.toString(),
         },
       );
-      // Keep the full-fidelity line locally (info-level so it does NOT
-      // forward to Sentry — the interpolated elapsedMs defeats grouping
-      // and a wedged daemon mints a fresh issue per retry). The Sentry
-      // side is a separate, stable-message capture throttled per
-      // machine+method so the retry storm collapses to one issue.
+      // Expected transport failure: the socket is not connected (app
+      // suspended / offline) or the ACK timed out (offline daemon).
+      // This is normal operation against machines that are away, not a
+      // client defect — keep the full-fidelity line local only (the
+      // interpolated elapsedMs defeats grouping anyway) and skip Sentry.
+      final expectedTransport = isExpectedSocketTransportError(error);
+      if (expectedTransport) {
+        logger.warningLocal(
+          '[machineRPC] FAILED request=$requestId method=$method '
+          'machine=$machineId '
+          'elapsedMs=${stopwatch.elapsedMilliseconds}: $error',
+        );
+        rethrow;
+      }
+      // Unexpected transport failure: keep the full-fidelity line locally
+      // (info-level so it does NOT forward to Sentry — the interpolated
+      // elapsedMs defeats grouping and a wedged daemon mints a fresh issue
+      // per retry). The Sentry side is a separate, stable-message capture
+      // throttled per machine+method so the retry storm collapses to one
+      // issue.
       logger.info(
         '[machineRPC] FAILED request=$requestId method=$method '
         'machine=$machineId '

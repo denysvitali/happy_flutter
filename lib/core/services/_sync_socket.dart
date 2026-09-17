@@ -9,57 +9,68 @@ extension SyncSocket on Sync {
     }
   }
 
-  /// Initialize sync with credentials and encryption
-  Future<void> create(
+  // Extension-local state keeps initialization single-flight per Sync without
+  // retaining discarded instances. A runtime reset invalidates an old flight.
+  static final _initializations =
+      Expando<({int generation, Future<void> future})>();
+
+  /// Initialize sync with credentials and encryption.
+  Future<void> create(AuthCredentials credentials, Encryption encryption) =>
+      _initializeRuntime(credentials, encryption, waitForInitialSyncs: true);
+
+  /// Restore sync state from disk (app restart).
+  Future<void> restore(AuthCredentials credentials, Encryption encryption) =>
+      _initializeRuntime(credentials, encryption, waitForInitialSyncs: false);
+
+  Future<void> _initializeRuntime(
     AuthCredentials credentials,
-    Encryption encryption,
-  ) async {
-    if (isInitialized) {
-      logger.info('Sync already initialized');
-      return;
+    Encryption encryption, {
+    required bool waitForInitialSyncs,
+  }) {
+    final pending = _initializations[this];
+    if (pending != null && pending.generation == _runtimeGeneration) {
+      return pending.future;
     }
+    if (isInitialized) return Future<void>.value();
 
-    this.credentials = credentials;
-    this.encryption = encryption;
-    _encryptionInitialized = true;
-    anonID = encryption.anonId;
-    serverID = parseToken(credentials.token);
-    _constructManagers(encryption);
-    await _init();
-
-    // Await initial syncs in parallel — these are independent HTTP
-    // fetches that were previously sequential, adding latency to
-    // first-login initialization.
-    await Future.wait([
-      settingsSync.awaitQueue(),
-      profileSync.awaitQueue(),
-      purchasesSync.awaitQueue(),
-    ]);
-
-    isInitialized = true;
-  }
-
-  /// Restore sync state from disk (app restart)
-  Future<void> restore(
-    AuthCredentials credentials,
-    Encryption encryption,
-  ) async {
-    if (isInitialized) {
-      logger.info('Sync already initialized');
-      return;
-    }
-
-    _runtimeGeneration++;
-    _isReady = false;
-
-    this.credentials = credentials;
-    this.encryption = encryption;
-    _encryptionInitialized = true;
-    anonID = encryption.anonId;
-    serverID = parseToken(credentials.token);
-    _constructManagers(encryption);
-    await _init();
-    // isInitialized is set early inside _init() after cache restore.
+    final generation = ++_runtimeGeneration;
+    final completion = Completer<void>();
+    _initializations[this] = (
+      generation: generation,
+      future: completion.future,
+    );
+    unawaited(() async {
+      try {
+        _isReady = false;
+        this.credentials = credentials;
+        this.encryption = encryption;
+        _encryptionInitialized = true;
+        anonID = encryption.anonId;
+        serverID = parseToken(credentials.token);
+        _constructManagers(encryption);
+        await _init();
+        if (generation != _runtimeGeneration) return;
+        if (waitForInitialSyncs) {
+          await Future.wait([
+            settingsSync.awaitQueue(),
+            profileSync.awaitQueue(),
+            purchasesSync.awaitQueue(),
+          ]);
+          if (generation != _runtimeGeneration) return;
+        }
+        // _init publishes initialized only after its own generation check.
+      } catch (error, stack) {
+        if (generation == _runtimeGeneration) {
+          completion.completeError(error, stack);
+        }
+      } finally {
+        if (identical(_initializations[this]?.future, completion.future)) {
+          _initializations[this] = null;
+        }
+        if (!completion.isCompleted) completion.complete();
+      }
+    }());
+    return completion.future;
   }
 
   /// Builds the extracted state managers that [Sync] delegates to.
@@ -551,9 +562,7 @@ extension SyncSocket on Sync {
     required int nowMs,
     required int? firstScheduledAtMs,
   }) {
-    final elapsed = firstScheduledAtMs == null
-        ? 0
-        : nowMs - firstScheduledAtMs;
+    final elapsed = firstScheduledAtMs == null ? 0 : nowMs - firstScheduledAtMs;
     final remainingBudget = _saveSeqMaxDelayMs - elapsed;
     if (remainingBudget <= 0) return 0;
     return remainingBudget < _saveSeqDebounceMs
@@ -794,6 +803,10 @@ extension SyncSocket on Sync {
               }
             }),
           );
+          // A shutdown (or account switch) while the key decryption was in
+          // flight means the current runtime no longer owns this state —
+          // applying its cached cursor would roll the NEW runtime back.
+          if (runtimeGeneration != _runtimeGeneration) return;
           for (var i = 0; i < decrypted.length; i++) {
             final dk = decrypted[i];
             final sessionId = entries[i].$1;
@@ -835,6 +848,8 @@ extension SyncSocket on Sync {
         }
       }
 
+      if (runtimeGeneration != _runtimeGeneration) return;
+
       // Restore the session delta cursor so that subsequent connections
       // (after this cold-start full fetch completes) use incremental sync
       // instead of re-fetching everything.
@@ -866,6 +881,12 @@ extension SyncSocket on Sync {
       }
     } catch (error, stack) {
       logger.warning('Failed to restore sessions cache', error, stack);
+      // A failure surfaced after a runtime change (shutdown/restart while a
+      // decrypt or openEncryption await was in flight): the error belongs to
+      // the OLD runtime. Clearing the NEW runtime's freshly seeded state —
+      // or wiping the on-disk cache the next restore needs — would turn a
+      // routine restart into a data reset.
+      if (runtimeGeneration != _runtimeGeneration) return;
       recordSyncFailure(
         domain: SyncDomain.sessions.name,
         reason: classifySyncFailureReason(error),
@@ -921,6 +942,13 @@ extension SyncSocket on Sync {
         }
       }
     } catch (e, stack) {
+      // Stale runtime: the failure may be from an await started before a
+      // shutdown/restart. Never evict a key that belongs to the CURRENT
+      // runtime's session state.
+      if (runtimeGeneration != null &&
+          runtimeGeneration != _runtimeGeneration) {
+        return;
+      }
       _sessionDataKeys.remove(sessionId);
       logger.warning(
         'Failed to open encryption for session=$sessionId, '
@@ -1051,17 +1079,25 @@ extension SyncSocket on Sync {
   Future<void> _restoreRemainingSessionsAsync(
     List<Map<String, dynamic>> remaining,
   ) async {
+    // Capture the runtime generation at launch, before the first yield —
+    // a shutdown+restart between the launch and the first await would
+    // otherwise let stale work fence itself to the NEW runtime.
+    final runtimeGeneration = _runtimeGeneration;
     // Let the first frame paint before we start decoding.
     await Future<void>.delayed(Duration.zero);
-    if (!isInitialized) return;
-
-    final runtimeGeneration = _runtimeGeneration;
+    // Fence on generation only. `isInitialized` is NOT a valid gate here:
+    // this pass launches from inside `_init` (which is still awaiting the
+    // recent-key decryption), so checking it would permanently abandon the
+    // deferred tail before initialization ever completes. Stale work is
+    // already fenced by the generation, and batches publish only their own
+    // session rows.
+    if (runtimeGeneration != _runtimeGeneration) return;
     final stopwatch = Stopwatch()..start();
     var processedInBatch = 0;
     var totalAdded = 0;
     final batchSessionIds = <String>[];
     for (final raw in remaining) {
-      if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration) return;
       try {
         final session = Session.fromJson(raw);
         // Preserve any session that was updated by the server while
@@ -1090,12 +1126,13 @@ extension SyncSocket on Sync {
             ),
           ),
         );
-        if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+        if (runtimeGeneration != _runtimeGeneration) return;
         batchSessionIds.clear();
         processedInBatch = 0;
         _notifyDataChanged({SyncDomain.sessions});
         // Yield to the event loop so any pending frames can render.
         await Future<void>.delayed(Duration.zero);
+        if (runtimeGeneration != _runtimeGeneration) return;
       }
     }
     if (batchSessionIds.isNotEmpty) {
@@ -1107,7 +1144,7 @@ extension SyncSocket on Sync {
           ),
         ),
       );
-      if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+      if (runtimeGeneration != _runtimeGeneration) return;
     }
     if (totalAdded > 0) {
       _notifyDataChanged({SyncDomain.sessions});
@@ -1136,7 +1173,7 @@ extension SyncSocket on Sync {
         );
       }
     }
-    if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
+    if (runtimeGeneration != _runtimeGeneration) return;
     await _ensureSessionEncryptionInitialized(
       sessionId,
       dataKey,
@@ -1152,8 +1189,12 @@ extension SyncSocket on Sync {
   /// between batches. Only [_maxColdStartMessageCacheWarmSessions] sessions
   /// are warmed at startup; older sessions lazy-load their cache when opened.
   Future<void> _restoreRecentCachedMessagesAsync() async {
+    // Capture the generation before the first yield so a shutdown+restart
+    // during that yield cannot let this pass fence itself to the NEW
+    // runtime and overwrite its live rows with stale cache data.
+    final runtimeGeneration = _runtimeGeneration;
     await Future<void>.delayed(Duration.zero);
-    if (!isInitialized) return;
+    if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
 
     final stopwatch = Stopwatch()..start();
     final entries = _sessions.entries.toList()
@@ -1169,7 +1210,7 @@ extension SyncSocket on Sync {
     var processedInBatch = 0;
 
     for (final entry in entriesToWarm) {
-      if (!isInitialized) return;
+      if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
       final sessionId = entry.key;
       if (_sessionMessages.containsKey(sessionId)) {
         processedInBatch++;
@@ -1177,6 +1218,18 @@ extension SyncSocket on Sync {
       }
       try {
         final cached = await MessageCacheService().getMessagesAsync(sessionId);
+        // Fence the cache continuation: the runtime may have been reset
+        // while the cache read was in flight. Applying the stale snapshot
+        // now would overwrite the new runtime's live message rows and
+        // regress its seq cursors.
+        if (runtimeGeneration != _runtimeGeneration || !isInitialized) {
+          return;
+        }
+        // Live rows that arrived over the socket during the cache await
+        // always win over cached data.
+        if (_sessionMessages.containsKey(sessionId)) {
+          continue;
+        }
         if (cached.isNotEmpty) {
           batchRestored++;
           totalRestored++;
@@ -1230,6 +1283,9 @@ extension SyncSocket on Sync {
       }
       processedInBatch++;
       if (processedInBatch >= _coldStartMessageCacheBatchSize) {
+        if (runtimeGeneration != _runtimeGeneration || !isInitialized) {
+          return;
+        }
         _flushBatchAfterCacheRestore(
           restored: batchRestored,
           firstLoadedChanged: batchFirstLoadedChanged,
@@ -1238,9 +1294,13 @@ extension SyncSocket on Sync {
         batchFirstLoadedChanged = false;
         processedInBatch = 0;
         await Future<void>.delayed(Duration.zero);
+        if (runtimeGeneration != _runtimeGeneration || !isInitialized) {
+          return;
+        }
       }
     }
 
+    if (runtimeGeneration != _runtimeGeneration || !isInitialized) return;
     _flushBatchAfterCacheRestore(
       restored: batchRestored,
       firstLoadedChanged: batchFirstLoadedChanged,

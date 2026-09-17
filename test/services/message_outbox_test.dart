@@ -21,6 +21,7 @@ class _FakeMMKVStorage extends MMKVStorage {
 
   /// How many times the whole blob was re-encoded and written.
   int writeCount = 0;
+  bool failWrites = false;
 
   @override
   Future<String?> getOutboxEntries() async => _outboxData;
@@ -28,6 +29,7 @@ class _FakeMMKVStorage extends MMKVStorage {
   @override
   Future<void> saveOutboxEntries(String json) async {
     writeCount++;
+    if (failWrites) throw StateError('disk write failed');
     _outboxData = json;
   }
 }
@@ -468,6 +470,40 @@ void main() {
       expect(delivered, isEmpty);
       outbox2.dispose();
     });
+
+    for (final automatic in [false, true]) {
+      test(
+        'failed revival retains retry identity (automatic=$automatic)',
+        () async {
+          final entry = _makeEntry(
+            retryCount: 3,
+          ).copyWith(dead: true, failureClass: OutboxFailureClass.transient);
+          outbox.testInsertDead(entry);
+          storage.failWrites = true;
+
+          await expectLater(
+            automatic
+                ? outbox.reviveTransientDead()
+                : outbox.reviveDead(entry.localId),
+            throwsStateError,
+          );
+
+          expect(outbox.entries, isEmpty);
+          expect(outbox.deadEntries.single.localId, entry.localId);
+          expect(outbox.deadEntries.single.retryCount, 3);
+          expect(
+            outbox.deadEntries.single.encryptedContent,
+            entry.encryptedContent,
+          );
+
+          storage.failWrites = false;
+          expect(await outbox.reviveDead(entry.localId), isTrue);
+          expect(outbox.deadEntries, isEmpty);
+          expect(outbox.entries.single.localId, entry.localId);
+          expect(_decodeStoredOutbox(storage).single['localId'], entry.localId);
+        },
+      );
+    }
 
     _fakeAsyncTest('reviveDead requeues with a fresh retry budget', (
       async,

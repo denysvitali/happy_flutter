@@ -119,8 +119,31 @@ jobs:
           mise exec -- flutter pub run build_runner build --delete-conflicting-outputs
           mise exec -- flutter gen-l10n
 
+      # No flutter_rust_bridge.yaml exists, so the FRB invocation is pinned
+      # here exactly as a contributor must run it. Regenerated output is
+      # deterministic after the fix/format pass below (verified byte-identical
+      # for all five Dart outputs plus frb_generated.rs).
+      - name: Install pinned flutter_rust_bridge_codegen
+        run: cargo install --locked flutter_rust_bridge_codegen --version 2.13.0
+
+      - name: Regenerate FRB native bindings
+        run: |
+          mise exec -- flutter_rust_bridge_codegen generate \
+            --rust-input crate::api \
+            --rust-root rust/happy_core \
+            --dart-root . \
+            --dart-output lib/core/native/generated \
+            --rust-output rust/happy_core/src/frb_generated.rs \
+            --no-add-mod-to-lib \
+            --no-auto-upgrade-dependency \
+            --no-build-runner \
+            --no-dart-fix \
+            --stop-on-error
+          mise exec -- dart fix --apply lib/core/native/generated
+          mise exec -- dart format lib/core/native/generated
+
       - name: Reject generated-code drift
-        run: git diff --exit-code -- '*.g.dart' '*.freezed.dart' '*.mocks.dart' 'lib/l10n_generated/**'
+        run: git diff --exit-code -- '*.g.dart' '*.freezed.dart' '*.mocks.dart' 'lib/l10n_generated/**' 'lib/core/native/generated/**' 'rust/happy_core/src/frb_generated.rs'
 
   build-ios:
     name: Build iOS (unsigned)

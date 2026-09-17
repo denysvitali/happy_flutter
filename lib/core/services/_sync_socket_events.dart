@@ -34,6 +34,8 @@ extension SyncSocketEvents on Sync {
 
   /// Subscribe to socket updates
   void subscribeToUpdates() {
+    final runtimeGeneration = _runtimeGeneration;
+    bool stale() => !isInitialized || runtimeGeneration != _runtimeGeneration;
     _unsubscribeSocketUpdate?.call();
     _unsubscribeSocketEphemeral?.call();
     _unsubscribeSocketError?.call();
@@ -50,6 +52,7 @@ extension SyncSocketEvents on Sync {
       _handleErrorEvent,
     );
     _unsubscribeSocketReconnected = socketIoClient.onReconnected(() {
+      if (stale() || InvalidateSync.isBackgrounded) return;
       logger.info('Socket reconnected');
       // Cancel reconnect watchdog — connection succeeded. Reset the
       // backoff index too: without this the escalation from one outage
@@ -213,30 +216,38 @@ extension SyncSocketEvents on Sync {
       // serverLastSeq is still stale.
       if (_visibleSessionId != null && !resumeHttpFallbackRecentlyFired) {
         unawaited(
-          sessionsSync.awaitQueue().then((_) {
-            // Snapshot once: `_visibleSessionId` can be cleared by a
-            // delete-session event or chat-dispose between the null
-            // check and the `!`, even though those happen in the same
-            // turn — the `.then()` callback runs after an await gap so
-            // any code that mutated `_visibleSessionId` while the
-            // sessions fetch was in flight has already landed.
-            final vid = _visibleSessionId;
-            if (vid != null) {
-              _requestMessageFetchProbe(
-                vid,
-                intent: vid == reconnectProbeSessionId
-                    ? reconnectProbeIntent
-                    : null,
-              );
-              messagesSync[vid]?.invalidate();
-            }
-          }),
+          sessionsSync
+              .awaitQueue()
+              .then((_) {
+                if (stale() || InvalidateSync.isBackgrounded) return;
+                // Snapshot once: `_visibleSessionId` can be cleared by a
+                // delete-session event or chat-dispose between the null
+                // check and the `!`, even though those happen in the same
+                // turn — the `.then()` callback runs after an await gap so
+                // any code that mutated `_visibleSessionId` while the
+                // sessions fetch was in flight has already landed.
+                final vid = _visibleSessionId;
+                if (vid != null) {
+                  _requestMessageFetchProbe(
+                    vid,
+                    intent: vid == reconnectProbeSessionId
+                        ? reconnectProbeIntent
+                        : null,
+                  );
+                  messagesSync[vid]?.invalidate();
+                }
+              })
+              .catchError((Object error, StackTrace stack) {
+                if (stale() || InvalidateSync.isBackgrounded) return;
+                logger.info('Reconnect sessions refresh failed: $error');
+              }),
         );
       }
     });
     _unsubscribeSocketReconnectExhausted?.call();
     _unsubscribeSocketReconnectExhausted = socketIoClient.onReconnectExhausted(
       () {
+        if (stale() || InvalidateSync.isBackgrounded) return;
         logger.warning(
           '[Sync] socket reconnection attempts exhausted — '
           'scheduling fresh reconnect in '
@@ -246,6 +257,7 @@ extension SyncSocketEvents on Sync {
       },
     );
     _unsubscribeSocketStatus = socketIoClient.onStatusChange((status) {
+      if (stale()) return;
       final wasConnected = _connectionStatus == ConnectionStatus.connected;
       _connectionStatus = status;
       if (status == ConnectionStatus.connected) {
@@ -822,6 +834,7 @@ extension SyncSocketEvents on Sync {
       // "Failed — tap to retry" affordance, which preserves the localId.
       if (sid != null && localId != null) {
         _updateMessageSendStatus(sid, localId, 'failed');
+        _notifySessionMessagesChanged(sid);
       }
     }
   }

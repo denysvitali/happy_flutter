@@ -39,7 +39,6 @@
     "test/core/models/loop_goal_test.dart": 3,
     "test/core/models/loop_test.dart": 3,
     "test/core/models/loop_try_from_json_test.dart": 3,
-    "test/core/models/normalize_model_selection_env_test.dart": 3,
     "test/core/models/sandbox_policy_test.dart": 3,
     "test/core/models/settings_test.dart": 3,
     "test/core/models/todo_test.dart": 3,

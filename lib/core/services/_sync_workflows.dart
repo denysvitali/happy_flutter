@@ -173,13 +173,22 @@ extension SyncWorkflows on Sync {
     _publishWorkflowsForSession(sessionId, workflows, notifyDataChanged: true);
   }
 
+  /// Whether snapshot polling may use the current socket connection.
+  bool get canFetchWorkflowSnapshot =>
+      isInitialized && !InvalidateSync.isBackgrounded && _isSocketConnected();
+
   /// Fetch a single workflow snapshot for [runId] in [sessionId].
   ///
-  /// Returns the parsed [WorkflowRun] or `null` when the snapshot is missing
+  /// Returns the parsed [WorkflowRun] or `null` when unavailable, missing
   /// or malformed. The in-memory mirror is updated so the UI sees the latest
   /// state without waiting for a `workflow-list` refresh.
   Future<WorkflowRun?> fetchWorkflowSnapshot(String sessionId, String runId) {
-    if (!isInitialized) return Future<WorkflowRun?>.value();
+    if (!canFetchWorkflowSnapshot) {
+      // GlitchTip 8841: the 3-second workflow polling loop keeps firing
+      // while sync is suspended or the socket is down. Skip the fetch —
+      // the poller re-runs on the next tick after resume/reconnect.
+      return Future<WorkflowRun?>.value();
+    }
     final key = (sessionId, runId);
     final existing = _workflowSnapshotFetchesInFlight[key];
     if (existing != null) return existing;
@@ -207,6 +216,13 @@ extension SyncWorkflows on Sync {
         'runId': runId,
       });
     } catch (e, st) {
+      if (Sync._isTransientConnectionError(e)) {
+        logger.info(
+          '[workflows] fetchWorkflowSnapshot($sessionId, $runId) '
+          'deferred: $e',
+        );
+        return null;
+      }
       logger.warning(
         '[workflows] fetchWorkflowSnapshot($sessionId, $runId) failed: $e',
         e,

@@ -10,6 +10,8 @@
 /// the matching rules stay unit-testable without a widget tree.
 library;
 
+import 'package:characters/characters.dart';
+
 import 'send/chat_send_coordinator.dart';
 
 /// Upper bound on the flattened text kept per top-level row.
@@ -131,9 +133,18 @@ void _appendChunk(String text, StringBuffer buffer, int maxChars) {
   if (text.isEmpty) return;
   final remaining = maxChars - buffer.length;
   if (remaining <= 0) return;
-  buffer
-    ..write(text.length > remaining ? text.substring(0, remaining) : text)
-    ..write('\n');
+  // Keep the code-unit memory cap, but only append whole graphemes.
+  if (text.length <= remaining) {
+    buffer.write(text);
+  } else {
+    var available = remaining;
+    for (final cluster in text.characters) {
+      if (cluster.length > available) break;
+      buffer.write(cluster);
+      available -= cluster.length;
+    }
+  }
+  buffer.write('\n');
 }
 
 /// One resident row prepared for matching.
@@ -220,15 +231,28 @@ List<ChatSearchMatch> searchChatMessages(
 
 /// Builds a one-line preview around a hit, collapsing whitespace so a match
 /// inside a stack trace or a diff does not render as a wall of formatting.
+///
+/// [matchIndex] and [matchLength] are code-unit offsets (from `indexOf`);
+/// the window is widened to whole grapheme clusters on both sides so the
+/// snippet can never split an emoji or slice through a combining sequence.
 String buildSearchSnippet(String text, int matchIndex, int matchLength) {
-  final start = (matchIndex - kChatSearchSnippetRadius).clamp(0, text.length);
-  final end = (matchIndex + matchLength + kChatSearchSnippetRadius).clamp(
-    0,
-    text.length,
-  );
-  final raw = text.substring(start, end);
+  final clusters = text.characters.toList(growable: false);
+  final matchStart = matchIndex.clamp(0, text.length);
+  final matchEnd = (matchIndex + matchLength).clamp(matchStart, text.length);
+  var offset = 0;
+  var first = 0;
+  var last = 0;
+  for (var i = 0; i < clusters.length; i++) {
+    final next = offset + clusters[i].length;
+    if (next <= matchStart) first = i + 1;
+    if (offset < matchEnd) last = i + 1;
+    offset = next;
+  }
+  final start = (first - kChatSearchSnippetRadius).clamp(0, clusters.length);
+  final end = (last + kChatSearchSnippetRadius).clamp(start, clusters.length);
+  final raw = clusters.getRange(start, end).join();
   final collapsed = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
   final prefix = start > 0 ? '…' : '';
-  final suffix = end < text.length ? '…' : '';
+  final suffix = end < clusters.length ? '…' : '';
   return '$prefix$collapsed$suffix';
 }

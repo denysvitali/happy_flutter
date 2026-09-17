@@ -7,7 +7,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'logger_service.dart' show logger;
 import 'offline_tts_service.dart';
 
-enum _Backend { system, offline }
+enum _Backend { system, offline, unavailable }
 
 /// Text-to-speech service using the device's built-in TTS engine.
 ///
@@ -33,6 +33,28 @@ class TtsService {
   final List<_QueuedSpeech> _queue = <_QueuedSpeech>[];
   bool _draining = false;
   bool _fallbackLogged = false;
+  bool _unavailableLogged = false;
+
+  // flutter_tts registers Android, iOS, macOS and Windows, but not Linux.
+  bool get _systemSupported =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.windows);
+
+  /// No speech backend is registered for this platform.
+  bool get isUnavailable =>
+      !_systemSupported && !OfflineTtsService().isSupported;
+
+  void _markUnavailable() {
+    _activeBackend = _Backend.unavailable;
+    _setCurrentToken(null);
+    _currentText.value = null;
+    if (_unavailableLogged) return;
+    _unavailableLogged = true;
+    logger.info('[TTS] speech unavailable on this platform');
+  }
 
   /// Emit a single info-level breadcrumb per process explaining that
   /// the offline engine is being skipped. We deliberately don't
@@ -139,6 +161,15 @@ class TtsService {
   /// Initialise the TTS engine. Safe to call multiple times.
   Future<void> init({String? language, String? engine}) async {
     if (kIsWeb) return; // TTS not supported on web
+    if (!_systemSupported) {
+      if (OfflineTtsService().isSupported) {
+        unawaited(OfflineTtsService().initialize());
+        _activeBackend = _Backend.offline;
+      } else {
+        _markUnavailable();
+      }
+      return;
+    }
     logger.info('[TTS] init called (initialized=$_initialized)');
     // Kick off the offline engine's one-shot bootstrap eagerly so a
     // later user tap on "Speak this message" doesn't race the FFI
@@ -258,6 +289,10 @@ class TtsService {
   /// Get available TTS engines.
   Future<List<Map<String, String>>> getEngines() async {
     if (kIsWeb) return [];
+    if (!_systemSupported) {
+      if (isUnavailable) _markUnavailable();
+      return [];
+    }
     _tts ??= FlutterTts();
     try {
       final engines = await _tts!.getEngines;
@@ -275,6 +310,10 @@ class TtsService {
   /// Get available languages for the current engine.
   Future<List<Map<String, String>>> getLanguages() async {
     if (kIsWeb) return [];
+    if (!_systemSupported) {
+      if (isUnavailable) _markUnavailable();
+      return [];
+    }
     _tts ??= FlutterTts();
     try {
       final languages = await _tts!.getLanguages;
@@ -331,6 +370,10 @@ class TtsService {
     bool useOffline = false,
     String? offlineVoiceId,
   }) async {
+    if (!kIsWeb && isUnavailable) {
+      _markUnavailable();
+      return;
+    }
     _attachSelfListenerIfNeeded();
     final chunks = useOffline ? splitForSpeech(markdown) : <String>[markdown];
     _queue.addAll(
@@ -393,6 +436,10 @@ class TtsService {
     _attachSelfListenerIfNeeded();
     if (kIsWeb) {
       logger.warning('[TTS] speak skipped: kIsWeb');
+      return;
+    }
+    if (isUnavailable) {
+      _markUnavailable();
       return;
     }
     final clean = _stripMarkdown(markdown);

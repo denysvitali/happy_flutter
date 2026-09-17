@@ -13,9 +13,10 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/utils/text_truncate.dart';
 import '../code_block_widget.dart';
-import 'linear_code_syntax.dart';
 import '../widgets/message_detail_sheet.dart';
+import 'linear_code_syntax.dart';
 
 /// Callback type for when an option is pressed in an options block.
 typedef OptionPressedCallback = void Function(String option);
@@ -269,10 +270,11 @@ class _MarkdownViewState extends State<MarkdownView> {
 
   /// Last [_streamingTailChars] characters of [markdown], prefixed with an
   /// ellipsis when older content was dropped. The full document renders
-  /// once streaming completes.
+  /// once streaming completes. The tail is cut on grapheme boundaries so a
+  /// streaming emoji delta can never leave a lone surrogate for layout.
   String _streamingTail(String markdown) {
     if (markdown.length <= _streamingTailChars) return markdown;
-    return '…${markdown.substring(markdown.length - _streamingTailChars)}';
+    return '…${tailGraphemes(markdown, _streamingTailChars)}';
   }
 }
 
@@ -381,7 +383,11 @@ class _OversizedMarkdownPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final preview = content.substring(0, _markdownPreviewChars);
+    // Grapheme-safe cut: an oversized document can end mid-emoji, and a
+    // code-unit slice of the preview head would split it (GlitchTip 8777).
+    final preview = content.characters
+        .take(_markdownPreviewChars)
+        .toString();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

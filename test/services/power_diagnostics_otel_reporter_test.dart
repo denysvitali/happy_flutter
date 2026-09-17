@@ -1,4 +1,6 @@
+import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/services/opentelemetry_service.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
 import 'package:happy_flutter/core/services/http_request_logger.dart';
 import 'package:happy_flutter/core/services/power_diagnostics_otel_reporter.dart';
@@ -8,27 +10,63 @@ import 'package:happy_flutter/core/services/power_diagnostics_service.dart';
 /// initialized (the normal flutter test environment), and that local counters
 /// are still updated.
 void main() {
+  test(
+    'zero invariant prime survives a full startup buffer with build identity',
+    () async {
+      final reporter = PowerDiagnosticsOtelReporter.instance;
+      for (var i = 0; i < 256; i++) {
+        reporter.recordAppError('startup.$i');
+      }
+      reporter.recordMessagingInvariant('duplicate_local_id', delta: 0);
+      await OTel.initialize(enableLogs: false, detectPlatformResources: false);
+      final service = OpenTelemetryService();
+      addTearDown(() async {
+        service.debugResetCounters();
+        await OTel.reset();
+      });
+      final meter = OTel.meterProvider().getMeter(name: 'reporter-test');
+      service.debugInitializeCounters(
+        buildNumber: 'test-build',
+        factory: (name, description, unit) =>
+            meter.createCounter<int>(
+                  name: name,
+                  description: description,
+                  unit: unit,
+                )
+                as Counter<int>,
+      );
+      final metrics = await OTel.meterProvider().collectAllMetrics();
+      final invariant = metrics.where(
+        (metric) =>
+            metric.name ==
+            'happy_flutter.app.messaging.invariant.duplicate_local_id',
+      );
+      expect(invariant, hasLength(1));
+      final point = invariant.single.points.single;
+      expect(point.value, 0);
+      expect(point.attributes.toMap()['service.build']?.value, 'test-build');
+      expect(invariant.single.unit, '{violations}');
+    },
+  );
+
   test('OTel reporter does not break local counters when OTel is off', () {
     final power = PowerDiagnosticsService();
 
-    expect(
-      () {
-        PowerDiagnosticsOtelReporter.instance.recordSocketConnect();
-        PowerDiagnosticsOtelReporter.instance.recordSocketDisconnect();
-        PowerDiagnosticsOtelReporter.instance.recordSocketError();
-        PowerDiagnosticsOtelReporter.instance.recordSyncInvalidation();
-        PowerDiagnosticsOtelReporter.instance.recordGlobalSyncInvalidation();
-        PowerDiagnosticsOtelReporter.instance.recordSyncBackgroundSkip();
-        PowerDiagnosticsOtelReporter.instance.recordOutboxSchedule();
-        PowerDiagnosticsOtelReporter.instance.recordOutboxAttempt();
-        PowerDiagnosticsOtelReporter.instance.recordOutboxFailure();
-        PowerDiagnosticsOtelReporter.instance.recordHttpBytes(
-          requestBytes: 1024,
-          responseBytes: 2048,
-        );
-      },
-      returnsNormally,
-    );
+    expect(() {
+      PowerDiagnosticsOtelReporter.instance.recordSocketConnect();
+      PowerDiagnosticsOtelReporter.instance.recordSocketDisconnect();
+      PowerDiagnosticsOtelReporter.instance.recordSocketError();
+      PowerDiagnosticsOtelReporter.instance.recordSyncInvalidation();
+      PowerDiagnosticsOtelReporter.instance.recordGlobalSyncInvalidation();
+      PowerDiagnosticsOtelReporter.instance.recordSyncBackgroundSkip();
+      PowerDiagnosticsOtelReporter.instance.recordOutboxSchedule();
+      PowerDiagnosticsOtelReporter.instance.recordOutboxAttempt();
+      PowerDiagnosticsOtelReporter.instance.recordOutboxFailure();
+      PowerDiagnosticsOtelReporter.instance.recordHttpBytes(
+        requestBytes: 1024,
+        responseBytes: 2048,
+      );
+    }, returnsNormally);
 
     power.recordSocketStatus(ConnectionStatus.connected);
     power.recordSocketStatus(ConnectionStatus.disconnected);

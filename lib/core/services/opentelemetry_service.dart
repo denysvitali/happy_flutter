@@ -12,6 +12,7 @@ import 'package:uuid/uuid.dart';
 import '../utils/package_info_cache.dart';
 import 'logger_service.dart';
 import 'performance_context_service.dart';
+import 'power_diagnostics_otel_reporter.dart';
 
 class OpenTelemetryService {
   factory OpenTelemetryService() => _instance;
@@ -92,6 +93,32 @@ class OpenTelemetryService {
   static const String _pipelineErrorMetric = 'app.otel.pipeline_errors';
 
   bool get isInitialized => _initialized;
+
+  Counter<int> Function(String, String, String)? _testCounterFactory;
+
+  /// Exercises the common counter path with a real, network-free SDK meter.
+  @visibleForTesting
+  void debugInitializeCounters({
+    required Counter<int> Function(String, String, String) factory,
+    required String buildNumber,
+  }) {
+    _testCounterFactory = factory;
+    _defaultMetricAttributes = buildMetricAttributes(
+      appVersion: 'test',
+      buildNumber: buildNumber,
+      releaseMode: false,
+    );
+    _initialized = true;
+    PowerDiagnosticsOtelReporter.instance.flushPendingCounters();
+  }
+
+  @visibleForTesting
+  void debugResetCounters() {
+    _initialized = false;
+    _testCounterFactory = null;
+    _defaultMetricAttributes = const {};
+    _counters.clear();
+  }
 
   @visibleForTesting
   Set<String> get debugReportedPipelineErrors =>
@@ -208,6 +235,7 @@ class OpenTelemetryService {
       _replacePackageLifecycleObserver();
       _installLoggerSink();
       _initialized = true;
+      PowerDiagnosticsOtelReporter.instance.flushPendingCounters();
       // The instance id is logged next to the package's own app launch id so
       // a Prometheus series (`instance=...`) can be joined to the Loki stream
       // (`app_launch_id=...`) for the same launch.
@@ -605,6 +633,7 @@ class OpenTelemetryService {
     int value = 1,
     Map<String, Object?> attributes = const {},
     String? description,
+    String unit = '{event}',
   }) {
     final sink = debugCountSink;
     if (sink != null) {
@@ -614,14 +643,18 @@ class OpenTelemetryService {
         // A broken test sink must never break the host flow.
       }
     }
-    if (!_initialized || !metricsEnabled || value <= 0) return;
+    if (!_initialized || !metricsEnabled || value < 0) return;
     try {
       final counter = _counters.putIfAbsent(name, () {
+        final factory = _testCounterFactory;
+        if (factory != null) {
+          return factory(name, description ?? 'Count of $name', unit);
+        }
         final meter = FlutterOTel.meter(name: 'happy_flutter');
         return meter.createCounter<int>(
           name: name,
           description: description ?? 'Count of $name',
-          unit: '{event}',
+          unit: unit,
         );
       });
       final safe = _safeAttributes({

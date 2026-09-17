@@ -170,4 +170,72 @@ void main() {
 
     expect(indexed.single.key, searchChatMessages(messages, 'beta').single.key);
   });
+
+  group('grapheme safety', () {
+    // U+1F600: one grapheme, two UTF-16 code units.
+    const emoji = '\u{1F600}';
+
+    test('a hit beside emoji yields a well-formed snippet', () {
+      // The radius counts user-perceived characters, not UTF-16 units.
+      final messages = [_textRow('a', '${emoji * 45}needle${emoji * 45}')];
+
+      final snippet = searchChatMessages(messages, 'needle').single.snippet;
+
+      expect(_hasLoneSurrogate(snippet), isFalse);
+      expect(snippet, contains('needle'));
+      expect(snippet, contains(emoji));
+    });
+
+    test('snippet edges land on grapheme boundaries', () {
+      for (final cluster in [emoji, 'é', '👩🏽‍💻', '🇮🇹']) {
+        final before = cluster * 45;
+        final text = '${before}needle${cluster * 45}';
+        final snippet = buildSearchSnippet(text, before.length, 6);
+
+        expect(_hasLoneSurrogate(snippet), isFalse);
+        expect(snippet, '…${cluster * 40}needle${cluster * 40}…');
+      }
+    });
+
+    test('a partial grapheme hit includes its whole cluster', () {
+      const cluster = '👩🏽‍💻';
+      final text = '${'a' * 50}$cluster${'b' * 50}';
+      final snippet = buildSearchSnippet(text, 52, 2);
+
+      expect(snippet, '…${'a' * 40}$cluster${'b' * 40}…');
+    });
+
+    test('the per-row text budget never splits a surrogate pair', () {
+      final huge = <String, dynamic>{
+        'id': 'big',
+        'kind': 'tool-call',
+        'name': 'Bash',
+        'result': <String, dynamic>{'stdout': '${emoji * 60}needle'},
+      };
+
+      final text = chatMessageSearchText(huge, maxChars: 101);
+
+      expect(_hasLoneSurrogate(text), isFalse);
+      expect(text.length, lessThanOrEqualTo(102));
+      expect(text, isNot(contains('needle')));
+    });
+  });
+}
+
+/// True when [text] contains a high surrogate with no following low one, or
+/// a low surrogate with no preceding high one — the exact malformation
+/// Flutter's text layout rejects with `string is not well-formed UTF-16`.
+bool _hasLoneSurrogate(String text) {
+  for (var i = 0; i < text.length; i++) {
+    final unit = text.codeUnitAt(i);
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      if (i + 1 >= text.length) return true;
+      final next = text.codeUnitAt(i + 1);
+      if (next < 0xDC00 || next > 0xDFFF) return true;
+      i++; // consume the pair
+    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      return true;
+    }
+  }
+  return false;
 }

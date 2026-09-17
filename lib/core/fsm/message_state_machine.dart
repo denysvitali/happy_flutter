@@ -47,7 +47,10 @@ class MessageStateMachine {
       case MessageEventKind.serverAcked:
       case MessageEventKind.fetchedFromServer:
       case MessageEventKind.socketObserved:
-        final serverId = (event.payload['serverId'] as String?) ?? '';
+        final serverId = event.payload['serverId'] as String?;
+        if (serverId == null || serverId.isEmpty) {
+          throw ArgumentError('serverId required for ack');
+        }
         final seq = (event.payload['seq'] as int?) ?? 0;
         final text = (event.payload['content'] as String?) ??
             _textOfCurrent(current);
@@ -56,7 +59,7 @@ class MessageStateMachine {
             current,
             serverId: serverId,
             seq: seq,
-          )!;
+          ) ?? (throw ArgumentError('Invalid ack transition'));
           _states[localId] = MessageStateMerged(
             localId: sent.localId,
             serverId: sent.serverId,
@@ -68,7 +71,7 @@ class MessageStateMachine {
             current,
             serverId: serverId,
             seq: seq,
-          )!;
+          ) ?? (throw ArgumentError('Invalid ack transition'));
           _states[localId] = MessageStateMerged(
             localId: sent.localId,
             serverId: sent.serverId,
