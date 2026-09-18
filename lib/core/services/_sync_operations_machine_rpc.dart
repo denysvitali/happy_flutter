@@ -474,20 +474,55 @@ def find_access_token(value):
     return None
 
 
+def find_account_id(value):
+    if isinstance(value, dict):
+        preferred_keys = (
+            'last_active_account_id',
+            'account_id',
+            'accountId',
+            'chatgpt_account_id',
+            'chatgptAccountId',
+        )
+        for key in preferred_keys:
+            account_id = value.get(key)
+            if isinstance(account_id, str) and account_id:
+                return account_id
+        account = value.get('account')
+        if isinstance(account, dict):
+            account_id = account.get('id')
+            if isinstance(account_id, str) and account_id:
+                return account_id
+        for nested in value.values():
+            account_id = find_account_id(nested)
+            if account_id:
+                return account_id
+    elif isinstance(value, list):
+        for nested in value:
+            account_id = find_account_id(nested)
+            if account_id:
+                return account_id
+    return None
+
+
 access_token = find_access_token(auth)
 if not access_token:
     fail('No Codex access token found in auth.json')
 
+headers = {
+    'Authorization': f'Bearer {access_token}',
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'User-Agent': 'codex-cli',
+    # Ask Codex to include additional pools such as GPT Reserve.
+    'x-openai-codex-luna-reserve': '1',
+}
+account_id = find_account_id(auth)
+if account_id:
+    headers['ChatGPT-Account-Id'] = account_id
+
 request = urllib.request.Request(
     'https://chatgpt.com/backend-api/wham/usage',
-    headers={
-        'Authorization': f'Bearer {access_token}',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'codex-cli',
-        # Ask Codex to include additional pools such as GPT Reserve.
-        'x-openai-codex-luna-reserve': '1',
-    },
+    headers=headers,
 )
 
 try:
@@ -644,6 +679,35 @@ def find_token(value):
                 return token
     return None
 
+def find_account_id(value):
+    if isinstance(value, dict):
+        keys = (
+            'last_active_account_id',
+            'account_id',
+            'accountId',
+            'chatgpt_account_id',
+            'chatgptAccountId',
+        )
+        for key in keys:
+            account_id = value.get(key)
+            if isinstance(account_id, str) and account_id:
+                return account_id
+        account = value.get('account')
+        if isinstance(account, dict):
+            account_id = account.get('id')
+            if isinstance(account_id, str) and account_id:
+                return account_id
+        for nested in value.values():
+            account_id = find_account_id(nested)
+            if account_id:
+                return account_id
+    elif isinstance(value, list):
+        for nested in value:
+            account_id = find_account_id(nested)
+            if account_id:
+                return account_id
+    return None
+
 try:
     with open(os.path.expanduser('~/.codex/auth.json'), encoding='utf-8') as f:
         auth = json.load(f)
@@ -655,13 +719,7 @@ try:
         'Accept': 'application/json',
         'User-Agent': 'codex-cli',
     }
-    account_id = None
-    if isinstance(auth, dict):
-        account_id = (
-            auth.get('last_active_account_id')
-            or auth.get('account_id')
-            or (auth.get('account') or {}).get('id')
-        )
+    account_id = find_account_id(auth)
     if isinstance(account_id, str) and account_id:
         headers['ChatGPT-Account-Id'] = account_id
     request = urllib.request.Request(
