@@ -950,6 +950,7 @@ extension _ChatScreenActions on _ChatScreenState {
     );
     setState(() {
       _messages = [..._messages, optimisticMessage];
+      _recomputeMessageScanCache();
       _isSending = true;
       _controller.clear();
       if (hasImages) _attachmentController.clear();
@@ -1009,6 +1010,7 @@ extension _ChatScreenActions on _ChatScreenState {
       );
       setState(() {
         _messages = next;
+        _recomputeMessageScanCache();
         _invalidateNeighborCache();
       });
     });
@@ -1055,6 +1057,7 @@ extension _ChatScreenActions on _ChatScreenState {
             unawaited(Sentry.captureMessage(msg, level: SentryLevel.warning));
           }
           _messages = next;
+          _recomputeMessageScanCache();
           _isSending = false;
           _invalidateNeighborCache();
         });
@@ -1293,6 +1296,7 @@ extension _ChatScreenActions on _ChatScreenState {
         failedLocalId = m['localId'] as String?;
         break;
       }
+      _recomputeMessageScanCache();
       _isSending = false;
       _invalidateNeighborCache();
     });

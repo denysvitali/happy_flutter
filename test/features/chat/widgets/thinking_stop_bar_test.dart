@@ -15,6 +15,32 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ThinkingStopBar', () {
+    testWidgets('delivery and waiting do not offer an unconfirmed Stop', (
+      tester,
+    ) async {
+      for (final activity in [
+        ChatAgentActivity.sending,
+        ChatAgentActivity.waiting,
+      ]) {
+        await tester.pumpWidget(
+          _app(ThinkingStopBar(activity: activity, onStop: () {})),
+        );
+        expect(
+          find.text(
+            activity == ChatAgentActivity.sending
+                ? 'Sending'
+                : 'Waiting for response…',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          tester.widget<TextButton>(find.byType(TextButton)).onPressed,
+          isNull,
+        );
+        expect(tester.binding.transientCallbackCount, 0);
+      }
+    });
+
     testWidgets('thinking state offers an enabled Stop action', (tester) async {
       var stops = 0;
       await tester.pumpWidget(

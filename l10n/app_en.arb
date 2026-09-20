@@ -878,6 +878,7 @@
   "chatStatusWorkingOnSubtasks": "Working on sub-tasks",
   "chatStatusThinking": "Thinking",
   "chatActivityThinking": "Thinking…",
+  "chatActivityWaiting": "Waiting for response…",
   "chatActivityStopping": "Stopping…",
   "chatActivityStopUnconfirmed": "Stop not confirmed — still running",
   "chatActivityStop": "Stop",

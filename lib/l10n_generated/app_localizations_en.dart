@@ -1977,6 +1977,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatActivityThinking => 'Thinking…';
 
   @override
+  String get chatActivityWaiting => 'Waiting for response…';
+
+  @override
   String get chatActivityStopping => 'Stopping…';
 
   @override

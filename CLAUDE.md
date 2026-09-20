@@ -259,6 +259,14 @@ Guard on `sync.isInitialized` — `loadFromSync()` is a no-op when `false`. `syn
 
 **ChatScreen exception:** Subscribes to BOTH `sync.onDataChanged` AND `sync.onSessionMessagesChanged`, uses `setState()` with local `_refreshFromSync()` for paginated message lists. Do not apply the standard template here.
 
+Chat message refreshes use a fixed 50ms coalescing window: never restart it
+for every token, which can starve rendering during continuous output. The
+activity bar distinguishes delivery, waiting for a response, and thinking.
+Read the unfiltered message tail for empty reasoning signals and use live
+`presence`, not the catalog's `active` flag, for agent liveness. Keep request
+status keyed by canonical `localId`; failed/outbox sends retain their own
+recovery UI. The client cannot stream text that the server has not emitted.
+
 **InvalidateSync fields (9):** `sessionsSync`, `settingsSync`, `profileSync`, `purchasesSync`, `machinesSync`, `pushTokenSync`, `nativeUpdateSync`, `artifactsSync`, `sessionGitStatusSync`. `messagesSync` is `Map<String, InvalidateSync>` (per-session). `createTestSync()` in `test/helpers/test_helpers.dart` is the authoritative list — never hand-roll the field list in a test.
 
 Exhausted sessions or machines refreshes remain visible through

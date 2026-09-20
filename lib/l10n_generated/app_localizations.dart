@@ -3733,6 +3733,12 @@ abstract class AppLocalizations {
   /// **'Thinking…'**
   String get chatActivityThinking;
 
+  /// No description provided for @chatActivityWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for response…'**
+  String get chatActivityWaiting;
+
   /// No description provided for @chatActivityStopping.
   ///
   /// In en, this message translates to:

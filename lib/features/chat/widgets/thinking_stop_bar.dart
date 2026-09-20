@@ -12,6 +12,12 @@ import 'chat_chrome_density.dart';
 /// second live indicator on top of the "thinking" one, and never
 /// changes the chrome's height mid-turn.
 enum ChatAgentActivity {
+  /// The request is being delivered; the agent has not acknowledged it.
+  sending,
+
+  /// Delivery succeeded; awaiting the first agent response.
+  waiting,
+
   /// The agent is working and can be interrupted.
   thinking,
 
@@ -70,7 +76,12 @@ class ThinkingStopBar extends StatelessWidget {
     final l10n = context.l10n;
     final stopping = activity == ChatAgentActivity.stopping;
     final unconfirmed = activity == ChatAgentActivity.stopUnconfirmed;
+    final awaiting =
+        activity == ChatAgentActivity.sending ||
+        activity == ChatAgentActivity.waiting;
     final label = switch (activity) {
+      ChatAgentActivity.sending => l10n.chatSending,
+      ChatAgentActivity.waiting => l10n.chatActivityWaiting,
       ChatAgentActivity.thinking => l10n.chatActivityThinking,
       ChatAgentActivity.stopping => l10n.chatActivityStopping,
       ChatAgentActivity.stopUnconfirmed => l10n.chatActivityStopUnconfirmed,
@@ -115,7 +126,7 @@ class ThinkingStopBar extends StatelessWidget {
                       // breathes while the turn progresses and freezes
                       // into a static ring while it winds down. Muted
                       // while stopping — the copy already says so.
-                      : stopping
+                      : stopping || awaiting
                       ? _StatusRing(color: colorScheme.onSurfaceVariant)
                       : _BreathingAccentDot(gradient: accentGradient),
                 ),
@@ -139,7 +150,7 @@ class ThinkingStopBar extends StatelessWidget {
                 // Disabled (not removed) while the request is in flight:
                 // the row keeps its width and the greyed label confirms the
                 // tap registered, instead of the button vanishing.
-                onPressed: stopping ? null : onStop,
+                onPressed: stopping || awaiting ? null : onStop,
                 style: TextButton.styleFrom(
                   foregroundColor: colorScheme.error,
                   padding: const EdgeInsets.symmetric(
@@ -220,10 +231,7 @@ class _BreathingAccentDotState extends State<_BreathingAccentDot>
         end: 1.0,
       ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       child: ScaleTransition(
-        scale: Tween<double>(
-          begin: 0.85,
-          end: 1.0,
-        ).animate(
+        scale: Tween<double>(begin: 0.85, end: 1.0).animate(
           CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
         ),
         alignment: Alignment.center,

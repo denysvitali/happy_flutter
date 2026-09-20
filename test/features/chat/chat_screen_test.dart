@@ -296,6 +296,105 @@ void main() {
       expect(find.textContaining('streaming token'), findsOneWidget);
     });
 
+    testWidgets('renders tokens before a continuous stream goes quiet', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', [
+        {'id': 'stream', 'role': 'agent', 'content': 'initial'},
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      for (var token = 1; token <= 10; token++) {
+        sync.messagesForSession('session_1')[0] = {
+          'id': 'stream',
+          'role': 'agent',
+          'content': 'partial token $token',
+        };
+        sync.testNotifySessionMessagesChanged('session_1');
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      // Every interval is shorter than the 50 ms refresh window. A trailing
+      // debounce would still show "initial" until the stream ended.
+      expect(find.textContaining('partial token'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(find.textContaining('partial token 10'), findsOneWidget);
+    });
+
+    testWidgets('waiting and empty reasoning stay visible until the answer', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      final user = <String, dynamic>{
+        'id': 'server-user',
+        'localId': 'local-user',
+        'role': 'user',
+        'content': 'A long request',
+        'sendStatus': 'sent',
+      };
+      sync.testSetSessionMessages('session_1', [user]);
+      sync.testSessions['session_1'] = _makeSession(presence: 'online');
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Waiting for response…'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 15));
+      expect(find.text('Waiting for response…'), findsOneWidget);
+
+      sync.testSetSessionMessages('session_1', [
+        user,
+        {
+          'id': 'reasoning',
+          'role': 'agent',
+          'kind': 'text',
+          'isThinking': true,
+          'content': '',
+        },
+      ]);
+      sync.testNotifySessionMessagesChanged('session_1');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Thinking…'), findsOneWidget);
+
+      sync.testSetSessionMessages('session_1', [
+        user,
+        {'id': 'answer', 'role': 'agent', 'content': 'The answer'},
+      ]);
+      sync.testNotifySessionMessagesChanged('session_1');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('The answer'), findsOneWidget);
+      expect(find.text('Waiting for response…'), findsNothing);
+    });
+
+    testWidgets('live presence shows thinking despite a stale active flag', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession(
+        thinking: true,
+        presence: 'online',
+      ).copyWith(active: false);
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Thinking…'), findsOneWidget);
+    });
+
     testWidgets('embedded detail pane receives live messages while the '
         'sessions shell route is on top', (tester) async {
       // Wide (desktop/tablet) layouts render this chat inside the sessions

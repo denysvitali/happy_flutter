@@ -46,6 +46,7 @@ import 'agent_conversation_screen.dart';
 import 'chat_input.dart';
 import 'chat_list_pipeline.dart';
 import 'chat_message_search.dart';
+import 'chat_request_status.dart';
 import 'chat_tts_gate.dart';
 import 'helpers/chat_dialogs.dart';
 import 'loop_command_parser.dart';
@@ -269,6 +270,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // reassigned (see _recomputeMessageScanCache). _buildStatusChips runs on
   // every screen build, so it must not re-scan thousands of messages.
   Map<String, dynamic>? _latestUserStatusMessage;
+  ChatRequestStatus _requestStatus = (
+    phase: ChatRequestPhase.none,
+    localId: null,
+  );
+  String? _stoppedRequestId;
   int _lastVisibleNonSidechainCreatedAt = 0;
   int _debugMaxSeq = -1;
 
@@ -538,11 +544,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ref
               .read(sessionUiStateNotifierProvider.notifier)
               .loadSessionFromSync(widget.sessionId);
-          // Debounce: streaming agents emit many message-changed events per
-          // second. Immediate setState each time janks the UI; 50ms is under
-          // one frame at 60fps and still feels real-time.
-          _messageRefreshDebounce?.cancel();
-          _messageRefreshDebounce = Timer(_messageRefreshDebounceWindow, () {
+          // Coalesce within a fixed window. Restarting this timer on each
+          // token starves rendering until a continuous stream goes quiet.
+          _messageRefreshDebounce ??= Timer(_messageRefreshDebounceWindow, () {
+            _messageRefreshDebounce = null;
             if (!mounted) return;
             _refreshFromSync();
           });
@@ -706,7 +711,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         // The agent confirmed it stopped (or a fresh turn began): drop the
         // latched stop request so a later turn can't inherit it and render
         // as unconfirmed.
-        if (!(latestSession?.thinking ?? false)) _clearStopRequest();
+        if (!(latestSession?.thinking ?? false)) {
+          if (_stopRequestedAt != 0) {
+            _stoppedRequestId = _requestStatus.localId;
+          }
+          _clearStopRequest();
+        }
       }
 
       // Re-normalize model only when the session's flavor actually changed
@@ -881,7 +891,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final recentlyReceiving =
         _lastMessageStreamActivityAt > 0 &&
         now - _lastMessageStreamActivityAt < _recentStreamActivityWindowMs;
-    return (_session?.active ?? false) &&
+    return (_session?.isPresenceOnline ?? false) &&
         ((_session?.thinking ?? false) || recentlyReceiving);
   }
 
@@ -1559,6 +1569,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// fields lets _buildStatusChips stay O(1) per build instead of
   /// re-scanning the full list (up to 3000 entries) on every rebuild.
   void _recomputeMessageScanCache() {
+    _requestStatus = resolveChatRequestStatus(_messages);
     Map<String, dynamic>? latestUserStatus;
     var lastVisibleCreatedAt = 0;
     var foundVisible = false;
@@ -2058,10 +2069,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// recent-stream-activity gap (tool output arriving with `thinking`
   /// stale) that used to be the in-list typing orb's only job.
   ChatAgentActivity? _resolveAgentActivity([bool? isWorking]) {
-    final working = isWorking ?? _isAgentWorking;
     if (_isAborting) return ChatAgentActivity.stopping;
+    // Permission and delivery failures have their own actionable surfaces.
+    if (_session?.agentState?.requests?.isNotEmpty ?? false) return null;
+    final request = _requestStatus;
+    final stopped =
+        request.localId != null && request.localId == _stoppedRequestId;
+    final requestThinking =
+        !stopped &&
+        request.phase == ChatRequestPhase.reasoning &&
+        _isAgentWorking;
+    final working =
+        isWorking ??
+        ((_session?.thinking ?? false) &&
+                (_session?.isPresenceOnline ?? false) ||
+            requestThinking ||
+            (request.phase == ChatRequestPhase.none &&
+                request.localId == null && _isAgentWorking));
     if (_stopRequestedAt == 0 || !working) {
-      return working ? ChatAgentActivity.thinking : null;
+      if (working) return ChatAgentActivity.thinking;
+      if (stopped || _sessionSendIssue != null) return null;
+      return switch (request.phase) {
+        ChatRequestPhase.sending => ChatAgentActivity.sending,
+        ChatRequestPhase.waiting ||
+        ChatRequestPhase.reasoning => ChatAgentActivity.waiting,
+        ChatRequestPhase.none => null,
+      };
     }
     final elapsedMs = DateTime.now().millisecondsSinceEpoch - _stopRequestedAt;
     return elapsedMs < _stopConfirmWindow.inMilliseconds
