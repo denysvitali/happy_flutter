@@ -108,6 +108,28 @@ void main() {
     },
   );
 
+  test('old decryptions cannot exhaust the next visible chat budget', () async {
+    final pending = Completer<dynamic>();
+    encryption.cipher.pending = pending;
+    for (var i = 0; i < 4; i++) {
+      instance.handleEphemeralUpdate({
+        'type': 'message-stream',
+        'id': 'preview-session',
+        'message': 'paused',
+      });
+    }
+    instance.prepareSessionVisibility('other');
+    instance.prepareSessionVisibility('preview-session');
+    encryption.cipher.pending = null;
+    await deliver('current preview');
+    pending.complete(_preview('stale'));
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      instance.messagesForSession('preview-session').single['content'],
+      'current preview',
+    );
+  });
+
   test('decrypt finishing after runtime shutdown is discarded', () async {
     encryption.cipher.pending = Completer<dynamic>();
     instance.handleEphemeralUpdate({

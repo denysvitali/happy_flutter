@@ -92,7 +92,8 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   from happy-cli-go overlay only the visible chat. They never enter the
   durable cache, advance sequence cursors, or change user `localId` values.
   Persisted Codex `streamId` completes its preview; delayed snapshots cannot
-  resurrect it. Leaving the chat or resetting the runtime clears previews.
+  resurrect it. Leaving the chat, backgrounding, or resetting the runtime
+  clears previews and their timers.
 - **One tap, one logical message**
 - **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
 - **Repeated text like `continue` is never identity**

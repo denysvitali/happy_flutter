@@ -48,7 +48,9 @@ extension SyncMessageStream on Sync {
     } catch (error, stack) {
       logger.warning('Message preview could not be decoded', error, stack);
     } finally {
-      _messageStreamDecryptions--;
+      if (generation == _messageStreamGeneration) {
+        _messageStreamDecryptions--;
+      }
     }
   }
 
@@ -61,6 +63,7 @@ extension SyncMessageStream on Sync {
 
   void _clearMessageStreams() {
     _messageStreamGeneration++;
+    _messageStreamDecryptions = 0;
     for (final sid in _messageStreams.keys) {
       _sessionMessagesViewCache.remove(sid);
     }

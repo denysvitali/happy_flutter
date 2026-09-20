@@ -66,6 +66,7 @@ extension SyncLifecycle on Sync {
   /// drain while the app is backgrounded.
   void suspend() {
     if (!isInitialized) return;
+    _clearMessageStreams();
     ApiClient().setSuspended(true);
     powerDiagnostics.recordLifecycle('sync.suspend');
     logger.info('[Sync] suspending');
