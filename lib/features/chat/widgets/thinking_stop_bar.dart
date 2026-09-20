@@ -8,7 +8,7 @@ import 'chat_chrome_density.dart';
 
 /// What the agent is doing right now, from the chat's point of view.
 ///
-/// The three states share one bar so a stop request never stacks a
+/// The activity states share one bar so a stop request never stacks a
 /// second live indicator on top of the "thinking" one, and never
 /// changes the chrome's height mid-turn.
 enum ChatAgentActivity {

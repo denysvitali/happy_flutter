@@ -312,11 +312,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       for (var token = 1; token <= 10; token++) {
-        sync.messagesForSession('session_1')[0] = {
-          'id': 'stream',
-          'role': 'agent',
-          'content': 'partial token $token',
-        };
+        sync.testReplaceMessageListWithoutRevision('session_1', [
+          {
+            'id': 'stream',
+            'role': 'agent',
+            'content': 'partial token $token',
+          },
+        ]);
         sync.testNotifySessionMessagesChanged('session_1');
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 20));
