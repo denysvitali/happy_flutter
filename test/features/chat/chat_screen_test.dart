@@ -312,7 +312,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       for (var token = 1; token <= 10; token++) {
-        sync.testReplaceMessageListWithoutRevision('session_1', [
+        sync.testSetSessionMessages('session_1', [
           {
             'id': 'stream',
             'role': 'agent',
@@ -325,6 +325,8 @@ void main() {
       }
       // Every interval is shorter than the 50 ms refresh window. A trailing
       // debounce would still show "initial" until the stream ended.
+      expect(sync.messagesForSession('session_1').single['content'],
+          'partial token 10');
       expect(find.textContaining('partial token'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 60));
       expect(find.textContaining('partial token 10'), findsOneWidget);
