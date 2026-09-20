@@ -74,14 +74,18 @@ class CodexUsageScreen extends StatelessWidget {
               children: [
                 _CodexUsageBooleanRow(
                   icon: Icons.check_circle_outline,
-                  title: l10n.codexUsageCreditsAvailable,
+                  title: l10n.codexUsageAllowed,
                   value: report.rateLimit!.allowed,
                   iconColor: AppColors.info,
                 ),
                 if (report.rateLimit!.primaryWindow != null)
                   UsageWindowRow(
                     icon: Icons.schedule,
-                    title: l10n.codexUsagePrimaryWindow,
+                    title: _windowTitle(
+                      context,
+                      report.rateLimit!.primaryWindow!,
+                      l10n.codexUsagePrimaryWindow,
+                    ),
                     percent: report.rateLimit!.primaryWindow!.usedPercent
                         .toDouble(),
                     iconColor: AppColors.warning,
@@ -93,7 +97,11 @@ class CodexUsageScreen extends StatelessWidget {
                 if (report.rateLimit!.secondaryWindow != null)
                   UsageWindowRow(
                     icon: Icons.date_range_outlined,
-                    title: l10n.codexUsageSecondaryWindow,
+                    title: _windowTitle(
+                      context,
+                      report.rateLimit!.secondaryWindow!,
+                      l10n.codexUsageSecondaryWindow,
+                    ),
                     percent: report.rateLimit!.secondaryWindow!.usedPercent
                         .toDouble(),
                     iconColor: AppColors.success,
@@ -112,14 +120,18 @@ class CodexUsageScreen extends StatelessWidget {
               children: [
                 _CodexUsageBooleanRow(
                   icon: Icons.rate_review_outlined,
-                  title: l10n.codexUsageCreditsAvailable,
+                  title: l10n.codexUsageAllowed,
                   value: report.codeReviewRateLimit!.allowed,
                   iconColor: AppColors.info,
                 ),
                 if (report.codeReviewRateLimit!.primaryWindow != null)
                   UsageWindowRow(
                     icon: Icons.schedule,
-                    title: l10n.codexUsagePrimaryWindow,
+                    title: _windowTitle(
+                      context,
+                      report.codeReviewRateLimit!.primaryWindow!,
+                      l10n.codexUsagePrimaryWindow,
+                    ),
                     percent: report
                         .codeReviewRateLimit!
                         .primaryWindow!
@@ -134,7 +146,11 @@ class CodexUsageScreen extends StatelessWidget {
                 if (report.codeReviewRateLimit!.secondaryWindow != null)
                   UsageWindowRow(
                     icon: Icons.date_range_outlined,
-                    title: l10n.codexUsageSecondaryWindow,
+                    title: _windowTitle(
+                      context,
+                      report.codeReviewRateLimit!.secondaryWindow!,
+                      l10n.codexUsageSecondaryWindow,
+                    ),
                     percent: report
                         .codeReviewRateLimit!
                         .secondaryWindow!
@@ -145,6 +161,32 @@ class CodexUsageScreen extends StatelessWidget {
                       context,
                       report.codeReviewRateLimit!.secondaryWindow!,
                     ),
+                  ),
+              ],
+            ),
+          ],
+          if (report.modelUsage.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            SettingsSection(
+              title: l10n.codexUsageModelAvailability,
+              children: [
+                for (final entry in report.modelUsage.entries)
+                  UsageStatRow(
+                    icon: Icons.auto_awesome,
+                    title: entry.key,
+                    value: entry.value.available
+                        ? l10n.commonYes
+                        : entry.value.availableAt != null
+                        ? l10n.codexUsageResetsAt(
+                            DateFormat.yMMMd().add_jm().format(
+                              entry.value.availableAt!.toLocal(),
+                            ),
+                          )
+                        : entry.value.creditsWouldEnable
+                        ? l10n.codexUsageCreditsRequired
+                        : l10n.commonNo,
+                    iconColor: AppColors.info,
+                    flexValue: true,
                   ),
               ],
             ),
@@ -339,14 +381,18 @@ class _CodexUsageRateLimitSection extends StatelessWidget {
       children: [
         _CodexUsageBooleanRow(
           icon: leadingIcon,
-          title: l10n.codexUsageCreditsAvailable,
+          title: l10n.codexUsageAllowed,
           value: rateLimit.allowed,
           iconColor: AppColors.info,
         ),
         if (rateLimit.primaryWindow != null)
           UsageWindowRow(
             icon: Icons.schedule,
-            title: windowTitles.primary,
+            title: _windowTitle(
+              context,
+              rateLimit.primaryWindow!,
+              windowTitles.primary,
+            ),
             percent: rateLimit.primaryWindow!.usedPercent.toDouble(),
             iconColor: AppColors.warning,
             footer: _windowFooter(context, rateLimit.primaryWindow!),
@@ -354,7 +400,11 @@ class _CodexUsageRateLimitSection extends StatelessWidget {
         if (rateLimit.secondaryWindow != null)
           UsageWindowRow(
             icon: Icons.date_range_outlined,
-            title: windowTitles.secondary,
+            title: _windowTitle(
+              context,
+              rateLimit.secondaryWindow!,
+              windowTitles.secondary,
+            ),
             percent: rateLimit.secondaryWindow!.usedPercent.toDouble(),
             iconColor: AppColors.success,
             footer: _windowFooter(context, rateLimit.secondaryWindow!),
@@ -387,4 +437,17 @@ class _CodexUsageBooleanRow extends StatelessWidget {
       iconColor: iconColor,
     );
   }
+}
+
+String _windowTitle(
+  BuildContext context,
+  CodexUsageWindow window,
+  String fallback,
+) {
+  final l10n = AppLocalizations.of(context);
+  return switch (window.limitWindowSeconds) {
+    18000 => l10n.codexUsageFiveHourWindow,
+    604800 => l10n.codexUsageWeeklyWindow,
+    _ => fallback,
+  };
 }

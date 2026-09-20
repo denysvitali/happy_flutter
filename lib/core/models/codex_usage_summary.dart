@@ -357,6 +357,25 @@ class CodexRateLimitResetCredits {
   final List<CodexRateLimitResetCredit> credits;
 }
 
+class CodexModelUsage {
+  const CodexModelUsage({
+    required this.available,
+    required this.creditsWouldEnable,
+    this.availableAt,
+  });
+
+  factory CodexModelUsage.fromJson(Map<String, dynamic> json) =>
+      CodexModelUsage(
+        available: _asCodexUsageBool(json['available']),
+        availableAt: _asCodexUsageDateTime(json['available_at']),
+        creditsWouldEnable: _asCodexUsageBool(json['credits_would_enable']),
+      );
+
+  final bool available;
+  final DateTime? availableAt;
+  final bool creditsWouldEnable;
+}
+
 class CodexUsageSummary {
   const CodexUsageSummary({
     required this.email,
@@ -366,6 +385,7 @@ class CodexUsageSummary {
     required this.credits,
     required this.additionalRateLimits,
     this.resetCredits,
+    this.modelUsage = const {},
   });
 
   factory CodexUsageSummary.fromJson(Map<String, dynamic> json) {
@@ -375,6 +395,12 @@ class CodexUsageSummary {
     );
     final resetCredits = _mapFrom(normalizedJson['rate_limit_reset_credits']);
     return CodexUsageSummary(
+      modelUsage: {
+        for (final entry
+            in (_mapFrom(normalizedJson['model_usage']) ?? {}).entries)
+          if (_mapFrom(entry.value) != null)
+            entry.key: CodexModelUsage.fromJson(_mapFrom(entry.value)!),
+      },
       email: _asCodexUsageStringNullable(normalizedJson['email']),
       planType: _asCodexUsageStringNullable(normalizedJson['plan_type']),
       rateLimit: _rateLimitFromJson(normalizedJson['rate_limit']),
@@ -391,6 +417,7 @@ class CodexUsageSummary {
     );
   }
 
+  final Map<String, CodexModelUsage> modelUsage;
   final String? email;
   final String? planType;
   final CodexUsageSummaryRateLimit? rateLimit;
@@ -401,6 +428,7 @@ class CodexUsageSummary {
 
   CodexUsageSummary withResetCredits(CodexRateLimitResetCredits value) {
     return CodexUsageSummary(
+      modelUsage: modelUsage,
       email: email,
       planType: planType,
       rateLimit: rateLimit,
@@ -412,7 +440,8 @@ class CodexUsageSummary {
   }
 
   bool get hasUsageData {
-    return email != null ||
+    return modelUsage.isNotEmpty ||
+        email != null ||
         planType != null ||
         rateLimit != null ||
         codeReviewRateLimit != null ||

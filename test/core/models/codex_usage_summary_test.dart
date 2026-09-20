@@ -3,6 +3,33 @@ import 'package:happy_flutter/core/models/codex_usage_summary.dart';
 
 void main() {
   group('CodexUsageSummary', () {
+    test('preserves model availability when reset credit details arrive', () {
+      final summary = CodexUsageSummary.fromJson({
+        'model_usage': {
+          'gpt-6-astra': {'available': true, 'credits_would_enable': false},
+          'limited': {
+            'available': false,
+            'available_at': 1790413056,
+            'credits_would_enable': true,
+          },
+          'invalid': null,
+        },
+      });
+      expect(summary.hasUsageData, isTrue);
+      expect(summary.modelUsage.keys, ['gpt-6-astra', 'limited']);
+      expect(summary.modelUsage['gpt-6-astra']!.available, isTrue);
+      expect(summary.modelUsage['limited']!.available, isFalse);
+      expect(summary.modelUsage['limited']!.creditsWouldEnable, isTrue);
+      expect(
+        summary.modelUsage['limited']!.availableAt,
+        DateTime.fromMillisecondsSinceEpoch(1790413056000, isUtc: true),
+      );
+      final updated = summary.withResetCredits(
+        CodexRateLimitResetCredits.fromJson({'available_count': 2}),
+      );
+      expect(updated.modelUsage, same(summary.modelUsage));
+      expect(CodexUsageSummary.fromJson({}).modelUsage, isEmpty);
+    });
     test('parses account, rate limit, and credits fields', () {
       final summary = CodexUsageSummary.fromJson({
         'email': 'dev@example.com',

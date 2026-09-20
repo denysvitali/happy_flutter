@@ -18,6 +18,10 @@ Codex turns distinguish updates to the running turn from queued follow-ups.
 Web search details show aligned result cards with titles, domains, and snippets;
 tap a result to open its web page in your browser.
 
+Codex usage shows the account’s reported windows (including weekly and 5-hour
+labels), additional pools when provided, and per-model availability. Usage
+permission and purchased credit availability are shown separately.
+
 ## Architecture
 
 The project follows **Feature-Based Clean Architecture** with clear separation of concerns:

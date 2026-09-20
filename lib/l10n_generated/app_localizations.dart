@@ -2809,6 +2809,24 @@ abstract class AppLocalizations {
   /// **'Make sure Grok Build is signed in on the selected machine'**
   String get grokUsageNotAvailableSubtitle;
 
+  /// No description provided for @codexUsageAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Usage allowed'**
+  String get codexUsageAllowed;
+
+  /// No description provided for @codexUsageModelAvailability.
+  ///
+  /// In en, this message translates to:
+  /// **'Model availability'**
+  String get codexUsageModelAvailability;
+
+  /// No description provided for @codexUsageCreditsRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Credits required'**
+  String get codexUsageCreditsRequired;
+
   /// No description provided for @codexUsageAccount.
   ///
   /// In en, this message translates to:

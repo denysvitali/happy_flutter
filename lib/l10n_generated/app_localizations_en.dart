@@ -1498,6 +1498,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'Make sure Grok Build is signed in on the selected machine';
 
   @override
+  String get codexUsageAllowed => 'Usage allowed';
+
+  @override
+  String get codexUsageModelAvailability => 'Model availability';
+
+  @override
+  String get codexUsageCreditsRequired => 'Credits required';
+
+  @override
   String get codexUsageAccount => 'Account';
 
   @override
