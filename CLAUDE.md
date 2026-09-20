@@ -88,6 +88,11 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   confirmation, and omission from a fetch must not clear explicit session
   hiding; only unarchive or runtime reset clears it.
 
+- **Answer previews are ephemeral** — encrypted `message-stream` snapshots
+  from happy-cli-go overlay only the visible chat. They never enter the
+  durable cache, advance sequence cursors, or change user `localId` values.
+  Persisted Codex `streamId` completes its preview; delayed snapshots cannot
+  resurrect it. Leaving the chat or resetting the runtime clears previews.
 - **One tap, one logical message**
 - **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
 - **Repeated text like `continue` is never identity**

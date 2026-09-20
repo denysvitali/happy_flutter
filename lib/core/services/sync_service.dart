@@ -45,6 +45,7 @@ import '../rpc/rpc_types.dart';
 import '../rpc/rpc_exception.dart';
 import '../rpc/rpc_capabilities.dart';
 import '../sync/artifact_manager.dart';
+import '../sync/message_stream_store.dart';
 import '../sync/settings_manager.dart';
 import '../sync/sync_exceptions.dart';
 import '../sync/sync_progress.dart';
@@ -114,6 +115,7 @@ part '_sync_health.dart';
 part '_sync_isolate_helpers.dart';
 part '_sync_lifecycle.dart';
 part '_sync_messaging.dart';
+part '_sync_message_stream.dart';
 part '_sync_messaging_merge.dart';
 part '_sync_messaging_rpc.dart';
 part '_sync_messaging_send.dart';
@@ -528,6 +530,10 @@ what you have, you must use the options mode.
   /// [onSessionVisible].  Used by [fetchMessages] to bail out
   /// early when the user navigates away mid-fetch.
   String? _visibleSessionId;
+  final _messageStreams = <String, MessageStreamStore>{};
+  Timer? _messageStreamExpiry;
+  int _messageStreamGeneration = 0;
+  int _messageStreamDecryptions = 0;
 
   /// Sessions currently being paginated backwards (older-message loads).
   final Set<String> _loadingOlderMessages = {};
@@ -1603,7 +1609,11 @@ what you have, you must use the options mode.
       _sessionMessagesViewCache.putIfAbsent(
         sessionId,
         () => List<Map<String, dynamic>>.unmodifiable(
-          _sessionMessages[sessionId] ?? const <Map<String, dynamic>>[],
+          _messageStreams[sessionId]?.merge(
+                _sessionMessages[sessionId] ?? const [],
+              ) ??
+              _sessionMessages[sessionId] ??
+              const <Map<String, dynamic>>[],
         ),
       );
 

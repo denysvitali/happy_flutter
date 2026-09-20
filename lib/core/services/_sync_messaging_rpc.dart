@@ -985,6 +985,7 @@ extension SyncMessagingRpc on Sync {
   /// network work.
   void prepareSessionVisibility(String sessionId) {
     final previousVisibleSessionId = _visibleSessionId;
+    if (previousVisibleSessionId != sessionId) _clearMessageStreams();
     _visibleSessionId = sessionId;
     // Both ends of a chat switch count as activity for the idle-window
     // shrink sweep — the session just left keeps its full window for
@@ -1297,6 +1298,7 @@ extension SyncMessagingRpc on Sync {
     // (Flutter calls initState before dispose), so _visibleSessionId
     // may already be the new session.
     if (_visibleSessionId == sessionId) {
+      _clearMessageStreams();
       _visibleSessionId = null;
     }
     messagesSync[sessionId]?.dispose();

@@ -328,7 +328,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
     final isNewest = reversedIndex == items.length - 1;
     final isStreaming =
         isNewest &&
-        (_session?.thinking ?? false) &&
+        (message['isStreaming'] as bool? ?? _session?.thinking ?? false) &&
         message['role'] == 'agent' &&
         !isToolCall;
     final animate =

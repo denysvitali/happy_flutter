@@ -17,6 +17,11 @@ extension SyncDataMachines on Sync {
 
     final type = payload['type'] as String? ?? payload['t'] as String?;
 
+    if (type == 'message-stream') {
+      unawaited(_handleMessageStream(payload));
+      return;
+    }
+
     if (type == 'alive-batch') {
       final sessions = payload['sessions'] as List?;
       if (sessions == null) return;

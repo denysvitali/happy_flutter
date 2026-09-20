@@ -104,6 +104,8 @@ const _messageSignatureKeys = <String>[
   'sendStatus',
   'sendSlow',
   'isThinking',
+  'isStreaming',
+  'streamId',
   'content',
   'text',
   'input',

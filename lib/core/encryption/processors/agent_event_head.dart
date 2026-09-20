@@ -84,6 +84,14 @@ _AgentEventHead? _processAgentEventHead({
       'content': content?.toString() ?? '',
       if (dataType == DataType.message) 'isPromptEchoCandidate': true,
       'raw': outerContent,
+      if (vendor == 'codex' &&
+          dataType == DataType.modelOutput &&
+          data['streamId'] is String &&
+          (data['streamId'] as String).isNotEmpty &&
+          (data['streamId'] as String).length <= 128) ...{
+        'streamId': data['streamId'],
+        'isStreaming': false,
+      },
       if (meta.isSidechain) 'isSidechain': true,
       'uuid': ?meta.uuid,
       'parentUuid': ?meta.parentUuid,
