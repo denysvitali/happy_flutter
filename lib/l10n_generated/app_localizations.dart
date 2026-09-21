@@ -6337,6 +6337,18 @@ abstract class AppLocalizations {
   /// **'Reduce spacing in chat messages'**
   String get featuresCompactModeDesc;
 
+  /// No description provided for @featuresCodexFastMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex Fast Mode'**
+  String get featuresCodexFastMode;
+
+  /// No description provided for @featuresCodexFastModeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Use faster Codex inference with increased usage'**
+  String get featuresCodexFastModeDesc;
+
   /// No description provided for @featuresHideInactiveSessions.
   ///
   /// In en, this message translates to:

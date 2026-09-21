@@ -3388,6 +3388,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get featuresCompactModeDesc => 'Reduce spacing in chat messages';
 
   @override
+  String get featuresCodexFastMode => 'Codex Fast Mode';
+
+  @override
+  String get featuresCodexFastModeDesc =>
+      'Use faster Codex inference with increased usage';
+
+  @override
   String get featuresHideInactiveSessions => 'Hide Inactive Sessions';
 
   @override

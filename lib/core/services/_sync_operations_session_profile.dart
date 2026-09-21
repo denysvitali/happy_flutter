@@ -126,7 +126,14 @@ extension SyncSpawnProfileResolution on Sync {
 
   /// Build daemon spawn environment variables with safe defaults.
   Map<String, String> _spawnEnvironmentVariables(Map<String, String>? base) {
-    return <String, String>{...?base};
+    return <String, String>{
+      ...?base,
+      // Keep the Codex speed choice explicit in every spawn/restore request.
+      // The Go launcher maps 1 to Fast/Priority and 0 to Standard. The
+      // setting defaults to false so Codex never inherits its account-level
+      // Fast default through a Happy invocation.
+      'HAPPY_CODEX_FAST_MODE': settingsSnapshot.codexFastMode ? '1' : '0',
+    };
   }
 
   /// Resolve the profile/model pair a spawn should use.

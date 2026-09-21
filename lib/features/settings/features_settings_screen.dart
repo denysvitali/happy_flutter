@@ -31,6 +31,9 @@ class FeaturesSettingsScreen extends ConsumerWidget {
     final alwaysShowContextSize = ref.watch(
       settingsNotifierProvider.select((s) => s.alwaysShowContextSize),
     );
+    final codexFastMode = ref.watch(
+      settingsNotifierProvider.select((s) => s.codexFastMode),
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.featuresTitle)),
@@ -53,8 +56,7 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 title: l10n.featuresMarkdownCopyV2,
                 subtitle: l10n.featuresMarkdownCopyV2Desc,
                 value: markdownCopyV2,
-                onChanged: (v) =>
-                    notifier.updateSetting('markdownCopyV2', v),
+                onChanged: (v) => notifier.updateSetting('markdownCopyV2', v),
               ),
               SettingsToggleRow(
                 icon: Icons.density_small_rounded,
@@ -63,6 +65,13 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 value: compactSessionView,
                 onChanged: (v) =>
                     notifier.updateSetting('compactSessionView', v),
+              ),
+              SettingsToggleRow(
+                icon: Icons.speed_outlined,
+                title: l10n.featuresCodexFastMode,
+                subtitle: l10n.featuresCodexFastModeDesc,
+                value: codexFastMode,
+                onChanged: (v) => notifier.updateSetting('codexFastMode', v),
               ),
             ],
           ),
@@ -75,16 +84,14 @@ class FeaturesSettingsScreen extends ConsumerWidget {
                 title: l10n.featuresShowLineNumbers,
                 subtitle: l10n.featuresShowLineNumbersDesc,
                 value: showLineNumbers,
-                onChanged: (v) =>
-                    notifier.updateSetting('showLineNumbers', v),
+                onChanged: (v) => notifier.updateSetting('showLineNumbers', v),
               ),
               SettingsToggleRow(
                 icon: Icons.wrap_text_rounded,
                 title: l10n.featuresWrapLinesInDiffs,
                 subtitle: l10n.featuresWrapLinesInDiffsDesc,
                 value: wrapLinesInDiffs,
-                onChanged: (v) =>
-                    notifier.updateSetting('wrapLinesInDiffs', v),
+                onChanged: (v) => notifier.updateSetting('wrapLinesInDiffs', v),
               ),
               SettingsToggleRow(
                 icon: Icons.data_usage_rounded,

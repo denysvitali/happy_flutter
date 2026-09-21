@@ -77,6 +77,10 @@ class Settings {
   /// sessions saved by older app versions.
   Map<String, String> permissionModesBySession = {};
   String? lastUsedModelMode;
+
+  /// Whether new Codex sessions should use the higher-cost Fast/Priority tier.
+  /// This is intentionally opt-in and defaults to false.
+  bool codexFastMode = false;
   List<String> customModelModes = [];
   // Profile API keys excluded from serialization via toJsonWithoutApiKeys()
   List<AIBackendProfile> profiles = [];
@@ -132,6 +136,7 @@ class Settings {
             other.permissionModesBySession,
           ) &&
           lastUsedModelMode == other.lastUsedModelMode &&
+          codexFastMode == other.codexFastMode &&
           customModelModes.length == other.customModelModes.length &&
           customModelModes.asMap().entries.every(
             (e) => e.value == other.customModelModes[e.key],
@@ -167,7 +172,7 @@ class Settings {
     ttsEnabled,
     preferredLanguage,
     usagePeriod,
-    lastUsedProfile,
+    Object.hash(codexFastMode, lastUsedProfile),
     Object.hashAll(
       permissionModesBySession.entries.map(
         (entry) => Object.hash(entry.key, entry.value),
@@ -269,6 +274,7 @@ class Settings {
         permissionModesBySession,
       )
       ..lastUsedModelMode = lastUsedModelMode
+      ..codexFastMode = codexFastMode
       ..profiles = List<AIBackendProfile>.from(profiles)
       ..lastUsedProfile = lastUsedProfile
       ..lastUsedProfilesByAgent = Map<String, String>.from(
@@ -323,6 +329,7 @@ class Settings {
     Object? lastUsedPermissionMode = _unset,
     Map<String, String>? permissionModesBySession,
     Object? lastUsedModelMode = _unset,
+    bool? codexFastMode,
     List<String>? customModelModes,
     List<AIBackendProfile>? profiles,
     Object? lastUsedProfile = _unset,
@@ -403,6 +410,7 @@ class Settings {
       ..lastUsedModelMode = identical(lastUsedModelMode, _unset)
           ? this.lastUsedModelMode
           : lastUsedModelMode as String?
+      ..codexFastMode = codexFastMode ?? this.codexFastMode
       ..customModelModes = customModelModes != null
           ? List<String>.from(customModelModes)
           : this.customModelModes

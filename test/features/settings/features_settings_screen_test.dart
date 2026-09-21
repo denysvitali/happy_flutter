@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -59,5 +59,37 @@ void main() {
       container.read(settingsNotifierProvider).hideInactiveSessions,
       isTrue,
     );
+  });
+
+  testWidgets('renders Codex Fast Mode disabled by default and toggles it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsNotifierProvider.overrideWith(
+            () => _StorageFreeSettingsNotifier(),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const FeaturesSettingsScreen(),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FeaturesSettingsScreen)),
+    );
+    expect(find.text('Codex Fast Mode'), findsOneWidget);
+    expect(container.read(settingsNotifierProvider).codexFastMode, isFalse);
+
+    await tester.tap(find.text('Codex Fast Mode'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(settingsNotifierProvider).codexFastMode, isTrue);
   });
 }

@@ -1529,6 +1529,8 @@
   "featuresAlwaysShowContextSize": "Always Show Context Size",
   "featuresAlwaysShowContextSizeDesc": "Show context window usage",
   "featuresCompactModeDesc": "Reduce spacing in chat messages",
+  "featuresCodexFastMode": "Codex Fast Mode",
+  "featuresCodexFastModeDesc": "Use faster Codex inference with increased usage",
   "featuresHideInactiveSessions": "Hide Inactive Sessions",
   "featuresHideInactiveSessionsDesc": "Hide sessions not used recently",
   "featuresShowLineNumbersDesc": "Display line numbers in code blocks",

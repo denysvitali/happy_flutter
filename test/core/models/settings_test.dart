@@ -4,6 +4,16 @@ import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/models/settings_update.dart';
 
 void main() {
+  test('Codex Fast Mode is opt-in and survives settings roundtrip', () {
+    final defaults = Settings();
+    expect(defaults.codexFastMode, isFalse);
+
+    final restored = Settings.fromJson(
+      (Settings()..codexFastMode = true).toJson(),
+    );
+    expect(restored.codexFastMode, isTrue);
+  });
+
   group('Settings last-used profiles', () {
     test('serializes and restores hide tool calls preference', () {
       final settings = Settings()..hideToolCalls = true;
