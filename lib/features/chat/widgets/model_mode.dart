@@ -235,11 +235,41 @@ class ChatModelMode {
     };
   }
 
+  /// Grok Build models advertised by `grok models` (1.0.40).
+  static const grokModels = <ChatModelMode>[
+    defaultModel,
+    ChatModelMode._(
+      label: 'Grok 4.7',
+      modeString: 'grok-4.7',
+      modelSlug: 'grok-4.7',
+      flavor: 'grok',
+    ),
+    ChatModelMode._(
+      label: 'Grok 4.7 Fast',
+      modeString: 'grok-4.7-build-fast',
+      modelSlug: 'grok-4.7-build-fast',
+      flavor: 'grok',
+    ),
+    ChatModelMode._(
+      label: 'Grok 4.6',
+      modeString: 'grok-4.6',
+      modelSlug: 'grok-4.6',
+      flavor: 'grok',
+    ),
+    ChatModelMode._(
+      label: 'Grok 4.5',
+      modeString: 'grok-4.5',
+      modelSlug: 'grok-4.5',
+      flavor: 'grok',
+    ),
+  ];
+
   /// Returns the model options available for a session flavor.
   static List<ChatModelMode> availableForFlavor(String? flavor) {
     return switch (flavor) {
       // null means the server hasn't set a flavor yet; default is 'claude'.
       'claude' || null => claudeModels,
+      'grok' || 'grok-build' => grokModels,
       _ => const [defaultModel],
     };
   }
@@ -293,6 +323,7 @@ class ChatModelMode {
           : codexModels;
     }
     final baseModels = availableForFlavor(flavor);
+    if (flavor == 'grok' || flavor == 'grok-build') return baseModels;
     if (claudeCompatible && allowClaudeAliases) return baseModels;
     // Provider-owned model selection uses the selected backend profile.
     return const [defaultModel];
