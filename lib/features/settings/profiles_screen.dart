@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/components/app_empty_state.dart';
 import '../../core/components/settings_section.dart';
 import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
@@ -15,6 +16,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/env_secrets.dart';
 import '../../core/utils/shell_script_parser.dart';
 import 'profile_editor_screen.dart';
+import 'widgets/profile_badge.dart';
 import '../../core/utils/snack.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
@@ -44,7 +46,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       ref.read(settingsNotifierProvider),
       selectedAgent,
     );
-    final allProfiles = effectiveProfiles(customProfiles);
+    // Stored rows only — shipped presets are suggestions at creation time
+    // (wizard/editor prefill), never auto-populated rows. Everything listed
+    // here lives in Settings.profiles and is deletable.
+    final allProfiles = customProfiles;
     final claudeProfiles = allProfiles
         .where((profile) => profile.compatibility.supportsAgent('claude'))
         .toList();
@@ -93,6 +98,20 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
             ),
           ],
         ),
+        if (allProfiles.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xxl),
+            child: AppEmptyState(
+              icon: Icons.auto_awesome_outlined,
+              title: l10n.profilesEmptyTitle,
+              subtitle: l10n.profilesEmptySubtitle,
+              action: FilledButton.icon(
+                icon: const Icon(Icons.add),
+                label: Text(l10n.profilesAddProfile),
+                onPressed: () => _showAddProfileMenu(context),
+              ),
+            ),
+          ),
         _buildAgentSection(
           context: context,
           title: l10n.settingsClaudeCode,
@@ -176,7 +195,6 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               agent,
             );
             final isSelected = selectedProfileId == profile.id;
-            final isCustom = !profile.isBuiltIn;
             return _buildProfileRow(
               context: context,
               profile: profile,
@@ -203,12 +221,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               onEdit: isWide
                   ? () => setState(() => _selectedProfileId = profile.id)
                   : () => context.pushNamed('profile-editor', extra: profile),
-              onDuplicate: isCustom
-                  ? () => _duplicateProfile(context, ref, profile)
-                  : null,
-              onDelete: isCustom
-                  ? () => _confirmDeleteProfile(context, ref, profile)
-                  : null,
+              onDuplicate: () => _duplicateProfile(context, ref, profile),
+              onDelete: () => _confirmDeleteProfile(context, ref, profile),
             );
           }),
         ],
@@ -226,68 +240,80 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     VoidCallback? onDelete,
     VoidCallback? onDuplicate,
   }) {
+    final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
+    final isPresetRow = profile != null && isBuiltInPresetId(profile.id);
     final iconColor = profile == null
         ? cs.onSurfaceVariant
-        : profile.isBuiltIn
+        : isPresetRow
         ? colorForProfile(profile.id)
         : cs.primary;
     final icon = profile == null
         ? Icons.remove
-        : profile.isBuiltIn
+        : isPresetRow
         ? _iconForProfile(profile.id)
         : Icons.person_outline;
+    final hasActions =
+        onEdit != null || onDuplicate != null || onDelete != null;
 
     final row = SettingsRow(
       icon: icon,
       iconColor: iconColor,
-      title: profile?.name ?? AppLocalizations.of(context).profilesNone,
-      subtitle:
-          profile?.description ??
-          AppLocalizations.of(context).profilesDefaultDescription,
+      title: profile?.name ?? l10n.profilesNone,
+      subtitle: profile?.description ?? l10n.profilesDefaultDescription,
       onTap: onTap,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isSelected)
-            Icon(Icons.check_circle, color: cs.primary, size: AppSpacing.xl),
-          if (isSelected &&
-              (onDuplicate != null || onEdit != null || onDelete != null))
+          if (profile != null)
+            ProfilePill(
+              label: isPresetRow
+                  ? l10n.profilesBadgeBuiltIn
+                  : l10n.profilesBadgeCustom,
+              color: isPresetRow ? colorForProfile(profile.id) : cs.primary,
+            ),
+          if (isSelected) ...[
             const SizedBox(width: AppSpacing.xs),
-          if (onDuplicate != null || onEdit != null || onDelete != null)
-            Container(height: 20, width: 1, color: cs.outlineVariant),
-          if (onDuplicate != null)
-            IconButton(
+            Icon(Icons.check_circle, color: cs.primary, size: AppSpacing.xl),
+          ],
+          if (hasActions)
+            PopupMenuButton<_ProfileAction>(
               icon: Icon(
-                Icons.copy_outlined,
+                Icons.more_vert,
                 size: AppSpacing.xl,
                 color: cs.onSurfaceVariant,
               ),
-              tooltip: AppLocalizations.of(context).profilesDuplicateProfile,
-              onPressed: onDuplicate,
-              visualDensity: VisualDensity.compact,
-            ),
-          if (onEdit != null)
-            IconButton(
-              icon: Icon(
-                Icons.edit_outlined,
-                size: AppSpacing.xl,
-                color: cs.onSurfaceVariant,
-              ),
-              tooltip: AppLocalizations.of(context).profilesEditProfile,
-              onPressed: onEdit,
-              visualDensity: VisualDensity.compact,
-            ),
-          if (onDelete != null)
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                size: AppSpacing.xl,
-                color: cs.error,
-              ),
-              tooltip: AppLocalizations.of(context).profilesDeleteProfile,
-              onPressed: onDelete,
-              visualDensity: VisualDensity.compact,
+              tooltip: l10n.profilesActionsTooltip,
+              onSelected: (action) {
+                switch (action) {
+                  case _ProfileAction.edit:
+                    onEdit?.call();
+                  case _ProfileAction.duplicate:
+                    onDuplicate?.call();
+                  case _ProfileAction.delete:
+                    onDelete?.call();
+                }
+              },
+              itemBuilder: (ctx) => [
+                if (onEdit != null)
+                  PopupMenuItem(
+                    value: _ProfileAction.edit,
+                    child: Text(l10n.profilesEditProfile),
+                  ),
+                if (onDuplicate != null)
+                  PopupMenuItem(
+                    value: _ProfileAction.duplicate,
+                    child: Text(l10n.profilesDuplicateProfile),
+                  ),
+                if (onDelete != null)
+                  PopupMenuItem(
+                    value: _ProfileAction.delete,
+                    child: Text(
+                      l10n.profilesDeleteProfile,
+                      style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+                    ),
+                  ),
+              ],
             ),
         ],
       ),
@@ -558,6 +584,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     );
   }
 }
+
+enum _ProfileAction { edit, duplicate, delete }
 
 String _primaryAgentForProfile(AIBackendProfile profile) {
   final compatibility = profile.compatibility;

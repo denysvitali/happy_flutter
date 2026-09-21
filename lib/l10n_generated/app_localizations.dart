@@ -4309,6 +4309,42 @@ abstract class AppLocalizations {
   /// **'Delete Profile'**
   String get profilesDeleteProfile;
 
+  /// No description provided for @profilesBadgeBuiltIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in'**
+  String get profilesBadgeBuiltIn;
+
+  /// No description provided for @profilesBadgeCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get profilesBadgeCustom;
+
+  /// No description provided for @profilesActionsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile actions'**
+  String get profilesActionsTooltip;
+
+  /// No description provided for @profilesSuggestedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested'**
+  String get profilesSuggestedBadge;
+
+  /// No description provided for @profilesEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No profiles yet'**
+  String get profilesEmptyTitle;
+
+  /// No description provided for @profilesEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add one from a preset to prefill the configuration — every profile stays editable and deletable.'**
+  String get profilesEmptySubtitle;
+
   /// No description provided for @profilesNameHint.
   ///
   /// In en, this message translates to:

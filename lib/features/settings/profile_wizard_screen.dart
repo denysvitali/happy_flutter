@@ -9,6 +9,7 @@ import '../../core/routing/safe_pop.dart';
 import '../../core/utils/shell_script_parser.dart';
 import '../../core/utils/snack.dart';
 import 'profile_setup_catalog.dart';
+import 'widgets/profile_badge.dart';
 
 /// Multi-step wizard for creating a new AI profile.
 /// Step 1: Choose provider
@@ -65,76 +66,25 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
     _nameCtrl.text = template.name;
     _descCtrl.text = template.description ?? '';
 
-    switch (provider) {
-      case 'anthropic':
-        _baseUrlCtrl.text = 'https://api.anthropic.com';
-        _modelCtrl.text = 'claude-opus-4-5';
-        _smallFastModelCtrl.text = 'claude-sonnet-4-5';
-        _timeoutCtrl.text = '300000';
-        break;
-      case 'zai':
-        _baseUrlCtrl.text = 'https://api.z.ai/api/anthropic';
-        _modelCtrl.text = '';
-        _smallFastModelCtrl.text = 'GLM-4.7';
-        _timeoutCtrl.text = '3000000';
-        break;
-      case 'deepseek':
-        _baseUrlCtrl.text = 'https://api.deepseek.com/anthropic';
-        _modelCtrl.text = 'deepseek-chat';
-        _smallFastModelCtrl.text = '';
-        _timeoutCtrl.text = '600000';
-        break;
-      case 'minimax':
-        _baseUrlCtrl.text = 'https://api.minimax.io/anthropic';
-        _modelCtrl.text = 'MiniMax-M2.7';
-        _smallFastModelCtrl.text = 'MiniMax-M2.7';
-        _timeoutCtrl.text = '3000000';
-        break;
-      case 'xiaomi-mimo':
-        _baseUrlCtrl.text = 'https://token-plan-sgp.xiaomimimo.com/anthropic';
-        _modelCtrl.text = 'mimo-v2.5-pro';
-        _smallFastModelCtrl.text = 'mimo-v2.5-pro';
-        _timeoutCtrl.text = '3000000';
-        break;
-      case 'openrouter':
-        _baseUrlCtrl.text = 'https://openrouter.ai/api';
-        _modelCtrl.text = 'anthropic/claude-opus-4.6';
-        _smallFastModelCtrl.text = 'anthropic/claude-sonnet-4.6';
-        _timeoutCtrl.text = '';
-        break;
-      case 'openai':
-        _baseUrlCtrl.text = 'https://api.openai.com/v1';
-        _modelCtrl.text = '';
-        _smallFastModelCtrl.text = '';
-        _timeoutCtrl.text = '600000';
-        break;
-      case 'azure-openai':
-        _baseUrlCtrl.text = '';
-        _modelCtrl.text = '';
-        _smallFastModelCtrl.text = '';
-        _timeoutCtrl.text = '600000';
-        break;
-      case 'qwen':
-        _baseUrlCtrl.text =
-            'https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic';
-        _modelCtrl.text = 'qwen3.7-max';
-        _smallFastModelCtrl.text = 'qwen3.6-flash';
-        _timeoutCtrl.text = '3000000';
-        break;
-      case 'qwen-token-plan-codex':
-        _baseUrlCtrl.text =
-            'https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1';
-        _modelCtrl.text = 'qwen3.7-max';
-        _smallFastModelCtrl.text = 'qwen3.6-flash';
-        _timeoutCtrl.text = '3000000';
-        break;
-      case 'custom-codex-proxy':
-        _baseUrlCtrl.text = '';
-        _modelCtrl.text = '';
-        _smallFastModelCtrl.text = '';
-        _timeoutCtrl.text = '600000';
-        break;
-    }
+    // Prefill from the catalog preset so the wizard never drifts from the
+    // built-in defaults (endpoints, model ids, timeouts).
+    final env = {
+      for (final e in template.environmentVariables) e.name: e.value,
+    };
+    _baseUrlCtrl.text =
+        env['ANTHROPIC_BASE_URL'] ?? env['OPENAI_BASE_URL'] ?? '';
+    _modelCtrl.text =
+        env['ANTHROPIC_MODEL'] ??
+        env['ANTHROPIC_DEFAULT_OPUS_MODEL'] ??
+        env['OPENAI_MODEL'] ??
+        env['AZURE_OPENAI_DEPLOYMENT_NAME'] ??
+        '';
+    _smallFastModelCtrl.text =
+        env['ANTHROPIC_SMALL_FAST_MODEL'] ??
+        env['ANTHROPIC_DEFAULT_SONNET_MODEL'] ??
+        env['OPENAI_SMALL_FAST_MODEL'] ??
+        '';
+    _timeoutCtrl.text = env['API_TIMEOUT_MS'] ?? '';
   }
 
   Future<void> _save() async {
@@ -409,22 +359,12 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
   }
 
   ProfileCompatibility _getCompatibility(String provider) {
-    switch (provider) {
-      case 'openai':
-      case 'azure-openai':
-      case 'qwen-token-plan-codex':
-        return const ProfileCompatibility(
-          claude: false,
-          codex: true,
-          agy: false,
-        );
-      default:
-        return const ProfileCompatibility(
-          claude: true,
-          codex: false,
-          agy: false,
-        );
-    }
+    // The catalog preset is the single source of truth for which agents a
+    // provider supports (incl. the pi flag), so the wizard cannot drift
+    // from the built-in definitions.
+    final template = profileSetupTemplate(provider);
+    return template?.compatibility ??
+        const ProfileCompatibility(claude: true, codex: false, agy: false);
   }
 
   @override
@@ -823,7 +763,12 @@ class _ProviderCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: color),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xs),
+              ProfilePill(
+                label: AppLocalizations.of(context).profilesSuggestedBadge,
+                color: color,
+              ),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 name,
                 style: TextStyle(

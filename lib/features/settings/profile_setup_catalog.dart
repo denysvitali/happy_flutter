@@ -3,6 +3,15 @@ import 'package:flutter/material.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/settings.dart';
 
+/// Creation-time suggestion shown in the wizard / editor quick setup.
+///
+/// Catalog entries are presets that prefill configuration — they never
+/// materialise as stored profile rows on their own. Each entry mirrors the
+/// built-in profile of the same id: same environment-variable keys (seeded
+/// with the built-in's default values instead of `${VAR:-default}` daemon
+/// expansion), same [AIBackendProfile.defaultModelMode], and identical
+/// [ProfileCompatibility]. Extra empty credential placeholders are allowed
+/// so the editor has somewhere to type a key.
 class ProfileSetupOption {
   const ProfileSetupOption({
     required this.id,
@@ -65,7 +74,7 @@ ProfileSetupOption? _profileSetupOptionForId(String id) {
       return const ProfileSetupOption(
         id: 'xiaomi-mimo',
         label: 'Xiaomi MiMo',
-        shortDescription: 'MiMo-V2.5-Pro',
+        shortDescription: 'mimo-v2.5-pro',
         icon: Icons.rocket_launch,
         apiKeyLabel: 'Xiaomi MiMo API Key',
       );
@@ -89,7 +98,7 @@ ProfileSetupOption? _profileSetupOptionForId(String id) {
       return const ProfileSetupOption(
         id: 'openai',
         label: 'OpenAI',
-        shortDescription: 'GPT-5 Codex',
+        shortDescription: 'default model',
         icon: Icons.smart_toy,
         apiKeyLabel: 'OpenAI API Key',
       );
@@ -97,7 +106,7 @@ ProfileSetupOption? _profileSetupOptionForId(String id) {
       return const ProfileSetupOption(
         id: 'azure-openai',
         label: 'Azure OpenAI',
-        shortDescription: 'Enterprise OpenAI',
+        shortDescription: 'gpt-5-codex',
         icon: Icons.cloud,
         apiKeyLabel: 'Azure API Key',
       );
@@ -129,6 +138,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'anthropic',
         name: 'Anthropic (Default)',
         description: 'Official Anthropic Claude API',
+        defaultModelMode: 'default',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -136,15 +146,12 @@ AIBackendProfile? profileSetupTemplate(String id) {
           ),
           EnvironmentVariable(name: 'ANTHROPIC_AUTH_TOKEN', value: ''),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '300000'),
-          EnvironmentVariable(
-            name: 'ANTHROPIC_MODEL',
-            value: 'claude-opus-4-5',
-          ),
         ],
         compatibility: const ProfileCompatibility(
           claude: true,
           codex: false,
           agy: false,
+          pi: true,
         ),
       );
     case 'deepseek':
@@ -152,6 +159,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'deepseek',
         name: 'DeepSeek (Chat)',
         description: 'DeepSeek API via Anthropic-compatible interface',
+        defaultModelMode: 'deepseek-chat',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -173,6 +181,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
           claude: true,
           codex: false,
           agy: false,
+          pi: true,
         ),
       );
     case 'zai':
@@ -180,6 +189,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'zai',
         name: 'Z.AI (GLM-5.1)',
         description: 'Z.AI GLM Coding Plan via Anthropic-compatible interface',
+        defaultModelMode: 'GLM-5.1',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -208,6 +218,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
           claude: true,
           codex: false,
           agy: false,
+          pi: true,
         ),
       );
     case 'minimax':
@@ -215,6 +226,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'minimax',
         name: 'MiniMax (MiniMax-M2.7)',
         description: 'MiniMax-M2.7 via Anthropic-compatible interface',
+        defaultModelMode: 'MiniMax-M2.7',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -248,6 +260,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
           claude: true,
           codex: false,
           agy: false,
+          pi: true,
         ),
       );
     case 'xiaomi-mimo':
@@ -256,6 +269,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         name: 'Xiaomi MiMo (Token Plan)',
         description:
             'Xiaomi MiMo Token Plan via Anthropic-compatible interface',
+        defaultModelMode: 'mimo-v2.5-pro',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -289,6 +303,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
           claude: true,
           codex: false,
           agy: false,
+          pi: true,
         ),
       );
     case 'qwen':
@@ -296,6 +311,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'qwen',
         name: 'Qwen (Token Plan)',
         description: 'Qwen Cloud Token Plan via Anthropic-compatible interface',
+        defaultModelMode: 'qwen3.7-max',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -330,6 +346,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
           claude: true,
           codex: false,
           agy: false,
+          pi: true,
         ),
       );
     case 'openrouter':
@@ -337,6 +354,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'openrouter',
         name: 'OpenRouter',
         description: 'OpenRouter — unified gateway to 200+ models',
+        defaultModelMode: 'anthropic/claude-opus-4.6',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -369,6 +387,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
           claude: true,
           codex: false,
           agy: false,
+          pi: true,
         ),
       );
     case 'openai':
@@ -376,6 +395,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'openai',
         name: 'OpenAI (Codex)',
         description: 'OpenAI Codex API',
+        defaultModelMode: 'default',
         environmentVariables: [
           EnvironmentVariable(
             name: 'OPENAI_BASE_URL',
@@ -384,12 +404,15 @@ AIBackendProfile? profileSetupTemplate(String id) {
           EnvironmentVariable(name: 'OPENAI_API_KEY', value: ''),
           EnvironmentVariable(name: 'OPENAI_MODEL', value: ''),
           EnvironmentVariable(name: 'OPENAI_SMALL_FAST_MODEL', value: ''),
+          EnvironmentVariable(name: 'OPENAI_API_TIMEOUT_MS', value: '600000'),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
+          EnvironmentVariable(name: 'CODEX_SMALL_FAST_MODEL', value: ''),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
           agy: false,
+          pi: false,
         ),
       );
     case 'azure-openai':
@@ -397,20 +420,26 @@ AIBackendProfile? profileSetupTemplate(String id) {
         id: 'azure-openai',
         name: 'Azure OpenAI',
         description: 'Azure OpenAI Service for enterprise deployments',
+        defaultModelMode: 'gpt-5-codex',
         environmentVariables: [
           EnvironmentVariable(
             name: 'AZURE_OPENAI_API_VERSION',
             value: '2024-02-15-preview',
           ),
-          EnvironmentVariable(name: 'AZURE_OPENAI_DEPLOYMENT_NAME', value: ''),
+          EnvironmentVariable(
+            name: 'AZURE_OPENAI_DEPLOYMENT_NAME',
+            value: 'gpt-5-codex',
+          ),
           EnvironmentVariable(name: 'OPENAI_API_KEY', value: ''),
           EnvironmentVariable(name: 'OPENAI_BASE_URL', value: ''),
+          EnvironmentVariable(name: 'OPENAI_API_TIMEOUT_MS', value: '600000'),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '600000'),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
           agy: false,
+          pi: false,
         ),
       );
     case 'qwen-token-plan-codex':
@@ -419,6 +448,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
         name: 'Qwen (Token Plan, Codex)',
         description:
             'Qwen Cloud Token Plan via OpenAI-compatible interface (Codex)',
+        defaultModelMode: 'qwen3.7-max',
         environmentVariables: [
           EnvironmentVariable(
             name: 'OPENAI_BASE_URL',
@@ -431,12 +461,14 @@ AIBackendProfile? profileSetupTemplate(String id) {
             name: 'OPENAI_SMALL_FAST_MODEL',
             value: 'qwen3.7-max',
           ),
+          EnvironmentVariable(name: 'OPENAI_API_TIMEOUT_MS', value: '3000000'),
           EnvironmentVariable(name: 'API_TIMEOUT_MS', value: '3000000'),
         ],
         compatibility: const ProfileCompatibility(
           claude: false,
           codex: true,
           agy: false,
+          pi: false,
         ),
       );
     case 'custom-codex-proxy':
@@ -445,13 +477,14 @@ AIBackendProfile? profileSetupTemplate(String id) {
         name: 'Custom Codex Proxy',
         description:
             'Any OpenAI-compatible gateway for Codex (base URL required)',
+        defaultModelMode: 'default',
         environmentVariables: [
           EnvironmentVariable(name: 'OPENAI_BASE_URL', value: ''),
           EnvironmentVariable(name: 'OPENAI_API_KEY', value: ''),
           EnvironmentVariable(name: 'OPENAI_MODEL', value: ''),
           // Optional Codex provider-definition overrides; see
           // built_in_profiles.dart. Empty values keep the daemon defaults
-          // (env_key=OPENAI_API_KEY, wire_api=responses).
+          // (env_key=OPENAI_API_KEY, wire_api=chat).
           EnvironmentVariable(
             name: 'HAPPY_CODEX_PROVIDER_ENV_KEY',
             value: 'OPENAI_API_KEY',
@@ -467,6 +500,7 @@ AIBackendProfile? profileSetupTemplate(String id) {
           claude: false,
           codex: true,
           agy: false,
+          pi: false,
         ),
       );
     default:

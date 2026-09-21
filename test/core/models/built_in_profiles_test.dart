@@ -150,4 +150,79 @@ void main() {
       expect(templateEnv['HAPPY_CODEX_PROVIDER_WIRE_API'], 'chat');
     });
   });
+
+  group('profile setup catalog mirrors all 11 built-in presets', () {
+    test('covers every built-in id with an option and a template', () {
+      expect(builtInProfileIds.length, 11);
+      expect(builtInProfiles.length, 11);
+      for (final id in builtInProfileIds) {
+        expect(profileSetupOption(id), isNotNull, reason: id);
+        expect(profileSetupTemplate(id), isNotNull, reason: id);
+      }
+    });
+
+    test('templates match built-in env keys, defaults and compatibility', () {
+      for (final id in builtInProfileIds) {
+        final builtIn = getBuiltInProfile(id)!;
+        final template = profileSetupTemplate(id)!;
+        final where = 'preset $id';
+
+        expect(
+          template.compatibility.claude,
+          builtIn.compatibility.claude,
+          reason: where,
+        );
+        expect(
+          template.compatibility.codex,
+          builtIn.compatibility.codex,
+          reason: where,
+        );
+        expect(
+          template.compatibility.agy,
+          builtIn.compatibility.agy,
+          reason: where,
+        );
+        expect(
+          template.compatibility.pi,
+          builtIn.compatibility.pi,
+          reason: where,
+        );
+        expect(
+          template.defaultModelMode,
+          builtIn.defaultModelMode,
+          reason: where,
+        );
+
+        final builtInEnv = {
+          for (final e in builtIn.environmentVariables) e.name: e.value,
+        };
+        final templateEnv = {
+          for (final e in template.environmentVariables) e.name: e.value,
+        };
+        for (final entry in builtInEnv.entries) {
+          expect(
+            templateEnv.containsKey(entry.key),
+            isTrue,
+            reason: '${entry.key} missing from $where template',
+          );
+          expect(
+            templateEnv[entry.key],
+            _envDefault(entry.value),
+            reason: '${entry.key} default mismatch in $where template',
+          );
+        }
+      }
+    });
+
+    test(
+      'isBuiltInPresetId identifies presets without gating deletability',
+      () {
+        for (final id in builtInProfileIds) {
+          expect(isBuiltInPresetId(id), isTrue, reason: id);
+        }
+        expect(isBuiltInPresetId('custom_1'), isFalse);
+        expect(isBuiltInPresetId(''), isFalse);
+      },
+    );
+  });
 }

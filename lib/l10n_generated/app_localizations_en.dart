@@ -2279,6 +2279,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profilesDeleteProfile => 'Delete Profile';
 
   @override
+  String get profilesBadgeBuiltIn => 'Built-in';
+
+  @override
+  String get profilesBadgeCustom => 'Custom';
+
+  @override
+  String get profilesActionsTooltip => 'Profile actions';
+
+  @override
+  String get profilesSuggestedBadge => 'Suggested';
+
+  @override
+  String get profilesEmptyTitle => 'No profiles yet';
+
+  @override
+  String get profilesEmptySubtitle =>
+      'Add one from a preset to prefill the configuration — every profile stays editable and deletable.';
+
+  @override
   String get profilesNameHint => 'e.g. MiniMax, Kimi Code, DeepSeek';
 
   @override

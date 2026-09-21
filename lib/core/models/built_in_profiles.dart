@@ -359,7 +359,7 @@ AIBackendProfile? getBuiltInProfile(String id) {
         name: 'OpenRouter',
         description: 'OpenRouter — unified gateway to 200+ models',
         isBuiltIn: true,
-        defaultModelMode: 'anthropic/claude-opus-4-6',
+        defaultModelMode: 'anthropic/claude-opus-4.6',
         environmentVariables: [
           EnvironmentVariable(
             name: 'ANTHROPIC_BASE_URL',
@@ -558,20 +558,13 @@ AIBackendProfile? resolveProfile(
   return getBuiltInProfile(id);
 }
 
-/// Merges [customProfiles] with [builtInProfiles], deduplicating by id
-/// (custom entries win).
-List<AIBackendProfile> effectiveProfiles(
-  List<AIBackendProfile> customProfiles,
-) {
-  final seen = <String>{};
-  final resolved = <AIBackendProfile>[];
-  for (final profile in [...customProfiles, ...builtInProfiles]) {
-    if (seen.add(profile.id)) {
-      resolved.add(profile);
-    }
-  }
-  return resolved;
-}
+/// Whether [id] names one of the shipped preset profiles.
+///
+/// Presets are creation-time suggestions only — they prefill the wizard or
+/// editor and are never auto-populated as list rows. A stored row whose id
+/// happens to match a preset is a user-owned customisation and must stay
+/// deletable.
+bool isBuiltInPresetId(String id) => _builtInIds.contains(id);
 
 /// Resolve the selected profile ID for an agent.
 ///
