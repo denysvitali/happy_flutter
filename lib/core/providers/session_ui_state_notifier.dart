@@ -44,8 +44,10 @@ class _PatchedSessionMap<V> extends MapBase<String, V> {
       key == _key ? _value != null : _previous.containsKey(key);
 
   @override
-  int get length => _previous.length +
-      (_previous.containsKey(_key) ? 0 : 1) - (_value == null ? 1 : 0);
+  int get length =>
+      _previous.length +
+      (_previous.containsKey(_key) ? 0 : 1) -
+      (_value == null ? 1 : 0);
 
   @override
   Iterable<String> get keys sync* {
@@ -335,6 +337,31 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
   /// `changed_count_bucket`, so raising this loses no measurement; it only
   /// stops a same-frame derivation from being reported as a defect.
   static const int _slowComputeMs = 50;
+
+  @visibleForTesting
+  static bool debugIsMeaningfulSlowCompute({
+    required Duration duration,
+    required String trigger,
+    required int changedCount,
+  }) {
+    return _isMeaningfulSlowCompute(
+      duration: duration,
+      trigger: trigger,
+      changedCount: changedCount,
+    );
+  }
+
+  static bool _isMeaningfulSlowCompute({
+    required Duration duration,
+    required String trigger,
+    required int changedCount,
+  }) {
+    // A targeted no-op only rechecks one entry and preserves the existing
+    // state. Its elapsed time is not actionable catalog recomputation work.
+    if (trigger == 'single' && changedCount == 0) return false;
+    return duration.inMilliseconds >= _slowComputeMs;
+  }
+
   static const int _scaleTraceMinSessions = 11;
   static const int _telemetryThrottleMs = 30000;
 
@@ -365,9 +392,7 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
 
     final dataCounter = sync.dataChangeCounter;
     final sessionsDomainCounter = sync.domainChangeCounter(SyncDomain.sessions);
-    final messagesDomainCounter = sync.domainChangeCounter(
-      SyncDomain.messages,
-    );
+    final messagesDomainCounter = sync.domainChangeCounter(SyncDomain.messages);
 
     if (dataCounter == _lastDataChangeCounter &&
         sessionsDomainCounter == _lastSessionsDomainCounter &&
@@ -701,7 +726,11 @@ class SessionUiStateNotifier extends Notifier<SessionUiState> {
       ..end();
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    if (debugShouldWarnSlowCompute(duration.inMilliseconds) &&
+    if (_isMeaningfulSlowCompute(
+          duration: duration,
+          trigger: trigger,
+          changedCount: changedCount,
+        ) &&
         now - _lastSlowLogAtMs >= _telemetryThrottleMs) {
       _lastSlowLogAtMs = now;
       logger.warning(
