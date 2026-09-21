@@ -1002,6 +1002,8 @@
   "profilesEditProfile": "Edit Profile",
   "profilesDeleteProfile": "Delete Profile",
   "profilesBadgeBuiltIn": "Built-in",
+  "profilesAddToMyProfiles": "Add to my profiles",
+  "profilesPresetAdded": "{name} added to your profiles",
   "profilesBadgeCustom": "Custom",
   "profilesActionsTooltip": "Profile actions",
   "profilesSuggestedBadge": "Suggested",

@@ -2282,6 +2282,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profilesBadgeBuiltIn => 'Built-in';
 
   @override
+  String get profilesAddToMyProfiles => 'Add to my profiles';
+
+  @override
+  String profilesPresetAdded(Object name) {
+    return '$name added to your profiles';
+  }
+
+  @override
   String get profilesBadgeCustom => 'Custom';
 
   @override

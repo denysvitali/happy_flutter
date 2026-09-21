@@ -15,9 +15,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/env_secrets.dart';
 import '../../core/utils/shell_script_parser.dart';
+import '../../core/utils/snack.dart';
 import 'profile_editor_screen.dart';
 import 'widgets/profile_badge.dart';
-import '../../core/utils/snack.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -46,19 +46,15 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       ref.read(settingsNotifierProvider),
       selectedAgent,
     );
-    // Stored rows only — shipped presets are suggestions at creation time
-    // (wizard/editor prefill), never auto-populated rows. Everything listed
-    // here lives in Settings.profiles and is deletable.
+    // Stored rows are the inventory — shipped presets are suggestions at
+    // creation time (wizard/editor prefill), never auto-populated rows.
+    // A preset with no stored row appears only while it is the in-use
+    // selection, so the active profile is never invisible (see
+    // [_visibleForAgent]).
     final allProfiles = customProfiles;
-    final claudeProfiles = allProfiles
-        .where((profile) => profile.compatibility.supportsAgent('claude'))
-        .toList();
-    final codexProfiles = allProfiles
-        .where((profile) => profile.compatibility.supportsAgent('codex'))
-        .toList();
-    final agyProfiles = allProfiles
-        .where((profile) => profile.compatibility.supportsAgent('agy'))
-        .toList();
+    final claudeProfiles = _visibleForAgent(allProfiles, 'claude');
+    final codexProfiles = _visibleForAgent(allProfiles, 'codex');
+    final agyProfiles = _visibleForAgent(allProfiles, 'agy');
 
     final isWide = MasterDetailScaffold.isWide(context);
 
@@ -98,7 +94,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
             ),
           ],
         ),
-        if (allProfiles.isEmpty)
+        if (claudeProfiles.isEmpty &&
+            codexProfiles.isEmpty &&
+            agyProfiles.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xxl),
             child: AppEmptyState(
@@ -190,8 +188,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         title: title,
         children: [
           ...profiles.map((profile) {
+            final settings = ref.read(settingsNotifierProvider);
+            final isStored = settings.profiles.any((p) => p.id == profile.id);
             final selectedProfileId = resolveSelectedProfileIdForAgent(
-              ref.read(settingsNotifierProvider),
+              settings,
               agent,
             );
             final isSelected = selectedProfileId == profile.id;
@@ -218,15 +218,69 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                   notifier.updateSetting('lastUsedProfile', profile.id),
                 );
               },
-              onEdit: isWide
+              onEdit: !isStored
+                  ? null
+                  : isWide
                   ? () => setState(() => _selectedProfileId = profile.id)
                   : () => context.pushNamed('profile-editor', extra: profile),
-              onDuplicate: () => _duplicateProfile(context, ref, profile),
-              onDelete: () => _confirmDeleteProfile(context, ref, profile),
+              onDuplicate: isStored
+                  ? () => _duplicateProfile(context, ref, profile)
+                  : null,
+              onDelete: isStored
+                  ? () => _confirmDeleteProfile(context, ref, profile)
+                  : null,
+              onAddToProfiles: isStored
+                  ? null
+                  : () => _addToMyProfiles(context, ref, profile),
             );
           }),
         ],
       ),
+    );
+  }
+
+  /// Stored rows for [agent], plus — only when it is the in-use selection —
+  /// the resolved preset row so the active profile never renders as
+  /// invisible. The extra row is display-only until the user saves it via
+  /// "Add to my profiles"; it is not inventory and cannot be deleted.
+  List<AIBackendProfile> _visibleForAgent(
+    List<AIBackendProfile> stored,
+    String agent,
+  ) {
+    final visible = stored
+        .where((profile) => profile.compatibility.supportsAgent(agent))
+        .toList();
+    final settings = ref.read(settingsNotifierProvider);
+    final selectedId = resolveSelectedProfileIdForAgent(settings, agent);
+    if (selectedId == null || visible.any((p) => p.id == selectedId)) {
+      return visible;
+    }
+    final resolved = resolveProfile(selectedId, settings.profiles);
+    if (resolved != null && resolved.compatibility.supportsAgent(agent)) {
+      visible.insert(0, resolved);
+    }
+    return visible;
+  }
+
+  /// Materialise an in-use preset as a normal stored row (editable and
+  /// deletable like every other row).
+  void _addToMyProfiles(
+    BuildContext context,
+    WidgetRef ref,
+    AIBackendProfile profile,
+  ) {
+    final settings = ref.read(settingsNotifierProvider);
+    if (settings.profiles.any((p) => p.id == profile.id)) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final stored = profile.copyWith(createdAt: now, updatedAt: now);
+    unawaited(
+      ref.read(settingsNotifierProvider.notifier).updateSetting('profiles', [
+        ...settings.profiles,
+        stored,
+      ]),
+    );
+    context.showSnack(
+      AppLocalizations.of(context).profilesPresetAdded(profile.name),
     );
   }
 
@@ -239,6 +293,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     VoidCallback? onEdit,
     VoidCallback? onDelete,
     VoidCallback? onDuplicate,
+    VoidCallback? onAddToProfiles,
   }) {
     final l10n = AppLocalizations.of(context);
     final cs = Theme.of(context).colorScheme;
@@ -254,7 +309,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
         ? _iconForProfile(profile.id)
         : Icons.person_outline;
     final hasActions =
-        onEdit != null || onDuplicate != null || onDelete != null;
+        onEdit != null ||
+        onDuplicate != null ||
+        onDelete != null ||
+        onAddToProfiles != null;
 
     final row = SettingsRow(
       icon: icon,
@@ -292,9 +350,16 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
                     onDuplicate?.call();
                   case _ProfileAction.delete:
                     onDelete?.call();
+                  case _ProfileAction.addToProfiles:
+                    onAddToProfiles?.call();
                 }
               },
               itemBuilder: (ctx) => [
+                if (onAddToProfiles != null)
+                  PopupMenuItem(
+                    value: _ProfileAction.addToProfiles,
+                    child: Text(l10n.profilesAddToMyProfiles),
+                  ),
                 if (onEdit != null)
                   PopupMenuItem(
                     value: _ProfileAction.edit,
@@ -585,7 +650,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
   }
 }
 
-enum _ProfileAction { edit, duplicate, delete }
+enum _ProfileAction { edit, duplicate, delete, addToProfiles }
 
 String _primaryAgentForProfile(AIBackendProfile profile) {
   final compatibility = profile.compatibility;

@@ -14,7 +14,15 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
 
   Settings _applyUpdate(Settings current, String key, dynamic value) {
     final json = current.toJson();
-    json[key] = value;
+    // Mirror production serialization: fromJson expects wire maps, not
+    // model instances (an empty list hides the mismatch — only non-empty
+    // element casts run).
+    json[key] = switch (value) {
+      final List<AIBackendProfile> list =>
+        list.map((e) => e.toJson()).toList(),
+      final AIBackendProfile profile => profile.toJson(),
+      _ => value,
+    };
     return Settings.fromJson(json);
   }
 }
@@ -315,6 +323,59 @@ void main() {
       );
       expect(container.read(settingsNotifierProvider).lastUsedAgent, 'claude');
       expect(container.read(settingsNotifierProvider).lastUsedProfile, isNull);
+    });
+
+    testWidgets('shows the in-use preset when it has no stored row', (
+      tester,
+    ) async {
+      // Selection that resolves to a shipped preset must stay visible as a
+      // display-only row instead of silently disappearing from the page.
+      final preset = Settings()
+        ..lastUsedProfile = 'deepseek'
+        ..lastUsedAgent = 'claude';
+
+      await tester.pumpWidget(
+        _buildScreen(() => _PresetSettingsNotifier(preset)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('DeepSeek (Chat)'), findsOneWidget);
+      expect(find.text('Built-in'), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle), findsOneWidget);
+      // No inventory rows means no empty-state CTA alongside the in-use row.
+      expect(find.text('No profiles yet'), findsNothing);
+    });
+
+    testWidgets('in-use preset row can be saved as a deletable stored row', (
+      tester,
+    ) async {
+      final preset = Settings()
+        ..lastUsedProfile = 'deepseek'
+        ..lastUsedAgent = 'claude';
+
+      await tester.pumpWidget(
+        _buildScreen(() => _PresetSettingsNotifier(preset)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      // Display-only row: materialize instead of edit/duplicate/delete.
+      expect(find.text('Add to my profiles'), findsOneWidget);
+      expect(find.text('Delete Profile'), findsNothing);
+      await tester.tap(find.text('Add to my profiles'));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ProfilesScreen)),
+      );
+      final stored = container.read(settingsNotifierProvider).profiles;
+      expect(stored.map((p) => p.id), contains('deepseek'));
+
+      // Now a normal inventory row: the full action set is available.
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete Profile'), findsOneWidget);
     });
 
     testWidgets('shows custom profiles only in compatible agent sections', (

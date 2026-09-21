@@ -4315,6 +4315,18 @@ abstract class AppLocalizations {
   /// **'Built-in'**
   String get profilesBadgeBuiltIn;
 
+  /// No description provided for @profilesAddToMyProfiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to my profiles'**
+  String get profilesAddToMyProfiles;
+
+  /// No description provided for @profilesPresetAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} added to your profiles'**
+  String profilesPresetAdded(Object name);
+
   /// No description provided for @profilesBadgeCustom.
   ///
   /// In en, this message translates to:
