@@ -45,7 +45,7 @@ void main() {
           strokeWidth: 3,
           strokeCap: StrokeCap.round,
           semanticsLabel: 'Download',
-          semanticsValue: 'Half complete',
+          semanticsValue: '50',
         ),
       ),
     );
@@ -69,7 +69,7 @@ void main() {
     expect(determinate.strokeWidth, 3);
     expect(determinate.strokeCap, StrokeCap.round);
     expect(determinate.semanticsLabel, 'Download');
-    expect(determinate.semanticsValue, 'Half complete');
+    expect(determinate.semanticsValue, '50');
 
     await tester.pumpWidget(tree(null));
     expect(

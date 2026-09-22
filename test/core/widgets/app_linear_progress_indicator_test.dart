@@ -45,7 +45,7 @@ void main() {
           minHeight: 3,
           borderRadius: BorderRadius.all(Radius.circular(5)),
           semanticsLabel: 'Download',
-          semanticsValue: 'Half complete',
+          semanticsValue: '50',
         ),
       ),
     );
@@ -67,7 +67,7 @@ void main() {
     expect(determinate.minHeight, 3);
     expect(determinate.borderRadius, BorderRadius.circular(5));
     expect(determinate.semanticsLabel, 'Download');
-    expect(determinate.semanticsValue, 'Half complete');
+    expect(determinate.semanticsValue, '50');
 
     await tester.pumpWidget(tree(null));
     expect(
