@@ -27,6 +27,7 @@ import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/snack.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/version_utils.dart';
+import 'widgets/machine_provider_versions.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -354,6 +355,14 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                 ),
               ),
             ],
+
+            const SizedBox(height: AppSpacing.xxl),
+            MachineProviderVersions(
+              key: ValueKey('provider-versions-${widget.machineId}'),
+              machineId: widget.machineId,
+              machineName: machineName,
+              isOnline: isOnline,
+            ),
 
             // ── Sessions ──
             if (machineSessions.isNotEmpty) ...[

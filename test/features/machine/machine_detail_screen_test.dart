@@ -134,6 +134,19 @@ void main() {
     });
 
     group('when machine exists', () {
+      testWidgets('offers coding agent updates for the machine', (tester) async {
+        final machine = _makeMachine(id: 'm1');
+        await tester.pumpWidget(
+          _buildApp(machineId: 'm1', machines: {'m1': machine}),
+        );
+        await tester.pump();
+        await tester.scrollUntilVisible(find.text('Coding agents'), 250);
+
+        expect(find.text('Codex'), findsOneWidget);
+        expect(find.text('Claude Code'), findsOneWidget);
+        expect(find.text('Check for updates'), findsOneWidget);
+      });
+
       testWidgets('shows machine display name as title', (tester) async {
         final machine = _makeMachine(
           id: 'm1',

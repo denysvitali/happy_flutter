@@ -724,6 +724,138 @@ abstract class AppLocalizations {
   /// **'Daemon'**
   String get machineDaemon;
 
+  /// No description provided for @machineAgentsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Coding agents'**
+  String get machineAgentsTitle;
+
+  /// No description provided for @machineAgentsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Check and update Codex and Claude Code installed on this machine.'**
+  String get machineAgentsDescription;
+
+  /// No description provided for @machineAgentsCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get machineAgentsCheck;
+
+  /// No description provided for @machineAgentsChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking versions…'**
+  String get machineAgentsChecking;
+
+  /// No description provided for @machineAgentsOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect this machine to check and update coding agents.'**
+  String get machineAgentsOffline;
+
+  /// No description provided for @machineAgentsInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed: {version}'**
+  String machineAgentsInstalled(String version);
+
+  /// No description provided for @machineAgentsLatest.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest: {version}'**
+  String machineAgentsLatest(String version);
+
+  /// No description provided for @machineAgentsNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get machineAgentsNotInstalled;
+
+  /// No description provided for @machineAgentsUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Version unavailable'**
+  String get machineAgentsUnknown;
+
+  /// No description provided for @machineAgentsUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Up to date'**
+  String get machineAgentsUpToDate;
+
+  /// No description provided for @machineAgentsUpdateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get machineAgentsUpdateAvailable;
+
+  /// No description provided for @machineAgentsUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get machineAgentsUpdate;
+
+  /// No description provided for @machineAgentsUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating…'**
+  String get machineAgentsUpdating;
+
+  /// No description provided for @machineAgentsUpdateConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update {agent}?'**
+  String machineAgentsUpdateConfirmTitle(String agent);
+
+  /// No description provided for @machineAgentsUpdateConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Update {agent} on {machine}?'**
+  String machineAgentsUpdateConfirm(String agent, String machine);
+
+  /// No description provided for @machineAgentsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Update completed'**
+  String get machineAgentsUpdated;
+
+  /// No description provided for @machineAgentsCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not check versions. Try again.'**
+  String get machineAgentsCheckFailed;
+
+  /// No description provided for @machineAgentsUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not complete the update. Check versions before trying again.'**
+  String get machineAgentsUpdateFailed;
+
+  /// No description provided for @machineAgentsUpdateUncertain.
+  ///
+  /// In en, this message translates to:
+  /// **'The update response was interrupted. It may still be running on the machine. Check versions before trying again.'**
+  String get machineAgentsUpdateUncertain;
+
+  /// No description provided for @machineAgentsUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Happy on this machine to manage coding agent versions.'**
+  String get machineAgentsUnsupported;
+
+  /// No description provided for @machineAgentsProtocolUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Happy and this app to manage coding agent versions.'**
+  String get machineAgentsProtocolUnsupported;
+
+  /// No description provided for @machineAgentsManagedElsewhere.
+  ///
+  /// In en, this message translates to:
+  /// **'Update this installation using its package manager.'**
+  String get machineAgentsManagedElsewhere;
+
   /// No description provided for @machineStatus.
   ///
   /// In en, this message translates to:

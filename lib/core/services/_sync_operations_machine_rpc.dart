@@ -3,13 +3,37 @@ part of 'sync_service.dart';
 /// Machine-scoped RPC calls issued by [Sync].
 ///
 /// These are request/response round-trips to a machine's daemon (`bash`,
-/// `read-file`, and the per-vendor usage/limit probes). None of them mutate
-/// `Sync`'s in-memory session state — they only read from a machine — which
-/// is why they live apart from the session spawn logic in
+/// `read-file`, provider updates, and the per-vendor usage/limit probes).
+/// They do not mutate `Sync`'s in-memory session state, which is why they
+/// live apart from the session spawn logic in
 /// `_sync_operations_session.dart`.
 extension SyncMachineRpcOperations on Sync {
   static const int _codexModelsSuccessTtlMs = 60 * 60 * 1000;
   static const int _codexModelsFailureTtlMs = 30 * 1000;
+
+  /// Check installed/latest coding agent versions, or poll cached update state.
+  Future<ProviderVersionsResponse> machineGetProviderVersions({
+    required String machineId,
+    bool refresh = true,
+  }) => _typedMachineRPC(
+    machineId,
+    'get-provider-versions',
+    <String, dynamic>{'refresh': refresh},
+    ProviderVersionsResponse.fromJson,
+    timeout: const Duration(seconds: 25),
+  );
+
+  /// Start a daemon-owned update; poll versions until its status completes.
+  Future<ProviderUpdateResponse> machineUpdateProvider({
+    required String machineId,
+    required CodingAgent provider,
+  }) => _typedMachineRPC(
+    machineId,
+    'update-provider',
+    <String, dynamic>{'provider': provider.wireValue},
+    ProviderUpdateResponse.fromJson,
+    timeout: const Duration(seconds: 15),
+  );
 
   /// Configure a daemon-owned session to be restored on the next daemon
   /// startup and submit [message] as its first resumed user turn.

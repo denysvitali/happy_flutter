@@ -35,6 +35,7 @@ import '../models/mcp_server.dart';
 import '../models/message.dart';
 import '../models/outgoing_image.dart';
 import '../models/profile.dart';
+import '../models/provider_versions.dart';
 import '../models/purchases.dart';
 import '../models/sandbox_policy.dart';
 import '../models/session.dart';

@@ -343,6 +343,87 @@ class AppLocalizationsEn extends AppLocalizations {
   String get machineDaemon => 'Daemon';
 
   @override
+  String get machineAgentsTitle => 'Coding agents';
+
+  @override
+  String get machineAgentsDescription =>
+      'Check and update Codex and Claude Code installed on this machine.';
+
+  @override
+  String get machineAgentsCheck => 'Check for updates';
+
+  @override
+  String get machineAgentsChecking => 'Checking versions…';
+
+  @override
+  String get machineAgentsOffline =>
+      'Connect this machine to check and update coding agents.';
+
+  @override
+  String machineAgentsInstalled(String version) {
+    return 'Installed: $version';
+  }
+
+  @override
+  String machineAgentsLatest(String version) {
+    return 'Latest: $version';
+  }
+
+  @override
+  String get machineAgentsNotInstalled => 'Not installed';
+
+  @override
+  String get machineAgentsUnknown => 'Version unavailable';
+
+  @override
+  String get machineAgentsUpToDate => 'Up to date';
+
+  @override
+  String get machineAgentsUpdateAvailable => 'Update available';
+
+  @override
+  String get machineAgentsUpdate => 'Update';
+
+  @override
+  String get machineAgentsUpdating => 'Updating…';
+
+  @override
+  String machineAgentsUpdateConfirmTitle(String agent) {
+    return 'Update $agent?';
+  }
+
+  @override
+  String machineAgentsUpdateConfirm(String agent, String machine) {
+    return 'Update $agent on $machine?';
+  }
+
+  @override
+  String get machineAgentsUpdated => 'Update completed';
+
+  @override
+  String get machineAgentsCheckFailed => 'Could not check versions. Try again.';
+
+  @override
+  String get machineAgentsUpdateFailed =>
+      'Could not complete the update. Check versions before trying again.';
+
+  @override
+  String get machineAgentsUpdateUncertain =>
+      'The update response was interrupted. It may still be running on the machine. Check versions before trying again.';
+
+  @override
+  String get machineAgentsUnsupported =>
+      'Update Happy on this machine to manage coding agent versions.';
+
+  @override
+  String get machineAgentsProtocolUnsupported =>
+      'Update Happy and this app to manage coding agent versions.';
+
+  @override
+  String get machineAgentsManagedElsewhere =>
+      'Update this installation using its package manager.';
+
+  @override
   String get machineStatus => 'Status';
 
   @override
