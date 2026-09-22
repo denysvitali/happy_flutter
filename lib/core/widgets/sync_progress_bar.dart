@@ -6,6 +6,8 @@ import '../providers/app_providers.dart';
 import '../services/sync_service.dart' show SyncProgress;
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
+import 'app_circular_progress_indicator.dart';
+import 'app_linear_progress_indicator.dart';
 
 /// A compact status bar for connection and sync activity.
 class SyncProgressBar extends ConsumerWidget {
@@ -59,7 +61,7 @@ class SyncProgressBar extends ConsumerWidget {
                               width: 14,
                               height: 14,
                               child: status.showSpinner
-                                  ? CircularProgressIndicator(
+                                  ? AppCircularProgressIndicator(
                                       strokeWidth: 2,
                                       value: status.progressValue,
                                       color: status.foregroundColor(cs),
@@ -107,20 +109,10 @@ class SyncProgressBar extends ConsumerWidget {
                     if (status.showProgressLine)
                       SizedBox(
                         height: 2,
-                        // Always render a determinate value. A null value puts
-                        // LinearProgressIndicator into its indeterminate
-                        // animation path, whose _controller getter force-
-                        // unwraps an ancestor lookup
-                        // (findAncestorWidgetOfExactType<Theme>()!). While the
-                        // surrounding AnimatedSwitcher/AnimatedSize transition
-                        // is in flight (e.g. entering a freshly created
-                        // session's ChatScreen) the indicator can tick after
-                        // its element is deactivated, so that ancestor is null
-                        // and the build crashes with "Null check operator used
-                        // on a null value" (Flutter 3.44 progress_indicator
-                        // regression). A determinate value skips the animated
-                        // path entirely.
-                        child: LinearProgressIndicator(
+                        // Keep sync progress determinate even before a stage
+                        // reports a value. The status spinner conveys activity
+                        // while the line remains at zero.
+                        child: AppLinearProgressIndicator(
                           value: status.progressValue ?? 0,
                           backgroundColor: Colors.transparent,
                           color: status.foregroundColor(cs),

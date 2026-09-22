@@ -10,6 +10,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
@@ -294,7 +295,7 @@ class _CardPermissionRowState extends ConsumerState<_CardPermissionRow> {
           const SizedBox(
             width: 16,
             height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
+            child: AppCircularProgressIndicator(strokeWidth: 2),
           )
         else ...[
           TextButton(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import 'elapsed_time.dart';
 import 'tool_status_indicator.dart';
 import 'tool_view_helpers.dart';
@@ -512,7 +513,7 @@ class PulsingProgressIndicator extends StatelessWidget {
         child: SizedBox(
           width: size,
           height: size,
-          child: const CircularProgressIndicator(strokeWidth: 2),
+          child: const AppCircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );

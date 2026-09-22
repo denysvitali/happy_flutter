@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../i18n/app_localizations.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_tokens.dart';
+import '../widgets/app_circular_progress_indicator.dart';
 
 class TranscriptionStartupStatusBar extends ConsumerWidget {
   const TranscriptionStartupStatusBar({super.key});
@@ -59,7 +60,7 @@ class TranscriptionStartupStatusBar extends ConsumerWidget {
                   SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(
+                    child: AppCircularProgressIndicator(
                       strokeWidth: 2,
                       color: foreground,
                     ),

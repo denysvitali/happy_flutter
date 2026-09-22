@@ -74,6 +74,46 @@ if command -v flock >/dev/null 2>&1; then
   fi
 fi
 
+# Keep retired bundles while a process still uses their executable. Flutter
+# lazily opens shaders/fonts through its original asset-directory descriptor.
+# Only successful swaps have a marker; failed rollback backups stay intact.
+cleanup_retired_bundles() {
+  [[ -d /proc ]] || return 0
+  local process executable backup marker in_use canonical_backup
+  local canonical_install marker_install
+  canonical_install=$(readlink -f "$INSTALL_DIR") || return 0
+  local -a live_executables=()
+  for process in /proc/[0-9]*; do
+    if executable=$(readlink "$process/exe" 2>/dev/null); then
+      live_executables+=("$executable")
+    elif [[ -L "$process/exe" ]]; then
+      # Neither a process name nor its owner proves an unreadable executable
+      # is unrelated. Preserve assets when liveness cannot be established.
+      return 0
+    fi
+  done
+  for backup in "$PARENT_DIR"/.happy_flutter.backup.*; do
+    [[ -d "$backup" && ! -L "$backup" ]] || continue
+    [[ "${backup##*/}" =~ ^\.happy_flutter\.backup\.[0-9]+$ ]] || continue
+    marker="$backup/.happy_flutter.retired"
+    [[ -f "$marker" ]] || continue
+    marker_install=$(readlink -f "$(cat "$marker")") || continue
+    [[ "$marker_install" == "$canonical_install" ]] || continue
+    canonical_backup=$(readlink -f "$backup") || continue
+    in_use=0
+    for executable in "${live_executables[@]}"; do
+      if [[ "$executable" == "$canonical_backup/"* ]]; then
+        in_use=1
+        break
+      fi
+    done
+    if [[ "$in_use" -eq 0 ]]; then
+      rm -rf -- "$backup"
+    fi
+  done
+}
+cleanup_retired_bundles
+
 # ── Manifest helpers (flat JSON, no jq dependency) ───────────────────────────
 manifest_value() {
   local key=$1 file="$INSTALL_DIR/$MANIFEST_NAME" value=""
@@ -176,7 +216,7 @@ cleanup_staging() {
 }
 
 rollback() {
-  rm -rf -- "$STAGING" "$ARCHIVE" "$BACKUP"
+  rm -rf -- "$STAGING" "$ARCHIVE"
   warn "Update aborted; previous installation left intact"
   exit 3
 }
@@ -214,8 +254,8 @@ cat > "$STAGING/$MANIFEST_NAME" <<EOF
 }
 EOF
 
-# Atomic-ish swap: old aside, staging in, backup dropped. The path never
-# changes, so launchers and ~/.local/bin symlinks stay valid.
+# Atomic-ish swap: keep the old bundle until all processes using it exit.
+# The install path stays stable for launchers and ~/.local/bin symlinks.
 if ! mv "$INSTALL_DIR" "$BACKUP"; then
   warn "Could not move the current installation aside"
   rollback
@@ -227,7 +267,9 @@ if ! mv "$STAGING" "$INSTALL_DIR"; then
   warn "Failed to move new bundle into place; previous installation restored"
   exit 4
 fi
-rm -rf -- "$BACKUP"
+if ! readlink -f "$INSTALL_DIR" > "$BACKUP/.happy_flutter.retired"; then
+  warn "Update installed; old bundle retained because retirement failed"
+fi
 trap - EXIT
 
 log "Updated to $TAG at $INSTALL_DIR"

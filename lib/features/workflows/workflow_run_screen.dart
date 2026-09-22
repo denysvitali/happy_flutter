@@ -12,6 +12,8 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/utils.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
+import '../../core/widgets/app_linear_progress_indicator.dart';
 import '../../core/wire/wire_parsers.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
@@ -272,7 +274,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
     // noise — show it once in the stat row instead.
     final commonModel = projection?.commonModel;
     final body = _loading && run == null
-        ? const Center(child: CircularProgressIndicator())
+        ? const Center(child: AppCircularProgressIndicator())
         : run == null
         ? _ErrorState(
             error: _error ?? context.l10n.workflowNotFoundSafe,
@@ -620,7 +622,7 @@ class _PhaseProgress extends StatelessWidget {
           value: '${(fraction * 100).round()} percent',
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.xs),
-            child: LinearProgressIndicator(
+            child: AppLinearProgressIndicator(
               value: fraction,
               minHeight: 4,
               backgroundColor: cs.surfaceContainerHighest,
@@ -782,7 +784,7 @@ class _PhaseStateIcon extends StatelessWidget {
             child: SizedBox(
               width: 13,
               height: 13,
-              child: CircularProgressIndicator(
+              child: AppCircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
               ),

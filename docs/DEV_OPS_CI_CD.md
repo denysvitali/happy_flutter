@@ -1,6 +1,6 @@
 # DevOps / CI-CD
 
-**Updated:** 2026-08-11
+**Updated:** 2026-09-22
 
 ## Main workflow
 
@@ -40,6 +40,12 @@ The x64 Linux archive is built on `ubuntu-22.04`; the arm64 archive uses
 GitHub's native `ubuntu-22.04-arm` runner. Both Linux jobs use the Ubuntu 22.04
 glibc baseline to avoid requiring newer libc symbols on supported systems. Both
 archives and the web deployment remain part of the same workflow.
+
+Native debug symbols and the matching web JavaScript/source maps are retained
+for 90 days in build-numbered `debug-info-*` artifacts. The web deployment
+bundle still expires after one day; use `debug-info-web-b<build>` for older
+crash stacks. These artifacts remain available independently of the optional
+Sentry upload, so a missing upload token does not erase diagnostic evidence.
 
 ## Test sharding
 

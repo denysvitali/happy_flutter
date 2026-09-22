@@ -13,6 +13,7 @@ import 'package:happy_flutter/core/utils/path_utils.dart';
 import '../../core/components/app_empty_state.dart';
 import '../../core/components/tablet/embedded_pane.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'markdown/markdown_view.dart';
 import 'syntax_highlighter.dart';
 
@@ -363,7 +364,7 @@ class _SessionFileViewerScreenState
 
   Widget _buildContent(ThemeData theme) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AppCircularProgressIndicator());
     }
 
     if (_error != null) {

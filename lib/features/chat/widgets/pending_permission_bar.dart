@@ -9,6 +9,7 @@ import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Sticky bar above the composer when the session has pending
 /// permission requests. Keeps Allow/Deny reachable on long transcripts
@@ -151,7 +152,7 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
                 const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: AppCircularProgressIndicator(strokeWidth: 2),
                 )
               else ...[
                 TextButton(

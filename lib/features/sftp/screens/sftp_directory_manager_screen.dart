@@ -13,6 +13,7 @@ import '../../../core/components/tablet/master_detail_scaffold.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../models/sftp_directory.dart';
 import '../providers/sftp_provider.dart';
 import 'sftp_connection_history_screen.dart';
@@ -456,7 +457,7 @@ class _SftpDirectoryManagerScreenState
         // Content
         Expanded(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(child: AppCircularProgressIndicator())
               : _error != null
               ? AppEmptyState(
                   icon: Icons.error_outline,

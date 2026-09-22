@@ -37,12 +37,13 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter/foundation.dart' show compute, kDebugMode, kIsWeb;
 import 'package:http/http.dart' as http;
 
-import '../config/app_config.dart';
-import '../utils/package_info_cache.dart';
-import 'desktop_updater_models.dart';
-import 'logger_service.dart';
 import '../../platform_io.dart'
     if (dart.library.js_interop) '../../platform_stub.dart';
+import '../config/app_config.dart';
+import '../utils/package_info_cache.dart';
+import 'desktop_bundle_cleanup.dart';
+import 'desktop_updater_models.dart';
+import 'logger_service.dart';
 
 Future<DesktopRemoteRelease?> fetchReleaseFromGitHub(Uri uri) async {
   final client = http.Client();
@@ -131,6 +132,7 @@ class DesktopUpdaterService {
     Future<void> Function(Uri url, String savePath, void Function(int?))?
     downloadFile,
     String? Function()? installDirResolver,
+    this.processDirectory = '/proc',
     this.checkInterval = defaultCheckInterval,
     this.initialCheckDelay = defaultInitialCheckDelay,
     this.autoDownload = true,
@@ -163,6 +165,10 @@ class DesktopUpdaterService {
   final Future<DesktopRemoteRelease?> Function(Uri) _fetchLatestRelease;
   final Future<void> Function(Uri, String, void Function(int?)) _downloadFile;
   final String? Function() _installDirResolver;
+
+  /// Process filesystem used to retain assets referenced by live executables.
+  /// Injectable so cleanup tests can model a complete process namespace.
+  final String processDirectory;
 
   /// Called on every state transition. `DesktopUpdaterNotifier` assigns
   /// this to mirror engine state into Riverpod.
@@ -244,6 +250,7 @@ class DesktopUpdaterService {
       _state.copyWith(status: DesktopUpdateStatus.checking, clearError: true),
     );
     try {
+      await _cleanupRetiredBundles();
       final release = await _fetchLatestRelease(feedUri);
       if (release == null || release.info.tag.isEmpty) {
         throw Exception('release feed unavailable');
@@ -436,7 +443,8 @@ class DesktopUpdaterService {
         ),
       );
 
-      // Atomic-ish swap: rename old aside, move staging in, drop backup.
+      // Keep the renamed bundle alive until its process exits. Flutter
+      // resolves lazy assets through an open directory descriptor (8708).
       final installDir = Directory(location.dir);
       var movedOld = false;
       try {
@@ -449,7 +457,15 @@ class DesktopUpdaterService {
         }
         rethrow;
       }
-      await _deleteRecursively(Directory(backupPath));
+      try {
+        File(
+          '$backupPath/$desktopRetiredBundleMarker',
+        ).writeAsStringSync(Directory(location.dir).resolveSymbolicLinksSync());
+      } catch (error) {
+        // The new installation is already in place. Keep the backup if its
+        // retirement marker cannot be written, but still offer the restart.
+        logger.info('[DesktopUpdater] backup retirement deferred: $error');
+      }
 
       logger.info('[DesktopUpdater] applied ${release.info.tag}');
       _update(
@@ -465,7 +481,8 @@ class DesktopUpdaterService {
     } catch (error) {
       logger.error('[DesktopUpdater] apply failed: $error');
       await _deleteRecursively(Directory(stagingPath));
-      await _deleteRecursively(Directory(backupPath));
+      // A failed rollback may leave the only intact installation here.
+      // Completed swaps are pruned safely on the next update check.
       _update(
         _state.copyWith(
           status: DesktopUpdateStatus.available,
@@ -588,6 +605,22 @@ class DesktopUpdaterService {
       );
     } catch (error) {
       logger.warning('[DesktopUpdater] cleanup of ${dir.path}: $error');
+    }
+  }
+
+  Future<void> _cleanupRetiredBundles() async {
+    final location = installLocation;
+    if (!location.isManaged || !location.writable) return;
+    if (!_acquireUpdateLock(location.dir)) return;
+    try {
+      await compute(pruneRetiredDesktopBundles, (
+        installPath: location.dir,
+        processDirectory: processDirectory,
+      ), debugLabel: 'desktop-retired-bundle-cleanup');
+    } catch (error) {
+      logger.info('[DesktopUpdater] retired bundle cleanup deferred: $error');
+    } finally {
+      _releaseUpdateLock();
     }
   }
 

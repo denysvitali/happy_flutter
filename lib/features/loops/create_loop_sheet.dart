@@ -6,6 +6,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Bottom sheet for creating a new scheduled prompt (loop).
 ///
@@ -204,7 +205,7 @@ class _CreateLoopSheetState extends ConsumerState<CreateLoopSheet> {
                         ? const SizedBox(
                             width: AppSpacing.lg,
                             height: AppSpacing.lg,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: AppCircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.schedule),
                     label: Text(l10n.loopsScheduleButton),

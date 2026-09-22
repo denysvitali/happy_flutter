@@ -27,6 +27,7 @@ import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/snack.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/version_utils.dart';
+import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'widgets/machine_provider_versions.dart';
 
 /// Detail screen for a single machine.
@@ -573,7 +574,7 @@ class _ClaudeAuthDialogState extends State<_ClaudeAuthDialog> {
               ],
               if (_busy) ...[
                 const SizedBox(height: AppSpacing.md),
-                const LinearProgressIndicator(),
+                const AppLinearProgressIndicator(),
               ],
             ],
           ),
@@ -833,7 +834,7 @@ class _ResourceRow extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
+                    child: AppLinearProgressIndicator(
                       value: normalized,
                       minHeight: 4,
                       backgroundColor: cs.surfaceContainerHighest,

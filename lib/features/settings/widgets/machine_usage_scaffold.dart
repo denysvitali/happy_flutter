@@ -11,6 +11,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/services/opentelemetry_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_linear_progress_indicator.dart';
 import 'machine_picker.dart';
 
 /// Outcome of one machine fetch round: either [data] or an [error]
@@ -449,7 +450,7 @@ class UsageWindowRow extends StatelessWidget {
           SizedBox(height: dense ? AppSpacing.xs : AppSpacing.sm),
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.xs),
-            child: LinearProgressIndicator(
+            child: AppLinearProgressIndicator(
               value: fraction,
               minHeight: 6,
               backgroundColor: cs.surfaceContainerHighest,

@@ -396,6 +396,12 @@ widget. Even `Text` performs implicit inherited-widget lookups and can recurse
 through defunct ancestors. Root error takeover waits until a failing build or
 layout frame finishes.
 
+**Progress and focus lifecycle:** Use `AppCircularProgressIndicator` and
+`AppLinearProgressIndicator` so animation controllers belong to the widget and
+avoid Flutter 3.41's per-tick Theme ancestor lookup after route removal. New
+focus groups use `AppReadingOrderTraversalPolicy`, which waits for render
+geometry before traversing candidates.
+
 **File previews:** supplied empty content is valid. Scope async file and
 clipboard results to the current file, and keep code and gutter in one
 vertical viewport.

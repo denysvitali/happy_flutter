@@ -13,6 +13,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
+import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'widgets/add_provider_dialog.dart';
 import 'widgets/provider_usage_card.dart';
 import 'widgets/rename_provider_dialog.dart';
@@ -463,7 +464,7 @@ class _ProviderOverview extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Semantics(
                 label: l10n.providersUpdatingUsage,
-                child: const LinearProgressIndicator(),
+                child: const AppLinearProgressIndicator(),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(

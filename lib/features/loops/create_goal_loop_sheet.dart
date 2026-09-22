@@ -10,6 +10,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/providers/goal_loops_notifier.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Bottom sheet for starting a goal loop.
 ///
@@ -352,7 +353,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AppCircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.play_arrow),
                   label: Text(l10n.goalLoopsStartButton),

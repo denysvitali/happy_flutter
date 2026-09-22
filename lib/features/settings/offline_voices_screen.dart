@@ -7,6 +7,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/offline_tts_service.dart';
 import '../../core/services/tts_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'widgets/voice_status_subtitles.dart';
 
 /// Manage downloadable Piper voices for offline TTS.
@@ -289,7 +290,7 @@ class _VoiceRow extends StatelessWidget {
       trailing = const SizedBox(
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(strokeWidth: 2),
+        child: AppCircularProgressIndicator(strokeWidth: 2),
       );
     } else if (isReady) {
       trailing = Row(

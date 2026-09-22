@@ -7,6 +7,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import 'new_session_dialog.dart';
 
 /// Empty sessions view with tiered state.
@@ -198,7 +199,7 @@ class _OfflineMachinesEmptyState extends StatelessWidget {
             icon: isRefreshing
                 ? const SizedBox.square(
                     dimension: AppIconSize.md,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AppCircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh_rounded),
             label: Text(l10n.commonRefresh),

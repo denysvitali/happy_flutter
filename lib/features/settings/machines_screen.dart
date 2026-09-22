@@ -17,6 +17,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/sync/sync_subscription_mixin.dart';
 import '../../core/utils/snack.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 
 class MachinesScreen extends ConsumerStatefulWidget {
   const MachinesScreen({super.key});
@@ -167,7 +168,7 @@ class _MachinesList extends StatelessWidget {
                         height: AppSpacing.xl,
                         child: Padding(
                           padding: EdgeInsets.all(AppSpacing.xxs),
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AppCircularProgressIndicator(strokeWidth: 2),
                         ),
                       )
                     else

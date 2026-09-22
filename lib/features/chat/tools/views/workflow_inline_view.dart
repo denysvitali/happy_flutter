@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/workflow_run.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/app_circular_progress_indicator.dart';
 import '../../../../core/wire/wire_parsers.dart';
 import '../../../workflows/workflow_display.dart';
 
@@ -209,7 +210,7 @@ class _PhaseDot extends StatelessWidget {
             SizedBox(
               width: 10,
               height: 10,
-              child: CircularProgressIndicator(
+              child: AppCircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(fg),
               ),

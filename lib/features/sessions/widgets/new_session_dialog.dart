@@ -15,6 +15,8 @@ import '../../../core/services/logger_service.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
+import '../../../core/widgets/app_focus_traversal.dart';
 import '../../chat/model_selection_resolver.dart'
     show profileOwnsRawCodexModel, profileUsesThirdPartyAnthropicBaseUrl;
 import '../../chat/widgets/model_mode.dart';
@@ -480,7 +482,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     children: [
                       const SizedBox.square(
                         dimension: AppIconSize.md,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: AppCircularProgressIndicator(strokeWidth: 2),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(child: Text(_creationPhase!)),
@@ -1106,6 +1108,7 @@ class _AgentPicker extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         FocusTraversalGroup(
+          policy: AppReadingOrderTraversalPolicy(),
           child: Column(
             children: [
               for (var start = 0; start < _agentIds.length; start += 3) ...[

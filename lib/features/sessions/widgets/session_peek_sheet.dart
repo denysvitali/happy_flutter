@@ -9,6 +9,7 @@ import '../../../core/services/message_cache_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import '../../../core/utils/text_truncate.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import 'mission_control_types.dart';
 import 'session_cards.dart';
 import 'workspace_identity.dart';
@@ -193,7 +194,7 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                         child: SizedBox(
                           width: 22,
                           height: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AppCircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
                     );
@@ -256,7 +257,7 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                           ? const SizedBox(
                               width: 14,
                               height: 14,
-                              child: CircularProgressIndicator(
+                              child: AppCircularProgressIndicator(
                                 strokeWidth: 2,
                               ),
                             )

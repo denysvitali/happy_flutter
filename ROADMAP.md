@@ -4,6 +4,53 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-09-22
 
+**GlitchTip crash follow-up, 2026-09-22.** The full unresolved metadata
+inventory contains 5,300 groups (178 seen since September 1), mostly historical
+warning fingerprints. Latest events, fatal reports and representative repeated
+families were checked against release ancestry; this is not evidence that every
+historical group has independently reproduced or been verified fixed.
+
+- **Current Android null checks (3604/8780, build 286500):** exact matching
+  symbols identify `CircularProgressIndicator` looking up a Theme ancestor
+  during an animation after popping chat. App indicators now own explicit
+  controllers and stop on deactivation; all circular call sites use the safe
+  wrapper. The matching implicit-controller lookup in linear indicators is
+  covered too. Regression coverage includes removal, reparenting, TickerMode,
+  determinate transitions and route changes.
+- **Web RenderBox failures (34 groups):** the current source map identifies
+  the equivalent stack as reading-order focus traversal reading an unlaid-out
+  node's rectangle. A shared policy skips candidates without geometry and
+  defers directional traversal until layout. Exact historical web maps expired,
+  so this mapping is qualified; four old native groups remain unattributed.
+  CI now retains matching web JavaScript/source maps for 90 days independently
+  of the one-day deployment artifact and optional Sentry upload.
+- **Background readiness alarms (3572/3804):** suspension during the wait now
+  defers delivery without reporting agent startup failure. Repeated identical
+  sends retain distinct canonical IDs through the outbox and resume.
+- **Linux missing shader (8708):** its event follows a desktop update. The
+  updater deleted the running bundle while Flutter still held asset directory
+  descriptors. Both automatic updaters now retain retired bundles; cleanup
+  requires proof that no process uses them. Restricted process inspection can
+  postpone cleanup. Failed rollback backups remain untouched.
+- **Session creation (8682):** server logs show a canceled create followed by
+  `sessions_account_id_tag_key` / SQLSTATE 23505 on retry. Backend commit
+  `happy-cli-go feffbc11` recovers the existing account/tag session, with real
+  PostgreSQL concurrency and account-isolation coverage. Deployment remains a
+  separate verification from committing the source fix.
+- **Earlier builds:** today's ANRs 8864/4716 are build 286200, before
+  `f7fcdf5a`; tool-result cap reports 8846–8848 predate `c4d697c5`, despite
+  containing the earlier history fix. Outbox suspension, HTTP cancellation,
+  MMKV, TTS and missing-Codex reports also predate their matching fixes.
+- **External failures remain visible:** latest Kimi/Zai usage failures are
+  OS network-unreachable errors; slow spawn/loop RPCs correlate with server
+  forwarding retries. Disconnected sends that already received REST ACKs
+  retain socket notification retries. No GlitchTip statuses were changed.
+- **Still unattributed:** stack overflow 8750 has one build-275100 event;
+  its exact CI symbol artifact expired (download returns HTTP 410). Foreground
+  Android idle-render warning 8859 measured 492 frames/30s on build 285000,
+  but supplies no widget/ticker attribution and its Loki query returned no
+  records. These remain open observations, not verified fixes.
+
 **Parallel correctness audit, 2026-09-22.** This batch addresses:
 
 - Current-build Android ANR loop (GlitchTip 4716, build 286200 / `906adc08`):
@@ -285,10 +332,10 @@ resolved or ignored.
 | Expected machine-refresh suspension reported as error (8771/8772) | Error telemetry | 6 lifetime | Source fix `b2c46d1c` / `3373d1a5`; verify rollout | Build 277800 cancellation is now typed and logged without an error span; cached machines and retry state survive. True deadline failures remain errors. |
 | Settings POST timeout swallowed (4717) | Warning | 17 issue total | Shipped (`04d30f60`) | Build 277500: the 10s POST wrapper timed out and the queue then reported success with zero retries. The wrapper is removed (HTTP owns the deadline), failures rethrow into `InvalidateSync`'s bounded retry, only acknowledged pending keys are cleared so edits made during the write survive, version conflicts rebase and retry, and a `_generation` guard blocks late POST/GET completion after `clear()`. Six contract tests in `test/core/sync/settings_manager_test.dart`, covering delayed POST past the old deadline, deadline failure, edits during write, conflict rebase, late POST after runtime reset, and edits during GET. |
 | Machine RPC timeout / slow ping (3702/3627) | Warning | Current-build recurrence | Open — verify Bash cleanup and deployed routing | Build 277900 Bash ACK timeout at 30s correlates with server Redis retries. Go `f513cc9` fixes independently reproduced descendant pipe hangs; causality for the live RPC remains unproven. See September 8 audit. |
-| Retry deadline overshoot / background refresh burst (8770/8769/8768/8767/8667) | Warning / Error | 1 / 1 / 1 / 1 / 2 | Open — P1 | Build 276200: 20s budget lasts about 33s after suspension. Bound each attempt and overall deadline; preserve offline outbox identity. See September 4 audit. |
+| Retry deadline overshoot / background refresh burst (8770/8769/8768/8767/8667) | Warning / Error | 1 / 1 / 1 / 1 / 2 | Fixed in `e4dad040` / `28b9b6e4` | Build 276200 predates absolute request deadlines, suspension gates and completed-budget retry handling; ancestry rechecked September 22. |
 | Send target resolution / default-profile respawn (5198) | Warning | 161 issue total | Open — P1 investigation | Build 276300: 3.16s target resolution versus 64ms POST; Loki correlates capability RPC forward retry. Verify profile identity and routing separately. |
-| Stack overflow (8750) | Error | 1 | Open — needs exact-build symbols | Build 275100 already contains d3185a0e; native-address-only stack does not identify the cause. |
-| Codex executable absent during model discovery (8763) | Error | 1 | Open — P2 | Build 275900 and Loki agree on missing daemon executable; expose provider unavailable and avoid repeated discovery. |
+| Stack overflow (8750) | Error | 1 | Open — exact-build symbols expired | Build 275100 already contains d3185a0e. CI run 33612731392 artifact 9839878457 returns HTTP 410; release assets contain no matching Dart symbols. Native addresses cannot safely be mapped using another build. |
+| Codex executable absent during model discovery (8763) | Error | 1 | Fixed in `e4dad040` / `6a879ee5` | Reporting build 275900 predates typed unavailable responses, per-machine negative caching and install guidance; contract tests cover both daemon error codes and cache isolation. |
 
 | InvalidateSync disposed crash | Fatal | 55 | Shipped in v1.0.0-154901 (1ba4ebc) | App suspend races with in-flight `invalidateAndAwait()`; `dispose()` now completes normally instead of throwing `StateError`. |
 | Null check operator (chat load) | Fatal | 9 | Shipped in v1.0.0-154901 (51f1189) | `session!.permissionMode!` and `selectedProfile!.defaultModelMode` force-unwraps in `_loadInitialSettings` when async gap allowed session/profile to become null. Fixed with safe pattern-matching (`case final x?`). Residual GlitchTip events (HAPPY_FLUTTER-17O/3C0/382) are historical aggregate; no new shape identified in audit 2026-05-22. |
@@ -331,7 +378,7 @@ resolved or ignored.
 | Stale profile in ChatScreen | Warning | 9 | Shipped in v1.0.0-154901 (51f1189) | `_loadInitialSettings` now catches `StateError` from `firstWhere` and falls back to no profile, clearing the stale `savedProfileId` from `DraftStorage`. |
 | Machine offline on session create | Warning | 33 | Fix on main, shipped automatically on the next `main` commit | NewSessionDialog disables offline machines and gates the create button (`newSessionCreateBlocker`). Remaining failure mode — machine heartbeat fresh but daemon wedged (60 s `SocketAckTimeoutException` on `spawn-happy-session`, seen 2026-06-09) — addressed with a 12 s pre-flight `ping` probe in `createSession` (`ensureMachineReachable`); daemon-side `ping` handler added in happy-cli-go (old daemons answer `Method not found`, which also proves liveness). |
 | Spawn readiness timeout (single Loki WARN) | Warning | 1 / 24h | Fix on main, shipped automatically on the next `main` commit | `sendMessage` waited the full 15 s spawn-readiness budget without seeing presence come online, then sent anyway. Promoted the warn to a structured `Sentry.captureMessage` (`sessionId` / `spawnedAt` / `waitMs` / `recentlySpawned` hint fields, level `warning`) and bumped an OTel counter (`app.session.spawn_timeout` via `PowerDiagnosticsOtelReporter.recordAppError`) so the single occurrence becomes a rate-able signal. Magic numbers (15 000 / 30 000) replaced with `Sync.recentlySpawnedWaitMs` and `Sync.recentlySpawnedFlagMs`; all four `_sessionSpawned*` map writes funnelled through a single `_registerSpawn(sessionId, {profileId, modelMode, agent, at})` helper so `wasRecentlySpawned` anchors on the same time regardless of entry path (recovered `found.createdAt` vs. local `DateTime.now()`). Regression test: `test/services/sync_service_spawn_readiness_timeout_test.dart`. |
-| RenderBox was not laid out (release StateError) | Error | 3 | Open — awaiting symbolicated event | New issues 2026-06-09 (HAPPY_FLUTTER-3D4/3D2/3CU): `StateError: Bad state: RenderBox was not laid out: <obfuscated>#…` thrown by Flutter 3.41 `RenderBox.size` in release builds (box.dart:2304). Likely unmasked by 12028a45 (Sentry filtering removed) rather than newly introduced. App-level `.size` readers (`session_cards.dart` Hero shuttle, `tool_view_widgets.dart` CollapsibleOutput) already guard `hasSize`; framework Hero `_boundingBoxFor` is the main unguarded candidate (session-avatar Hero is the only Hero pair). Debug symbols upload to Sentry since 12028a45, so the next occurrence will carry a symbolicated stack — pin the culprit then. |
+| RenderBox was not laid out (release StateError) | Error | 38 unresolved groups | Web focus guard added; old native reports unattributed | 34 web groups share the focus-geometry stack shape; the 286500 map identifies reading-order traversal. Historical maps expired, so exact old-build mapping is unavailable. Four native groups (3547/3526/3524/3520) remain unverified; three lack event bodies. |
 | fetchMessages dropped (output filter) | Warning | ~180 | Fix on main, shipped automatically on the next `main` commit | Audit found every unresolved issue in this cohort comes from old builds (`1.0.0+97201` / `+1`) whose parser predated the top-level `dataType=tool-result` handler and the per-page summarizer dedupe. Current parser already routes the production-shape envelope (`callId`+`id`+`output`+`isError`+`parentUuid`+`permissions`+`type`) through `_isToolResultEnvelope`/`_addToolResultEnvelope`; added a contract test pinning the exact production shape and a telemetry split so known-skip categories (`assistant content list is empty`, `unrecognized output content block`, `user content block type=X not handled`, `pi result with no tool rows`) log at info-level while unknown `dataType`s stay at warning. |
 | Orphan walk-back hollows out long sessions | Error (UI) | 1 session (13k seqs) | Fix on main, shipped automatically on the next `main` commit | User report 2026-08-03: chat showed "Beginning of conversation" over only the newest ~200 rows (mostly ungroupable workflow sidechain orphans); 5 days of messages/tool calls hidden. Loki showed a 2.5h orphan walk-back (500-row pages, 16:09–19:22 UTC) paging the session to seq 0 while the newest-N trim (1000 visible / 200 background) discarded pages as fast as they arrived (`upsert before=200` yo-yo). Reaching `startSeq == 0` then wrote `_sessionFirstLoadedSeq = 0` and pinned "history fully loaded" over a tail-only window — `hasOlderMessages` went false and the `firstLoaded <= 1` guard killed scroll-back. Fixed: a trim ledger (`_sessionsHistoryTrimmed`, recorded by `_upsertSessionMessages`) gates the pin; a trimmed walk reaching seq 0 re-arms the boundary to the oldest resident seq and exhausts the orphan-sweep budget (orphans render inline) instead of re-walking. Mid-walk pages keep coverage semantics (walk still advances over empty/parser-dropped ranges). Contract tests in `test/services/history_fully_loaded_pin_test.dart`. Restarting the app already heals a poisoned install (cache restore re-arms from the cache minimum). Follow-up shipped in this pass: persist the parent-group give-up signature so capped sessions do not re-run the full grouper or re-walk ~25 pages after a cold start; a real parent Task or disjoint parent group re-arms recovery. |
 | Model/provider switch silently ignored on running session | Error | 1 session (2026-08-13) | Fix on main, shipped automatically on the next `main` commit | User switched a running DeepSeek session to Fable + Anthropic; the change-detecting respawn RPC failed because daemons older than the `isRestore` field (61c553b7, 2026-08-11) strict-unmarshal the request and reject the unknown field — breaking **every** auto-restore/respawn against pre-field daemons. Worse, `_resolveSendTargetSession` cleared `_sessionSpawned*` before the respawn, so the failure erased the pending change and every later send kept the old process (and model) alive with no retry. Fixed: spawn RPC retries once without `isRestore` on the unknown-field rejection, and failed respawns restore the cleared spawn tracking so the next send re-detects the change. happy-cli-go now unmarshals RPC requests with `DiscardUnknown` so additive fields never break old daemons again. Contract tests in `profile_switching_e2e_test.dart`. |

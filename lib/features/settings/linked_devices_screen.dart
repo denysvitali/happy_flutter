@@ -12,6 +12,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/routing/safe_pop.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/datetime_extensions.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Linked devices screen
 class LinkedDevicesScreen extends ConsumerStatefulWidget {
@@ -105,7 +106,7 @@ class _LinkedDevicesScreenState
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppCircularProgressIndicator())
           : _devices.isEmpty
           ? const AppEmptyState(
               icon: Icons.devices,

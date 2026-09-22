@@ -17,6 +17,7 @@ import '../../core/theme/app_color_scheme.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'send/chat_attachment_controller.dart';
 import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';

@@ -9,6 +9,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'widgets/dev_info_row.dart';
 import '../../core/utils/snack.dart';
 
@@ -141,7 +142,7 @@ class _NotificationTestScreenState
     if (_loading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Notification Test')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(child: AppCircularProgressIndicator()),
       );
     }
 

@@ -9,6 +9,7 @@ import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../../loops/loop_count_badge.dart';
 import '../../sessions/session_avatar.dart';
 import 'agents_list_sheet.dart';
@@ -419,7 +420,7 @@ class _VitalPill extends StatelessWidget {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
+              child: AppLinearProgressIndicator(
                 value: value / 100,
                 minHeight: 4,
                 color: color,

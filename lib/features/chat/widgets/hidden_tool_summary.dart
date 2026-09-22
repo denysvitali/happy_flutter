@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart';
 import 'thinking_block.dart';
@@ -124,7 +125,7 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
                       const SizedBox(
                         width: 14,
                         height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 1.6),
+                        child: AppCircularProgressIndicator(strokeWidth: 1.6),
                       ),
                     ],
                     const SizedBox(width: AppSpacing.xs),

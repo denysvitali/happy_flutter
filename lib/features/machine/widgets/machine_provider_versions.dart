@@ -10,6 +10,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/provider_versions.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Checks and updates the coding agents installed on one connected machine.
 class MachineProviderVersions extends StatefulWidget {
@@ -248,7 +249,7 @@ class _MachineProviderVersionsState extends State<MachineProviderVersions> {
                   icon: _checking
                       ? const SizedBox.square(
                           dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: AppCircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.refresh, size: 18),
                   label: Text(
@@ -303,7 +304,7 @@ class _MachineProviderVersionsState extends State<MachineProviderVersions> {
                 children: [
                   const SizedBox.square(
                     dimension: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AppCircularProgressIndicator(strokeWidth: 2),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(l10n.machineAgentsUpdating),

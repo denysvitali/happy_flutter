@@ -238,7 +238,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
             child: SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(
+              child: AppCircularProgressIndicator(
                 strokeWidth: 1.5,
                 color: Theme.of(context).colorScheme.onSurfaceVariant
                     .withValues(alpha: AppOpacity.medium),

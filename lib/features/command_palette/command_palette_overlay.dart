@@ -6,6 +6,7 @@ import 'package:fuzzy/fuzzy.dart';
 
 import '../../core/i18n/app_localizations.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_focus_traversal.dart';
 import 'command_item.dart';
 
 /// Modal overlay that displays the command palette with search and navigation.
@@ -381,6 +382,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
       namesRoute: true,
       label: l10n.commandPaletteSemanticsLabel,
       child: FocusTraversalGroup(
+        policy: AppReadingOrderTraversalPolicy(),
         child: KeyboardListener(
           focusNode: _keyboardFocusNode,
           onKeyEvent: _handleKeyEvent,

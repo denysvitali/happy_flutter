@@ -191,6 +191,10 @@ Updates are applied via an atomic directory swap: the install path never
 changes, so launchers, the `~/.local/bin/happy_flutter` symlink, and any
 running process stay valid mid-update. Installed version metadata lives in
 `manifest.json` inside the bundle (stamped by CI at archive time).
+The previous bundle stays on disk while a running app may still need its
+shaders or fonts. Later update checks remove retired bundles only when process
+inspection confirms they are unused; restricted `/proc` access can postpone
+cleanup. Recovery backups from failed swaps are preserved.
 
 Other installer flags:
 

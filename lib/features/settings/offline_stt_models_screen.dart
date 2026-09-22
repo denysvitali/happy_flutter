@@ -6,6 +6,8 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/offline_dictation_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
+import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'widgets/voice_status_subtitles.dart';
 
 /// Manage downloadable offline speech-to-text models for dictation.
@@ -322,7 +324,7 @@ class _ModelRow extends StatelessWidget {
       trailing = SizedBox(
         width: 28,
         height: 28,
-        child: CircularProgressIndicator(
+        child: AppCircularProgressIndicator(
           strokeWidth: 2.5,
           value: fraction,
           color: cs.primary,
@@ -386,7 +388,7 @@ class _ModelRow extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.xs),
-            child: LinearProgressIndicator(
+            child: AppLinearProgressIndicator(
               minHeight: 4,
               value: progress?.fraction,
               backgroundColor: cs.surfaceContainerHighest,

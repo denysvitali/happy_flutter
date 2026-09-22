@@ -10,6 +10,7 @@ import '../providers/app_providers.dart';
 import '../services/auth_service.dart';
 import '../services/logger_service.dart' show logger;
 import '../theme/app_tokens.dart';
+import 'app_circular_progress_indicator.dart';
 
 /// Authentication gate widget that switches between
 /// the auth screen and the main app content.
@@ -194,7 +195,7 @@ class _AuthenticatingView extends StatelessWidget {
             SizedBox(
               width: AppSpacing.xxl,
               height: AppSpacing.xxl,
-              child: CircularProgressIndicator(
+              child: AppCircularProgressIndicator(
                 strokeWidth: 2.5,
                 strokeCap: StrokeCap.round,
                 valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),

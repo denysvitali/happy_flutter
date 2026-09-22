@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../model_selection_resolver.dart';
 import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
@@ -266,7 +267,7 @@ class ContextSizeIndicator extends StatelessWidget {
           child: ClipRRect(
             clipBehavior: Clip.hardEdge,
             borderRadius: BorderRadius.circular(AppRadius.hairline),
-            child: LinearProgressIndicator(
+            child: AppLinearProgressIndicator(
               value: pctUsed / 100,
               backgroundColor: cs.onSurface.withValues(alpha: 0.06),
               valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),

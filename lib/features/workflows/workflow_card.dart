@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/workflow_run.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
+import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
 
@@ -151,7 +153,7 @@ class WorkflowCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.sm),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.xs),
-                  child: LinearProgressIndicator(
+                  child: AppLinearProgressIndicator(
                     value: _phaseProgress(groups),
                     minHeight: 6,
                     backgroundColor: cs.surfaceContainerHighest,
@@ -197,7 +199,7 @@ class WorkflowCard extends StatelessWidget {
                         SizedBox(
                           width: 12,
                           height: 12,
-                          child: CircularProgressIndicator(
+                          child: AppCircularProgressIndicator(
                             strokeWidth: 1.5,
                             color: cs.primary,
                           ),
@@ -223,7 +225,7 @@ class WorkflowCard extends StatelessWidget {
                       SizedBox(
                         width: 12,
                         height: 12,
-                        child: CircularProgressIndicator(
+                        child: AppCircularProgressIndicator(
                           strokeWidth: 1.5,
                           color: cs.primary,
                         ),

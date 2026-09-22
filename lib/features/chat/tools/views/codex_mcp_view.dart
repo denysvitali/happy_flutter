@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/components/tool_view_buttons.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
+import '../../../../core/widgets/app_circular_progress_indicator.dart';
 import '../tool_section_view.dart';
 import '../tool_view_helpers.dart';
 
@@ -209,7 +210,7 @@ class _WorkingRow extends StatelessWidget {
         SizedBox(
           width: 14,
           height: 14,
-          child: CircularProgressIndicator(
+          child: AppCircularProgressIndicator(
             strokeWidth: 2,
             color: theme.colorScheme.primary,
           ),

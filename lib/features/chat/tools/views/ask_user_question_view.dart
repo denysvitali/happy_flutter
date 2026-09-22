@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/app_providers.dart';
 import '../../../../core/services/logger_service.dart' show logger;
 import '../../../../core/theme/app_tokens.dart';
+import '../../../../core/widgets/app_circular_progress_indicator.dart';
 import '../../../../core/wire/wire_parsers.dart';
 import 'ask_user_question_widgets.dart';
 
@@ -442,7 +443,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
             ? SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(
+                child: AppCircularProgressIndicator(
                   strokeWidth: 2,
                   color: theme.colorScheme.onPrimary,
                 ),

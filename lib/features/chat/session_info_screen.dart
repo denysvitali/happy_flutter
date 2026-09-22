@@ -19,6 +19,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/session_utils.dart';
 import '../../core/utils/version_utils.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
 
@@ -638,7 +639,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: AppCircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.save_outlined),
                     label: Text(l10n.commonSave),

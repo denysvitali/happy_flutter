@@ -5,6 +5,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/logger_service.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'widgets/artifact_form_fields.dart';
 import 'widgets/artifact_pane_header.dart';
 import '../../core/utils/snack.dart';
@@ -139,7 +140,7 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
                 child: _isBusy
                     ? const SizedBox.square(
                         dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                        child: AppCircularProgressIndicator(strokeWidth: 2.5),
                       )
                     : Text(
                         l10n.commonCreate,
@@ -184,7 +185,7 @@ class _NewArtifactScreenState extends ConsumerState<NewArtifactScreen> {
               child: _isBusy
                   ? const SizedBox.square(
                       dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: AppCircularProgressIndicator(strokeWidth: 2),
                     )
                   : Text(
                       l10n.commonCreate,

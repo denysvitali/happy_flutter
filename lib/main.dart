@@ -38,6 +38,7 @@ import 'core/theme/app_scroll_behavior.dart';
 import 'core/theme/app_tokens.dart';
 import 'core/utils/package_info_cache.dart';
 import 'core/utils/theme_helper.dart';
+import 'core/widgets/app_focus_traversal.dart';
 import 'core/widgets/error_boundary.dart';
 import 'features/command_palette/command_palette.dart';
 import 'platform_io.dart' if (dart.library.js_interop) 'platform_stub.dart';
@@ -761,11 +762,14 @@ class _HappyAppState extends ConsumerState<HappyApp>
             supportedLocales: AppLocalizations.supportedLocales,
             routerConfig: _router,
             builder: (context, child) {
-              return CommandPaletteKeyboardHandler(
-                appRouter: _router,
-                child: CommandPaletteAppOverlay(
+              return FocusTraversalGroup(
+                policy: AppReadingOrderTraversalPolicy(),
+                child: CommandPaletteKeyboardHandler(
                   appRouter: _router,
-                  child: child ?? const SizedBox.shrink(),
+                  child: CommandPaletteAppOverlay(
+                    appRouter: _router,
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
               );
             },

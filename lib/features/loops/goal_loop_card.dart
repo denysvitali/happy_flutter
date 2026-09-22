@@ -4,6 +4,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/models/loop.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import '../../core/widgets/app_linear_progress_indicator.dart';
 
 /// Card for a single goal loop.
 ///
@@ -119,7 +120,7 @@ class GoalLoopCard extends StatelessWidget {
             // is real, and hitting it is one of the ways the loop stops.
             ClipRRect(
               borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: LinearProgressIndicator(
+              child: AppLinearProgressIndicator(
                 value: (loop.completedIterations / maxIterations).clamp(
                   0.0,
                   1.0,

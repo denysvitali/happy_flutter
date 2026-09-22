@@ -5,6 +5,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Status chip showing online/offline indicator.
 class StatusChip extends StatelessWidget {
@@ -236,7 +237,10 @@ class ActionRow extends StatelessWidget {
               SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: color),
+                child: AppCircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: color,
+                ),
               )
             else
               Icon(

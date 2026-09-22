@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Compact header shown at the top of an embedded artifact pane. Mirrors the
 /// AppBar visual language using design tokens (no explicit hex colors).
@@ -101,7 +102,7 @@ class ArtifactBusyTextButton extends StatelessWidget {
         child: isBusy
             ? const SizedBox.square(
                 dimension: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: AppCircularProgressIndicator(strokeWidth: 2),
               )
             : Text(
                 label,

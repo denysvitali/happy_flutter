@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
+import '../../widgets/app_circular_progress_indicator.dart';
 
 /// Thin in-pane header used when a screen renders as a pane inside the
 /// tablet master-detail layout instead of as a pushed route.
@@ -82,7 +83,7 @@ class EmbeddedPaneHeader extends StatelessWidget {
               child: SizedBox(
                 width: 16,
                 height: 16,
-                child: CircularProgressIndicator(
+                child: AppCircularProgressIndicator(
                   strokeWidth: 1.5,
                   color: theme.colorScheme.primary,
                 ),
@@ -181,7 +182,7 @@ class EmbeddedPaneShell extends StatelessWidget {
                 child: SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(
+                  child: AppCircularProgressIndicator(
                     strokeWidth: 1.5,
                     color: theme.colorScheme.primary,
                   ),

@@ -269,10 +269,20 @@ void main() {
               )
               as Map<String, dynamic>;
       expect(manifest['buildNumber'], 300);
-      // No staging/backup leftovers next to the install dir.
+      // The old bundle remains available for lazy shader/font loads until
+      // a later check confirms that no running process uses it.
+      final backup = parent.listSync().whereType<Directory>().singleWhere(
+        (dir) => dir.path.contains('.happy_flutter.backup.'),
+      );
       expect(
-        parent.listSync().whereType<Directory>().map((d) => d.path),
-        everyElement(installDir.path),
+        File('${backup.path}/happy_flutter').readAsStringSync(),
+        contains('echo old'),
+      );
+      expect(
+        parent.listSync().whereType<Directory>().where(
+          (dir) => dir.path.contains('.happy_flutter.update.'),
+        ),
+        isEmpty,
       );
       // State walked through downloading before readyToRestart.
       expect(
@@ -282,6 +292,79 @@ void main() {
           DesktopUpdateStatus.readyToRestart,
         ]),
       );
+    });
+
+    test(
+      'checks retain live assets and clean retired bundles after exit',
+      () async {
+        final alias = Link('${parent.path}/install-alias')
+          ..createSync(parent.path);
+        final aliasedInstall = '${alias.path}/happy_flutter';
+        File('${installDir.path}/data/flutter_assets/shaders/ink_sparkle.frag')
+          ..createSync(recursive: true)
+          ..writeAsStringSync('old shader');
+        File('/bin/sleep').copySync('${installDir.path}/happy_flutter');
+        final chmod = await Process.run('chmod', [
+          '+x',
+          '${installDir.path}/happy_flutter',
+        ]);
+        expect(chmod.exitCode, 0);
+        final running = await Process.start(
+          '${installDir.path}/happy_flutter',
+          ['60'],
+        );
+        addTearDown(() async {
+          running.kill();
+          await running.exitCode;
+        });
+        final processDirectory = Directory('${parent.path}/proc')..createSync();
+        Link('${processDirectory.path}/self').createSync('/proc/self');
+        Link(
+          '${processDirectory.path}/${running.pid}',
+        ).createSync('/proc/${running.pid}');
+        final archivePath = makeBundleArchive();
+        final release = DesktopRemoteRelease(
+          info: DesktopReleaseInfo.parse('v1.0.0-300')!,
+          assetUrls: const {'happy-flutter-linux-x64.tar.gz': 'unused://x'},
+        );
+        final svc = DesktopUpdaterService(
+          fetchLatestRelease: (_) async => release,
+          downloadFile: (_, savePath, _) async {
+            File(archivePath).copySync(savePath);
+          },
+          installDirResolver: () => aliasedInstall,
+          processDirectory: processDirectory.path,
+          autoDownload: false,
+        );
+        expect(await svc.applyUpdate(), isTrue);
+        final backup = parent.listSync().whereType<Directory>().singleWhere(
+          (dir) => dir.path.contains('.happy_flutter.backup.'),
+        );
+
+        // A startup/manual check must not remove another live app's assets.
+        await svc.checkForUpdates();
+        expect(
+          File(
+            '${backup.path}/data/flutter_assets/shaders/ink_sparkle.frag',
+          ).readAsStringSync(),
+          'old shader',
+        );
+        running.kill();
+        await running.exitCode;
+
+        // The next startup check prunes disk usage without requiring an update.
+        await svc.checkForUpdates();
+        expect(backup.existsSync(), isFalse);
+        expect(File('${installDir.path}/happy_flutter').existsSync(), isTrue);
+      },
+    );
+
+    test('startup cleanup preserves an unmarked rollback backup', () async {
+      final backup = Directory('${parent.path}/.happy_flutter.backup.123')
+        ..createSync();
+      File('${backup.path}/happy_flutter').writeAsStringSync('recoverable');
+      await service.checkForUpdates();
+      expect(backup.existsSync(), isTrue);
     });
 
     test('download progress only publishes changed percentages', () async {

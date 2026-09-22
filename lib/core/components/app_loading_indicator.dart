@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import '../widgets/app_circular_progress_indicator.dart';
 
 /// Centered loading indicator using the theme primary color.
 ///
@@ -44,7 +45,7 @@ class AppLoadingIndicator extends StatelessWidget {
     final spinner = SizedBox(
       width: size,
       height: size,
-      child: CircularProgressIndicator(
+      child: AppCircularProgressIndicator(
         strokeWidth: strokeWidth,
         strokeCap: StrokeCap.round,
         valueColor:

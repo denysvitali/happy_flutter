@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Tiny status label shown below user bubbles for optimistic messages.
 ///
@@ -89,7 +90,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
             indicator: SizedBox(
               width: 8,
               height: 8,
-              child: CircularProgressIndicator(
+              child: AppCircularProgressIndicator(
                 strokeWidth: 1,
                 color: cs.onSurfaceVariant.withValues(alpha: 0.55),
               ),

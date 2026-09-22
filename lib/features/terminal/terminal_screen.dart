@@ -18,6 +18,7 @@ import '../../core/theme/app_tokens.dart'
         AppTouchTarget;
 import '../../core/utils/ansi_parser.dart';
 import '../../core/utils/utils.dart' show formatBytes;
+import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'terminal_output_buffer.dart';
 
 /// One-off machine command runner.
@@ -261,7 +262,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     height: AppTouchTarget.min,
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.smd),
-                      child: CircularProgressIndicator(
+                      child: AppCircularProgressIndicator(
                         strokeWidth: 2,
                         color: term.accent,
                       ),

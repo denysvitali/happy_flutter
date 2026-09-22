@@ -8,6 +8,7 @@ import '../../core/i18n/app_localizations.dart';
 import '../../core/services/server_config.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
+import '../../core/widgets/app_circular_progress_indicator.dart';
 
 class ServerSettingsScreen extends ConsumerStatefulWidget {
   const ServerSettingsScreen({super.key});
@@ -268,7 +269,7 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: AppCircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(l10n.settingsServerSaveVerify),
                   ),
@@ -299,7 +300,7 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
       return SizedBox(
         width: 24,
         height: 24,
-        child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+        child: AppCircularProgressIndicator(strokeWidth: 2, color: cs.primary),
       );
     }
     if (_isConnected ?? false) {

@@ -7,6 +7,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../../../core/wire/wire_parsers.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart' show parseToolState;
@@ -482,7 +483,7 @@ class AgentsListSheet extends StatelessWidget {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.xs),
-                    child: LinearProgressIndicator(
+                    child: AppLinearProgressIndicator(
                       value: progress.completionRatio,
                       minHeight: 4,
                       backgroundColor: cs.surfaceContainerHighest,

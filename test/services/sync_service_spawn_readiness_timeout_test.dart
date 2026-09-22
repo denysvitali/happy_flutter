@@ -299,6 +299,60 @@ void main() {
       },
     );
 
+    test('suspending during readiness queues repeated sends without '
+        'a spawn-timeout alarm or changing retry identity', () async {
+      final delivered = <String>[];
+      messageOutbox.configure(
+        deliver: (entry) async {
+          delivered.add(entry.localId);
+          return null;
+        },
+      );
+
+      await instance.sendMessage(
+        'sess-spawn',
+        'continue',
+        clientLocalId: 'suspended-first',
+      );
+      final firstDelivery = instance.lastCompleteSendFuture!;
+      // Let the background send enter the readiness wait, then reproduce
+      // the app lifecycle transition from GlitchTip 3572 / 3804.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      InvalidateSync.isBackgrounded = true;
+      await messageOutbox.suspendAndFlush();
+      await instance.sendMessage(
+        'sess-spawn',
+        'continue',
+        clientLocalId: 'suspended-second',
+      );
+      await Future.wait([firstDelivery, instance.lastCompleteSendFuture!]);
+
+      expect(instance.testSpawnReadinessTimeoutCaptures, isEmpty);
+      expect(capturedRequestData, isNull);
+      expect(delivered, isEmpty);
+      expect(messageOutbox.entries.map((entry) => entry.localId), [
+        'suspended-first',
+        'suspended-second',
+      ]);
+      expect(
+        messageOutbox.entries.every((entry) => entry.retryCount == 0),
+        isTrue,
+      );
+      final rows = instance.testSessionMessages('sess-spawn')!;
+      expect(rows, hasLength(2));
+      expect(rows.map((row) => row['localId']).toSet(), {
+        'suspended-first',
+        'suspended-second',
+      });
+
+      InvalidateSync.isBackgrounded = false;
+      messageOutbox.resume();
+      await messageOutbox.testAttemptNow('suspended-first');
+      await messageOutbox.testAttemptNow('suspended-second');
+      expect(delivered, ['suspended-first', 'suspended-second']);
+      expect(messageOutbox.entries, isEmpty);
+    });
+
     test('gives a recently-spawned session its full recentlySpawnedWaitMs '
         'instead of clamping it into the ordinary send deadline', () async {
       final stopwatch = Stopwatch()..start();

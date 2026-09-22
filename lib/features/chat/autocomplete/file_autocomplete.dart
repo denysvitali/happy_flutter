@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Characters that stop the active word search
 const List<String> _stopCharacters = [
@@ -526,7 +527,7 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                               const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(
+                                child: AppCircularProgressIndicator(
                                   strokeWidth: 2,
                                 ),
                               ),

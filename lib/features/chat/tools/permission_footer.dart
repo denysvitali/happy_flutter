@@ -5,6 +5,7 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/permission_description.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 /// Permission request UI with Allow, Allow All, and Deny buttons.
 class PermissionFooter extends StatefulWidget {
@@ -333,7 +334,7 @@ class _PermissionActionArea extends StatelessWidget {
                 children: [
                   const SizedBox.square(
                     dimension: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AppCircularProgressIndicator(strokeWidth: 2),
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(

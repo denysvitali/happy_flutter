@@ -233,7 +233,7 @@ class _DictationButton extends StatelessWidget {
               child: busy
                   ? SizedBox.square(
                       dimension: AppIconSize.lg,
-                      child: CircularProgressIndicator(
+                      child: AppCircularProgressIndicator(
                         strokeWidth: AppBorder.thick,
                         color: colorScheme.primary,
                         value: isDownloadingModel

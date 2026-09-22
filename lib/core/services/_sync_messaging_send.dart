@@ -881,15 +881,37 @@ extension SyncMessagingSend on Sync {
       try {
         ready = await waitForAgentReady(targetSessionId, waitBudget);
         if (runtimeIsStale()) return;
-        otelWaitSpan
-          ?..setAttribute('agent.ready', ready)
-          ..end(ok: ready);
+        otelWaitSpan?.setAttribute('agent.ready', ready);
       } catch (error, stack) {
         otelWaitSpan
           ?..recordError(error, stack)
           ..end(ok: false);
         rethrow;
       }
+      // Suspension disconnects the socket carrying readiness updates. A
+      // wait that finishes in the background is a delivery deferral, not
+      // evidence that the newly spawned agent failed to start.
+      if (InvalidateSync.isBackgrounded) {
+        otelWaitSpan
+          ?..setAttribute('app.backgrounded', true)
+          ..end();
+        unawaited(waitSpan.finish(status: const SpanStatus.cancelled()));
+        logger.info(
+          '[sendMessage] app backgrounded during readiness wait; '
+          'queueing outbox retry session=$targetSessionId localId=$localId',
+        );
+        await _queueMessageRetry(
+          sessionId: targetSessionId,
+          localId: localId,
+          text: text,
+          encryptedRawRecord: encryptedRawRecord,
+          rawRecord: rawRecord,
+        );
+        outcome = 'backgrounded';
+        await transaction.finish(status: const SpanStatus.cancelled());
+        return;
+      }
+      otelWaitSpan?.end(ok: ready);
       waitSpan
         ..setData('ready', ready)
         ..setData('recentlySpawned', recentlySpawned);
@@ -904,7 +926,7 @@ extension SyncMessagingSend on Sync {
         if (recentlySpawned) {
           logger.warning(
             '[sendMessage] recently spawned session did not become ready '
-            'within timeout, sending anyway session=$targetSessionId',
+            'within timeout, queueing until ready session=$targetSessionId',
           );
           // Promote the single-line warn to Sentry so we can correlate
           // user-visible "send feels slow" reports with a real spawn-readiness

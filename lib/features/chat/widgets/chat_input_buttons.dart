@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../../../core/widgets/app_circular_progress_indicator.dart';
 
 // Animation duration constants.
 const kBorderAnimDuration = AppDuration.fast;
@@ -241,7 +242,7 @@ class _SendButtonState extends State<SendButton>
               ? Padding(
                   key: const ValueKey('spinner'),
                   padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: CircularProgressIndicator(
+                  child: AppCircularProgressIndicator(
                     strokeWidth: AppBorder.thin,
                     color: cs.onPrimary,
                   ),

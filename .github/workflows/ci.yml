@@ -954,6 +954,19 @@ jobs:
           cp build/rust/web/pkg/happy_core.js build/web/pkg/happy_core.js
           cp build/rust/web/pkg/happy_core_bg.wasm build/web/pkg/happy_core_bg.wasm
 
+      # The deployment bundle expires after one day. Preserve matching JS
+      # and source maps independently so older production crashes can still
+      # be symbolicated even when the Sentry upload is unavailable.
+      - name: Upload Web Debug Info
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug-info-web-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
+          path: |
+            build/web/**/*.js
+            build/web/**/*.map
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Upload web source maps to Sentry
         if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
         run: |
