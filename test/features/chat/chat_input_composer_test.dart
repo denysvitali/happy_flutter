@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/outgoing_image.dart';
+import 'package:happy_flutter/core/services/draft_storage.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/chat_input.dart';
 import 'package:happy_flutter/features/chat/send/chat_attachment_controller.dart';
@@ -17,6 +18,7 @@ import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart';
 Widget _buildComposer({
   required TextEditingController controller,
   required VoidCallback onSend,
+  String sessionId = 'composer-test',
   VoidCallback? onQueueNextTurn,
   ChatAttachmentController? attachmentController,
   FileSuggestionsLoader? onFileSuggestionsRequested,
@@ -26,7 +28,7 @@ Widget _buildComposer({
     body: Align(
       alignment: Alignment.bottomCenter,
       child: ChatInput(
-        sessionId: 'composer-test',
+        sessionId: sessionId,
         controller: controller,
         attachmentController: attachmentController,
         onSend: onSend,
@@ -49,6 +51,141 @@ Widget _buildComposer({
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async {
+    await DraftStorage().removeDraft('composer-test');
+  });
+
+  testWidgets('persists the first edit without requiring another keystroke', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+
+    await tester.enterText(find.byType(TextField), 'Pasted draft');
+    await tester.pump();
+    expect(await DraftStorage().getDraft('composer-test'), 'Pasted draft');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('flushes pending draft edits when leaving the composer', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+
+    await tester.enterText(find.byType(TextField), 'Initial draft');
+    await tester.enterText(find.byType(TextField), 'Updated draft');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(await DraftStorage().getDraft('composer-test'), 'Updated draft');
+    controller.dispose();
+  });
+
+  testWidgets('keeps pending drafts with their session on controller swaps', (
+    tester,
+  ) async {
+    final oldController = TextEditingController();
+    final newController = TextEditingController();
+    await DraftStorage().removeDraft('composer-next-session');
+    await tester.pumpWidget(
+      _buildComposer(controller: oldController, onSend: () {}),
+    );
+    await tester.enterText(find.byType(TextField), 'Old draft');
+    await tester.enterText(find.byType(TextField), 'Old pending draft');
+
+    await tester.pumpWidget(
+      _buildComposer(
+        sessionId: 'composer-next-session',
+        controller: newController,
+        onSend: () {},
+      ),
+    );
+    await tester.pump();
+    expect(await DraftStorage().getDraft('composer-test'), 'Old pending draft');
+    expect(newController.text, isEmpty);
+
+    await tester.enterText(find.byType(TextField), 'New draft');
+    await tester.pump();
+    expect(await DraftStorage().getDraft('composer-next-session'), 'New draft');
+    oldController.text = 'Detached edit';
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(await DraftStorage().getDraft('composer-test'), 'Old pending draft');
+    expect(await DraftStorage().getDraft('composer-next-session'), 'New draft');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    oldController.dispose();
+    newController.dispose();
+  });
+
+  testWidgets('restores the destination draft when reusing a controller', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    await DraftStorage().saveDraft('composer-next-session', 'Saved next draft');
+    await tester.pumpWidget(
+      _buildComposer(controller: controller, onSend: () {}),
+    );
+    await tester.enterText(find.byType(TextField), 'Outgoing draft');
+    await tester.enterText(find.byType(TextField), 'Outgoing pending draft');
+
+    await tester.pumpWidget(
+      _buildComposer(
+        sessionId: 'composer-next-session',
+        controller: controller,
+        onSend: () {},
+      ),
+    );
+    await tester.pump();
+    expect(controller.text, 'Saved next draft');
+    expect(
+      await DraftStorage().getDraft('composer-test'),
+      'Outgoing pending draft',
+    );
+
+    await tester.enterText(find.byType(TextField), 'Next edited draft');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(
+      await DraftStorage().getDraft('composer-next-session'),
+      'Next edited draft',
+    );
+    expect(
+      await DraftStorage().getDraft('composer-test'),
+      'Outgoing pending draft',
+    );
+    controller.dispose();
+  });
+
+  testWidgets('preserves an explicitly supplied controller draft on switch', (
+    tester,
+  ) async {
+    final oldController = TextEditingController();
+    final newController = TextEditingController(text: 'Intentional prefill');
+    await DraftStorage().saveDraft('composer-next-session', 'Saved draft');
+    await tester.pumpWidget(
+      _buildComposer(controller: oldController, onSend: () {}),
+    );
+    await tester.pumpWidget(
+      _buildComposer(
+        sessionId: 'composer-next-session',
+        controller: newController,
+        onSend: () {},
+      ),
+    );
+    await tester.pump();
+    expect(newController.text, 'Intentional prefill');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    oldController.dispose();
+    newController.dispose();
+  });
 
   testWidgets('only enables send for meaningful draft content', (tester) async {
     final handle = tester.ensureSemantics();
@@ -374,6 +511,36 @@ void main() {
     await tester.pump();
     expect(controller.text, '@lib/main.dart ');
 
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('completes the whole file token when the cursor is inside it', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        onFileSuggestionsRequested: (_) async => [
+          AutocompleteSuggestion(
+            id: 'lib/main.dart',
+            label: 'lib/main.dart',
+            type: SuggestionType.file,
+          ),
+        ],
+      ),
+    );
+    await tester.enterText(find.byType(TextField), '@lib/mai.dart details');
+    controller.selection = const TextSelection.collapsed(offset: 8);
+    await tester.pump(const Duration(milliseconds: 101));
+    await tester.pump();
+    await tester.tap(find.text('lib/main.dart'));
+    await tester.pump();
+
+    expect(controller.text, '@lib/main.dart details');
+    expect(controller.selection.baseOffset, '@lib/main.dart '.length);
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
   });

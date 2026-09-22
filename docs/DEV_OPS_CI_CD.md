@@ -60,6 +60,13 @@ state) and writes `--file-reporter=json:test-results.json`, uploaded as the
 `.github/scripts/update_test_durations.py` (see its docstring); it also parses
 legacy serial expanded-reporter logs.
 
+Failed shards use `.github/scripts/report_test_failures.py` to turn JSON
+reporter error events into at most ten annotations. Each annotation contains
+one complete failure and stack, with workflow-command escaping. Logged
+`Error:` messages from passing tests do not consume the annotation limit.
+If the process exits without an error event, inspect the step log for
+compilation errors or termination. Reporter regression checks run in CI.
+
 Full Flutter test runs must run in CI, not locally.
 
 ## Caching

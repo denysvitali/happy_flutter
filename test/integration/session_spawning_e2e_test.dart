@@ -38,6 +38,7 @@ void main() {
   late _FakeOutboxStorage outboxStorage;
   setUp(() {
     _useFastSpawnTimings();
+    Sync().testSettingsSnapshot = Settings();
     messageOutbox.dispose();
     // Readiness can defer delivery into the durable outbox. Native storage
     // availability must not determine whether a spawn scenario succeeds.
@@ -192,10 +193,11 @@ void main() {
 
       expect(capturedParams, isNotNull);
       expect(capturedParams!['model'], 'fable:high');
-      // environmentVariables is always sent when non-null, empty included: an
-      // empty map means "explicit Default / no profile" and tells the daemon
-      // to clear sticky providerRoutingEnv. See rpc_types.dart.
-      expect(capturedParams!['environmentVariables'], isEmpty);
+      // No provider routing is sent for the default Anthropic profile.
+      // The speed preference remains explicit on every spawn.
+      expect(capturedParams!['environmentVariables'], {
+        'HAPPY_CODEX_FAST_MODE': '0',
+      });
     });
 
     test('sonnet:high with codex profile strips modelMode', () async {
@@ -227,7 +229,7 @@ void main() {
       expect(env['OPENAI_BASE_URL'], 'https://api.openai.com/v1');
     });
 
-    test('null profile forwards env-less spawn', () async {
+    test('null profile forwards only the explicit speed preference', () async {
       Map<String, dynamic>? capturedParams;
       sync.testSettingsSnapshot = Settings();
       sync.testMachineRPCOverride = (machineId, method, params) async {
@@ -247,9 +249,37 @@ void main() {
       );
 
       expect(capturedParams, isNotNull);
-      // Sent as an empty map, not omitted — see rpc_types.dart.
-      expect(capturedParams!['environmentVariables'], isEmpty);
+      expect(capturedParams!['environmentVariables'], {
+        'HAPPY_CODEX_FAST_MODE': '0',
+      });
     });
+
+    for (final fastMode in [false, true]) {
+      test('Codex spawn forwards fast mode $fastMode', () async {
+        sync.testSettingsSnapshot = Settings()..codexFastMode = fastMode;
+        Map<String, dynamic>? capturedParams;
+        sync.testMachineRPCOverride = (_, method, params) async {
+          expect(method, 'spawn-happy-session');
+          capturedParams = params;
+          return <String, dynamic>{
+            'type': 'success',
+            'sessionId': params['sessionId'],
+            'dataEncryptionKey': null,
+          };
+        };
+
+        await sync.createSession(
+          agent: 'codex',
+          machineId: 'machine-1',
+          path: '/home/user/project',
+        );
+
+        expect(capturedParams, isNotNull);
+        expect(capturedParams!['environmentVariables'], {
+          'HAPPY_CODEX_FAST_MODE': fastMode ? '1' : '0',
+        });
+      });
+    }
 
     test('provider mismatch RPC error surfaces typed exception', () async {
       sync.testMachineRPCOverride = (machineId, method, params) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart'
     show FlutterExceptionHandler, kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../i18n/app_localizations.dart';
@@ -178,7 +179,15 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
             details.stack ?? StackTrace.empty,
           );
         }
-        return _ErrorWidgetFallback(details: details);
+        // The surrounding element tree may already contain defunct
+        // ancestors. Even Text's implicit MediaQuery lookup can then fail
+        // and recursively mount another fallback (GlitchTip 4716). A leaf
+        // render object never walks inherited widgets while being mounted.
+        return ErrorWidget.withDetails(
+          message: kDebugMode
+              ? details.exceptionAsString()
+              : 'An error occurred',
+        );
       } catch (_) {
         return const SizedBox.shrink();
       } finally {
@@ -198,12 +207,21 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     );
 
     if (_error == null) {
-      setState(() {
-        _error = errorDetails.exception;
-        _stackTrace = errorDetails.stack;
-        _failedChildType = widget.child.runtimeType;
-        _failedChildKey = widget.child.key;
-      });
+      _error = errorDetails.exception;
+      _stackTrace = errorDetails.stack;
+      _failedChildType = widget.child.runtimeType;
+      _failedChildKey = widget.child.key;
+      // Framework errors usually arrive while a descendant is building or
+      // laying out. Rebuilding its ancestor in that phase throws another
+      // exception in debug and mutates an unstable tree in release.
+      if (SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _error != null) setState(() {});
+        });
+      } else {
+        setState(() {});
+      }
     }
 
     if (!shouldReport) return;
@@ -234,7 +252,8 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     // A different subtree (different widget type, or a different key) is a
     // genuine replacement rather than a like-for-like rebuild: clear the
     // error and hand the new subtree a fresh retry budget.
-    final replaced = widget.child.runtimeType != _failedChildType ||
+    final replaced =
+        widget.child.runtimeType != _failedChildType ||
         widget.child.key != _failedChildKey;
     if (replaced) {
       _autoResets = 0;
@@ -284,10 +303,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 
       final Widget body;
       if (widget.errorBuilder != null) {
-        body = widget.errorBuilder!(
-          _error!,
-          _stackTrace ?? StackTrace.empty,
-        );
+        body = widget.errorBuilder!(_error!, _stackTrace ?? StackTrace.empty);
       } else {
         body = _DefaultErrorWidget(
           error: _error,
@@ -316,7 +332,7 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
 /// the ancestor chain. ErrorBoundary wraps [runApp] *above*
 /// MaterialApp, so [Theme.of] / [MediaQuery.of] would throw here.
 Widget _ensureMinimalMaterial(BuildContext context, Widget child) {
-  return Directionality(
+  final host = Directionality(
     textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
     child: MediaQuery(
       data: MediaQuery.maybeOf(context) ?? const MediaQueryData(),
@@ -331,6 +347,20 @@ Widget _ensureMinimalMaterial(BuildContext context, Widget child) {
         ),
       ),
     ),
+  );
+  if (Localizations.of<MaterialLocalizations>(context, MaterialLocalizations) !=
+      null) {
+    return host;
+  }
+  // The root boundary replaces MaterialApp too. Its retry buttons and the
+  // debug stack-trace expansion need the framework's localizations.
+  return Localizations(
+    locale: const Locale('en'),
+    delegates: const [
+      DefaultMaterialLocalizations.delegate,
+      DefaultWidgetsLocalizations.delegate,
+    ],
+    child: host,
   );
 }
 
@@ -472,11 +502,7 @@ class _DefaultErrorWidget extends StatelessWidget {
 
 /// Tracks a batched error entry for deduplication within a time window.
 class _DedupEntry {
-  _DedupEntry({
-    required this.timestamp,
-    required this.handle,
-    this.count = 1,
-  });
+  _DedupEntry({required this.timestamp, required this.handle, this.count = 1});
 
   /// When this error was first shown in the current batch.
   final DateTime timestamp;
@@ -535,8 +561,7 @@ class ErrorSnackbarManager {
     // Determine whether to batch with an existing entry.
     final existing = _dedupeMap[key];
     int count;
-    if (existing != null &&
-        now.difference(existing.timestamp) < _dedupWindow) {
+    if (existing != null && now.difference(existing.timestamp) < _dedupWindow) {
       // Dismiss the current snackbar before re-showing with the new count.
       existing.handle.close();
       count = existing.count + 1;
@@ -544,7 +569,8 @@ class ErrorSnackbarManager {
       count = 1;
     }
 
-    final effectiveAction = action ??
+    final effectiveAction =
+        action ??
         SnackBarAction(
           label: 'Dismiss',
           textColor: theme.colorScheme.onErrorContainer,
@@ -594,8 +620,9 @@ class ErrorSnackbarManager {
                             ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.error,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.pill),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.pill,
+                              ),
                             ),
                             child: Text(
                               'x$count',
@@ -718,53 +745,17 @@ extension ErrorNotificationExtension on BuildContext {
 }
 
 String _tryAgainLabel(BuildContext context) {
-  return Localizations.of<AppLocalizations>(context, AppLocalizations)
-          ?.commonTryAgain ??
+  return Localizations.of<AppLocalizations>(
+        context,
+        AppLocalizations,
+      )?.commonTryAgain ??
       'Try Again';
 }
 
 String _goHomeLabel(BuildContext context) {
-  return Localizations.of<AppLocalizations>(context, AppLocalizations)
-          ?.commonGoHome ??
+  return Localizations.of<AppLocalizations>(
+        context,
+        AppLocalizations,
+      )?.commonGoHome ??
       'Go Home';
-}
-
-/// Fallback widget shown in place of the default red error screen.
-///
-/// Must not look up Theme / Localizations / MediaQuery — Flutter
-/// installs this builder as the last resort, including when those
-/// ancestors are missing. A [Theme.of] here is unbounded recursion
-/// on the UI isolate (GlitchTip 3659).
-class _ErrorWidgetFallback extends StatelessWidget {
-  const _ErrorWidgetFallback({required this.details});
-  final FlutterErrorDetails details;
-
-  static const Color _errorContainer = Color(0xFFF9DEDC);
-  static const Color _onErrorContainer = Color(0xFF410E0B);
-
-  @override
-  Widget build(BuildContext context) {
-    final label = kDebugMode
-        ? details.exceptionAsString()
-        : 'An error occurred';
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: ColoredBox(
-        color: _errorContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Text(
-            label,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _onErrorContainer,
-              fontSize: 12,
-              decoration: TextDecoration.none,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

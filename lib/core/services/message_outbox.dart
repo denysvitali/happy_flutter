@@ -270,6 +270,7 @@ class MessageOutbox {
   final Map<String, Set<String>> _readinessDeferredEntries = {};
   Timer? _persistTimer;
   bool _initialized = false;
+  bool _suspended = false;
   int _generation = 0;
 
   static final Random _rng = Random();
@@ -287,6 +288,7 @@ class MessageOutbox {
     required OutboxDeliverFn deliver,
     OutboxStatusChangedFn? onStatusChanged,
   }) {
+    _suspended = false;
     _deliver = _deliverOverride ?? deliver;
     _onStatusChanged = onStatusChanged;
   }
@@ -296,10 +298,13 @@ class MessageOutbox {
   Future<void> restoreAndFlush() async {
     if (_initialized) return;
     _initialized = true;
+    final generation = _generation;
     String? raw;
     try {
       raw = await _storage.getOutboxEntries();
+      if (generation != _generation) return;
     } catch (error) {
+      if (generation != _generation) return;
       // A transient MMKV read failure is not evidence that the persisted
       // payload is corrupt. Leave it untouched and allow a later retry.
       _initialized = false;
@@ -314,11 +319,14 @@ class MessageOutbox {
       if (!_protection.isReady) {
         try {
           await _protection.initialize();
+          if (generation != _generation) return;
         } catch (error) {
+          if (generation != _generation) return;
           if (wasLegacyPlaintext) {
             // Fail closed: legacy data must never remain plaintext merely
             // because the secure key is temporarily unavailable.
             await _storage.saveOutboxEntries('');
+            if (generation != _generation) return;
           }
           // Keep an already-encrypted blob byte-for-byte intact so recovery
           // can be retried when platform secure storage is available again.
@@ -362,11 +370,13 @@ class MessageOutbox {
         // Complete the one-way migration before scheduling any retries. The
         // same localId/rawRecord values are encrypted as one atomic blob.
         final migrated = await _persistCurrentSnapshot();
+        if (generation != _generation) return;
         if (!migrated) {
           // Normal debounced writes are loss-averse and retain their previous
           // ciphertext on failure. Migration is stricter: if sealing failed,
           // remove the legacy plaintext before any retry is scheduled.
           await _storage.saveOutboxEntries('');
+          if (generation != _generation) return;
           _entries.clear();
           _dead.clear();
           return;
@@ -391,6 +401,7 @@ class MessageOutbox {
         _scheduleRetry(entry, initialDelay: const Duration(seconds: 2));
       }
     } catch (e) {
+      if (generation != _generation) return;
       logger.warning('[MessageOutbox] failed to restore entries: $e');
       _entries.clear();
       _dead.clear();
@@ -400,6 +411,7 @@ class MessageOutbox {
 
   /// Queue a failed message for retry.
   Future<void> add(OutboxEntry entry) async {
+    final generation = _generation;
     final previousPending = _entries[entry.localId];
     final previousDead = _dead.remove(entry.localId);
     _clearReadinessDeferral(entry.localId, sessionId: entry.sessionId);
@@ -409,7 +421,9 @@ class MessageOutbox {
     // the entry must already be recoverable from storage at that point.
     _persistTimer?.cancel();
     _persistTimer = null;
-    if (!await _persistCurrentSnapshot()) {
+    final persisted = await _persistCurrentSnapshot();
+    if (generation != _generation) return;
+    if (!persisted) {
       _entries.remove(entry.localId);
       if (previousPending != null) {
         _entries[entry.localId] = previousPending;
@@ -429,14 +443,16 @@ class MessageOutbox {
 
   /// Remove an entry that was successfully delivered externally.
   Future<void> remove(String localId) async {
-    final removed =
-        _entries.remove(localId) != null || _dead.remove(localId) != null;
-    if (removed) {
-      _clearReadinessDeferral(localId);
+    final generation = _generation;
+    final removed = _entries.remove(localId) ?? _dead.remove(localId);
+    if (removed != null) {
+      _clearReadinessDeferral(localId, sessionId: removed.sessionId);
       _retryTimers.remove(localId)?.cancel();
       _persistTimer?.cancel();
       _persistTimer = null;
-      if (!await _persistCurrentSnapshot()) {
+      final persisted = await _persistCurrentSnapshot();
+      if (generation != _generation) return;
+      if (!persisted) {
         _schedulePersist();
       }
       logger.info('[MessageOutbox] removed localId=$localId');
@@ -559,6 +575,7 @@ class MessageOutbox {
   ///
   /// Returns how many entries were re-armed.
   Future<int> reviveTransientDead({String reason = 'reconnect'}) async {
+    final generation = _generation;
     final candidates = _dead.values
         .where((e) => e.failureClass != OutboxFailureClass.permanent)
         .toList();
@@ -568,10 +585,12 @@ class MessageOutbox {
       'dead-lettered entr${candidates.length == 1 ? 'y' : 'ies'} '
       '($reason)',
     );
+    var revived = 0;
     for (final entry in candidates) {
-      await reviveDead(entry.localId);
+      if (generation != _generation) return revived;
+      if (await reviveDead(entry.localId)) revived++;
     }
-    return candidates.length;
+    return revived;
   }
 
   /// Suspend retry timers when app goes to background.
@@ -593,6 +612,7 @@ class MessageOutbox {
   /// Awaitable variant of [suspend]: completes once the pending persist
   /// has actually been written to storage.
   Future<void> suspendAndFlush() async {
+    _suspended = true;
     final hadPendingPersist = _persistTimer != null;
     _persistTimer?.cancel();
     _persistTimer = null;
@@ -611,6 +631,7 @@ class MessageOutbox {
   /// foreground usually means the network is usable again, which is the
   /// signal a brownout-dead-lettered send was waiting for.
   void resume() {
+    _suspended = false;
     if (!_initialized) return;
     // Re-schedule retries for all pending entries
     for (final entry in _entries.values) {
@@ -623,6 +644,7 @@ class MessageOutbox {
   /// Cancel all pending retry timers and clear in-memory state.
   void dispose() {
     _generation++;
+    _suspended = true;
     _persistTimer?.cancel();
     _persistTimer = null;
     for (final t in _retryTimers.values) {
@@ -646,6 +668,7 @@ class MessageOutbox {
 
   void _scheduleRetry(OutboxEntry entry, {Duration? initialDelay}) {
     _retryTimers.remove(entry.localId)?.cancel();
+    if (_suspended) return;
     final delay =
         (initialDelay ?? _backoffDuration(entry.retryCount)) *
         testRetryDelayScale;
@@ -665,6 +688,7 @@ class MessageOutbox {
   }
 
   Future<void> _attempt(String localId) async {
+    if (_suspended) return;
     final entry = _entries[localId];
     if (entry == null) return; // already removed
 
@@ -676,7 +700,7 @@ class MessageOutbox {
 
   Future<void> _attemptSerialized(String localId, int generation) async {
     final entry = _entries[localId];
-    if (entry == null || generation != _generation) return;
+    if (entry == null || generation != _generation || _suspended) return;
 
     final deliver = _deliver;
     if (deliver == null) {
@@ -726,7 +750,9 @@ class MessageOutbox {
       _entries.remove(localId);
       _persistTimer?.cancel();
       _persistTimer = null;
-      if (!await _persistCurrentSnapshot()) {
+      final persisted = await _persistCurrentSnapshot();
+      if (generation != _generation) return;
+      if (!persisted) {
         _schedulePersist();
       }
       _onStatusChanged?.call(entry.sessionId, localId, 'sent');
@@ -857,9 +883,11 @@ class MessageOutbox {
   }
 
   Future<bool> _persistCurrentSnapshot() async {
+    final generation = _generation;
     try {
       if (!_protection.isReady) {
         await _protection.initialize();
+        if (generation != _generation) return false;
       }
       final list = [
         ..._entries.values.map((e) => e.toJson()),
@@ -885,9 +913,11 @@ class MessageOutbox {
   }
 
   Future<void> _replacePersistedOutboxWithEmpty() async {
+    final generation = _generation;
     try {
       if (!_protection.isReady) {
         await _protection.initialize();
+        if (generation != _generation) return;
       }
       final protected = _protection.protectString(
         '[]',
@@ -895,6 +925,7 @@ class MessageOutbox {
       );
       await _storage.saveOutboxEntries(protected ?? '');
     } catch (error) {
+      if (generation != _generation) return;
       // An empty string carries no user data and prevents legacy plaintext
       // from surviving when secure storage is unavailable.
       await _storage.saveOutboxEntries('');

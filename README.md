@@ -77,6 +77,11 @@ catalogs for resume. Telemetry distinguishes these cancellations from real
 failures and measures response bytes at the transport boundary instead of
 guessing from decoded JSON collection sizes.
 
+Message merges deduplicate complete incoming batches and preserve timeline
+order. Outbox retries remain paused in the background, and retired runtimes
+cannot restore their old queue into the current session. Unsent drafts are
+saved when leaving chat; pending settings changes are flushed on suspension.
+
 ## Technology Stack
 
 - **Flutter**: 3.41.x via mise (Dart 3.11+)
@@ -97,6 +102,10 @@ variable and select the default provider. The app forwards these definitions
 to the machine that starts the Codex session, so provider credentials remain
 environment variables rather than being written into Codex command-line
 arguments.
+
+Editing or duplicating a profile preserves its structured provider settings
+and session defaults. API keys load lazily from secure storage, with hydration
+and settings writes ordered to preserve concurrent edits.
 
 ## Setup Instructions
 

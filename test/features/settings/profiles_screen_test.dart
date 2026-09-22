@@ -18,8 +18,7 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
     // model instances (an empty list hides the mismatch — only non-empty
     // element casts run).
     json[key] = switch (value) {
-      final List<AIBackendProfile> list =>
-        list.map((e) => e.toJson()).toList(),
+      final List<AIBackendProfile> list => list.map((e) => e.toJson()).toList(),
       final AIBackendProfile profile => profile.toJson(),
       _ => value,
     };
@@ -225,6 +224,63 @@ void main() {
       expect(container.read(settingsNotifierProvider).profiles, isEmpty);
       expect(find.text('My DeepSeek'), findsNothing);
       expect(find.text('No profiles yet'), findsOneWidget);
+    });
+
+    testWidgets('duplicating preserves provider configuration and defaults', (
+      tester,
+    ) async {
+      final original = AIBackendProfile(
+        id: 'custom_complete',
+        name: 'Configured profile',
+        anthropicConfig: AnthropicConfig(baseUrl: 'https://example.com'),
+        openaiConfig: OpenAIConfig(model: 'custom-model'),
+        azureOpenAIConfig: AzureOpenAIConfig(deploymentName: 'deployment'),
+        togetherAIConfig: TogetherAIConfig(model: 'together-model'),
+        tmuxConfig: TmuxConfig(sessionName: 'work'),
+        codexModelProvider: 'custom',
+        codexProviders: [
+          CodexProviderConfig(id: 'custom', baseUrl: 'https://example.com/v1'),
+        ],
+        environmentVariables: [EnvironmentVariable(name: 'TEST', value: '1')],
+        defaultSessionType: 'worktree',
+        defaultPermissionMode: 'plan',
+        defaultModelMode: 'custom-model',
+        contextWindow: extendedContextWindowTokens,
+        models: ['custom-model'],
+        compatibility: const ProfileCompatibility(
+          claude: true,
+          codex: false,
+          agy: false,
+        ),
+        createdAt: 1,
+        updatedAt: 2,
+        version: '2.0.0',
+      );
+      final preset = Settings()..profiles = [original];
+      await tester.pumpWidget(
+        _buildScreen(() => _PresetSettingsNotifier(preset)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Duplicate Profile'));
+      await tester.pumpAndSettle();
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ProfilesScreen)),
+      );
+      final profiles = container.read(settingsNotifierProvider).profiles;
+      expect(profiles, hasLength(2));
+      final duplicate = profiles.last;
+      expect(duplicate.id, isNot(original.id));
+      expect(duplicate.isBuiltIn, isFalse);
+      final expected = original.toJson()
+        ..['id'] = duplicate.id
+        ..['name'] = duplicate.name
+        ..['createdAt'] = duplicate.createdAt
+        ..['updatedAt'] = duplicate.updatedAt;
+      expect(duplicate.toJson(), expected);
     });
 
     testWidgets('selected stored profile shows check icon', (tester) async {

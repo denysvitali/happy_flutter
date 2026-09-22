@@ -15,7 +15,9 @@ class _StorageFreeSettingsNotifier extends SettingsNotifier {
 
   Settings _applyUpdate(Settings current, String key, dynamic value) {
     final json = current.toJson();
-    json[key] = value;
+    json[key] = value is List<AIBackendProfile>
+        ? value.map((profile) => profile.toJson()).toList()
+        : value;
     return Settings.fromJson(json);
   }
 }
@@ -72,6 +74,64 @@ void main() {
   }
 
   group('ProfileEditorScreen', () {
+    testWidgets('saving a rename preserves settings without editor controls', (
+      tester,
+    ) async {
+      final original = AIBackendProfile(
+        id: 'custom_structured',
+        name: 'Before rename',
+        anthropicConfig: AnthropicConfig(baseUrl: 'https://example.com'),
+        openaiConfig: OpenAIConfig(model: 'custom-model'),
+        azureOpenAIConfig: AzureOpenAIConfig(deploymentName: 'deployment'),
+        togetherAIConfig: TogetherAIConfig(model: 'together-model'),
+        tmuxConfig: TmuxConfig(sessionName: 'work'),
+        defaultSessionType: 'worktree',
+        defaultPermissionMode: 'plan',
+        defaultModelMode: 'custom-model',
+        createdAt: 1,
+        version: '2.0.0',
+      );
+      var closed = false;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            settingsNotifierProvider.overrideWith(
+              _StorageFreeSettingsNotifier.new,
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ProfileEditorScreen(
+                existing: original,
+                embedded: true,
+                onClose: () => closed = true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ProfileEditorScreen)),
+      );
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Before rename'),
+        'After rename',
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(closed, isTrue);
+      final saved = container.read(settingsNotifierProvider).profiles.single;
+      final expected = original.toJson()
+        ..['name'] = 'After rename'
+        ..['updatedAt'] = saved.updatedAt;
+      expect(saved.toJson(), expected);
+    });
+
     testWidgets('quick setup renders all built-in profile options', (
       tester,
     ) async {

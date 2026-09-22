@@ -271,14 +271,34 @@ class _ChatInputState extends ConsumerState<ChatInput>
   @override
   void didUpdateWidget(ChatInput oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final controllerChanged = oldWidget.controller != widget.controller;
+    if (controllerChanged) {
+      oldWidget.controller.removeListener(_onTextChanged);
+      _draftAutoSave.saveNow();
+      widget.controller.addListener(_onTextChanged);
+      _previousText = widget.controller.text;
+    }
     if (oldWidget.sessionId != widget.sessionId) {
       // Save the OLD session's draft before switching.
       _draftAutoSave
         ..saveNow()
         ..sessionId = widget.sessionId;
+      if (!controllerChanged) {
+        // A reused controller still contains the outgoing session's draft.
+        // Do not let clearing it delete the destination's persisted draft.
+        widget.controller.removeListener(_onTextChanged);
+        widget.controller.clear();
+        widget.controller.addListener(_onTextChanged);
+        _previousText = '';
+      }
+    }
+    if (controllerChanged || oldWidget.sessionId != widget.sessionId) {
       _loadDraft();
     }
-    if (!identical(oldWidget.fileSuggestions, widget.fileSuggestions)) {
+    if (controllerChanged ||
+        oldWidget.sessionId != widget.sessionId ||
+        !identical(oldWidget.fileSuggestions, widget.fileSuggestions)) {
+      _clearAutocomplete();
       _scheduleAutocompleteUpdate(widget.controller.text);
     }
   }
@@ -287,7 +307,9 @@ class _ChatInputState extends ConsumerState<ChatInput>
   void dispose() {
     _autocompleteDebounce?.cancel();
     _sendScaleController.dispose();
-    _draftAutoSave.dispose();
+    _draftAutoSave
+      ..saveNow()
+      ..dispose();
     _stopDictationWatchers();
     _isFocused.dispose();
     widget.controller.removeListener(_onTextChanged);
@@ -303,8 +325,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
 
   Future<void> _loadDraft() async {
     final targetSessionId = widget.sessionId;
+    final targetController = widget.controller;
     final draft = await _draftStorage.getDraft(targetSessionId);
-    if (targetSessionId != widget.sessionId) return;
+    if (!mounted ||
+        targetSessionId != widget.sessionId ||
+        targetController != widget.controller) {
+      return;
+    }
     if (draft != null && draft.isNotEmpty && widget.controller.text.isEmpty) {
       widget.controller.text = draft;
       _previousText = draft;
@@ -312,10 +339,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }
 
   Future<void> _saveDraft(String draft) async {
+    final sessionId = _draftAutoSave.sessionId;
     if (draft.trim().isEmpty) {
-      await _draftStorage.removeDraft(widget.sessionId);
+      await _draftStorage.removeDraft(sessionId);
     } else {
-      await _draftStorage.saveDraft(widget.sessionId, draft);
+      await _draftStorage.saveDraft(sessionId, draft);
     }
   }
 
@@ -330,13 +358,11 @@ class _ChatInputState extends ConsumerState<ChatInput>
     if (currentText.trim().isEmpty) {
       _draftAutoSave.discardPending();
       unawaited(_draftStorage.removeDraft(widget.sessionId));
-    } else if (DraftStateTransition.isStateTransition(
-      _previousText,
-      currentText,
-    )) {
-      _draftAutoSave.saveNow();
     } else {
       _draftAutoSave.update(currentText);
+      if (DraftStateTransition.isStateTransition(_previousText, currentText)) {
+        _draftAutoSave.saveNow();
+      }
     }
 
     _previousText = currentText;
@@ -482,22 +508,30 @@ class _ChatInputState extends ConsumerState<ChatInput>
   void _applySuggestion(AutocompleteSuggestion suggestion) {
     final text = widget.controller.text;
     final cursorPosition = widget.controller.selection.base.offset;
+    if (cursorPosition < 0 || cursorPosition > text.length) {
+      _clearAutocomplete();
+      return;
+    }
     final textBeforeCursor = text.substring(0, cursorPosition);
     final lastWordMatch = _autocompleteTrigger.firstMatch(textBeforeCursor);
 
     if (lastWordMatch != null) {
       final startIndex = lastWordMatch.start;
       final trigger = suggestion.type == SuggestionType.command ? '/' : '@';
-      final replacement = '$trigger${suggestion.label} ';
-      final newText = text.replaceRange(
-        startIndex,
-        cursorPosition,
-        replacement,
-      );
+      var endIndex = cursorPosition;
+      while (endIndex < text.length &&
+          !RegExp(r'\s').hasMatch(text[endIndex])) {
+        endIndex++;
+      }
+      final hasTrailingSpace = endIndex < text.length && text[endIndex] == ' ';
+      final replacement =
+          '$trigger${suggestion.label}'
+          '${hasTrailingSpace ? '' : ' '}';
+      final newText = text.replaceRange(startIndex, endIndex, replacement);
       widget.controller.value = TextEditingValue(
         text: newText,
         selection: TextSelection.collapsed(
-          offset: startIndex + replacement.length,
+          offset: startIndex + replacement.length + (hasTrailingSpace ? 1 : 0),
         ),
       );
     }

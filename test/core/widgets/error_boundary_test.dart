@@ -134,6 +134,77 @@ void main() {
   // (both bang), Flutter built ErrorWidget, and ErrorWidget.builder
   // itself called Theme.of — unbounded recursion on the UI isolate.
   group('ErrorBoundary ANR guards', () {
+    testWidgets('a build failure reaches a usable root fallback', (
+      tester,
+    ) async {
+      final originalOnError = FlutterError.onError;
+      final originalBuilder = ErrorWidget.builder;
+      final injectedError = StateError('actual build failure');
+      FlutterError.onError = (details) {
+        if (!identical(details.exception, injectedError)) {
+          originalOnError?.call(details);
+        }
+      };
+      addTearDown(() {
+        FlutterError.onError = originalOnError;
+        ErrorWidget.builder = originalBuilder;
+      });
+
+      var shouldThrow = true;
+      await tester.pumpWidget(
+        ProviderScope(
+          child: ErrorBoundary(
+            child: Builder(
+              builder: (_) {
+                if (shouldThrow) throw injectedError;
+                return const SizedBox(key: ValueKey('recovered'));
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Try Again'), findsOneWidget);
+
+      shouldThrow = false;
+      await tester.tap(find.text('Try Again'));
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const ValueKey('recovered')), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('last-resort fallback never builds inherited widgets', (
+      tester,
+    ) async {
+      final originalOnError = FlutterError.onError;
+      final originalBuilder = ErrorWidget.builder;
+      FlutterError.onError = (_) {};
+      addTearDown(() {
+        FlutterError.onError = originalOnError;
+        ErrorWidget.builder = originalBuilder;
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(child: ErrorBoundary(child: const SizedBox.shrink())),
+      );
+      final fallback = ErrorWidget.builder(
+        FlutterErrorDetails(exception: StateError('defunct ancestor')),
+      );
+
+      // A Text/MediaQuery lookup can recurse through a damaged ancestor
+      // tree before a factory-level reentrancy guard can run again.
+      expect(fallback, isA<LeafRenderObjectWidget>());
+      expect(fallback, isA<ErrorWidget>());
+      expect((fallback as ErrorWidget).message, contains('defunct ancestor'));
+
+      await tester.pumpWidget(fallback);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('takeover without MaterialApp does not throw', (tester) async {
       final originalOnError = FlutterError.onError;
       final originalBuilder = ErrorWidget.builder;
@@ -277,7 +348,11 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull);
-      expect(find.textContaining('no theme'), findsOneWidget);
+      expect(find.byType(ErrorWidget), findsOneWidget);
+      expect(
+        tester.widget<ErrorWidget>(find.byType(ErrorWidget)).message,
+        contains('no theme'),
+      );
 
       await tester.pumpWidget(const SizedBox.shrink());
     });

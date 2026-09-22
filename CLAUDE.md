@@ -110,6 +110,15 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   account/runtime generation after every await before mutating state or cache.
 - **Per-session sends are FIFO** — foreground sends and outbox retries share
   one serialized delivery lane; confirmed `sent` state is monotonic.
+- **Merge fast paths validate the whole batch** — incoming IDs must be unique
+  across the resident window and batch; ordering checks use final replacements.
+- **Suspended outboxes stay suspended** — late retry failures must not rearm
+  timers. Async restore/add completions are scoped to their runtime generation.
+- **Settings mutations stay ordered** — single and batched provider updates
+  share a persistence/sync queue; storage reads, hydration, and writes share
+  another queue. Internal storage helpers must not re-enter the public queue.
+- **Draft ownership follows the session** — flush before changing sessions or
+  controllers and before disposal; delayed loads cannot overwrite newer input.
 
 ## Verification Expectations
 
@@ -345,6 +354,10 @@ the `100.64.0.0/10` CGNAT range. Debug builds also permit HTTP for loopback
 (`localhost`, `127.0.0.1`, `::1`) development endpoints. Provider API keys are
 cleared on sign-out so they cannot cross account boundaries.
 
+Settings hydration markers describe the current cached snapshot, not the fact
+that a profile was saved. Lazy snapshots still require secure-key reads.
+Suspension flushes pending settings writes before background termination.
+
 ## Models
 
 **`freezed` + `json_serializable`** for most core models (`session`, `message`, `machine`, `artifact`, `usage`, `auth`, `kv`, `local_settings`, `purchases`, `api_update`, `claude_usage_limits`) since the freezed migration (a1e03c3f); a few simpler models (`profile`, `todo`, `friend_request`, `settings_update`) remain manual `fromJson`/`toJson`/`copyWith`. Timestamps are integers (milliseconds), not `DateTime`.
@@ -375,6 +388,15 @@ import 'package:flutter/material.dart' hide TabBar;
 **Web search results:** Claude and MCP search detail views share full-width
 source cards. Keep the entire card tappable for HTTP(S) URLs, with a separate
 domain line and visible browser-launch failure feedback.
+
+**Failure fallback:** `ErrorWidget.builder` must return a leaf render-object
+widget. Even `Text` performs implicit inherited-widget lookups and can recurse
+through defunct ancestors. Root error takeover waits until a failing build or
+layout frame finishes.
+
+**File previews:** supplied empty content is valid. Scope async file and
+clipboard results to the current file, and keep code and gutter in one
+vertical viewport.
 
 **Display text:** Session previews and profile avatar initials must use
 `characters` (grapheme clusters), never UTF-16 indexing or fixed-offset

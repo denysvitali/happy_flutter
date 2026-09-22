@@ -155,6 +155,18 @@ class SettingsStorage {
   // Debounce timer for settings updates to reduce MMKV writes
   Timer? _debounceTimer;
   static const Duration _debounceDelay = Duration(milliseconds: 500);
+  Future<void> _operationTail = Future<void>.value();
+
+  Future<T> _enqueueOperation<T>(Future<T> Function() action) {
+    final next = _operationTail.then((_) => action());
+    // Keep the queue usable after a failed write while returning the error
+    // to the caller that owns that write.
+    _operationTail = next.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return next;
+  }
 
   /// Get settings from storage.
   ///
@@ -166,7 +178,9 @@ class SettingsStorage {
   /// This avoids N sequential FlutterSecureStorage reads (≈50–150ms each
   /// on Android) on every cold start for users with multiple profiles —
   /// a significant contributor to the production cold-start p95 of ~9s.
-  Future<Settings> getSettings() async {
+  Future<Settings> getSettings() => _enqueueOperation(_getSettings);
+
+  Future<Settings> _getSettings() async {
     final cachedSettings = _cachedSettings;
     if (cachedSettings != null) {
       return _cloneSettings(cachedSettings);
@@ -191,16 +205,7 @@ class SettingsStorage {
   /// Equivalent to [getSettings] now that API key hydration is lazy, but
   /// kept as a distinct entry point for call sites that explicitly want
   /// to communicate "I don't need API keys".
-  Future<Settings> getLocalSettings() async {
-    final settings = await _storage.getSettings();
-    if (!_migrationChecked) {
-      await _performMigrationIfNeeded(settings);
-      await _normalizeStaleBuiltInProfileDefaults(settings);
-      _migrationChecked = true;
-    }
-    _cacheSettings(settings);
-    return _cloneSettings(settings);
-  }
+  Future<Settings> getLocalSettings() => getSettings();
 
   /// Eagerly hydrate every profile's API key from secure storage.
   ///
@@ -208,8 +213,11 @@ class SettingsStorage {
   /// every key at once (e.g. settings editor). The session-spawn path
   /// should use [hydrateProfileApiKeys] instead so it only pays the
   /// cost for the profile actually being used.
-  Future<Settings> getSettingsWithApiKeys() async {
-    final settings = await getSettings();
+  Future<Settings> getSettingsWithApiKeys() =>
+      _enqueueOperation(_getSettingsWithApiKeys);
+
+  Future<Settings> _getSettingsWithApiKeys() async {
+    final settings = await _getSettings();
     await _loadAPIKeysIntoSettings(settings);
     _cacheSettings(settings);
     for (final p in settings.profiles) {
@@ -229,7 +237,10 @@ class SettingsStorage {
   /// current settings). Designed for the session-spawn hot path so we
   /// pay one secure-storage round-trip per profile, the first time it
   /// is used.
-  Future<AIBackendProfile?> hydrateProfileApiKeys(String profileId) async {
+  Future<AIBackendProfile?> hydrateProfileApiKeys(String profileId) =>
+      _enqueueOperation(() => _hydrateProfileApiKeys(profileId));
+
+  Future<AIBackendProfile?> _hydrateProfileApiKeys(String profileId) async {
     if (_hydratedProfileIds.contains(profileId)) {
       final cached = _cachedSettings;
       if (cached != null) {
@@ -244,7 +255,7 @@ class SettingsStorage {
     final cached =
         _cachedSettings ??
         await () async {
-          await getSettings();
+          await _getSettings();
           return _cachedSettings;
         }();
     if (cached == null) return null;
@@ -271,7 +282,11 @@ class SettingsStorage {
 
   /// Hydrate the inference OpenAI key (used by `inferenceOpenAIKey`,
   /// not tied to a specific profile).
-  Future<String?> hydrateInferenceOpenAIKey() async {
+  Future<String?> hydrateInferenceOpenAIKey() =>
+      _enqueueOperation(_hydrateInferenceOpenAIKey);
+
+  Future<String?> _hydrateInferenceOpenAIKey() async {
+    await _getSettings();
     if (_inferenceKeyHydrated) {
       return _cachedSettings?.inferenceOpenAIKey;
     }
@@ -478,11 +493,33 @@ class SettingsStorage {
 
   void _cacheSettings(Settings settings) {
     _cachedSettings = _cloneSettings(settings);
+    // A persisted/lazy snapshot can have profiles without loaded keys.
+    // Never let hydration markers from an older snapshot skip those reads.
+    _hydratedProfileIds
+      ..clear()
+      ..addAll(
+        settings.profiles
+            .where((profile) {
+              return (profile.openaiConfig == null ||
+                      profile.openaiConfig!.apiKey != null) &&
+                  (profile.azureOpenAIConfig == null ||
+                      profile.azureOpenAIConfig!.apiKey != null) &&
+                  (profile.togetherAIConfig == null ||
+                      profile.togetherAIConfig!.apiKey != null);
+            })
+            .map((profile) => profile.id),
+      );
+    _inferenceKeyHydrated = settings.inferenceOpenAIKey != null;
   }
 
   /// Save settings to storage
   /// API keys are saved to secure storage, not MMKV
-  Future<void> saveSettings(Settings settings) async {
+  Future<void> saveSettings(Settings settings) {
+    final snapshot = _cloneSettings(settings);
+    return _enqueueOperation(() => _saveSettings(snapshot));
+  }
+
+  Future<void> _saveSettings(Settings settings) async {
     // Save API keys to secure storage first
     await _saveAPIKeysFromSettings(settings);
 
@@ -490,15 +527,6 @@ class SettingsStorage {
     final settingsForStorage = _createSettingsCopyWithoutApiKeys(settings);
     await _storage.saveSettings(settingsForStorage);
     _cacheSettings(settings);
-    // Any profile we just persisted has its key in secure storage
-    // *and* in the in-memory cache, so subsequent reads should not
-    // need to re-hit secure storage.
-    for (final p in settings.profiles) {
-      _hydratedProfileIds.add(p.id);
-    }
-    if (settings.inferenceOpenAIKey != null) {
-      _inferenceKeyHydrated = true;
-    }
   }
 
   /// Save API keys from settings to secure storage
@@ -544,8 +572,11 @@ class SettingsStorage {
   }
 
   /// Update a single setting
-  Future<void> updateSetting<T>(String key, T value) async {
-    final current = await getSettings();
+  Future<void> updateSetting<T>(String key, T value) =>
+      _enqueueOperation(() => _updateSetting(key, value));
+
+  Future<void> _updateSetting<T>(String key, T value) async {
+    final current = await _getSettings();
 
     // Handle API key fields specially
     if (key == 'inferenceOpenAIKey') {
@@ -585,9 +616,14 @@ class SettingsStorage {
 
     // Cancel existing debounce timer and start a new one
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(_debounceDelay, () async {
-      await saveSettings(updated);
+    _debounceTimer = Timer(_debounceDelay, () {
       _debounceTimer = null;
+      unawaited(
+        _enqueueOperation<void>(() async {
+          final latest = _cachedSettings;
+          if (latest != null) await _saveSettings(latest);
+        }).catchError(_reportSettingsWriteFailure),
+      );
     });
 
     // Update cache immediately so in-memory reads are consistent
@@ -595,7 +631,9 @@ class SettingsStorage {
   }
 
   /// Clear all settings
-  Future<void> clearSettings() async {
+  Future<void> clearSettings() => _enqueueOperation(_clearSettings);
+
+  Future<void> _clearSettings() async {
     _debounceTimer?.cancel();
     _debounceTimer = null;
     await _storage.clearSettings();
@@ -618,12 +656,18 @@ class SettingsStorage {
     _migrationChecked = false;
   }
 
-  /// Suspend the debounce timer when app goes to background.
-  /// Cancels any pending settings write without saving (settings remain
-  /// in-memory and will be saved on next change or app exit).
-  void suspend() {
+  /// Flush pending changes before the app can be terminated in background.
+  Future<void> suspend() => _enqueueOperation<void>(() async {
+    if (_debounceTimer == null) return;
     _debounceTimer?.cancel();
     _debounceTimer = null;
+    final latest = _cachedSettings;
+    if (latest != null) await _saveSettings(latest);
+  }).catchError(_reportSettingsWriteFailure);
+
+  void _reportSettingsWriteFailure(Object error, StackTrace stack) {
+    logger.error('Failed to persist settings', error, stack);
+    unawaited(Sentry.captureException(error, stackTrace: stack));
   }
 
   /// Dispose of the debounce timer

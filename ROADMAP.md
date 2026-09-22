@@ -2,7 +2,35 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-17
+**Last Updated**: 2026-09-22
+
+**Parallel correctness audit, 2026-09-22.** This batch addresses:
+
+- Current-build Android ANR loop (GlitchTip 4716, build 286200 / `906adc08`):
+  symbolicated stacks show the emergency fallback's `Text` performing a
+  `MediaQuery` lookup through a defunct element, recursively failing during
+  error display. The emergency fallback is now a leaf `ErrorWidget`; root
+  takeover is deferred until build/layout finishes. The initial spinner's
+  defunct-ancestor failure remains unattributed and needs post-release
+  monitoring. Bounded Loki correlation returned no records for this event.
+- Message merge fast paths now reject duplicate IDs across incoming batches
+  and the resident window, and validate final ordering of adjacent updates.
+- Outbox restore/add completions respect disposal generations; late delivery
+  failures do not restart suspended retries, and resume also clears suspension
+  after a failed initialization.
+- Chat drafts survive first edits, exit, and session/controller replacement.
+  Autocomplete replaces whole tokens. File previews accept empty content,
+  reject stale responses, and use one vertical viewport for code and gutter.
+- Profile edits/duplication preserve structured provider configuration and
+  defaults; session creation closes the navigator that owns its dialog.
+- Batched/single settings writes share a persistence/sync queue. Storage
+  serializes key hydration with edits, preserves lazy-key loading, and flushes
+  pending settings on background suspension.
+- Existing red CI was two outdated spawn-environment expectations after
+  Codex Fast Mode, not the `ApiClient` messages in annotations. Assertions
+  now cover the explicit flag; CI annotations use actual JSON error events.
+
+Regression tests accompany these fixes; test execution remains CI-only.
 
 **Battery idle-render follow-up, 2026-09-15 (issue 8809).** The Linux
 280300 event reported 598 frames/30s at 19.9 fps while `in_foreground=false`
@@ -421,7 +449,8 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 1. **Note**: Releases are automatic — every commit to `main` publishes a GitHub Release with the production APK. A fix that is on `main` has shipped; there is no manual tagging step and no release backlog.
 2. **This sprint**: Verify GlitchTip `StandardComponentType.backButton` error rate stays at 0% now that the PopScope/safePop fixes (ec102e5, 2bca2c8, bd011fd) have shipped
-3. **This sprint**: Guard session creation against offline machines (UX warning/disable)
+3. **Done**: Session creation guards offline machines and performs a preflight
+   reachability check; regression coverage exists.
 4. **This sprint**: Investigate `CryptoSecretBox.decrypt failed` warnings (27 events)
 5. **Next sprint**: Optimistic mutation layer for instant UI feedback
 6. **Next sprint**: Profile and reduce cold start time (avg 4.6s → target < 3s)
@@ -433,5 +462,5 @@ For core chat flows, no layer may invent a second message identity when a canoni
 
 | Task | Effort | Impact |
 |------|--------|--------|
-| Guard offline machine in NewSessionDialog | Low | Disable create button or show warning when machine offline — eliminates 33 warnings/day |
+| Guard offline machine in NewSessionDialog | Done | Implemented with offline feedback, preflight reachability, and regression tests. |
 | Streaming cursor in assistant bubble | Low | Makes AI response feel continuous vs discrete jumps |

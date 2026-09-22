@@ -465,7 +465,25 @@ void main() {
       required Map<String, Machine> machines,
       required String initialMachineId,
       required Future<String> Function() onCreateSession,
+      bool nestedNavigator = false,
+      ValueChanged<String?>? onResult,
     }) {
+      Widget launcher(BuildContext context) => Scaffold(
+        body: FilledButton(
+          onPressed: () async {
+            final result = await showNewSessionDialog(
+              context,
+              initialMachineId: initialMachineId,
+              initialPath: null,
+              initialRepositoryUrl: 'https://example.com/repo.git',
+              useRootNavigator: !nestedNavigator,
+            );
+            onResult?.call(result);
+          },
+          child: const Text('Open dialog'),
+        ),
+      );
+
       return ProviderScope(
         overrides: [
           machinesNotifierProvider.overrideWith(
@@ -480,24 +498,53 @@ void main() {
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: Builder(
-            builder: (context) => Scaffold(
-              body: FilledButton(
-                onPressed: () => unawaited(
-                  showNewSessionDialog(
-                    context,
-                    initialMachineId: initialMachineId,
-                    initialPath: null,
-                    initialRepositoryUrl: 'https://example.com/repo.git',
-                  ),
-                ),
-                child: const Text('Open dialog'),
-              ),
-            ),
-          ),
+          home: nestedNavigator
+              ? Navigator(
+                  onGenerateRoute: (_) =>
+                      MaterialPageRoute<void>(builder: launcher),
+                )
+              : Builder(builder: launcher),
         ),
       );
     }
+
+    testWidgets('creation returns through the dialog owning navigator', (
+      tester,
+    ) async {
+      final testSync = createTestSync();
+      testSync.testEnsureMachineReachableOverride = (_) async {};
+      addTearDown(() {
+        testSync.testEnsureMachineReachableOverride = null;
+      });
+      String? createdSession;
+      await pumpDialog(
+        tester,
+        buildDialogRouteHarness(
+          machines: {
+            'm-online': _machine(
+              id: 'm-online',
+              displayName: 'My Laptop',
+              active: true,
+              activeAtMs: DateTime.now().millisecondsSinceEpoch,
+            ),
+          },
+          initialMachineId: 'm-online',
+          onCreateSession: () async => 'nested-session',
+          nestedNavigator: true,
+          onResult: (result) => createdSession = result,
+        ),
+      );
+      await tester.tap(find.text('Open dialog'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(createdSession, 'nested-session');
+      expect(find.byType(NewSessionDialog), findsNothing);
+      expect(find.text('Open dialog'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('Create button is disabled when selected machine is offline', (
       tester,

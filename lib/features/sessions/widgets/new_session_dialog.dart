@@ -515,7 +515,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
     final l10n = context.l10n;
     final selectedMachineId = _selectedMachine;
     if (selectedMachineId == null) return;
-    final navigator = Navigator.of(context, rootNavigator: true);
+    final navigator = Navigator.of(context);
     if (!_canUseRef) return;
     // Resolve every notifier up-front, while `ref` is provably usable. Each
     // one is a stable object, so holding it across the awaits below removes

@@ -328,6 +328,15 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       id: existing?.id ?? 'custom_$now',
       name: _nameCtrl.text.trim(),
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      // The editor has no controls for these structured settings. Preserve
+      // them when changing a profile's visible fields.
+      anthropicConfig: existing?.anthropicConfig,
+      openaiConfig: existing?.openaiConfig,
+      azureOpenAIConfig: existing?.azureOpenAIConfig,
+      togetherAIConfig: existing?.togetherAIConfig,
+      tmuxConfig: existing?.tmuxConfig,
+      defaultSessionType: existing?.defaultSessionType,
+      defaultPermissionMode: existing?.defaultPermissionMode,
       startupBashScript: _showScript && _scriptCtrl.text.trim().isNotEmpty
           ? _scriptCtrl.text.trim()
           : null,
@@ -348,6 +357,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       compatibility: _compatibility,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
+      version: existing?.version ?? '1.0.0',
     );
 
     final settings = ref.read(settingsNotifierProvider);

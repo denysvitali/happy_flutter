@@ -566,18 +566,10 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
     AIBackendProfile profile,
   ) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final duplicate = AIBackendProfile(
+    final duplicate = profile.copyWith(
       id: 'custom_$now',
       name: '${profile.name}${AppLocalizations.of(context).profilesCopySuffix}',
-      description: profile.description,
-      startupBashScript: profile.startupBashScript,
-      environmentVariables: profile.environmentVariables
-          .map((e) => EnvironmentVariable(name: e.name, value: e.value))
-          .toList(),
-      defaultModelMode: profile.defaultModelMode,
-      models: profile.models,
       isBuiltIn: false,
-      compatibility: profile.compatibility,
       createdAt: now,
       updatedAt: now,
     );

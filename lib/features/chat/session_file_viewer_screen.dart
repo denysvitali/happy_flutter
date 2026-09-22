@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -90,12 +91,14 @@ class _SessionFileViewerScreenState
   String? _error;
   bool _loading = false;
   bool _copied = false;
+  int _loadGeneration = 0;
+  int _copyGeneration = 0;
+  Timer? _copyResetTimer;
 
   /// Current view mode (only meaningful for markdown files).
   _ViewMode _viewMode = _ViewMode.preview;
 
-  /// Vertical scroll controller shared between the line-number gutter and the
-  /// code pane so both stay vertically aligned.
+  /// One vertical viewport keeps the line numbers and code aligned.
   late final ScrollController _vController;
 
   /// Horizontal scroll controller for the code pane only (line numbers are
@@ -105,15 +108,42 @@ class _SessionFileViewerScreenState
   @override
   void initState() {
     super.initState();
-    _vController = ScrollController();
-    _hController = ScrollController();
-    if (widget.content != null && widget.content!.isNotEmpty) {
-      if (_isImageFile) {
-        _imageBytes = _tryBase64DecodeBytes(widget.content!);
+    _vController = ScrollController(keepScrollOffset: false);
+    _hController = ScrollController(keepScrollOffset: false);
+    _loadContent();
+  }
+
+  @override
+  void didUpdateWidget(SessionFileViewerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path != widget.path ||
+        oldWidget.sessionId != widget.sessionId) {
+      _viewMode = _ViewMode.preview;
+    }
+    if (oldWidget.path != widget.path ||
+        oldWidget.sessionId != widget.sessionId ||
+        oldWidget.content != widget.content) {
+      _loadContent();
+    }
+  }
+
+  void _loadContent() {
+    _loadGeneration++;
+    _copyResetTimer?.cancel();
+    _content = null;
+    _imageBytes = null;
+    _lineCount = 0;
+    _error = null;
+    _loading = false;
+    _copied = false;
+    final content = widget.content;
+    if (content != null) {
+      if (_isImageFile && content.isNotEmpty) {
+        _imageBytes = _tryBase64DecodeBytes(content);
       }
       if (_imageBytes == null) {
-        _content = widget.content;
-        _lineCount = '\n'.allMatches(widget.content!).length + 1;
+        _content = content;
+        _lineCount = '\n'.allMatches(content).length + 1;
       }
     } else {
       _fetchFile();
@@ -122,12 +152,14 @@ class _SessionFileViewerScreenState
 
   @override
   void dispose() {
+    _copyResetTimer?.cancel();
     _vController.dispose();
     _hController.dispose();
     super.dispose();
   }
 
   Future<void> _fetchFile() async {
+    final generation = _loadGeneration;
     setState(() {
       _loading = true;
       _error = null;
@@ -157,12 +189,9 @@ class _SessionFileViewerScreenState
 
       final response = await ref
           .read(machinesNotifierProvider.notifier)
-          .readFile(
-            machineId: machineId,
-            filePath: fetchPath,
-          );
+          .readFile(machineId: machineId, filePath: fetchPath);
 
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
 
       if (response.success) {
         // The daemon returns base64-encoded content.
@@ -195,7 +224,7 @@ class _SessionFileViewerScreenState
         e,
         st,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -244,10 +273,23 @@ class _SessionFileViewerScreenState
 
   Future<void> _copyToClipboard() async {
     if (_content == null) return;
-    await setClipboardTextSafely(_content!);
-    if (!mounted) return;
+    final generation = _loadGeneration;
+    final copyGeneration = ++_copyGeneration;
+    final result = await setClipboardTextSafely(_content!);
+    if (!mounted ||
+        generation != _loadGeneration ||
+        copyGeneration != _copyGeneration) {
+      return;
+    }
+    if (!result.success) {
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(const SnackBar(content: Text('Could not copy file')));
+      return;
+    }
+    _copyResetTimer?.cancel();
     setState(() => _copied = true);
-    Future.delayed(const Duration(seconds: 2), () {
+    _copyResetTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) setState(() => _copied = false);
     });
   }
@@ -300,7 +342,12 @@ class _SessionFileViewerScreenState
           color: theme.colorScheme.outlineVariant,
         ),
         // File content
-        Expanded(child: _buildContent(theme)),
+        Expanded(
+          child: KeyedSubtree(
+            key: ValueKey((widget.sessionId, widget.path)),
+            child: _buildContent(theme),
+          ),
+        ),
       ],
     );
 
@@ -352,42 +399,33 @@ class _SessionFileViewerScreenState
 
     // Syntax-highlighted code view.
     //
-    // Line numbers live in their own vertical scroll view on the left and share
-    // [_vController] with the code pane so they scroll vertically in sync. The
-    // code pane is wrapped in a horizontal scroll view, so long lines scroll
-    // sideways without carrying the gutter with them.
+    // A shared viewport scrolls the gutter with the code. Attaching the same
+    // controller to separate views does not synchronize their positions and
+    // also prevents the scrollbar from choosing a position to control.
     final isDark = theme.brightness == Brightness.dark;
     const fontSize = AppFontSize.md;
     const lineHeight = fontSize * 1.5;
     return Scrollbar(
       controller: _vController,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SingleChildScrollView(
-            controller: _vController,
-            primary: false,
-            physics: const ClampingScrollPhysics(),
-            scrollDirection: Axis.vertical,
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: _LineNumbers(
+      child: SingleChildScrollView(
+        controller: _vController,
+        primary: false,
+        physics: const ClampingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _LineNumbers(
               lineCount: _lineCount,
               fontSize: fontSize,
               lineHeight: lineHeight,
               isDark: isDark,
             ),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              controller: _hController,
-              primary: false,
-              scrollDirection: Axis.horizontal,
+            Expanded(
               child: SingleChildScrollView(
-                controller: _vController,
+                controller: _hController,
                 primary: false,
-                physics: const ClampingScrollPhysics(),
-                scrollDirection: Axis.vertical,
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                scrollDirection: Axis.horizontal,
                 child: Padding(
                   padding: const EdgeInsets.only(
                     left: AppSpacing.md,
@@ -403,8 +441,8 @@ class _SessionFileViewerScreenState
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -516,7 +554,8 @@ class _LineNumbers extends StatelessWidget {
     // cs.outlineVariant / onSurfaceVariant@0.5 — using the
     // extension unifies the palette with the rest of the code-block
     // chrome (code_block_widget, inline theme picker).
-    final codeViewer = theme.extension<CodeViewerTheme>() ??
+    final codeViewer =
+        theme.extension<CodeViewerTheme>() ??
         (theme.brightness == Brightness.dark
             ? CodeViewerTheme.dark
             : CodeViewerTheme.light);

@@ -1,8 +1,31 @@
+import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/models/settings_update.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
+import 'package:happy_flutter/core/repositories/settings_repository.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
+import 'package:happy_flutter/core/services/storage_service.dart';
+import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:riverpod/riverpod.dart';
+
+class _RecordingSettingsRepository extends Fake implements SettingsRepository {
+  final writes = <Map<String, dynamic>>[];
+  final snapshot = <String, dynamic>{};
+  int failuresRemaining = 0;
+
+  @override
+  Future<void> applySettings(Map<String, dynamic> delta) async {
+    writes.add(Map<String, dynamic>.from(delta));
+    if (failuresRemaining > 0) {
+      failuresRemaining--;
+      throw StateError('settings sync failed');
+    }
+    snapshot.addAll(delta);
+  }
+}
 
 // Stub that overrides updateSetting to avoid touching MMKV storage.
 class _StorageFreeSettingsNotifier extends SettingsNotifier {
@@ -24,6 +47,143 @@ ProviderContainer makeContainer() {
 }
 
 void main() {
+  group('SettingsNotifier batch updates', () {
+    late ProviderContainer container;
+    late _RecordingSettingsRepository repository;
+
+    setUp(() async {
+      FlutterSecureStorage.setMockInitialValues({});
+      await MMKVStorage.initialize();
+      await MMKVStorage().clearAll();
+      SettingsStorage().resetForTests();
+      repository = _RecordingSettingsRepository();
+      container = ProviderContainer(
+        overrides: [settingsRepositoryProvider.overrideWithValue(repository)],
+      );
+      sync.isInitialized = true;
+    });
+
+    tearDown(() {
+      sync.isInitialized = false;
+      SettingsStorage().resetForTests();
+      container.dispose();
+    });
+
+    test(
+      'publishes all keys immediately and preserves a concurrent edit',
+      () async {
+        final notifier = container.read(settingsNotifierProvider.notifier);
+        final batch = notifier.applySettings({
+          'themeMode': 'dark',
+          'showLineNumbers': false,
+        });
+        final immediate = container.read(settingsNotifierProvider);
+        expect(immediate.themeMode, 'dark');
+        expect(immediate.showLineNumbers, isFalse);
+
+        final edit = notifier.updateSetting('compactSessionView', true);
+        await Future.wait([batch, edit]);
+
+        final completed = container.read(settingsNotifierProvider);
+        expect(completed.themeMode, 'dark');
+        expect(completed.showLineNumbers, isFalse);
+        expect(completed.compactSessionView, isTrue);
+      },
+    );
+
+    test('overlapping batches keep both sets of local changes', () async {
+      final notifier = container.read(settingsNotifierProvider.notifier);
+      await Future.wait([
+        notifier.applySettings({'themeMode': 'dark'}),
+        notifier.applySettings({'compactSessionView': true}),
+      ]);
+
+      final settings = container.read(settingsNotifierProvider);
+      expect(settings.themeMode, 'dark');
+      expect(settings.compactSessionView, isTrue);
+    });
+
+    test('a newer same-key edit wins in memory, storage, and sync', () async {
+      final notifier = container.read(settingsNotifierProvider.notifier);
+      final batch = notifier.applySettings({
+        'themeMode': 'dark',
+        'compactSessionView': true,
+      });
+      final edit = notifier.updateSetting('compactSessionView', false);
+      expect(
+        container.read(settingsNotifierProvider).compactSessionView,
+        false,
+      );
+
+      await Future.wait([batch, edit]);
+      await SettingsStorage().suspend();
+      SettingsStorage().resetForTests();
+
+      final persisted = await SettingsStorage().getSettings();
+      expect(persisted.themeMode, 'dark');
+      expect(persisted.compactSessionView, isFalse);
+      expect(repository.snapshot['compactSessionView'], isFalse);
+      expect(repository.writes, [
+        {'themeMode': 'dark', 'compactSessionView': true},
+        {'compactSessionView': false},
+      ]);
+      expect(
+        container.read(settingsNotifierProvider).compactSessionView,
+        isFalse,
+      );
+    });
+
+    test('a failed edit does not block a later queued edit', () async {
+      final notifier = container.read(settingsNotifierProvider.notifier);
+      repository.failuresRemaining = 1;
+      final first = notifier.applySettings({'themeMode': 'dark'});
+      final second = notifier.updateSetting('themeMode', 'light');
+
+      await expectLater(first, throwsStateError);
+      await second;
+
+      expect(repository.snapshot['themeMode'], 'light');
+      expect((await SettingsStorage().getSettings()).themeMode, 'light');
+      expect(container.read(settingsNotifierProvider).themeMode, 'light');
+    });
+
+    test(
+      'clearing settings cancels edits still waiting for persistence',
+      () async {
+        final notifier = container.read(settingsNotifierProvider.notifier);
+        final edit = notifier.applySettings({'themeMode': 'dark'});
+        notifier.clear();
+        await edit;
+
+        expect(repository.writes, isEmpty);
+        expect(container.read(settingsNotifierProvider).themeMode, 'system');
+        expect((await SettingsStorage().getSettings()).themeMode, 'system');
+      },
+    );
+
+    test('syncs serializable values and excludes rejected keys', () async {
+      final profile = AIBackendProfile(id: 'custom', name: 'Custom');
+      await container.read(settingsNotifierProvider.notifier).applySettings({
+        'profiles': [profile],
+        'unknownLegacySetting': true,
+      });
+
+      expect(repository.writes, hasLength(1));
+      expect(repository.writes.single, {
+        'profiles': [profile.toJson()],
+      });
+      expect(() => jsonEncode(repository.writes.single), returnsNormally);
+    });
+
+    test('a batch with no accepted keys does not reach the server', () async {
+      await container.read(settingsNotifierProvider.notifier).applySettings({
+        'unknownLegacySetting': true,
+      });
+
+      expect(repository.writes, isEmpty);
+    });
+  });
+
   group('SettingsNotifier', () {
     test('initial state has default Settings values', () {
       final c = makeContainer();
@@ -254,23 +414,25 @@ void main() {
       expect(settings.dismissedCLIWarnings.perMachine, isEmpty);
     });
 
-    test('unknown setting key throws typed exception from dispatcher',
-        () async {
-      final c = makeContainer();
-      addTearDown(c.dispose);
-      final notifier = c.read(settingsNotifierProvider.notifier);
+    test(
+      'unknown setting key throws typed exception from dispatcher',
+      () async {
+        final c = makeContainer();
+        addTearDown(c.dispose);
+        final notifier = c.read(settingsNotifierProvider.notifier);
 
-      // The test stub bypasses the production catch-and-warn behavior and
-      // calls `SettingsUpdate.copyWithUpdated` directly, so dev typos still
-      // surface as a typed exception. Production callers
-      // (SettingsNotifier.updateSetting, applyRemoteSettingsPatch,
-      // SettingsStorage.updateSetting) catch this and log a warning so
-      // legacy/forward-compat keys do not crash the app.
-      expect(
-        () => notifier.updateSetting('notARealSetting', true),
-        throwsA(isA<UnknownSettingsKeyException>()),
-      );
-    });
+        // The test stub bypasses the production catch-and-warn behavior and
+        // calls `SettingsUpdate.copyWithUpdated` directly, so dev typos still
+        // surface as a typed exception. Production callers
+        // (SettingsNotifier.updateSetting, applyRemoteSettingsPatch,
+        // SettingsStorage.updateSetting) catch this and log a warning so
+        // legacy/forward-compat keys do not crash the app.
+        expect(
+          () => notifier.updateSetting('notARealSetting', true),
+          throwsA(isA<UnknownSettingsKeyException>()),
+        );
+      },
+    );
 
     test(
       'production SettingsNotifier.updateSetting does not throw on '

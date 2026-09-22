@@ -1361,6 +1361,7 @@ extension SyncMessagingMerge on Sync {
     }
 
     final targets = <int>[];
+    final replacements = <int, Map<String, dynamic>>{};
     for (final message in incoming) {
       final id = message['id'] as String?;
       if (id == null || id.isEmpty) return false;
@@ -1379,15 +1380,32 @@ extension SyncMessagingMerge on Sync {
       final targetLocalId = target['localId'] as String?;
       if (targetLocalId != null && targetLocalId.isNotEmpty) return false;
 
-      // Replacing in place is only safe while it cannot reorder the list.
-      if (index > 0 && _messageOrderCompare(existing[index - 1], message) > 0) {
+      targets.add(index);
+      replacements[index] = message;
+    }
+
+    // Validate against the final batch, including neighboring replacements.
+    // Comparing each row only with its old neighbors can accept two updates
+    // that cross each other and leave the resident timeline out of order.
+    for (final replacement in replacements.entries) {
+      final index = replacement.key;
+      final message = replacement.value;
+      if (index > 0 &&
+          _messageOrderCompare(
+                replacements[index - 1] ?? existing[index - 1],
+                message,
+              ) >
+              0) {
         return false;
       }
       if (index < existing.length - 1 &&
-          _messageOrderCompare(message, existing[index + 1]) > 0) {
+          _messageOrderCompare(
+                message,
+                replacements[index + 1] ?? existing[index + 1],
+              ) >
+              0) {
         return false;
       }
-      targets.add(index);
     }
 
     for (var i = 0; i < incoming.length; i++) {
@@ -1431,11 +1449,9 @@ extension SyncMessagingMerge on Sync {
     final lastCreatedAt = _asInt(lastMessage['createdAt']) ?? 0;
     final lastSeq = lastMessage['seq'] as int? ?? 0;
 
-    // Build a small set of IDs from the tail of the existing list
-    // (last 20 entries). This catches the common case of an update
-    // to a recently-appended message without scanning the full list.
-    // For true id collisions deeper in the list, the full merge path
-    // handles them correctly (at O(n) cost, but those are rare).
+    // Reject common streaming updates using the tail before checking the
+    // full resident window. Older rows can receive newer timestamps too;
+    // those still replace their existing identity rather than appending.
     final tailStart = existing.length > 20 ? existing.length - 20 : 0;
     final recentIds = <String>{};
     for (var i = tailStart; i < existing.length; i++) {
@@ -1443,6 +1459,7 @@ extension SyncMessagingMerge on Sync {
       if (id != null && id.isNotEmpty) recentIds.add(id);
     }
 
+    final incomingIds = <String>{};
     for (final message in incoming) {
       final messageId = message['id'] as String?;
       if (messageId == null || messageId.isEmpty) {
@@ -1451,7 +1468,7 @@ extension SyncMessagingMerge on Sync {
 
       // If this id already exists in the recent tail, it's an update
       // not an append — fall through to merge.
-      if (recentIds.contains(messageId)) {
+      if (recentIds.contains(messageId) || !incomingIds.add(messageId)) {
         return false;
       }
 
@@ -1479,6 +1496,9 @@ extension SyncMessagingMerge on Sync {
       }
     }
 
+    for (var i = 0; i < tailStart; i++) {
+      if (incomingIds.contains(existing[i]['id'])) return false;
+    }
     return true;
   }
 

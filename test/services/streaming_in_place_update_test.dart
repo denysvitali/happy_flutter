@@ -89,6 +89,123 @@ void main() {
     );
   });
 
+  test('duplicate IDs within one append batch merge to the latest row', () {
+    sync.testSetSessionMessages('s', rows(5));
+
+    sync.testUpsertSessionMessages('s', [
+      for (final content in ['partial', 'complete'])
+        {
+          'id': 'm-new',
+          'seq': 6,
+          'createdAt': 6000,
+          'role': 'assistant',
+          'content': content,
+        },
+    ]);
+
+    final after = sync.messagesForSession('s');
+    expect(after, hasLength(6));
+    expect(after.where((m) => m['id'] == 'm-new'), hasLength(1));
+    expect(after.last['content'], 'complete');
+  });
+
+  test('an older row moved beyond the tail replaces its original ID', () {
+    sync.testSetSessionMessages('s', rows(50));
+
+    sync.testUpsertSessionMessages('s', [
+      {
+        'id': 'm-0',
+        'seq': 51,
+        'createdAt': 51000,
+        'role': 'assistant',
+        'content': 'updated timestamp',
+      },
+    ]);
+
+    final after = sync.messagesForSession('s');
+    expect(after, hasLength(50));
+    expect(after.where((m) => m['id'] == 'm-0'), hasLength(1));
+    expect(after.last['content'], 'updated timestamp');
+  });
+
+  test('neighboring replacements compare their final timestamps', () {
+    sync.testSetSessionMessages('s', rows(5));
+
+    sync.testUpsertSessionMessages('s', [
+      {
+        'id': 'm-3',
+        'seq': 4,
+        'createdAt': 4900,
+        'role': 'assistant',
+        'content': 'moves after its neighbor',
+      },
+      {
+        'id': 'm-4',
+        'seq': 5,
+        'createdAt': 4100,
+        'role': 'assistant',
+        'content': 'moves before its neighbor',
+      },
+    ]);
+
+    final after = sync.messagesForSession('s');
+    expect(after, hasLength(5));
+    expect(after.map((m) => m['id']), ['m-0', 'm-1', 'm-2', 'm-4', 'm-3']);
+  });
+
+  test('batch replay preserves identical sends and their retry identities', () {
+    sync.testSetSessionMessages('s', [
+      for (final i in [1, 2])
+        {
+          'id': 'local-$i',
+          'localId': 'local-$i',
+          'seq': 0,
+          'createdAt': 1000 * i,
+          'role': 'user',
+          'content': 'continue',
+          'sendStatus': i == 1 ? 'failed' : 'sending',
+        },
+    ]);
+    final secondAck = <String, dynamic>{
+      'id': 'server-2',
+      'localId': 'local-2',
+      'seq': 2,
+      'createdAt': 2000,
+      'role': 'user',
+      'content': 'continue',
+      'sendStatus': 'sent',
+    };
+
+    sync.testUpsertSessionMessages('s', [
+      secondAck,
+      {...secondAck},
+    ]);
+    final pendingRetry = sync.messagesForSession('s');
+    expect(pendingRetry, hasLength(2));
+    expect(pendingRetry.first['id'], 'local-1');
+    expect(pendingRetry.first['localId'], 'local-1');
+    expect(pendingRetry.first['sendStatus'], 'failed');
+    expect(pendingRetry.last['id'], 'server-2');
+
+    sync.testUpsertSessionMessages('s', [
+      {
+        'id': 'server-1',
+        'localId': 'local-1',
+        'seq': 1,
+        'createdAt': 1000,
+        'role': 'user',
+        'content': 'continue',
+        'sendStatus': 'sent',
+      },
+      {...secondAck},
+    ]);
+
+    final delivered = sync.messagesForSession('s');
+    expect(delivered.map((m) => m['id']), ['server-1', 'server-2']);
+    expect(delivered.map((m) => m['localId']), ['local-1', 'local-2']);
+    expect(delivered.every((m) => m['sendStatus'] == 'sent'), isTrue);
+  });
+
   test('grouped sidechain children survive an in-place update', () {
     final seeded = rows(10);
     seeded[9] = {
@@ -198,9 +315,7 @@ void main() {
 
       final after = sync.messagesForSession('s');
       expect(after, hasLength(10));
-      final createdAts = [
-        for (final m in after) m['createdAt'] as int,
-      ];
+      final createdAts = [for (final m in after) m['createdAt'] as int];
       expect(
         createdAts,
         orderedEquals([...createdAts]..sort()),

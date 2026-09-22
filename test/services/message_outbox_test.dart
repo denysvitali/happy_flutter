@@ -22,9 +22,13 @@ class _FakeMMKVStorage extends MMKVStorage {
   /// How many times the whole blob was re-encoded and written.
   int writeCount = 0;
   bool failWrites = false;
+  bool failReads = false;
 
   @override
-  Future<String?> getOutboxEntries() async => _outboxData;
+  Future<String?> getOutboxEntries() async {
+    if (failReads) throw StateError('disk read failed');
+    return _outboxData;
+  }
 
   @override
   Future<void> saveOutboxEntries(String json) async {
@@ -43,6 +47,19 @@ class _BlockingMMKVStorage extends _FakeMMKVStorage {
     if (!saveStarted.isCompleted) saveStarted.complete();
     await allowSave.future;
     await super.saveOutboxEntries(json);
+  }
+}
+
+class _BlockingReadMMKVStorage extends _FakeMMKVStorage {
+  final readStarted = Completer<void>();
+  final allowRead = Completer<void>();
+
+  @override
+  Future<String?> getOutboxEntries() async {
+    final snapshot = await super.getOutboxEntries();
+    readStarted.complete();
+    await allowRead.future;
+    return snapshot;
   }
 }
 
@@ -328,6 +345,24 @@ void main() {
       expect(outbox.contains(entry.localId), isFalse);
       final saved = _decodeStoredOutbox(storage);
       expect(saved, isEmpty);
+    });
+
+    _fakeAsyncTest('removing a deferred send clears its readiness wait', (
+      async,
+    ) async {
+      outbox.configure(
+        deliver: (_) async =>
+            const OutboxDeliveryFailure.readiness('agent_starting'),
+      );
+      outbox.testInsertPending(_makeEntry());
+      await outbox.testAttemptNow('local-1');
+      expect(outbox.readinessDeferredSessionIds, ['session-a']);
+
+      await outbox.remove('local-1');
+
+      expect(outbox.entries, isEmpty);
+      expect(outbox.readinessDeferredSessionIds, isEmpty);
+      async.elapse(const Duration(seconds: 2));
     });
 
     // ── Successful delivery ─────────────────────────────────────────────────
@@ -808,6 +843,89 @@ void main() {
 
     // ── Suspend ─────────────────────────────────────────────────────────────
 
+    _fakeAsyncTest('resume before restore recovery re-enables retries', (
+      async,
+    ) async {
+      final deliveredIds = <String>[];
+      outbox.configure(
+        deliver: (entry) async {
+          deliveredIds.add(entry.localId);
+          return null;
+        },
+      );
+      storage._outboxData = jsonEncode([
+        _makeEntry(localId: 'restored-after-failure').toJson(),
+      ]);
+      storage.failReads = true;
+      await outbox.restoreAndFlush();
+      await outbox.suspendAndFlush();
+      outbox.resume();
+
+      storage.failReads = false;
+      await outbox.restoreAndFlush();
+      async.elapse(const Duration(seconds: 3));
+
+      expect(deliveredIds, ['restored-after-failure']);
+      expect(outbox.entries, isEmpty);
+    });
+
+    _fakeAsyncTest(
+      'an in-flight failure stays suspended until foreground resume',
+      (async) async {
+        final delivery = Completer<OutboxDeliveryFailure?>();
+        final deliveredIds = <String>[];
+        outbox.configure(
+          deliver: (entry) async {
+            deliveredIds.add(entry.localId);
+            if (deliveredIds.length == 1) return delivery.future;
+            return null;
+          },
+        );
+        await outbox.restoreAndFlush();
+        await outbox.add(_makeEntry(localId: 'stable-retry'));
+        async.elapse(const Duration(seconds: 2));
+        expect(deliveredIds, ['stable-retry']);
+
+        await outbox.suspendAndFlush();
+        delivery.complete(OutboxDeliveryFailure.transient);
+        async.flushMicrotasks();
+        async.elapse(const Duration(minutes: 1));
+
+        expect(deliveredIds, ['stable-retry']);
+        expect(outbox.entries.single.localId, 'stable-retry');
+        outbox.resume();
+        async.elapse(const Duration(seconds: 2));
+        expect(deliveredIds, ['stable-retry', 'stable-retry']);
+        expect(outbox.entries, isEmpty);
+      },
+    );
+
+    _fakeAsyncTest(
+      'entries added while suspended wait for resume without losing identity',
+      (async) async {
+        final deliveredIds = <String>[];
+        outbox.configure(
+          deliver: (entry) async {
+            deliveredIds.add(entry.localId);
+            return null;
+          },
+        );
+        await outbox.restoreAndFlush();
+        await outbox.suspendAndFlush();
+        await outbox.add(_makeEntry(localId: 'background-send'));
+        async.elapse(const Duration(minutes: 1));
+
+        expect(deliveredIds, isEmpty);
+        expect(
+          _decodeStoredOutbox(storage).single['localId'],
+          'background-send',
+        );
+        outbox.resume();
+        async.elapse(const Duration(seconds: 2));
+        expect(deliveredIds, ['background-send']);
+      },
+    );
+
     test(
       'suspendAndFlush preserves an already-durable pending entry',
       () async {
@@ -873,6 +991,65 @@ void main() {
     );
 
     // ── Dispose ─────────────────────────────────────────────────────────────
+
+    _fakeAsyncTest('a stale restore cannot resurrect disposed entries', (
+      async,
+    ) async {
+      final blockingStorage = _BlockingReadMMKVStorage();
+      final restoringOutbox = MessageOutbox(storage: blockingStorage);
+      final deliveredIds = <String>[];
+      restoringOutbox.configure(
+        deliver: (entry) async {
+          deliveredIds.add(entry.localId);
+          return null;
+        },
+      );
+      await restoringOutbox.add(_makeEntry(localId: 'old-account-send'));
+      await restoringOutbox.suspendAndFlush();
+      final restore = restoringOutbox.restoreAndFlush();
+      await blockingStorage.readStarted.future;
+
+      restoringOutbox.dispose();
+      restoringOutbox.configure(
+        deliver: (entry) async {
+          deliveredIds.add(entry.localId);
+          return null;
+        },
+      );
+      blockingStorage.allowRead.complete();
+      await restore;
+      async.elapse(const Duration(seconds: 3));
+
+      expect(restoringOutbox.entries, isEmpty);
+      expect(restoringOutbox.deadEntries, isEmpty);
+      expect(deliveredIds, isEmpty);
+      restoringOutbox.dispose();
+    });
+
+    _fakeAsyncTest('a disposed add cannot notify the replacement runtime', (
+      async,
+    ) async {
+      final blockingStorage = _BlockingMMKVStorage();
+      final savingOutbox = MessageOutbox(storage: blockingStorage);
+      final statuses = <String>[];
+      savingOutbox.configure(deliver: (_) async => null);
+      final save = savingOutbox.add(_makeEntry(localId: 'old-account-send'));
+      await blockingStorage.saveStarted.future;
+
+      savingOutbox.dispose();
+      savingOutbox.configure(
+        deliver: (_) async => null,
+        onStatusChanged: (_, localId, status) =>
+            statuses.add('$localId:$status'),
+      );
+      blockingStorage.allowSave.complete();
+      await save;
+      async.elapse(const Duration(seconds: 3));
+
+      expect(statuses, isEmpty);
+      expect(savingOutbox.entries, isEmpty);
+      savingOutbox.dispose();
+    });
 
     _fakeAsyncTest('dispose cancels pending timers', (async) async {
       var attempts = 0;

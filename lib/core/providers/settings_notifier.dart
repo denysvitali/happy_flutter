@@ -8,8 +8,8 @@ import '../models/settings.dart';
 import '../models/settings_update.dart';
 import '../repositories/settings_repository.dart';
 import '../services/logger_service.dart' show logger;
-import '../services/sync_service.dart';
 import '../services/storage_service.dart';
+import '../services/sync_service.dart';
 
 class SettingsNotifier extends Notifier<Settings> {
   final _storage = SettingsStorage();
@@ -22,6 +22,8 @@ class SettingsNotifier extends Notifier<Settings> {
     replicaId: 'local-${DateTime.now().microsecondsSinceEpoch}',
   );
   int _lastDataChangeCounter = -1;
+  Future<void> _persistenceTail = Future<void>.value();
+  int _persistenceGeneration = 0;
 
   @override
   Settings build() => Settings();
@@ -43,6 +45,7 @@ class SettingsNotifier extends Notifier<Settings> {
   }
 
   void clear() {
+    _persistenceGeneration++;
     state = Settings();
   }
 
@@ -107,18 +110,10 @@ class SettingsNotifier extends Notifier<Settings> {
     // path (the server still expects the bare value) but is available
     // to callers that want to ship LWW-tagged updates today.
     _crdt.updateSetting(key, value);
-    await _storage.updateSetting(key, value);
-
-    // Sync developer mode to logger so DevLogsScreen can capture all logs
-    // even in release builds when developer mode is enabled.
-    if (key == 'developerModeEnabled') {
-      logger.setDeveloperMode(value as bool);
-    }
-
-    if (sync.isInitialized) {
-      final syncValue = SettingsUpdate.toSyncValue(key, value);
-      await _repository.applySettings({key: syncValue});
-    }
+    await _persistSettingsChanges(
+      {key: value},
+      {key: SettingsUpdate.toSyncValue(key, value)},
+    );
   }
 
   /// Applies multiple settings in a single sync round-trip.
@@ -130,9 +125,15 @@ class SettingsNotifier extends Notifier<Settings> {
   Future<void> applySettings(Map<String, dynamic> values) async {
     if (values.isEmpty) return;
     var updated = state;
+    final acceptedValues = <String, dynamic>{};
+    final syncValues = <String, dynamic>{};
     for (final entry in values.entries) {
       try {
-        updated = SettingsUpdate.copyWithUpdated(updated, entry.key, entry.value);
+        updated = SettingsUpdate.copyWithUpdated(
+          updated,
+          entry.key,
+          entry.value,
+        );
       } on UnknownSettingsKeyException catch (e) {
         logger.warning('Dropping unknown settings key "${e.key}"');
         unawaited(
@@ -147,16 +148,47 @@ class SettingsNotifier extends Notifier<Settings> {
         );
         continue;
       }
+      acceptedValues[entry.key] = entry.value;
+      syncValues[entry.key] = SettingsUpdate.toSyncValue(
+        entry.key,
+        entry.value,
+      );
       _crdt.updateSetting(entry.key, entry.value);
-      await _storage.updateSetting(entry.key, entry.value);
-      if (entry.key == 'developerModeEnabled') {
-        logger.setDeveloperMode(entry.value as bool);
-      }
     }
+    if (acceptedValues.isEmpty) return;
+    // Publish the whole batch before persistence yields. A later local or
+    // remote edit must not be overwritten by this batch's old snapshot when
+    // its storage writes finish.
     state = updated;
-    if (sync.isInitialized) {
-      await _repository.applySettings(values);
-    }
+    await _persistSettingsChanges(acceptedValues, syncValues);
+  }
+
+  /// Persist and sync each logical edit in call order. Single-key changes
+  /// share the lane with batches so a newer edit cannot reach disk/server
+  /// between two keys of an older batch and then be overwritten by it.
+  Future<void> _persistSettingsChanges(
+    Map<String, dynamic> values,
+    Map<String, dynamic> syncValues,
+  ) {
+    final generation = _persistenceGeneration;
+    bool isCurrent() => ref.mounted && generation == _persistenceGeneration;
+    final operation = _persistenceTail.then((_) async {
+      if (!isCurrent()) return;
+      for (final entry in values.entries) {
+        await _storage.updateSetting(entry.key, entry.value);
+        if (!isCurrent()) return;
+        if (entry.key == 'developerModeEnabled') {
+          logger.setDeveloperMode(entry.value as bool);
+        }
+      }
+      if (sync.isInitialized) {
+        await _repository.applySettings(syncValues);
+      }
+    });
+    // Keep later edits runnable after a failed write while returning the
+    // original failure to this edit's caller.
+    _persistenceTail = operation.catchError((Object _, StackTrace _) {});
+    return operation;
   }
 
   /// Applies a remote LWW-tagged settings patch (item #3). Idempotent
@@ -173,7 +205,10 @@ class SettingsNotifier extends Notifier<Settings> {
       if (beforeSnapshot[entry.key] == entry.value) continue;
       try {
         updated = SettingsUpdate.copyWithUpdated(
-            updated, entry.key, entry.value);
+          updated,
+          entry.key,
+          entry.value,
+        );
       } on UnknownSettingsKeyException catch (e) {
         // Remote CRDT patches may carry keys this build no longer
         // knows about (renamed or removed in a newer/older app

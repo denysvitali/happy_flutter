@@ -702,7 +702,7 @@ class _HappyAppState extends ConsumerState<HappyApp>
             FrameMetricsService.instance.detach();
             FrameMetricsService.instance.setAppActive(false);
             sync.suspend();
-            storage.SettingsStorage().suspend();
+            unawaited(storage.SettingsStorage().suspend());
           },
           onResume: () {
             _recordLifecycleEdge('resumed');
