@@ -954,16 +954,22 @@ jobs:
           cp build/rust/web/pkg/happy_core.js build/web/pkg/happy_core.js
           cp build/rust/web/pkg/happy_core_bg.wasm build/web/pkg/happy_core_bg.wasm
 
-      # The deployment bundle expires after one day. Preserve matching JS
-      # and source maps independently so older production crashes can still
-      # be symbolicated even when the Sentry upload is unavailable.
+      # Keep matching JS and maps together for the release attachment below.
+      # Artifacts request 90 days, but repository policy currently caps them
+      # at three days; the release asset survives that diagnostic expiry.
+      - name: Package Web Debug Info
+        working-directory: build/web
+        run: |
+          test -s main.dart.js
+          test -s main.dart.js.map
+          rg --files --no-ignore --null -g '*.js' -g '*.map' |
+            tar --null -T - -czf ../happy-flutter-web-debug-info.tar.gz
+
       - name: Upload Web Debug Info
         uses: actions/upload-artifact@v7
         with:
           name: debug-info-web-b${{ steps.build_meta.outputs.BUILD_NUMBER }}
-          path: |
-            build/web/**/*.js
-            build/web/**/*.map
+          path: build/happy-flutter-web-debug-info.tar.gz
           if-no-files-found: error
           retention-days: 90
 
@@ -1002,6 +1008,33 @@ jobs:
           name: web-build
           path: build/web
           retention-days: 1
+
+  attach-web-debug-info:
+    name: Attach Web Debug Info to GitHub Release
+    needs: [build-release, build-web]
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      needs.build-release.result == 'success' &&
+      needs.build-web.result == 'success'
+
+    steps:
+      - name: Download Web Debug Info
+        uses: actions/download-artifact@v8
+        with:
+          name: debug-info-web-b${{ needs.build-release.outputs.build_number }}
+          path: release-assets
+
+      - name: Attach Web Debug Info
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.build-release.outputs.release_tag }}
+          files: release-assets/happy-flutter-web-debug-info.tar.gz
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-web:
     name: Deploy to GitHub Pages

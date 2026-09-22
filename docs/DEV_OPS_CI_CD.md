@@ -22,6 +22,7 @@ suppressing the per-commit Android release.
 | Build Linux x64 + arm64 | Build both Linux desktop bundles on native x64 and ARM64 runners |
 | Attach Linux | Add both Linux archives to the existing GitHub Release |
 | Build/Deploy Web | Build the web app and deploy GitHub Pages |
+| Attach Web Debug Info | Add matching JavaScript/source maps to the existing GitHub Release |
 
 ## Release invariant
 
@@ -41,11 +42,14 @@ GitHub's native `ubuntu-22.04-arm` runner. Both Linux jobs use the Ubuntu 22.04
 glibc baseline to avoid requiring newer libc symbols on supported systems. Both
 archives and the web deployment remain part of the same workflow.
 
-Native debug symbols and the matching web JavaScript/source maps are retained
-for 90 days in build-numbered `debug-info-*` artifacts. The web deployment
-bundle still expires after one day; use `debug-info-web-b<build>` for older
-crash stacks. These artifacts remain available independently of the optional
-Sentry upload, so a missing upload token does not erase diagnostic evidence.
+Build-numbered `debug-info-*` artifacts request 90-day retention, but the
+repository policy currently caps their actual retention at three days. The web
+deployment bundle expires after one day. For older crash stacks, use the
+matching automatic GitHub Release: native `.symbols` files accompany the APK,
+and `happy-flutter-web-debug-info.tar.gz` contains the web JavaScript and source
+maps. The web archive attaches after both web and release builds succeed;
+Pages deployment keeps its existing quality gate. Release assets outlive
+Actions artifact expiry and do not depend on the optional Sentry upload.
 
 ## Test sharding
 

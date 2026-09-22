@@ -22,8 +22,10 @@ historical group has independently reproduced or been verified fixed.
   node's rectangle. A shared policy skips candidates without geometry and
   defers directional traversal until layout. Exact historical web maps expired,
   so this mapping is qualified; four old native groups remain unattributed.
-  CI now retains matching web JavaScript/source maps for 90 days independently
-  of the one-day deployment artifact and optional Sentry upload.
+  CI packages matching web JavaScript/source maps as a durable asset on the
+  automatic release, independently of the one-day deployment artifact and
+  optional Sentry upload. Debug artifacts request 90 days but are currently
+  capped at three days by repository policy; release assets avoid that expiry.
 - **Background readiness alarms (3572/3804):** suspension during the wait now
   defers delivery without reporting agent startup failure. Repeated identical
   sends retain distinct canonical IDs through the outbox and resume.
