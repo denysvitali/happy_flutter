@@ -19,6 +19,8 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
   failures do not restart suspended retries, and resume also clears suspension
   after a failed initialization.
 - Chat drafts survive first edits, exit, and session/controller replacement.
+  DraftStorage persists after the composer's debounce without adding another
+  500ms MMKV timer; lifecycle saves therefore reach durable storage.
   Autocomplete replaces whole tokens. File previews accept empty content,
   reject stale responses, and use one vertical viewport for code and gutter.
 - Profile edits/duplication preserve structured provider configuration and

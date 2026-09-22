@@ -119,6 +119,8 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   another queue. Internal storage helpers must not re-enter the public queue.
 - **Draft ownership follows the session** — flush before changing sessions or
   controllers and before disposal; delayed loads cannot overwrite newer input.
+  `DraftAutoSave` owns debouncing; `DraftStorage` must persist its final write
+  immediately instead of scheduling a second MMKV timer.
 
 ## Verification Expectations
 

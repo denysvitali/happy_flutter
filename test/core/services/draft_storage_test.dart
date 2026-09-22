@@ -1,10 +1,34 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/draft_storage.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('draft saves and removals persist without a second debounce', () async {
+    SharedPreferences.setMockInitialValues({});
+    addTearDown(MMKVStorage.resetForTesting);
+    await MMKVStorage.initialize();
+    final storage = MMKVStorage();
+    final drafts = DraftStorage(storage: storage);
+    await storage.saveSessionDraft('draft-deferred', 'Pending map write');
+    await drafts.saveDraft('draft-immediate', 'Final edit');
+
+    Map<String, dynamic> persisted() =>
+        jsonDecode(storage.getString('session-drafts') ?? '{}')
+            as Map<String, dynamic>;
+    expect(persisted()['draft-deferred'], 'Pending map write');
+    expect(persisted()['draft-immediate'], 'Final edit');
+
+    await drafts.removeDraft('draft-immediate');
+    expect(persisted().containsKey('draft-immediate'), isFalse);
+    expect(persisted()['draft-deferred'], 'Pending map write');
+    await drafts.removeDraft('draft-deferred');
+  });
 
   group('DraftStateTransition', () {
     group('isStateTransition', () {

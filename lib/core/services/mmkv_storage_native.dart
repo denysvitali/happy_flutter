@@ -196,12 +196,16 @@ class _JsonMapStore {
 
   /// Save a key-value pair, updating in-memory cache immediately
   /// and debouncing persist to MMKV (500ms) to batch rapid writes.
-  Future<void> save(String id, String value) async {
+  Future<void> save(String id, String value, {bool immediate = false}) async {
     try {
       final map = _cache ??= _loadCache();
       map[id] = value;
       _revision++;
-      _schedulePersist();
+      if (immediate) {
+        _persistImmediately();
+      } else {
+        _schedulePersist();
+      }
     } catch (e) {
       logger.warning('MMKV: Failed to save $_key[$id]: $e');
       rethrow;
@@ -210,14 +214,15 @@ class _JsonMapStore {
 
   /// Remove an entry by key, updating in-memory cache immediately
   /// and debouncing persist to MMKV (500ms) to batch rapid writes.
-  Future<void> remove(String id) async {
+  Future<void> remove(String id, {bool immediate = false}) async {
     try {
       final map = _cache ??= _loadCache();
       if (map.containsKey(id)) {
         map.remove(id);
         _revision++;
-        _schedulePersist();
+        if (!immediate) _schedulePersist();
       }
+      if (immediate) _persistImmediately();
     } catch (e) {
       logger.warning('MMKV: Failed to remove $_key[$id]: $e');
     }
@@ -228,6 +233,16 @@ class _JsonMapStore {
   void _schedulePersist() {
     _persistTimer?.cancel();
     _persistTimer = Timer(_debounceDuration, _persistNow);
+  }
+
+  /// Lifecycle saves must reach MMKV before returning. A second debounce
+  /// after the caller's own debounce can lose the final edit on shutdown.
+  void _persistImmediately() {
+    _persistTimer?.cancel();
+    _persistTimer = null;
+    _revision++;
+    final cache = _cache;
+    if (cache != null) _mmkv()?.encodeString(_key, jsonEncode(cache));
   }
 
   void _persistNow() {
@@ -643,15 +658,22 @@ class MMKVStorage {
   }
 
   /// Save draft for a specific session
-  Future<void> saveSessionDraft(String sessionId, String draft) async {
+  Future<void> saveSessionDraft(
+    String sessionId,
+    String draft, {
+    bool immediate = false,
+  }) async {
     await _ensureInitialized();
-    return _draftsStore.save(sessionId, draft);
+    return _draftsStore.save(sessionId, draft, immediate: immediate);
   }
 
   /// Remove draft for a specific session
-  Future<void> removeSessionDraft(String sessionId) async {
+  Future<void> removeSessionDraft(
+    String sessionId, {
+    bool immediate = false,
+  }) async {
     await _ensureInitialized();
-    return _draftsStore.remove(sessionId);
+    return _draftsStore.remove(sessionId, immediate: immediate);
   }
 
   /// Get all session drafts

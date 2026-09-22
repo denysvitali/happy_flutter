@@ -72,6 +72,25 @@ def failure_annotations(events: list[dict], root: Path) -> list[str]:
     True
     >>> len(failure_annotations(events * 12, Path('/repo')))
     10
+    >>> widget_events = [
+    ...     {'type': 'print', 'testID': 99,
+    ...      'message': '══╡ EXCEPTION CAUGHT BY WIDGETS ╞\nOther test'},
+    ...     {'type': 'print', 'testID': 2, 'message': 'Error: app diagnostic'},
+    ...     {'type': 'print', 'testID': 2,
+    ...      'message': '══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞\n'
+    ...                 'A Timer is still pending.'},
+    ...     {'type': 'error', 'testID': 2,
+    ...      'error': 'Test failed. See exception logs above.'},
+    ... ]
+    >>> result = failure_annotations(events[:2] + widget_events, Path('/repo'))
+    >>> len(result), 'A Timer is still pending.' in result[0]
+    (1, True)
+    >>> 'Other test' in result[0] or 'app diagnostic' in result[0]
+    False
+    >>> widget_events[2]['message'] += 'x' * 9000
+    >>> result = failure_annotations(events[:2] + widget_events, Path('/repo'))
+    >>> len(result[0]) < 9000
+    True
     """
     suites = {
         event['suite']['id']: event['suite']
@@ -82,10 +101,19 @@ def failure_annotations(events: list[dict], root: Path) -> list[str]:
         for event in events if event.get('type') == 'testStart'
     }
     annotations = []
+    framework_errors: dict[int, str] = {}
     for event in events:
+        test_id = event.get('testID')
+        if event.get('type') == 'print' and test_id is not None:
+            printed = str(event.get('message', '')).lstrip()
+            if printed.startswith('══╡ EXCEPTION CAUGHT'):
+                # Widget assertions use a generic error event; the actual
+                # exception is a separate print event for the same test.
+                prior = framework_errors.get(test_id, '')
+                framework_errors[test_id] = f'{prior}\n{printed}'.strip()[:8000]
         if event.get('type') != 'error':
             continue
-        test = tests.get(event.get('testID'), {})
+        test = tests.get(test_id, {})
         suite = suites.get(test.get('suiteID'), {})
         properties = ['title=Flutter test failure']
         if suite.get('path'):
@@ -101,6 +129,7 @@ def failure_annotations(events: list[dict], root: Path) -> list[str]:
                 test.get('name', 'Flutter test failure'),
                 event.get('error', ''),
                 event.get('stackTrace', ''),
+                framework_errors.pop(test_id, ''),
             ) if value
         )
         annotations.append(f'::error {",".join(properties)}::{escape(message)}')

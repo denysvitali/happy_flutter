@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
@@ -44,7 +45,13 @@ class _Machines extends MachinesNotifier {
 }
 
 Widget _wrap(Widget child) {
-  return ProviderScope(child: MaterialApp(home: child));
+  return ProviderScope(
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    ),
+  );
 }
 
 void main() {
@@ -158,6 +165,8 @@ void main() {
       Widget viewer(String? content) => UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: SessionFileViewerScreen(
             path: '/tmp/file.txt',
             sessionId: 's1',

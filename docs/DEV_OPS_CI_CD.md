@@ -62,7 +62,9 @@ legacy serial expanded-reporter logs.
 
 Failed shards use `.github/scripts/report_test_failures.py` to turn JSON
 reporter error events into at most ten annotations. Each annotation contains
-one complete failure and stack, with workflow-command escaping. Logged
+one complete failure and stack, with workflow-command escaping. Generic
+Flutter widget failures also include that test's framework exception block,
+bounded to 8,000 characters. Logged
 `Error:` messages from passing tests do not consume the annotation limit.
 If the process exits without an error event, inspect the step log for
 compilation errors or termination. Reporter regression checks run in CI.

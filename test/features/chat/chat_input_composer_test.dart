@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/core/services/draft_storage.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/features/chat/chat_input.dart';
 import 'package:happy_flutter/features/chat/send/chat_attachment_controller.dart';
@@ -85,6 +87,10 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     expect(await DraftStorage().getDraft('composer-test'), 'Updated draft');
+    final persisted =
+        jsonDecode(MMKVStorage().getString('session-drafts')!)
+            as Map<String, dynamic>;
+    expect(persisted['composer-test'], 'Updated draft');
     controller.dispose();
   });
 

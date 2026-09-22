@@ -11,7 +11,9 @@ import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
+import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/features/sessions/widgets/new_session_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -409,7 +411,12 @@ void main() {
   });
 
   group('NewSessionDialog offline guard', () {
-    setUp(() {
+    setUp(() async {
+      // Successful creation persists its model before closing the dialog.
+      // Initialize the fake store outside widget fake time so platform
+      // migration cannot leave the progress indicator waiting indefinitely.
+      SharedPreferences.setMockInitialValues({});
+      await MMKVStorage.initialize();
       // The dialog checks `sync.isInitialized` to decide whether to block on
       // sync readiness; flip it to true so the offline blocker (not the
       // sync-not-ready blocker) is what disables the button.
@@ -537,10 +544,15 @@ void main() {
       await tester.tap(find.text('Open dialog'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 600));
 
       expect(createdSession, 'nested-session');
+      expect(
+        await MMKVStorage().getSessionModelMode('nested-session'),
+        'default',
+      );
       expect(find.byType(NewSessionDialog), findsNothing);
       expect(find.text('Open dialog'), findsOneWidget);
       expect(tester.takeException(), isNull);

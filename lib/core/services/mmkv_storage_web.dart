@@ -327,7 +327,12 @@ class MMKVStorage {
     return null;
   }
 
-  Future<void> saveSessionDraft(String sessionId, String draft) async {
+  // Web writes already await persistence; [immediate] keeps native API parity.
+  Future<void> saveSessionDraft(
+    String sessionId,
+    String draft, {
+    bool immediate = false,
+  }) async {
     try {
       final json = _cache[_Keys.sessionDrafts];
       final map = json != null
@@ -340,7 +345,10 @@ class MMKVStorage {
     }
   }
 
-  Future<void> removeSessionDraft(String sessionId) async {
+  Future<void> removeSessionDraft(
+    String sessionId, {
+    bool immediate = false,
+  }) async {
     try {
       final json = _cache[_Keys.sessionDrafts];
       if (json != null) {

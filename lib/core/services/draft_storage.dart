@@ -13,14 +13,15 @@ class DraftStorage {
     return _storage.getSessionDraft(sessionId);
   }
 
-  /// Save a draft for a session
+  /// Save a draft durably. [DraftAutoSave] owns the typing debounce, so this
+  /// layer must not defer its final save again after the composer is disposed.
   Future<void> saveDraft(String sessionId, String draft) async {
-    await _storage.saveSessionDraft(sessionId, draft);
+    await _storage.saveSessionDraft(sessionId, draft, immediate: true);
   }
 
   /// Remove a draft for a session
   Future<void> removeDraft(String sessionId) async {
-    await _storage.removeSessionDraft(sessionId);
+    await _storage.removeSessionDraft(sessionId, immediate: true);
   }
 
   /// Get saved permission mode for a session
