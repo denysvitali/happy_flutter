@@ -513,6 +513,38 @@ class MessageOutbox {
     );
   }
 
+  /// A terminal lifecycle update means a readiness-deferred send cannot
+  /// reach this agent. Keep its payload and [localId] in the dead-letter
+  /// bucket so the failed row can offer a user-driven retry.
+  void notifySessionUnavailable(String sessionId) {
+    final localIds = _readinessDeferredEntries.remove(sessionId);
+    if (localIds == null || localIds.isEmpty) return;
+
+    for (final localId in localIds) {
+      final entry = _entries.remove(localId);
+      if (entry == null) continue;
+      _retryTimers.remove(localId)?.cancel();
+      _deadLetter(
+        entry.copyWith(
+          dead: true,
+          failureClass: OutboxFailureClass.permanent,
+          failureReason: 'session_gone',
+        ),
+      );
+      powerDiagnostics.recordOutboxDeadLetter(
+        localId,
+        reason: 'session_gone',
+        failureClass: OutboxFailureClass.permanent.name,
+      );
+      _onStatusChanged?.call(sessionId, localId, 'failed');
+    }
+    _schedulePersist();
+    logger.warning(
+      '[MessageOutbox] failed ${localIds.length} readiness-deferred '
+      'send${localIds.length == 1 ? '' : 's'} for terminal session=$sessionId',
+    );
+  }
+
   /// Sessions currently waiting for an explicit readiness notification.
   Iterable<String> get readinessDeferredSessionIds =>
       List.unmodifiable(_readinessDeferredEntries.keys);

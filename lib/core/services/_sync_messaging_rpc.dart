@@ -614,8 +614,8 @@ extension SyncMessagingRpc on Sync {
         // The session's stored model is what the previous process was
         // running; restoring with the profile default instead would silently
         // switch providers under a permission answer.
-        explicitModelPick: normalizedModelMode != null &&
-            normalizedModelMode != 'default',
+        explicitModelPick:
+            normalizedModelMode != null && normalizedModelMode != 'default',
       );
       final effectiveModelMode = spawnProfileResolution.modelMode;
       final effectiveEnvVars = spawnProfileResolution.profile != null
@@ -1368,6 +1368,10 @@ extension SyncMessagingRpc on Sync {
   void _wakeReadyOutboxSessions() {
     for (final sessionId in messageOutbox.readinessDeferredSessionIds) {
       final session = _sessions[sessionId];
+      if (session?.hasLifecycleError == true) {
+        messageOutbox.notifySessionUnavailable(sessionId);
+        continue;
+      }
       final lifecycle = session?.effectiveLifecycleState?.toLowerCase();
       // Match _deliverOutboxEntry's readiness gate. Presence can become
       // online before the encrypted lifecycle patch says running; waking in

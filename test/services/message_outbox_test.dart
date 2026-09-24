@@ -222,6 +222,45 @@ void main() {
       expect(outbox.deadEntries, isEmpty);
     });
 
+    test('terminal session fails readiness-deferred sends without losing '
+        'their localIds or payloads', () async {
+      final statuses = <String, String>{};
+      var attempts = 0;
+      outbox.configure(
+        deliver: (_) async {
+          attempts++;
+          return const OutboxDeliveryFailure.readiness('agent_starting');
+        },
+        onStatusChanged: (_, localId, status) => statuses[localId] = status,
+      );
+      outbox.testInsertPending(_makeEntry(localId: 'first'));
+      outbox.testInsertPending(_makeEntry(localId: 'second'));
+      outbox.testInsertPending(
+        _makeEntry(localId: 'other', sessionId: 'session-b'),
+      );
+      await outbox.testAttemptNow('first');
+      await outbox.testAttemptNow('second');
+      await outbox.testAttemptNow('other');
+
+      outbox.notifySessionUnavailable('session-a');
+
+      expect(attempts, 3);
+      expect(outbox.readinessDeferredSessionIds, ['session-b']);
+      expect(outbox.entries.map((entry) => entry.localId), ['other']);
+      expect(outbox.deadEntries.map((entry) => entry.localId).toSet(), {
+        'first',
+        'second',
+      });
+      for (final entry in outbox.deadEntries) {
+        expect(entry.failureClass, OutboxFailureClass.permanent);
+        expect(entry.failureReason, 'session_gone');
+        expect(entry.encryptedContent, 'enc-abc');
+        expect(entry.retryCount, 0);
+        expect(statuses[entry.localId], 'failed');
+      }
+      expect(statuses['other'], 'pending');
+    });
+
     // ── Basic add / remove ──────────────────────────────────────────────────
 
     _fakeAsyncTest('add queues an entry and persists it', (async) async {

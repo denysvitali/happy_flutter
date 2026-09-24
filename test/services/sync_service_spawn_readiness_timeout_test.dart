@@ -299,6 +299,36 @@ void main() {
       },
     );
 
+    test('terminal spawn update fails the queued send and preserves its '
+        'retry identity', () async {
+      messageOutbox.configure(
+        deliver: (_) async =>
+            const OutboxDeliveryFailure.readiness('agent_starting'),
+      );
+      await instance.sendMessage('sess-spawn', 'keep this message');
+      await instance.lastCompleteSendFuture;
+      await messageOutbox.testAttemptNow('local-spawn-timeout');
+
+      instance.testSessions['sess-spawn'] = instance.testSessions['sess-spawn']!
+          .copyWith(
+            lifecycleStateCleartext: 'errored',
+            metadata: const Metadata(
+              lifecycleState: 'errored',
+              lifecycleStateError: 'agent process exited',
+            ),
+          );
+      instance.testNotifyDataChanged();
+
+      expect(capturedRequestData, isNull);
+      expect(messageOutbox.entries, isEmpty);
+      expect(messageOutbox.readinessDeferredSessionIds, isEmpty);
+      final failed = messageOutbox.deadEntries.single;
+      expect(failed.localId, 'local-spawn-timeout');
+      expect(failed.text, 'keep this message');
+      expect(failed.encryptedContent, 'encrypted-content');
+      expect(failed.failureReason, 'session_gone');
+    });
+
     test('suspending during readiness queues repeated sends without '
         'a spawn-timeout alarm or changing retry identity', () async {
       final delivered = <String>[];
