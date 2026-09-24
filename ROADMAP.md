@@ -4,6 +4,54 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-09-24
 
+**Battery + performance audit, 2026-09-24.** A 10-lane source audit was
+grounded against 7 days of production telemetry. Two fixes shipped
+(`7990886d`, `d17d6b8d`); the rest of the surface measured clean and is
+recorded here so it is not re-litigated.
+
+- **Unfocused rendering (shipped `7990886d`).** `app_ui_window_frames_total`
+  recorded **1,233,610 frames with `app_active=false`** against 463,878 with
+  `app_active=true` — roughly 7.5h/day painting a window nobody was looking
+  at, 750,310 of it on the home route in `mission_control_folder`. The cause
+  is not a ticker (`MissionClock`'s 15s timer cannot produce the observed
+  ~28fps sustained rate) but the Sync data-change firehose: streaming agents
+  emit `_notifyDataChanged({messages, sessions})` from a dozen sites in
+  `_sync_messaging.dart` plus three in `_sync_socket.dart`, each rebuilding the
+  whole home tree per token. An unfocused window now defers the rebuild and
+  replays one catch-up read on refocus. **Note the interpretation:** this
+  population is *desktop focus loss*, not phone idle — `app_active=false` is
+  only set by `AppLifecycleState.inactive`. Mobile backgrounding already
+  detaches frame metrics and suspends Sync, and mobile
+  `app_active=true,current_route="home"` renders 0 frames on the current
+  builds. Re-measure after rollout: `app_active=false` home frames should
+  fall by ~99%.
+- **Unbounded encryptor fan-out (shipped `d17d6b8d`).** `fetchSessions` and the
+  cold-start cache restore each ran one `_ensureSessionEncryptionInitialized`
+  per session through an unbounded `Future.wait`; each is an FFI round-trip
+  that may spawn an isolate. Both are now bounded to 8 concurrent opens via
+  `forEachBatched`, preserving order and the per-session error guard.
+- **Measured clean — do not re-audit.** Cold start `essential_ready` ≈1.5s and
+  `deferred_init` ≈1.5s (both within target). Frozen frames: 53/week on chat,
+  ~1 elsewhere, against ~1.7M rendered frames. HTTP 54 attempts and 2.5 socket
+  dials per 7d — no request storm. The resume path is deliberately bounded
+  (global invalidation gated on `>5s && !rapidResume`, pending-message
+  refreshes capped at 5, staggered 2s apart). `InvalidateSync` is
+  suspension-gated with a shared completer. The three 1-second timers are
+  already refcounted into one shared ticker. `ElapsedTime` cannot produce
+  per-row timer fan-out. Raw `Circular/LinearProgressIndicator` exists only
+  inside the two `App*` wrappers. Chat list virtualization is sound
+  (per-row `RepaintBoundary`, tuned `cacheExtent`, `findChildIndexCallback`).
+  On the server, `StoreOrderedMessages` already chunks at 25 rows per
+  statement with a 2s lock timeout and holds **no network call inside the
+  transaction** — the 55P03 burst is already addressed.
+- **Open follow-ups.** (1) `app_memory_resident_rows` peaks at **2016**
+  against a 1000-per-session cap and RSS reaches **1.8GB**; the
+  previously "ruled out" memory suspects deserve a re-audit now that the
+  instrumentation exists. (2) `refreshFromSync` runs in `initState` across
+  ~15 screens with no cross-screen coalescing, so navigating between them
+  refetches an already-loaded catalog. (3) `_sync_session_restore_split.dart`
+  is a 49-line file holding no batching logic — the name misleads auditors.
+
 **GlitchTip and observability follow-up, 2026-09-24.** The full unresolved metadata
 inventory contains 5,300 groups (178 seen since September 1), mostly historical
 warning fingerprints. Latest events, fatal reports and representative repeated
