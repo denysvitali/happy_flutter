@@ -4,13 +4,14 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-09-24
 
-**Rust hot-path follow-up, 2026-09-24.** Large terminal-output updates now
-prepare the line count, visible prefix, and ANSI-free copy text in one native
-pass, with the Dart path retained for small outputs and unavailable libraries.
-Native decrypt/JSON and sidechain spans now expose Rust stage and bridge wall
-times; terminal preparation samples the same split in histograms. Compare
-those timings and the CI terminal benchmark before choosing another Rust
-boundary, especially where Dart object materialization would still dominate.
+**Rust hot-path follow-up, 2026-09-24.** A synchronous Rust pass over large
+terminal output lost to Dart after bridge cost (2.33 ms versus 1.44 ms on
+200 KB), so streaming updates now use an allocation-light Dart preview and
+strip ANSI only after Copy. Large copy stripping runs on a Rust worker.
+Outgoing AES-GCM encryption now uses the existing Rust batch cipher when the
+native core is ready, preserving caller CSPRNG nonces and the Dart fallback.
+Native encrypt/decrypt, sidechain, and terminal spans expose Rust stage and
+bridge wall times; CI measures the revised terminal path and wire encryption.
 
 **Battery + performance audit, 2026-09-24.** A 10-lane source audit was
 grounded against 7 days of production telemetry. Two fixes shipped

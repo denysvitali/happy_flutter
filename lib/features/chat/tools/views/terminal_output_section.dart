@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 
 import '../../../../core/components/tool_view_buttons.dart';
@@ -6,6 +7,16 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/ansi_parser.dart';
 import '../../../../core/utils/ansi_span_cache.dart';
+import '../../../../core/utils/terminal_output_preview.dart';
+
+Future<String> _prepareTerminalCopyText(String text) async {
+  if (text.length >= 4096) {
+    final native = await NativeCore.instance.stripTerminalAnsi(text);
+    if (native != null) return native;
+    return compute(AnsiParser.strip, text);
+  }
+  return AnsiParser.strip(text);
+}
 
 /// Boxed `stdout` / `stderr` / `error` section used by every shell-style tool
 /// view (Claude `Bash`, Codex `bash`, Gemini `execute`, MCP exec).
@@ -47,37 +58,15 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
   // Track the style used to build _parsedSpans so we can avoid re-parsing
   // when only unrelated parts of the tree rebuild.
   TextStyle? _lastDefaultStyle;
-  // Full output with ANSI escapes stripped, for the copy button. Stripping
-  // is a regex sweep over the whole output; recompute only when the output
-  // actually changes, not on every build while the tool view streams.
-  late String _strippedOutput;
-
   void _recomputeVisibleText() {
-    // Large streaming outputs used to allocate a list for every line and
-    // sweep the full string again with a regex on every update.
-    final native = widget.output.length >= 4096
-        ? NativeCore.instance.prepareTerminalOutput(
-            text: widget.output,
-            maxLines: widget.maxLines,
-          )
-        : null;
-    if (native != null) {
-      _totalLines = native.totalLines;
-      _needsTruncation = _totalLines > widget.maxLines;
-      _visibleText = _expanded ? widget.output : native.visibleText;
-      _strippedOutput = native.strippedOutput;
-      _lastDefaultStyle = null;
-      return;
-    }
-    final lines = widget.output.split('\n');
-    _totalLines = lines.length;
-    _needsTruncation = _totalLines > widget.maxLines;
-    final visibleLines = _expanded || !_needsTruncation
-        ? lines
-        : lines.take(widget.maxLines).toList();
-    _visibleText = visibleLines.join('\n');
+    final preview = prepareTerminalOutputPreview(
+      widget.output,
+      widget.maxLines,
+    );
+    _totalLines = preview.totalLines;
+    _needsTruncation = preview.needsTruncation;
+    _visibleText = _expanded ? widget.output : preview.visibleText;
     _lastDefaultStyle = null;
-    _strippedOutput = AnsiParser.strip(widget.output);
   }
 
   @override
@@ -181,7 +170,11 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                ToolViewCopyButton(text: _strippedOutput, iconSize: 13),
+                ToolViewCopyButton(
+                  text: widget.output,
+                  prepareText: _prepareTerminalCopyText,
+                  iconSize: 13,
+                ),
               ],
             ),
           ),

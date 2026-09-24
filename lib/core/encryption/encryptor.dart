@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:isolate';
-import 'dart:math' show min;
+import 'dart:math' show Random, min;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -60,12 +60,22 @@ class SecretBoxEncryption implements Encryptor {
   }
 }
 
-/// AES-256-GCM encryption using PointyCastle.
+/// AES-256-GCM encryption using Rust when available and Dart otherwise.
 ///
 /// Compatible with React Native's `rn-encryption` library.
 /// Format: [1-byte version (0)][12-byte IV][ciphertext][16-byte auth tag]
 class AES256Encryption implements Encryptor {
   AES256Encryption(this._secretKey);
+
+  static final Random _nonceRandom = Random.secure();
+
+  static Uint8List _newNonce() {
+    final nonce = Uint8List(12);
+    for (var i = 0; i < nonce.length; i++) {
+      nonce[i] = _nonceRandom.nextInt(256);
+    }
+    return nonce;
+  }
 
   /// Small Dart fallback batches are cheaper inline than a fresh isolate.
   /// Live Linux profiling measured worker execution at 0.3-11 ms while every
@@ -79,6 +89,20 @@ class AES256Encryption implements Encryptor {
 
   @override
   Future<List<Uint8List>> encrypt(List<dynamic> data) async {
+    if (!kIsWeb && data.isNotEmpty && NativeCore.instance.isAvailable) {
+      final plaintexts = <String>[for (final item in data) jsonEncode(item)];
+      final nonces = <Uint8List>[for (final _ in data) _newNonce()];
+      final native = NativeCore.instance.encryptAesGcmBatchSync(
+        plaintexts: plaintexts,
+        nonces: nonces,
+        key: _secretKey,
+      );
+      if (native != null &&
+          native.length == data.length &&
+          native.every((value) => value != null)) {
+        return [for (final value in native) value!];
+      }
+    }
     final results = <Uint8List>[];
     for (final item in data) {
       // Encrypt with AES-GCM

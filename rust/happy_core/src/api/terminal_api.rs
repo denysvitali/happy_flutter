@@ -1,23 +1,19 @@
-//! Dart-facing terminal-output preparation.
+//! Dart-facing terminal-output copy preparation.
 
 use crate::terminal;
 
 #[flutter_rust_bridge::frb]
-pub struct PreparedTerminalOutput {
-    pub visible_text: String,
-    pub stripped_output: String,
-    pub total_lines: u32,
+pub struct StrippedTerminalOutput {
+    pub text: String,
     pub scan_micros: u32,
 }
 
-/// Prepare the preview and clipboard text in one synchronous native pass.
-#[flutter_rust_bridge::frb(sync)]
-pub fn prepare_terminal_output(text: String, max_lines: u32) -> PreparedTerminalOutput {
-    let result = terminal::prepare(&text, max_lines);
-    PreparedTerminalOutput {
-        visible_text: result.visible_text,
-        stripped_output: result.stripped_output,
-        total_lines: result.total_lines,
+/// Strip SGR escapes on a Rust worker after the user taps Copy.
+#[flutter_rust_bridge::frb]
+pub fn strip_terminal_ansi(text: String) -> StrippedTerminalOutput {
+    let result = terminal::strip_ansi(&text);
+    StrippedTerminalOutput {
+        text: result.text,
         scan_micros: result.scan_micros,
     }
 }

@@ -32,7 +32,6 @@ class NativeCore {
   Future<void>? _initFuture;
   bool _available = false;
   String _status = 'not_attempted';
-  int _terminalSamples = 0;
 
   /// Whether the native core loaded and may be used.
   bool get isAvailable => _available;
@@ -199,6 +198,44 @@ class NativeCore {
     }
   }
 
+  /// Encrypt JSON text into versioned wire envelopes with caller CSPRNG
+  /// nonces. Returns `null` if native encryption is unavailable or fails.
+  List<Uint8List?>? encryptAesGcmBatchSync({
+    required List<String> plaintexts,
+    required List<Uint8List> nonces,
+    required List<int> key,
+  }) {
+    if (!_available) return null;
+    if (plaintexts.isEmpty) return const <Uint8List?>[];
+    final telemetry = OpenTelemetryService();
+    final parent = telemetry.currentSpan;
+    final span = parent == null
+        ? telemetry.startTrace('native_core.encrypt_wire')
+        : telemetry.startChildSpan('native_core.encrypt_wire', parent: parent);
+    span?.setAttribute('row_count', plaintexts.length);
+    final wall = Stopwatch()..start();
+    try {
+      final batch = rust_crypto.encryptAesGcmBatchSync(
+        key: key,
+        plaintexts: plaintexts,
+        nonces: nonces,
+        associatedData: const <int>[],
+      );
+      wall.stop();
+      span
+        ?..setAttribute('bridge_wall_us', wall.elapsedMicroseconds)
+        ..setAttribute('rust_encrypt_us', batch.encryptMicros);
+      return batch.values;
+    } catch (e, stack) {
+      span?.recordError(e, stack);
+      _available = false;
+      logger.warning('[NativeCore] wire encrypt failed', e, stack);
+      return null;
+    } finally {
+      span?.end();
+    }
+  }
+
   /// At-rest batch decrypt: `[nonce][ciphertext][tag]`, no version byte, with
   /// [associatedData] bound as GCM AAD.
   List<String?>? decryptAtRestBatchSync({
@@ -295,43 +332,34 @@ class NativeCore {
     }
   }
 
-  /// Build the visible line prefix and copy-safe text in one native scan.
-  /// The widget uses this only for large outputs; smaller strings stay Dart.
-  ({String visibleText, String strippedOutput, int totalLines})?
-  prepareTerminalOutput({required String text, required int maxLines}) {
-    if (!_available || maxLines < 0) return null;
-    final sample = (++_terminalSamples & 15) == 0;
-    final wall = sample ? (Stopwatch()..start()) : null;
-    try {
-      final result = rust_terminal.prepareTerminalOutput(
-        text: text,
-        maxLines: maxLines,
-      );
-      if (wall != null) {
-        wall.stop();
-        final telemetry = OpenTelemetryService();
-        final size = text.length >= 65536 ? '64k+' : '4k-64k';
-        telemetry
-          ..recordDuration(
-            'app.native_core.terminal_output',
-            wall.elapsed,
-            attributes: {'phase': 'bridge_wall', 'size': size},
-          )
-          ..recordDuration(
-            'app.native_core.terminal_output',
-            Duration(microseconds: result.scanMicros),
-            attributes: {'phase': 'rust_scan', 'size': size},
+  /// Strip a large terminal result on a Rust worker after the user taps Copy.
+  /// `null` means the caller should use the Dart fallback.
+  Future<String?> stripTerminalAnsi(String text) async {
+    if (!_available) return null;
+    final telemetry = OpenTelemetryService();
+    final parent = telemetry.currentSpan;
+    final span = parent == null
+        ? telemetry.startTrace('native_core.terminal_strip')
+        : telemetry.startChildSpan(
+            'native_core.terminal_strip',
+            parent: parent,
           );
-      }
-      return (
-        visibleText: result.visibleText,
-        strippedOutput: result.strippedOutput,
-        totalLines: result.totalLines,
-      );
+    span?.setAttribute('size_bucket', text.length >= 65536 ? '64k+' : '4k-64k');
+    final wall = Stopwatch()..start();
+    try {
+      final result = await rust_terminal.stripTerminalAnsi(text: text);
+      wall.stop();
+      span
+        ?..setAttribute('bridge_wall_us', wall.elapsedMicroseconds)
+        ..setAttribute('rust_scan_us', result.scanMicros);
+      return result.text;
     } catch (e, stack) {
+      span?.recordError(e, stack);
       _available = false;
-      logger.warning('[NativeCore] terminal preparation failed', e, stack);
+      logger.warning('[NativeCore] terminal strip failed', e, stack);
       return null;
+    } finally {
+      span?.end();
     }
   }
 

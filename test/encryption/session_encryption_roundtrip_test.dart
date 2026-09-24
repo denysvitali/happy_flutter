@@ -2,9 +2,11 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/encryption/aes_gcm.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
+import 'package:happy_flutter/core/native/native_core.dart';
 
 void main() {
   group('SessionEncryption - end-to-end roundtrip', () {
@@ -48,6 +50,40 @@ void main() {
       expect(decrypted, equals(original));
     });
 
+    test('repeated text and retry keep distinct canonical localIds through '
+        'encryption and out-of-order decrypt', () async {
+      addTearDown(NativeCore.instance.debugReset);
+      await NativeCore.instance.ensureInitialized();
+      final payloads = <Map<String, String>>[
+        {'localId': 'tap-1', 'text': 'continue'},
+        {'localId': 'tap-2', 'text': 'continue'},
+        {'localId': 'tap-1', 'text': 'continue'},
+      ];
+      final encrypted = await encryptor.encrypt(payloads);
+      expect(encrypted, hasLength(3));
+      expect(encrypted.map((bytes) => bytes[0]), everyElement(0));
+      expect(
+        encrypted[0],
+        isNot(encrypted[2]),
+        reason: 'a retry uses a fresh nonce but keeps the same localId',
+      );
+      expect(
+        await AesGcmEncryption.decrypt(
+          encrypted[0].sublist(1),
+          encryptor.secretKey,
+        ),
+        payloads[0],
+      );
+
+      final reversed = await encryptor.decrypt(encrypted.reversed.toList());
+      expect(reversed, payloads.reversed.toList());
+      expect(reversed.map((value) => value['localId']), [
+        'tap-1',
+        'tap-2',
+        'tap-1',
+      ]);
+    });
+
     test('encryptRawRecord/decryptRaw roundtrip', () async {
       final record = <String, dynamic>{
         'id': 'rec-001',
@@ -73,12 +109,13 @@ void main() {
       };
       const version = 1;
 
-      final encrypted =
-          await sessionEncryption.encryptMetadata(metadata);
+      final encrypted = await sessionEncryption.encryptMetadata(metadata);
       expect(encrypted, isA<String>());
 
-      final decrypted =
-          await sessionEncryption.decryptMetadata(version, encrypted);
+      final decrypted = await sessionEncryption.decryptMetadata(
+        version,
+        encrypted,
+      );
       expect(decrypted, isNotNull);
       expect(decrypted, equals(metadata));
     });
@@ -92,24 +129,23 @@ void main() {
       };
       const version = 2;
 
-      final encrypted =
-          await sessionEncryption.encryptAgentState(state);
+      final encrypted = await sessionEncryption.encryptAgentState(state);
       expect(encrypted, isA<String>());
 
-      final decrypted =
-          await sessionEncryption.decryptAgentState(version, encrypted);
+      final decrypted = await sessionEncryption.decryptAgentState(
+        version,
+        encrypted,
+      );
       expect(decrypted, equals(state));
     });
 
     test('decryptAgentState with null returns empty map', () async {
-      final result =
-          await sessionEncryption.decryptAgentState(1, null);
+      final result = await sessionEncryption.decryptAgentState(1, null);
       expect(result, isEmpty);
     });
 
     test('decryptAgentState with empty string returns empty map', () async {
-      final result =
-          await sessionEncryption.decryptAgentState(1, '');
+      final result = await sessionEncryption.decryptAgentState(1, '');
       expect(result, isEmpty);
     });
 

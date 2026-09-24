@@ -61,7 +61,7 @@ List<String?> decryptAesGcmBatchSync({
 /// `nonces` must supply one [`crypto::NONCE_LEN`]-byte CSPRNG nonce per
 /// plaintext; generating them stays on the Dart side so this function has no
 /// ambient randomness and remains deterministic under test.
-List<Uint8List?> encryptAesGcmBatchSync({
+EncryptedBatch encryptAesGcmBatchSync({
   required List<int> key,
   required List<String> plaintexts,
   required List<Uint8List> nonces,
@@ -150,4 +150,21 @@ class DecryptedJsonBatch {
           statuses == other.statuses &&
           decryptMicros == other.decryptMicros &&
           jsonMicros == other.jsonMicros;
+}
+
+class EncryptedBatch {
+  const EncryptedBatch({required this.values, required this.encryptMicros});
+  final List<Uint8List?> values;
+  final int encryptMicros;
+
+  @override
+  int get hashCode => values.hashCode ^ encryptMicros.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EncryptedBatch &&
+          runtimeType == other.runtimeType &&
+          values == other.values &&
+          encryptMicros == other.encryptMicros;
 }

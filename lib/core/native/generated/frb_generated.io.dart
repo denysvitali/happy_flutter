@@ -32,6 +32,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DecryptedJsonBatch dco_decode_decrypted_json_batch(dynamic raw);
 
   @protected
+  EncryptedBatch dco_decode_encrypted_batch(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -59,13 +62,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
-  PreparedTerminalOutput dco_decode_prepared_terminal_output(dynamic raw);
-
-  @protected
   SidechainPlan dco_decode_sidechain_plan(dynamic raw);
 
   @protected
   SidechainRow dco_decode_sidechain_row(dynamic raw);
+
+  @protected
+  StrippedTerminalOutput dco_decode_stripped_terminal_output(dynamic raw);
 
   @protected
   int dco_decode_u_32(dynamic raw);
@@ -86,6 +89,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   DecryptedJsonBatch sse_decode_decrypted_json_batch(
     SseDeserializer deserializer,
   );
+
+  @protected
+  EncryptedBatch sse_decode_encrypted_batch(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -121,15 +127,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
-  PreparedTerminalOutput sse_decode_prepared_terminal_output(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   SidechainPlan sse_decode_sidechain_plan(SseDeserializer deserializer);
 
   @protected
   SidechainRow sse_decode_sidechain_row(SseDeserializer deserializer);
+
+  @protected
+  StrippedTerminalOutput sse_decode_stripped_terminal_output(
+    SseDeserializer deserializer,
+  );
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
@@ -152,6 +158,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_decrypted_json_batch(
     DecryptedJsonBatch self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_encrypted_batch(
+    EncryptedBatch self,
     SseSerializer serializer,
   );
 
@@ -198,16 +210,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_prepared_terminal_output(
-    PreparedTerminalOutput self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_sidechain_plan(SidechainPlan self, SseSerializer serializer);
 
   @protected
   void sse_encode_sidechain_row(SidechainRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_stripped_terminal_output(
+    StrippedTerminalOutput self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);

@@ -9,6 +9,7 @@
 
 use crate::crypto;
 use crate::json;
+use std::time::Instant;
 
 /// Decrypt base64-encoded `[version][nonce][ct][tag]` envelopes.
 ///
@@ -69,8 +70,19 @@ pub fn encrypt_aes_gcm_batch_sync(
     plaintexts: Vec<String>,
     nonces: Vec<Vec<u8>>,
     associated_data: Vec<u8>,
-) -> Vec<Option<Vec<u8>>> {
-    crypto::encrypt_batch(&key, &plaintexts, &nonces, &associated_data)
+) -> EncryptedBatch {
+    let start = Instant::now();
+    let values = crypto::encrypt_batch(&key, &plaintexts, &nonces, &associated_data);
+    EncryptedBatch {
+        values,
+        encrypt_micros: start.elapsed().as_micros().min(u32::MAX as u128) as u32,
+    }
+}
+
+#[flutter_rust_bridge::frb]
+pub struct EncryptedBatch {
+    pub values: Vec<Option<Vec<u8>>>,
+    pub encrypt_micros: u32,
 }
 
 /// At-rest batch decrypt: `[nonce][ciphertext][tag]`, no version byte, with

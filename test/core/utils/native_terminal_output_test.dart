@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/native/native_core.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/terminal_output_preview.dart';
 
 void main() {
   setUp(() async {
@@ -10,8 +11,7 @@ void main() {
 
   tearDown(NativeCore.instance.debugReset);
 
-  test('native preview and copy text match Dart for a long ANSI output', () {
-    if (!NativeCore.instance.isAvailable) return;
+  test('preview matches split-and-join across line limits', () {
     final output = List<String>.generate(
       320,
       (i) =>
@@ -21,25 +21,29 @@ void main() {
     expect(output.length, greaterThan(4096));
 
     for (final maxLines in [0, 1, 20, 320, 400]) {
-      final prepared = NativeCore.instance.prepareTerminalOutput(
-        text: output,
-        maxLines: maxLines,
-      );
-      expect(prepared, isNotNull);
+      final prepared = prepareTerminalOutputPreview(output, maxLines);
       final lines = output.split('\n');
-      expect(prepared!.totalLines, lines.length);
+      expect(prepared.totalLines, lines.length);
+      expect(prepared.needsTruncation, lines.length > maxLines);
       expect(prepared.visibleText, lines.take(maxLines).join('\n'));
-      expect(prepared.strippedOutput, AnsiParser.strip(output));
     }
+    expect(prepareTerminalOutputPreview('a\n', 1).totalLines, 2);
+    expect(prepareTerminalOutputPreview('', 1).totalLines, 1);
   });
 
-  test('missing native core keeps the Dart fallback available', () {
+  test('native copy strip matches Dart for long Unicode ANSI text', () async {
+    if (!NativeCore.instance.isAvailable) return;
+    final output = '☕ \x1b[38;5;196mred\x1b[0m\x1b[31K 日本\n' * 320;
+    expect(
+      await NativeCore.instance.stripTerminalAnsi(output),
+      AnsiParser.strip(output),
+    );
+  });
+
+  test('missing native core keeps the Dart fallback available', () async {
     NativeCore.instance.debugSetAvailable(available: false);
     expect(
-      NativeCore.instance.prepareTerminalOutput(
-        text: 'plain \x1b[31mred\x1b[0m',
-        maxLines: 2,
-      ),
+      await NativeCore.instance.stripTerminalAnsi('plain \x1b[31mred\x1b[0m'),
       isNull,
     );
     expect(AnsiParser.strip('plain \x1b[31mred\x1b[0m'), 'plain red');

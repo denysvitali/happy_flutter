@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/native/native_core.dart';
 import 'package:happy_flutter/core/utils/ansi_parser.dart';
+import 'package:happy_flutter/core/utils/terminal_output_preview.dart';
 
 import 'bench_runner.dart';
 
@@ -8,7 +9,7 @@ void main() {
   final reporter = BenchReporter(group: 'terminal');
   tearDownAll(() => reporter.finish());
 
-  test('large streaming output: Dart preparation versus native', () async {
+  test('large streaming output: old update versus lazy preview', () async {
     await NativeCore.instance.ensureInitialized();
     expect(
       NativeCore.instance.isAvailable,
@@ -21,7 +22,7 @@ void main() {
 
     reporter
       ..measureSync(
-        'dart_prepare_200kb',
+        'old_eager_update_200kb',
         () {
           final lines = output.split('\n');
           sink += lines.length;
@@ -32,26 +33,22 @@ void main() {
         warmup: 3,
       )
       ..measureSync(
-        'rust_prepare_200kb',
+        'lazy_preview_update_200kb',
         () {
-          final result = NativeCore.instance.prepareTerminalOutput(
-            text: output,
-            maxLines: 20,
-          )!;
+          final result = prepareTerminalOutputPreview(output, 20);
           sink += result.totalLines;
           sink += result.visibleText.length;
-          sink += result.strippedOutput.length;
         },
         iterations: 20,
         warmup: 3,
       );
-    final prepared = NativeCore.instance.prepareTerminalOutput(
-      text: output,
-      maxLines: 20,
-    )!;
+    final prepared = prepareTerminalOutputPreview(output, 20);
     expect(prepared.totalLines, output.split('\n').length);
     expect(prepared.visibleText, output.split('\n').take(20).join('\n'));
-    expect(prepared.strippedOutput, AnsiParser.strip(output));
+    expect(
+      await NativeCore.instance.stripTerminalAnsi(output),
+      AnsiParser.strip(output),
+    );
     expect(sink, greaterThan(0));
   });
 }

@@ -7,10 +7,18 @@ import 'package:happy_flutter/core/utils/clipboard_utils.dart';
 /// A tap-to-copy icon button for tool views: copies [text] to the clipboard
 /// and briefly swaps to a checkmark for 2 seconds to confirm the copy.
 class ToolViewCopyButton extends StatefulWidget {
-  const ToolViewCopyButton({required this.text, this.iconSize = 14, super.key});
+  const ToolViewCopyButton({
+    required this.text,
+    this.prepareText,
+    this.iconSize = 14,
+    super.key,
+  });
 
   /// The text copied to the clipboard when tapped.
   final String text;
+
+  /// Optional async preparation for large text, invoked only on a tap.
+  final Future<String> Function(String text)? prepareText;
 
   /// Size of the copy/check icon.
   final double iconSize;
@@ -23,7 +31,8 @@ class _ToolViewCopyButtonState extends State<ToolViewCopyButton> {
   bool _copied = false;
 
   Future<void> _handleCopy() async {
-    await setClipboardTextSafely(widget.text);
+    final text = await widget.prepareText?.call(widget.text) ?? widget.text;
+    await setClipboardTextSafely(text);
     if (!mounted) return;
     setState(() => _copied = true);
     await Future<void>.delayed(const Duration(seconds: 2));

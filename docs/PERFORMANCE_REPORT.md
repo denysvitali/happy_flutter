@@ -39,17 +39,19 @@
 
 ## September 2026 Rust hot-path follow-up
 
-- Large streaming terminal outputs previously allocated every line, joined
-  the visible prefix, then stripped ANSI from the full output on each update.
-  A synchronous Rust pass now computes all three results for outputs at least
-  4096 characters long. The existing Dart path handles smaller outputs and
-  native-library failures. CI contracts compare line limits, Unicode, valid
-  SGR escapes, and malformed escape preservation against Dart.
-- `native_core.decrypt_json` and `native_core.sidechain_plan` spans include
-  bridge wall time and Rust-only stage microseconds. The terminal path samples
-  bridge and Rust-scan duration histograms once per 16 large outputs. These
-  timings exclude message bodies and permit comparing FFI cost with CPU work
-  before moving more processing across the boundary.
+- Large streaming terminal outputs previously allocated every line and
+  stripped ANSI on every update. CI measured a synchronous Rust replacement
+  at 2.33 ms versus 1.44 ms for Dart on 200 KB, so it was removed. The final
+  path counts lines and selects the preview without a line list; ANSI
+  stripping runs only after Copy, on a Rust worker for large outputs. The Dart
+  path handles smaller outputs and native-library failures.
+- The already-implemented Rust wire AES encryptor now serves outgoing native
+  sends with caller-generated CSPRNG nonces; Dart remains the fallback. CI
+  compares it against the original cipher on the same 20 KB payload.
+- `native_core.encrypt_wire`, `native_core.decrypt_json`,
+  `native_core.sidechain_plan`, and `native_core.terminal_strip` spans include
+  bridge wall and Rust-only stage microseconds. These timings exclude message
+  bodies and show where bridge cost exceeds useful native work.
 
 The findings below are the March 2026 baseline. Several have since been
 completed and should not be treated as the current backlog.

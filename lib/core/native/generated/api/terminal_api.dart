@@ -7,41 +7,23 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import '../frb_generated.dart';
 
-/// Prepare the preview and clipboard text in one synchronous native pass.
-PreparedTerminalOutput prepareTerminalOutput({
-  required String text,
-  required int maxLines,
-}) => RustLib.instance.api.crateApiTerminalApiPrepareTerminalOutput(
-  text: text,
-  maxLines: maxLines,
-);
+/// Strip SGR escapes on a Rust worker after the user taps Copy.
+Future<StrippedTerminalOutput> stripTerminalAnsi({required String text}) =>
+    RustLib.instance.api.crateApiTerminalApiStripTerminalAnsi(text: text);
 
-class PreparedTerminalOutput {
-  const PreparedTerminalOutput({
-    required this.visibleText,
-    required this.strippedOutput,
-    required this.totalLines,
-    required this.scanMicros,
-  });
-  final String visibleText;
-  final String strippedOutput;
-  final int totalLines;
+class StrippedTerminalOutput {
+  const StrippedTerminalOutput({required this.text, required this.scanMicros});
+  final String text;
   final int scanMicros;
 
   @override
-  int get hashCode =>
-      visibleText.hashCode ^
-      strippedOutput.hashCode ^
-      totalLines.hashCode ^
-      scanMicros.hashCode;
+  int get hashCode => text.hashCode ^ scanMicros.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PreparedTerminalOutput &&
+      other is StrippedTerminalOutput &&
           runtimeType == other.runtimeType &&
-          visibleText == other.visibleText &&
-          strippedOutput == other.strippedOutput &&
-          totalLines == other.totalLines &&
+          text == other.text &&
           scanMicros == other.scanMicros;
 }
