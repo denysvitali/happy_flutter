@@ -830,7 +830,7 @@ extension SyncSocket on Sync {
           // below drops every restored session and the on-disk cache.
           await forEachBatched(
             sessionKeys.entries,
-            _maxConcurrentSessionEncryptorOpens,
+            Sync._maxConcurrentSessionEncryptorOpens,
             (e) async {
               try {
                 await _ensureSessionEncryptionInitialized(

@@ -185,7 +185,7 @@ extension SyncData on Sync {
       // on a large catalog.
       await forEachBatched(
         sessionKeys.entries,
-        _maxConcurrentSessionEncryptorOpens,
+        Sync._maxConcurrentSessionEncryptorOpens,
         (e) => _ensureSessionEncryptionInitialized(
           e.key,
           e.value,
