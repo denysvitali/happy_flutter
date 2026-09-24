@@ -76,6 +76,7 @@ import '../types/message_retry_result.dart';
 // ignore: unused_import
 import '../types/message_state.dart';
 import '../types/remote_feature_failure.dart';
+import '../utils/bounded_concurrency.dart';
 import '../utils/utf16_sanitizer.dart';
 import '../utils/image_content_blocks.dart';
 import '../utils/codex_provider_config.dart';
@@ -2131,6 +2132,16 @@ what you have, you must use the options mode.
   /// so capping this avoids launching dozens of parallel 54 s timeout
   /// cascades that block the UI and saturate the network.
   static const int _maxResumeMessageSyncs = 5;
+
+  /// Maximum number of per-session encryptor opens running at once.
+  ///
+  /// Each open is an FFI round-trip and may spawn an isolate, so fanning out
+  /// a whole catalog at once turns one batch into hundreds of concurrent
+  /// isolate launches — slower than a small batch and a memory spike on
+  /// low-end devices. Bounded to a handful: large enough that the wait still
+  /// costs roughly the slowest single batch rather than the sum, small enough
+  /// that a few-hundred-session catalog does not exhaust the isolate pool.
+  static const int _maxConcurrentSessionEncryptorOpens = 8;
 
   /// Phases for selective sync invalidation to prevent thundering herd.
   ///

@@ -817,18 +817,21 @@ extension SyncSocket on Sync {
           // Parallelize the per-session encryptor open — without this
           // `openEncryption` is awaited sequentially, and on a device
           // with N cached sessions this is N FFI round-trips on the
-          // sync.restore critical path.  Future.wait fans them out
-          // so the wait time is the slowest single call instead of
-          // the sum.
+          // sync.restore critical path.  The fan-out is bounded: a plain
+          // `Future.wait` over every entry would open one isolate per
+          // cached session simultaneously, which is slower than a small
+          // batch and spikes memory on a large catalog.
           //
           // Errors are caught per-session so a single bad row cannot fail
           // the whole fan-out and abort the cold-start restore. Only the
           // `openEncryption` call inside the helper is guarded, so the guard
           // is repeated here for the surrounding lookup/eviction steps —
-          // otherwise one throw rejects the Future.wait and the catch-all
+          // otherwise one throw rejects the batch and the catch-all
           // below drops every restored session and the on-disk cache.
-          await Future.wait(
-            sessionKeys.entries.map((e) async {
+          await forEachBatched(
+            sessionKeys.entries,
+            _maxConcurrentSessionEncryptorOpens,
+            (e) async {
               try {
                 await _ensureSessionEncryptionInitialized(
                   e.key,
@@ -843,7 +846,7 @@ extension SyncSocket on Sync {
                   stack,
                 );
               }
-            }),
+            },
           );
         }
       }

@@ -179,16 +179,17 @@ extension SyncData on Sync {
       // `openEncryption` is awaited sequentially in
       // `Encryption.initializeSessions` — for a delta fetch with
       // 50 returned sessions that's 50 sequential FFI round-trips
-      // on the sync.fetch critical path.  Fan out via the same
-      // helper used by `_restoreSessionsCache` so the wait time
-      // is the slowest single call instead of the sum.
-      await Future.wait(
-        sessionKeys.entries.map(
-          (e) => _ensureSessionEncryptionInitialized(
-            e.key,
-            e.value,
-            runtimeGeneration: runtimeGeneration,
-          ),
+      // on the sync.fetch critical path.  The fan-out is bounded: a plain
+      // `Future.wait` over every entry would open one isolate per session
+      // simultaneously, which is slower than a small batch and spikes memory
+      // on a large catalog.
+      await forEachBatched(
+        sessionKeys.entries,
+        _maxConcurrentSessionEncryptorOpens,
+        (e) => _ensureSessionEncryptionInitialized(
+          e.key,
+          e.value,
+          runtimeGeneration: runtimeGeneration,
         ),
       );
       if (!isInitialized || runtimeGeneration != _runtimeGeneration) return;
