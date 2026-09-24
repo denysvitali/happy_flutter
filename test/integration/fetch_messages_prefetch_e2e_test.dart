@@ -129,6 +129,35 @@ void main() {
       expect(messages, hasLength(220));
     },
   );
+  test(
+    'sparse first load bounds automatic history backfill to one page',
+    () async {
+      const sessionId = 'sess-sparse-backfill';
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
+      sync.testSetVisibleSessionId(sessionId);
+      mockServer.stubMessages(sessionId, [
+        for (final seq in [50, 150, 250, 350, 450])
+          _makeEncryptedMessage('msg-$seq', seq: seq, content: 'Message $seq'),
+      ]);
+
+      await sync.fetchMessages(sessionId);
+      for (var i = 0; i < 100; i++) {
+        if (sync.messagesForSession(sessionId)
+            .any((message) => message['id'] == 'msg-250')) {
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(mockServer.messageRequestLog, [300, 200]);
+      final ids = sync.messagesForSession(sessionId)
+          .map((message) => message['id'])
+          .toList();
+      expect(ids.toSet(), hasLength(ids.length));
+      expect(ids, contains('msg-250'));
+    },
+  );
 }
 
 void _stubAllSyncs(Sync sync) {

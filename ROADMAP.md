@@ -131,6 +131,12 @@ historical group has independently reproduced or been verified fixed.
   OS network-unreachable errors; slow spawn/loop RPCs correlate with server
   forwarding retries. Disconnected sends that already received REST ACKs
   retain socket notification retries. No GlitchTip statuses were changed.
+- **Mobile network and battery follow-up:** a 2-minute device capture showed
+  three HTTP cancellations caused by app suspension, no socket errors, and
+  successful post-resume reads. Sparse chat opening and separate settings
+  edits still produced avoidable requests. Automatic older-history backfill
+  is now one visible page, and settings writes coalesce with a bounded delay.
+  Verify request count and received bytes on a post-release device capture.
 - **Still unattributed:** stack overflow 8750 has one build-275100 event;
   its exact CI symbol artifact expired (download returns HTTP 410). Foreground
   Android idle-render warning 8859 measured 492 frames/30s on build 285000,

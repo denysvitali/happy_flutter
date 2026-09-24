@@ -117,6 +117,9 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 - **Settings mutations stay ordered** — single and batched provider updates
   share a persistence/sync queue; storage reads, hydration, and writes share
   another queue. Internal storage helpers must not re-enter the public queue.
+  Server writes combine quick local edits for 2.5s with a 6s ceiling; a
+  direct sync cancels that timer. Suspension cancels the timers while keeping
+  pending edits for resume.
 - **Draft ownership follows the session** — flush before changing sessions or
   controllers and before disposal; delayed loads cannot overwrite newer input.
   `DraftAutoSave` owns debouncing; `DraftStorage` must persist its final write
@@ -283,6 +286,8 @@ Read the unfiltered message tail for empty reasoning signals and use live
 `presence`, not the catalog's `active` flag, for agent liveness. Keep request
 status keyed by canonical `localId`; failed/outbox sends retain their own
 recovery UI. The client cannot stream text that the server has not emitted.
+Sparse first-open history backfill is limited to one older page while the chat
+is visible; subsequent history loads follow user scrolling.
 
 **InvalidateSync fields (9):** `sessionsSync`, `settingsSync`, `profileSync`, `purchasesSync`, `machinesSync`, `pushTokenSync`, `nativeUpdateSync`, `artifactsSync`, `sessionGitStatusSync`. `messagesSync` is `Map<String, InvalidateSync>` (per-session). `createTestSync()` in `test/helpers/test_helpers.dart` is the authoritative list — never hand-roll the field list in a test.
 
@@ -549,7 +554,11 @@ paused lifecycle event force-flushes pending data. Network counters include
 Developer → Network Inspector retains 500 metadata-only HTTP attempts even in
 release builds. A `???` HTTP status can be a DNS, timeout, deadline, or
 intentional suspension cancellation; check its cause before treating it as a
-server response. Native header wait includes DNS, TCP, TLS, and server time.
+server response. Message GET diagnostics retain only numeric `afterSeq` and
+`limit` query values, so repeated pagination can be distinguished from
+duplicate requests without retaining arbitrary query data. Native header wait
+includes DNS, TCP, TLS, and server time. Power Diagnostics counts suspension
+cancellations separately from HTTP failures and slow completed requests.
 
 Example:
 

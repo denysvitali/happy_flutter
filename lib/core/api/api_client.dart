@@ -748,6 +748,9 @@ class ApiClient {
     final networkCode = RegExp(
       r'net::(ERR_[A-Z_]+)',
     ).firstMatch(error?.error?.toString() ?? '')?.group(1);
+    final messagePage =
+        options.method == 'GET' &&
+        RegExp(r'^/v3/sessions/[^/]+/messages$').hasMatch(options.uri.path);
     final entry = HttpRequestEntry(
       id: id,
       timestamp: timestamp,
@@ -781,6 +784,12 @@ class ApiClient {
       failedAfterMs: timing?.failedUs == null ? null : timing!.failedUs! / 1000,
       lifecycleAtDispatch: timing?.lifecycleAtDispatch,
       lifecycleAtHeaders: timing?.lifecycleAtHeaders,
+      pageAfterSeq: messagePage
+          ? int.tryParse(options.uri.queryParameters['after_seq'] ?? '')
+          : null,
+      pageLimit: messagePage
+          ? int.tryParse(options.uri.queryParameters['limit'] ?? '')
+          : null,
     );
     httpRequestLogger.record(entry);
     powerDiagnostics.recordHttpRequest(entry);

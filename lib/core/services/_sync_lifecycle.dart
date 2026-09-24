@@ -106,6 +106,7 @@ extension SyncLifecycle on Sync {
     // backgrounded.  Checked in InvalidateSync._run() before the
     // await _action() call.
     InvalidateSync.isBackgrounded = true;
+    settingsManager?.suspendPendingSync();
     _lastSuspendedAtMs = DateTime.now().millisecondsSinceEpoch;
     // Quiesce all InvalidateSync retry/cooldown timers without disposing the
     // instances. Backgrounding is temporary; disposing here causes foreground

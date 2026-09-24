@@ -203,4 +203,57 @@ void main() {
     expect(manager.settingsSnapshot.lastUsedAgent, 'codex');
     expect(manager.pendingSettings['lastUsedAgent'], 'codex');
   });
+
+  testWidgets('rapid settings edits share one server write', (tester) async {
+    late SettingsManager batched;
+    final syncer = InvalidateSync(() => batched.syncSettings());
+    addTearDown(syncer.dispose);
+    addTearDown(() => batched.clear());
+    batched = SettingsManager(
+      encryption: _Encryption(),
+      client: api,
+      nativeUpdateFreshnessMs: 0,
+      isTransientConnectionError: (_) => false,
+      settingsSyncGetter: () => syncer,
+      profileSyncGetter: () => syncer,
+      purchasesSyncGetter: () => syncer,
+      onDataChanged: (_) {},
+    );
+    api.respond = () async =>
+        _response({'success': true, 'settingsVersion': 1});
+
+    await batched.applySettings({'lastUsedAgent': 'codex'});
+    await tester.pump(const Duration(seconds: 1));
+    await batched.applySettings({'lastUsedProfile': 'work'});
+    await tester.pump(const Duration(seconds: 1));
+    await batched.applySettings({'lastUsedModelMode': 'fast'});
+    expect(api.writes, isEmpty);
+
+    await tester.pump(const Duration(seconds: 3));
+    await syncer.awaitQueue();
+    expect(api.writes, hasLength(1));
+    final body =
+        jsonDecode(api.writes.single['settings'] as String)
+            as Map<String, dynamic>;
+    expect(body['lastUsedAgent'], 'codex');
+    expect(body['lastUsedProfile'], 'work');
+    expect(body['lastUsedModelMode'], 'fast');
+  });
+
+  testWidgets('suspension cancels the write timer but retains edits', (
+    tester,
+  ) async {
+    api.respond = () async =>
+        _response({'success': true, 'settingsVersion': 1});
+    await manager.applySettings({'lastUsedAgent': 'codex'});
+    manager.suspendPendingSync();
+
+    await tester.pump(const Duration(seconds: 7));
+    expect(api.writes, isEmpty);
+    expect(manager.pendingSettings['lastUsedAgent'], 'codex');
+
+    await manager.syncSettings();
+    expect(api.writes, hasLength(1));
+    expect(manager.pendingSettings, isEmpty);
+  });
 }

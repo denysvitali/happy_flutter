@@ -78,6 +78,7 @@ class PowerDiagnosticsSnapshot {
     required this.socketAckCounts,
     required this.httpRequests,
     required this.httpFailures,
+    required this.httpSuspensionCancels,
     required this.httpSlowRequests,
     required this.httpRequestBytes,
     required this.httpResponseBytes,
@@ -116,6 +117,7 @@ class PowerDiagnosticsSnapshot {
   final Map<String, int> socketAckCounts;
   final int httpRequests;
   final int httpFailures;
+  final int httpSuspensionCancels;
   final int httpSlowRequests;
   final int httpRequestBytes;
   final int httpResponseBytes;
@@ -180,6 +182,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
   int _socketAckCalls = 0;
   int _httpRequests = 0;
   int _httpFailures = 0;
+  int _httpSuspensionCancels = 0;
   int _httpSlowRequests = 0;
   int _httpRequestBytes = 0;
   int _httpResponseBytes = 0;
@@ -227,6 +230,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       socketAckCounts: Map.unmodifiable(_socketAckCounts),
       httpRequests: _httpRequests,
       httpFailures: _httpFailures,
+      httpSuspensionCancels: _httpSuspensionCancels,
       httpSlowRequests: _httpSlowRequests,
       httpRequestBytes: _httpRequestBytes,
       httpResponseBytes: _httpResponseBytes,
@@ -267,6 +271,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _socketAckCalls = 0;
     _httpRequests = 0;
     _httpFailures = 0;
+    _httpSuspensionCancels = 0;
     _httpSlowRequests = 0;
     _httpRequestBytes = 0;
     _httpResponseBytes = 0;
@@ -424,8 +429,10 @@ class PowerDiagnosticsService extends ChangeNotifier {
       cached: entry.fromCache,
       attempt: entry.attempt,
     );
-    final failed = entry.failed;
-    final slow = (entry.durationMs ?? 0) >= 1000;
+    final suspended = entry.failureKind == 'app_suspended';
+    final failed = entry.failed && !suspended;
+    final slow = !suspended && (entry.durationMs ?? 0) >= 1000;
+    if (suspended) _httpSuspensionCancels++;
     if (failed) {
       _httpFailures++;
       _increment(_httpFailureKinds, entry.result);
@@ -442,7 +449,9 @@ class PowerDiagnosticsService extends ChangeNotifier {
       PowerDiagnosticEventType.http,
       '${entry.method} ${entry.statusCode ?? '???'} '
       '${entry.durationMs ?? '-'}ms ${entry.path} '
-      'result=${entry.result} attempt=${entry.attempt}',
+      'result=${entry.result} attempt=${entry.attempt}'
+      '${entry.pageAfterSeq == null ? '' : ' afterSeq=${entry.pageAfterSeq}'}'
+      '${entry.pageLimit == null ? '' : ' limit=${entry.pageLimit}'}',
     );
   }
 
@@ -571,6 +580,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       ..writeln('HTTP')
       ..writeln('  requests: ${s.httpRequests}')
       ..writeln('  failures: ${s.httpFailures}')
+      ..writeln('  suspensionCancels: ${s.httpSuspensionCancels}')
       ..write(_formatCountSection('  failureKinds', s.httpFailureKinds))
       ..writeln('  slowRequests: ${s.httpSlowRequests}')
       ..writeln(

@@ -26,6 +26,8 @@ class HttpRequestEntry {
     this.failedAfterMs,
     this.lifecycleAtDispatch,
     this.lifecycleAtHeaders,
+    this.pageAfterSeq,
+    this.pageLimit,
   });
 
   final int id;
@@ -49,6 +51,10 @@ class HttpRequestEntry {
   final double? failedAfterMs;
   final String? lifecycleAtDispatch;
   final String? lifecycleAtHeaders;
+
+  /// Safe pagination metadata for message GETs; no arbitrary query values.
+  final int? pageAfterSeq;
+  final int? pageLimit;
 
   bool get failed => failureKind != null || (statusCode ?? 0) >= 400;
   String get result =>
@@ -84,6 +90,8 @@ class HttpRequestEntry {
         'failedAfter=${failedAfterMs!.toStringAsFixed(1)}ms',
       if (lifecycleAtDispatch != null) 'lifecycle=$lifecycleAtDispatch',
       if (lifecycleAtHeaders != null) 'headersLifecycle=$lifecycleAtHeaders',
+      if (pageAfterSeq != null) 'afterSeq=$pageAfterSeq',
+      if (pageLimit != null) 'limit=$pageLimit',
     ].join(' ');
     return '$ts  ${method.padRight(6)}  $status  '
         '$reqB  $resB  $dur  $path${detail.isEmpty ? '' : '  $detail'}';
@@ -113,7 +121,8 @@ class HttpRequestLogger {
   void record(HttpRequestEntry entry) {
     // Keep bounded metadata on production builds too: that is where the
     // intermittent mobile network failures need to be inspected. This never
-    // retains headers, bodies or query parameters.
+    // retains headers, bodies or arbitrary query parameters. Only numeric
+    // message-page cursors and limits are kept to diagnose repeat fetches.
     _entries.add(entry);
     if (_entries.length > _maxEntries) {
       _entries.removeAt(0);

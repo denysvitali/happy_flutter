@@ -144,6 +144,10 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
             metrics: [
               _Metric('Requests', snapshot.httpRequests.toString()),
               _Metric('Failures', snapshot.httpFailures.toString()),
+              _Metric(
+                'Paused cancels',
+                snapshot.httpSuspensionCancels.toString(),
+              ),
               _Metric('Slow requests', snapshot.httpSlowRequests.toString()),
               _Metric(
                 'Sent',

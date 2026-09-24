@@ -1319,7 +1319,7 @@ extension SyncMessaging on Sync {
           // though the session has a long history.  Proactively pull
           // a couple of older pages so the initial view has a useful
           // amount of context without waiting for the user to scroll
-          // to the oldest message.
+          // to the oldest message. Keep this to one page for battery life.
           if (isFirstLoad) {
             unawaited(_backfillInitialHistory(sessionId));
           }
@@ -1612,38 +1612,33 @@ extension SyncMessaging on Sync {
   /// [Session.lastSeq] counts non-message events.
   static const int _initialBackfillTargetMessages = 40;
 
-  /// Maximum number of extra older pages to fetch during the initial
-  /// cross-device backfill. Bounded to avoid unbounded scroll-back on
-  /// very sparse sessions.
-  static const int _initialBackfillMaxPages = 3;
-
-  /// After a first-load tail fetch, pull additional older pages if the
-  /// visible message count is below [_initialBackfillTargetMessages]
-  /// and older history is available. Best-effort and fire-and-forget.
+  /// After a first-load tail fetch, pull at most one older page if the
+  /// visible message count is low. The old three-page crawl repeatedly
+  /// downloaded large transcripts while the user was reading the tail.
+  /// Further history loads when the user scrolls near the top.
   Future<void> _backfillInitialHistory(String sessionId) async {
     if (testFetchMessagesOverride != null) return;
-
-    for (var i = 0; i < _initialBackfillMaxPages; i++) {
-      final loaded = _sessionMessages[sessionId]?.length ?? 0;
-      if (loaded >= _initialBackfillTargetMessages) return;
-      if (!hasOlderMessages(sessionId)) return;
-      if (isLoadingOlderMessages(sessionId)) return;
-      try {
-        await fetchOlderMessages(sessionId);
-      } catch (error, stack) {
-        logger.warning(
-          '[backfillInitialHistory] $sessionId page=$i failed',
-          error,
-          stack,
-        );
-        // Page index is deliberately not an attribute — it is bounded but
-        // adds no signal, and the counter stays flat at (domain, reason).
-        recordSyncFailure(
-          domain: SyncDomain.messages.name,
-          reason: classifySyncFailureReason(error),
-        );
-        return;
-      }
+    if (_visibleSessionId != sessionId || InvalidateSync.isBackgrounded) {
+      return;
+    }
+    final loaded = _sessionMessages[sessionId]?.length ?? 0;
+    if (loaded >= _initialBackfillTargetMessages ||
+        !hasOlderMessages(sessionId) ||
+        isLoadingOlderMessages(sessionId)) {
+      return;
+    }
+    try {
+      await fetchOlderMessages(sessionId);
+    } catch (error, stack) {
+      logger.warning(
+        '[backfillInitialHistory] $sessionId failed',
+        error,
+        stack,
+      );
+      recordSyncFailure(
+        domain: SyncDomain.messages.name,
+        reason: classifySyncFailureReason(error),
+      );
     }
   }
 

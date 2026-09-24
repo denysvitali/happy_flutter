@@ -73,6 +73,13 @@ the global sync status bar reports that app data may be stale. The failure is
 suppressed while retries are pending and clears only after a later successful
 refresh. Do not infer a successful empty catalog from a failed refresh.
 
+Settings edits update local state immediately. `SettingsManager` merges edits
+for 2.5 seconds before the server write, with a 6-second maximum wait; an
+explicit sync sends pending values immediately. Suspension cancels those
+timers and resume's settings invalidation sends any retained edits. A sparse
+chat's first tail load may automatically fetch one older page; later older
+pages are requested when the user scrolls.
+
 ## Reconnect Watchdog
 
 `resume()` arms a 15s watchdog when the socket is not connected (or is a

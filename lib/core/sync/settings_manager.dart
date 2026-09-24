@@ -1,4 +1,4 @@
-import 'dart:async' show TimeoutException, unawaited;
+import 'dart:async' show Timer, TimeoutException, unawaited;
 
 import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -53,6 +53,11 @@ class SettingsManager {
   final Map<String, dynamic> _pendingSettings = {};
   int? _lastSettingsPostAtMs;
   Future<void>? _settingsOpQueue;
+  Timer? _settingsWriteDebounceTimer;
+  Timer? _settingsWriteMaxTimer;
+
+  static const _settingsWriteDebounce = Duration(milliseconds: 2500);
+  static const _settingsWriteMaxWait = Duration(seconds: 6);
 
   Profile? _profile;
   Purchases _purchases = Purchases.defaults;
@@ -107,6 +112,7 @@ class SettingsManager {
   /// expectedVersion. Each call keeps the generation captured at entry, so a
   /// runtime reset between enqueue and run can never mutate fresh state.
   Future<void> syncSettings() {
+    _cancelSettingsWriteTimers();
     final generation = _generation;
     final previous = _settingsOpQueue;
     final operation = previous == null
@@ -269,8 +275,39 @@ class SettingsManager {
     for (final entry in delta.entries) {
       _pendingSettings[entry.key] = entry.value;
     }
-    _settingsSyncGetter().invalidate();
+    // Several UI edits often arrive through separate provider persistence
+    // operations. Keep the local snapshot immediate but send their merged
+    // document once. A fixed ceiling prevents continuous edits from
+    // postponing the server write indefinitely.
+    if (InvalidateSync.isBackgrounded) return;
+    _settingsWriteDebounceTimer?.cancel();
+    _settingsWriteDebounceTimer = Timer(
+      _settingsWriteDebounce,
+      _invalidatePendingSettings,
+    );
+    _settingsWriteMaxTimer ??= Timer(
+      _settingsWriteMaxWait,
+      _invalidatePendingSettings,
+    );
   }
+
+  void _invalidatePendingSettings() {
+    _cancelSettingsWriteTimers();
+    if (_pendingSettings.isNotEmpty && !InvalidateSync.isBackgrounded) {
+      _settingsSyncGetter().invalidate();
+    }
+  }
+
+  void _cancelSettingsWriteTimers() {
+    _settingsWriteDebounceTimer?.cancel();
+    _settingsWriteDebounceTimer = null;
+    _settingsWriteMaxTimer?.cancel();
+    _settingsWriteMaxTimer = null;
+  }
+
+  /// Backgrounding cancels timers; resume's settings invalidation posts
+  /// the retained pending values without waking the app while suspended.
+  void suspendPendingSync() => _cancelSettingsWriteTimers();
 
   /// Sync purchases — piggybacks on profile sync.
   Future<void> syncPurchases() async {
@@ -456,6 +493,7 @@ class SettingsManager {
 
   /// Clears all managed state.
   void clear() {
+    _cancelSettingsWriteTimers();
     _generation++;
     _settingsOpQueue = null;
     _settingsSnapshot = Settings();

@@ -147,6 +147,25 @@ void main() {
       expect(report, contains('POST /v1/messages: count=1'));
     });
 
+    test('shows safe message page cursors in recent HTTP events', () {
+      powerDiagnostics.recordHttpRequest(
+        HttpRequestEntry(
+          id: 1,
+          timestamp: DateTime(2026),
+          method: 'GET',
+          path: '/v3/sessions/session-1/messages',
+          statusCode: 200,
+          pageAfterSeq: 1200,
+          pageLimit: 200,
+        ),
+      );
+
+      expect(
+        powerDiagnostics.exportText(),
+        contains('afterSeq=1200 limit=200'),
+      );
+    });
+
     test('counts statusless DNS and deadline attempts as failures', () {
       powerDiagnostics
         ..recordHttpRequest(
@@ -175,6 +194,27 @@ void main() {
       expect(snapshot.httpFailureKinds, {'dns': 1, 'deadline': 1});
       expect(snapshot.httpEndpointStats['GET /v1/machines']?.failures, 1);
       expect(powerDiagnostics.exportText(), contains('failureKinds'));
+    });
+
+    test('separates expected suspension cancels from HTTP failures', () {
+      powerDiagnostics.recordHttpRequest(
+        HttpRequestEntry(
+          id: 1,
+          timestamp: DateTime(2026),
+          method: 'GET',
+          path: '/v2/sessions',
+          failureKind: 'app_suspended',
+          durationMs: 1200,
+        ),
+      );
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(snapshot.httpRequests, 1);
+      expect(snapshot.httpFailures, 0);
+      expect(snapshot.httpSuspensionCancels, 1);
+      expect(snapshot.httpSlowRequests, 0);
+      expect(snapshot.httpEndpointStats['GET /v2/sessions']?.failures, 0);
+      expect(powerDiagnostics.exportText(), contains('suspensionCancels: 1'));
     });
 
     test('normalizes dynamic ids and caps retained endpoint maps', () {
