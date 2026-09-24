@@ -12,6 +12,7 @@ import '../../core/dialogs/confirm_dialog.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/services/app_visibility_coordinator.dart';
 import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/performance_context_service.dart';
@@ -117,9 +118,37 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     });
     subscribeToDomains({SyncDomain.sessions, SyncDomain.machines}, () {
       if (!_sessionsRouteActive || _activeTab != AppTab.sessions) return;
-      ref.read(sessionsNotifierProvider.notifier).loadFromSync();
-      ref.read(machinesNotifierProvider.notifier).loadFromSync();
+      // An unfocused desktop window is still connected and still receiving
+      // every token an agent emits. Rebuilding the full home tree on each one
+      // painted ~1.2M frames/7d in production with nobody watching. Skip the
+      // repaint while unfocused and replay once on refocus instead: Sync keeps
+      // running, so a single catch-up read shows the same final state.
+      if (!AppFocusState.instance.isFocused) {
+        _skippedWhileUnfocused = true;
+        return;
+      }
+      _refreshSessionsFromSync();
     });
+    AppFocusState.instance.addListener(_onAppFocusChanged);
+  }
+
+  /// Repaint-while-unfocused guard. Set when a Sync change arrived with the
+  /// window unfocused; cleared by the catch-up read on refocus.
+  bool _skippedWhileUnfocused = false;
+
+  void _onAppFocusChanged() {
+    if (!mounted) return;
+    if (!AppFocusState.instance.isFocused) return;
+    if (_skippedWhileUnfocused) {
+      _skippedWhileUnfocused = false;
+      _refreshSessionsFromSync();
+    }
+  }
+
+  void _refreshSessionsFromSync() {
+    if (!_sessionsRouteActive || _activeTab != AppTab.sessions) return;
+    ref.read(sessionsNotifierProvider.notifier).loadFromSync();
+    ref.read(machinesNotifierProvider.notifier).loadFromSync();
   }
 
   void _onRouteChanged() {
@@ -175,6 +204,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
 
   @override
   void dispose() {
+    AppFocusState.instance.removeListener(_onAppFocusChanged);
     PerformanceContextService().routeListenable.removeListener(_onRouteChanged);
     _selectionNotifier
       ..removeListener(_onSelectionChanged)
