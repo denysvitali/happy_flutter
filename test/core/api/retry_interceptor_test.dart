@@ -74,6 +74,52 @@ Dio _buildDio(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('HTTP failure causes', () {
+    final options = RequestOptions(path: '/v2/sessions');
+
+    test('recognizes Cronet and socket DNS failures reported as unknown', () {
+      for (final detail in [
+        'net::ERR_NAME_NOT_RESOLVED, ErrorCode=1',
+        "SocketException: Failed host lookup: 'example.invalid'",
+      ]) {
+        expect(
+          classifyHttpFailure(DioException(
+            requestOptions: options,
+            type: DioExceptionType.unknown,
+            error: detail,
+          )),
+          'dns',
+        );
+      }
+    });
+
+    test('separates lifecycle cancellation from deadline and timeout', () {
+      expect(
+        classifyHttpFailure(DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          error: HttpCancellationReason.appSuspended,
+        )),
+        'app_suspended',
+      );
+      expect(
+        classifyHttpFailure(DioException(
+          requestOptions: options,
+          type: DioExceptionType.cancel,
+          error: 'HTTP request deadline exceeded',
+        )),
+        'deadline',
+      );
+      expect(
+        classifyHttpFailure(DioException(
+          requestOptions: options,
+          type: DioExceptionType.receiveTimeout,
+        )),
+        'timeout',
+      );
+    });
+  });
+
   group('RetryInterceptor status classification', () {
     test('retries a 503 response even though validateStatus keeps status '
         'failures out of onError (regression: the 5xx branch only ever ran '

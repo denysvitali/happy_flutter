@@ -7,29 +7,12 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import '../api/socket_io_client.dart';
 import 'http_request_logger.dart';
 import 'performance_context_service.dart';
+import 'power_diagnostics_http_stats.dart';
 import 'power_diagnostics_otel_reporter.dart';
 
+export 'power_diagnostics_http_stats.dart';
+
 enum PowerDiagnosticEventType { lifecycle, socket, http, sync, outbox }
-
-class PowerDiagnosticHttpEndpointStats {
-  const PowerDiagnosticHttpEndpointStats({
-    required this.count,
-    required this.failures,
-    required this.slowRequests,
-    required this.requestBytes,
-    required this.responseBytes,
-    required this.totalDurationMs,
-  });
-
-  final int count;
-  final int failures;
-  final int slowRequests;
-  final int requestBytes;
-  final int responseBytes;
-  final int totalDurationMs;
-
-  int get averageDurationMs => count == 0 ? 0 : totalDurationMs ~/ count;
-}
 
 class PowerDiagnosticEvent {
   const PowerDiagnosticEvent({
@@ -98,6 +81,7 @@ class PowerDiagnosticsSnapshot {
     required this.httpSlowRequests,
     required this.httpRequestBytes,
     required this.httpResponseBytes,
+    required this.httpFailureKinds,
     required this.httpEndpointCounts,
     required this.httpEndpointStats,
     required this.syncInvalidations,
@@ -135,6 +119,7 @@ class PowerDiagnosticsSnapshot {
   final int httpSlowRequests;
   final int httpRequestBytes;
   final int httpResponseBytes;
+  final Map<String, int> httpFailureKinds;
   final Map<String, int> httpEndpointCounts;
   final Map<String, PowerDiagnosticHttpEndpointStats> httpEndpointStats;
   final int syncInvalidations;
@@ -215,6 +200,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
   final Map<String, int> _socketSendCounts = {};
   final Map<String, int> _socketAckCounts = {};
   final Map<String, int> _httpEndpointCounts = {};
+  final Map<String, int> _httpFailureKinds = {};
   final Map<String, _MutableHttpEndpointStats> _httpEndpointStats = {};
   final Map<String, int> _syncInvalidationCounts = {};
   final Map<String, int> _syncBackgroundSkipCounts = {};
@@ -244,6 +230,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       httpSlowRequests: _httpSlowRequests,
       httpRequestBytes: _httpRequestBytes,
       httpResponseBytes: _httpResponseBytes,
+      httpFailureKinds: Map.unmodifiable(_httpFailureKinds),
       httpEndpointCounts: Map.unmodifiable(_httpEndpointCounts),
       httpEndpointStats: Map.unmodifiable(
         _httpEndpointStats.map((key, value) => MapEntry(key, value.snapshot())),
@@ -295,6 +282,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _socketSendCounts.clear();
     _socketAckCounts.clear();
     _httpEndpointCounts.clear();
+    _httpFailureKinds.clear();
     _httpEndpointStats.clear();
     _syncInvalidationCounts.clear();
     _syncBackgroundSkipCounts.clear();
@@ -338,7 +326,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _addEvent(PowerDiagnosticEventType.socket, 'status=${status.name}');
   }
 
-  void recordSocketError(String error) {
+  void recordSocketError(String error, {bool recordEvent = true}) {
     _socketErrors++;
     // The raw string is kept for the local event log but bucketed before it
     // becomes a metric label — socket error strings embed hosts, ports and
@@ -346,7 +334,11 @@ class PowerDiagnosticsService extends ChangeNotifier {
     PowerDiagnosticsOtelReporter.instance.recordSocketError(
       reason: classifySocketError(error),
     );
-    _addEvent(PowerDiagnosticEventType.socket, 'error=$error');
+    if (recordEvent) {
+      _addEvent(PowerDiagnosticEventType.socket, 'error=$error');
+    } else {
+      _notifySoon();
+    }
   }
 
   /// Bucket a raw socket error string into one of a fixed set of reasons.
@@ -371,6 +363,8 @@ class PowerDiagnosticsService extends ChangeNotifier {
       return 'tls';
     }
     if (text.contains('failed host lookup') ||
+        text.contains('err_name_not_resolved') ||
+        text.contains('no address associated') ||
         text.contains('nodename') ||
         text.contains('dns')) {
       return 'dns';
@@ -425,10 +419,17 @@ class PowerDiagnosticsService extends ChangeNotifier {
       requestBytes: entry.requestBytes ?? 0,
       responseBytes: entry.responseBytes ?? 0,
     );
-    final status = entry.statusCode;
-    final failed = status != null && status >= 400;
+    PowerDiagnosticsOtelReporter.instance.recordHttpResult(
+      result: entry.result,
+      cached: entry.fromCache,
+      attempt: entry.attempt,
+    );
+    final failed = entry.failed;
     final slow = (entry.durationMs ?? 0) >= 1000;
-    if (failed) _httpFailures++;
+    if (failed) {
+      _httpFailures++;
+      _increment(_httpFailureKinds, entry.result);
+    }
     if (slow) _httpSlowRequests++;
     final endpoint = '${entry.method} ${_normalizeHttpPath(entry.path)}';
     _increment(_httpEndpointCounts, endpoint);
@@ -440,7 +441,8 @@ class PowerDiagnosticsService extends ChangeNotifier {
     _addEvent(
       PowerDiagnosticEventType.http,
       '${entry.method} ${entry.statusCode ?? '???'} '
-      '${entry.durationMs ?? '-'}ms ${entry.path}',
+      '${entry.durationMs ?? '-'}ms ${entry.path} '
+      'result=${entry.result} attempt=${entry.attempt}',
     );
   }
 
@@ -569,6 +571,7 @@ class PowerDiagnosticsService extends ChangeNotifier {
       ..writeln('HTTP')
       ..writeln('  requests: ${s.httpRequests}')
       ..writeln('  failures: ${s.httpFailures}')
+      ..write(_formatCountSection('  failureKinds', s.httpFailureKinds))
       ..writeln('  slowRequests: ${s.httpSlowRequests}')
       ..writeln(
         '  requestBytes: ${HttpRequestEntry.formatBytes(s.httpRequestBytes)}',

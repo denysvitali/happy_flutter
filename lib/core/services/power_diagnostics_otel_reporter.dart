@@ -139,6 +139,53 @@ class PowerDiagnosticsOtelReporter {
     );
   }
 
+  /// One completed HTTP attempt, including transport failures with no status.
+  /// [result] is a fixed cause bucket from the HTTP tracker.
+  void recordHttpResult({
+    required String result,
+    required bool cached,
+    required int attempt,
+  }) => _bump(
+    'happy_flutter.http.attempts',
+    description: 'HTTP attempts by outcome, cache and retry',
+    unit: '{attempts}',
+    attributes: {
+      'result': result,
+      'cache': cached ? 'hit' : 'miss',
+      'attempt': attempt > 1 ? 'retry' : 'first',
+    },
+  );
+
+  void recordNetworkLinkChange({required bool online}) => _bump(
+    'happy_flutter.network.link_changes',
+    description: 'Device network link availability transitions',
+    unit: '{changes}',
+    attributes: {'state': online ? 'available' : 'unavailable'},
+  );
+
+  void recordSocketDial({required String reason}) => _bump(
+    'happy_flutter.socket.dials',
+    description: 'Socket dial attempts by bounded caller reason',
+    unit: '{attempts}',
+    attributes: {
+      'reason':
+          const {
+            'cold_start',
+            'lifecycle_resume',
+            'network_restored',
+            'watchdog',
+            'user_manual',
+            'token_refresh',
+            'zombie_detected',
+            'server_url_changed',
+            'library_retry',
+            'unspecified',
+          }.contains(reason)
+          ? reason
+          : 'other',
+    },
+  );
+
   void recordSocketConnect() => _bump(
     'happy_flutter.socket.connects',
     description: 'Socket connection events',

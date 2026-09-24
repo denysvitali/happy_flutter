@@ -458,7 +458,26 @@ void main() {
 
       expect(attributes['outcome'], 'transport_error');
       expect(attributes['failure.phase'], 'receive');
+      expect(attributes['failure.kind'], 'timeout');
       expect(attributes['error.type'], 'receiveTimeout');
+    });
+
+    test('Cronet DNS failures retain a bounded metric cause', () {
+      final options = RequestOptions(path: '/v2/sessions', method: 'GET');
+      final error = DioException(
+        requestOptions: options,
+        type: DioExceptionType.unknown,
+        error: 'net::ERR_NAME_NOT_RESOLVED for a private hostname',
+      );
+
+      final attributes = ApiClient.debugBuildHttpMetricAttributes(
+        options,
+        error: error,
+        phase: 'attempt',
+      );
+
+      expect(attributes['failure.kind'], 'dns');
+      expect(attributes.values.join(' '), isNot(contains('private hostname')));
     });
   });
 

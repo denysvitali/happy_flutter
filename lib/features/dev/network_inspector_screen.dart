@@ -2,9 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/api/api_client.dart';
+import '../../core/api/socket_io_client.dart';
 import '../../core/components/app_empty_state.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/http_request_logger.dart';
+import '../../core/services/network_monitor_service.dart';
+import '../../core/services/opentelemetry_service.dart';
+import '../../core/services/power_diagnostics_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
@@ -22,6 +27,8 @@ class NetworkInspectorScreen extends StatefulWidget {
 class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
   late List<HttpRequestEntry> _entries;
   StreamSubscription<List<HttpRequestEntry>>? _sub;
+  StreamSubscription<bool>? _linkSub;
+  StreamSubscription<ConnectionStatus>? _socketSub;
 
   @override
   void initState() {
@@ -31,15 +38,31 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
       if (!mounted) return;
       setState(() => _entries = List.of(entries));
     });
+    _linkSub = NetworkMonitorService().onConnectivityChanged.listen((_) {
+      if (mounted) setState(() {});
+    });
+    _socketSub = socketIoClient.statusStream.listen((_) {
+      if (mounted) setState(() {});
+    });
+    powerDiagnostics.addListener(_onDiagnosticsChanged);
+  }
+
+  void _onDiagnosticsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _linkSub?.cancel();
+    _socketSub?.cancel();
+    powerDiagnostics.removeListener(_onDiagnosticsChanged);
     super.dispose();
   }
 
   String _buildCopyText() {
+    final diagnostics = powerDiagnostics.snapshot();
+    final failures = _entries.where((entry) => entry.failed).length;
     final requestBytes = HttpRequestEntry.formatBytes(
       httpRequestLogger.totalRequestBytes,
     );
@@ -50,7 +73,16 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
       ..writeln('=== HTTP Request Log ===')
       ..writeln('Generated: ${DateTime.now().toIso8601String()}')
       ..writeln(
+        'Device link: '
+        '${NetworkMonitorService().isOnline ? 'available' : 'unavailable'}',
+      )
+      ..writeln('Socket: ${socketIoClient.connectionStatus.name}')
+      ..writeln('Server host: ${_serverHost()}')
+      ..writeln('OTel instance: ${OpenTelemetryService.launchInstanceId}')
+      ..writeln('Socket errors: ${diagnostics.socketErrors}')
+      ..writeln(
         'Total: ${_entries.length} requests  '
+        'failures: $failures  '
         '↑ $requestBytes  '
         '↓ $responseBytes',
       )
@@ -68,17 +100,15 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
       ..writeln('-' * 90);
     for (final e in _entries) {
       final num = e.id.toString().padRight(5);
-      final ts = e.timestamp.toIso8601String().padRight(28);
-      final method = e.method.padRight(8);
-      final status = (e.statusCode?.toString() ?? '???').padRight(8);
-      final reqB = HttpRequestEntry.formatBytes(e.requestBytes).padLeft(9);
-      final resB = HttpRequestEntry.formatBytes(e.responseBytes).padLeft(9);
-      final dur = e.durationMs != null
-          ? '${e.durationMs}ms'.padLeft(8)
-          : '       -';
-      buf.writeln('$num$ts$method$status$reqB$resB$dur  ${e.path}');
+      buf.writeln('$num${e.toFormattedString()}');
     }
     return buf.toString();
+  }
+
+  String _serverHost() {
+    final url = ApiClient().getCurrentServerUrl();
+    final host = Uri.tryParse(url ?? '')?.host;
+    return host == null || host.isEmpty ? 'unknown' : host;
   }
 
   Future<void> _copyAll() async {
@@ -123,6 +153,38 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
     final l10n = AppLocalizations.of(context);
     final totalReqB = httpRequestLogger.totalRequestBytes;
     final totalResB = httpRequestLogger.totalResponseBytes;
+    final failures = _entries.where((entry) => entry.failed).length;
+    final dns = _entries.where((entry) => entry.failureKind == 'dns').length;
+    final timeouts = _entries
+        .where(
+          (entry) =>
+              entry.failureKind == 'timeout' || entry.failureKind == 'deadline',
+        )
+        .length;
+    final cancelled = _entries
+        .where(
+          (entry) =>
+              entry.failureKind == 'cancelled' ||
+              entry.failureKind == 'app_suspended',
+        )
+        .length;
+    final cached = _entries.where((entry) => entry.fromCache).length;
+    final retries = _entries.where((entry) => entry.attempt > 1).length;
+    final linkStatus = NetworkMonitorService().isOnline
+        ? 'available'
+        : 'unavailable';
+    final otelStatus = OpenTelemetryService().isInitialized
+        ? 'ready'
+        : 'unavailable';
+    final diagnostics = powerDiagnostics.snapshot();
+    final socketErrors = diagnostics.recentEvents.where(
+      (event) =>
+          event.type == PowerDiagnosticEventType.socket &&
+          event.message.startsWith('error='),
+    );
+    final lastSocketError = socketErrors.isEmpty
+        ? 'None recorded'
+        : socketErrors.last.message.substring('error='.length);
 
     return Scaffold(
       appBar: AppBar(
@@ -169,7 +231,80 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
                   value: HttpRequestEntry.formatBytes(totalResB),
                   icon: Icons.download,
                 ),
+                _SummaryChip(
+                  label: 'Failures',
+                  value: failures.toString(),
+                  icon: Icons.error_outline,
+                ),
+                _SummaryChip(
+                  label: 'DNS',
+                  value: dns.toString(),
+                  icon: Icons.dns_outlined,
+                ),
+                _SummaryChip(
+                  label: 'Timeouts',
+                  value: timeouts.toString(),
+                  icon: Icons.timer_outlined,
+                ),
+                _SummaryChip(
+                  label: 'Cancelled',
+                  value: cancelled.toString(),
+                  icon: Icons.cancel_outlined,
+                ),
+                _SummaryChip(
+                  label: 'Cache hits',
+                  value: cached.toString(),
+                  icon: Icons.cached,
+                ),
+                _SummaryChip(
+                  label: 'Retries',
+                  value: retries.toString(),
+                  icon: Icons.refresh,
+                ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              0,
+            ),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Connection state',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'Device link: $linkStatus '
+                      '(does not confirm DNS)  ·  '
+                      'Socket: ${socketIoClient.connectionStatus.name}',
+                    ),
+                    Text(
+                      'Server: ${_serverHost()}  ·  '
+                      'Socket errors: ${diagnostics.socketErrors}',
+                    ),
+                    Text(
+                      'OTel: $otelStatus  ·  '
+                      'instance: ${OpenTelemetryService.launchInstanceId}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Last socket error: $lastSocketError',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           // ── Copy box ────────────────────────────────────────────
@@ -310,6 +445,21 @@ class _RequestRow extends StatelessWidget {
   final HttpRequestEntry entry;
   final bool isEven;
 
+  String get _rowStatus =>
+      entry.statusCode?.toString() ??
+      switch (entry.failureKind) {
+        'dns' => 'DNS',
+        'timeout' => 'TIME',
+        'deadline' => 'DL',
+        'app_suspended' => 'SUSP',
+        'cancelled' => 'CXL',
+        'tls' => 'TLS',
+        'network_unavailable' => 'NET',
+        'connection' => 'CONN',
+        null => '???',
+        _ => 'ERR',
+      };
+
   Color _methodColor(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     switch (entry.method.toUpperCase()) {
@@ -329,6 +479,7 @@ class _RequestRow extends StatelessWidget {
 
   Color _statusColor(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    if (entry.failureKind != null) return cs.error;
     final s = entry.statusCode;
     if (s == null) return cs.outline;
     if (s >= 200 && s < 300) return AppColors.success;
@@ -370,11 +521,7 @@ class _RequestRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.xsm),
             _Badge(label: entry.method, color: mColor, width: 50),
             const SizedBox(width: AppSpacing.xsm),
-            _Badge(
-              label: entry.statusCode?.toString() ?? '???',
-              color: sColor,
-              width: 38,
-            ),
+            _Badge(label: _rowStatus, color: sColor, width: 46),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
@@ -432,9 +579,13 @@ class _RequestRow extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 _Badge(
-                  label: e.statusCode?.toString() ?? '???',
+                  label:
+                      e.statusCode?.toString() ??
+                      (e.failureKind?.toUpperCase() ?? '???'),
                   color: _statusColor(context),
-                  width: 44,
+                  width: e.statusCode == null && e.failureKind != null
+                      ? 100
+                      : 44,
                 ),
                 const Spacer(),
                 Text(
@@ -464,6 +615,53 @@ class _RequestRow extends StatelessWidget {
               label: AppLocalizations.of(ctx).networkInspectorLabelReceivedBody,
               value: HttpRequestEntry.formatBytes(e.responseBytes),
             ),
+            _DetailRow(label: 'Result', value: e.result),
+            if (e.errorType != null)
+              _DetailRow(label: 'Dio error', value: e.errorType!),
+            if (e.networkCode != null)
+              _DetailRow(label: 'Network code', value: e.networkCode!),
+            _DetailRow(label: 'Attempt', value: e.attempt.toString()),
+            if (e.totalDurationMs != null)
+              _DetailRow(
+                label: 'Total with retries',
+                value: '${e.totalDurationMs} ms',
+              ),
+            _DetailRow(label: 'Cache', value: e.fromCache ? 'hit' : 'miss'),
+            if (e.adapter != null)
+              _DetailRow(label: 'Adapter', value: e.adapter!),
+            if (e.lifecycleAtDispatch != null)
+              _DetailRow(label: 'At dispatch', value: e.lifecycleAtDispatch!),
+            if (e.lifecycleAtHeaders != null)
+              _DetailRow(label: 'At headers', value: e.lifecycleAtHeaders!),
+            if (e.headersMs != null)
+              _DetailRow(
+                label: 'Headers wait',
+                value: '${e.headersMs!.toStringAsFixed(1)} ms',
+              ),
+            if (e.bodyMs != null)
+              _DetailRow(
+                label: 'Body read',
+                value: '${e.bodyMs!.toStringAsFixed(1)} ms',
+              ),
+            if (e.callbackMs != null)
+              _DetailRow(
+                label: 'Callback delay',
+                value: '${e.callbackMs!.toStringAsFixed(1)} ms',
+              ),
+            if (e.failedAfterMs != null)
+              _DetailRow(
+                label: 'Failed after',
+                value: '${e.failedAfterMs!.toStringAsFixed(1)} ms',
+              ),
+            if (e.headersMs != null || e.failedAfterMs != null)
+              const Padding(
+                padding: EdgeInsets.only(top: AppSpacing.sm),
+                child: Text(
+                  'Headers wait includes DNS, connection, TLS and server '
+                  'response time; the native adapter does not expose '
+                  'these phases separately.',
+                ),
+              ),
             const SizedBox(height: AppSpacing.xl),
             SizedBox(
               width: double.infinity,
@@ -543,11 +741,13 @@ class _DetailRow extends StatelessWidget {
               ),
             ),
           ),
-          Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.w600,
+          Expanded(
+            child: SelectableText(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

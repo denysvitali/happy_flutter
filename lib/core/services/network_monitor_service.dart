@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../api/socket_io_client.dart';
 import 'logger_service.dart';
+import 'power_diagnostics_otel_reporter.dart';
 import 'sync_service.dart';
 
 /// Monitors native network connectivity and triggers immediate
@@ -169,6 +170,9 @@ class NetworkMonitorService {
   bool _setOnline(bool online, {required bool notify}) {
     if (online == _isOnline) return false;
     _isOnline = online;
+    PowerDiagnosticsOtelReporter.instance.recordNetworkLinkChange(
+      online: online,
+    );
     if (notify && !_controller.isClosed) {
       _controller.add(online);
     }

@@ -2,7 +2,11 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dartastic_opentelemetry/dartastic_opentelemetry.dart'
-    show Counter, Histogram;
+    show
+        BatchLogRecordProcessorConfig,
+        BatchSpanProcessorConfig,
+        Counter,
+        Histogram;
 import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutterrific_opentelemetry/flutterrific_opentelemetry.dart'
@@ -48,6 +52,12 @@ class OpenTelemetryService {
   static const bool logsEnabled = true;
   static const bool autoLogEventsEnabled = false;
   static const String traceExporterProtocol = 'otlp_http_protobuf';
+  // The app can generate many short HTTP/socket spans and debug logs during a
+  // reconnect storm. Larger timed batches reduce radio wakeups; the paused
+  // lifecycle event requests a flush of all three signals before backgrounding.
+  static const Duration spanBatchInterval = Duration(seconds: 10);
+  static const Duration logBatchInterval = Duration(seconds: 10);
+  static const Duration metricBatchInterval = Duration(seconds: 60);
 
   /// Default duration histogram buckets (seconds) covering mobile RTT
   /// (tens of ms) through multi-second stalls.
@@ -63,6 +73,8 @@ class OpenTelemetryService {
     5,
     10,
     30,
+    60,
+    120,
   ];
 
   final NavigatorObserver _routeObserver;
@@ -170,8 +182,8 @@ class OpenTelemetryService {
   Future<void> initialize() async {
     // Web builds never initialize telemetry: the collector sends no CORS
     // headers, so every browser export dies at preflight after paying for
-    // full protobuf serialization, while the SDK's 1s log / 5s span / 30s
-    // metric batch timers run for the life of the page regardless. Leaving
+    // full protobuf serialization, while the SDK's log/span/metric batch
+    // timers run for the life of the page regardless. Leaving
     // [_initialized] false turns every public entry below into a no-op.
     if (kIsWeb) return;
     if (_initialized) return;
@@ -214,13 +226,26 @@ class OpenTelemetryService {
         tracerVersion: packageInfo.version,
         spanProcessor: BatchSpanProcessor(
           OtlpHttpSpanExporter(OtlpHttpExporterConfig(endpoint: endpoint)),
+          const BatchSpanProcessorConfig(
+            maxQueueSize: 4096,
+            maxExportBatchSize: 1024,
+            scheduleDelay: spanBatchInterval,
+          ),
         ),
         metricExporter: metricExporter,
         metricReader: PeriodicExportingMetricReader(
           metricExporter,
-          interval: const Duration(seconds: 30),
+          interval: metricBatchInterval,
         ),
         logRecordExporter: logRecordExporter,
+        logRecordProcessor: BatchLogRecordProcessor(
+          logRecordExporter,
+          const BatchLogRecordProcessorConfig(
+            maxQueueSize: 4096,
+            maxExportBatchSize: 1024,
+            scheduleDelay: logBatchInterval,
+          ),
+        ),
         enableMetrics: metricsEnabled,
         enableLogs: logsEnabled,
         enableAutoLogEvents: autoLogEventsEnabled,
@@ -926,6 +951,23 @@ class _HappyOtelLifecycleObserver with WidgetsBindingObserver {
     // flush once there and let the exporter batch all other transitions.
     if (state == AppLifecycleState.paused) {
       FlutterOTel.forceFlush();
+      // flutterrific's forceFlush currently forwards only logs and traces.
+      // Export the 60-second metric batch explicitly while the app still has
+      // a chance to use the network before Android suspends it.
+      unawaited(
+        FlutterOTel.meterProvider.forceFlush().then(
+          (ok) {
+            if (!ok) logger.warning('[OpenTelemetry] metrics flush failed');
+          },
+          onError: (Object error, StackTrace stack) {
+            logger.warning(
+              '[OpenTelemetry] metrics flush failed',
+              error,
+              stack,
+            );
+          },
+        ),
+      );
     }
     FlutterOTel.currentAppLifecycleId = newStateId;
     _currentLifecycleId = newStateId;

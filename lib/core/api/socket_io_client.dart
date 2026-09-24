@@ -7,6 +7,7 @@ import 'package:socket_io_client/socket_io_client.dart' as sio;
 import '../services/logger_service.dart' show LogLevel, logger;
 import '../services/opentelemetry_service.dart';
 import '../services/performance_context_service.dart';
+import '../services/power_diagnostics_otel_reporter.dart';
 import '../services/power_diagnostics_service.dart';
 
 /// Returns true for transient network errors (DNS failure,
@@ -325,6 +326,7 @@ class SocketIoClient {
     _lastConnectStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     _connectStopwatch = Stopwatch()..start();
     _dialAttempt++;
+    PowerDiagnosticsOtelReporter.instance.recordSocketDial(reason: reason);
     final generation = ++_connectionGeneration;
     _lastEventAtMs = null;
     _updateStatus(ConnectionStatus.connecting);
@@ -421,15 +423,16 @@ class SocketIoClient {
       // burst of timeout errors from silencing subsequent real errors.
       if (isTransient) {
         // Throttle transient errors too so a burst doesn't spam the log.
-        if (_shouldThrottleError(errorStr)) return;
-        powerDiagnostics.recordSocketError(errorStr);
+        final throttled = _shouldThrottleError(errorStr);
+        powerDiagnostics.recordSocketError(errorStr, recordEvent: !throttled);
+        if (throttled) return;
         logger.info('Socket.IO transient connect error: $error');
         return;
       }
 
-      if (_shouldThrottleError(errorStr)) return;
-
-      powerDiagnostics.recordSocketError(errorStr);
+      final throttled = _shouldThrottleError(errorStr);
+      powerDiagnostics.recordSocketError(errorStr, recordEvent: !throttled);
+      if (throttled) return;
       logger.warning('Socket.IO connect error: $error');
 
       final transaction =
@@ -478,15 +481,16 @@ class SocketIoClient {
       // burst of timeout errors from silencing subsequent real errors.
       if (isTransient) {
         // Throttle transient errors too so a burst doesn't spam the log.
-        if (_shouldThrottleError(errorStr)) return;
-        powerDiagnostics.recordSocketError(errorStr);
+        final throttled = _shouldThrottleError(errorStr);
+        powerDiagnostics.recordSocketError(errorStr, recordEvent: !throttled);
+        if (throttled) return;
         logger.info('Socket.IO transient error: $error');
         return;
       }
 
-      if (_shouldThrottleError(errorStr)) return;
-
-      powerDiagnostics.recordSocketError(errorStr);
+      final throttled = _shouldThrottleError(errorStr);
+      powerDiagnostics.recordSocketError(errorStr, recordEvent: !throttled);
+      if (throttled) return;
       logger.warning('Socket.IO error: $error');
 
       final transaction =
@@ -540,6 +544,9 @@ class SocketIoClient {
     // to 0-based for our backoff formula.
     _socket!.onReconnectAttempt((attempt) {
       if (!_isCurrentGeneration(generation)) return;
+      PowerDiagnosticsOtelReporter.instance.recordSocketDial(
+        reason: DialReason.libraryRetry,
+      );
       // The Manager owns this retry cycle. Keep the public state aligned
       // with it so lifecycle/network/watchdog callers do not interpret the
       // preceding connect_error as permission to dispose this Manager and

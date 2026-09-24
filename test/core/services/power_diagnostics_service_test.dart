@@ -54,6 +54,7 @@ void main() {
       expect(snapshot.socketAckCounts['rpc'], 1);
       expect(snapshot.httpRequests, 1);
       expect(snapshot.httpFailures, 1);
+      expect(snapshot.httpFailureKinds['http_status'], 1);
       expect(snapshot.httpSlowRequests, 1);
       expect(snapshot.httpRequestBytes, 10);
       expect(snapshot.httpResponseBytes, 20);
@@ -97,6 +98,16 @@ void main() {
       expect(snapshot.activitySeries, isEmpty);
     });
 
+    test('counts suppressed socket errors without flooding recent events', () {
+      powerDiagnostics
+        ..recordSocketError('Failed host lookup')
+        ..recordSocketError('Failed host lookup', recordEvent: false);
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(snapshot.socketErrors, 2);
+      expect(snapshot.recentEvents, hasLength(1));
+    });
+
     test('does not count sync lifecycle states as app transitions', () {
       powerDiagnostics
         ..recordLifecycle('paused')
@@ -134,6 +145,36 @@ void main() {
       expect(report, contains('POST 200 80ms /v1/messages'));
       expect(report, contains('endpoints'));
       expect(report, contains('POST /v1/messages: count=1'));
+    });
+
+    test('counts statusless DNS and deadline attempts as failures', () {
+      powerDiagnostics
+        ..recordHttpRequest(
+          HttpRequestEntry(
+            id: 1,
+            timestamp: DateTime(2026),
+            method: 'GET',
+            path: '/v2/sessions',
+            failureKind: 'dns',
+            durationMs: 200,
+          ),
+        )
+        ..recordHttpRequest(
+          HttpRequestEntry(
+            id: 2,
+            timestamp: DateTime(2026),
+            method: 'GET',
+            path: '/v1/machines',
+            failureKind: 'deadline',
+            durationMs: 20000,
+          ),
+        );
+
+      final snapshot = powerDiagnostics.snapshot();
+      expect(snapshot.httpFailures, 2);
+      expect(snapshot.httpFailureKinds, {'dns': 1, 'deadline': 1});
+      expect(snapshot.httpEndpointStats['GET /v1/machines']?.failures, 1);
+      expect(powerDiagnostics.exportText(), contains('failureKinds'));
     });
 
     test('normalizes dynamic ids and caps retained endpoint maps', () {
@@ -190,6 +231,12 @@ void main() {
       expect(
         PowerDiagnosticsService.classifySocketError(
           'SocketException: Failed host lookup: api.example.com',
+        ),
+        'dns',
+      );
+      expect(
+        PowerDiagnosticsService.classifySocketError(
+          'net::ERR_NAME_NOT_RESOLVED',
         ),
         'dns',
       );

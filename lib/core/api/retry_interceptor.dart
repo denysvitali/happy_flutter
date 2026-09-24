@@ -37,6 +37,52 @@ bool isTransientConnectionError(DioException error) {
       inner.contains('Software caused connection abort');
 }
 
+/// Stable, low-cardinality cause for transport diagnostics and metrics.
+/// Dio reports Cronet DNS failures as `unknown`, so its type alone is not
+/// enough to distinguish an offline handset from a broken server hostname.
+String classifyHttpFailure(DioException error) {
+  if (isAppSuspensionCancellation(error)) return 'app_suspended';
+  final detail = '${error.error} ${error.message}'.toLowerCase();
+  if (detail.contains('deadline exceeded')) return 'deadline';
+  if (detail.contains('err_name_not_resolved') ||
+      detail.contains('failed host lookup') ||
+      detail.contains('no address associated')) {
+    return 'dns';
+  }
+  if (error.type == DioExceptionType.connectionTimeout ||
+      error.type == DioExceptionType.receiveTimeout ||
+      error.type == DioExceptionType.sendTimeout ||
+      detail.contains('timed out') ||
+      detail.contains('err_connection_timed_out')) {
+    return 'timeout';
+  }
+  if (error.type == DioExceptionType.badCertificate ||
+      detail.contains('certificate') ||
+      detail.contains('handshake') ||
+      detail.contains('tls')) {
+    return 'tls';
+  }
+  if (error.type == DioExceptionType.cancel) return 'cancelled';
+  if (detail.contains('err_internet_disconnected') ||
+      detail.contains('err_network_changed') ||
+      detail.contains('err_address_unreachable') ||
+      detail.contains('network is unreachable')) {
+    return 'network_unavailable';
+  }
+  if (detail.contains('connection reset') ||
+      detail.contains('connection refused') ||
+      detail.contains('connection abort') ||
+      detail.contains('connection closed') ||
+      detail.contains('broken pipe')) {
+    return 'connection';
+  }
+  if (error.response?.statusCode != null ||
+      error.type == DioExceptionType.badResponse) {
+    return 'http_status';
+  }
+  return 'unknown';
+}
+
 /// Retry interceptor for Dio with exponential backoff.
 ///
 /// **Status failures never reach [onError].** [ApiClient] configures Dio
@@ -146,6 +192,9 @@ class RetryInterceptor extends Interceptor {
   /// [RequestOptions.extra] key holding the [DioExceptionType] name of the
   /// attempt that was just retried.
   static const lastErrorTypeKey = '_retryLastErrorType';
+
+  /// Bounded transport cause for the attempt being replaced by a retry.
+  static const lastFailureKindKey = '_retryLastFailureKind';
 
   /// [RequestOptions.extra] key holding the epoch-ms timestamp at which the
   /// FIRST attempt of this request started.
@@ -296,7 +345,7 @@ class RetryInterceptor extends Interceptor {
 
     try {
       await _wait(options, delay);
-      _markAttempt(options, statusCode: statusCode, errorType: err.type);
+      _markAttempt(options, statusCode: statusCode, error: err);
       final response = await _dioGetter().fetch<dynamic>(options);
       _finish(options);
       return handler.resolve(response);
@@ -386,12 +435,12 @@ class RetryInterceptor extends Interceptor {
     return Duration(milliseconds: backoffMs);
   }
 
-  /// Records that the attempt described by [statusCode]/[errorType] failed
+  /// Records that the attempt described by [statusCode]/[error] failed
   /// and a new one is about to start.
   void _markAttempt(
     RequestOptions options, {
     int? statusCode,
-    DioExceptionType? errorType,
+    DioException? error,
   }) {
     final currentRetry = options.extra[retryCountKey] as int? ?? 0;
     options.extra[retryCountKey] = currentRetry + 1;
@@ -400,10 +449,12 @@ class RetryInterceptor extends Interceptor {
     } else {
       options.extra.remove(lastStatusKey);
     }
-    if (errorType != null) {
-      options.extra[lastErrorTypeKey] = errorType.name;
+    if (error != null) {
+      options.extra[lastErrorTypeKey] = error.type.name;
+      options.extra[lastFailureKindKey] = classifyHttpFailure(error);
     } else {
       options.extra.remove(lastErrorTypeKey);
+      options.extra.remove(lastFailureKindKey);
     }
   }
 

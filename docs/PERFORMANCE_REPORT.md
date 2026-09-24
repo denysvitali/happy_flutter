@@ -23,6 +23,20 @@
 - Aggregate frame metrics run whenever app telemetry is enabled; Sentry jank
   transactions remain independently gated by Sentry sampling settings.
 
+## September 2026 network diagnostics update
+
+- Native OTel exports batch logs and spans every 10 seconds and metrics every
+  60 seconds, with a 4096-item queue for logs and spans. Pausing the app
+  force-flushes pending signals.
+- HTTP metrics count every attempt, including statusless DNS failures, deadline
+  cancellations, retries, and cache hits. Device-link transitions and socket
+  dial reasons are counted separately; labels use fixed cause buckets. Duration
+  histograms extend to 60 and 120 seconds for long message fetches.
+- The Network Inspector keeps the last 500 metadata-only HTTP attempts in
+  release builds and shows adapter header wait, body time, failure time,
+  retry number, lifecycle state, and network code. Native adapters do not
+  expose DNS, TCP, and TLS timings separately.
+
 The findings below are the March 2026 baseline. Several have since been
 completed and should not be treated as the current backlog.
 

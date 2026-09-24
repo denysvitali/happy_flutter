@@ -20,6 +20,10 @@ HttpRequestEntry _makeEntry({
   int? requestBytes = 128,
   int? responseBytes = 512,
   int? durationMs = 42,
+  String? failureKind,
+  String? networkCode,
+  int attempt = 1,
+  double? headersMs,
 }) {
   return HttpRequestEntry(
     id: id ?? httpRequestLogger.takeNextId(),
@@ -30,6 +34,10 @@ HttpRequestEntry _makeEntry({
     requestBytes: requestBytes,
     responseBytes: responseBytes,
     durationMs: durationMs,
+    failureKind: failureKind,
+    networkCode: networkCode,
+    attempt: attempt,
+    headersMs: headersMs,
   );
 }
 
@@ -287,6 +295,28 @@ void main() {
       expect(find.text('Copy Entry'), findsOneWidget);
     });
 
+    testWidgets('shows DNS failure cause and attempt timing', (tester) async {
+      httpRequestLogger.record(_makeEntry(
+        id: 1,
+        path: '/v2/sessions',
+        statusCode: null,
+        failureKind: 'dns',
+        networkCode: 'ERR_NAME_NOT_RESOLVED',
+        attempt: 2,
+        headersMs: 314.2,
+      ));
+
+      await tester.pumpWidget(_buildApp());
+      await tester.pump();
+      expect(find.text('DNS'), findsOneWidget);
+      expect(find.text('Failures: '), findsOneWidget);
+      await tester.tap(find.text('/v2/sessions'));
+      await tester.pumpAndSettle();
+      expect(find.text('ERR_NAME_NOT_RESOLVED'), findsOneWidget);
+      expect(find.text('314.2 ms'), findsOneWidget);
+      expect(find.text('2'), findsWidgets);
+    });
+
     testWidgets('renders different HTTP methods with distinct colors', (
       tester,
     ) async {
@@ -361,5 +391,19 @@ void main() {
       expect(str, contains('???'));
       expect(str, contains('/api/test'));
     });
+  });
+
+  testWidgets('request burst publishes its final snapshot', (tester) async {
+    final snapshots = <List<HttpRequestEntry>>[];
+    final sub = httpRequestLogger.onChanged.listen(snapshots.add);
+    addTearDown(sub.cancel);
+
+    httpRequestLogger.record(_makeEntry(id: 1));
+    httpRequestLogger.record(_makeEntry(id: 2));
+    httpRequestLogger.record(_makeEntry(id: 3));
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pump();
+
+    expect(snapshots.last, hasLength(3));
   });
 }

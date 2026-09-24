@@ -271,7 +271,8 @@ class ApiClient {
           _recordTrackedRequest(
             error.requestOptions,
             error.response?.statusCode,
-            null,
+            error.response == null ? null : responseBodyBytes(error.response!),
+            error: error,
           );
           return handler.next(error);
         },
@@ -408,6 +409,7 @@ class ApiClient {
     DioException? error,
     String? outcomeOverride,
     String? errorTypeOverride,
+    String? failureKindOverride,
   }) {
     final lifecycleCancellation = isAppSuspensionCancellation(error);
     final errorType = lifecycleCancellation
@@ -438,6 +440,10 @@ class ApiClient {
         'error.type': errorType,
         'failure.phase': _httpFailurePhase(errorType),
       },
+      if (error != null || failureKindOverride != null)
+        'failure.kind': error == null
+            ? failureKindOverride
+            : classifyHttpFailure(error),
       if (retryCount != null) 'http.retry_count': retryCount,
     };
   }
@@ -465,6 +471,7 @@ class ApiClient {
     DioException? error,
     String? outcomeOverride,
     String? errorTypeOverride,
+    String? failureKindOverride,
   }) {
     OpenTelemetryService().recordDuration(
       'app.http.client.duration',
@@ -476,6 +483,7 @@ class ApiClient {
         error: error,
         outcomeOverride: outcomeOverride,
         errorTypeOverride: errorTypeOverride,
+        failureKindOverride: failureKindOverride,
       ),
       description: 'Client HTTP request duration by attempt and total phase',
     );
@@ -505,6 +513,8 @@ class ApiClient {
     final lastStatus = options.extra[RetryInterceptor.lastStatusKey] as int?;
     final lastErrorType =
         options.extra[RetryInterceptor.lastErrorTypeKey] as String?;
+    final lastFailureKind =
+        options.extra[RetryInterceptor.lastFailureKindKey] as String?;
     if (startMs != null) {
       final durationMs = max(0, nowMs - startMs);
       _recordHttpDuration(
@@ -514,6 +524,7 @@ class ApiClient {
         statusCode: lastStatus,
         outcomeOverride: 'retried',
         errorTypeOverride: lastErrorType,
+        failureKindOverride: lastFailureKind,
       );
       span?.setAttribute('http.duration_ms', durationMs);
     }
@@ -524,6 +535,7 @@ class ApiClient {
     span
       ?..setAttribute('http.response.status_code', lastStatus)
       ..setAttribute('error.type', lastErrorType)
+      ..setAttribute('failure.kind', lastFailureKind)
       ..setAttribute('http.attempt.retried', true)
       ..end(ok: false);
   }
@@ -596,6 +608,7 @@ class ApiClient {
     } else if (error != null) {
       span
         ?..setAttribute('error.type', error.type.name)
+        ..setAttribute('failure.kind', classifyHttpFailure(error))
         ..recordError(error, stackTrace);
     }
     span?.end(
@@ -714,8 +727,9 @@ class ApiClient {
   static void _recordTrackedRequest(
     RequestOptions options,
     int? statusCode,
-    int? responseBytes,
-  ) {
+    int? responseBytes, {
+    DioException? error,
+  }) {
     final id = options.extra['_trackId'] as int?;
     if (id == null || options.extra['_recordedTrackId'] == id) return;
     options.extra['_recordedTrackId'] = id;
@@ -728,21 +742,51 @@ class ApiClient {
     final timestamp = startMs != null
         ? DateTime.fromMillisecondsSinceEpoch(startMs)
         : now;
+    final timing =
+        options.extra[HttpTransportTiming.extraKey] as HttpTransportTiming?;
+    final firstStartMs = options.extra[RetryInterceptor.retryStartKey] as int?;
+    final networkCode = RegExp(
+      r'net::(ERR_[A-Z_]+)',
+    ).firstMatch(error?.error?.toString() ?? '')?.group(1);
     final entry = HttpRequestEntry(
-      id: id ?? httpRequestLogger.takeNextId(),
+      id: id,
       timestamp: timestamp,
       method: options.method,
-      path: options.path,
+      path: options.uri.path,
       statusCode: statusCode,
       requestBytes: requestBytes,
       responseBytes: responseBytes,
       durationMs: durationMs,
+      failureKind: error == null
+          ? (statusCode != null && statusCode >= 400 ? 'http_status' : null)
+          : classifyHttpFailure(error),
+      errorType: error?.type.name,
+      networkCode: networkCode,
+      attempt: (options.extra[RetryInterceptor.retryCountKey] as int? ?? 0) + 1,
+      totalDurationMs: firstStartMs == null
+          ? durationMs
+          : max(0, now.millisecondsSinceEpoch - firstStartMs),
+      fromCache: options.extra['fromCache'] == true,
+      adapter: timing?.adapter,
+      headersMs: timing?.headersUs == null ? null : timing!.headersUs! / 1000,
+      bodyMs: timing?.bodyDoneUs == null || timing?.headersUs == null
+          ? null
+          : (timing!.bodyDoneUs! - timing.headersUs!) / 1000,
+      callbackMs:
+          timing?.bodyDoneUs == null ||
+              timing?.callbackUs == null ||
+              timing!.callbackUs! < timing.bodyDoneUs!
+          ? null
+          : (timing.callbackUs! - timing.bodyDoneUs!) / 1000,
+      failedAfterMs: timing?.failedUs == null ? null : timing!.failedUs! / 1000,
+      lifecycleAtDispatch: timing?.lifecycleAtDispatch,
+      lifecycleAtHeaders: timing?.lifecycleAtHeaders,
     );
     httpRequestLogger.record(entry);
     powerDiagnostics.recordHttpRequest(entry);
 
     final isSlow = (durationMs ?? 0) >= 1000;
-    final isFailure = statusCode != null && statusCode >= 400;
+    final isFailure = entry.failed;
     if (isSlow || isFailure) {
       unawaited(
         Sentry.addBreadcrumb(
@@ -758,6 +802,9 @@ class ApiClient {
               'requestBytes': requestBytes,
               'responseBytes': responseBytes,
               'cached': options.extra['fromCache'] == true,
+              'failureKind': entry.failureKind,
+              'networkCode': networkCode,
+              'attempt': entry.attempt,
               'traceparent': options.headers['traceparent'],
               ...(options.extra[HttpTransportTiming.extraKey]
                           as HttpTransportTiming?)

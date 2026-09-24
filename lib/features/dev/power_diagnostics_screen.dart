@@ -155,6 +155,13 @@ class _PowerDiagnosticsScreenState extends State<PowerDiagnosticsScreen> {
               ),
             ],
           ),
+          if (snapshot.httpFailureKinds.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.md),
+            _CountBreakdownSection(
+              title: 'HTTP Failure Causes',
+              counts: snapshot.httpFailureKinds,
+            ),
+          ],
           if (snapshot.httpEndpointStats.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.md),
             _HttpEndpointSection(stats: snapshot.httpEndpointStats),

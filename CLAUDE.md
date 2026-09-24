@@ -540,7 +540,18 @@ Service label is `service_name="happy-flutter"` (note the dash, not underscore).
 
 ### Prometheus (metrics)
 
-App telemetry uses OTel metrics too. Useful base names: `app.*` (e.g. `app.deferredInit` duration, `app.chat.sync.await` stall). Server-side `happy-server` and `happy-daemon` metrics share the Prometheus instance. Example:
+App telemetry uses OTel metrics too. Useful base names: `app.*` (e.g. `app.deferredInit` duration, `app.chat.sync.await` stall). Server-side `happy-server` and `happy-daemon` metrics share the Prometheus instance.
+
+Native exports batch logs and spans every 10s and metrics every 60s; the
+paused lifecycle event force-flushes pending data. Network counters include
+`happy_flutter.http.attempts` (result/cache/attempt),
+`happy_flutter.network.link_changes`, and `happy_flutter.socket.dials`.
+Developer → Network Inspector retains 500 metadata-only HTTP attempts even in
+release builds. A `???` HTTP status can be a DNS, timeout, deadline, or
+intentional suspension cancellation; check its cause before treating it as a
+server response. Native header wait includes DNS, TCP, TLS, and server time.
+
+Example:
 
 ```promql
 # Cold start duration (seconds, last 1h)
