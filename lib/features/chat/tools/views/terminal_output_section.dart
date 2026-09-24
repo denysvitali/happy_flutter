@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/components/tool_view_buttons.dart';
+import '../../../../core/native/native_core.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/utils/ansi_parser.dart';
@@ -52,6 +53,22 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
   late String _strippedOutput;
 
   void _recomputeVisibleText() {
+    // Large streaming outputs used to allocate a list for every line and
+    // sweep the full string again with a regex on every update.
+    final native = widget.output.length >= 4096
+        ? NativeCore.instance.prepareTerminalOutput(
+            text: widget.output,
+            maxLines: widget.maxLines,
+          )
+        : null;
+    if (native != null) {
+      _totalLines = native.totalLines;
+      _needsTruncation = _totalLines > widget.maxLines;
+      _visibleText = _expanded ? widget.output : native.visibleText;
+      _strippedOutput = native.strippedOutput;
+      _lastDefaultStyle = null;
+      return;
+    }
     final lines = widget.output.split('\n');
     _totalLines = lines.length;
     _needsTruncation = _totalLines > widget.maxLines;

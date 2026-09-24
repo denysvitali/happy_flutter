@@ -326,13 +326,24 @@ jobs:
     # mock backend (benchmark/). Not part of quality-gate — numbers are JIT-mode
     # relative indicators, so a noisy run must never block a release.
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+
+      - name: Cache benchmark native build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            rust/happy_core/target
+          key: cargo-bench-${{ runner.os }}-${{ hashFiles('rust/happy_core/Cargo.lock') }}
+          restore-keys: |
+            cargo-bench-${{ runner.os }}-
+            cargo-${{ runner.os }}-
 
       - name: Setup Flutter
         uses: ./.github/actions/setup-flutter
@@ -352,6 +363,10 @@ jobs:
 
       - name: Get dependencies
         run: mise exec -- flutter pub get
+
+      - name: Build native core for benchmarks
+        working-directory: rust/happy_core
+        run: cargo build --release --locked
 
       - name: Run benchmarks
         run: |

@@ -123,12 +123,23 @@ Future<DecryptedJsonBatch> decryptAesGcmBase64JsonBatch({
 /// Decrypt-and-parse result: index-aligned validated JSON text plus one
 /// status byte per row (see `json::RowStatus`).
 class DecryptedJsonBatch {
-  const DecryptedJsonBatch({required this.values, required this.statuses});
+  const DecryptedJsonBatch({
+    required this.values,
+    required this.statuses,
+    required this.decryptMicros,
+    required this.jsonMicros,
+  });
   final List<String?> values;
   final Uint8List statuses;
+  final int decryptMicros;
+  final int jsonMicros;
 
   @override
-  int get hashCode => values.hashCode ^ statuses.hashCode;
+  int get hashCode =>
+      values.hashCode ^
+      statuses.hashCode ^
+      decryptMicros.hashCode ^
+      jsonMicros.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -136,5 +147,7 @@ class DecryptedJsonBatch {
       other is DecryptedJsonBatch &&
           runtimeType == other.runtimeType &&
           values == other.values &&
-          statuses == other.statuses;
+          statuses == other.statuses &&
+          decryptMicros == other.decryptMicros &&
+          jsonMicros == other.jsonMicros;
 }

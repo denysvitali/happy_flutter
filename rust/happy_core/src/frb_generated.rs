@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1353361455;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1055478628;
 
 // Section: executor
 
@@ -375,6 +375,40 @@ fn wire__crate__api__sidechain_api__plan_sidechain_grouping_impl(
         },
     )
 }
+fn wire__crate__api__terminal_api__prepare_terminal_output_impl(
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::SseCodec, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "prepare_terminal_output",
+            port: None,
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_text = <String>::sse_decode(&mut deserializer);
+            let api_max_lines = <u32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            transform_result_sse::<_, ()>((move || {
+                let output_ok = Ok::<_, ()>(crate::api::terminal_api::prepare_terminal_output(
+                    api_text,
+                    api_max_lines,
+                ))?;
+                std::result::Result::Ok(output_ok)
+            })())
+        },
+    )
+}
 
 // Section: dart2rust
 
@@ -398,9 +432,13 @@ impl SseDecode for crate::api::crypto_api::DecryptedJsonBatch {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_values = <Vec<Option<String>>>::sse_decode(deserializer);
         let mut var_statuses = <Vec<u8>>::sse_decode(deserializer);
+        let mut var_decryptMicros = <u32>::sse_decode(deserializer);
+        let mut var_jsonMicros = <u32>::sse_decode(deserializer);
         return crate::api::crypto_api::DecryptedJsonBatch {
             values: var_values,
             statuses: var_statuses,
+            decrypt_micros: var_decryptMicros,
+            json_micros: var_jsonMicros,
         };
     }
 }
@@ -501,6 +539,34 @@ impl SseDecode for Option<Vec<u8>> {
     }
 }
 
+impl SseDecode for crate::api::terminal_api::PreparedTerminalOutput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_visibleText = <String>::sse_decode(deserializer);
+        let mut var_strippedOutput = <String>::sse_decode(deserializer);
+        let mut var_totalLines = <u32>::sse_decode(deserializer);
+        let mut var_scanMicros = <u32>::sse_decode(deserializer);
+        return crate::api::terminal_api::PreparedTerminalOutput {
+            visible_text: var_visibleText,
+            stripped_output: var_strippedOutput,
+            total_lines: var_totalLines,
+            scan_micros: var_scanMicros,
+        };
+    }
+}
+
+impl SseDecode for crate::api::sidechain_api::SidechainPlan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_assignments = <Vec<Option<String>>>::sse_decode(deserializer);
+        let mut var_planMicros = <u32>::sse_decode(deserializer);
+        return crate::api::sidechain_api::SidechainPlan {
+            assignments: var_assignments,
+            plan_micros: var_planMicros,
+        };
+    }
+}
+
 impl SseDecode for crate::api::sidechain_api::SidechainRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -534,6 +600,13 @@ impl SseDecode for crate::api::sidechain_api::SidechainRow {
             ancestor_task_id: var_ancestorTaskId,
             root_uuids: var_rootUuids,
         };
+    }
+}
+
+impl SseDecode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u32::<NativeEndian>().unwrap()
     }
 }
 
@@ -621,6 +694,11 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
+        10 => wire__crate__api__terminal_api__prepare_terminal_output_impl(
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -633,6 +711,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::crypto_api::DecryptedJsonBatc
         [
             self.values.into_into_dart().into_dart(),
             self.statuses.into_into_dart().into_dart(),
+            self.decrypt_micros.into_into_dart().into_dart(),
+            self.json_micros.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -645,6 +725,50 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::crypto_api::DecryptedJsonBatc
     for crate::api::crypto_api::DecryptedJsonBatch
 {
     fn into_into_dart(self) -> crate::api::crypto_api::DecryptedJsonBatch {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::terminal_api::PreparedTerminalOutput {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.visible_text.into_into_dart().into_dart(),
+            self.stripped_output.into_into_dart().into_dart(),
+            self.total_lines.into_into_dart().into_dart(),
+            self.scan_micros.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::terminal_api::PreparedTerminalOutput
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::terminal_api::PreparedTerminalOutput>
+    for crate::api::terminal_api::PreparedTerminalOutput
+{
+    fn into_into_dart(self) -> crate::api::terminal_api::PreparedTerminalOutput {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::sidechain_api::SidechainPlan {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.assignments.into_into_dart().into_dart(),
+            self.plan_micros.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::sidechain_api::SidechainPlan
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::sidechain_api::SidechainPlan>
+    for crate::api::sidechain_api::SidechainPlan
+{
+    fn into_into_dart(self) -> crate::api::sidechain_api::SidechainPlan {
         self
     }
 }
@@ -701,6 +825,8 @@ impl SseEncode for crate::api::crypto_api::DecryptedJsonBatch {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<Option<String>>>::sse_encode(self.values, serializer);
         <Vec<u8>>::sse_encode(self.statuses, serializer);
+        <u32>::sse_encode(self.decrypt_micros, serializer);
+        <u32>::sse_encode(self.json_micros, serializer);
     }
 }
 
@@ -784,6 +910,24 @@ impl SseEncode for Option<Vec<u8>> {
     }
 }
 
+impl SseEncode for crate::api::terminal_api::PreparedTerminalOutput {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.visible_text, serializer);
+        <String>::sse_encode(self.stripped_output, serializer);
+        <u32>::sse_encode(self.total_lines, serializer);
+        <u32>::sse_encode(self.scan_micros, serializer);
+    }
+}
+
+impl SseEncode for crate::api::sidechain_api::SidechainPlan {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Vec<Option<String>>>::sse_encode(self.assignments, serializer);
+        <u32>::sse_encode(self.plan_micros, serializer);
+    }
+}
+
 impl SseEncode for crate::api::sidechain_api::SidechainRow {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -801,6 +945,13 @@ impl SseEncode for crate::api::sidechain_api::SidechainRow {
         <bool>::sse_encode(self.top_level, serializer);
         <String>::sse_encode(self.ancestor_task_id, serializer);
         <Vec<String>>::sse_encode(self.root_uuids, serializer);
+    }
+}
+
+impl SseEncode for u32 {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u32::<NativeEndian>(self).unwrap();
     }
 }
 

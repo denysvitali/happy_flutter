@@ -10,6 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'api/crypto_api.dart';
 import 'api/sidechain_api.dart';
+import 'api/terminal_api.dart';
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
@@ -66,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1353361455;
+  int get rustContentHash => -1055478628;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -124,8 +125,13 @@ abstract class RustLibApi extends BaseApi {
 
   bool crateApiCryptoApiNativeCoreReady();
 
-  List<String?> crateApiSidechainApiPlanSidechainGrouping({
+  SidechainPlan crateApiSidechainApiPlanSidechainGrouping({
     required List<SidechainRow> rows,
+  });
+
+  PreparedTerminalOutput crateApiTerminalApiPrepareTerminalOutput({
+    required String text,
+    required int maxLines,
   });
 }
 
@@ -403,7 +409,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: 'native_core_ready', argNames: []);
 
   @override
-  List<String?> crateApiSidechainApiPlanSidechainGrouping({
+  SidechainPlan crateApiSidechainApiPlanSidechainGrouping({
     required List<SidechainRow> rows,
   }) {
     return handler.executeSync(
@@ -414,7 +420,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_list_opt_String,
+          decodeSuccessData: sse_decode_sidechain_plan,
           decodeErrorData: null,
         ),
         constMeta: kCrateApiSidechainApiPlanSidechainGroupingConstMeta,
@@ -428,6 +434,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: 'plan_sidechain_grouping',
         argNames: ['rows'],
+      );
+
+  @override
+  PreparedTerminalOutput crateApiTerminalApiPrepareTerminalOutput({
+    required String text,
+    required int maxLines,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(text, serializer);
+          sse_encode_u_32(maxLines, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_prepared_terminal_output,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiTerminalApiPrepareTerminalOutputConstMeta,
+        argValues: [text, maxLines],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiTerminalApiPrepareTerminalOutputConstMeta =>
+      const TaskConstMeta(
+        debugName: 'prepare_terminal_output',
+        argNames: ['text', 'maxLines'],
       );
 
   @protected
@@ -446,11 +482,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   DecryptedJsonBatch dco_decode_decrypted_json_batch(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return DecryptedJsonBatch(
       values: dco_decode_list_opt_String(arr[0]),
       statuses: dco_decode_list_prim_u_8_strict(arr[1]),
+      decryptMicros: dco_decode_u_32(arr[2]),
+      jsonMicros: dco_decode_u_32(arr[3]),
     );
   }
 
@@ -511,6 +549,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PreparedTerminalOutput dco_decode_prepared_terminal_output(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return PreparedTerminalOutput(
+      visibleText: dco_decode_String(arr[0]),
+      strippedOutput: dco_decode_String(arr[1]),
+      totalLines: dco_decode_u_32(arr[2]),
+      scanMicros: dco_decode_u_32(arr[3]),
+    );
+  }
+
+  @protected
+  SidechainPlan dco_decode_sidechain_plan(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return SidechainPlan(
+      assignments: dco_decode_list_opt_String(arr[0]),
+      planMicros: dco_decode_u_32(arr[1]),
+    );
+  }
+
+  @protected
   SidechainRow dco_decode_sidechain_row(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -532,6 +596,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ancestorTaskId: dco_decode_String(arr[12]),
       rootUuids: dco_decode_list_String(arr[13]),
     );
+  }
+
+  @protected
+  int dco_decode_u_32(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
   }
 
   @protected
@@ -566,7 +636,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final var_values = sse_decode_list_opt_String(deserializer);
     final var_statuses = sse_decode_list_prim_u_8_strict(deserializer);
-    return DecryptedJsonBatch(values: var_values, statuses: var_statuses);
+    final var_decryptMicros = sse_decode_u_32(deserializer);
+    final var_jsonMicros = sse_decode_u_32(deserializer);
+    return DecryptedJsonBatch(
+      values: var_values,
+      statuses: var_statuses,
+      decryptMicros: var_decryptMicros,
+      jsonMicros: var_jsonMicros,
+    );
   }
 
   @protected
@@ -672,6 +749,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PreparedTerminalOutput sse_decode_prepared_terminal_output(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_visibleText = sse_decode_String(deserializer);
+    final var_strippedOutput = sse_decode_String(deserializer);
+    final var_totalLines = sse_decode_u_32(deserializer);
+    final var_scanMicros = sse_decode_u_32(deserializer);
+    return PreparedTerminalOutput(
+      visibleText: var_visibleText,
+      strippedOutput: var_strippedOutput,
+      totalLines: var_totalLines,
+      scanMicros: var_scanMicros,
+    );
+  }
+
+  @protected
+  SidechainPlan sse_decode_sidechain_plan(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    final var_assignments = sse_decode_list_opt_String(deserializer);
+    final var_planMicros = sse_decode_u_32(deserializer);
+    return SidechainPlan(
+      assignments: var_assignments,
+      planMicros: var_planMicros,
+    );
+  }
+
+  @protected
   SidechainRow sse_decode_sidechain_row(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     final var_id = sse_decode_String(deserializer);
@@ -704,6 +809,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ancestorTaskId: var_ancestorTaskId,
       rootUuids: var_rootUuids,
     );
+  }
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getUint32();
   }
 
   @protected
@@ -743,6 +854,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_opt_String(self.values, serializer);
     sse_encode_list_prim_u_8_strict(self.statuses, serializer);
+    sse_encode_u_32(self.decryptMicros, serializer);
+    sse_encode_u_32(self.jsonMicros, serializer);
   }
 
   @protected
@@ -848,6 +961,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_prepared_terminal_output(
+    PreparedTerminalOutput self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.visibleText, serializer);
+    sse_encode_String(self.strippedOutput, serializer);
+    sse_encode_u_32(self.totalLines, serializer);
+    sse_encode_u_32(self.scanMicros, serializer);
+  }
+
+  @protected
+  void sse_encode_sidechain_plan(SidechainPlan self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_opt_String(self.assignments, serializer);
+    sse_encode_u_32(self.planMicros, serializer);
+  }
+
+  @protected
   void sse_encode_sidechain_row(SidechainRow self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -864,6 +996,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.topLevel, serializer);
     sse_encode_String(self.ancestorTaskId, serializer);
     sse_encode_list_String(self.rootUuids, serializer);
+  }
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putUint32(self);
   }
 
   @protected

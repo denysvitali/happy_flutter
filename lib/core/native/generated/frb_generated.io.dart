@@ -11,6 +11,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 import 'api/crypto_api.dart';
 import 'api/sidechain_api.dart';
+import 'api/terminal_api.dart';
 import 'frb_generated.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -58,7 +59,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  PreparedTerminalOutput dco_decode_prepared_terminal_output(dynamic raw);
+
+  @protected
+  SidechainPlan dco_decode_sidechain_plan(dynamic raw);
+
+  @protected
   SidechainRow dco_decode_sidechain_row(dynamic raw);
+
+  @protected
+  int dco_decode_u_32(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -111,7 +121,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  PreparedTerminalOutput sse_decode_prepared_terminal_output(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SidechainPlan sse_decode_sidechain_plan(SseDeserializer deserializer);
+
+  @protected
   SidechainRow sse_decode_sidechain_row(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_u_32(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -177,7 +198,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_prepared_terminal_output(
+    PreparedTerminalOutput self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sidechain_plan(SidechainPlan self, SseSerializer serializer);
+
+  @protected
   void sse_encode_sidechain_row(SidechainRow self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_32(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);

@@ -4,6 +4,14 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-09-24
 
+**Rust hot-path follow-up, 2026-09-24.** Large terminal-output updates now
+prepare the line count, visible prefix, and ANSI-free copy text in one native
+pass, with the Dart path retained for small outputs and unavailable libraries.
+Native decrypt/JSON and sidechain spans now expose Rust stage and bridge wall
+times; terminal preparation samples the same split in histograms. Compare
+those timings and the CI terminal benchmark before choosing another Rust
+boundary, especially where Dart object materialization would still dominate.
+
 **Battery + performance audit, 2026-09-24.** A 10-lane source audit was
 grounded against 7 days of production telemetry. Two fixes shipped
 (`7990886d`, `d17d6b8d`); the rest of the surface measured clean and is

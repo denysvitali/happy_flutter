@@ -3,12 +3,13 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
+import '../encryption/json_text.dart' show NativeJsonRowStatus;
 import '../services/logger_service.dart' show logger;
 import '../services/opentelemetry_service.dart';
-import '../encryption/json_text.dart' show NativeJsonRowStatus;
-import 'generated/frb_generated.dart';
 import 'generated/api/crypto_api.dart' as rust_crypto;
 import 'generated/api/sidechain_api.dart' as rust_sidechain;
+import 'generated/api/terminal_api.dart' as rust_terminal;
+import 'generated/frb_generated.dart';
 
 /// Gateway to the Rust hot-path core (`rust/happy_core`).
 ///
@@ -31,6 +32,7 @@ class NativeCore {
   Future<void>? _initFuture;
   bool _available = false;
   String _status = 'not_attempted';
+  int _terminalSamples = 0;
 
   /// Whether the native core loaded and may be used.
   bool get isAvailable => _available;
@@ -124,14 +126,32 @@ class NativeCore {
     if (envelopesBase64.isEmpty) {
       return (values: const <String?>[], statuses: Uint8List(0));
     }
+    final telemetry = OpenTelemetryService();
+    final parent = telemetry.currentSpan;
+    final span = envelopesBase64.length >= 16
+        ? (parent == null
+              ? telemetry.startTrace('native_core.decrypt_json')
+              : telemetry.startChildSpan(
+                  'native_core.decrypt_json',
+                  parent: parent,
+                ))
+        : null;
+    span?.setAttribute('row_count', envelopesBase64.length);
+    final wall = Stopwatch()..start();
     try {
       final batch = await rust_crypto.decryptAesGcmBase64JsonBatch(
         key: key,
         envelopesBase64: envelopesBase64,
         associatedData: associatedData,
       );
+      wall.stop();
+      span
+        ?..setAttribute('bridge_wall_us', wall.elapsedMicroseconds)
+        ..setAttribute('rust_decrypt_us', batch.decryptMicros)
+        ..setAttribute('rust_json_us', batch.jsonMicros);
       return (values: batch.values, statuses: batch.statuses);
     } catch (e, stack) {
+      span?.recordError(e, stack);
       _available = false;
       logger.warning(
         '[NativeCore] batch decrypt+parse failed, reverting to the Dart path',
@@ -139,6 +159,8 @@ class NativeCore {
         stack,
       );
       return null;
+    } finally {
+      span?.end();
     }
   }
 
@@ -240,15 +262,75 @@ class NativeCore {
   }) {
     if (!_available) return null;
     if (rows.isEmpty) return const <String?>[];
+    final telemetry = OpenTelemetryService();
+    final parent = telemetry.currentSpan;
+    final span = rows.length >= 32
+        ? (parent == null
+              ? telemetry.startTrace('native_core.sidechain_plan')
+              : telemetry.startChildSpan(
+                  'native_core.sidechain_plan',
+                  parent: parent,
+                ))
+        : null;
+    span?.setAttribute('row_count', rows.length);
+    final wall = Stopwatch()..start();
     try {
-      return rust_sidechain.planSidechainGrouping(rows: rows);
+      final plan = rust_sidechain.planSidechainGrouping(rows: rows);
+      wall.stop();
+      span
+        ?..setAttribute('bridge_wall_us', wall.elapsedMicroseconds)
+        ..setAttribute('rust_plan_us', plan.planMicros);
+      return plan.assignments;
     } catch (e, stack) {
+      span?.recordError(e, stack);
       _available = false;
       logger.warning(
         '[NativeCore] sidechain planning failed, reverting to the Dart path',
         e,
         stack,
       );
+      return null;
+    } finally {
+      span?.end();
+    }
+  }
+
+  /// Build the visible line prefix and copy-safe text in one native scan.
+  /// The widget uses this only for large outputs; smaller strings stay Dart.
+  ({String visibleText, String strippedOutput, int totalLines})?
+  prepareTerminalOutput({required String text, required int maxLines}) {
+    if (!_available || maxLines < 0) return null;
+    final sample = (++_terminalSamples & 15) == 0;
+    final wall = sample ? (Stopwatch()..start()) : null;
+    try {
+      final result = rust_terminal.prepareTerminalOutput(
+        text: text,
+        maxLines: maxLines,
+      );
+      if (wall != null) {
+        wall.stop();
+        final telemetry = OpenTelemetryService();
+        final size = text.length >= 65536 ? '64k+' : '4k-64k';
+        telemetry
+          ..recordDuration(
+            'app.native_core.terminal_output',
+            wall.elapsed,
+            attributes: {'phase': 'bridge_wall', 'size': size},
+          )
+          ..recordDuration(
+            'app.native_core.terminal_output',
+            Duration(microseconds: result.scanMicros),
+            attributes: {'phase': 'rust_scan', 'size': size},
+          );
+      }
+      return (
+        visibleText: result.visibleText,
+        strippedOutput: result.strippedOutput,
+        totalLines: result.totalLines,
+      );
+    } catch (e, stack) {
+      _available = false;
+      logger.warning('[NativeCore] terminal preparation failed', e, stack);
       return null;
     }
   }

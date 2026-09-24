@@ -10,8 +10,25 @@ import '../frb_generated.dart';
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Return index-aligned `row -> task id` assignments for top-level rows.
-List<String?> planSidechainGrouping({required List<SidechainRow> rows}) =>
+SidechainPlan planSidechainGrouping({required List<SidechainRow> rows}) =>
     RustLib.instance.api.crateApiSidechainApiPlanSidechainGrouping(rows: rows);
+
+class SidechainPlan {
+  const SidechainPlan({required this.assignments, required this.planMicros});
+  final List<String?> assignments;
+  final int planMicros;
+
+  @override
+  int get hashCode => assignments.hashCode ^ planMicros.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SidechainPlan &&
+          runtimeType == other.runtimeType &&
+          assignments == other.assignments &&
+          planMicros == other.planMicros;
+}
 
 /// Compact metadata for one message-tree node.
 ///

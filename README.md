@@ -87,6 +87,8 @@ saved when leaving chat; pending settings changes are flushed on suspension.
 
 - **Flutter**: 3.41.x via mise (Dart 3.11+)
 - **State Management**: Riverpod v3
+- **Native hot paths**: Rust handles batch AES/JSON, sidechain planning, and
+  large terminal-output preparation; Dart remains the fallback if unavailable.
 - **HTTP Client**: Dio with NativeAdapter (Cronet/cupertino_http)
 - **WebSocket**: Socket.IO protocol implementation
 - **Encryption**: libsodium via `sodium` package + AES-256-GCM via `cryptography` package

@@ -37,6 +37,20 @@
   retry number, lifecycle state, and network code. Native adapters do not
   expose DNS, TCP, and TLS timings separately.
 
+## September 2026 Rust hot-path follow-up
+
+- Large streaming terminal outputs previously allocated every line, joined
+  the visible prefix, then stripped ANSI from the full output on each update.
+  A synchronous Rust pass now computes all three results for outputs at least
+  4096 characters long. The existing Dart path handles smaller outputs and
+  native-library failures. CI contracts compare line limits, Unicode, valid
+  SGR escapes, and malformed escape preservation against Dart.
+- `native_core.decrypt_json` and `native_core.sidechain_plan` spans include
+  bridge wall time and Rust-only stage microseconds. The terminal path samples
+  bridge and Rust-scan duration histograms once per 16 large outputs. These
+  timings exclude message bodies and permit comparing FFI cost with CPU work
+  before moving more processing across the boundary.
+
 The findings below are the March 2026 baseline. Several have since been
 completed and should not be treated as the current backlog.
 

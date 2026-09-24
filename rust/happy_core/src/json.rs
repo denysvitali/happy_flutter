@@ -19,6 +19,7 @@
 //! previous "base64 or auth, can't tell".
 
 use serde::de::IgnoredAny;
+use std::time::{Duration, Instant};
 
 use crate::crypto::{self, DecryptError};
 
@@ -63,6 +64,14 @@ pub struct DecryptedJsonBatch {
     pub values: Vec<Option<String>>,
     /// One [`RowStatus`] discriminant per row.
     pub statuses: Vec<u8>,
+    /// Native time spent base64-decoding and decrypting, excluding FRB work.
+    pub decrypt_micros: u32,
+    /// Native time spent validating the plaintext JSON grammar.
+    pub json_micros: u32,
+}
+
+fn micros(duration: Duration) -> u32 {
+    duration.as_micros().min(u32::MAX as u128) as u32
 }
 
 /// Parse `text` as JSON without building a tree.
@@ -91,20 +100,30 @@ pub fn decrypt_base64_json_batch(
             return DecryptedJsonBatch {
                 values: vec![None; n],
                 statuses: vec![RowStatus::BadKey as u8; n],
+                decrypt_micros: 0,
+                json_micros: 0,
             }
         }
     };
     let mut values = Vec::with_capacity(n);
     let mut statuses = Vec::with_capacity(n);
+    let mut decrypt_time = Duration::ZERO;
+    let mut json_time = Duration::ZERO;
     for encoded in envelopes_b64 {
-        match crypto::decrypt_base64_one(&cipher, encoded, associated_data) {
-            Ok(text) if is_well_formed_json(&text) => {
-                values.push(Some(text));
-                statuses.push(RowStatus::Ok as u8);
-            }
-            Ok(_) => {
-                values.push(None);
-                statuses.push(RowStatus::InvalidJson as u8);
+        let decrypt_start = Instant::now();
+        let decrypted = crypto::decrypt_base64_one(&cipher, encoded, associated_data);
+        decrypt_time += decrypt_start.elapsed();
+        match decrypted {
+            Ok(text) => {
+                let json_start = Instant::now();
+                let valid = is_well_formed_json(&text);
+                json_time += json_start.elapsed();
+                values.push(valid.then_some(text));
+                statuses.push(if valid {
+                    RowStatus::Ok as u8
+                } else {
+                    RowStatus::InvalidJson as u8
+                });
             }
             Err(error) => {
                 values.push(None);
@@ -112,7 +131,12 @@ pub fn decrypt_base64_json_batch(
             }
         }
     }
-    DecryptedJsonBatch { values, statuses }
+    DecryptedJsonBatch {
+        values,
+        statuses,
+        decrypt_micros: micros(decrypt_time),
+        json_micros: micros(json_time),
+    }
 }
 
 #[cfg(test)]
@@ -122,7 +146,9 @@ mod tests {
     use base64::Engine;
 
     fn key() -> Vec<u8> {
-        (0..32u8).map(|i| i.wrapping_mul(11).wrapping_add(1)).collect()
+        (0..32u8)
+            .map(|i| i.wrapping_mul(11).wrapping_add(1))
+            .collect()
     }
 
     fn nonce(i: u8) -> Vec<u8> {
@@ -136,7 +162,9 @@ mod tests {
 
     #[test]
     fn well_formed_json_is_the_full_grammar() {
-        assert!(is_well_formed_json(r#"{"a":[1,2.5,-3e2,"x\u00e9\n",null,true],"b":{}}"#));
+        assert!(is_well_formed_json(
+            r#"{"a":[1,2.5,-3e2,"x\u00e9\n",null,true],"b":{}}"#
+        ));
         assert!(is_well_formed_json("\"just a string\""));
         assert!(is_well_formed_json("42"));
         assert!(!is_well_formed_json(""));

@@ -107,6 +107,8 @@ pub fn encrypt_at_rest_batch_sync(
 pub struct DecryptedJsonBatch {
     pub values: Vec<Option<String>>,
     pub statuses: Vec<u8>,
+    pub decrypt_micros: u32,
+    pub json_micros: u32,
 }
 
 /// Decrypt base64 envelopes **and** parse each plaintext as JSON in the same
@@ -125,5 +127,7 @@ pub fn decrypt_aes_gcm_base64_json_batch(
     DecryptedJsonBatch {
         values: batch.values,
         statuses: batch.statuses,
+        decrypt_micros: batch.decrypt_micros,
+        json_micros: batch.json_micros,
     }
 }

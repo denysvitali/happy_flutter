@@ -2,3 +2,4 @@
 
 pub mod crypto_api;
 pub mod sidechain_api;
+pub mod terminal_api;

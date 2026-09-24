@@ -411,6 +411,12 @@ geometry before traversing candidates.
 clipboard results to the current file, and keep code and gutter in one
 vertical viewport.
 
+**Rust terminal output:** `NativeCore.prepareTerminalOutput` combines line
+counting, visible preview selection, and ANSI stripping for outputs of at
+least 4096 characters. Keep its SGR-only strip rule and `split('\n')` line
+semantics identical to the Dart fallback. Native decrypt/JSON and sidechain
+spans report both bridge wall time and Rust stage time without message data.
+
 **Display text:** Session previews and profile avatar initials must use
 `characters` (grapheme clusters), never UTF-16 indexing or fixed-offset
 `substring` cuts. Sanitize malformed remote text before rendering; ingestion
@@ -454,7 +460,9 @@ ProviderContainer(overrides: [
 
 `benchmark/` holds mocked-backend benchmarks run by the dedicated
 **Mocked-backend benchmarks** CI job on every push (never locally — same
-RAM rule as tests). Scenarios: session-collection compute, message-pipeline
+RAM rule as tests). The job builds the Rust core before measuring native
+terminal-output preparation against the Dart path. Scenarios:
+session-collection compute, message-pipeline
 stages, raw AES-256-GCM crypto, and the two production ingress routes
 (socket inline ingest, REST first-load tail fetch) over the integration
 suite's `MockSyncServer`. Messaging numbers use a plaintext-passthrough
