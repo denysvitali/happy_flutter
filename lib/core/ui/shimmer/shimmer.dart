@@ -171,8 +171,8 @@ class _ShimmerState extends State<Shimmer>
 
     final animation = _resolveAnimation(context);
 
-    final appColors =
-        Theme.of(context).extension<AppColorScheme>();
+    final theme = Theme.of(context);
+    final appColors = theme.extension<AppColorScheme>();
     final effectiveColors = widget.colors ??
         (appColors != null
             ? [
@@ -181,11 +181,11 @@ class _ShimmerState extends State<Shimmer>
                 appColors.shimmerHighlight,
                 appColors.shimmerBase,
               ]
-            : const [
-                Color(0xFFE0E0E0),
-                Color(0xFFF8F8F8),
-                Color(0xFFF8F8F8),
-                Color(0xFFE0E0E0),
+            : [
+                theme.colorScheme.surfaceContainerHigh,
+                theme.colorScheme.surfaceContainerHighest,
+                theme.colorScheme.surfaceContainerHighest,
+                theme.colorScheme.surfaceContainerHigh,
               ]);
     final effectiveStops = widget.colors != null
         ? const [0.0, 0.2, 0.5, 0.8, 1.0]

@@ -34,6 +34,7 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
   List<Map<String, dynamic>> _cachedItems = const [];
   int _cachedCompleted = 0;
   int _cachedPending = 0;
+  int _cachedRunning = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +47,9 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
           .toList(growable: false);
       _cachedCompleted = _cachedTools.where(_isCompleted).length;
       _cachedPending = _cachedTools.where(_isPending).length;
+      _cachedRunning = _cachedTools
+          .where((tool) => tool['state'] == 'running')
+          .length;
     }
     final tools = _cachedTools;
     // `items` holds everything collapsed into this row, in original
@@ -63,6 +67,7 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
 
     final completed = _cachedCompleted;
     final pending = _cachedPending;
+    final running = _cachedRunning;
     final total = tools.length;
     // A group can be thinking-only (the agent reasoned between texts
     // without calling a tool) — there is no tool count to report.
@@ -120,7 +125,10 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
                         ),
                       ),
                     ),
-                    if (pending > 0) ...[
+                    // Queued rows may remain pending after a turn ends.
+                    // Their count is useful, but only executing tools
+                    // justify a continuously animated spinner.
+                    if (running > 0) ...[
                       const SizedBox(width: AppSpacing.sm),
                       const SizedBox(
                         width: 14,

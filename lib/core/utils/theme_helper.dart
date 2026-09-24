@@ -295,8 +295,8 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
     elevation: 0,
     scrolledUnderElevation: 1,
     backgroundColor: dark
-        ? _kDarkSurface.withAlpha(230)
-        : _kLightSurface.withAlpha(230),
+        ? _kDarkSurface.withValues(alpha: 230 / 255)
+        : _kLightSurface.withValues(alpha: 230 / 255),
     foregroundColor: dark ? Colors.white : _kLightTextPrimary,
     centerTitle: false,
     titleTextStyle: _inter(
@@ -320,7 +320,9 @@ CardThemeData _buildCardTheme({required bool dark}) {
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.lg),
       side: BorderSide(
-        color: dark ? Colors.white.withAlpha(18) : Colors.black.withAlpha(12),
+        color: dark
+            ? Colors.white.withValues(alpha: 18 / 255)
+            : Colors.black.withValues(alpha: 12 / 255),
       ),
     ),
     color: dark ? _kDarkSurface : _kLightSurface,
@@ -343,11 +345,11 @@ List<BoxShadow> cardBoxShadow({required bool dark}) {
 
 InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
   final borderColor = dark
-      ? Colors.white.withAlpha(30)
-      : Colors.black.withAlpha(20);
+      ? Colors.white.withValues(alpha: 30 / 255)
+      : Colors.black.withValues(alpha: 20 / 255);
   // 2 px primary-color focus ring with a 15 % opacity fill tint.
   const focusColor = _kSeedColor;
-  final focusFill = focusColor.withAlpha(38); // ~0.15 opacity
+  final focusFill = focusColor.withValues(alpha: 38 / 255);
   final radius = BorderRadius.circular(AppRadius.md);
 
   return InputDecorationTheme(
@@ -414,7 +416,9 @@ ChipThemeData _buildChipTheme({required bool dark}) {
       borderRadius: BorderRadius.circular(AppRadius.sm),
     ),
     side: BorderSide(
-      color: dark ? Colors.white.withAlpha(25) : Colors.black.withAlpha(18),
+      color: dark
+          ? Colors.white.withValues(alpha: 25 / 255)
+          : Colors.black.withValues(alpha: 18 / 255),
     ),
     backgroundColor: dark ? _kDarkSurfaceVariant : _kLightSurfaceVariant,
   );
@@ -531,7 +535,7 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({required bool dark}) {
       side: WidgetStateProperty.resolveWith((states) {
         final alpha = states.contains(WidgetState.focused) ? 255 : 120;
         return BorderSide(
-          color: _kSeedColor.withAlpha(alpha),
+          color: _kSeedColor.withValues(alpha: alpha / 255),
           width: states.contains(WidgetState.focused)
               ? AppBorder.thick
               : AppBorder.thin,
@@ -585,7 +589,7 @@ NavigationBarThemeData _buildNavigationBarTheme({required bool dark}) {
     elevation: 0,
     backgroundColor: dark ? _kDarkSurface : _kLightSurface,
     surfaceTintColor: Colors.transparent,
-    indicatorColor: _kSeedColor.withAlpha(30),
+    indicatorColor: _kSeedColor.withValues(alpha: 30 / 255),
     labelTextStyle: WidgetStateProperty.resolveWith((states) {
       final selected = states.contains(WidgetState.selected);
       return _inter(
@@ -601,7 +605,9 @@ NavigationBarThemeData _buildNavigationBarTheme({required bool dark}) {
 
 DividerThemeData _buildDividerTheme({required bool dark}) {
   return DividerThemeData(
-    color: dark ? Colors.white.withAlpha(15) : Colors.black.withAlpha(10),
+    color: dark
+        ? Colors.white.withValues(alpha: 15 / 255)
+        : Colors.black.withValues(alpha: 10 / 255),
     thickness: AppBorder.hairline,
     space: AppBorder.hairline,
   );
@@ -616,8 +622,8 @@ BottomSheetThemeData _buildBottomSheetTheme({required bool dark}) {
     ),
     showDragHandle: true,
     dragHandleColor: dark
-        ? Colors.white.withAlpha(50)
-        : Colors.black.withAlpha(30),
+        ? Colors.white.withValues(alpha: 50 / 255)
+        : Colors.black.withValues(alpha: 30 / 255),
   );
 }
 
@@ -681,8 +687,8 @@ class ThemeHelper {
           surfaceContainerHighest: _kLightSurfaceVariant,
           onSurface: _kLightTextSecondary,
           onSurfaceVariant: _kLightTextMuted,
-          outline: Colors.black.withAlpha(20),
-          outlineVariant: Colors.black.withAlpha(12),
+          outline: Colors.black.withValues(alpha: 20 / 255),
+          outlineVariant: Colors.black.withValues(alpha: 12 / 255),
         );
 
     final theme = ThemeData(
@@ -748,8 +754,8 @@ class ThemeHelper {
           surfaceContainerHighest: _kDarkSurfaceVariant,
           onSurface: _kDarkTextSecondary,
           onSurfaceVariant: _kDarkTextSubtle,
-          outline: Colors.white.withAlpha(25),
-          outlineVariant: Colors.white.withAlpha(15),
+          outline: Colors.white.withValues(alpha: 25 / 255),
+          outlineVariant: Colors.white.withValues(alpha: 15 / 255),
         );
 
     final theme = ThemeData(

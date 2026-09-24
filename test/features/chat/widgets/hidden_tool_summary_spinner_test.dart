@@ -14,9 +14,7 @@ void main() {
   Future<void> pump(WidgetTester tester, List<Map<String, dynamic>> tools) {
     return tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(
-          body: HiddenToolSummary(data: {'tools': tools}),
-        ),
+        home: Scaffold(body: HiddenToolSummary(data: {'tools': tools})),
       ),
     );
   }
@@ -49,6 +47,17 @@ void main() {
       findsOneWidget,
       reason: 'in-flight work must still show progress',
     );
+  });
+
+  testWidgets('a queued tool is counted without keeping the renderer active', (
+    tester,
+  ) async {
+    await pump(tester, [
+      {'name': 'Read', 'state': 'pending'},
+    ]);
+
+    expect(find.textContaining('1 pending'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   testWidgets('an all-terminal group (completed + canceled) never spins', (
