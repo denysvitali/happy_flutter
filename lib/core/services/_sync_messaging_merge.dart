@@ -907,7 +907,8 @@ extension SyncMessagingMerge on Sync {
   /// Only results whose tool-call can still arrive belong here: a result
   /// queued for a page that will never be resident (history backfill) is
   /// unmatchable and its only effect is to evict a result that would have
-  /// matched when the cap is reached. Callers in that position pass
+  /// matched when the cap is reached. The same is true of a sidechain result
+  /// whose parent Task is no longer resident. Callers fetching history pass
   /// `queueUnmatched: false` to [_applyToolResults].
   void _queuePendingToolResults(
     String sessionId,
@@ -919,7 +920,21 @@ extension SyncMessagingMerge on Sync {
     final nowMs =
         testPendingToolResultNowMsOverride ??
         DateTime.now().millisecondsSinceEpoch;
+    // A sidechain result can only render beneath its parent Task. Long-lived
+    // subagents keep emitting results after that Task has been trimmed from
+    // the resident window. Queuing those results displaced live pending
+    // output during reconnect (GlitchTip 8869) and socket ingest (8868).
+    // Keep the parent-present case: a child result may precede its tool-call
+    // by one wire message and must remain pending until the call arrives.
+    Set<String>? residentToolUseIds;
     for (final r in results) {
+      final parentToolUseId = r['parentToolUseId'];
+      if (r['isSidechain'] == true &&
+          parentToolUseId is String &&
+          parentToolUseId.isNotEmpty) {
+        residentToolUseIds ??= _residentToolUseIds(sessionId);
+        if (!residentToolUseIds.contains(parentToolUseId)) continue;
+      }
       // A retransmission refreshes the payload and re-arms its FIFO/TTL
       // position, rather than consuming another slot for the same call.
       final toolUseId = r['toolUseId'];
@@ -941,6 +956,26 @@ extension SyncMessagingMerge on Sync {
         'dropped $dropped oldest unmatched result(s)',
       );
     }
+    if (queue.isEmpty) _pendingToolResults.remove(sessionId);
+  }
+
+  Set<String> _residentToolUseIds(String sessionId) {
+    final ids = <String>{};
+    final seen = <Map<String, dynamic>>{};
+    final pending = <Map<String, dynamic>>[...?_sessionMessages[sessionId]];
+    while (pending.isNotEmpty) {
+      final row = pending.removeLast();
+      if (!seen.add(row)) continue;
+      if (row['kind'] == 'tool-call') {
+        final id = row['toolUseId'];
+        if (id is String && id.isNotEmpty) ids.add(id);
+      }
+      final children = row['children'];
+      if (children is List<dynamic>) {
+        pending.addAll(children.whereType<Map<String, dynamic>>());
+      }
+    }
+    return ids;
   }
 
   /// Drop pending tool results older than [Sync.pendingToolResultTtlMs].

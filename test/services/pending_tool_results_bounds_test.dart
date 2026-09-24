@@ -329,6 +329,85 @@ void main() {
     });
   });
 
+  // GlitchTip 8869 / 8868: long-running subagents emit many sidechain
+  // tool_result messages after their parent Task has left the resident
+  // window. Those results cannot render, and 200 of them evicted a result
+  // that was waiting for a live tool-call.
+  group('sidechain result residency', () {
+    test('orphan sidechain burst does not evict a live pending result', () {
+      sync.testSetSessionMessages('s1', [
+        {'kind': 'text', 'id': 'resident', 'createdAt': 1},
+      ]);
+      sync.testApplyToolResults('s1', results(1, prefix: 'waiting'));
+
+      sync.testApplyToolResults('s1', [
+        for (var i = 0; i < Sync.maxPendingToolResultsPerSession + 60; i++)
+          {
+            'toolUseId': 'sidechain-$i',
+            'parentToolUseId': 'trimmed-task',
+            'isSidechain': true,
+            'result': 'output $i',
+            'createdAt': i + 1,
+          },
+      ]);
+
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(1));
+      expect(pending.single['toolUseId'], 'waiting-0');
+      expect(
+        PowerDiagnosticsOtelReporter
+            .instance
+            .debugBumpTotals['happy_flutter.tool_results.dropped'],
+        isNull,
+      );
+    });
+
+    test('sidechain result waits for a child call under resident parent', () {
+      sync.testSetSessionMessages('s1', [
+        {
+          'id': 'task',
+          'kind': 'tool-call',
+          'toolUseId': 'parent-task',
+          'children': <Map<String, dynamic>>[],
+        },
+      ]);
+      sync.testApplyToolResults('s1', [
+        {
+          'toolUseId': 'child-tool',
+          'parentToolUseId': 'parent-task',
+          'isSidechain': true,
+          'result': 'child output',
+          'createdAt': 2,
+        },
+      ]);
+      expect(sync.testPendingToolResults('s1'), hasLength(1));
+
+      sync.testSetSessionMessages('s1', [
+        {
+          'id': 'task',
+          'kind': 'tool-call',
+          'toolUseId': 'parent-task',
+          'children': [
+            {
+              'id': 'child',
+              'kind': 'tool-call',
+              'toolUseId': 'child-tool',
+              'state': 'running',
+            },
+          ],
+        },
+      ]);
+      sync.testApplyToolResults('s1', sync.testPendingToolResults('s1'));
+
+      final task = sync.testSessionMessages('s1')!.single;
+      final children = task['children'] as List<dynamic>;
+      expect(
+        (children.single as Map<String, dynamic>)['result'],
+        'child output',
+      );
+    });
+  });
+
   group('ToolResultProcessor no-match fast path', () {
     test('returns the identical list when nothing matches', () {
       final processor = ToolResultProcessor();
