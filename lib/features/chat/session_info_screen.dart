@@ -140,6 +140,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       _showError(context.l10n.sessionStartupResumeMessageRequired);
       return;
     }
+    // Resolve localization before the RPC. The user can leave this screen
+    // while it is pending, and a failed RPC must not look up inherited state
+    // through a disposed BuildContext in the catch path.
+    final saveFailedMessage = context.l10n.sessionStartupResumeSaveFailed;
     setState(() => _startupResumeSaving = true);
     try {
       await sync.machineSetSessionStartupResume(
@@ -154,7 +158,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
       );
     } catch (error, stack) {
       logger.warning('Failed to update startup resume setting', error, stack);
-      _showError(context.l10n.sessionStartupResumeSaveFailed);
+      _showError(saveFailedMessage);
     } finally {
       if (mounted) setState(() => _startupResumeSaving = false);
     }
