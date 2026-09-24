@@ -2,13 +2,49 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-22
+**Last Updated**: 2026-09-24
 
-**GlitchTip crash follow-up, 2026-09-22.** The full unresolved metadata
+**GlitchTip and observability follow-up, 2026-09-24.** The full unresolved metadata
 inventory contains 5,300 groups (178 seen since September 1), mostly historical
 warning fingerprints. Latest events, fatal reports and representative repeated
 families were checked against release ancestry; this is not evidence that every
 historical group has independently reproduced or been verified fixed.
+
+- **Startup-resume teardown race (3604 / 8785, build 286800):** the latest
+  null-check event is unsymbolicated. GlitchTip shows the
+  `session-startup-resume-set` RPC failed with `handler_offline`; Jaeger records
+  a `navigation.pop` at 19:55:53 in the same `app_launch_id`, before the
+  failure at 19:56:06. Jaeger does not contain GlitchTip's Sentry trace ID.
+  The catch path previously resolved localized text through the disposed
+  screen context before its mounted guard. Localization now resolves before
+  the RPC; the offline save still reports failure while the screen is present.
+  Recheck after rollout.
+- **Unmatched sidechain tool-result overflow (8880–8883):** Loki shows repeated
+  pending-queue cap drops during reconnects. Results under a Task that has left
+  the resident message window cannot be rendered; they no longer enter the
+  bounded pending queue and displace results for resident calls. A sidechain
+  result still waits when its parent Task is resident but its child call has
+  not arrived. Added residency and overflow regression coverage; verify the
+  drop counter and issue recurrence after rollout.
+- **Terminal-session outbox readiness:** when a session reports a lifecycle
+  error, sends deferred while waiting for readiness now move to the retryable
+  failed bucket with their canonical `localId` and encrypted payload intact.
+  Added coverage for terminal lifecycle delivery; verify the failed-send UX
+  and identity after rollout.
+- **Model selection/profile mismatch (8875):** five current-build warnings
+  show the selected Cloudflare model is absent from the active custom profile,
+  so the profile default is used. The guard prevents sending a model through a
+  gateway that does not claim it; profile data or picker validation needs a
+  follow-up before changing that fallback.
+- **Spawn preparation deadline (8874):** one current-build `spawn-init` call
+  timed out inside the server. The Flutter path reports the failure; this
+  event does not identify a client-side fix. A separate send deadline (8876)
+  followed a REST 500 and was handed to the outbox with its original `localId`.
+- **Tool activity rendering:** collapsed tool groups count queued work without
+  animating a spinner; only running tools animate. This avoids ongoing work
+  indicators when no tool is executing. Shared shimmer fallback colors now
+  come from the active Material surface palette when the app extension is
+  unavailable.
 
 - **Current Android null checks (3604/8780, build 286500):** exact matching
   symbols identify `CircularProgressIndicator` looking up a Theme ancestor
@@ -330,6 +366,11 @@ resolved or ignored.
 
 | Issue | Severity | Count | Status | Description |
 |-------|----------|-------|--------|-------------|
+| Startup-resume teardown null check (3604 / 8785) | Fatal / warning | 2,086 / 2 | Fix in this source batch; verify after build 286800 rollout | The Sep-23 286800 event has no Dart symbols. GlitchTip breadcrumbs show the RPC returned `handler_offline`; Jaeger records a Session Info pop at 19:55:53 in the same app launch. The catch then evaluated `context.l10n` before `_showError` could check `mounted`. The localized message now resolves before the async gap; the underlying disconnected-machine save still surfaces an error when the screen is present. |
+| Pending sidechain results exceed cap (8880–8883) | Warning with visible tool-output loss | 4 recent fingerprints | Fix in this source batch; verify drop counter after rollout | Results whose parent Task has left the resident message window cannot be rendered. The merge path now drops only those orphan sidechain results before they evict results waiting for resident tool calls; a result still queues when its Task remains resident. |
+| Readiness-deferred send reaches terminal session | Failed-send recovery | Regression coverage added | Fix in this source batch; verify after rollout | A terminal lifecycle update now moves readiness-deferred sends to the dead-letter retry bucket, preserving the canonical `localId` and encrypted payload for explicit retry. |
+| Model pick absent from active custom profile (8875) | Warning / model fallback | 5 | Open — profile and picker state need reconciliation | Build 286800 selected `cloudflare/stealth/union-alpha[1m]` for a custom Claude gateway profile whose `models` list does not contain that model. The safety guard uses the profile default rather than sending an unowned model; verify profile hydration and picker eligibility before changing the fallback. |
+| Spawn preparation deadline (8874) | Error | 1 | Open — server-side preparation path | Build 286800 timed out posting `/v1/sessions/:id/spawn-init` while preparing a session. The Flutter client reports the RPC failure; this event does not identify a client-side defect. |
 | Committed batch prefix misses live notification | P0 | 2 store deadlines / audit 24h; loss not proven | Source fix `happy-cli-go a9ef61a`; verify rollout | Failed later chunks used to discard prior committed results; retry deduplication suppressed their notification. Deterministic contract now covers prefix fanout and retry identity. |
 | Expected machine-refresh suspension reported as error (8771/8772) | Error telemetry | 6 lifetime | Source fix `b2c46d1c` / `3373d1a5`; verify rollout | Build 277800 cancellation is now typed and logged without an error span; cached machines and retry state survive. True deadline failures remain errors. |
 | Settings POST timeout swallowed (4717) | Warning | 17 issue total | Shipped (`04d30f60`) | Build 277500: the 10s POST wrapper timed out and the queue then reported success with zero retries. The wrapper is removed (HTTP owns the deadline), failures rethrow into `InvalidateSync`'s bounded retry, only acknowledged pending keys are cleared so edits made during the write survive, version conflicts rebase and retry, and a `_generation` guard blocks late POST/GET completion after `clear()`. Six contract tests in `test/core/sync/settings_manager_test.dart`, covering delayed POST past the old deadline, deadline failure, edits during write, conflict rebase, late POST after runtime reset, and edits during GET. |
