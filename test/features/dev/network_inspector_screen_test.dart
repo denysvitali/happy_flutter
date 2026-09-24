@@ -317,7 +317,7 @@ void main() {
       expect(find.text('2'), findsWidgets);
     });
 
-    testWidgets('renders different HTTP methods with distinct colors', (
+    testWidgets('renders older HTTP methods when scrolled', (
       tester,
     ) async {
       httpRequestLogger.record(_makeEntry(id: 1, method: 'GET'));
@@ -330,11 +330,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('GET'), findsOneWidget);
-      expect(find.text('POST'), findsOneWidget);
-      expect(find.text('PUT'), findsOneWidget);
-      expect(find.text('PATCH'), findsOneWidget);
       expect(find.text('DELETE'), findsOneWidget);
+      await tester.drag(find.byType(ListView), const Offset(0, -300));
+      await tester.pump();
+      expect(find.text('GET'), findsOneWidget);
     });
   });
 
