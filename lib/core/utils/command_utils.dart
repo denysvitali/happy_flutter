@@ -28,6 +28,8 @@ String? _removeTransportWrapper(String command) {
     '/usr/bin/sh -lc',
     '/usr/bin/bash -c',
     '/usr/bin/bash -lc',
+    '/usr/sbin/bash -c',
+    '/usr/sbin/bash -lc',
     '/usr/bin/zsh -c',
     '/usr/bin/zsh -lc',
   ];
