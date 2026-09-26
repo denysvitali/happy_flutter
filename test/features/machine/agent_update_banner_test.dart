@@ -174,12 +174,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Update'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Restart sessions to finish the update?'),
-      findsOneWidget,
-    );
-    expect(find.text('Restart sessions'), findsOneWidget);
-    expect(find.text('Later'), findsWidgets);
+    expect(find.text('Update installed'), findsOneWidget);
+    expect(find.text('Got it'), findsOneWidget);
+    expect(find.text('Restart sessions'), findsNothing);
   });
 
   testWidgets('hides banner when machine offline', (tester) async {

@@ -859,29 +859,23 @@ abstract class AppLocalizations {
   /// No description provided for @machineAgentsRestartTitle.
   ///
   /// In en, this message translates to:
-  /// **'Restart sessions to finish the update?'**
+  /// **'Update installed'**
   String get machineAgentsRestartTitle;
 
   /// No description provided for @machineAgentsRestartMessage.
   ///
   /// In en, this message translates to:
-  /// **'The {agent} update installed version {version}. Restart sessions on {machine} so they pick up the new binary. Active sessions resume automatically.'**
+  /// **'The {agent} update installed version {version}. Sessions on {machine} are restarting to pick up the new binary. Active sessions resume automatically.'**
   String machineAgentsRestartMessage(
     String agent,
     String version,
     String machine,
   );
 
-  /// No description provided for @machineAgentsRestartSessions.
-  ///
-  /// In en, this message translates to:
-  /// **'Restart sessions'**
-  String get machineAgentsRestartSessions;
-
   /// No description provided for @machineAgentsRestartSkip.
   ///
   /// In en, this message translates to:
-  /// **'Later'**
+  /// **'Got it'**
   String get machineAgentsRestartSkip;
 
   /// No description provided for @machineAgentsBannerTitle.

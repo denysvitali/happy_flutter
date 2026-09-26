@@ -11,8 +11,8 @@ import '../../../core/widgets/app_circular_progress_indicator.dart';
 /// agent on this machine has an update available. The user can update from the
 /// banner or dismiss it until the next check.
 ///
-/// After a successful update, the banner prompts the user to restart sessions
-/// so they pick up the new binary. The daemon handles the actual restart.
+/// After a successful update, the daemon automatically restarts sessions onto
+/// the new binary; the banner shows an informational dialog confirming this.
 class AgentUpdateBanner extends ConsumerStatefulWidget {
   const AgentUpdateBanner({
     required this.machineId,
@@ -131,13 +131,9 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.machineAgentsRestartSkip),
-          ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.machineAgentsRestartSessions),
+            child: Text(l10n.machineAgentsRestartSkip),
           ),
         ],
       ),

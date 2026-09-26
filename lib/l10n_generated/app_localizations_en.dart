@@ -424,8 +424,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Update this installation using its package manager.';
 
   @override
-  String get machineAgentsRestartTitle =>
-      'Restart sessions to finish the update?';
+  String get machineAgentsRestartTitle => 'Update installed';
 
   @override
   String machineAgentsRestartMessage(
@@ -433,14 +432,11 @@ class AppLocalizationsEn extends AppLocalizations {
     String version,
     String machine,
   ) {
-    return 'The $agent update installed version $version. Restart sessions on $machine so they pick up the new binary. Active sessions resume automatically.';
+    return 'The $agent update installed version $version. Sessions on $machine are restarting to pick up the new binary. Active sessions resume automatically.';
   }
 
   @override
-  String get machineAgentsRestartSessions => 'Restart sessions';
-
-  @override
-  String get machineAgentsRestartSkip => 'Later';
+  String get machineAgentsRestartSkip => 'Got it';
 
   @override
   String machineAgentsBannerTitle(String agent) {
