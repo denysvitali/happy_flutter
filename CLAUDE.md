@@ -259,6 +259,13 @@ split is not guessable from the names — see the UI Conventions section.
 | `loggerNotifierProvider` | `LoggerState` (debounced, 200ms timer) |
 | `loggerServiceProvider` | `LoggerService` (plain `Provider`, not `NotifierProvider`) |
 
+Session ToDos in `metadata.todos` can have `parentId` and `agentId`.
+Children inherit the nearest ancestor's agent unless assigned explicitly.
+Completed items remain visible until a later add; that add expires completed
+leaves while keeping completed ancestors of visible children. Preserve these
+fields in tool snapshot parsing and show the hierarchy and agent in chat and
+Tasks. The Tasks screen offers an agent filter.
+
 **Notable:** `AuthStateNotifier` acts as a coordinator — on auth changes it calls `loadFromSync()`/`clear()` on all other providers.
 
 **`_shared.dart`** files in feature directories contain an `unset` sentinel (`const Object()`) used in `copyWith` methods to distinguish "not provided" from `null`.

@@ -82,6 +82,22 @@ class _TaskDetailDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
+            if (item.parentId case final parentId? when parentId.isNotEmpty)
+              Text(
+                'Sub-item of #$parentId',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            if (item.agentId case final agentId? when agentId.isNotEmpty)
+              Text(
+                'Assigned to $agentId',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            if (item.parentId != null || item.agentId != null)
+              const SizedBox(height: AppSpacing.sm),
             if (item.description case final description?
                 when description.isNotEmpty)
               Flexible(

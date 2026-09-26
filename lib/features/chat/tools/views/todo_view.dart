@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart' show TickerCanceled;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/models/todo.dart';
@@ -23,12 +22,16 @@ class TodoViewItem {
     this.priority,
     this.id,
     this.description,
+    this.parentId,
+    this.agentId,
   });
   final String content;
   final String status;
   final String? priority;
   final String? id;
   final String? description;
+  final String? parentId;
+  final String? agentId;
 
   bool get isCompleted => status == 'completed';
   bool get isInProgress => status == 'in_progress';
@@ -115,6 +118,8 @@ class TodoView extends ConsumerStatefulWidget {
           priority: it.priority ?? 'medium',
           order: i,
           description: it.description,
+          parentId: it.parentId,
+          agentId: it.agentId,
           createdAt: now,
           updatedAt: now,
           sessionId: sessionId,
@@ -194,6 +199,8 @@ class TodoView extends ConsumerStatefulWidget {
             priority: item['priority'] as String?,
             id: item['id'] as String?,
             description: item['description'] as String?,
+            parentId: item['parentId'] as String?,
+            agentId: item['agentId'] as String?,
           );
         })
         .whereType<TodoViewItem>()
@@ -225,7 +232,9 @@ class _TodoViewState extends ConsumerState<TodoView> {
       for (var i = 0; i < next.length; i++) {
         if (_todos[i].status != next[i].status ||
             _todos[i].content != next[i].content ||
-            _todos[i].description != next[i].description) {
+            _todos[i].description != next[i].description ||
+            _todos[i].parentId != next[i].parentId ||
+            _todos[i].agentId != next[i].agentId) {
           changed = true;
           break;
         }
@@ -263,13 +272,18 @@ class _TodoViewState extends ConsumerState<TodoView> {
                 opacity: animation,
                 child: SizeTransition(sizeFactor: animation, child: child),
               ),
-              child: _TodoRow(
+              child: Padding(
                 key: ValueKey(
                   '${entry.value.id ?? entry.value.content}'
                   '_${entry.value.status}',
                 ),
-                todo: entry.value,
-                pulsing: entry.key == activeIndex,
+                padding: EdgeInsets.only(
+                  left: entry.value.parentId == null ? 0 : AppSpacing.lg,
+                ),
+                child: _TodoRow(
+                  todo: entry.value,
+                  pulsing: entry.key == activeIndex,
+                ),
               ),
             ),
           ),
@@ -316,7 +330,7 @@ class _CountSummary extends StatelessWidget {
 
 /// A single todo row with status icon and text.
 class _TodoRow extends StatelessWidget {
-  const _TodoRow({required this.todo, this.pulsing = false, super.key});
+  const _TodoRow({required this.todo, this.pulsing = false});
 
   final TodoViewItem todo;
 
@@ -373,14 +387,26 @@ class _TodoRow extends StatelessWidget {
           Padding(padding: const EdgeInsets.only(top: 1), child: statusIcon),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-            child: Text(
-              todo.content,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: textColor,
-                decoration: decoration,
-                decorationColor: textColor,
-                height: AppLineHeight.normal,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  todo.content,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: textColor,
+                    decoration: decoration,
+                    decorationColor: textColor,
+                    height: AppLineHeight.normal,
+                  ),
+                ),
+                if (todo.agentId case final agentId? when agentId.isNotEmpty)
+                  Text(
+                    'Assigned to $agentId',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -406,7 +432,7 @@ class _PulsingIconState extends State<_PulsingIcon>
   /// Bounded intro: pulse a few cycles, then hold static at full opacity.
   ///
   /// An unbounded `repeat()` kept the frame pipeline warm for as long as a
-  /// todo list with an in-progress item was visible — which is the resting
+  /// task list with an in-progress item was visible — which is the resting
   /// state of any interrupted plan, so chat could never idle. The row is
   /// keyed by `id_status`, so real progress remounts it and restarts the
   /// intro.

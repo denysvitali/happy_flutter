@@ -78,7 +78,10 @@ class TaskToolView extends ConsumerStatefulWidget {
     // ("N items, M open" followed by one `#<id> [<status>] <subject>` per
     // row). That snapshot is authoritative for every id, status and
     // subject, so it heals rows whose create call was never mounted.
-    if (name == 'TaskCreate' || name == 'TaskUpdate' || name == 'TaskGet') {
+    if (name == 'TaskCreate' ||
+        name == 'TaskUpdate' ||
+        name == 'TaskGet' ||
+        name == 'TaskList') {
       final snapshot = _happySnapshot(tool, session, eventAt);
       if (snapshot != null) {
         final newestKnown = existing.fold<int>(
@@ -90,6 +93,12 @@ class TaskToolView extends ConsumerStatefulWidget {
           // trustworthy, so an older snapshot loses outright.
           if (eventAt < newestKnown) return existing;
           return snapshot;
+        }
+        // Happy MCP allocates increasing numeric ids. During reverse chat
+        // replay, an older full snapshot can contain rows that already
+        // expired on a later add. Do not union that older batch back in.
+        if (_maxNumericId(snapshot) < _maxNumericId(existing)) {
+          return existing;
         }
         // No wire timestamp — the wall-clock fallback is later for every
         // older push replayed in reverse order, so ordering by eventAt is
@@ -154,6 +163,8 @@ class TaskToolView extends ConsumerStatefulWidget {
             status: _statusFromString(input['status'] as String?),
             priority: 'medium',
             order: base.length,
+            parentId: _optionalString(input['parentId']),
+            agentId: _optionalString(input['agentId']),
             createdAt: eventAt,
             updatedAt: eventAt,
             sessionId: session,
@@ -167,6 +178,10 @@ class TaskToolView extends ConsumerStatefulWidget {
         if (explicitId == null) return existing;
         final rawName = (tool['name'] as String?) ?? '';
         final rawStatus = input['status'] as String?;
+        final parentId = _optionalString(input['parentId']);
+        final agentId = _optionalString(input['agentId']);
+        final hasParent = input.containsKey('parentId');
+        final hasAgent = input.containsKey('agentId');
         if (rawStatus == 'deleted' ||
             rawName == 'todo_remove' ||
             rawName == 'mcp__happy__todo_remove') {
@@ -186,7 +201,12 @@ class TaskToolView extends ConsumerStatefulWidget {
           // Reverse-order replay can deliver the update before its create.
           // Insert a placeholder so the status isn't lost; the create
           // merges the real subject in when it is processed.
-          if (rawStatus == null) return existing;
+          if (rawStatus == null &&
+              newSubject == null &&
+              !hasParent &&
+              !hasAgent) {
+            return existing;
+          }
           return [
             ...existing,
             TodoItem(
@@ -197,6 +217,8 @@ class TaskToolView extends ConsumerStatefulWidget {
               status: _statusFromString(rawStatus),
               priority: 'medium',
               order: existing.length,
+              parentId: parentId,
+              agentId: agentId,
               createdAt: eventAt,
               updatedAt: eventAt,
               sessionId: session,
@@ -216,6 +238,10 @@ class TaskToolView extends ConsumerStatefulWidget {
             content: (newSubject != null && newSubject.isNotEmpty)
                 ? newSubject
                 : e.content,
+            parentId: parentId,
+            clearParentId: hasParent && (parentId == null || parentId.isEmpty),
+            agentId: agentId,
+            clearAgentId: hasAgent && (agentId == null || agentId.isEmpty),
             updatedAt: eventAt,
             completedAt: _isCompletedString(rawStatus)
                 ? (e.completedAt ?? eventAt)
@@ -283,6 +309,8 @@ class TaskToolView extends ConsumerStatefulWidget {
             if (eventAt < e.updatedAt) return e;
             return e.copyWith(
               status: _statusFromString(map!['status'] as String?),
+              parentId: _optionalString(map['parentId']),
+              agentId: _optionalString(map['agentId']),
               updatedAt: eventAt,
             );
           }).toList();
@@ -295,6 +323,8 @@ class TaskToolView extends ConsumerStatefulWidget {
             status: _statusFromString(map['status'] as String?),
             priority: 'medium',
             order: existing.length,
+            parentId: _optionalString(map['parentId']),
+            agentId: _optionalString(map['agentId']),
             createdAt: eventAt,
             updatedAt: eventAt,
             sessionId: session,
@@ -313,6 +343,15 @@ class TaskToolView extends ConsumerStatefulWidget {
     for (final item in existing) item.id: item,
     for (final item in snapshot) item.id: item,
   }.values.toList();
+
+  static int _maxNumericId(List<TodoItem> items) {
+    var max = 0;
+    for (final item in items) {
+      final id = int.tryParse(item.id);
+      if (id != null && id > max) max = id;
+    }
+    return max;
+  }
 
   /// Subject shown for an item whose TaskUpdate was processed before its
   /// TaskCreate (reverse-order replay). The create call replaces it.
@@ -365,7 +404,7 @@ class TaskToolView extends ConsumerStatefulWidget {
     );
     if (!counts.hasMatch(text)) return null;
     final items = _domainFromListText(text, sessionId, eventAt);
-    return items.isEmpty ? null : items;
+    return items;
   }
 
   /// Plain-text body of a tool result, flattening the MCP content-block
@@ -407,7 +446,11 @@ class TaskToolView extends ConsumerStatefulWidget {
     String? sessionId,
     int now,
   ) {
-    final lineRe = RegExp(r'^#([A-Za-z0-9_-]+)\s+\[([^\]]+)\]\s+(.+)$');
+    final lineRe = RegExp(
+      r'^#([A-Za-z0-9_-]+)\s+\[([^\]]+)\]\s+'
+      r'(?:\[parent:#([^\]]+)\]\s+)?'
+      r'(?:\[agent:([^\]]+)\]\s+)?(.+)$',
+    );
     final out = <TodoItem>[];
     for (final line in text.split('\n')) {
       final m = lineRe.firstMatch(line.trim());
@@ -415,10 +458,12 @@ class TaskToolView extends ConsumerStatefulWidget {
       out.add(
         TodoItem(
           id: m.group(1)!,
-          content: m.group(3)!,
+          content: m.group(5)!,
           status: TodoState.fromString(m.group(2)!),
           priority: 'medium',
           order: out.length,
+          parentId: m.group(3),
+          agentId: m.group(4),
           createdAt: now,
           updatedAt: now,
           sessionId: sessionId,
@@ -442,10 +487,17 @@ class TaskToolView extends ConsumerStatefulWidget {
       r'^Status:\s+(\S+)',
       multiLine: true,
     ).firstMatch(text);
+    final parent = RegExp(
+      r'^Parent:\s+#(\S+)',
+      multiLine: true,
+    ).firstMatch(text);
+    final agent = RegExp(r'^Agent:\s+(\S+)', multiLine: true).firstMatch(text);
     return {
       'id': head.group(1),
       'subject': head.group(2)!.trim(),
       if (status != null) 'status': status.group(1),
+      if (parent != null) 'parentId': parent.group(1),
+      if (agent != null) 'agentId': agent.group(1),
     };
   }
 
@@ -511,6 +563,8 @@ class TaskToolView extends ConsumerStatefulWidget {
           status: TodoState.fromString(m['status'] as String? ?? 'pending'),
           priority: (m['priority'] as String?) ?? 'medium',
           order: i,
+          parentId: m['parentId'] as String?,
+          agentId: m['agentId'] as String?,
           createdAt: now,
           updatedAt: now,
           sessionId: sessionId,

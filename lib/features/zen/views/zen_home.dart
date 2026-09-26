@@ -86,6 +86,7 @@ class _SessionTodo {
     required this.sessionId,
     required this.directoryKey,
     required this.directoryLabel,
+    required this.agentId,
   });
 
   final TodoItem item;
@@ -93,6 +94,7 @@ class _SessionTodo {
   final String sessionId;
   final String directoryKey;
   final String directoryLabel;
+  final String? agentId;
 }
 
 // ─── Zen Home Screen ─────────────────────────────────────────────────────────
@@ -119,6 +121,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
 
   /// Which directory sections are currently collapsed (unscoped view).
   final Set<String> _collapsedDirectories = {};
+  String? _selectedAgentId;
 
   @override
   void initState() {
@@ -153,7 +156,6 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
       final directoryKey = sessionFolderKey(session);
       final directoryLabel = getSessionSubtitle(session);
       for (final item in todos) {
-        if (item.status.isTerminal) continue;
         result.add(
           _SessionTodo(
             item: item,
@@ -161,6 +163,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
             sessionId: session.id,
             directoryKey: directoryKey,
             directoryLabel: directoryLabel,
+            agentId: TodoItem.effectiveAgentId(item, todos),
           ),
         );
       }
@@ -168,9 +171,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     return result;
   }
 
-  Map<String, List<_SessionTodo>> _groupByDirectory(
-    List<_SessionTodo> todos,
-  ) {
+  Map<String, List<_SessionTodo>> _groupByDirectory(List<_SessionTodo> todos) {
     final map = <String, List<_SessionTodo>>{};
     for (final st in todos) {
       map.putIfAbsent(st.directoryKey, () => []).add(st);
@@ -229,6 +230,16 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
     );
     final scopedSessionId = widget.sessionId;
     final todos = _collectTodos(sessions, liveTodosBySession, scopedSessionId);
+    final agents = {
+      for (final todo in todos)
+        if (todo.agentId != null) todo.agentId!,
+    }.toList()..sort();
+    final selectedAgent = agents.contains(_selectedAgentId)
+        ? _selectedAgentId
+        : null;
+    final visibleTodos = selectedAgent == null
+        ? todos
+        : todos.where((todo) => todo.agentId == selectedAgent).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -242,8 +253,28 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
                 ),
         ),
         centerTitle: false,
+        actions: [
+          if (agents.isNotEmpty)
+            PopupMenuButton<String>(
+              tooltip: 'Filter tasks by agent',
+              icon: Icon(
+                Icons.people_alt_outlined,
+                color: selectedAgent == null
+                    ? null
+                    : Theme.of(context).colorScheme.primary,
+              ),
+              onSelected: (agentId) => setState(() {
+                _selectedAgentId = agentId.isEmpty ? null : agentId;
+              }),
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: '', child: Text('All agents')),
+                for (final agentId in agents)
+                  PopupMenuItem(value: agentId, child: Text(agentId)),
+              ],
+            ),
+        ],
       ),
-      body: todos.isEmpty
+      body: visibleTodos.isEmpty
           ? _EmptyState()
           : ListView(
               padding: const EdgeInsets.symmetric(
@@ -251,8 +282,8 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
                 vertical: AppSpacing.md,
               ),
               children: scopedSessionId == null
-                  ? _directoryChildren(todos)
-                  : _priorityChildren(_groupByPriority(todos)),
+                  ? _directoryChildren(visibleTodos)
+                  : _priorityChildren(_groupByPriority(visibleTodos)),
             ),
     );
   }
@@ -280,10 +311,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
               onToggle: () => _toggleSection(p),
             ),
             AnimatedCrossFade(
-              firstChild: _PrioritySectionBody(
-                priority: p,
-                todos: grouped[p]!,
-              ),
+              firstChild: _PrioritySectionBody(priority: p, todos: grouped[p]!),
               secondChild: const SizedBox.shrink(),
               crossFadeState: _collapsed.contains(p)
                   ? CrossFadeState.showSecond
@@ -308,37 +336,35 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
         final bLabel = grouped[b]!.first.directoryLabel;
         return aLabel.compareTo(bLabel);
       });
-    return keys
-        .expand((key) {
-          final items = grouped[key]!;
-          final collapsed = _collapsedDirectories.contains(key);
-          return [
-            _DirectorySectionHeader(
-              label: items.first.directoryLabel,
-              count: items.length,
-              collapsed: collapsed,
-              onToggle: () => _toggleDirectory(key),
-            ),
-            AnimatedCrossFade(
-              firstChild: _DirectorySectionBody(todos: items),
-              secondChild: const SizedBox.shrink(),
-              crossFadeState: collapsed
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: AppMotion.duration(
-                context,
-                const Duration(milliseconds: 200),
-              ),
-              sizeCurve: Curves.easeInOut,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-          ];
-        })
-        .toList();
+    return keys.expand((key) {
+      final items = grouped[key]!;
+      final collapsed = _collapsedDirectories.contains(key);
+      return [
+        _DirectorySectionHeader(
+          label: items.first.directoryLabel,
+          count: items.length,
+          collapsed: collapsed,
+          onToggle: () => _toggleDirectory(key),
+        ),
+        AnimatedCrossFade(
+          firstChild: _DirectorySectionBody(todos: items),
+          secondChild: const SizedBox.shrink(),
+          crossFadeState: collapsed
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
+          duration: AppMotion.duration(
+            context,
+            const Duration(milliseconds: 200),
+          ),
+          sizeCurve: Curves.easeInOut,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+      ];
+    }).toList();
   }
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
+// Section header
 
 class _PrioritySectionHeader extends StatelessWidget {
   const _PrioritySectionHeader({
@@ -426,7 +452,7 @@ class _PrioritySectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Section body ─────────────────────────────────────────────────────────────
+// Section body
 
 class _PrioritySectionBody extends StatelessWidget {
   const _PrioritySectionBody({required this.priority, required this.todos});
@@ -456,7 +482,7 @@ class _PrioritySectionBody extends StatelessWidget {
   }
 }
 
-// ─── Directory section (unscoped view) ────────────────────────────────────────
+// Directory section (unscoped view)
 
 class _DirectorySectionHeader extends StatelessWidget {
   const _DirectorySectionHeader({
@@ -533,11 +559,7 @@ class _DirectorySectionHeader extends StatelessWidget {
                 const Duration(milliseconds: 200),
               ),
               curve: Curves.easeInOut,
-              child: Icon(
-                Icons.expand_more_rounded,
-                size: 20,
-                color: accent,
-              ),
+              child: Icon(Icons.expand_more_rounded, size: 20, color: accent),
             ),
           ],
         ),
@@ -579,7 +601,7 @@ class _DirectorySectionBody extends StatelessWidget {
   }
 }
 
-// ─── Todo row ─────────────────────────────────────────────────────────────────
+// Task row
 
 class _TodoRow extends StatelessWidget {
   const _TodoRow({required this.priority, required this.sessionTodo});
@@ -592,10 +614,14 @@ class _TodoRow extends StatelessWidget {
     final theme = Theme.of(context);
     final item = sessionTodo.item;
     final isInProgress = item.status == TodoState.inProgress;
+    final isCompleted = item.status == TodoState.completed;
 
     final Color statusColor;
     final IconData statusIcon;
-    if (isInProgress) {
+    if (isCompleted) {
+      statusColor = AppColors.success;
+      statusIcon = Icons.check_circle_rounded;
+    } else if (isInProgress) {
       statusColor = theme.colorScheme.primary;
       statusIcon = Icons.radio_button_checked_rounded;
     } else {
@@ -615,9 +641,11 @@ class _TodoRow extends StatelessWidget {
           pathParameters: {'sessionId': sessionTodo.sessionId},
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md + (item.parentId == null ? 0 : AppSpacing.lg),
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.sm,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,9 +662,30 @@ class _TodoRow extends StatelessWidget {
                     Text(
                       item.content,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
+                        color: isCompleted
+                            ? theme.colorScheme.onSurfaceVariant
+                            : theme.colorScheme.onSurface,
+                        decoration: isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
                       ),
                     ),
+                    if (item.parentId case final parentId?
+                        when parentId.isNotEmpty)
+                      Text(
+                        'Sub-item of #$parentId',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (sessionTodo.agentId case final agentId?
+                        when agentId.isNotEmpty)
+                      Text(
+                        'Assigned to $agentId',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       sessionTodo.sessionTitle,

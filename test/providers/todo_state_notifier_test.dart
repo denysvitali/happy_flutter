@@ -100,6 +100,17 @@ void main() {
       expect(state().items, isEmpty);
     });
 
+    test('new snapshot expires previously completed rows', () {
+      final done = _domainItem('done', TodoState.completed, order: 0);
+      final next = _domainItem('next', TodoState.pending, order: 1);
+      notifier().setItemsForSession('s1', [done]);
+      expect(state().bySession['s1'], hasLength(1));
+      notifier().setItemsForSession('s1', [done, next]);
+      expect(state().bySession['s1']!.map((item) => item.id), ['next']);
+      notifier().setItemsForSession('s1', [done, next]);
+      expect(state().bySession['s1']!.map((item) => item.id), ['next']);
+    });
+
     test('setItemsForSession with null uses a synthetic global key', () {
       notifier().setItemsForSession(null, [
         _domainItem('a', TodoState.pending, order: 0),

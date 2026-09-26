@@ -779,6 +779,42 @@ void main() {
       },
     );
 
+    testWidgets('Happy snapshot preserves hierarchy, assignment and expiry', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-4',
+        'input': {'content': 'New work'},
+        'result':
+            'Added #4: New work\n3 items, 3 open\n'
+            '#2 [pending] Parent\n'
+            '#3 [pending] [parent:#2] [agent:agent-a] Child\n'
+            '#4 [pending] New work',
+      }, 's1');
+      var items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items[1].content, 'Child');
+      expect(items[1].parentId, '2');
+      expect(items[1].agentId, 'agent-a');
+
+      // A cold chat load can mount older tool cards after the newest one.
+      // The completed row from the previous batch must not reappear.
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_add',
+        'toolUseId': 'call-3',
+        'input': {'content': 'Child'},
+        'result':
+            'Added #3: Child\n3 items, 2 open\n'
+            '#1 [completed] Old work\n'
+            '#2 [pending] Parent\n'
+            '#3 [pending] [parent:#2] [agent:agent-a] Child',
+      }, 's1');
+      items = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(items.map((item) => item.id), ['2', '3', '4']);
+      expect(items[1].parentId, '2');
+    });
+
     testWidgets('errored TaskUpdate on empty state creates no placeholder', (
       tester,
     ) async {

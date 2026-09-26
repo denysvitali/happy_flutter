@@ -49,6 +49,8 @@ void main() {
       TodoState status, {
       String? content,
       String? description,
+      String? parentId,
+      String? agentId,
     }) {
       final now = DateTime.now().millisecondsSinceEpoch;
       return TodoItem(
@@ -58,6 +60,8 @@ void main() {
         priority: 'medium',
         order: 0,
         description: description,
+        parentId: parentId,
+        agentId: agentId,
         createdAt: now,
         updatedAt: now,
       );
@@ -96,12 +100,14 @@ void main() {
       bool isSegment(Widget w) =>
           w is DecoratedBox &&
           (w.decoration as BoxDecoration).borderRadius != null;
-      final segments = tester.widgetList<DecoratedBox>(
-        find.descendant(
-          of: find.byKey(const ValueKey('session-tasks-progress')),
-          matching: find.byWidgetPredicate(isSegment),
-        ),
-      ).toList();
+      final segments = tester
+          .widgetList<DecoratedBox>(
+            find.descendant(
+              of: find.byKey(const ValueKey('session-tasks-progress')),
+              matching: find.byWidgetPredicate(isSegment),
+            ),
+          )
+          .toList();
       expect(segments.length, 3);
       final filled = segments
           .where((s) => (s.decoration as BoxDecoration).gradient != null)
@@ -145,6 +151,34 @@ void main() {
       expect(find.text('First task'), findsOneWidget);
       expect(find.text('Second task'), findsOneWidget);
       expect(find.text('Running'), findsOneWidget);
+    });
+
+    testWidgets('nests children and shows inherited agent', (tester) async {
+      container
+          .read(todoStateNotifierProvider.notifier)
+          .setItemsForSession('s1', [
+            item(
+              'child',
+              TodoState.pending,
+              content: 'Child task',
+              parentId: 'parent',
+            ),
+            item(
+              'parent',
+              TodoState.pending,
+              content: 'Parent task',
+              agentId: 'agent-a',
+            ),
+          ]);
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('complete'));
+      await tester.pumpAndSettle();
+      expect(find.text('Assigned to agent-a'), findsNWidgets(2));
+      expect(
+        tester.getTopLeft(find.text('Parent task')).dy,
+        lessThan(tester.getTopLeft(find.text('Child task')).dy),
+      );
     });
 
     testWidgets('does not leak tasks from other sessions', (tester) async {

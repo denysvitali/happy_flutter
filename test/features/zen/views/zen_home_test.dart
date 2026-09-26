@@ -83,6 +83,47 @@ void main() {
       expect(find.text('Stale server task'), findsNothing);
       expect(find.text('No active tasks'), findsOneWidget);
     });
+
+    testWidgets('shows completed items until a new item expires them', (
+      tester,
+    ) async {
+      final notifier = container.read(todoStateNotifierProvider.notifier);
+      final done = _todo('done', 'Finished task', status: TodoState.completed);
+      notifier.setItemsForSession('session-1', [done]);
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+      expect(find.text('Finished task'), findsOneWidget);
+
+      notifier.setItemsForSession('session-1', [
+        done,
+        _todo('next', 'Next task'),
+      ]);
+      await tester.pumpAndSettle();
+      expect(find.text('Finished task'), findsNothing);
+      expect(find.text('Next task'), findsOneWidget);
+    });
+
+    testWidgets('filters sub-items by inherited assigned agent', (
+      tester,
+    ) async {
+      container
+          .read(todoStateNotifierProvider.notifier)
+          .setItemsForSession('session-1', [
+            _todo('parent', 'Agent A parent', agentId: 'agent-a'),
+            _todo('child', 'Agent A child', parentId: 'parent'),
+            _todo('other', 'Agent B task', agentId: 'agent-b'),
+          ]);
+      await tester.pumpWidget(buildApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Filter tasks by agent'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('agent-a').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Agent A parent'), findsOneWidget);
+      expect(find.text('Agent A child'), findsOneWidget);
+      expect(find.text('Agent B task'), findsNothing);
+      expect(find.text('Sub-item of #parent'), findsOneWidget);
+    });
   });
 }
 
@@ -103,13 +144,21 @@ Session _session({List<TodoItem>? todos}) {
   );
 }
 
-TodoItem _todo(String id, String content) {
+TodoItem _todo(
+  String id,
+  String content, {
+  TodoState status = TodoState.pending,
+  String? parentId,
+  String? agentId,
+}) {
   return TodoItem(
     id: id,
     content: content,
-    status: TodoState.pending,
+    status: status,
     priority: 'medium',
     order: 0,
+    parentId: parentId,
+    agentId: agentId,
     createdAt: 1,
     updatedAt: 1,
     sessionId: 'session-1',

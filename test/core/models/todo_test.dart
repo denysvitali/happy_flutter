@@ -154,5 +154,72 @@ void main() {
       expect(items, hasLength(1));
       expect(items!.first.content, 'legacy');
     });
+
+    test('parent and agent survive metadata and copyWith roundtrips', () {
+      final item = TodoItem.fromJson({
+        'id': '2',
+        'content': 'Implement child',
+        'status': 'pending',
+        'parentId': '1',
+        'agentId': 'agent-a',
+      });
+      expect(item.parentId, '1');
+      expect(item.agentId, 'agent-a');
+      expect(item.toJson()['parentId'], '1');
+      expect(item.toJson()['agentId'], 'agent-a');
+      expect(item.copyWith(status: TodoState.completed).agentId, 'agent-a');
+      expect(item.copyWith(clearAgentId: true).agentId, isNull);
+    });
+
+    test('hierarchy order and effective agent follow parent chain', () {
+      TodoItem item(String id, int order, {String? parent, String? agent}) =>
+          TodoItem(
+            id: id,
+            content: id,
+            status: TodoState.pending,
+            priority: 'medium',
+            order: order,
+            parentId: parent,
+            agentId: agent,
+            createdAt: 1,
+            updatedAt: 1,
+          );
+      final root = item('root', 0, agent: 'agent-a');
+      final other = item('other', 1);
+      final child = item('child', 2, parent: 'root');
+      final grandchild = item('grandchild', 3, parent: 'child');
+      final items = [grandchild, other, child, root];
+      expect(TodoItem.hierarchyOrder(items).map((i) => i.id), [
+        'root',
+        'child',
+        'grandchild',
+        'other',
+      ]);
+      expect(TodoItem.depthIn(grandchild, items), 2);
+      expect(TodoItem.effectiveAgentId(grandchild, items), 'agent-a');
+    });
+
+    test('completed items expire on add while live child keeps parent', () {
+      TodoItem item(String id, TodoState status, {String? parent}) => TodoItem(
+        id: id,
+        content: id,
+        status: status,
+        priority: 'medium',
+        order: 0,
+        parentId: parent,
+        createdAt: 1,
+        updatedAt: 1,
+      );
+      final parent = item('parent', TodoState.completed);
+      final child = item('child', TodoState.pending, parent: 'parent');
+      final done = item('done', TodoState.completed);
+      final next = item('next', TodoState.pending);
+      final visible = TodoItem.expireCompletedOnAdd(
+        [parent, child, done],
+        [parent, child, done, next],
+      );
+      expect(visible.map((i) => i.id), ['parent', 'child', 'next']);
+      expect(TodoItem.expireCompletedOnAdd([done], [done]), hasLength(1));
+    });
   });
 }

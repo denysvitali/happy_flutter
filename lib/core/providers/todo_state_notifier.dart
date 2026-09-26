@@ -9,10 +9,7 @@ import '../models/todo.dart';
 /// most recently active session (or the union when no session is
 /// focused — useful for the Zen home view).
 class TodoListState {
-  const TodoListState({
-    this.bySession = const {},
-    this.currentSessionId,
-  });
+  const TodoListState({this.bySession = const {}, this.currentSessionId});
 
   /// Per-session task lists, keyed by session id.
   final Map<String, List<TodoItem>> bySession;
@@ -58,6 +55,8 @@ class TodoListState {
 /// (TodoWrite / todo_list tool results) and held in-memory for the
 /// duration of the session.
 class TodoStateNotifier extends Notifier<TodoListState> {
+  final Map<String, Set<String>> _expiredBySession = {};
+
   @override
   TodoListState build() => const TodoListState();
 
@@ -68,19 +67,31 @@ class TodoStateNotifier extends Notifier<TodoListState> {
   /// replace (no session scoping) and preserves the legacy single-list
   /// behaviour used by the Zen home when no session is in scope.
   void setItemsForSession(String? sessionId, List<TodoItem> items) {
+    final bucket = sessionId ?? '__global__';
+    final expired = _expiredBySession.putIfAbsent(bucket, () => <String>{});
+    if (items.isEmpty) expired.clear();
+    for (final item in items) {
+      if (!item.status.isTerminal) expired.remove(item.id);
+    }
+    final nextBatch = TodoItem.expireCompletedOnAdd(
+      state.bySession[bucket] ?? const [],
+      items,
+    );
+    final retainedIds = {for (final item in nextBatch) item.id};
+    expired.addAll(
+      items.where((item) => !retainedIds.contains(item.id)).map((i) => i.id),
+    );
+    final next = nextBatch.where((item) => !expired.contains(item.id)).toList();
     if (sessionId == null) {
       // No session in scope — store under a stable synthetic key.
       state = state.copyWith(
-        bySession: {...state.bySession, '__global__': List.of(items)},
+        bySession: {...state.bySession, bucket: List.of(next)},
         currentSessionId: state.currentSessionId ?? '__global__',
       );
       return;
     }
     state = state.copyWith(
-      bySession: {
-        ...state.bySession,
-        sessionId: List<TodoItem>.from(items),
-      },
+      bySession: {...state.bySession, sessionId: List<TodoItem>.from(next)},
       currentSessionId: sessionId,
     );
   }
@@ -108,9 +119,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
           : TodoState.completed;
       return item.copyWith(status: next);
     }).toList();
-    state = state.copyWith(
-      bySession: {...state.bySession, sessionId: updated},
-    );
+    state = state.copyWith(bySession: {...state.bySession, sessionId: updated});
   }
 
   /// Mark a task as [TodoState.completed] by [id].
@@ -123,20 +132,24 @@ class TodoStateNotifier extends Notifier<TodoListState> {
       if (item.id != id) return item;
       return item.copyWith(status: TodoState.completed);
     }).toList();
-    state = state.copyWith(
-      bySession: {...state.bySession, sessionId: updated},
-    );
+    state = state.copyWith(bySession: {...state.bySession, sessionId: updated});
   }
 
   /// Add a new task item to the current session's list.
   void addItem(TodoItem item) {
     final sessionId = state.currentSessionId ?? '__global__';
     final existing = state.bySession[sessionId] ?? const [];
+    final next = TodoItem.expireCompletedOnAdd(existing, [...existing, item]);
+    final retainedIds = {for (final entry in next) entry.id};
+    _expiredBySession
+        .putIfAbsent(sessionId, () => <String>{})
+        .addAll(
+          existing
+              .where((entry) => !retainedIds.contains(entry.id))
+              .map((entry) => entry.id),
+        );
     state = state.copyWith(
-      bySession: {
-        ...state.bySession,
-        sessionId: [...existing, item],
-      },
+      bySession: {...state.bySession, sessionId: next},
       currentSessionId: sessionId,
     );
   }
@@ -157,6 +170,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
 
   /// Drop the task list for [sessionId] (called on session end).
   void clearSession(String sessionId) {
+    _expiredBySession.remove(sessionId);
     if (!state.bySession.containsKey(sessionId)) return;
     final next = {...state.bySession}..remove(sessionId);
     state = state.copyWith(
@@ -166,6 +180,7 @@ class TodoStateNotifier extends Notifier<TodoListState> {
   }
 
   void clear() {
+    _expiredBySession.clear();
     state = const TodoListState();
   }
 

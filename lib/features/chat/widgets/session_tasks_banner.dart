@@ -73,10 +73,7 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
         color: cs.surfaceContainerLow.withValues(alpha: 0.92),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.xl),
-          side: BorderSide(
-            color: appCs.glassBorder,
-            width: AppBorder.hairline,
-          ),
+          side: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
         ),
         elevation: AppElevation.low,
         shadowColor: Colors.black.withValues(alpha: 0.24),
@@ -489,13 +486,7 @@ class _TaskList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    // Active tasks (pending / in_progress) float to the top.
-    final active = items.where((i) => i.status != TodoState.completed).toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
-    final done = items.where((i) => i.status == TodoState.completed).toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
+    final ordered = TodoItem.hierarchyOrder(items);
 
     return ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 280),
@@ -510,28 +501,17 @@ class _TaskList extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (active.isNotEmpty) ...[
-              ...active.map(
-                (i) => _Row(item: i, onToggle: () => onToggle(i.id)),
-              ),
-            ],
-            if (done.isNotEmpty) ...[
+            for (final item in ordered)
               Padding(
                 padding: EdgeInsets.only(
-                  top: active.isEmpty ? 0 : AppSpacing.xs,
-                  bottom: AppSpacing.xxs,
+                  left: 16.0 * TodoItem.depthIn(item, items).clamp(0, 3),
                 ),
-                child: Text(
-                  'Completed',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0,
-                  ),
+                child: _Row(
+                  item: item,
+                  assignedAgent: TodoItem.effectiveAgentId(item, items),
+                  onToggle: () => onToggle(item.id),
                 ),
               ),
-              ...done.map((i) => _Row(item: i, onToggle: () => onToggle(i.id))),
-            ],
           ],
         ),
       ),
@@ -540,10 +520,11 @@ class _TaskList extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.item, required this.onToggle});
+  const _Row({required this.item, required this.onToggle, this.assignedAgent});
 
   final TodoItem item;
   final VoidCallback onToggle;
+  final String? assignedAgent;
 
   @override
   Widget build(BuildContext context) {
@@ -624,6 +605,16 @@ class _Row extends StatelessWidget {
                       height: AppLineHeight.normal,
                     ),
                   ),
+                  if (assignedAgent case final agentId? when agentId.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xxxs),
+                      child: Text(
+                        'Assigned to $agentId',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   if (item.description case final description?
                       when description.isNotEmpty)
                     Padding(

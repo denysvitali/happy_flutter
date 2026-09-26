@@ -251,6 +251,11 @@ Providers live in `lib/core/providers/`, one notifier per file. `app_providers.d
 | `offlineDictationNotifierProvider` | `OfflineDictationState` |
 | `loggerNotifierProvider` / `loggerServiceProvider` | logger debounced state / service |
 
+Session ToDos are persisted in encrypted session metadata. Completed items stay
+visible until a new item is added. Items can have a `parentId` and an
+`agentId`; the chat task banner shows the hierarchy and assignee, and Tasks
+can be filtered by agent.
+
 ## Security
 
 - **End-to-end encryption**: NaCl/libsodium for session/machine data, AES-256-GCM for artifacts

@@ -66,6 +66,7 @@ class TodoItem {
     required this.updatedAt,
     this.description,
     this.parentId,
+    this.agentId,
     this.dependencies = const [],
     this.dueAt,
     this.sessionId,
@@ -83,6 +84,7 @@ class TodoItem {
       order: _asInt(json['order']) ?? 0,
       description: json['description'] as String?,
       parentId: json['parentId'] as String?,
+      agentId: json['agentId'] as String?,
       dependencies:
           (json['dependencies'] as List<dynamic>?)
               ?.map((e) => e as String)
@@ -151,6 +153,7 @@ class TodoItem {
   final int order;
   final String? description;
   final String? parentId;
+  final String? agentId;
   final List<String> dependencies;
   final int? dueAt;
   final int createdAt;
@@ -158,6 +161,88 @@ class TodoItem {
   final String? sessionId;
   final String? path;
   final int? completedAt;
+
+  /// Parents precede their children; missing parents are treated as roots.
+  static List<TodoItem> hierarchyOrder(List<TodoItem> items) {
+    final byId = {for (final item in items) item.id: item};
+    final sorted = [...items]..sort((a, b) => a.order.compareTo(b.order));
+    final result = <TodoItem>[];
+    final visited = <String>{};
+
+    void append(TodoItem item) {
+      if (!visited.add(item.id)) return;
+      result.add(item);
+      for (final child in sorted) {
+        if (child.parentId == item.id) append(child);
+      }
+    }
+
+    for (final item in sorted) {
+      if (!byId.containsKey(item.parentId)) append(item);
+    }
+    // Legacy or malformed snapshots can contain cycles.
+    for (final item in sorted) {
+      append(item);
+    }
+    return result;
+  }
+
+  static int depthIn(TodoItem item, List<TodoItem> items) {
+    final byId = {for (final entry in items) entry.id: entry};
+    final visited = <String>{item.id};
+    var depth = 0;
+    var parentId = item.parentId;
+    while (parentId != null && visited.add(parentId)) {
+      final parent = byId[parentId];
+      if (parent == null) break;
+      depth++;
+      parentId = parent.parentId;
+    }
+    return depth;
+  }
+
+  static String? effectiveAgentId(TodoItem item, List<TodoItem> items) {
+    final byId = {for (final entry in items) entry.id: entry};
+    final visited = <String>{};
+    var current = item;
+    while (visited.add(current.id)) {
+      if (current.agentId case final agentId? when agentId.isNotEmpty) {
+        return agentId;
+      }
+      final parent = byId[current.parentId];
+      if (parent == null) break;
+      current = parent;
+    }
+    return null;
+  }
+
+  /// Keep completed rows visible until a later snapshot adds a new row.
+  /// A completed ancestor remains while any child is still visible.
+  static List<TodoItem> expireCompletedOnAdd(
+    List<TodoItem> previous,
+    List<TodoItem> next,
+  ) {
+    final priorIds = {for (final item in previous) item.id};
+    if (!next.any((item) => !priorIds.contains(item.id))) return next;
+    final expiredCandidates = {
+      for (final item in previous)
+        if (item.status.isTerminal) item.id,
+    };
+    var remaining = [...next];
+    while (true) {
+      final parents = {
+        for (final item in remaining)
+          if (item.parentId != null) item.parentId,
+      };
+      final kept = remaining.where((item) {
+        return !expiredCandidates.contains(item.id) ||
+            !item.status.isTerminal ||
+            parents.contains(item.id);
+      }).toList();
+      if (kept.length == remaining.length) return remaining;
+      remaining = kept;
+    }
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -168,6 +253,7 @@ class TodoItem {
       'order': order,
       'description': description,
       'parentId': parentId,
+      'agentId': agentId,
       'dependencies': dependencies,
       'dueAt': dueAt,
       'createdAt': createdAt,
@@ -188,6 +274,8 @@ class TodoItem {
     bool clearDescription = false,
     String? parentId,
     bool clearParentId = false,
+    String? agentId,
+    bool clearAgentId = false,
     List<String>? dependencies,
     int? dueAt,
     int? createdAt,
@@ -204,6 +292,7 @@ class TodoItem {
       order: order ?? this.order,
       description: clearDescription ? null : (description ?? this.description),
       parentId: clearParentId ? null : (parentId ?? this.parentId),
+      agentId: clearAgentId ? null : (agentId ?? this.agentId),
       dependencies: dependencies != null
           ? List<String>.from(dependencies)
           : List<String>.from(this.dependencies),
