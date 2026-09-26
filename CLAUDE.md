@@ -266,6 +266,13 @@ leaves while keeping completed ancestors of visible children. Preserve these
 fields in tool snapshot parsing and show the hierarchy and agent in chat and
 Tasks. The Tasks screen offers an agent filter.
 
+Codex sub-agent conversations use stable `Agent` tool-call anchors keyed by
+their child thread ID. Their emitted messages carry `isSidechain`, `agentId`,
+and `parentToolUseId` so the existing sidechain grouper keeps each agent's
+conversation separate from the parent chat, including when spawn items are
+missing or arrive late. ToDo `agentId` assignments alone are not transcript
+linkage.
+
 **Notable:** `AuthStateNotifier` acts as a coordinator — on auth changes it calls `loadFromSync()`/`clear()` on all other providers.
 
 **`_shared.dart`** files in feature directories contain an `unset` sentinel (`const Object()`) used in `copyWith` methods to distinguish "not provided" from `null`.

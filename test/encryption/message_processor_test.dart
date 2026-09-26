@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/message_processor.dart';
+import 'package:happy_flutter/core/services/sidechain_grouper.dart';
 
 void main() {
   group('processDecryptedMessages', () {
@@ -1022,6 +1023,77 @@ void main() {
     });
 
     group('codex content', () {
+      test('keeps interleaved Codex agents in separate conversations', () {
+        final payloads = <Map<String, dynamic>>[
+          {
+            'type': 'tool-call',
+            'name': 'Agent',
+            'callId': 'codex-agent:gpu',
+            'input': {'agentId': 'gpu', 'description': 'GPU gate'},
+          },
+          {
+            'type': 'tool-call',
+            'name': 'Agent',
+            'callId': 'codex-agent:browser',
+            'input': {'agentId': 'browser', 'description': 'Browser gate'},
+          },
+          {
+            'type': 'model-output',
+            'fullText': 'GPU progress',
+            'isSidechain': true,
+            'agentId': 'gpu',
+            'parentToolUseId': 'codex-agent:gpu',
+          },
+          {
+            'type': 'model-output',
+            'fullText': 'Browser progress',
+            'isSidechain': true,
+            'agentId': 'browser',
+            'parentToolUseId': 'codex-agent:browser',
+          },
+          {'type': 'model-output', 'fullText': 'Parent progress'},
+          {
+            'type': 'model-output',
+            'fullText': 'GPU result',
+            'isSidechain': true,
+            'agentId': 'gpu',
+            'parentToolUseId': 'codex-agent:gpu',
+          },
+        ];
+        final parsed = processDecryptedMessages(
+          decryptedJsonList: [
+            for (final data in payloads)
+              {
+                'role': 'agent',
+                'content': {'type': 'codex', 'data': data},
+              },
+          ],
+          wireMessages: [
+            for (var i = 0; i < payloads.length; i++)
+              {'id': 'm$i', 'seq': i + 1, 'createdAt': 1000 + i},
+          ],
+          sessionId: 's1',
+        );
+
+        final grouped = SidechainGrouper().groupMessages(parsed.messages);
+        expect(grouped, isNotNull);
+        expect(grouped!.messages, hasLength(3));
+        final gpu = grouped.messages.firstWhere(
+          (m) => m['toolUseId'] == 'codex-agent:gpu',
+        );
+        final browser = grouped.messages.firstWhere(
+          (m) => m['toolUseId'] == 'codex-agent:browser',
+        );
+        expect((gpu['children'] as List).map((m) => m['content']), [
+          'GPU progress',
+          'GPU result',
+        ]);
+        expect((browser['children'] as List).map((m) => m['content']), [
+          'Browser progress',
+        ]);
+        expect(grouped.messages.last['content'], 'Parent progress');
+      });
+
       test('processes codex message', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
