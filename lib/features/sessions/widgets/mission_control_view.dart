@@ -147,6 +147,7 @@ class _MissionControlViewState extends State<MissionControlView> {
   // Live wire: rolling buffer of cross-session change events, derived by
   // diffing consecutive snapshots of the active sessions.
   bool _wireSeeded = false;
+  late final int _wireStartedAtMs;
   WireSnapshot? _wirePrevious;
   List<WireEvent> _wireEvents = [];
 
@@ -180,6 +181,7 @@ class _MissionControlViewState extends State<MissionControlView> {
   @override
   void initState() {
     super.initState();
+    _wireStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     // Seed from the mounted snapshot so the first actual update is diffed.
     _observeWireEvents();
   }
@@ -219,7 +221,12 @@ class _MissionControlViewState extends State<MissionControlView> {
     _wirePrevious = next;
     if (previous == null) return;
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final fresh = diffWireEvents(previous: previous, next: next, nowMs: nowMs);
+    final fresh = diffWireEvents(
+      previous: previous,
+      next: next,
+      nowMs: nowMs,
+      sinceMs: _wireStartedAtMs,
+    );
     if (fresh.isEmpty) return;
     setState(() {
       _wireEvents = mergeWireEvents(_wireEvents, fresh, nowMs: nowMs);
@@ -239,6 +246,8 @@ class _MissionControlViewState extends State<MissionControlView> {
             ? MissionLane.quiet
             : missionLaneFor(session, entry),
         unreadCount: entry.unreadCount,
+        createdAt: session.createdAt,
+        activeAt: session.activeAt,
         lastMessageAt: entry.lastMessageTimestamp,
         preview: entry.lastMessagePreview,
         role: entry.lastMessageRole,

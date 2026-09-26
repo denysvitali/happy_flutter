@@ -67,6 +67,8 @@ class WireSessionState {
     required this.live,
     required this.lane,
     required this.unreadCount,
+    required this.createdAt,
+    required this.activeAt,
     required this.lastMessageAt,
     required this.preview,
     required this.role,
@@ -78,6 +80,8 @@ class WireSessionState {
   final bool live;
   final MissionLane lane;
   final int unreadCount;
+  final int createdAt;
+  final int activeAt;
 
   /// Timestamp of the newest message, or null when unknown.
   final int? lastMessageAt;
@@ -88,30 +92,40 @@ class WireSessionState {
 
 typedef WireSnapshot = Map<String, WireSessionState>;
 
+const liveWireWindow = Duration(hours: 2);
+
 /// Derives the events that happened between two snapshots.
 ///
 /// Pure and language-free: callers localize kind labels in the widget
 /// layer. The first snapshot seeds the baseline and produces no events,
 /// so opening the board never floods it with "joined" rows for every
-/// existing session.
+/// existing session. Historical updates loaded after that baseline are
+/// also ignored.
 List<WireEvent> diffWireEvents({
   required WireSnapshot? previous,
   required WireSnapshot next,
   required int nowMs,
+  required int sinceMs,
 }) {
   if (previous == null) return const [];
   final events = <WireEvent>[];
+  final floor = nowMs - liveWireWindow.inMilliseconds;
+  final recentSince = sinceMs > floor ? sinceMs : floor;
   for (final entry in next.entries) {
     final id = entry.key;
     final state = entry.value;
     final prev = previous[id];
     if (prev == null) {
+      final joinedAt = state.activeAt > state.createdAt
+          ? state.activeAt
+          : state.createdAt;
+      if (joinedAt < recentSince) continue;
       events.add(
         WireEvent(
           sessionId: id,
           sessionName: state.name,
           workspaceKey: state.workspaceKey,
-          atMs: nowMs,
+          atMs: joinedAt,
           kind: WireEventKind.joined,
           detail: state.preview,
         ),
@@ -121,19 +135,28 @@ List<WireEvent> diffWireEvents({
 
     final advanced =
         state.lastMessageAt != null &&
+        state.lastMessageAt! >= recentSince &&
         (prev.lastMessageAt == null ||
             state.lastMessageAt! > prev.lastMessageAt!);
     if (advanced) {
       final detail = _nonEmpty(state.preview);
       if (state.isError) {
         events.add(
-          _event(id, state, nowMs, WireEventKind.error, detail),
+          _event(id, state, state.lastMessageAt!, WireEventKind.error, detail),
         );
       } else if (state.role == 'user') {
-        events.add(_event(id, state, nowMs, WireEventKind.sent, detail));
+        events.add(
+          _event(id, state, state.lastMessageAt!, WireEventKind.sent, detail),
+        );
       } else {
         events.add(
-          _event(id, state, nowMs, WireEventKind.inbound, detail),
+          _event(
+            id,
+            state,
+            state.lastMessageAt!,
+            WireEventKind.inbound,
+            detail,
+          ),
         );
       }
     }
@@ -148,8 +171,7 @@ List<WireEvent> diffWireEvents({
     }
     if (prev.live && !state.live && !advanced) {
       final settled =
-          state.lane != MissionLane.blocked &&
-          state.lane != MissionLane.error;
+          state.lane != MissionLane.blocked && state.lane != MissionLane.error;
       if (settled) {
         events.add(_event(id, state, nowMs, WireEventKind.done, null));
       }
@@ -192,13 +214,11 @@ List<WireEvent> mergeWireEvents(
   List<WireEvent> incoming, {
   required int nowMs,
   int cap = 40,
-  Duration maxAge = const Duration(hours: 2),
+  Duration maxAge = liveWireWindow,
 }) {
   final floor = nowMs - maxAge.inMilliseconds;
-  final merged = existing
-      .where((e) => e.atMs >= floor)
-      .toList(growable: true);
-  for (final event in incoming) {
+  final merged = existing.where((e) => e.atMs >= floor).toList(growable: true);
+  for (final event in incoming.where((e) => e.atMs >= floor)) {
     if (merged.isNotEmpty &&
         event.kind == WireEventKind.inbound &&
         merged.first.kind == WireEventKind.inbound &&
@@ -323,11 +343,7 @@ class _StreamWallSectionState extends State<StreamWallSection> {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.radar_rounded,
-                size: AppIconSize.sm,
-                color: accent,
-              ),
+              Icon(Icons.radar_rounded, size: AppIconSize.sm, color: accent),
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
@@ -362,7 +378,7 @@ class _StreamWallSectionState extends State<StreamWallSection> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (var i = 0; i < children.length;i++) ...[
+              for (var i = 0; i < children.length; i++) ...[
                 if (i > 0)
                   Divider(
                     height: 1,
@@ -398,8 +414,7 @@ class _WireRow extends StatelessWidget {
     final l10n = context.l10n;
     final visual = _kindVisual(context, event.kind);
     final detail = event.detail ?? visual.label(l10n);
-    final semantics =
-        '${event.sessionName}, ${visual.label(l10n)}, $detail';
+    final semantics = '${event.sessionName}, ${visual.label(l10n)}, $detail';
 
     return Semantics(
       button: true,
@@ -513,9 +528,7 @@ class _DisclosureRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: AppTouchTarget.min,
-            ),
+            constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

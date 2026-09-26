@@ -279,13 +279,14 @@ void main() {
       // The first real update after mounting must produce a joined row.
       const golfId = 'c0ffee0007';
       const golfLabel = 'Golf review';
+      final startedAt = DateTime.now().millisecondsSinceEpoch;
       h.sessions.replace(
         contractSession(
           id: golfId,
           label: golfLabel,
           presence: 'online',
           age: const Duration(seconds: 30),
-        ),
+        ).copyWith(createdAt: startedAt, activeAt: startedAt),
       );
       await _settle(tester);
       final wireRow = find.descendant(
@@ -304,13 +305,14 @@ void main() {
       final h = await _pumpList(tester, viewStyle: 'mission_control');
       const golfId = 'c0ffee0007';
       const golfLabel = 'Golf review';
+      final startedAt = DateTime.now().millisecondsSinceEpoch;
       h.sessions.replace(
         contractSession(
           id: golfId,
           label: golfLabel,
           presence: 'online',
           age: const Duration(seconds: 30),
-        ),
+        ).copyWith(createdAt: startedAt, activeAt: startedAt),
       );
       await _settle(tester);
       final wireRow = find.descendant(

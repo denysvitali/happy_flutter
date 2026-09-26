@@ -12,6 +12,8 @@ void main() {
     live: true,
     lane: MissionLane.live,
     unreadCount: 0,
+    createdAt: 1000,
+    activeAt: 1000,
     lastMessageAt: 1000,
     preview: 'thinking',
     role: 'agent',
@@ -22,7 +24,7 @@ void main() {
     test('the first snapshot only seeds the baseline', () {
       final next = {'s1': base};
       expect(
-        diffWireEvents(previous: null, next: next, nowMs: 5000),
+        diffWireEvents(previous: null, next: next, nowMs: 5000, sinceMs: 0),
         isEmpty,
       );
     });
@@ -34,6 +36,7 @@ void main() {
         previous: previous,
         next: next,
         nowMs: 5000,
+        sinceMs: 0,
       );
       expect(events, hasLength(1));
       expect(events.single.kind, WireEventKind.joined);
@@ -49,16 +52,14 @@ void main() {
         previous: previous,
         next: next,
         nowMs: 6000,
+        sinceMs: 0,
       );
       expect(events.single.kind, WireEventKind.inbound);
       expect(events.single.detail, 'fixed the parser');
     });
 
     test('a user-role advance routes to sent, an error to error', () {
-      final previous = {
-        'u': base,
-        'e': base,
-      };
+      final previous = {'u': base, 'e': base};
       final next = {
         'u': _with(base, lastMessageAt: 7000, role: 'user'),
         'e': _with(base, lastMessageAt: 7000, isError: true),
@@ -67,6 +68,7 @@ void main() {
         previous: previous,
         next: next,
         nowMs: 7000,
+        sinceMs: 0,
       );
       final kinds = {for (final e in events) e.sessionId: e.kind};
       expect(kinds['u'], WireEventKind.sent);
@@ -75,13 +77,12 @@ void main() {
 
     test('a permission raise without new traffic fires blocked once', () {
       final previous = {'s1': base};
-      final next = {
-        's1': _with(base, lane: MissionLane.blocked),
-      };
+      final next = {'s1': _with(base, lane: MissionLane.blocked)};
       final events = diffWireEvents(
         previous: previous,
         next: next,
         nowMs: 8000,
+        sinceMs: 0,
       );
       expect(events.single.kind, WireEventKind.blocked);
     });
@@ -97,30 +98,24 @@ void main() {
         previous: previous,
         next: next,
         nowMs: 9000,
+        sinceMs: 0,
       );
       expect(events, hasLength(1));
       expect(events.single.kind, WireEventKind.inbound);
     });
 
     test('a settled stop is done; blocked/error stops are not', () {
-      final previous = {
-        'ok': base,
-        'err': base,
-      };
+      final previous = {'ok': base, 'err': base};
       final nowMs = 10 * 1000;
       final next = {
         'ok': _with(base, live: false, lane: MissionLane.quiet),
-        'err': _with(
-          base,
-          live: false,
-          lane: MissionLane.error,
-          isError: true,
-        ),
+        'err': _with(base, live: false, lane: MissionLane.error, isError: true),
       };
       final events = diffWireEvents(
         previous: previous,
         next: next,
         nowMs: nowMs,
+        sinceMs: 0,
       );
       final kinds = {for (final e in events) e.sessionId: e.kind};
       expect(kinds['ok'], WireEventKind.done);
@@ -130,7 +125,71 @@ void main() {
     test('unchanged snapshots produce nothing', () {
       final previous = {'s1': base};
       final next = {'s1': base};
-      expect(diffWireEvents(previous: previous, next: next, nowMs: 9999), isEmpty);
+      expect(
+        diffWireEvents(previous: previous, next: next, nowMs: 9999, sinceMs: 0),
+        isEmpty,
+      );
+    });
+
+    test('a historical session loaded after mount is not started', () {
+      final events = diffWireEvents(
+        previous: const {},
+        next: const {'s1': base},
+        nowMs: 3 * 24 * 3600 * 1000,
+        sinceMs: 2 * 24 * 3600 * 1000,
+      );
+      expect(events, isEmpty);
+    });
+
+    test('a session from just before mount is not started', () {
+      final events = diffWireEvents(
+        previous: const {},
+        next: {'s1': _with(base, activeAt: 8500)},
+        nowMs: 10000,
+        sinceMs: 9000,
+      );
+      expect(events, isEmpty);
+    });
+
+    test('a historical message loaded after mount is not new', () {
+      final events = diffWireEvents(
+        previous: const {'s1': base},
+        next: {'s1': _with(base, lastMessageAt: 2000)},
+        nowMs: 3 * 24 * 3600 * 1000,
+        sinceMs: 2 * 24 * 3600 * 1000,
+      );
+      expect(events, isEmpty);
+    });
+
+    test('a message from just before mount is not new', () {
+      final events = diffWireEvents(
+        previous: const {'s1': base},
+        next: {'s1': _with(base, lastMessageAt: 8500)},
+        nowMs: 10000,
+        sinceMs: 9000,
+      );
+      expect(events, isEmpty);
+    });
+
+    test('a recent message keeps its real timestamp', () {
+      final events = diffWireEvents(
+        previous: const {'s1': base},
+        next: {'s1': _with(base, lastMessageAt: 9500)},
+        nowMs: 10000,
+        sinceMs: 9000,
+      );
+      expect(events.single.atMs, 9500);
+    });
+
+    test('a recent session joining keeps its real active time', () {
+      final events = diffWireEvents(
+        previous: const {},
+        next: {'s1': _with(base, activeAt: 9500)},
+        nowMs: 10000,
+        sinceMs: 9000,
+      );
+      expect(events.single.kind, WireEventKind.joined);
+      expect(events.single.atMs, 9500);
     });
   });
 
@@ -176,12 +235,19 @@ void main() {
       // Newest first.
       expect(capped.first.atMs, greaterThan(capped.last.atMs));
     });
+
+    test('does not insert old incoming events', () {
+      final old = ev(id: 'old', at: 1000);
+      final merged = mergeWireEvents(const [], [old], nowMs: 3 * 3600 * 1000);
+      expect(merged, isEmpty);
+    });
   });
 }
 
 WireSessionState _with(
   WireSessionState state, {
   int? lastMessageAt,
+  int? activeAt,
   String? preview,
   String? role,
   bool? isError,
@@ -193,6 +259,8 @@ WireSessionState _with(
   live: live ?? state.live,
   lane: lane ?? state.lane,
   unreadCount: state.unreadCount,
+  createdAt: state.createdAt,
+  activeAt: activeAt ?? state.activeAt,
   lastMessageAt: lastMessageAt ?? state.lastMessageAt,
   preview: preview ?? state.preview,
   role: role ?? state.role,
