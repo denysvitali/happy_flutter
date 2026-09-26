@@ -424,6 +424,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Update this installation using its package manager.';
 
   @override
+  String get machineAgentsRestartTitle =>
+      'Restart sessions to finish the update?';
+
+  @override
+  String machineAgentsRestartMessage(
+    String agent,
+    String version,
+    String machine,
+  ) {
+    return 'The $agent update installed version $version. Restart sessions on $machine so they pick up the new binary. Active sessions resume automatically.';
+  }
+
+  @override
+  String get machineAgentsRestartSessions => 'Restart sessions';
+
+  @override
+  String get machineAgentsRestartSkip => 'Later';
+
+  @override
+  String machineAgentsBannerTitle(String agent) {
+    return '$agent update available';
+  }
+
+  @override
+  String machineAgentsBannerSubtitle(String version, String latest) {
+    return 'Version $version is installed. Update to $latest or later.';
+  }
+
+  @override
+  String get machineAgentsBannerUpdate => 'Update';
+
+  @override
+  String get machineAgentsBannerDismiss => 'Later';
+
+  @override
   String get machineStatus => 'Status';
 
   @override

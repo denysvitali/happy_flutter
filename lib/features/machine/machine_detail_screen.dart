@@ -28,6 +28,7 @@ import '../../core/utils/snack.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/version_utils.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
+import 'widgets/agent_update_banner.dart';
 import 'widgets/machine_provider_versions.dart';
 
 /// Detail screen for a single machine.
@@ -358,6 +359,13 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
             ],
 
             const SizedBox(height: AppSpacing.xxl),
+            AgentUpdateBanner(
+              key: ValueKey('agent-update-banner-${widget.machineId}'),
+              machineId: widget.machineId,
+              machineName: machineName,
+              isOnline: isOnline,
+            ),
+            const SizedBox(height: AppSpacing.md),
             MachineProviderVersions(
               key: ValueKey('provider-versions-${widget.machineId}'),
               machineId: widget.machineId,

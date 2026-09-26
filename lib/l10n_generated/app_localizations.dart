@@ -856,6 +856,58 @@ abstract class AppLocalizations {
   /// **'Update this installation using its package manager.'**
   String get machineAgentsManagedElsewhere;
 
+  /// No description provided for @machineAgentsRestartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart sessions to finish the update?'**
+  String get machineAgentsRestartTitle;
+
+  /// No description provided for @machineAgentsRestartMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The {agent} update installed version {version}. Restart sessions on {machine} so they pick up the new binary. Active sessions resume automatically.'**
+  String machineAgentsRestartMessage(
+    String agent,
+    String version,
+    String machine,
+  );
+
+  /// No description provided for @machineAgentsRestartSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart sessions'**
+  String get machineAgentsRestartSessions;
+
+  /// No description provided for @machineAgentsRestartSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get machineAgentsRestartSkip;
+
+  /// No description provided for @machineAgentsBannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{agent} update available'**
+  String machineAgentsBannerTitle(String agent);
+
+  /// No description provided for @machineAgentsBannerSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version} is installed. Update to {latest} or later.'**
+  String machineAgentsBannerSubtitle(String version, String latest);
+
+  /// No description provided for @machineAgentsBannerUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get machineAgentsBannerUpdate;
+
+  /// No description provided for @machineAgentsBannerDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get machineAgentsBannerDismiss;
+
   /// No description provided for @machineStatus.
   ///
   /// In en, this message translates to:
