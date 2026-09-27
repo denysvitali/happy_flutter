@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../services/logger_service.dart' show logger;
 import '../services/token_refresh_manager.dart';
+import '../utils/network_errors.dart';
 import 'request_budget.dart';
 import 'timed_http_adapter.dart';
 
@@ -132,6 +134,18 @@ class RetryInterceptor extends Interceptor {
   final int _maxDelayMs;
   final int _maxTotalElapsedMs;
   final Random _jitterRng = Random();
+
+  /// Minimum gap between connection-level outage warnings.
+  ///
+  /// An offline device exhausts retries on every endpoint at once; logging
+  /// each at warning opened one GlitchTip issue per endpoint for a single
+  /// DNS outage (2026-09-26). Per-endpoint lines are info; one constant
+  /// warning per window records the outage.
+  static const Duration outageWarningInterval = Duration(minutes: 10);
+  static DateTime? _lastOutageWarningAt;
+
+  @visibleForTesting
+  static void debugResetOutageWarning() => _lastOutageWarningAt = null;
   final Set<RequestBudget> _activeBudgets = {};
   bool _suspended = false;
 
@@ -337,6 +351,7 @@ class RetryInterceptor extends Interceptor {
       options,
       statusCode: statusCode,
       errorType: err.type,
+      error: err,
     );
     if (delay == null) {
       _finish(options);
@@ -389,18 +404,38 @@ class RetryInterceptor extends Interceptor {
     tokenRefreshManager.notifyReauthRequired();
   }
 
+  /// Log a request that stopped retrying. Server failures (5xx, timeouts)
+  /// stay warnings: they are the brownout signal. Connection-level failures
+  /// mean the device network is down, so they fold into one outage warning.
+  void _logGaveUp(String message, Object? error) {
+    if (error == null || !isConnectionLevelNetworkError(error)) {
+      logger.warning(message);
+      return;
+    }
+    logger.info('$message (connection-level)');
+    final now = DateTime.now();
+    final last = _lastOutageWarningAt;
+    if (last != null && now.difference(last) < outageWarningInterval) return;
+    _lastOutageWarningAt = now;
+    logger.warning(
+      'RetryInterceptor: requests exhausted retries during a network outage',
+    );
+  }
+
   /// Returns the backoff to wait before the next attempt, or null when the
   /// request has exhausted its attempt count or its total time budget.
   Duration? _nextRetryDelay(
     RequestOptions options, {
     int? statusCode,
     DioExceptionType? errorType,
+    Object? error,
   }) {
     final label = '${options.method} ${options.path}';
     final currentRetry = options.extra[retryCountKey] as int? ?? 0;
     if (currentRetry >= _maxRetries) {
-      logger.warning(
+      _logGaveUp(
         'RetryInterceptor: max retries ($_maxRetries) exceeded for $label',
+        error,
       );
       return null;
     }
@@ -419,10 +454,11 @@ class RetryInterceptor extends Interceptor {
     );
 
     if (elapsedMs + backoffMs > _maxTotalElapsedMs) {
-      logger.warning(
+      _logGaveUp(
         'RetryInterceptor: retry budget ($_maxTotalElapsedMs ms) exhausted '
         'after $elapsedMs ms for $label (giving up after $currentRetry '
         'retries)',
+        error,
       );
       return null;
     }

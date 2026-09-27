@@ -9,6 +9,7 @@ import '../services/logger_service.dart' show logger;
 import '../services/pinned_sessions_storage.dart';
 import '../services/session_folders_storage.dart';
 import '../services/sync_service.dart';
+import '../utils/network_errors.dart';
 import '../utils/session_utils.dart';
 import '_shared.dart';
 
@@ -240,7 +241,11 @@ class SessionsNotifier extends Notifier<Map<String, Session>> {
               includeMachines: includeMachines,
             );
           } catch (e, stack) {
-            logger.warning('Failed to refresh sessions', e, stack);
+            if (isConnectionLevelNetworkError(e)) {
+              logger.info('Failed to refresh sessions (connection-level): $e');
+            } else {
+              logger.warning('Failed to refresh sessions', e, stack);
+            }
           }
           loadFromSync();
         }().whenComplete(() {

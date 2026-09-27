@@ -519,7 +519,13 @@ extension SyncDataMachines on Sync {
             ),
           ),
         );
-        logger.warning('Error fetching machines', error, stack);
+        // An offline device is not a machines problem; the interceptor
+        // already records one outage warning for it.
+        if (isConnectionLevelNetworkError(error)) {
+          logger.info('Error fetching machines (connection-level): $error');
+        } else {
+          logger.warning('Error fetching machines', error, stack);
+        }
         // Transient network errors are environmental, not app bugs.
         // LoggerService already forwards the warning to Sentry; do not
         // capture them as exceptions.

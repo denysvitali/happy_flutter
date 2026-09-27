@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/retry_interceptor.dart';
+import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/token_refresh_manager.dart';
 
 /// Adapter that replays a scripted list of status codes, repeating the last
@@ -73,6 +74,7 @@ Dio _buildDio(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  _outageTests();
 
   group('HTTP failure causes', () {
     final options = RequestOptions(path: '/v2/sessions');
@@ -495,6 +497,84 @@ class _SlowAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+
+// 2026-09-26: an offline device (DNS ERR_NAME_NOT_RESOLVED) exhausted
+// retries on every endpoint at once and opened one warning-level GlitchTip
+// issue per endpoint.
+void _outageTests() {
+  group('connection-level outage reporting', () {
+    setUp(() {
+      RetryInterceptor.debugResetOutageWarning();
+      logger.clear();
+    });
+
+    Dio buildFailing(DioException Function(String path) failure) {
+      late final Dio dio;
+      dio = Dio(
+        BaseOptions(
+          baseUrl: 'https://test.example.com',
+          validateStatus: (_) => true,
+        ),
+      );
+      dio.interceptors.add(
+        RetryInterceptor(
+          dioGetter: () => dio,
+          maxRetries: 1,
+          baseDelayMs: 1,
+          maxDelayMs: 2,
+        ),
+      );
+      dio.httpClientAdapter = _ThrowingAdapter(() {
+        throw failure('/any');
+      });
+      return dio;
+    }
+
+    List<String> warnings() => [
+      for (final entry in logger.getLogs())
+        if (entry.level == LogLevel.warning &&
+            entry.message.startsWith('RetryInterceptor'))
+          entry.message,
+    ];
+
+    test('an offline burst across endpoints logs one warning', () async {
+      final dio = buildFailing(
+        (path) => DioException(
+          requestOptions: RequestOptions(path: path),
+          type: DioExceptionType.unknown,
+          error:
+              'ClientException: Cronet exception: '
+              'net::ERR_NAME_NOT_RESOLVED, ErrorCode=1',
+        ),
+      );
+
+      for (final path in ['/v2/sessions', '/v1/machines', '/v1/artifacts']) {
+        await expectLater(dio.get<dynamic>(path), throwsA(isA<DioException>()));
+      }
+
+      expect(warnings(), [
+        'RetryInterceptor: requests exhausted retries during a network outage',
+      ]);
+    });
+
+    test('server-side failures still warn per endpoint', () async {
+      final dio = buildFailing(
+        (path) => DioException(
+          requestOptions: RequestOptions(path: path),
+          type: DioExceptionType.receiveTimeout,
+        ),
+      );
+
+      for (final path in ['/v2/sessions', '/v1/machines']) {
+        await expectLater(dio.get<dynamic>(path), throwsA(isA<DioException>()));
+      }
+
+      expect(warnings(), hasLength(2));
+      expect(warnings().first, contains('GET /v2/sessions'));
+    });
+  });
 }
 
 class _ThrowingAdapter implements HttpClientAdapter {
