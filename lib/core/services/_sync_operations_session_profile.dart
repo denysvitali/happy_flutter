@@ -671,13 +671,13 @@ extension SyncSpawnProfileResolution on Sync {
     ({String sessionId, Session session, SessionEncryption sessionEncryption})
   >
   _resolveSendTargetSession({
-    String? localId,
     required String sessionId,
     required Session session,
     required SessionEncryption sessionEncryption,
     required String effectivePermissionMode,
     String? profileId,
     String? modelMode,
+    String? localId,
   }) async {
     final health = SyncHealth(
       session: session,

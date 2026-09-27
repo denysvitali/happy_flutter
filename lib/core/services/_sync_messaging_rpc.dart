@@ -160,7 +160,7 @@ extension SyncMessagingRpc on Sync {
         rethrow;
       }
       final elapsedMs = stopwatch.elapsedMilliseconds;
-      if (elapsedMs >= 2000) {
+      if (elapsedMs >= Sync.slowMachineRpcThresholdMs(method)) {
         // Pre-flight pings over 2s usually mean a wedged daemon or a
         // saturated socket. Keep the full line locally at info-level
         // (does not forward to Sentry — interpolated elapsedMs defeats

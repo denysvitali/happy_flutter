@@ -2251,6 +2251,17 @@ what you have, you must use the options mode.
   /// Whether a machineRPC SLOW/FAILED Sentry capture is allowed for this
   /// key right now, recording the timestamp when it is. Local warning
   /// logs are unaffected — only the Sentry side is throttled.
+  /// Elapsed time after which a machine RPC is reported as SLOW.
+  ///
+  /// Discovery calls start provider CLIs on the machine: over 14 days
+  /// `get-codex-models` exceeded 2 s on 20% of successful calls and
+  /// `get-provider-versions` on 4%, so the ping-sized 2 s bar reported normal
+  /// CLI start-up as a wedged daemon. `ping` never exceeded 1 s.
+  static int slowMachineRpcThresholdMs(String method) => switch (method) {
+    'get-codex-models' || 'get-provider-versions' => 10000,
+    _ => 2000,
+  };
+
   bool _shouldCaptureMachineRpcWarn(String key) {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final lastMs = _lastMachineRpcWarnMs[key] ?? 0;
