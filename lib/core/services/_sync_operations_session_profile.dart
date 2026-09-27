@@ -671,6 +671,7 @@ extension SyncSpawnProfileResolution on Sync {
     ({String sessionId, Session session, SessionEncryption sessionEncryption})
   >
   _resolveSendTargetSession({
+    String? localId,
     required String sessionId,
     required Session session,
     required SessionEncryption sessionEncryption,
@@ -890,6 +891,9 @@ extension SyncSpawnProfileResolution on Sync {
       'lifecycleState=${session.effectiveLifecycleState}); '
       'attempting auto-restore',
     );
+    if (localId != null) {
+      messageInvariantMonitor.markSendPath(localId, SendPath.restore);
+    }
 
     if (_autoRestoreInFlight.contains(sessionId)) {
       final inFlightProfileId = _autoRestoreProfileIds[sessionId];
@@ -1203,6 +1207,17 @@ extension SyncSpawnProfileResolution on Sync {
         logger.info(
           '[sendMessage] auto-restore failed ($reason) '
           'session=$sessionId: $error',
+        );
+      } else if (error is RpcException &&
+          error.message.contains('refusing stale spawn')) {
+        // The daemon parked an idle session ("will restart on next user
+        // message") and rejects an explicit respawn of it. The message POST
+        // that follows restarts it with the message's model, so the send is
+        // not failed (GlitchTip 8910/8911 flashed "Failed" on a delivered
+        // message).
+        logger.info(
+          '[sendMessage] daemon refused stale respawn; delivering to the '
+          'parked session so it restarts session=$sessionId',
         );
       } else if (lifecycleErrored) {
         logger.warning(

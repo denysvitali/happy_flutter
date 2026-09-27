@@ -206,6 +206,10 @@ class Sync {
   /// returning an error — see createSession).
   static const int recentlySpawnedWaitMs = 15000;
 
+  /// Lane wait after which a send is labelled `path=queued` on
+  /// `app.message_send`: it sat behind an earlier send in the session lane.
+  static const int _sendLaneQueuedThresholdMs = 100;
+
   // ── Test-only wall-clock overrides ─────────────────────────────────────
   // Production reads go through the private getters below so the shipped
   // defaults stay identical; tests shrink them so real-timer paths

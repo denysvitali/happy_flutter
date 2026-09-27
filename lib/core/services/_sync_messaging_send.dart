@@ -193,9 +193,14 @@ extension SyncMessagingSend on Sync {
     // Reserve the shared delivery lane before preparation can yield. The
     // reservation also remains held through delivery, so retries cannot pass.
     final prepared = Completer<Future<void> Function()?>();
+    final laneReservedAt = Stopwatch()..start();
     final completeSendFuture = messageOutbox.serialize<void>(
       sessionId,
       () async {
+        if (laneReservedAt.elapsedMilliseconds >=
+            Sync._sendLaneQueuedThresholdMs) {
+          messageInvariantMonitor.markSendPath(localId, SendPath.queued);
+        }
         final deliver = await prepared.future;
         if (deliver != null) await deliver();
       },
@@ -544,6 +549,7 @@ extension SyncMessagingSend on Sync {
           parentSpan: sendSpan,
           phase: 'target_resolution',
           body: () => _resolveSendTargetSession(
+            localId: clientLocalId,
             sessionId: sessionId,
             session: session,
             sessionEncryption: sessionEncryption,
@@ -977,6 +983,7 @@ extension SyncMessagingSend on Sync {
             rawRecord: rawRecord,
           );
           outcome = 'agent_starting';
+          messageInvariantMonitor.markSendPath(localId, SendPath.readinessWait);
           transaction.setData('queuedForReadiness', true);
           await transaction.finish(status: const SpanStatus.deadlineExceeded());
           return;
@@ -1269,6 +1276,7 @@ extension SyncMessagingSend on Sync {
     int retryCount = 0,
   }) {
     final runtimeGeneration = _runtimeGeneration;
+    messageInvariantMonitor.markSendPath(localId, SendPath.outbox);
     return messageOutbox
         .add(
           OutboxEntry(
@@ -1603,6 +1611,10 @@ extension SyncMessagingSend on Sync {
         '[MessageOutbox] deferring delivery until agent readiness '
         'session=${entry.sessionId} localId=${entry.localId} '
         'lifecycle=$lifecycle',
+      );
+      messageInvariantMonitor.markSendPath(
+        entry.localId,
+        SendPath.readinessWait,
       );
       return const OutboxDeliveryFailure.readiness('agent_starting');
     }

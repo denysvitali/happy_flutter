@@ -30,6 +30,7 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
+import 'package:happy_flutter/core/rpc/rpc_exception.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
@@ -245,6 +246,69 @@ void main() {
 
         await sync.sendMessage(sessionId, 'hello');
 
+        expect(failures, isEmpty);
+        expect(counterNames, isEmpty);
+      },
+    );
+
+    // GlitchTip 8910/8911: the daemon parked an idle session ("will
+    // restart on next user message") and refused a model-change respawn as
+    // a stale spawn. The message POST that follows restarts it, so this is
+    // not a user-visible failure.
+    test(
+      'stale-spawn refusal does NOT emit AutoRestoreFailure or bump the '
+      'counter, and the message is still sent',
+      () async {
+        final sessionId = 'sess-stale-spawn';
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        sync.testSessions[sessionId] = Session(
+          id: sessionId,
+          seq: 1,
+          createdAt: now,
+          updatedAt: now,
+          active: false,
+          activeAt: now,
+          metadata: Metadata(
+            host: '',
+            machineId: 'machine-1',
+            path: '/repo',
+            flavor: 'claude',
+            lifecycleState: 'exited',
+            lifecycleStateSince: now,
+          ),
+          metadataVersion: 1,
+          agentStateVersion: 1,
+          thinking: false,
+          presence: 'offline',
+        );
+        sync.testMachines['machine-1'] = Machine(
+          id: 'machine-1',
+          seq: 1,
+          createdAt: now,
+          updatedAt: now,
+          active: true,
+          activeAt: now,
+          metadataVersion: 1,
+          daemonStateVersion: 0,
+          metadata: const MachineMetadata(homeDir: '/home/user'),
+        );
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          if (method == 'spawn-happy-session') {
+            throw RpcException(
+              code: RpcErrorCode.unknown,
+              message:
+                  'session $sessionId is in terminal state; '
+                  'refusing stale spawn',
+              retryable: false,
+            );
+          }
+          return <String, dynamic>{'ok': true};
+        };
+
+        final result = await sync.sendMessage(sessionId, 'hello');
+
+        expect(result, sessionId);
         expect(failures, isEmpty);
         expect(counterNames, isEmpty);
       },

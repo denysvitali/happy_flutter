@@ -151,11 +151,12 @@ class MessageInvariantMonitor {
   static void _defaultRecordSendDuration(
     Duration elapsed, {
     required String outcome,
+    required String path,
   }) {
     OpenTelemetryService().recordDuration(
       'app.message_send',
       elapsed,
-      attributes: {'outcome': outcome},
+      attributes: {'outcome': outcome, 'path': path},
       description: 'User-perceived message send latency (tap to ack)',
     );
   }
@@ -183,6 +184,10 @@ class MessageInvariantMonitor {
   /// from older lifetimes carry no timestamp and skip the sample. Drained
   /// per ack; bounded FIFO for sends that never get one.
   final Map<String, int> _sentAtMs = <String, int>{};
+
+  /// Slow routes taken by sends still awaiting an ack. Only ids present in
+  /// [_sentAtMs] are tracked, so this map shares its bound.
+  final Map<String, Set<SendPath>> _sendPaths = <String, Set<SendPath>>{};
 
   /// LocalIds whose ack has already been observed this process. The
   /// REST-ack path and the send-status path both tap the same server ack;
@@ -256,9 +261,17 @@ class MessageInvariantMonitor {
     // Sends that never get an ack (permanent failures) would otherwise
     // pin their timestamps forever; FIFO-drain the oldest.
     while (_sentAtMs.length > _maxTrackedLocalIds) {
+      _sendPaths.remove(_sentAtMs.keys.first);
       _sentAtMs.remove(_sentAtMs.keys.first);
     }
     PowerDiagnosticsOtelReporter.instance.recordMessageSend();
+  }
+
+  /// Note that the in-process send [localId] took [path] on its way to the
+  /// server. Pure observation for the `app.message_send` `path` label.
+  void markSendPath(String localId, SendPath path) {
+    if (!_sentAtMs.containsKey(localId)) return;
+    (_sendPaths[localId] ??= <SendPath>{}).add(path);
   }
 
   /// Seed a [localId] minted in an EARLIER process lifetime, recovered
@@ -364,12 +377,17 @@ class MessageInvariantMonitor {
     // Tap→ack latency (`app.message_send`, audit 2026-08-03). Only ids
     // minted in this process have a mint timestamp.
     final sentAtMs = _sentAtMs.remove(localId);
+    final paths = _sendPaths.remove(localId);
     if (sentAtMs != null) {
       final elapsedMs = DateTime.now().millisecondsSinceEpoch - sentAtMs;
       if (elapsedMs >= 0) {
+        final dominant = SendPath.values.where(
+          (path) => paths?.contains(path) ?? false,
+        );
         _recordSendDuration(
           Duration(milliseconds: elapsedMs),
           outcome: outcome,
+          path: dominant.isEmpty ? 'direct' : dominant.first.tag,
         );
       }
     }
@@ -463,4 +481,32 @@ typedef RecordInvariantCounter =
 /// Signature for the injectable tap→ack duration sink. [outcome] is `ok`
 /// on the happy path or the violated invariant's tag.
 typedef RecordSendDuration =
-    void Function(Duration elapsed, {required String outcome});
+    void Function(
+      Duration elapsed, {
+      required String outcome,
+      required String path,
+    });
+
+/// A slow route a send took between tap and server ack, for the `path`
+/// label on `app.message_send`. Declared from most to least dominant: when a
+/// send took several, the first one explains most of its latency.
+enum SendPath {
+  /// The session process was restored or respawned before sending.
+  restore,
+
+  /// Delivery waited for a starting agent to become ready.
+  readinessWait,
+
+  /// Delivery went through the outbox after a failed or deferred attempt.
+  outbox,
+
+  /// The send waited behind an earlier send in the session's FIFO lane.
+  queued;
+
+  String get tag => switch (this) {
+    SendPath.restore => 'restore',
+    SendPath.readinessWait => 'readiness_wait',
+    SendPath.outbox => 'outbox',
+    SendPath.queued => 'queued',
+  };
+}

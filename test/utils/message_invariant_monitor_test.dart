@@ -8,12 +8,14 @@ void main() {
     late List<MessageInvariant> counted;
     late List<MessageInvariant> primed;
     late List<(Duration, String)> durations;
+    late List<String> paths;
 
     setUp(() {
       captured = <MessageInvariantViolation>[];
       counted = <MessageInvariant>[];
       primed = <MessageInvariant>[];
       durations = <(Duration, String)>[];
+      paths = <String>[];
       monitor = MessageInvariantMonitor(
         captureException:
             (
@@ -28,8 +30,9 @@ void main() {
         recordCounter: (invariant, {bool prime = false}) {
           (prime ? primed : counted).add(invariant);
         },
-        recordSendDuration: (elapsed, {required outcome}) {
+        recordSendDuration: (elapsed, {required outcome, required path}) {
           durations.add((elapsed, outcome));
+          paths.add(path);
         },
       );
     });
@@ -484,6 +487,47 @@ void main() {
 
       await Future<void>.delayed(Duration.zero);
       expect(countFor(MessageInvariant.unknownAckedLocalId), 1);
+    });
+
+    group('send path label', () {
+      test('an unmarked send is direct', () {
+        monitor
+          ..recordOptimisticSent('p-1')
+          ..recordAck(localId: 'p-1', optimisticRowCount: 1);
+
+        expect(paths, ['direct']);
+      });
+
+      test('the most dominant marked path wins', () {
+        monitor
+          ..recordOptimisticSent('p-2')
+          ..markSendPath('p-2', SendPath.queued)
+          ..markSendPath('p-2', SendPath.outbox)
+          ..markSendPath('p-2', SendPath.restore)
+          ..recordAck(localId: 'p-2', optimisticRowCount: 1);
+
+        expect(paths, ['restore']);
+      });
+
+      test('marks are per send and cleared by the ack', () {
+        monitor
+          ..recordOptimisticSent('p-3')
+          ..markSendPath('p-3', SendPath.readinessWait)
+          ..recordAck(localId: 'p-3', optimisticRowCount: 1)
+          ..recordOptimisticSent('p-4')
+          ..recordAck(localId: 'p-4', optimisticRowCount: 1);
+
+        expect(paths, ['readiness_wait', 'direct']);
+      });
+
+      test('ids not minted in this process are ignored', () {
+        monitor
+          ..seedSentLocalId('p-5')
+          ..markSendPath('p-5', SendPath.outbox)
+          ..recordAck(localId: 'p-5', optimisticRowCount: 1);
+
+        expect(paths, isEmpty);
+      });
     });
   });
 }
