@@ -4,32 +4,12 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
 **Last Updated**: 2026-09-27
 
-**Speed/UX telemetry pass, 2026-09-27.** Frozen frames rose to 3,596 on
-`home` and 2,091 on `chat` over 7 days. One Android launch on build 290200
-produced 1,057 in 8h with build and raster under 10 ms but totals of
-100 ms-1 s: the frame waited for a busy UI isolate. Loki matched 159
-Android `[MessageCache] Slow save … queue 0ms, encode 0ms` writes of
-170-667 ms, all from the suspend flush encoding and encrypting on the UI
-isolate. In one case a user sent a message one second after resuming.
-- **Suspend flush moved to the cache worker.** Suspend now queues every
-  pending window through `saveMessagesAsync`; the async path measured
-  3-31 ms of UI-isolate MMKV write. A kill during the worker window can
-  lose only a cold-start cache snapshot, not a message.
-- **Frozen-frame stall attribution.** `app.ui.frozen_frame_vsync` records
-  the pre-build wait, and every frozen-frame histogram carries
-  `stall_phase` plus `blocker`. Instrumented blockers are message-cache
-  writes, sessions-cache persistence and `messages.upsert`. Re-query after
-  rollout: `blocker="untracked"` shows the remaining uninstrumented work.
-- **Pending tool-result overflow (8907-8909, build 289900).** This build
-  already contained `6828d73b`. A reconnect crawl upserted five 200-row
-  pages into a 200-row background window. Results for calls already
-  trimmed away were queued and evicted matchable results. Trimmed tool-call
-  IDs, including nested sidechain calls, are now remembered per session
-  (bounded to 1,024), and their late results skip the queue. Verify that
-  `happy_flutter.tool_results.dropped` stays at zero after rollout.
-- **Open follow-up.** The same crawl fetched and decrypted 946 rows
-  (1.76 s) for a hidden session that retains roughly 150; cap
-  background-session forward crawls at the retained window.
+**Speed/UX pass, 2026-09-27.** The suspend cache flush now runs on the
+cache worker, which removes a UI-isolate stall of up to 670 ms after quick
+app switches. Frozen frames now carry `stall_phase` and `blocker` labels.
+Late results for trimmed tool calls no longer overflow the pending queue
+(8907-8909).
+Follow-up: cap forward crawls for hidden sessions at the retained window.
 
 **Rust hot-path follow-up, 2026-09-24.** A synchronous Rust pass over large
 terminal output lost to Dart after bridge cost (2.33 ms versus 1.44 ms on
