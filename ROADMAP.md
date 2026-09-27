@@ -10,6 +10,9 @@ app switches. Frozen frames now carry `stall_phase` and `blocker` labels.
 Tool-result overflow 8907-8909 came from the daemon: its sidechain dedup
 dropped sub-agent `tool_use` lines (fixed in happy-cli-go `059f61a`). The
 app now evicts unmatchable sidechain results before main-chain ones.
+`app.message_send` carries a `path` label; a stale-spawn refusal no longer
+fails a delivered send (8910/8911). An offline burst logs one outage warning
+instead of one issue per endpoint.
 
 **Rust hot-path follow-up, 2026-09-24.** A synchronous Rust pass over large
 terminal output lost to Dart after bridge cost (2.33 ms versus 1.44 ms on
