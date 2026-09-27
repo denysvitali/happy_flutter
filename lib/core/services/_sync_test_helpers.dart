@@ -875,7 +875,6 @@ extension SyncTestHelpers on Sync {
     _sessionUnreadCounts.clear();
     _sessionUnreadLastIncrementMs.clear();
     _pendingToolResults.clear();
-    _trimmedToolUseIds.clear();
     _machineOfflineWarnedAtMs.clear();
   }
 
@@ -920,7 +919,6 @@ extension SyncTestHelpers on Sync {
     _sessionUsage.clear();
     _lastEphemeralAt.clear();
     _pendingToolResults.clear();
-    _trimmedToolUseIds.clear();
     _sessionMessagesTouchedAtMs.clear();
     _sessionMessagesMutationGen.clear();
     _sidechainCleanAtGen.clear();

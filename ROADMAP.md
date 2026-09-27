@@ -7,9 +7,9 @@ This roadmap tracks upcoming features and improvements for **happy_flutter**.
 **Speed/UX pass, 2026-09-27.** The suspend cache flush now runs on the
 cache worker, which removes a UI-isolate stall of up to 670 ms after quick
 app switches. Frozen frames now carry `stall_phase` and `blocker` labels.
-Late results for trimmed tool calls no longer overflow the pending queue
-(8907-8909).
-Follow-up: cap forward crawls for hidden sessions at the retained window.
+Tool-result overflow 8907-8909 came from the daemon: its sidechain dedup
+dropped sub-agent `tool_use` lines (fixed in happy-cli-go `059f61a`). The
+app now evicts unmatchable sidechain results before main-chain ones.
 
 **Rust hot-path follow-up, 2026-09-24.** A synchronous Rust pass over large
 terminal output lost to Dart after bridge cost (2.33 ms versus 1.44 ms on

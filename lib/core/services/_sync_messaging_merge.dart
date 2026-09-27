@@ -927,10 +927,7 @@ extension SyncMessagingMerge on Sync {
     // Keep the parent-present case: a child result may precede its tool-call
     // by one wire message and must remain pending until the call arrives.
     Set<String>? residentToolUseIds;
-    final trimmedToolUseIds = _trimmedToolUseIds[sessionId];
     for (final r in results) {
-      // Its call already left the resident window, so it can never match.
-      if (trimmedToolUseIds?.contains(r['toolUseId']) ?? false) continue;
       final parentToolUseId = r['parentToolUseId'];
       if (r['isSidechain'] == true &&
           parentToolUseId is String &&
@@ -946,18 +943,33 @@ extension SyncMessagingMerge on Sync {
     }
     if (queue.length > Sync.maxPendingToolResultsPerSession) {
       final dropped = queue.length - Sync.maxPendingToolResultsPerSession;
-      queue.removeRange(0, dropped);
-      // This is real loss: a dropped result can never be matched to its
-      // tool call, so the row renders without output. Keep it visible as a
-      // warning and count it, so a `> 0` alert can fire — the queue used to
-      // shed results at INFO with no counter, which hid the loss entirely.
+      // Evict sidechain results first. Daemons before happy-cli-go 059f61a
+      // dropped sub-agent tool_use lines while still sending their results,
+      // so a busy sub-agent fills the queue with results that can never
+      // match (715 in session ca90363f, GlitchTip 8907-8909). They must not
+      // push out main-chain results that are still waiting for their call.
+      var sidechainToDrop = dropped;
+      queue.removeWhere(
+        (r) => r['isSidechain'] == true && sidechainToDrop-- > 0,
+      );
+      final mainDropped = queue.length - Sync.maxPendingToolResultsPerSession;
+      if (mainDropped > 0) queue.removeRange(0, mainDropped);
+      // Count every drop so a `> 0` alert can fire — the queue used to shed
+      // results at INFO with no counter, which hid the loss entirely. Only
+      // main-chain drops are real loss worth a warning: their tool call can
+      // still arrive and would then render without output.
       PowerDiagnosticsOtelReporter.instance.recordToolResultDropped(
         count: dropped,
       );
-      logger.warning(
-        '[toolResults] pending queue for $sessionId over cap — '
-        'dropped $dropped oldest unmatched result(s)',
-      );
+      final message =
+          '[toolResults] pending queue for $sessionId over cap — '
+          'dropped $dropped oldest unmatched result(s) '
+          '(${mainDropped > 0 ? mainDropped : 0} main-chain)';
+      if (mainDropped > 0) {
+        logger.warning(message);
+      } else {
+        logger.info(message);
+      }
     }
     if (queue.isEmpty) _pendingToolResults.remove(sessionId);
   }
@@ -979,38 +991,6 @@ extension SyncMessagingMerge on Sync {
       }
     }
     return ids;
-  }
-
-  /// Remember the tool calls (including nested sidechain children) in [rows]
-  /// that just fell off the head of the resident window. See
-  /// [Sync._trimmedToolUseIds].
-  void _recordTrimmedToolCalls(
-    String sessionId,
-    Iterable<Map<String, dynamic>> rows,
-  ) {
-    Set<String>? ledger;
-    final pending = <Map<String, dynamic>>[...rows];
-    while (pending.isNotEmpty) {
-      final row = pending.removeLast();
-      if (row['kind'] == 'tool-call') {
-        final id = row['toolUseId'];
-        if (id is String && id.isNotEmpty) {
-          ledger ??= _trimmedToolUseIds.putIfAbsent(sessionId, () => {});
-          ledger
-            ..remove(id)
-            ..add(id);
-        }
-      }
-      final children = row['children'];
-      if (children is List<dynamic>) {
-        pending.addAll(children.whereType<Map<String, dynamic>>());
-      }
-    }
-    if (ledger == null) return;
-    final excess = ledger.length - Sync._maxTrimmedToolUseIdsPerSession;
-    if (excess > 0) {
-      ledger.removeAll(ledger.take(excess).toList(growable: false));
-    }
   }
 
   /// Drop pending tool results older than [Sync.pendingToolResultTtlMs].
@@ -1181,7 +1161,6 @@ extension SyncMessagingMerge on Sync {
       0,
       rows.length - Sync.idleSessionShrinkKeepRows,
     );
-    _recordTrimmedToolCalls(sessionId, dropped);
     _sessionMessages[sessionId] = rows.sublist(
       rows.length - Sync.idleSessionShrinkKeepRows,
     );
@@ -1645,9 +1624,10 @@ extension SyncMessagingMerge on Sync {
         // removals, so the trimmed prefix is the exact set of rows that
         // left the window — prune its keys directly instead of walking
         // the whole list to rediscover them.
-        final trimmedHead = appended.sublist(0, appended.length - maxMessages);
-        _recordTrimmedToolCalls(sessionId, trimmedHead);
-        _pruneSessionContentSignaturePrefix(sessionId, trimmedHead);
+        _pruneSessionContentSignaturePrefix(
+          sessionId,
+          appended.sublist(0, appended.length - maxMessages),
+        );
         _updateSessionContentSignatures(sessionId, messages);
       }
       _ensureFirstLoadedSeq(sessionId);
@@ -1809,10 +1789,6 @@ extension SyncMessagingMerge on Sync {
       // Rows fell off the head — full-history residency can no longer be
       // claimed for this session. See the pin guard in fetchOlderMessages.
       _sessionsHistoryTrimmed.add(sessionId);
-      _recordTrimmedToolCalls(
-        sessionId,
-        sorted.sublist(0, sorted.length - maxMessages),
-      );
       _sessionMessages[sessionId] = sorted.sublist(sorted.length - maxMessages);
     } else {
       _sessionMessages[sessionId] = sorted;

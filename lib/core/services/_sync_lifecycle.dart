@@ -1036,7 +1036,6 @@ extension SyncLifecycle on Sync {
     _notifiedPermissionIds.clear();
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();
-    _trimmedToolUseIds.clear();
     _sessionMessagesTouchedAtMs.clear();
     _sessionMessagesMutationGen.clear();
     _sidechainCleanAtGen.clear();

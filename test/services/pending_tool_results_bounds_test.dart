@@ -408,53 +408,19 @@ void main() {
     });
   });
 
-  // GlitchTip 8907-8909 (build 289900): a reconnect forward crawl upserted
-  // five 200-row pages into a background session trimmed to 200 rows. A
-  // result whose call had already been trimmed away is unmatchable, yet it
-  // was queued and pushed the queue over cap, dropping results that could
-  // still match.
-  group('results for calls trimmed out of the window', () {
-    List<Map<String, dynamic>> calls(int count, {int startSeq = 1}) => [
-      for (var i = 0; i < count; i++)
-        {
-          'id': 'call-row-${startSeq + i}',
-          'seq': startSeq + i,
-          'createdAt': startSeq + i,
-          'kind': 'tool-call',
-          'toolUseId': 'call-${startSeq + i}',
-          'state': 'running',
-        },
-    ];
+  // GlitchTip 8907-8909 (build 289900): daemons before happy-cli-go 059f61a
+  // dropped sub-agent tool_use lines while still sending their results.
+  // Session ca90363f carried 715 such results under resident parent Tasks.
+  group('sidechain results that can never match', () {
+    Map<String, dynamic> sidechainResult(int i) => {
+      'toolUseId': 'sub-$i',
+      'result': 'sub output $i',
+      'createdAt': 1000 + i,
+      'isSidechain': true,
+      'parentToolUseId': 'task-1',
+    };
 
-    test('are not queued and cannot evict matchable results', () {
-      sync.testSetVisibleSessionId(null);
-      sync.testUpsertSessionMessages('s1', calls(300));
-      // Background cap keeps the newest 200: calls 1-100 were trimmed.
-      expect(sync.testSessionMessages('s1')!.first['toolUseId'], 'call-101');
-
-      sync.testApplyToolResults('s1', [
-        ...results(1, prefix: 'future'),
-        for (var i = 1; i <= Sync.maxPendingToolResultsPerSession; i++)
-          {'toolUseId': 'call-$i', 'result': 'late $i', 'createdAt': 400 + i},
-      ]);
-
-      final pending = sync.testPendingToolResults('s1');
-      expect(pending.map((r) => r['toolUseId']), ['future-0']);
-      expect(
-        PowerDiagnosticsOtelReporter
-            .instance
-            .debugBumpTotals['happy_flutter.tool_results.dropped'],
-        isNull,
-      );
-      final resident = sync.testSessionMessages('s1')!;
-      expect(
-        resident.firstWhere((m) => m['toolUseId'] == 'call-150')['result'],
-        'late 150',
-        reason: 'resident calls still match immediately',
-      );
-    });
-
-    test('trimmed nested sidechain calls are remembered too', () {
+    test('are evicted before main-chain results waiting for a call', () {
       sync.testSetVisibleSessionId(null);
       sync.testUpsertSessionMessages('s1', [
         {
@@ -464,23 +430,39 @@ void main() {
           'kind': 'tool-call',
           'toolUseId': 'task-1',
           'state': 'running',
-          'children': [
-            {
-              'id': 'child-row',
-              'kind': 'tool-call',
-              'toolUseId': 'child-1',
-              'state': 'running',
-            },
-          ],
         },
       ]);
-      sync.testUpsertSessionMessages('s1', calls(200, startSeq: 2));
-
+      sync.testApplyToolResults('s1', results(3, prefix: 'main'));
       sync.testApplyToolResults('s1', [
-        {'toolUseId': 'child-1', 'result': 'late child', 'createdAt': 500},
+        for (var i = 0; i < Sync.maxPendingToolResultsPerSession + 20; i++)
+          sidechainResult(i),
       ]);
 
-      expect(sync.testPendingToolResults('s1'), isEmpty);
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(Sync.maxPendingToolResultsPerSession));
+      expect(pending.take(3).map((r) => r['toolUseId']), [
+        'main-0',
+        'main-1',
+        'main-2',
+      ]);
+      expect(pending.last['toolUseId'], 'sub-219');
+      expect(
+        PowerDiagnosticsOtelReporter
+            .instance
+            .debugBumpTotals['happy_flutter.tool_results.dropped'],
+        23,
+      );
+    });
+
+    test('main-chain results still drop oldest-first without sidechain', () {
+      sync.testApplyToolResults(
+        's1',
+        results(Sync.maxPendingToolResultsPerSession + 5),
+      );
+
+      final pending = sync.testPendingToolResults('s1');
+      expect(pending, hasLength(Sync.maxPendingToolResultsPerSession));
+      expect(pending.first['toolUseId'], 'tool-5');
     });
   });
 

@@ -1165,16 +1165,6 @@ what you have, you must use the options mode.
   /// FIFO cap for [_pendingToolResults] per session.
   static const int maxPendingToolResultsPerSession = 200;
 
-  /// Tool-call ids that fell off the head of each session's resident window.
-  ///
-  /// A later result for one of these calls can never match, so it must not
-  /// enter [_pendingToolResults] and evict results whose call can still
-  /// arrive (GlitchTip 8907-8909: a five-page reconnect crawl into a
-  /// 200-row background window). Insertion-ordered and capped at
-  /// [_maxTrimmedToolUseIdsPerSession], oldest first out.
-  final Map<String, Set<String>> _trimmedToolUseIds = {};
-  static const int _maxTrimmedToolUseIdsPerSession = 1024;
-
   /// Max age of a queued tool result before it is dropped as unmatchable.
   static const int pendingToolResultTtlMs = 10 * 60 * 1000;
 
