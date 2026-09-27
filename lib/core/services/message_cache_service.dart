@@ -10,6 +10,7 @@ import '../encryption/encryption_cache.dart';
 import '../utils/image_content_blocks.dart';
 import 'at_rest_encryption_service.dart';
 import 'logger_service.dart' show logger;
+import 'main_isolate_stall_tracker.dart';
 import 'mmkv_storage.dart';
 import 'opentelemetry_service.dart';
 
@@ -108,17 +109,19 @@ Map<String, dynamic> _sanitizeCacheMessageTree(
   // not allocate a throwaway list.
   final raw = message['raw'];
   final content = raw is Map<String, dynamic> ? raw['content'] : null;
-  final hasInlineImage = content is List && content.any((block) {
-    if (block is! Map<String, dynamic> || block['type'] != 'image') {
-      return false;
-    }
-    final source = block['source'];
-    if (source is! Map<String, dynamic> || source['type'] != 'base64') {
-      return false;
-    }
-    final data = source['data'];
-    return data is String && data.isNotEmpty;
-  });
+  final hasInlineImage =
+      content is List &&
+      content.any((block) {
+        if (block is! Map<String, dynamic> || block['type'] != 'image') {
+          return false;
+        }
+        final source = block['source'];
+        if (source is! Map<String, dynamic> || source['type'] != 'base64') {
+          return false;
+        }
+        final data = source['data'];
+        return data is String && data.isNotEmpty;
+      });
   final sanitized = hasInlineImage ? stripInlineImageData(message) : message;
   if (depth >= 32) return sanitized;
   final children = sanitized['children'];
@@ -482,8 +485,7 @@ class MessageCacheService {
     var outcome = 'miss';
     var messages = <Map<String, dynamic>>[];
     try {
-      final nativeWorkerRootDir =
-          !kIsWeb && identical(_storage, MMKVStorage())
+      final nativeWorkerRootDir = !kIsWeb && identical(_storage, MMKVStorage())
           ? _storage.nativeWorkerRootDir
           : null;
       final useNativeWorkerStorage = nativeWorkerRootDir != null;
@@ -872,6 +874,38 @@ class MessageCacheService {
     }
   }
 
+  /// Queue every pending cache save, plus sessions whose Sync debounce timer
+  /// has not fired yet, through the background encode worker.
+  ///
+  /// This is the lifecycle-suspend path. The synchronous
+  /// [flushPendingMessages] JSON-encodes and encrypts each window on the UI
+  /// isolate; production Android measured 170-667 ms per session, stalling
+  /// the frame a user sees when switching back within a second or two. The
+  /// worker keeps only the final MMKV write (3-31 ms) on the UI isolate. The
+  /// cache is a cold-start accelerator, not the source of truth, so losing a
+  /// snapshot to a kill inside the worker window costs one tail refetch.
+  Future<void> flushPendingMessagesInBackground(
+    Map<String, List<Map<String, dynamic>>> latestMessages, {
+    Iterable<String> additionalSessionIds = const <String>[],
+    Map<String, int> latestRevisions = const <String, int>{},
+  }) {
+    final sessionIds = <String>{
+      ..._pendingSaves.keys,
+      ..._inFlightSaves.keys,
+      ...additionalSessionIds,
+    };
+    final saves = <Future<void>>[
+      for (final sessionId in sessionIds)
+        if (latestMessages[sessionId] case final messages?)
+          saveMessagesAsync(
+            sessionId,
+            messages,
+            revision: latestRevisions[sessionId],
+          ),
+    ];
+    return Future.wait(saves);
+  }
+
   void _kickDrain() {
     if (_draining) return;
     _draining = true;
@@ -992,7 +1026,10 @@ class MessageCacheService {
           // and writing on the main isolate anyway — measured in production as
           // a UI-isolate stall on every cache write (2026-08-24, sixth pass).
           _workerStorageUnavailable = true;
-          _storage.saveSessionMessagesEncoded(sessionId, marker);
+          MainIsolateStallTracker.instance.track(
+            'message_cache.main_write',
+            () => _storage.saveSessionMessagesEncoded(sessionId, marker),
+          );
           logger.info(
             '[MessageCache] Native worker storage unavailable; '
             'wrote cache through the initialized main-isolate handle for '
@@ -1011,7 +1048,10 @@ class MessageCacheService {
           return;
         }
       } else {
-        _storage.saveSessionMessagesEncoded(sessionId, marker);
+        MainIsolateStallTracker.instance.track(
+          'message_cache.main_write',
+          () => _storage.saveSessionMessagesEncoded(sessionId, marker),
+        );
         writeMs = writeWatch.elapsedMilliseconds;
       }
       _committedMarker[sessionId] = marker;
@@ -1091,10 +1131,7 @@ class MessageCacheService {
       if (reversed.isNotEmpty && bytes > _cacheWindowByteBudget) break;
       reversed.add(sanitized);
     }
-    return List<Map<String, dynamic>>.of(
-      reversed.reversed,
-      growable: false,
-    );
+    return List<Map<String, dynamic>>.of(reversed.reversed, growable: false);
   }
 
   void _recordWrite(
@@ -1271,6 +1308,14 @@ class MessageCacheService {
   }
 
   bool _writeProtectedCache(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
+  ) => MainIsolateStallTracker.instance.track(
+    'message_cache.sync_write',
+    () => _writeProtectedCacheUntracked(sessionId, messages),
+  );
+
+  bool _writeProtectedCacheUntracked(
     String sessionId,
     List<Map<String, dynamic>> messages,
   ) {

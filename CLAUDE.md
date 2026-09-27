@@ -351,7 +351,7 @@ For non-URL data (e.g., `message-detail`), pass `Map<String, dynamic>` via `stat
 | `ApiClient` | Dio + NativeAdapter (Cronet/cupertino_http). Timeouts: connect 8s, receive 15s, send 30s |
 | `SocketIoClient` | Socket.IO on `/v1/updates`, websocket only, 1–10s reconnect delays |
 | `LoggerService` | 5000-entry circular buffer, ANSI color debug output, Sentry forwarding |
-| `MessageCacheService` | Last 200 messages per session in MMKV, 5s debounced writes (15s ceiling), single queued encode isolate, flushed on suspend; Linux compacts sparse MMKV once after startup |
+| `MessageCacheService` | Last 200 messages per session in MMKV, 5s debounced writes (15s ceiling), single queued encode isolate; the suspend flush uses that worker too (never UI-isolate encode); Linux compacts sparse MMKV once after startup |
 | `MessageOutbox` | Failed sends in MMKV, exponential backoff 1s→30s, max 3 retries |
 | `FrameMetricsService` | Aggregated build/raster/total frame metrics and frozen-frame reporting |
 | `StuckAgentSentinel` | Actionable alert for off-screen thinking sessions with no progress |
@@ -429,6 +429,11 @@ geometry before traversing candidates. Forward every lifecycle state to
 suspending or reconnecting Sync. The root `AppFocusTickerMode` mutes unfocused
 animations while preserving route state; hidden/paused publishes the same
 focus loss and emits only one suspend edge.
+
+**Frozen-frame attribution:** frozen frames record `app.ui.frozen_frame_vsync`
+(UI-isolate wait before build) with `stall_phase` and `blocker` labels. Wrap
+long synchronous UI-isolate work in `MainIsolateStallTracker.track()` so a
+`vsync` stall names its cause instead of reporting `untracked`.
 
 **File previews:** supplied empty content is valid. Scope async file and
 clipboard results to the current file, and keep code and gutter in one

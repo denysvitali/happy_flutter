@@ -1998,6 +1998,7 @@ extension SyncMessaging on Sync {
     _loadingOlderMessages.remove(sessionId);
     _sessionsHistoryFullyLoaded.remove(sessionId);
     _sessionsHistoryTrimmed.remove(sessionId);
+    _trimmedToolUseIds.remove(sessionId);
     _sessionMessages.remove(sessionId);
     _invalidatePreviewCache(sessionId);
     _sessionContentSignatures.remove(sessionId);

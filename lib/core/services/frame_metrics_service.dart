@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show FramePhase;
 
 import 'package:flutter/foundation.dart' show kDebugMode, visibleForTesting;
 import 'package:flutter/gestures.dart';
@@ -10,6 +11,7 @@ import '../../platform_io.dart'
     if (dart.library.js_interop) '../../platform_stub.dart';
 import '../utils/performance_buckets.dart';
 import 'logger_service.dart';
+import 'main_isolate_stall_tracker.dart';
 import 'opentelemetry_service.dart';
 import 'performance_context_service.dart';
 import 'sync_service.dart';
@@ -324,6 +326,8 @@ class FrameMetricsService {
         buildMicros: t.buildDuration.inMicroseconds,
         rasterMicros: t.rasterDuration.inMicroseconds,
         totalMicros: t.totalSpan.inMicroseconds,
+        vsyncStartMicros: t.timestampInMicroseconds(FramePhase.vsyncStart),
+        buildStartMicros: t.timestampInMicroseconds(FramePhase.buildStart),
       );
     }
   }
@@ -332,6 +336,8 @@ class FrameMetricsService {
     required int buildMicros,
     required int rasterMicros,
     required int totalMicros,
+    required int vsyncStartMicros,
+    required int buildStartMicros,
   }) {
     _frameCount++;
     _buildMicros += buildMicros;
@@ -348,10 +354,19 @@ class FrameMetricsService {
     if (totalMicros >= _slowFrameMicros) _slowFrameCount++;
     if (totalMicros >= _frozenFrameMicros) {
       _frozenFrameCount++;
+      final vsyncMicros = buildStartMicros - vsyncStartMicros;
       _recentFrozenFrames.add((
         buildMicros: buildMicros,
         rasterMicros: rasterMicros,
         totalMicros: totalMicros,
+        vsyncMicros: vsyncMicros,
+        stallPhase: _stallPhase(vsyncMicros, buildMicros, rasterMicros),
+        blocker: _stallBlocker(
+          vsyncStartMicros,
+          buildStartMicros,
+          vsyncMicros: vsyncMicros,
+          totalMicros: totalMicros,
+        ),
         route: PerformanceContextService().currentRoute,
         sessionsView: PerformanceContextService().currentSessionsView,
         sessionCountBucket: collectionSizeBucket(sync.sessionCount),
@@ -391,16 +406,44 @@ class FrameMetricsService {
     );
   }
 
+  /// Largest component of a frozen frame. `vsync` means the frame waited
+  /// for the UI isolate before build started.
+  static String _stallPhase(int vsync, int build, int raster) {
+    if (vsync >= build && vsync >= raster) return 'vsync';
+    return build >= raster ? 'build' : 'raster';
+  }
+
+  /// Tracked synchronous work that held the UI isolate while the frame
+  /// waited, `untracked` when the wait dominates but nothing registered, or
+  /// `none` when the frame's own build/raster explains it.
+  static String _stallBlocker(
+    int vsyncStartMicros,
+    int buildStartMicros, {
+    required int vsyncMicros,
+    required int totalMicros,
+  }) {
+    final tracked = MainIsolateStallTracker.instance.blockerBetween(
+      vsyncStartMicros,
+      buildStartMicros,
+    );
+    if (tracked != null) return tracked;
+    return vsyncMicros * 2 >= totalMicros ? 'untracked' : 'none';
+  }
+
   @visibleForTesting
   void testRecordFrame({
     required Duration build,
     required Duration raster,
     required Duration total,
+    Duration vsyncOverhead = Duration.zero,
+    int vsyncStartMicros = 0,
   }) {
     _recordFrame(
       buildMicros: build.inMicroseconds,
       rasterMicros: raster.inMicroseconds,
       totalMicros: total.inMicroseconds,
+      vsyncStartMicros: vsyncStartMicros,
+      buildStartMicros: vsyncStartMicros + vsyncOverhead.inMicroseconds,
     );
   }
 
@@ -700,6 +743,8 @@ class FrameMetricsService {
             : sample.route,
         'session_count_bucket': sample.sessionCountBucket,
         'sessions_view': sample.sessionsView ?? currentSessionsView ?? 'none',
+        'stall_phase': sample.stallPhase,
+        'blocker': sample.blocker,
       };
       otel
         ..recordDuration(
@@ -719,6 +764,13 @@ class FrameMetricsService {
           Duration(microseconds: sample.rasterMicros),
           attributes: sampleAttributes,
           description: 'Raster component of a frozen (>=100ms) frame',
+        )
+        ..recordDuration(
+          'app.ui.frozen_frame_vsync',
+          Duration(microseconds: sample.vsyncMicros),
+          attributes: sampleAttributes,
+          description:
+              'Wait for the UI isolate before a frozen frame could build',
         );
     }
 
@@ -764,6 +816,11 @@ class FrameMetricsService {
         'frame.frozen_max_raster_ms',
         (maxSample.rasterMicros / 1000).round(),
       )
+      ..setAttribute(
+        'frame.frozen_max_vsync_ms',
+        (maxSample.vsyncMicros / 1000).round(),
+      )
+      ..setAttribute('frame.frozen_max_blocker', maxSample.blocker)
       ..setAttribute(
         'frame.frozen_total_ms',
         totalMillis.fold<int>(0, (sum, ms) => sum + ms),
@@ -865,6 +922,9 @@ typedef _FrozenFrameSample = ({
   int buildMicros,
   int rasterMicros,
   int totalMicros,
+  int vsyncMicros,
+  String stallPhase,
+  String blocker,
   String? route,
   String? sessionsView,
   String sessionCountBucket,

@@ -365,11 +365,7 @@ extension SyncTestHelpers on Sync {
     List<Map<String, dynamic>> toolResults, {
     bool queueUnmatched = true,
   }) {
-    _applyToolResults(
-      sessionId,
-      toolResults,
-      queueUnmatched: queueUnmatched,
-    );
+    _applyToolResults(sessionId, toolResults, queueUnmatched: queueUnmatched);
   }
 
   @visibleForTesting
@@ -454,9 +450,12 @@ extension SyncTestHelpers on Sync {
   /// Test helper: invoke [_flushPendingMessageSaves] so the lifecycle
   /// flush behaviour can be asserted in isolation.
   @visibleForTesting
-  void testFlushPendingMessageSaves() {
-    _flushPendingMessageSaves();
-  }
+  Future<void> testFlushPendingMessageSaves() => _flushPendingMessageSaves();
+
+  /// Test helper: wait for the cache flush started by the latest suspend.
+  @visibleForTesting
+  Future<void> testAwaitSuspendCacheFlush() =>
+      _suspendCacheFlush ?? Future<void>.value();
 
   /// Sets the in-memory seq cursor for a session (bypasses the normal
   /// inline-processing path that normally updates this from socket
@@ -876,6 +875,7 @@ extension SyncTestHelpers on Sync {
     _sessionUnreadCounts.clear();
     _sessionUnreadLastIncrementMs.clear();
     _pendingToolResults.clear();
+    _trimmedToolUseIds.clear();
     _machineOfflineWarnedAtMs.clear();
   }
 
@@ -920,6 +920,7 @@ extension SyncTestHelpers on Sync {
     _sessionUsage.clear();
     _lastEphemeralAt.clear();
     _pendingToolResults.clear();
+    _trimmedToolUseIds.clear();
     _sessionMessagesTouchedAtMs.clear();
     _sessionMessagesMutationGen.clear();
     _sidechainCleanAtGen.clear();

@@ -927,7 +927,10 @@ extension SyncMessagingMerge on Sync {
     // Keep the parent-present case: a child result may precede its tool-call
     // by one wire message and must remain pending until the call arrives.
     Set<String>? residentToolUseIds;
+    final trimmedToolUseIds = _trimmedToolUseIds[sessionId];
     for (final r in results) {
+      // Its call already left the resident window, so it can never match.
+      if (trimmedToolUseIds?.contains(r['toolUseId']) ?? false) continue;
       final parentToolUseId = r['parentToolUseId'];
       if (r['isSidechain'] == true &&
           parentToolUseId is String &&
@@ -976,6 +979,38 @@ extension SyncMessagingMerge on Sync {
       }
     }
     return ids;
+  }
+
+  /// Remember the tool calls (including nested sidechain children) in [rows]
+  /// that just fell off the head of the resident window. See
+  /// [Sync._trimmedToolUseIds].
+  void _recordTrimmedToolCalls(
+    String sessionId,
+    Iterable<Map<String, dynamic>> rows,
+  ) {
+    Set<String>? ledger;
+    final pending = <Map<String, dynamic>>[...rows];
+    while (pending.isNotEmpty) {
+      final row = pending.removeLast();
+      if (row['kind'] == 'tool-call') {
+        final id = row['toolUseId'];
+        if (id is String && id.isNotEmpty) {
+          ledger ??= _trimmedToolUseIds.putIfAbsent(sessionId, () => {});
+          ledger
+            ..remove(id)
+            ..add(id);
+        }
+      }
+      final children = row['children'];
+      if (children is List<dynamic>) {
+        pending.addAll(children.whereType<Map<String, dynamic>>());
+      }
+    }
+    if (ledger == null) return;
+    final excess = ledger.length - Sync._maxTrimmedToolUseIdsPerSession;
+    if (excess > 0) {
+      ledger.removeAll(ledger.take(excess).toList(growable: false));
+    }
   }
 
   /// Drop pending tool results older than [Sync.pendingToolResultTtlMs].
@@ -1146,6 +1181,7 @@ extension SyncMessagingMerge on Sync {
       0,
       rows.length - Sync.idleSessionShrinkKeepRows,
     );
+    _recordTrimmedToolCalls(sessionId, dropped);
     _sessionMessages[sessionId] = rows.sublist(
       rows.length - Sync.idleSessionShrinkKeepRows,
     );
@@ -1549,6 +1585,14 @@ extension SyncMessagingMerge on Sync {
   void _upsertSessionMessages(
     String sessionId,
     List<Map<String, dynamic>> messages,
+  ) => MainIsolateStallTracker.instance.track(
+    'messages.upsert',
+    () => _upsertSessionMessagesUntracked(sessionId, messages),
+  );
+
+  void _upsertSessionMessagesUntracked(
+    String sessionId,
+    List<Map<String, dynamic>> messages,
   ) {
     // Audit 2026-08-03: localIds minted in an earlier process lifetime
     // arrive via fetch/socket rows. Seeding them into the invariant
@@ -1601,10 +1645,9 @@ extension SyncMessagingMerge on Sync {
         // removals, so the trimmed prefix is the exact set of rows that
         // left the window — prune its keys directly instead of walking
         // the whole list to rediscover them.
-        _pruneSessionContentSignaturePrefix(
-          sessionId,
-          appended.sublist(0, appended.length - maxMessages),
-        );
+        final trimmedHead = appended.sublist(0, appended.length - maxMessages);
+        _recordTrimmedToolCalls(sessionId, trimmedHead);
+        _pruneSessionContentSignaturePrefix(sessionId, trimmedHead);
         _updateSessionContentSignatures(sessionId, messages);
       }
       _ensureFirstLoadedSeq(sessionId);
@@ -1766,6 +1809,10 @@ extension SyncMessagingMerge on Sync {
       // Rows fell off the head — full-history residency can no longer be
       // claimed for this session. See the pin guard in fetchOlderMessages.
       _sessionsHistoryTrimmed.add(sessionId);
+      _recordTrimmedToolCalls(
+        sessionId,
+        sorted.sublist(0, sorted.length - maxMessages),
+      );
       _sessionMessages[sessionId] = sorted.sublist(sorted.length - maxMessages);
     } else {
       _sessionMessages[sessionId] = sorted;

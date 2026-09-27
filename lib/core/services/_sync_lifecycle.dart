@@ -190,8 +190,9 @@ extension SyncLifecycle on Sync {
     // OS kills the app while backgrounded.  Without this, an in-flight
     // deferred sidechain regroup can reset the save timer, and the cache
     // retains stale messages with isSidechain == true that become invisible
-    // on the next cold start.
-    _flushPendingMessageSaves();
+    // on the next cold start. Encoding runs on the cache worker so a quick
+    // app switch does not return to a UI isolate still encrypting.
+    _suspendCacheFlush = _flushPendingMessageSaves();
     _flushSessionMessageNotifications();
     MMKVStorage().saveSessionLastSeq(Map.unmodifiable(_sessionLastSeq));
     MMKVStorage().saveSessionFirstLoadedSeq(
@@ -1035,6 +1036,7 @@ extension SyncLifecycle on Sync {
     _notifiedPermissionIds.clear();
     _pendingUpdateSessionIds.clear();
     _pendingToolResults.clear();
+    _trimmedToolUseIds.clear();
     _sessionMessagesTouchedAtMs.clear();
     _sessionMessagesMutationGen.clear();
     _sidechainCleanAtGen.clear();

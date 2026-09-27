@@ -290,9 +290,10 @@ void main() {
         instance.testScheduleSaveMessages(sessionId);
         expect(instance.testHasPendingSaveTimer(sessionId), isTrue);
 
-        instance.testFlushPendingMessageSaves();
+        final flush = instance.testFlushPendingMessageSaves();
 
         expect(instance.testHasPendingSaveTimer(sessionId), isFalse);
+        await flush;
         expect(
           storage.saveCount,
           greaterThanOrEqualTo(1),
@@ -330,6 +331,15 @@ void main() {
         expect(instance.testHasPendingSaveTimer(sessionId), isTrue);
 
         instance.suspend();
+
+        expect(
+          storage.saveCount,
+          0,
+          reason:
+              'suspend() must not JSON-encode and encrypt the window on the '
+              'UI isolate; production measured 170-667 ms per session',
+        );
+        await instance.testAwaitSuspendCacheFlush();
 
         expect(
           storage.saveCount,

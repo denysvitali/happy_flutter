@@ -429,6 +429,65 @@ void main() {
       expect(source['omitted'], isTrue);
     });
 
+    test('background flush writes the newest snapshot off the UI isolate '
+        'exactly once', () async {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      addTearDown(() => MessageCacheService().clearMessages('bg-flush'));
+      final queued = MessageCacheService().saveMessagesAsync(
+        'bg-flush',
+        window('stale'),
+        revision: 1,
+      );
+
+      final flush = MessageCacheService().flushPendingMessagesInBackground(
+        <String, List<Map<String, dynamic>>>{'bg-flush': window('fresh')},
+        latestRevisions: const <String, int>{'bg-flush': 2},
+      );
+
+      expect(
+        storage.writeCount,
+        0,
+        reason: 'the flush must not encode or write synchronously',
+      );
+      await Future.wait(<Future<void>>[queued, flush]);
+      expect(storage.rawStored('bg-flush').single['content'], 'fresh');
+      expect(storage.writeCount, 1);
+    });
+
+    test('background flush includes debounced sessions and skips committed '
+        'revisions', () async {
+      final storage = _InMemoryMMKVStorage();
+      MessageCacheService().debugSetStorage = storage;
+      addTearDown(MessageCacheService().debugResetStorage);
+      addTearDown(() => MessageCacheService().clearMessages('bg-timer'));
+      final latest = <String, List<Map<String, dynamic>>>{
+        'bg-timer': window('timer'),
+        'bg-untouched': window('untouched'),
+      };
+
+      await MessageCacheService().flushPendingMessagesInBackground(
+        latest,
+        additionalSessionIds: const <String>['bg-timer'],
+        latestRevisions: const <String, int>{'bg-timer': 7},
+      );
+      expect(storage.rawStored('bg-timer').single['content'], 'timer');
+      expect(storage.rawStored('bg-untouched'), isEmpty);
+      final writes = storage.writeCount;
+
+      await MessageCacheService().flushPendingMessagesInBackground(
+        latest,
+        additionalSessionIds: const <String>['bg-timer'],
+        latestRevisions: const <String, int>{'bg-timer': 7},
+      );
+      expect(
+        storage.writeCount,
+        writes,
+        reason: 'a rapid second suspend must not rewrite a committed revision',
+      );
+    });
+
     test(
       'suspend flush persists service-owned queued work synchronously',
       () async {

@@ -671,20 +671,24 @@ extension SyncSocket on Sync {
   static int _saveMsgsMaxDelayMs = _saveMsgsMaxDelayMsDefault;
   static const int _saveMsgsMaxDelayMsDefault = 15000;
 
-  /// Immediately flush all pending debounced message saves so the MMKV
+  /// Immediately start all pending debounced message saves so the MMKV
   /// cache is not stale when the app is backgrounded or killed.
-  void _flushPendingMessageSaves() {
+  ///
+  /// Encoding runs on the cache worker, not the UI isolate: a synchronous
+  /// flush froze the first frames after a quick app switch. The returned
+  /// future completes once every queued snapshot has been written.
+  Future<void> _flushPendingMessageSaves() {
     final timerSessionIds = _saveMsgsDebounceTimers.keys.toList();
     for (final entry in _saveMsgsDebounceTimers.entries) {
       entry.value.cancel();
     }
-    MessageCacheService().flushPendingMessages(
+    _saveMsgsDebounceTimers.clear();
+    _saveMsgsFirstScheduledAtMs.clear();
+    return MessageCacheService().flushPendingMessagesInBackground(
       _sessionMessages,
       additionalSessionIds: timerSessionIds,
       latestRevisions: _sessionMessagesRevision,
     );
-    _saveMsgsDebounceTimers.clear();
-    _saveMsgsFirstScheduledAtMs.clear();
   }
 
   /// Immediately deliver any pending trailing-edge session message
@@ -1019,7 +1023,13 @@ extension SyncSocket on Sync {
   /// (~5–10 MB limit shared across all keys).
   static const int _maxCachedSessions = 200;
 
-  void _persistSessionsCache({bool durable = false}) {
+  void _persistSessionsCache({bool durable = false}) =>
+      MainIsolateStallTracker.instance.track(
+        'sessions_cache.persist',
+        () => _persistSessionsCacheUntracked(durable: durable),
+      );
+
+  void _persistSessionsCacheUntracked({required bool durable}) {
     _saveSessionsCacheDebounceTimer?.cancel();
     _saveSessionsCacheDebounceTimer = null;
 

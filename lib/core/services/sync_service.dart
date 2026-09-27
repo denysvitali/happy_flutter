@@ -53,6 +53,7 @@ import '../sync/sync_progress.dart';
 import '../services/failure_telemetry.dart';
 import '../services/frame_metrics_service.dart';
 import '../services/loop_storage.dart';
+import '../services/main_isolate_stall_tracker.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';
 import '../services/mmkv_storage.dart';
@@ -959,6 +960,9 @@ what you have, you must use the options mode.
   /// max-delay ceiling so the MMKV save cannot be perpetually deferred
   /// by sustained streaming traffic.
   final Map<String, int> _saveMsgsFirstScheduledAtMs = {};
+
+  /// Background cache flush started by the latest [suspend].
+  Future<void>? _suspendCacheFlush;
   final Map<String, Timer> _postSendCatchUpTimers = {};
   final Set<String> _sessionsNeedingTailRefresh = <String>{};
   final Set<String> _sessionsNeedingVisibleRegroup = <String>{};
@@ -1160,6 +1164,16 @@ what you have, you must use the options mode.
 
   /// FIFO cap for [_pendingToolResults] per session.
   static const int maxPendingToolResultsPerSession = 200;
+
+  /// Tool-call ids that fell off the head of each session's resident window.
+  ///
+  /// A later result for one of these calls can never match, so it must not
+  /// enter [_pendingToolResults] and evict results whose call can still
+  /// arrive (GlitchTip 8907-8909: a five-page reconnect crawl into a
+  /// 200-row background window). Insertion-ordered and capped at
+  /// [_maxTrimmedToolUseIdsPerSession], oldest first out.
+  final Map<String, Set<String>> _trimmedToolUseIds = {};
+  static const int _maxTrimmedToolUseIdsPerSession = 1024;
 
   /// Max age of a queued tool result before it is dropped as unmatchable.
   static const int pendingToolResultTtlMs = 10 * 60 * 1000;

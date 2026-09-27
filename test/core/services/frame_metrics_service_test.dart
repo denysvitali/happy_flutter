@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/frame_metrics_service.dart';
+import 'package:happy_flutter/core/services/main_isolate_stall_tracker.dart';
 import 'package:happy_flutter/core/services/opentelemetry_service.dart';
 import 'package:happy_flutter/core/services/performance_context_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
@@ -272,6 +273,90 @@ void main() {
     });
   });
 
+  // Production Android frozen frames had build and raster under 10 ms while
+  // the frame took 100 ms-1 s: the UI isolate was busy before build began.
+  group('FrameMetricsService frozen-frame stall attribution', () {
+    late Map<String, List<(Duration, Map<String, Object?>)>> durations;
+
+    setUp(() {
+      durations = {};
+      OpenTelemetryService.debugDurationSink = (name, value, attributes) {
+        (durations[name] ??= []).add((value, attributes));
+      };
+      MainIsolateStallTracker.instance.reset();
+    });
+
+    tearDown(() {
+      OpenTelemetryService.debugDurationSink = null;
+      MainIsolateStallTracker.instance.reset();
+    });
+
+    test('attributes a vsync wait to tracked main-isolate work', () {
+      MainIsolateStallTracker.instance.record(
+        'message_cache.sync_write',
+        1000000,
+        1300000,
+      );
+
+      FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 6),
+          raster: const Duration(milliseconds: 5),
+          total: const Duration(milliseconds: 311),
+          vsyncOverhead: const Duration(milliseconds: 300),
+          vsyncStartMicros: 1000000,
+        )
+        ..debugFlush();
+
+      final (vsync, attributes) =
+          durations['app.ui.frozen_frame_vsync']!.single;
+      expect(vsync, const Duration(milliseconds: 300));
+      expect(attributes['stall_phase'], 'vsync');
+      expect(attributes['blocker'], 'message_cache.sync_write');
+      expect(
+        durations['app.ui.frozen_frame']!.single.$2['blocker'],
+        'message_cache.sync_write',
+      );
+    });
+
+    test('labels an unexplained vsync wait as untracked', () {
+      MainIsolateStallTracker.instance.record(
+        'messages.upsert',
+        100000,
+        200000,
+      );
+
+      FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 6),
+          raster: const Duration(milliseconds: 5),
+          total: const Duration(milliseconds: 211),
+          vsyncOverhead: const Duration(milliseconds: 200),
+          vsyncStartMicros: 5000000,
+        )
+        ..debugFlush();
+
+      final attributes = durations['app.ui.frozen_frame_vsync']!.single.$2;
+      expect(attributes['stall_phase'], 'vsync');
+      expect(attributes['blocker'], 'untracked');
+    });
+
+    test('a slow build is not blamed on the isolate wait', () {
+      FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 150),
+          raster: const Duration(milliseconds: 20),
+          total: const Duration(milliseconds: 175),
+          vsyncOverhead: const Duration(milliseconds: 5),
+        )
+        ..debugFlush();
+
+      final attributes = durations['app.ui.frozen_frame']!.single.$2;
+      expect(attributes['stall_phase'], 'build');
+      expect(attributes['blocker'], 'none');
+    });
+  });
+
   // The `ui.jank` span used to be started and ended in the same statement, so
   // its duration was always zero and
   // `traces_span_metrics_duration_seconds{span_name="ui.jank"}` carried no
@@ -413,7 +498,7 @@ void main() {
       );
     }
 
-    test('keeps all three frozen observations on each frame context', () {
+    test('keeps all four frozen observations on each frame context', () {
       final labels = <String, List<Map<String, Object?>>>{};
       OpenTelemetryService.debugDurationSink = (name, duration, attributes) {
         labels.putIfAbsent(name, () => []).add(Map.of(attributes));
@@ -429,6 +514,7 @@ void main() {
         'app.ui.frozen_frame',
         'app.ui.frozen_frame_build',
         'app.ui.frozen_frame_raster',
+        'app.ui.frozen_frame_vsync',
       ]) {
         expect(labels[name]!.map((a) => a['current_route']), ['chat', 'home']);
         expect(labels[name], labels['app.ui.frozen_frame']);
@@ -438,6 +524,8 @@ void main() {
             'current_route',
             'session_count_bucket',
             'sessions_view',
+            'stall_phase',
+            'blocker',
           ]),
         );
       }
