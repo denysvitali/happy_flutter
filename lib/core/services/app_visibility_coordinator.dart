@@ -9,7 +9,7 @@ import 'package:flutter/widgets.dart';
 /// suspended app has no socket to receive data from, while a merely unfocused
 /// desktop window is still streaming and would otherwise repaint on every
 /// token. See [AppVisibilityCoordinator.isFocused].
-class AppFocusState {
+class AppFocusState implements Listenable {
   AppFocusState._();
 
   static final AppFocusState instance = AppFocusState._();
@@ -28,8 +28,10 @@ class AppFocusState {
     }
   }
 
+  @override
   void addListener(VoidCallback listener) => _listeners.add(listener);
 
+  @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 }
 
@@ -62,8 +64,7 @@ class AppVisibilityCoordinator {
 
   /// Notifies when [isFocused] flips, so a caller can catch up on whatever
   /// it skipped while unfocused.
-  void addFocusListener(VoidCallback listener) =>
-      _focusListeners.add(listener);
+  void addFocusListener(VoidCallback listener) => _focusListeners.add(listener);
 
   void removeFocusListener(VoidCallback listener) =>
       _focusListeners.remove(listener);
@@ -89,14 +90,18 @@ class AppVisibilityCoordinator {
           return AppVisibilityEdge.none;
         }
         _isSuspended = true;
+        _setFocused(false);
         onSuspend();
         return AppVisibilityEdge.suspended;
       case AppLifecycleState.resumed:
-        if (!_isSuspended) {
+        final wasSuspended = _isSuspended;
+        _isSuspended = false;
+        // Desktop inactive -> resumed restores painting without treating
+        // focus changes as a network suspend/resume cycle.
+        _setFocused(true);
+        if (!wasSuspended) {
           return AppVisibilityEdge.none;
         }
-        _isSuspended = false;
-        _setFocused(true);
         onResume();
         return AppVisibilityEdge.resumed;
       case AppLifecycleState.inactive:

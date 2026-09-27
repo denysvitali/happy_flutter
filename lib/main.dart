@@ -38,6 +38,7 @@ import 'core/theme/app_scroll_behavior.dart';
 import 'core/theme/app_tokens.dart';
 import 'core/utils/package_info_cache.dart';
 import 'core/utils/theme_helper.dart';
+import 'core/widgets/app_focus_ticker_mode.dart';
 import 'core/widgets/app_focus_traversal.dart';
 import 'core/widgets/error_boundary.dart';
 import 'features/command_palette/command_palette.dart';
@@ -690,92 +691,81 @@ class _HappyAppState extends ConsumerState<HappyApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    switch (state) {
-      case AppLifecycleState.hidden:
-      case AppLifecycleState.paused:
-      case AppLifecycleState.resumed:
-        _visibilityCoordinator.handleLifecycleState(
-          state,
-          onSuspend: () {
-            _recordLifecycleEdge('paused');
-            // App is no longer visible — disconnect the socket and cancel
-            // all timers to ensure zero network traffic and battery drain.
-            FrameMetricsService.instance.detach();
-            FrameMetricsService.instance.setAppActive(false);
-            sync.suspend();
-            unawaited(storage.SettingsStorage().suspend());
-          },
-          onResume: () {
-            _recordLifecycleEdge('resumed');
-            FrameMetricsService.instance.setAppActive(true);
-            // App is foregrounded — reconnect and catch up on missed events.
-            FrameMetricsService.instance.attach(
-              enableSentryTransactions:
-                  sentryEnableFrameMetrics && sentryTracesSampleRate > 0,
-            );
-            sync.resume();
-            // Re-apply theme in case system dark/light mode changed.
-            _applyThemeFromSettings();
-          },
+    FrameMetricsService.instance.setAppActive(
+      state == AppLifecycleState.resumed,
+    );
+    // Forward focus-only transitions too: inactive keeps Sync connected but
+    // mutes animations and coalesces session-list refreshes until refocused.
+    _visibilityCoordinator.handleLifecycleState(
+      state,
+      onSuspend: () {
+        _recordLifecycleEdge('paused');
+        FrameMetricsService.instance.detach();
+        sync.suspend();
+        unawaited(storage.SettingsStorage().suspend());
+      },
+      onResume: () {
+        _recordLifecycleEdge('resumed');
+        FrameMetricsService.instance.attach(
+          enableSentryTransactions:
+              sentryEnableFrameMetrics && sentryTracesSampleRate > 0,
         );
-      case AppLifecycleState.inactive:
-        // Desktop focus loss can leave the window attached and receiving
-        // frames. Keep collecting metrics, but do not call that work an idle
-        // battery-render defect while the host is inactive.
-        FrameMetricsService.instance.setAppActive(false);
-      case AppLifecycleState.detached:
-        FrameMetricsService.instance.setAppActive(false);
-        break;
-    }
+        sync.resume();
+        // Re-apply theme in case system dark/light mode changed.
+        _applyThemeFromSettings();
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        // Watch only the specific fields needed to avoid unnecessary rebuilds
-        final themeModeString = ref.watch(
-          settingsNotifierProvider.select((s) => s.themeMode),
-        );
-        final themeMode = AppThemeMode.fromString(themeModeString);
+    return AppFocusTickerMode(
+      child: Consumer(
+        builder: (context, ref, child) {
+          // Watch only the specific fields needed to avoid unnecessary rebuilds
+          final themeModeString = ref.watch(
+            settingsNotifierProvider.select((s) => s.themeMode),
+          );
+          final themeMode = AppThemeMode.fromString(themeModeString);
 
-        // Apply system chrome only when theme mode actually changes.
-        if (themeMode != _lastAppliedThemeMode) {
-          _lastAppliedThemeMode = themeMode;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            themeMode.applySystemChromeWithContext(context);
-          });
-        }
+          // Apply system chrome only when theme mode actually changes.
+          if (themeMode != _lastAppliedThemeMode) {
+            _lastAppliedThemeMode = themeMode;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              themeMode.applySystemChromeWithContext(context);
+            });
+          }
 
-        return Directionality(
-          textDirection: _textDirectionForPlatformLocale(),
-          child: MaterialApp.router(
-            title: 'Happy',
-            debugShowCheckedModeBanner: false,
-            scrollBehavior: const AppScrollBehavior(),
-            theme: ThemeHelper.buildLightTheme(),
-            darkTheme: ThemeHelper.buildDarkTheme(),
-            themeMode: _getThemeMode(themeMode),
-            themeAnimationDuration: AppDuration.slow,
-            themeAnimationCurve: AppCurve.standard,
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            routerConfig: _router,
-            builder: (context, child) {
-              return FocusTraversalGroup(
-                policy: AppReadingOrderTraversalPolicy(),
-                child: CommandPaletteKeyboardHandler(
-                  appRouter: _router,
-                  child: CommandPaletteAppOverlay(
+          return Directionality(
+            textDirection: _textDirectionForPlatformLocale(),
+            child: MaterialApp.router(
+              title: 'Happy',
+              debugShowCheckedModeBanner: false,
+              scrollBehavior: const AppScrollBehavior(),
+              theme: ThemeHelper.buildLightTheme(),
+              darkTheme: ThemeHelper.buildDarkTheme(),
+              themeMode: _getThemeMode(themeMode),
+              themeAnimationDuration: AppDuration.slow,
+              themeAnimationCurve: AppCurve.standard,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              routerConfig: _router,
+              builder: (context, child) {
+                return FocusTraversalGroup(
+                  policy: AppReadingOrderTraversalPolicy(),
+                  child: CommandPaletteKeyboardHandler(
                     appRouter: _router,
-                    child: child ?? const SizedBox.shrink(),
+                    child: CommandPaletteAppOverlay(
+                      appRouter: _router,
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        );
-      },
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 

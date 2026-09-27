@@ -424,7 +424,11 @@ layout frame finishes.
 `AppLinearProgressIndicator` so animation controllers belong to the widget and
 avoid Flutter 3.41's per-tick Theme ancestor lookup after route removal. New
 focus groups use `AppReadingOrderTraversalPolicy`, which waits for render
-geometry before traversing candidates.
+geometry before traversing candidates. Forward every lifecycle state to
+`AppVisibilityCoordinator`: desktop `inactive`/`resumed` changes focus without
+suspending or reconnecting Sync. The root `AppFocusTickerMode` mutes unfocused
+animations while preserving route state; hidden/paused publishes the same
+focus loss and emits only one suspend edge.
 
 **File previews:** supplied empty content is valid. Scope async file and
 clipboard results to the current file, and keep code and gutter in one

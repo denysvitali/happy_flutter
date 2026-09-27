@@ -4,20 +4,24 @@ import 'package:happy_flutter/core/services/app_visibility_coordinator.dart';
 
 void main() {
   late AppVisibilityCoordinator coordinator;
+  var suspends = 0;
+  var resumes = 0;
 
   setUp(() {
     coordinator = AppVisibilityCoordinator();
     AppFocusState.instance.setFocused(true);
+    suspends = 0;
+    resumes = 0;
   });
 
   AppVisibilityEdge lifecycle(AppLifecycleState state) =>
       coordinator.handleLifecycleState(
         state,
-        onSuspend: () {},
-        onResume: () {},
+        onSuspend: () => suspends++,
+        onResume: () => resumes++,
       );
 
-  test('starts focused and unfocused by default', () {
+  test('starts focused and not suspended by default', () {
     expect(coordinator.isFocused, isTrue);
     expect(coordinator.isSuspended, isFalse);
   });
@@ -28,6 +32,9 @@ void main() {
     expect(lifecycle(AppLifecycleState.inactive), AppVisibilityEdge.none);
     expect(coordinator.isSuspended, isFalse);
     expect(coordinator.isFocused, isFalse);
+    expect(AppFocusState.instance.isFocused, isFalse);
+    expect(suspends, 0);
+    expect(resumes, 0);
   });
 
   test('detached clears focus without suspending', () {
@@ -39,6 +46,8 @@ void main() {
     expect(lifecycle(AppLifecycleState.paused), AppVisibilityEdge.suspended);
     expect(coordinator.isSuspended, isTrue);
     expect(coordinator.isFocused, isFalse);
+    expect(AppFocusState.instance.isFocused, isFalse);
+    expect(suspends, 1);
   });
 
   test('resumed after a suspend restores focus', () {
@@ -46,15 +55,42 @@ void main() {
     expect(lifecycle(AppLifecycleState.resumed), AppVisibilityEdge.resumed);
     expect(coordinator.isSuspended, isFalse);
     expect(coordinator.isFocused, isTrue);
+    expect(AppFocusState.instance.isFocused, isTrue);
+    expect(resumes, 1);
   });
 
-  test('resumed without a prior suspend does not emit an edge', () {
-    // `resumed` is a no-op when we were never suspended (Flutter can deliver
-    // it on platforms that skip `paused`), and it must not resurrect focus
-    // that a desktop `inactive` deliberately cleared.
+  test('desktop refocus restores focus without reconnecting the socket', () {
     lifecycle(AppLifecycleState.inactive);
     expect(lifecycle(AppLifecycleState.resumed), AppVisibilityEdge.none);
-    expect(coordinator.isFocused, isFalse);
+    expect(coordinator.isFocused, isTrue);
+    expect(AppFocusState.instance.isFocused, isTrue);
+    expect(suspends, 0);
+    expect(resumes, 0);
+  });
+
+  test('hidden and paused publish one focus and suspend transition', () {
+    final globalFocus = <bool>[];
+    final localFocus = <bool>[];
+    void globalListener() => globalFocus.add(AppFocusState.instance.isFocused);
+    void localListener() => localFocus.add(coordinator.isFocused);
+    AppFocusState.instance.addListener(globalListener);
+    coordinator.addFocusListener(localListener);
+    addTearDown(() {
+      AppFocusState.instance.removeListener(globalListener);
+      coordinator.removeFocusListener(localListener);
+    });
+
+    expect(lifecycle(AppLifecycleState.hidden), AppVisibilityEdge.suspended);
+    expect(lifecycle(AppLifecycleState.paused), AppVisibilityEdge.none);
+    expect(lifecycle(AppLifecycleState.hidden), AppVisibilityEdge.none);
+    expect(AppFocusState.instance.isFocused, isFalse);
+    expect(lifecycle(AppLifecycleState.resumed), AppVisibilityEdge.resumed);
+    expect(lifecycle(AppLifecycleState.resumed), AppVisibilityEdge.none);
+
+    expect(globalFocus, [false, true]);
+    expect(localFocus, [false, true]);
+    expect(suspends, 1);
+    expect(resumes, 1);
   });
 
   test('repeated inactive does not re-notify focus listeners', () {
@@ -77,11 +113,11 @@ void main() {
 
     lifecycle(AppLifecycleState.inactive); // -> false
     lifecycle(AppLifecycleState.detached); // still false, no event
-    lifecycle(AppLifecycleState.resumed); // no suspend first: no edge
-    lifecycle(AppLifecycleState.paused); // -> false (already)
+    lifecycle(AppLifecycleState.resumed); // -> true, without a network edge
+    lifecycle(AppLifecycleState.paused); // -> false
     lifecycle(AppLifecycleState.resumed); // -> true
 
-    expect(seen, [false, true]);
+    expect(seen, [false, true, false, true]);
   });
 
   test('duplicate focus listener registration still fires per transition', () {

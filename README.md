@@ -172,6 +172,11 @@ tar -xzf "happy-flutter-linux-${ARCH}.tar.gz"
 This installs the app under `~/.local/share/happy_flutter`, provides
 `~/.local/bin/happy_flutter`, and adds it to desktop launchers.
 
+Unfocused desktop windows pause animations and defer session-list refreshes
+while keeping live message syncing connected. Refocusing catches up without
+restarting the connection; minimizing or backgrounding still uses the normal
+suspend/resume lifecycle.
+
 Linux archives target glibc-based distributions. Alpine and other musl-based
 systems are not supported by the Flutter Linux runtime in these bundles.
 
