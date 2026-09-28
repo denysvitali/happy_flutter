@@ -156,6 +156,7 @@ extension SyncSpawnProfileResolution on Sync {
     required String? modelMode,
     required String? agent,
     bool explicitModelPick = false,
+    bool rejectExplicitClaudeModelOnGateway = false,
   }) {
     if (profile == null) {
       return (profile: null, modelMode: modelMode);
@@ -171,6 +172,17 @@ extension SyncSpawnProfileResolution on Sync {
     if (agent == 'claude' &&
         _isClaudeModelAlias(modelMode ?? '') &&
         _isThirdPartyAnthropicBaseUrl(baseUrl)) {
+      if (rejectExplicitClaudeModelOnGateway &&
+          _isFullClaudeModelId(modelMode ?? '')) {
+        // The user asked for a specific Claude model on a gateway profile.
+        // Silently swapping it for the profile default made sessions run on
+        // e.g. mimo-v2.6-flash while the picker still showed Claude
+        // (session c98cadb9dbd4c12f8e3d1a7d5). Surface it instead.
+        throw IncompatibleProviderAndModelError(
+          'Claude model $modelMode cannot run on profile "${profile.name}" '
+          '($baseUrl) — pick a non-Claude model or use the Anthropic profile',
+        );
+      }
       // Third-party Anthropic-compatible gateways (Grok proxy, MiniMax, etc.)
       // reject Claude model IDs. Drop the picker override AND any Claude model
       // baked into the profile env (ANTHROPIC_MODEL) so the daemon does not
@@ -373,6 +385,15 @@ extension SyncSpawnProfileResolution on Sync {
     return slug.startsWith('gpt-') ||
         RegExp(r'^o\d').hasMatch(slug) ||
         isTokenPlanCodexModelSlug(slug);
+  }
+
+  /// True for a concrete Claude model id (`claude-sonnet-5-5`), as opposed to
+  /// a tier alias (`sonnet`) that a gateway profile may legitimately remap
+  /// through `ANTHROPIC_DEFAULT_{TIER}_MODEL`.
+  bool _isFullClaudeModelId(String modelMode) {
+    final separator = modelMode.lastIndexOf(':');
+    final slug = separator > 0 ? modelMode.substring(0, separator) : modelMode;
+    return slug.startsWith('claude-') || slug.contains('/claude-');
   }
 
   bool _isClaudeModelAlias(String modelMode) {
@@ -965,6 +986,7 @@ extension SyncSpawnProfileResolution on Sync {
         // The send path carries the composer's current picker selection;
         // it must survive the respawn instead of the profile default.
         explicitModelPick: modelMode != null && modelMode != 'default',
+        rejectExplicitClaudeModelOnGateway: true,
       );
       final effectiveModelMode = spawnProfileResolution.modelMode;
       final effectiveEnvVars = spawnProfileResolution.profile != null

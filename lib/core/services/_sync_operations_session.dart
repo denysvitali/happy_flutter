@@ -229,6 +229,10 @@ extension SyncSessionOperations on Sync {
       // profile-pinned Codex model must keep winning over stale globals
       // (e0e18dc7).
       explicitModelPick: false,
+      // A full Claude id reaching createSession comes from the new-session
+      // dialog; fail loudly there rather than silently spawning on the
+      // gateway's default model.
+      rejectExplicitClaudeModelOnGateway: true,
     );
     final effectiveProfileId = spawnProfileResolution.profile != null
         ? selectedProfileId

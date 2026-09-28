@@ -6,6 +6,7 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  gatewayClaudePickTests();
   late Sync sync;
 
   setUp(() {
@@ -564,6 +565,62 @@ void main() {
         ),
         'opencode/x-preview-f-free',
       );
+    });
+  });
+}
+
+void gatewayClaudePickTests() {
+  group('_resolveEffectiveProfileForSpawn Claude pick on gateway', () {
+    late Sync sync;
+    setUp(() => sync = createTestSync());
+
+    final xiaomi = AIBackendProfile(
+      id: 'xiaomi',
+      name: 'Xiaomi MiMo',
+      anthropicConfig: AnthropicConfig(
+        baseUrl: 'https://token-plan-sgp.xiaomimimo.com/anthropic',
+      ),
+      compatibility: const ProfileCompatibility(
+        claude: true,
+        codex: false,
+        agy: false,
+      ),
+    );
+
+    test(
+      'rejects an explicit full Claude id instead of swapping to default',
+      () {
+        expect(
+          () => sync.testResolveEffectiveProfileForSpawn(
+            profile: xiaomi,
+            modelMode: 'claude-sonnet-5-5',
+            agent: 'claude',
+            explicitModelPick: true,
+            rejectExplicitClaudeModelOnGateway: true,
+          ),
+          throwsA(isA<IncompatibleProviderAndModelError>()),
+        );
+      },
+    );
+
+    test('still drops ambient Claude ids silently when not rejecting', () {
+      final r = sync.testResolveEffectiveProfileForSpawn(
+        profile: xiaomi,
+        modelMode: 'claude-sonnet-5-5',
+        agent: 'claude',
+      );
+      expect(r.modelMode, 'default');
+    });
+
+    test('tier alias is not rejected (profile maps it)', () {
+      final r = sync.testResolveEffectiveProfileForSpawn(
+        profile: xiaomi,
+        modelMode: 'sonnet',
+        agent: 'claude',
+        explicitModelPick: true,
+        rejectExplicitClaudeModelOnGateway: true,
+      );
+      expect(r.modelMode, 'default');
     });
   });
 }

@@ -738,6 +738,23 @@ extension SyncTestHelpers on Sync {
     String? modelMode,
   }) => _getModelOverride(agent: agent, profile: profile, modelMode: modelMode);
 
+  /// Test helper: invoke [_resolveEffectiveProfileForSpawn] which is private.
+  @visibleForTesting
+  ({AIBackendProfile? profile, String? modelMode})
+  testResolveEffectiveProfileForSpawn({
+    required AIBackendProfile? profile,
+    required String? modelMode,
+    required String? agent,
+    bool explicitModelPick = false,
+    bool rejectExplicitClaudeModelOnGateway = false,
+  }) => _resolveEffectiveProfileForSpawn(
+    profile: profile,
+    modelMode: modelMode,
+    agent: agent,
+    explicitModelPick: explicitModelPick,
+    rejectExplicitClaudeModelOnGateway: rejectExplicitClaudeModelOnGateway,
+  );
+
   /// Test helper: invoke [_normalizeModelModeForAgent] which is private.
   @visibleForTesting
   String? testNormalizeModelModeForAgent(String? modelMode, String? agent) =>
