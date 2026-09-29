@@ -206,7 +206,7 @@ lib/
 │   ├── repositories/      # Injectable domain boundaries; Sync-backed during migration
 │   ├── routing/           # GoRouter setup (createRouter())
 │   ├── rpc/               # RPC layer
-│   ├── services/          # Auth, Sync (21 part files), storage, logging, push, TTS
+│   ├── services/          # Auth, Sync (27 part files), storage, logging, push, TTS
 │   ├── sync/              # ArtifactManager, SettingsManager, sync exceptions/progress
 │   ├── theme/             # Colors, typography, design tokens
 │   ├── types/             # Identity + message-state value types
@@ -283,7 +283,7 @@ linkage.
 
 Three top-level globals: `sync` (Sync singleton), `logger` (LoggerService), `socketIoClient` (SocketIoClient).
 
-**`Sync` is a true singleton** (`factory Sync() => _instance`). The main file `lib/core/services/sync_service.dart` is ~1,700 lines (it holds the public field surface), split across 20 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_test_helpers`, etc.). When adding methods, place them in the part file matching the concern.
+**`Sync` is a true singleton** (`factory Sync() => _instance`). The main file `lib/core/services/sync_service.dart` is ~1,700 lines (it holds the public field surface), split across ~27 `_sync_*.dart` part files (`_sync_messaging*`, `_sync_socket*`, `_sync_data*`, `_sync_lifecycle`, `_sync_operations*`, `_sync_health`, `_sync_test_helpers`, etc.). When adding methods, place them in the part file matching the concern.
 
 **Provider bridge pattern:** Screens subscribe to `sync.onDataChanged` (debounced 100ms):
 - `provider.notifier.loadFromSync()` — reads in-memory state (instant). Use on every `onDataChanged` callback.
@@ -327,7 +327,7 @@ bytes or a declared size; unknown decoded JSON sizes are omitted.
 
 ### Navigation
 
-Routes defined in `lib/core/routing/app_router.dart` (not `main.dart`). 57 flat `GoRoute` entries. Use named routes:
+Routes defined in `lib/core/routing/app_router.dart` (not `main.dart`). ~30 flat `GoRoute` entries. Use named routes:
 
 ```dart
 context.goNamed('chat', pathParameters: {'sessionId': id});
