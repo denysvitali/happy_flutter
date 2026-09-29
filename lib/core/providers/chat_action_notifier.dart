@@ -158,6 +158,17 @@ class ChatActionNotifier extends Notifier<void> {
             settings.lastUsedProfilesWithAgent(agent, profileId),
           ),
     );
+    if (profileId == null) {
+      // "None" must also drop the legacy global selection: without a scoped
+      // entry resolveSelectedProfileIdForAgent falls back to it, which
+      // resurrected the deselected gateway profile (and its routing env) on
+      // the next spawn.
+      unawaited(
+        ref
+            .read(settingsNotifierProvider.notifier)
+            .updateSetting('lastUsedProfile', null),
+      );
+    }
   }
 
   /// Save profile, model mode, and (optionally) permission mode as a
