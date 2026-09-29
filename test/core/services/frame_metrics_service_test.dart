@@ -284,11 +284,30 @@ void main() {
         (durations[name] ??= []).add((value, attributes));
       };
       MainIsolateStallTracker.instance.reset();
+      FrameMetricsService.debugLastAttachMicros = null;
     });
 
     tearDown(() {
       OpenTelemetryService.debugDurationSink = null;
       MainIsolateStallTracker.instance.reset();
+      FrameMetricsService.debugLastAttachMicros = null;
+    });
+
+    test('labels a vsync wait right after attach as post_resume', () {
+      FrameMetricsService.debugLastAttachMicros = 4000000;
+
+      FrameMetricsService.instance
+        ..testRecordFrame(
+          build: const Duration(milliseconds: 1),
+          raster: const Duration(milliseconds: 1),
+          total: const Duration(milliseconds: 1201),
+          vsyncOverhead: const Duration(milliseconds: 1200),
+          vsyncStartMicros: 4100000,
+        )
+        ..debugFlush();
+
+      final attributes = durations['app.ui.frozen_frame_vsync']!.single.$2;
+      expect(attributes['blocker'], 'post_resume');
     });
 
     test('attributes a vsync wait to tracked main-isolate work', () {

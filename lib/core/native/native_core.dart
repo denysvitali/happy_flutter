@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../encryption/json_text.dart' show NativeJsonRowStatus;
 import '../services/logger_service.dart' show logger;
+import '../services/main_isolate_stall_tracker.dart';
 import '../services/opentelemetry_service.dart';
 import 'generated/api/crypto_api.dart' as rust_crypto;
 import 'generated/api/sidechain_api.dart' as rust_sidechain;
@@ -182,10 +183,13 @@ class NativeCore {
     if (!_available) return null;
     if (envelopes.isEmpty) return const <String?>[];
     try {
-      return rust_crypto.decryptAesGcmBatchSync(
-        key: key,
-        envelopes: envelopes,
-        associatedData: associatedData,
+      return MainIsolateStallTracker.instance.track(
+        'native_core.decrypt_sync',
+        () => rust_crypto.decryptAesGcmBatchSync(
+          key: key,
+          envelopes: envelopes,
+          associatedData: associatedData,
+        ),
       );
     } catch (e, stack) {
       _available = false;
@@ -215,11 +219,14 @@ class NativeCore {
     span?.setAttribute('row_count', plaintexts.length);
     final wall = Stopwatch()..start();
     try {
-      final batch = rust_crypto.encryptAesGcmBatchSync(
-        key: key,
-        plaintexts: plaintexts,
-        nonces: nonces,
-        associatedData: const <int>[],
+      final batch = MainIsolateStallTracker.instance.track(
+        'native_core.encrypt_sync',
+        () => rust_crypto.encryptAesGcmBatchSync(
+          key: key,
+          plaintexts: plaintexts,
+          nonces: nonces,
+          associatedData: const <int>[],
+        ),
       );
       wall.stop();
       span
@@ -246,10 +253,13 @@ class NativeCore {
     if (!_available) return null;
     if (payloads.isEmpty) return const <String?>[];
     try {
-      return rust_crypto.decryptAtRestBatchSync(
-        key: key,
-        payloads: payloads,
-        associatedData: associatedData,
+      return MainIsolateStallTracker.instance.track(
+        'native_core.decrypt_at_rest_sync',
+        () => rust_crypto.decryptAtRestBatchSync(
+          key: key,
+          payloads: payloads,
+          associatedData: associatedData,
+        ),
       );
     } catch (e, stack) {
       _available = false;

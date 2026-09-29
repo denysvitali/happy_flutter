@@ -221,6 +221,7 @@ class FrameMetricsService {
     // first frame of the next foreground window.
     _discardPendingWindow();
     _attached = true;
+    _lastAttachMicros = MainIsolateStallTracker.instance.clock();
 
     SchedulerBinding.instance.addTimingsCallback(_onTimings);
     GestureBinding.instance.pointerRouter.addGlobalRoute(_onPointerEvent);
@@ -347,6 +348,15 @@ class FrameMetricsService {
   /// Tracked synchronous work that held the UI isolate while the frame
   /// waited, `untracked` when the wait dominates but nothing registered, or
   /// `none` when the frame's own build/raster explains it.
+  /// Window after (re)attach in which a vsync wait is the OS thawing the
+  /// process, not UI-isolate work: Android delivers the first vsync of a
+  /// resumed app 1 s+ late while the isolate is idle.
+  static const int _postResumeGraceMicros = 3000000;
+  static int? _lastAttachMicros;
+
+  @visibleForTesting
+  static set debugLastAttachMicros(int? micros) => _lastAttachMicros = micros;
+
   static String _stallBlocker(
     int vsyncStartMicros,
     int buildStartMicros, {
@@ -358,6 +368,12 @@ class FrameMetricsService {
       buildStartMicros,
     );
     if (tracked != null) return tracked;
+    final attachedAt = _lastAttachMicros;
+    if (attachedAt != null &&
+        buildStartMicros >= attachedAt &&
+        buildStartMicros - attachedAt <= _postResumeGraceMicros) {
+      return 'post_resume';
+    }
     return vsyncMicros * 2 >= totalMicros ? 'untracked' : 'none';
   }
 
