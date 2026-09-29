@@ -204,7 +204,15 @@ ModelSelectionResolution resolveModelSelection({
     );
     final candidate = ChatModelMode.fromString(rawCandidate);
     final available = ChatModelMode.availableForFlavor(flavor);
+    // A Claude alias can never be served by a third-party gateway profile
+    // (the daemon aborts with provider_model_mismatch), so the global
+    // last-used pick must not leak into a gateway session.
+    final aliasOnGateway =
+        flavor != 'codex' &&
+        candidate.isClaude &&
+        profileUsesThirdPartyAnthropicBaseUrl(selectedProfile);
     if (!candidate.isDefault &&
+        !aliasOnGateway &&
         (available.contains(candidate) ||
             (flavor == 'codex' && candidate.isCodex))) {
       rawModelModeString = rawCandidate;

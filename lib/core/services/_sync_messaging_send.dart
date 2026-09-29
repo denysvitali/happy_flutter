@@ -516,13 +516,35 @@ extension SyncMessagingSend on Sync {
             ? _resolveProfile(profileId)
             : await _sessionProfileForNormalization(sessionId);
         checkRuntime();
-        final requestedModelMode = flavor == 'codex' && modelMode != null
+        var requestedModelMode = flavor == 'codex' && modelMode != null
             ? (_isClaudeModelAlias(modelMode) ? 'default' : modelMode)
             : _normalizeModelModeForAgent(
                 modelMode,
                 flavor,
                 profile: sendProfile,
               );
+        // A Claude alias/id on a third-party Anthropic-compatible gateway can
+        // never be served: the daemon aborts the respawn with
+        // provider_model_mismatch. It is always ambient state (a stale
+        // picker fallback such as lastUsedModelMode), never a deliberate pick
+        // — send no model so the session keeps the one it is running.
+        if (flavor == 'claude' &&
+            requestedModelMode != null &&
+            requestedModelMode != 'default' &&
+            sendProfile != null &&
+            _isThirdPartyAnthropicBaseUrl(
+              _anthropicBaseUrlForProfile(sendProfile),
+            ) &&
+            _isClaudeModelAlias(requestedModelMode)) {
+          _logDroppedModelMode(
+            requestedModelMode,
+            flavor,
+            sendProfile,
+            'Claude model on a third-party gateway session; keeping the '
+            'running model',
+          );
+          requestedModelMode = 'default';
+        }
         final effectiveModelMode =
             requestedModelMode != null && requestedModelMode != 'default'
             ? requestedModelMode

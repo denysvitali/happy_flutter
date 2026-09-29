@@ -373,6 +373,28 @@ void main() {
       );
     });
 
+    test('does not inherit a global Claude alias into a gateway session', () {
+      final profile = _profile(
+        id: 'gateway',
+        anthropicConfig: AnthropicConfig(baseUrl: 'http://llm-proxy.example'),
+      );
+
+      final result = resolveModelSelection(
+        savedPermissionMode: null,
+        savedModelMode: null,
+        savedProfileId: 'gateway',
+        sessionModelMode: null,
+        sessionPermissionMode: null,
+        flavor: 'claude',
+        settingsProfiles: [profile],
+        builtInProfiles: const [],
+        lastUsedModelMode: 'sonnet',
+      );
+
+      expect(result.resolvedModelMode, ChatModelMode.defaultModel);
+      expect(result.resolvedRawModelString, isNull);
+    });
+
     test('keeps Claude aliases for the official endpoint', () {
       final profile = _profile(
         id: 'anthropic',
