@@ -90,11 +90,9 @@ abstract class ClaudeLocalUsage with _$ClaudeLocalUsage {
     }
     return stripped
         .split('-')
-        .map(
-          (segment) => segment.isEmpty
-              ? segment
-              : '${segment[0].toUpperCase()}${segment.substring(1)}',
-        )
+        .map((segment) => segment.isEmpty
+            ? segment
+            : '${segment[0].toUpperCase()}${segment.substring(1)}')
         .join(' ');
   }
 

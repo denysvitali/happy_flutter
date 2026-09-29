@@ -16,7 +16,12 @@ abstract class AuthCredentials with _$AuthCredentials {
 }
 
 /// Authentication state
-enum AuthState { unauthenticated, authenticating, authenticated, error }
+enum AuthState {
+  unauthenticated,
+  authenticating,
+  authenticated,
+  error,
+}
 
 /// Base class for authentication exceptions
 class AuthException implements Exception {
@@ -55,14 +60,18 @@ class UnknownError extends AuthError {
 
 /// Server error (5xx)
 class ServerError implements Exception {
-  const ServerError(this.message, {this.statusCode});
+  const ServerError(
+    this.message, {
+    this.statusCode,
+  });
 
   final String message;
   final int? statusCode;
 
   @override
   String toString() {
-    final status = statusCode != null ? ' (status: $statusCode)' : '';
+    final status =
+        statusCode != null ? ' (status: $statusCode)' : '';
     return 'ServerError: $message$status';
   }
 }
@@ -94,7 +103,11 @@ class AuthForbiddenError implements Exception {
 
 /// Auth request error (4xx)
 class AuthRequestError implements Exception {
-  const AuthRequestError(this.message, {this.statusCode, this.serverResponse});
+  const AuthRequestError(
+    this.message, {
+    this.statusCode,
+    this.serverResponse,
+  });
 
   final String message;
   final int? statusCode;
@@ -102,14 +115,18 @@ class AuthRequestError implements Exception {
 
   @override
   String toString() {
-    final status = statusCode != null ? ' (status: $statusCode)' : '';
+    final status =
+        statusCode != null ? ' (status: $statusCode)' : '';
     return 'AuthRequestError: $message$status';
   }
 }
 
 /// SSL/TLS error
 class SSLError implements Exception {
-  const SSLError(this.message, {this.certificateInfo});
+  const SSLError(
+    this.message, {
+    this.certificateInfo,
+  });
 
   final String message;
   final String? certificateInfo;

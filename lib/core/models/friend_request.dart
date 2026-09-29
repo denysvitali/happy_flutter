@@ -28,8 +28,7 @@ class FriendRequest {
       id: json['id'] as String,
       fromUserId: json['fromUserId'] as String,
       fromUsername: json['fromUsername'] as String? ?? '',
-      fromDisplayName:
-          json['fromDisplayName'] as String? ??
+      fromDisplayName: json['fromDisplayName'] as String? ??
           json['fromUsername'] as String? ??
           '',
       createdAt: (json['createdAt'] as num).toInt(),
@@ -38,13 +37,13 @@ class FriendRequest {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'fromUserId': fromUserId,
-    'fromUsername': fromUsername,
-    'fromDisplayName': fromDisplayName,
-    'createdAt': createdAt,
-    if (fromAvatarUrl != null) 'fromAvatarUrl': fromAvatarUrl,
-  };
+        'id': id,
+        'fromUserId': fromUserId,
+        'fromUsername': fromUsername,
+        'fromDisplayName': fromDisplayName,
+        'createdAt': createdAt,
+        if (fromAvatarUrl != null) 'fromAvatarUrl': fromAvatarUrl,
+      };
 
   FriendRequest copyWith({
     String? id,
@@ -79,11 +78,11 @@ class FriendRequest {
 
   @override
   int get hashCode => Object.hash(
-    id,
-    fromUserId,
-    fromUsername,
-    fromDisplayName,
-    createdAt,
-    fromAvatarUrl,
-  );
+        id,
+        fromUserId,
+        fromUsername,
+        fromDisplayName,
+        createdAt,
+        fromAvatarUrl,
+      );
 }

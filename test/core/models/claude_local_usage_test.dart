@@ -19,11 +19,11 @@ void main() {
         'dailyModelTokens': [
           {
             'date': '2026-06-08',
-            'tokensByModel': {'claude-opus-4-7': 1000, 'kimi-for-coding': 500},
+            'tokensByModel': {'claude-opus-4-7': 1000, 'kimi-for-coding': 500}
           },
           {
             'date': '2026-06-09',
-            'tokensByModel': {'claude-opus-4-7': 2000},
+            'tokensByModel': {'claude-opus-4-7': 2000}
           },
         ],
       });
@@ -60,13 +60,19 @@ void main() {
     });
 
     test('handles null longestSession explicitly', () {
-      final usage = ClaudeLocalUsage.fromJson({'longestSession': null});
+      final usage = ClaudeLocalUsage.fromJson({
+        'longestSession': null,
+      });
       expect(usage.longestSession, isNull);
     });
 
     test('sortedTokensByModel returns entries sorted by value desc', () {
       final usage = ClaudeLocalUsage.fromJson({
-        'tokensByModel': {'a': 100, 'b': 500, 'c': 300},
+        'tokensByModel': {
+          'a': 100,
+          'b': 500,
+          'c': 300,
+        },
       });
 
       final sorted = usage.sortedTokensByModel;
@@ -114,7 +120,10 @@ void main() {
 
   group('ClaudeLocalUsage.formatModelName', () {
     test('strips claude- prefix and title-cases segments', () {
-      expect(ClaudeLocalUsage.formatModelName('claude-opus-4-7'), 'Opus 4 7');
+      expect(
+        ClaudeLocalUsage.formatModelName('claude-opus-4-7'),
+        'Opus 4 7',
+      );
     });
 
     test('handles non-claude model ids', () {
