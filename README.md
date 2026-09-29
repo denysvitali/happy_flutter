@@ -96,7 +96,8 @@ saved when leaving chat; pending settings changes are flushed on suspension.
 - **State Management**: Riverpod v3
 - **Native hot paths**: Rust handles AES encryption/decryption, JSON validation,
   sidechain planning, and on-demand large terminal copy stripping; Dart remains
-  the fallback if unavailable.
+  the fallback if unavailable. WASM stage timers use the browser performance
+  clock; CI checks sidechain planning and an AES-GCM roundtrip in release WASM.
 - **HTTP Client**: Dio with NativeAdapter (Cronet/cupertino_http)
 - **WebSocket**: Socket.IO protocol implementation
 - **Encryption**: libsodium via `sodium` package + AES-256-GCM via `cryptography` package

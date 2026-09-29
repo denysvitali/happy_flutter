@@ -3,7 +3,7 @@
 //! This runs through FRB's asynchronous worker so full-output scanning does
 //! not block chat rendering while the user copies a large result.
 
-use std::time::Instant;
+use web_time::Instant;
 
 pub struct StrippedOutput {
     pub text: String,

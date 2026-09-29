@@ -19,7 +19,7 @@
 //! previous "base64 or auth, can't tell".
 
 use serde::de::IgnoredAny;
-use std::time::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 use crate::crypto::{self, DecryptError};
 

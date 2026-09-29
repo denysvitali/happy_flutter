@@ -9,7 +9,7 @@
 
 use crate::crypto;
 use crate::json;
-use std::time::Instant;
+use web_time::Instant;
 
 /// Decrypt base64-encoded `[version][nonce][ct][tag]` envelopes.
 ///

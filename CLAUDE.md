@@ -464,6 +464,8 @@ only on Copy; outputs of at least 4096 characters use an async Rust worker,
 with a Dart fallback. Keep its SGR-only strip rule and `split('\n')` line
 semantics identical. Native AES encrypt/decrypt, JSON, sidechain, and terminal
 spans report bridge wall and Rust stage time without message data.
+Rust stage timers use `web_time::Instant`: `std::time::Instant` panics on the
+WASM target. The web CI job smoke-tests the built release WASM sync bridge.
 
 **Display text:** Session previews and profile avatar initials must use
 `characters` (grapheme clusters), never UTF-16 indexing or fixed-offset

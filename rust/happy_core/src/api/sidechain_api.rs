@@ -1,7 +1,7 @@
 //! Dart-facing sidechain planning entry points.
 
 use crate::sidechain;
-use std::time::Instant;
+use web_time::Instant;
 
 /// Compact metadata for one message-tree node.
 ///

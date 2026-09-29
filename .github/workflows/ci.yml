@@ -954,6 +954,9 @@ jobs:
             --output "$GITHUB_WORKSPACE/build/rust/web" \
             --release
 
+      - name: Smoke test release WASM hot paths
+        run: node .github/scripts/wasm_smoke.mjs build/rust/web/pkg
+
       - name: Build Web
         run: |
           mise exec -- flutter build web --release --no-pub \
