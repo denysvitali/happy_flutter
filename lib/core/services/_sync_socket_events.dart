@@ -451,7 +451,11 @@ extension SyncSocketEvents on Sync {
   }
 
   /// Handle new message update
-  void _handleNewMessage(Map<String, dynamic> data) {
+  void _handleNewMessage(Map<String, dynamic> data) => MainIsolateStallTracker
+      .instance
+      .track('socket.new_message', () => _handleNewMessageUntracked(data));
+
+  void _handleNewMessageUntracked(Map<String, dynamic> data) {
     final sessionId = data['sid'] as String? ?? data['id'] as String?;
     // Do NOT invalidate sessionsSync here — message events fire on every
     // streaming token and would cause dozens of sessions re-fetches per

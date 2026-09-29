@@ -23,6 +23,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/services/chat_switch_metrics.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
+import '../../core/services/main_isolate_stall_tracker.dart';
 import '../../core/services/opentelemetry_service.dart';
 import '../../core/services/performance_context_service.dart';
 import '../../core/services/screen_awake_service.dart';
@@ -636,7 +637,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _refreshFromSync();
   }
 
-  void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) {
+  void _refreshFromSync({bool markLoaded = false, bool loadFailed = false}) =>
+      MainIsolateStallTracker.instance.track(
+        'chat.refresh_from_sync',
+        () => _refreshFromSyncUntracked(
+          markLoaded: markLoaded,
+          loadFailed: loadFailed,
+        ),
+      );
+
+  void _refreshFromSyncUntracked({
+    required bool markLoaded,
+    required bool loadFailed,
+  }) {
     final latestSession = sync.sessionById(widget.sessionId);
     final latestMessages = sync.messagesForSession(widget.sessionId);
     final latestRevision = sync.messagesRevision(widget.sessionId);

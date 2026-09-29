@@ -26,8 +26,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
       _cachedMessagesLength = totalCount;
       _cachedVisibleCount = _visibleCount;
       final previous = _cachedVisibleMessages;
-      var unchanged = previous != null &&
-          previous.length == totalCount - startIndex;
+      var unchanged =
+          previous != null && previous.length == totalCount - startIndex;
       if (unchanged) {
         for (var i = 0; i < previous.length; i++) {
           if (!identical(previous[i], _messages[startIndex + i])) {
@@ -68,25 +68,28 @@ extension _ChatScreenBuilders on _ChatScreenState {
       // but only the newest few — the rest sit behind a "show N more" row
       // so a session that accumulated 100+ of them still shows its
       // conversation.
-      final items = buildChatListItems(
-        visibleMessages: visibleMessages,
-        hideToolCalls: hideToolCalls,
-        sidechainOrphanInlineCap: _sidechainOrphansExpanded
-            ? null
-            : kSidechainOrphanInlineCap,
-        shouldRenderAgentEvent: AgentEventWidget.shouldRenderInChat,
-        shouldHideToolCall: _shouldHideToolCall,
-        onMessageError: (msg, e, st) {
-          // Never let a single malformed message abort the whole list —
-          // otherwise rendering halts at the offending item and every
-          // message after it disappears from the UI.
-          logger.warning(
-            '[chat] skipped malformed message id='
-            '${msg['id']} seq=${msg['seq']}: $e',
-            e,
-            st,
-          );
-        },
+      final items = MainIsolateStallTracker.instance.track(
+        'chat.build_list_items',
+        () => buildChatListItems(
+          visibleMessages: visibleMessages,
+          hideToolCalls: hideToolCalls,
+          sidechainOrphanInlineCap: _sidechainOrphansExpanded
+              ? null
+              : kSidechainOrphanInlineCap,
+          shouldRenderAgentEvent: AgentEventWidget.shouldRenderInChat,
+          shouldHideToolCall: _shouldHideToolCall,
+          onMessageError: (msg, e, st) {
+            // Never let a single malformed message abort the whole list —
+            // otherwise rendering halts at the offending item and every
+            // message after it disappears from the UI.
+            logger.warning(
+              '[chat] skipped malformed message id='
+              '${msg['id']} seq=${msg['seq']}: $e',
+              e,
+              st,
+            );
+          },
+        ),
       );
 
       final keys = [
@@ -333,7 +336,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
         !isToolCall;
     final animate =
         _initialLoadComplete && !_seenMessageIds.contains(messageKey);
-    final online = (_session?.isOnline ?? false) ||
+    final online =
+        (_session?.isOnline ?? false) ||
         ((_session?.metadata?.machineId?.isNotEmpty ?? false) &&
             (_session?.metadata?.path?.isNotEmpty ?? false));
     final signature = (
@@ -365,8 +369,7 @@ extension _ChatScreenBuilders on _ChatScreenState {
         sessionId: widget.sessionId,
         isSessionOnline: online,
         onOptionPress: _onOptionPress,
-        onRetry:
-            message['role'] == 'user' && message['sendStatus'] == 'failed'
+        onRetry: message['role'] == 'user' && message['sendStatus'] == 'failed'
             ? () => _retryMessage(message)
             : null,
         animate: animate,
