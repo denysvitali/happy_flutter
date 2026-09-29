@@ -65,6 +65,13 @@ lib/
 
 ### Key Architectural Patterns
 
+Desktop chats group completed tool calls by default, with a per-chat control
+to show the full trace. Mobile keeps its existing hide-tools preference.
+The session pane can be hidden without losing its selection or scroll state;
+dragging its divider resizes it. Chat inspectors allocate space only when
+opened and use the available chat-pane width. The conversation and composer
+share an 880px maximum reading width on desktop.
+
 - **State Management**: Riverpod v3 with manual `NotifierProvider` (no code generation)
 - **Sync Singleton**: Central in-memory data hub (`Sync` class) — main file ~1,700 lines, split across 21 `part` files. `InvalidateSync` provides debounced server fetches with exponential backoff.
 - **Provider Bridge**: Notifiers expose `loadFromSync()` (in-memory read) and `refreshFromSync()` (server fetch + read). Screens use `SyncSubscriptionMixin` (in `lib/core/utils/`) which wraps `sync.onDataChanged` / `onDomainChanged` with deduplication.

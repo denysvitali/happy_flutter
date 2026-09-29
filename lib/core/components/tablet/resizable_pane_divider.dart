@@ -177,7 +177,9 @@ class _ResizablePaneDividerState extends State<ResizablePaneDivider> {
             onPanEnd: (_) => widget.onResizeEnd?.call(),
             onPanCancel: () => widget.onResizeEnd?.call(),
             child: SizedBox(
-              width: AppTouchTarget.min,
+              width: MediaQuery.sizeOf(context).width >= AppBreakpoint.desktop
+                  ? AppSpacing.md
+                  : AppTouchTarget.min,
               child: Center(
                 child: VerticalDivider(
                   width: AppBorder.thin,

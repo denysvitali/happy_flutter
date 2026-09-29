@@ -103,15 +103,25 @@ class MissionActionRow extends StatelessWidget {
       MissionLane.unread => context.l10n.missionControlNewCount(
         entry.unreadCount,
       ),
-      MissionLane.live => isSilent
-          ? context.l10n.missionControlSilent(formatSilenceShort(silenceMs))
-          : formatElapsedShort(silenceMs),
+      MissionLane.live =>
+        isSilent
+            ? context.l10n.missionControlSilent(formatSilenceShort(silenceMs))
+            : formatElapsedShort(silenceMs),
       MissionLane.quiet => laneLabel,
     };
     final name = getSessionName(session);
     final detailStyle = theme.textTheme.labelSmall?.copyWith(
       fontSize: AppFontSize.xs,
       color: lane == MissionLane.error ? laneColor : cs.onSurfaceVariant,
+    );
+
+    final outcome = _OutcomePill(
+      lane: lane,
+      entry: entry,
+      since: since,
+      nowMs: nowMs,
+      live: lane == MissionLane.live,
+      onMarkRead: lane == MissionLane.unread && !selected ? onMarkRead : null,
     );
 
     return Semantics(
@@ -158,110 +168,115 @@ class MissionActionRow extends StatelessWidget {
                   AppSpacing.sm,
                   AppSpacing.sm,
                 ),
-                child: Row(
-                  children: [
-                    _LaneTile(
-                      lane: lane,
-                      color: laneColor,
-                      freshness: freshness,
-                      // Blocked/error are at-rest lanes: their full
-                      // container color and outcome pill already demand
-                      // attention, so only real agent activity and the
-                      // brief post-update burst animate.
-                      pulse:
-                          animateActivity &&
-                          (status.isPulsing ||
-                              freshness == StreamFreshness.burst),
-                      selected: selected,
-                    ),
-                    const SizedBox(width: AppSpacing.smd),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Row(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stacked =
+                        MediaQuery.sizeOf(context).width >=
+                            AppBreakpoint.desktop &&
+                        constraints.maxWidth < 480;
+                    return Row(
+                      children: [
+                        _LaneTile(
+                          lane: lane,
+                          color: laneColor,
+                          freshness: freshness,
+                          // Blocked/error are at-rest lanes: their full
+                          // container color and outcome pill already demand
+                          // attention, so only real agent activity and the
+                          // brief post-update burst animate.
+                          pulse:
+                              animateActivity &&
+                              (status.isPulsing ||
+                                  freshness == StreamFreshness.burst),
+                          selected: selected,
+                        ),
+                        const SizedBox(width: AppSpacing.smd),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (workspace != null) ...[
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: workspaceIdentityColor(
-                                      context,
-                                      sessionFolderKey(session),
-                                    ),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.xxs),
-                              ],
-                              Expanded(
-                                child: Text(
-                                  detail,
-                                  // The error reason is why the user is
-                                  // looking — one extra line beats an
-                                  // elided diagnosis.
-                                  maxLines:
-                                      lane == MissionLane.error ? 2 : 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: detailStyle,
+                              Text(
+                                name,
+                                maxLines: stacked ? 2 : 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: cs.onSurface,
                                 ),
                               ),
+                              const SizedBox(height: AppSpacing.xxs),
+                              Row(
+                                children: [
+                                  if (workspace != null) ...[
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: workspaceIdentityColor(
+                                          context,
+                                          sessionFolderKey(session),
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.xxs),
+                                  ],
+                                  Expanded(
+                                    child: Text(
+                                      detail,
+                                      // The error reason is why the user is
+                                      // looking — one extra line beats an
+                                      // elided diagnosis.
+                                      maxLines: lane == MissionLane.error
+                                          ? 2
+                                          : 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: detailStyle,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (stacked) ...[
+                                const SizedBox(height: AppSpacing.xs),
+                                outcome,
+                              ],
                             ],
                           ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        if (isPinned) ...[
+                          Icon(
+                            Icons.push_pin_rounded,
+                            size: AppIconSize.sm,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    if (isPinned) ...[
-                      Icon(
-                        Icons.push_pin_rounded,
-                        size: AppIconSize.sm,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                    ],
-                    _OutcomePill(
-                      lane: lane,
-                      entry: entry,
-                      since: since,
-                      nowMs: nowMs,
-                      live: lane == MissionLane.live,
-                      onMarkRead: lane == MissionLane.unread && !selected
-                          ? onMarkRead
-                          : null,
-                    ),
-                    if (_hasOverflowMenu) ...[
-                      _TriageMenu(
-                        isPinned: isPinned,
-                        isSnoozed: isSnoozed,
-                        canMarkRead:
-                            lane == MissionLane.unread && entry.unreadCount > 0,
-                        onMarkRead: onMarkRead,
-                        onTogglePin: onTogglePin,
-                        onToggleSnooze: onToggleSnooze,
-                        onPeek: onPeek,
-                      ),
-                    ] else ...[
-                      const SizedBox(width: AppSpacing.xxs),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: AppIconSize.md,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ],
-                  ],
+                        if (!stacked) outcome,
+                        if (_hasOverflowMenu) ...[
+                          _TriageMenu(
+                            isPinned: isPinned,
+                            isSnoozed: isSnoozed,
+                            canMarkRead:
+                                lane == MissionLane.unread &&
+                                entry.unreadCount > 0,
+                            onMarkRead: onMarkRead,
+                            onTogglePin: onTogglePin,
+                            onToggleSnooze: onToggleSnooze,
+                            onPeek: onPeek,
+                          ),
+                        ] else ...[
+                          const SizedBox(width: AppSpacing.xxs),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: AppIconSize.md,
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ],
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -306,12 +321,14 @@ class _LaneTile extends StatelessWidget {
           MissionLane.blocked ||
           MissionLane.error => missionLaneContainerColor(context, lane),
           _ => Color.alphaBlend(
-            color.withValues(alpha: switch (freshness) {
-              StreamFreshness.burst => 0.18,
-              StreamFreshness.fresh => 0.12,
-              StreamFreshness.silent => 0.14,
-              StreamFreshness.aging => 0.06,
-            }),
+            color.withValues(
+              alpha: switch (freshness) {
+                StreamFreshness.burst => 0.18,
+                StreamFreshness.fresh => 0.12,
+                StreamFreshness.silent => 0.14,
+                StreamFreshness.aging => 0.06,
+              },
+            ),
             Theme.of(context).colorScheme.surfaceContainerLow,
           ),
         },
@@ -366,8 +383,7 @@ class _OutcomePill extends StatelessWidget {
     // MissionActionRow captures the shared clock once and passes it down so
     // this child does not register a duplicate inherited dependency.
     final silenceMs = nowMs - since;
-    final isSilent =
-        live && silenceMs >= missionSilentThreshold.inMilliseconds;
+    final isSilent = live && silenceMs >= missionSilentThreshold.inMilliseconds;
     final pillColor = isSilent
         ? missionLaneColor(context, MissionLane.blocked)
         : color;

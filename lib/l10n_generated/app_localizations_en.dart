@@ -5236,4 +5236,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get goalLoopsStatusExhausted => 'Out of iterations';
+
+  @override
+  String get desktopConversation => 'Conversation';
+
+  @override
+  String get desktopShowToolCalls => 'Show all tool calls';
+
+  @override
+  String get desktopToolCallsCollapsed =>
+      'Completed tools are grouped; expand a summary to inspect them.';
+
+  @override
+  String get desktopHideSessions => 'Hide sessions';
+
+  @override
+  String get desktopShowSessions => 'Show sessions';
 }

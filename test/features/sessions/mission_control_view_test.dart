@@ -505,6 +505,44 @@ void main() {
     );
   });
 
+  testWidgets('desktop sidebar puts the outcome below a readable title', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 300,
+              child: MissionActionRow(
+                session: _session(
+                  id: 'sidebar',
+                  path: '/home/dev/happy_flutter',
+                ),
+                entry: const SessionUiEntry(unreadCount: 13),
+                lane: MissionLane.unread,
+                animateActivity: false,
+                onTap: () {},
+                onLongPress: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final title = find.text('happy_flutter');
+    expect(tester.widget<Text>(title).maxLines, 2);
+    expect(tester.getSize(title).width, greaterThan(180));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the preview outranks the activity label on the detail line', (
     tester,
   ) async {

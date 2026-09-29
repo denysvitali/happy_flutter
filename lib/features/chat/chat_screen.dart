@@ -11,7 +11,6 @@ import 'package:sentry_flutter/sentry_flutter.dart'
     show Breadcrumb, Hint, Sentry, SentryLevel;
 
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
-import '../../core/components/tablet/master_detail_scaffold.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/safe_ui_messages.dart';
 import '../../core/models/built_in_profiles.dart';
@@ -71,6 +70,7 @@ import 'widgets/chat_messages_body.dart';
 import 'widgets/chat_search_bar.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
+import 'widgets/desktop_chat_workspace.dart';
 import 'widgets/model_change_divider.dart';
 import 'widgets/model_mode.dart';
 import 'widgets/model_picker_catalog.dart';
@@ -341,6 +341,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // ── In-conversation search ──────────────────────────────────────────────
   final TextEditingController _searchController = TextEditingController();
   bool _searchOpen = false;
+
   /// Prepared rows for the resident window; rebuilt when the transcript
   /// changes so each keystroke is a plain `indexOf` over short strings.
   List<ChatSearchIndexEntry> _searchEntries = const [];
@@ -348,6 +349,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   int _searchCurrent = -1;
   int _searchEntriesRevision = -1;
   List<Map<String, dynamic>>? _searchEntriesSource;
+
   /// Manual "search further back" budget while typing with zero hits.
   static const int _searchOlderPageBudget = 8;
   bool _isSearchLoadingOlder = false;
@@ -355,6 +357,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   static const Duration _searchRefreshDebounceDelay = Duration(
     milliseconds: 400,
   );
+
   /// Row build contexts captured while a reveal scroll is in flight, keyed by
   /// reverse-list index so the reveal can bisect toward an unbuilt row.
   final Map<int, BuildContext> _revealRowContexts = {};
@@ -1433,8 +1436,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   void _jumpToRevealRatio(double ratio) {
     if (!_scrollController.hasClients) return;
-    final offset = ratio.clamp(0.0, 1.0) *
-        _scrollController.position.maxScrollExtent;
+    final offset =
+        ratio.clamp(0.0, 1.0) * _scrollController.position.maxScrollExtent;
     _isAdjustingHistoryScroll = true;
     try {
       _scrollController.jumpTo(offset);
@@ -1665,11 +1668,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   /// to single-pane and pushes routes for info/files instead of carving a
   /// second empty detail pane out of its own slot.
   ///
-  /// Always single-pane when embedded — `onBack` is set by the embedding
-  /// parent (sessions tablet layout) and double-nesting master-detail leaves
-  /// an unused empty section visible until the user opens an info pane.
+  /// Embedded chats may open an inspector when their own pane has room.
+  /// With no selected detail, the conversation always uses the full pane.
   bool _isChatWide(double availableWidth) {
-    if (widget.onBack != null) return false;
     return availableWidth >= AppBreakpoint.desktop;
   }
 
@@ -1839,18 +1840,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     required bool enterToSend,
     required List<ChatModelMode> availableModels,
   }) {
-    final master = _buildMasterPane(
-      hideToolCalls: hideToolCalls,
-      enterToSend: enterToSend,
-      availableModels: availableModels,
-    );
-    if (!isWide) return master;
-    return MasterDetailScaffold(
-      master: master,
-      detail: _buildDetailPane(),
-      hasSelection: _detailKind != _ChatDetailKind.none,
-      tabletBreakpoint: AppBreakpoint.desktop,
-      emptyDetail: _emptyChatDetail,
+    return DesktopChatWorkspace(
+      mobileHideToolCalls: hideToolCalls,
+      inspector: isWide && _detailKind != _ChatDetailKind.none
+          ? _buildDetailPane()
+          : null,
+      builder: (collapseTools) => _buildMasterPane(
+        hideToolCalls: collapseTools,
+        enterToSend: enterToSend,
+        availableModels: availableModels,
+      ),
     );
   }
 

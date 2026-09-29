@@ -27,13 +27,18 @@ class _FakeMMKVStorage extends MMKVStorage {
 
 const _masterKey = Key('master-pane');
 
-Widget _harness(PaneLayoutStorage storage, {String? dividerLabel}) {
+Widget _harness(
+  PaneLayoutStorage storage, {
+  String? dividerLabel,
+  bool collapsible = false,
+}) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(
       body: ResizableSplitView(
         paneId: 'sessions',
+        collapsibleOnDesktop: collapsible,
         storage: storage,
         dividerSemanticsLabel: dividerLabel,
         master: const ColoredBox(
@@ -41,7 +46,11 @@ Widget _harness(PaneLayoutStorage storage, {String? dividerLabel}) {
           color: Colors.blue,
           child: SizedBox.expand(),
         ),
-        detail: const ColoredBox(color: Colors.green, child: SizedBox.expand()),
+        detail: const ColoredBox(
+          key: Key('detail-pane'),
+          color: Colors.green,
+          child: SizedBox.expand(),
+        ),
       ),
     ),
   );
@@ -91,14 +100,14 @@ void main() {
     expect(_masterWidth(tester), lessThan(1024 * 0.55));
   });
 
-  testWidgets('divider has a 44px target and supports arrow keys', (
+  testWidgets('desktop divider is compact and supports arrow keys', (
     tester,
   ) async {
     setViewport(tester, const Size(1024, 768));
     await tester.pumpWidget(_harness(storage, dividerLabel: 'Resize'));
 
     final divider = find.byType(ResizablePaneDivider);
-    expect(tester.getSize(divider).width, greaterThanOrEqualTo(44));
+    expect(tester.getSize(divider).width, 16);
 
     final before = _masterWidth(tester);
     await tester.tap(divider);
@@ -113,6 +122,34 @@ void main() {
     await tester.pump();
     expect(_masterWidth(tester), closeTo(before, 0.5));
     await _drainPersistDebounce(tester);
+  });
+
+  testWidgets('tablet retains a touch-sized divider and has no hide control', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(800, 768));
+    await tester.pumpWidget(_harness(storage, collapsible: true));
+    expect(tester.getSize(find.byType(ResizablePaneDivider)).width, 44);
+    expect(find.text('Hide sessions'), findsNothing);
+  });
+
+  testWidgets('hiding sessions gives detail full width and preserves master', (
+    tester,
+  ) async {
+    setViewport(tester, const Size(1200, 800));
+    await tester.pumpWidget(_harness(storage, collapsible: true));
+    final masterElement = tester.element(find.byKey(_masterKey));
+    final before = _masterWidth(tester);
+    await tester.tap(find.text('Hide sessions'));
+    await tester.pump();
+    expect(find.byKey(_masterKey), findsNothing);
+    expect(find.byType(ResizablePaneDivider), findsNothing);
+    expect(tester.getSize(find.byKey(const Key('detail-pane'))).width, 1200);
+    await tester.tap(find.text('Show sessions'));
+    await tester.pump();
+    expect(tester.element(find.byKey(_masterKey)), same(masterElement));
+    expect(_masterWidth(tester), before);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('dragging the divider resizes and persists the width', (

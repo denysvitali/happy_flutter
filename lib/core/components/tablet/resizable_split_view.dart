@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../i18n/app_localizations.dart';
 import '../../services/pane_layout_storage.dart';
+import '../../theme/app_tokens.dart';
 import 'resizable_pane_divider.dart';
 
 /// Two-column layout whose split point the user can drag, with the chosen
@@ -24,6 +25,7 @@ class ResizableSplitView extends StatefulWidget {
     super.key,
     this.storage,
     this.dividerSemanticsLabel,
+    this.collapsibleOnDesktop = false,
   });
 
   /// Stable identifier used as the persistence key (e.g. `'sessions'`).
@@ -41,6 +43,9 @@ class ResizableSplitView extends StatefulWidget {
   /// Accessibility label for the drag handle.
   final String? dividerSemanticsLabel;
 
+  /// Keep the list mounted while giving the detail all available space.
+  final bool collapsibleOnDesktop;
+
   @override
   State<ResizableSplitView> createState() => _ResizableSplitViewState();
 }
@@ -48,6 +53,7 @@ class ResizableSplitView extends StatefulWidget {
 class _ResizableSplitViewState extends State<ResizableSplitView> {
   /// Width chosen during this session; null until the user drags.
   double? _draggedWidth;
+  bool _masterHidden = false;
 
   PaneLayoutStorage get _storage =>
       widget.storage ?? PaneLayoutStorage.instance;
@@ -98,29 +104,60 @@ class _ResizableSplitViewState extends State<ResizableSplitView> {
     final step = ResizablePaneDivider.semanticsStep;
     final min = ResizablePaneDivider.minWidth(context);
     final max = ResizablePaneDivider.maxWidth(context);
-    return Row(
+    final collapsible =
+        widget.collapsibleOnDesktop &&
+        MediaQuery.sizeOf(context).width >= AppBreakpoint.desktop;
+    final hidden = collapsible && _masterHidden;
+    final split = Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(width: masterWidth, child: widget.master),
-        ResizablePaneDivider(
-          semanticsLabel: label,
-          semanticsValue: label == null
-              ? null
-              : context.l10n.paneWidthPixels(masterWidth.round()),
-          semanticsIncreasedValue: label == null
-              ? null
-              : context.l10n.paneWidthPixels(
-                  (masterWidth + step).clamp(min, max).round(),
-                ),
-          semanticsDecreasedValue: label == null
-              ? null
-              : context.l10n.paneWidthPixels(
-                  (masterWidth - step).clamp(min, max).round(),
-                ),
-          onResize: (delta) => _onResize(delta, context),
-          onResizeEnd: _persist,
+        Offstage(
+          offstage: hidden,
+          child: SizedBox(width: masterWidth, child: widget.master),
+        ),
+        Offstage(
+          offstage: hidden,
+          child: ResizablePaneDivider(
+            semanticsLabel: label,
+            semanticsValue: label == null
+                ? null
+                : context.l10n.paneWidthPixels(masterWidth.round()),
+            semanticsIncreasedValue: label == null
+                ? null
+                : context.l10n.paneWidthPixels(
+                    (masterWidth + step).clamp(min, max).round(),
+                  ),
+            semanticsDecreasedValue: label == null
+                ? null
+                : context.l10n.paneWidthPixels(
+                    (masterWidth - step).clamp(min, max).round(),
+                  ),
+            onResize: (delta) => _onResize(delta, context),
+            onResizeEnd: _persist,
+          ),
         ),
         Expanded(child: widget.detail),
+      ],
+    );
+    if (!collapsible) return split;
+    return Column(
+      children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: () => setState(() => _masterHidden = !_masterHidden),
+            icon: Icon(
+              hidden ? Icons.view_sidebar_outlined : Icons.view_sidebar,
+              size: 18,
+            ),
+            label: Text(
+              hidden
+                  ? context.l10n.desktopShowSessions
+                  : context.l10n.desktopHideSessions,
+            ),
+          ),
+        ),
+        Expanded(child: split),
       ],
     );
   }

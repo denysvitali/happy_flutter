@@ -9213,6 +9213,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Out of iterations'**
   String get goalLoopsStatusExhausted;
+
+  /// No description provided for @desktopConversation.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation'**
+  String get desktopConversation;
+
+  /// No description provided for @desktopShowToolCalls.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all tool calls'**
+  String get desktopShowToolCalls;
+
+  /// No description provided for @desktopToolCallsCollapsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed tools are grouped; expand a summary to inspect them.'**
+  String get desktopToolCallsCollapsed;
+
+  /// No description provided for @desktopHideSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide sessions'**
+  String get desktopHideSessions;
+
+  /// No description provided for @desktopShowSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Show sessions'**
+  String get desktopShowSessions;
 }
 
 class _AppLocalizationsDelegate

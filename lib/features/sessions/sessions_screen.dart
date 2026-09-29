@@ -626,6 +626,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     if (usesMasterDetail && _activeTab == AppTab.sessions) {
       return ResizableSplitView(
         paneId: sessionsPaneId,
+        collapsibleOnDesktop: true,
         dividerSemanticsLabel: context.l10n.sessionsResizeSidebar,
         master: Scaffold(
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,

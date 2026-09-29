@@ -2859,5 +2859,10 @@
   "goalLoopsStatusStalled": "Stalled",
   "@goalLoopsStatusStalled": {"description": "Status chip: iterations stopped changing anything"},
   "goalLoopsStatusExhausted": "Out of iterations",
-  "@goalLoopsStatusExhausted": {"description": "Status chip: hit the iteration cap"}
+  "@goalLoopsStatusExhausted": {"description": "Status chip: hit the iteration cap"},
+  "desktopConversation": "Conversation",
+  "desktopShowToolCalls": "Show all tool calls",
+  "desktopToolCallsCollapsed": "Completed tools are grouped; expand a summary to inspect them.",
+  "desktopHideSessions": "Hide sessions",
+  "desktopShowSessions": "Show sessions"
 }
