@@ -195,12 +195,10 @@ class Settings {
   String? lastUsedProfileForAgent(String? agent) {
     final key = normalizeAgentKey(agent);
     final scopedProfile = lastUsedProfilesByAgent[key];
-    if (scopedProfile != null) return scopedProfile;
-
-    // Migration fallback for settings saved before profiles were scoped.
-    final legacyAgent = normalizeAgentKey(lastUsedAgent);
-    if (legacyAgent == key) return lastUsedProfile;
-    return null;
+    // No legacy `lastUsedProfile` fallback: an absent entry means "None".
+    // Falling back to the old global resurrected a deselected gateway profile
+    // and spawned sessions with its routing env and pinned model.
+    return scopedProfile;
   }
 
   Map<String, String> lastUsedProfilesWithAgent(

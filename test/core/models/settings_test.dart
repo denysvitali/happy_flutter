@@ -40,31 +40,13 @@ void main() {
       expect(settings.lastUsedProfileForAgent('claude'), isNull);
     });
 
-    test('legacy lastUsedProfile only applies to the last-used agent', () {
-      final settings = Settings()
-        ..lastUsedAgent = 'codex'
-        ..lastUsedProfile = 'openai';
-
-      expect(settings.lastUsedProfileForAgent('codex'), 'openai');
-      expect(settings.lastUsedProfileForAgent('claude'), isNull);
-    });
-
-    test('compatible legacy profile can be resolved for an agent', () {
-      final settings = Settings()
-        ..lastUsedAgent = 'codex'
-        ..lastUsedProfile = 'minimax';
-
-      expect(resolveSelectedProfileIdForAgent(settings, 'claude'), 'minimax');
-      expect(resolveSelectedProfileIdForAgent(settings, 'codex'), isNull);
-    });
-
-    test('incompatible legacy profile is not resolved for an agent', () {
+    test('legacy lastUsedProfile is ignored: no scoped entry means None', () {
       final settings = Settings()
         ..lastUsedAgent = 'claude'
-        ..lastUsedProfile = 'openai';
+        ..lastUsedProfile = 'minimax';
 
+      expect(settings.lastUsedProfileForAgent('claude'), isNull);
       expect(resolveSelectedProfileIdForAgent(settings, 'claude'), isNull);
-      expect(resolveSelectedProfileIdForAgent(settings, 'codex'), 'openai');
     });
 
     test('serializes and restores scoped profile selections', () {

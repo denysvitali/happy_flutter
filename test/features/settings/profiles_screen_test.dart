@@ -297,6 +297,7 @@ void main() {
           ),
         ]
         ..lastUsedProfile = 'custom_1'
+        ..lastUsedProfilesByAgent = {'claude': 'custom_1'}
         ..lastUsedAgent = 'claude';
 
       await tester.pumpWidget(
@@ -358,6 +359,7 @@ void main() {
           ),
         ]
         ..lastUsedProfile = 'custom_1'
+        ..lastUsedProfilesByAgent = {'claude': 'custom_1'}
         ..lastUsedAgent = 'claude';
 
       await tester.pumpWidget(
@@ -388,6 +390,7 @@ void main() {
       // display-only row instead of silently disappearing from the page.
       final preset = Settings()
         ..lastUsedProfile = 'deepseek'
+        ..lastUsedProfilesByAgent = {'claude': 'deepseek'}
         ..lastUsedAgent = 'claude';
 
       await tester.pumpWidget(
@@ -407,6 +410,7 @@ void main() {
     ) async {
       final preset = Settings()
         ..lastUsedProfile = 'deepseek'
+        ..lastUsedProfilesByAgent = {'claude': 'deepseek'}
         ..lastUsedAgent = 'claude';
 
       await tester.pumpWidget(

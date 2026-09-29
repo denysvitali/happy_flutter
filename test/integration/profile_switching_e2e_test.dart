@@ -77,7 +77,10 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'deepseek'});
+      await sync.applySettings({
+        'lastUsedProfile': 'deepseek',
+        'lastUsedProfilesByAgent': {'claude': 'deepseek', 'codex': 'deepseek'},
+      });
 
       await sync.createSession(
         agent: 'claude',
@@ -123,7 +126,10 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'openai'});
+      await sync.applySettings({
+        'lastUsedProfile': 'openai',
+        'lastUsedProfilesByAgent': {'claude': 'openai', 'codex': 'openai'},
+      });
 
       await sync.createSession(
         agent: 'codex',
@@ -171,7 +177,13 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'azure-openai'});
+      await sync.applySettings({
+        'lastUsedProfile': 'azure-openai',
+        'lastUsedProfilesByAgent': {
+          'claude': 'azure-openai',
+          'codex': 'azure-openai',
+        },
+      });
 
       await sync.createSession(
         agent: 'codex',
@@ -208,7 +220,10 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'minimax'});
+      await sync.applySettings({
+        'lastUsedProfile': 'minimax',
+        'lastUsedProfilesByAgent': {'claude': 'minimax', 'codex': 'minimax'},
+      });
 
       await sync.createSession(
         agent: 'claude',
@@ -254,7 +269,10 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'zai'});
+      await sync.applySettings({
+        'lastUsedProfile': 'zai',
+        'lastUsedProfilesByAgent': {'claude': 'zai', 'codex': 'zai'},
+      });
 
       await sync.createSession(
         agent: 'claude',
@@ -298,7 +316,10 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'zai'});
+      await sync.applySettings({
+        'lastUsedProfile': 'zai',
+        'lastUsedProfilesByAgent': {'claude': 'zai', 'codex': 'zai'},
+      });
 
       await sync.createSession(
         agent: 'claude',
@@ -339,7 +360,10 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'zai'});
+      await sync.applySettings({
+        'lastUsedProfile': 'zai',
+        'lastUsedProfilesByAgent': {'claude': 'zai', 'codex': 'zai'},
+      });
 
       await sync.createSession(
         agent: 'claude',
@@ -402,7 +426,13 @@ void main() {
         };
       };
 
-      await sync.applySettings({'lastUsedProfile': 'anthropic'});
+      await sync.applySettings({
+        'lastUsedProfile': 'anthropic',
+        'lastUsedProfilesByAgent': {
+          'claude': 'anthropic',
+          'codex': 'anthropic',
+        },
+      });
 
       await sync.createSession(
         agent: 'claude',
@@ -438,7 +468,10 @@ void main() {
       };
 
       // Set global to OpenAI
-      await sync.applySettings({'lastUsedProfile': 'openai'});
+      await sync.applySettings({
+        'lastUsedProfile': 'openai',
+        'lastUsedProfilesByAgent': {'claude': 'openai', 'codex': 'openai'},
+      });
 
       // But pass DeepSeek explicitly
       await sync.createSession(
@@ -517,6 +550,10 @@ void main() {
         await sync.applySettings({
           'profiles': [customProfile.toJson()],
           'lastUsedProfile': 'my-custom',
+          'lastUsedProfilesByAgent': {
+            'claude': 'my-custom',
+            'codex': 'my-custom',
+          },
         });
 
         await sync.createSession(
@@ -578,6 +615,10 @@ void main() {
       await sync.applySettings({
         'profiles': [customProfile.toJson()],
         'lastUsedProfile': 'my-openai',
+        'lastUsedProfilesByAgent': {
+          'claude': 'my-openai',
+          'codex': 'my-openai',
+        },
       });
 
       await sync.createSession(
@@ -710,6 +751,10 @@ void main() {
         await sync.applySettings({
           'profiles': [customProfile.toJson()],
           'lastUsedProfile': 'my-azure',
+          'lastUsedProfilesByAgent': {
+            'claude': 'my-azure',
+            'codex': 'my-azure',
+          },
         });
 
         await sync.createSession(
@@ -758,6 +803,10 @@ void main() {
         await sync.applySettings({
           'profiles': [customProfile.toJson()],
           'lastUsedProfile': 'my-together',
+          'lastUsedProfilesByAgent': {
+            'claude': 'my-together',
+            'codex': 'my-together',
+          },
         });
 
         await sync.createSession(
@@ -800,6 +849,7 @@ void main() {
       await sync.applySettings({
         'profiles': [customProfile.toJson()],
         'lastUsedProfile': 'my-tmux',
+        'lastUsedProfilesByAgent': {'claude': 'my-tmux', 'codex': 'my-tmux'},
       });
 
       await sync.createSession(
@@ -841,6 +891,7 @@ void main() {
       await sync.applySettings({
         'profiles': [customProfile.toJson()],
         'lastUsedProfile': 'my-env',
+        'lastUsedProfilesByAgent': {'claude': 'my-env', 'codex': 'my-env'},
       });
 
       await sync.createSession(
@@ -889,6 +940,7 @@ void main() {
       await sync.applySettings({
         'profiles': [customProfile.toJson()],
         'lastUsedProfile': 'my-merge',
+        'lastUsedProfilesByAgent': {'claude': 'my-merge', 'codex': 'my-merge'},
       });
 
       await sync.createSession(
@@ -939,6 +991,7 @@ void main() {
       await sync.applySettings({
         'profiles': [customProfile.toJson()],
         'lastUsedProfile': 'openai',
+        'lastUsedProfilesByAgent': {'claude': 'openai', 'codex': 'openai'},
       });
 
       await sync.createSession(
@@ -1009,7 +1062,10 @@ void main() {
       };
 
       // First session with DeepSeek
-      await sync.applySettings({'lastUsedProfile': 'deepseek'});
+      await sync.applySettings({
+        'lastUsedProfile': 'deepseek',
+        'lastUsedProfilesByAgent': {'claude': 'deepseek', 'codex': 'deepseek'},
+      });
       final session1 = await sync.createSession(
         agent: 'claude',
         machineId: 'machine-1',
@@ -1018,7 +1074,10 @@ void main() {
       );
 
       // Switch to MiniMax, another Claude-compatible profile.
-      await sync.applySettings({'lastUsedProfile': 'minimax'});
+      await sync.applySettings({
+        'lastUsedProfile': 'minimax',
+        'lastUsedProfilesByAgent': {'claude': 'minimax', 'codex': 'minimax'},
+      });
       final session2 = await sync.createSession(
         agent: 'claude',
         machineId: 'machine-1',
@@ -1063,7 +1122,10 @@ void main() {
       };
 
       // First session with DeepSeek
-      await sync.applySettings({'lastUsedProfile': 'deepseek'});
+      await sync.applySettings({
+        'lastUsedProfile': 'deepseek',
+        'lastUsedProfilesByAgent': {'claude': 'deepseek', 'codex': 'deepseek'},
+      });
       await sync.createSession(
         agent: 'claude',
         machineId: 'machine-1',
@@ -1071,7 +1133,10 @@ void main() {
       );
 
       // Switch to no profile
-      await sync.applySettings({'lastUsedProfile': null});
+      await sync.applySettings({
+        'lastUsedProfile': null,
+        'lastUsedProfilesByAgent': <String, String>{},
+      });
       await sync.createSession(
         agent: 'claude',
         machineId: 'machine-1',
@@ -1153,7 +1218,10 @@ void main() {
 
       // Global profile is now OpenAI (user switched after creating
       // the session).
-      await sync.applySettings({'lastUsedProfile': 'openai'});
+      await sync.applySettings({
+        'lastUsedProfile': 'openai',
+        'lastUsedProfilesByAgent': {'claude': 'openai', 'codex': 'openai'},
+      });
 
       // Set up an offline session that will trigger auto-restore
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -1318,7 +1386,10 @@ void main() {
           (envVars: <String, String>{}, profile: null);
 
       // Global profile is DeepSeek — should NOT be used
-      await sync.applySettings({'lastUsedProfile': 'deepseek'});
+      await sync.applySettings({
+        'lastUsedProfile': 'deepseek',
+        'lastUsedProfilesByAgent': {'claude': 'deepseek', 'codex': 'deepseek'},
+      });
 
       final now = DateTime.now().millisecondsSinceEpoch;
       sync.testSessions[sessionId] = Session(
@@ -1441,6 +1512,10 @@ void main() {
       await sync.applySettings({
         'profiles': [customProfile.toJson()],
         'lastUsedProfile': 'yolo-profile',
+        'lastUsedProfilesByAgent': {
+          'claude': 'yolo-profile',
+          'codex': 'yolo-profile',
+        },
         'lastUsedPermissionMode': 'default',
       });
 
@@ -1476,6 +1551,10 @@ void main() {
 
         await sync.applySettings({
           'lastUsedProfile': 'deepseek',
+          'lastUsedProfilesByAgent': {
+            'claude': 'deepseek',
+            'codex': 'deepseek',
+          },
           'lastUsedPermissionMode': 'plan',
         });
 

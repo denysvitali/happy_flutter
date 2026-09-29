@@ -568,11 +568,11 @@ bool isBuiltInPresetId(String id) => _builtInIds.contains(id);
 
 /// Resolve the selected profile ID for an agent.
 ///
-/// Newer settings store selections in [Settings.lastUsedProfilesByAgent].
-/// Older installs only have [Settings.lastUsedProfile], and some users may
-/// still have that legacy field without a scoped entry. Use it only when the
-/// referenced profile exists and supports the requested agent, so a Codex-only
-/// profile cannot leak into Claude.
+/// Selections live in [Settings.lastUsedProfilesByAgent]. No scoped entry
+/// means "None": the legacy [Settings.lastUsedProfile] is deliberately ignored
+/// so a deselected profile can never come back. The referenced profile must
+/// exist and support the agent, so a Codex-only profile cannot leak into
+/// Claude.
 String? resolveSelectedProfileIdForAgent(Settings settings, String? agent) {
   final agentKey = normalizeAgentKey(agent);
 
@@ -586,13 +586,7 @@ String? resolveSelectedProfileIdForAgent(Settings settings, String? agent) {
     return scoped;
   }
 
-  final legacy = settings.lastUsedProfile;
-  if (legacy == null || legacy.isEmpty) return null;
-
-  final profile = resolveProfile(legacy, settings.profiles);
-  if (profile == null) return null;
-
-  if (!profile.compatibility.supportsAgent(agentKey)) return null;
-
-  return legacy;
+  // No legacy `lastUsedProfile` fallback (see Settings.lastUsedProfileForAgent):
+  // an absent scoped entry means "None".
+  return null;
 }

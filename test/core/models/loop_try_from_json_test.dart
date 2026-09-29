@@ -2,16 +2,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/models/loop.dart';
 
 Map<String, dynamic> _validJson({String id = 'aaaaaaaa'}) => <String, dynamic>{
-      'id': id,
-      'sessionId': 's1',
-      'expression': '*/5 * * * *',
-      'prompt': 'check the deploy',
-      'recurring': true,
-      'createdAt': 1700000000000,
-      'expiresAt': 1700604800000,
-      'fireCount': 0,
-      'paused': false,
-    };
+  'id': id,
+  'sessionId': 's1',
+  'expression': '*/5 * * * *',
+  'prompt': 'check the deploy',
+  'recurring': true,
+  'createdAt': 1700000000000,
+  'expiresAt': 1700604800000,
+  'fireCount': 0,
+  'paused': false,
+};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +56,14 @@ void main() {
     });
 
     test('returns null when a required field is missing', () {
-      final required = ['id', 'sessionId', 'expression', 'prompt', 'createdAt', 'expiresAt'];
+      final required = [
+        'id',
+        'sessionId',
+        'expression',
+        'prompt',
+        'createdAt',
+        'expiresAt',
+      ];
       for (final key in required) {
         final json = _validJson()..remove(key);
         expect(
@@ -68,8 +75,7 @@ void main() {
     });
 
     test('returns null when a required numeric field is unparseable', () {
-      final json = _validJson()
-        ..['createdAt'] = 'not-a-number';
+      final json = _validJson()..['createdAt'] = 'not-a-number';
       expect(Loop.tryFromJson(json), isNull);
     });
 
@@ -78,7 +84,10 @@ void main() {
     });
 
     test('defaults recurring to true, paused to false, fireCount to 0', () {
-      final json = _validJson()..remove('recurring')..remove('paused')..remove('fireCount');
+      final json = _validJson()
+        ..remove('recurring')
+        ..remove('paused')
+        ..remove('fireCount');
       final loop = Loop.tryFromJson(json);
       expect(loop, isNotNull);
       expect(loop!.recurring, isTrue);
