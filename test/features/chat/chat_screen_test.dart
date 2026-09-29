@@ -1165,6 +1165,55 @@ void main() {
       expect(find.text('Read File'), findsNothing);
     });
 
+    testWidgets('invisible rows reserve no space between terminal rows', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      Map<String, dynamic> tool(String id) => {
+        'id': id,
+        'role': 'agent',
+        'kind': 'tool-call',
+        'name': 'Bash',
+        'toolUseId': 'tool-$id',
+        'state': 'completed',
+        'input': {'command': 'pwd'},
+      };
+      sync.testSetSessionMessages('session_1', [
+        tool('first'),
+        for (var i = 0; i < 20; i++) ...[
+          {
+            'id': 'reasoning-$i',
+            'role': 'agent',
+            'kind': 'text',
+            'isThinking': true,
+            'content': '*Thinking...*\n\n**',
+          },
+          {'id': 'empty-$i', 'role': 'agent', 'kind': 'text', 'content': ''},
+        ],
+        tool('last'),
+      ]);
+      sync.testSessions['session_1'] = _makeSession();
+      await tester.pumpWidget(
+        _buildApp(
+          settings: Settings()..hideToolCalls = false,
+          child: const ChatScreen(sessionId: 'session_1'),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final terminals = find.textContaining('Terminal', findRichText: true);
+      expect(terminals, findsNWidgets(2));
+      final rects = [
+        tester.getRect(terminals.at(0)),
+        tester.getRect(terminals.at(1)),
+      ]..sort((a, b) => a.top.compareTo(b.top));
+      expect(rects[1].top - rects[0].bottom, lessThan(40));
+      // Invisible rows remain available for activity and wire bookkeeping.
+      expect(sync.messagesForSession('session_1').length, 42);
+    });
+
     testWidgets('shows hidden tool calls when permission is pending', (
       tester,
     ) async {

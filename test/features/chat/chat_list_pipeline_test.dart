@@ -3,6 +3,77 @@ import 'package:happy_flutter/features/chat/chat_list_pipeline.dart';
 
 void main() {
   group('buildChatListItems', () {
+    for (final hideTools in [false, true]) {
+      test('empty rows do not split tool runs (hide=$hideTools)', () {
+        final messages = <Map<String, dynamic>>[
+          {'id': 't1', 'kind': 'tool-call', 'name': 'Bash'},
+          for (final content in ['', '  \n', '**', '*Thinking...*\n\n**'])
+            {
+              'id': 'thinking-$content',
+              'role': 'agent',
+              'kind': 'text',
+              'isThinking': true,
+              'content': content,
+            },
+          {'id': 'blank', 'role': 'agent', 'kind': 'text', 'text': '  '},
+          {'id': 'link', 'kind': 'sidechain-link', 'isSidechain': true},
+          {'id': 'root', 'kind': 'sidechain-root', 'isSidechain': true},
+          {'id': 't2', 'kind': 'tool-call', 'name': 'Read'},
+          {'id': 'answer', 'role': 'agent', 'kind': 'text', 'text': 'Done'},
+        ];
+        final items = buildChatListItems(
+          visibleMessages: messages,
+          hideToolCalls: hideTools,
+          shouldRenderAgentEvent: (_) => true,
+          shouldHideToolCall: (msg, {required hideToolCalls}) =>
+              hideToolCalls && msg['kind'] == 'tool-call',
+        );
+        if (hideTools) {
+          expect(items.length, 2);
+          expect((items.first!['tools'] as List).length, 2);
+          expect((items.first!['items'] as List).length, 2);
+        } else {
+          expect(items.map((m) => m?['id']), ['t1', 't2', 'answer']);
+        }
+        // Filtering is a display policy; wire data stays intact.
+        expect(messages.length, 10);
+      });
+    }
+
+    test('keeps image-only users, streaming text and task summaries', () {
+      final messages = <Map<String, dynamic>>[
+        {'id': 'user', 'role': 'user', 'kind': 'text', 'text': ''},
+        {
+          'id': 'stream',
+          'role': 'agent',
+          'kind': 'text',
+          'text': '',
+          'isStreaming': true,
+        },
+        {
+          'id': 'task',
+          'role': 'agent',
+          'kind': 'text',
+          'text': '',
+          'taskEvent': true,
+        },
+        {
+          'id': 'reasoning',
+          'role': 'agent',
+          'kind': 'text',
+          'content': '*Thinking...*\n*Checking the output*',
+          'isThinking': true,
+        },
+      ];
+      final items = buildChatListItems(
+        visibleMessages: messages,
+        hideToolCalls: false,
+        shouldRenderAgentEvent: (_) => true,
+        shouldHideToolCall: (_, {required hideToolCalls}) => false,
+      );
+      expect(items, messages);
+    });
+
     test('drops orphan recovery placeholders', () {
       final items = buildChatListItems(
         visibleMessages: [
@@ -575,7 +646,7 @@ void main() {
         items.where((m) => m?['kind'] == 'sidechain-orphan-more'),
         isEmpty,
       );
-      expect(items.length, 25);
+      expect(items, isEmpty);
     });
   });
   group('local_bash command de-duplication', () {

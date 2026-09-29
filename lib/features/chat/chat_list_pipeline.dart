@@ -6,6 +6,7 @@ library;
 
 import '../../core/services/sidechain_grouper.dart'
     show isVisibleSidechainOrphan;
+import 'thinking_content.dart';
 
 /// Default number of sidechain orphans rendered inline before the rest
 /// collapse behind a "show N more" row.
@@ -32,7 +33,8 @@ typedef MessageErrorHandler =
 
 /// Builds the display item list for a visible window of messages.
 ///
-/// - Drops `_orphanRecovery` synthetic placeholders
+/// - Drops `_orphanRecovery`, chain scaffolding and empty assistant rows
+///   before grouping or spacing. The source messages remain unchanged.
 /// - Drops agent-events when [shouldRenderAgentEvent] returns false
 /// - When [hideToolCalls] is true, collapses consecutive hidden
 ///   tool-calls AND thinking blocks into one `hidden-tool-summary`
@@ -191,6 +193,7 @@ List<Map<String, dynamic>?> buildChatListItems({
   for (var msg in visibleMessages) {
     try {
       if (msg['_orphanRecovery'] == true) continue;
+      if (_isInvisibleRow(msg)) continue;
       final command = bashCommandOf(msg);
       if (command != null) rememberCommand(command);
       if (msg['kind'] == 'agent-event' &&
@@ -286,6 +289,21 @@ List<Map<String, dynamic>?> buildChatListItems({
   flushHiddenGroup();
   flushOrphanGroup();
   return items;
+}
+
+bool _isInvisibleRow(Map<String, dynamic> msg) {
+  final kind = msg['kind'];
+  if (kind == 'sidechain-link' || kind == 'sidechain-root') return true;
+  if (msg['role'] == 'user' || msg['taskEvent'] == true) return false;
+  final isThinking = msg['isThinking'] == true;
+  final isText = kind == null || kind == 'text' || kind == 'message';
+  if (!isThinking && !isText) return false;
+  final content = msg['content'] ?? msg['text'] ?? '';
+  final text = content is String ? content : content.toString();
+  if (isThinking) {
+    return cleanThinkingContent(text).isEmpty;
+  }
+  return msg['isStreaming'] != true && text.trim().isEmpty;
 }
 
 /// Number of recent shell commands remembered for chip de-duplication.

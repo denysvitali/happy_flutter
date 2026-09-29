@@ -5,6 +5,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
+import '../thinking_content.dart';
 
 /// Collapsible block showing model thinking/reasoning content.
 class ThinkingBlock extends StatefulWidget {
@@ -38,25 +39,10 @@ class _ThinkingBlockState extends State<ThinkingBlock>
   /// [widget.content] changes (in [didUpdateWidget]), not on every build.
   late String _cleanedContent;
 
-  static final _thinkingPrefix =
-      RegExp(r'^\*Thinking\.\.\.\*\s*\n*');
-
-  static String _computeCleanContent(String raw) {
-    var text = raw.replaceFirst(_thinkingPrefix, '').trim();
-    // Strip outer *...* italic markers baked in by
-    // message_processor/sync_service.
-    if (text.startsWith('*') &&
-        text.endsWith('*') &&
-        text.length > 2) {
-      text = text.substring(1, text.length - 1);
-    }
-    return text;
-  }
-
   @override
   void initState() {
     super.initState();
-    _cleanedContent = _computeCleanContent(widget.content);
+    _cleanedContent = cleanThinkingContent(widget.content);
     final key = widget.storageKey;
     if (key != null && key.isNotEmpty) {
       final saved = PageStorage.of(context).readState(
@@ -99,7 +85,7 @@ class _ThinkingBlockState extends State<ThinkingBlock>
   void didUpdateWidget(ThinkingBlock oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.content != oldWidget.content) {
-      _cleanedContent = _computeCleanContent(widget.content);
+      _cleanedContent = cleanThinkingContent(widget.content);
     }
   }
 
@@ -136,8 +122,8 @@ class _ThinkingBlockState extends State<ThinkingBlock>
     // Hide the block entirely when there is no real reasoning to show.
     // Opus 4.7 redacts thinking traces, producing an empty `thinking`
     // field that the parser wraps into `*Thinking...*\n\n**`; after
-    // cleaning this reduces to the literal `**` (or empty string).
-    if (_cleanedContent.isEmpty || _cleanedContent == '**') {
+    // cleaning this reduces to an empty string.
+    if (_cleanedContent.isEmpty) {
       return const SizedBox.shrink();
     }
 

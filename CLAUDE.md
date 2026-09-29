@@ -306,6 +306,10 @@ its rows. Its mounted snapshot is the activity baseline: history hydrated
 later must not appear as new activity, and rows older than two hours are
 excluded.
 
+Chat list projection drops empty/redacted reasoning, empty non-streaming
+assistant text and sidechain scaffolding before grouping and row spacing.
+Keep the source rows available for activity resolution and chain recovery.
+
 Chat message refreshes use a fixed 50ms coalescing window: never restart it
 for every token, which can starve rendering during continuous output. The
 activity bar distinguishes delivery, waiting for a response, and thinking.
