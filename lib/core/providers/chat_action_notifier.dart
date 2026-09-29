@@ -88,11 +88,21 @@ class ChatActionNotifier extends Notifier<void> {
   }
 
   /// Load available Codex models for a machine.
-  Future<CodexModelsResponse> loadCodexModels(String machineId) async {
+  Future<CodexModelsResponse> loadCodexModels(
+    String machineId, {
+    String? profileId,
+    String? directory,
+    bool refresh = false,
+  }) async {
     if (!sync.isInitialized) {
       throw StateError('Sync is not initialized');
     }
-    return sync.machineGetCodexModels(machineId: machineId);
+    return sync.machineGetCodexModels(
+      machineId: machineId,
+      profileId: profileId,
+      directory: directory,
+      refresh: refresh,
+    );
   }
 
   /// Delete a session. Returns true on success.

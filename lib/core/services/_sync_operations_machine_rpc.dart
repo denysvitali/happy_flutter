@@ -8,7 +8,7 @@ part of 'sync_service.dart';
 /// live apart from the session spawn logic in
 /// `_sync_operations_session.dart`.
 extension SyncMachineRpcOperations on Sync {
-  static const int _codexModelsSuccessTtlMs = 60 * 60 * 1000;
+  static const int _codexModelsSuccessTtlMs = 5 * 60 * 1000;
   static const int _codexModelsFailureTtlMs = 30 * 1000;
 
   /// Check installed/latest coding agent versions, or poll cached update state.
@@ -328,11 +328,15 @@ extension SyncMachineRpcOperations on Sync {
   /// Fetch the Codex model catalog from the machine's installed Codex CLI.
   Future<CodexModelsResponse> machineGetCodexModels({
     required String machineId,
+    String? profileId,
+    String? directory,
+    bool refresh = false,
   }) {
+    final cacheKey = jsonEncode([machineId, profileId, directory]);
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final cached = _codexModelsCache[machineId];
-    final cachedAtMs = _codexModelsCacheAtMs[machineId];
-    if (cached != null && cachedAtMs != null) {
+    final cached = _codexModelsCache[cacheKey];
+    final cachedAtMs = _codexModelsCacheAtMs[cacheKey];
+    if (!refresh && cached != null && cachedAtMs != null) {
       final ttlMs = cached.providerUnavailable
           ? 5 * 60 * 1000
           : cached.success
@@ -346,28 +350,59 @@ extension SyncMachineRpcOperations on Sync {
       }
     }
 
-    final inFlight = _codexModelsInFlight[machineId];
+    final inFlight = _codexModelsInFlight[cacheKey];
     if (inFlight != null) {
       _recordCodexModelsPolicy('shared_in_flight');
       return inFlight;
     }
 
     _recordCodexModelsPolicy('transport_started');
+    final runtimeGeneration = _runtimeGeneration;
     late final Future<CodexModelsResponse> request;
-    request = _fetchCodexModels(machineId)
-        .then((response) {
-          _codexModelsCache[machineId] = response;
-          _codexModelsCacheAtMs[machineId] =
-              DateTime.now().millisecondsSinceEpoch;
-          return response;
-        })
-        .whenComplete(() {
-          if (identical(_codexModelsInFlight[machineId], request)) {
-            _codexModelsInFlight.remove(machineId);
-          }
-        });
-    _codexModelsInFlight[machineId] = request;
+    request =
+        _fetchCodexModels(
+              machineId,
+              profileId: profileId,
+              directory: directory,
+              refresh: refresh,
+            )
+            .then((response) {
+              if (runtimeGeneration != _runtimeGeneration ||
+                  !identical(_codexModelsInFlight[cacheKey], request)) {
+                return const CodexModelsResponse(
+                  success: false,
+                  models: [],
+                  error: 'Model catalog context changed. Reopen the picker.',
+                );
+              }
+              if (!response.success &&
+                  !response.providerUnavailable &&
+                  cached?.success == true) {
+                return CodexModelsResponse(
+                  success: true,
+                  models: cached!.models,
+                  error:
+                      'Could not refresh models. Showing the previous catalog.',
+                );
+              }
+              _codexModelsCache[cacheKey] = response;
+              _codexModelsCacheAtMs[cacheKey] =
+                  DateTime.now().millisecondsSinceEpoch;
+              return response;
+            })
+            .whenComplete(() {
+              if (identical(_codexModelsInFlight[cacheKey], request)) {
+                _codexModelsInFlight.remove(cacheKey);
+              }
+            });
+    _codexModelsInFlight[cacheKey] = request;
     return request;
+  }
+
+  void _clearCodexModelsCache() {
+    _codexModelsCache.clear();
+    _codexModelsCacheAtMs.clear();
+    _codexModelsInFlight.clear();
   }
 
   void _recordCodexModelsPolicy(String outcome) {
@@ -378,12 +413,21 @@ extension SyncMachineRpcOperations on Sync {
     );
   }
 
-  Future<CodexModelsResponse> _fetchCodexModels(String machineId) async {
+  Future<CodexModelsResponse> _fetchCodexModels(
+    String machineId, {
+    String? profileId,
+    String? directory,
+    bool refresh = false,
+  }) async {
     try {
       return await _typedMachineRPC(
         machineId,
         'get-codex-models',
-        <String, dynamic>{},
+        <String, dynamic>{
+          'refresh': refresh,
+          'profileId': ?profileId,
+          'directory': ?directory,
+        },
         CodexModelsResponse.fromJson,
       );
     } catch (error, stackTrace) {

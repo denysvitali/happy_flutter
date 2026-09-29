@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -5,6 +7,7 @@ import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
+import 'package:happy_flutter/features/chat/widgets/model_picker_catalog.dart';
 import 'package:happy_flutter/features/chat/widgets/picker_sheets.dart';
 
 void main() {
@@ -17,6 +20,7 @@ void main() {
     String? catalogNotice,
     String? favorite,
     ValueChanged<String?>? onFavoriteChanged,
+    ModelCatalogLoader? onRefreshModels,
   }) async {
     // The Claude picker now has up to 13 tiles (default + sonnet/opus +
     // 5 efforts each). Use a tall viewport so every tile is hit-testable.
@@ -41,6 +45,7 @@ void main() {
                     catalogNotice: catalogNotice,
                     favorite: favorite,
                     onFavoriteChanged: onFavoriteChanged,
+                    onRefreshModels: onRefreshModels,
                   );
                 },
                 child: const Text('Open'),
@@ -114,6 +119,118 @@ void main() {
     expect(find.text('Ultra'), findsNothing);
     expect(find.text('Sonnet'), findsNothing);
     expect(find.text('Opus'), findsNothing);
+  });
+
+  testWidgets('hidden models are excluded and effortless models stay visible', (
+    tester,
+  ) async {
+    final response = CodexModelsResponse.fromJson({
+      'success': true,
+      'models': [
+        {
+          'slug': 'gpt-visible',
+          'display_name': 'Visible',
+          'visibility': 'list',
+        },
+        {
+          'slug': 'gpt-reserve',
+          'display_name': 'GPT-Reserve',
+          'visibility': 'hide',
+          'supported_reasoning_levels': [
+            {'effort': 'medium'},
+          ],
+        },
+        {
+          'slug': 'codex-auto-review',
+          'displayName': 'Codex Auto Review',
+          'hidden': true,
+          'supportedReasoningEfforts': ['medium'],
+        },
+        {'slug': 'gpt-none', 'visibility': 'none'},
+        {'slug': '', 'display_name': 'Invalid'},
+      ],
+    });
+    final models = ChatModelMode.fromCodexCatalog(response.models);
+    await pumpPickerHost(tester, models: models);
+
+    expect(find.text('Visible'), findsOneWidget);
+    expect(find.text('GPT-Reserve'), findsNothing);
+    expect(find.text('Codex Auto Review'), findsNothing);
+    expect(models.map((model) => model.modeString), ['default', 'gpt-visible']);
+  });
+
+  testWidgets('opening and refreshing the picker reloads its model catalog', (
+    tester,
+  ) async {
+    var calls = 0;
+    await pumpPickerHost(
+      tester,
+      models: const [ChatModelMode.defaultModel],
+      onRefreshModels: () async {
+        calls++;
+        return (
+          models: ChatModelMode.fromCodexCatalog([
+            CodexModelInfo(
+              slug: 'gpt-$calls',
+              displayName: 'Fresh model $calls',
+              supportedReasoningEfforts: const ['medium'],
+            ),
+          ]),
+          notice: null,
+        );
+      },
+    );
+
+    expect(find.text('Fresh model 1'), findsOneWidget);
+    await tester.tap(find.byTooltip('Refresh models'));
+    await tester.pumpAndSettle();
+    expect(find.text('Fresh model 2'), findsOneWidget);
+    expect(find.text('Fresh model 1'), findsNothing);
+    expect(calls, 2);
+  });
+
+  testWidgets('refresh failures preserve choices and display a notice', (
+    tester,
+  ) async {
+    await pumpPickerHost(
+      tester,
+      models: ChatModelMode.fromCodexCatalog([
+        const CodexModelInfo(
+          slug: 'gpt-existing',
+          displayName: 'Existing model',
+          supportedReasoningEfforts: ['medium'],
+        ),
+      ]),
+      onRefreshModels: () async => throw StateError('offline'),
+    );
+
+    expect(find.text('Existing model'), findsOneWidget);
+    expect(find.textContaining('Could not refresh models'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('closing the picker fences a pending model refresh', (
+    tester,
+  ) async {
+    final pending = Completer<ModelPickerCatalogData>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ModelPickerCatalog(
+          models: const [ChatModelMode.defaultModel],
+          onRefresh: () => pending.future,
+          builder: (context, models) => const Text('Choices'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    pending.complete((
+      models: const [ChatModelMode.defaultModel],
+      notice: null,
+    ));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('codex ultra effort emits the wire-format string', (

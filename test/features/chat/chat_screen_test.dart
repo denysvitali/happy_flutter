@@ -209,6 +209,121 @@ void main() {
       expect(find.text('GPT-5.6'), findsOneWidget);
     });
 
+    testWidgets('Codex picker can recover from an initially empty catalog', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.testEncryptionInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession(flavor: 'codex').copyWith(
+        metadata: const Metadata(
+          host: 'host',
+          flavor: 'codex',
+          machineId: 'machine-1',
+          path: '/repo',
+        ),
+      );
+      var refreshes = 0;
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        expect(params['directory'], '/repo');
+        if (params['refresh'] != true) {
+          return {'success': false, 'models': [], 'error': 'offline'};
+        }
+        refreshes++;
+        return {
+          'success': true,
+          'models': [
+            {
+              'slug': 'gpt-fresh-$refreshes',
+              'display_name': 'Fresh $refreshes',
+              'visibility': 'list',
+              'supported_reasoning_levels': [
+                {'effort': 'medium'},
+              ],
+            },
+          ],
+        };
+      };
+
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.widget<ModelChip>(find.byType(ModelChip)).enabled, isTrue);
+      await tester.tap(find.byType(ModelChip));
+      await tester.pumpAndSettle();
+      expect(find.text('Fresh 1'), findsOneWidget);
+      await tester.tap(find.byTooltip('Refresh models'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fresh 2'), findsOneWidget);
+      expect(find.text('Fresh 1'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('late Codex catalogs cannot replace a new project context', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.testEncryptionInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      final session = _makeSession(flavor: 'codex').copyWith(
+        metadata: const Metadata(
+          host: 'host',
+          flavor: 'codex',
+          machineId: 'machine-1',
+          path: '/old-repo',
+        ),
+      );
+      sync.testSessions['session_1'] = session;
+      final oldCatalog = Completer<Map<String, dynamic>>();
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (params['directory'] == '/old-repo') return oldCatalog.future;
+        return {
+          'success': true,
+          'models': [
+            {
+              'slug': 'gpt-new',
+              'display_name': 'New project model',
+              'supported_reasoning_levels': [
+                {'effort': 'medium'},
+              ],
+            },
+          ],
+        };
+      };
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      sync.testSessions['session_1'] = session.copyWith(
+        metadata: session.metadata!.copyWith(path: '/new-repo'),
+      );
+      sync.testNotifyDataChanged();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      oldCatalog.complete({
+        'success': true,
+        'models': [
+          {
+            'slug': 'gpt-old',
+            'display_name': 'Old project model',
+            'supported_reasoning_levels': [
+              {'effort': 'medium'},
+            ],
+          },
+        ],
+      });
+      await tester.pump();
+      await tester.tap(find.byType(ModelChip));
+      await tester.pumpAndSettle();
+      expect(find.text('New project model'), findsOneWidget);
+      expect(find.text('Old project model'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
     testWidgets('has app bar with menu and info actions', (tester) async {
       sync.testSetSessionMessages('session_1', const []);
 

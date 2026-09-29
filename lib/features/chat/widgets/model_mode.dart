@@ -16,14 +16,16 @@ class ChatModelMode {
   factory ChatModelMode.fromCodexModel({
     required String slug,
     required String displayName,
-    required String effort,
+    required String? effort,
   }) {
-    final effortLabel = _capitalizeEffort(effort);
+    final hasEffort = effort != null && effort.isNotEmpty;
     return ChatModelMode._(
-      label: '$displayName $effortLabel',
-      modeString: '$slug:$effort',
+      label: hasEffort
+          ? '$displayName ${_capitalizeEffort(effort)}'
+          : displayName,
+      modeString: hasEffort ? '$slug:$effort' : slug,
       modelSlug: slug,
-      reasoningEffort: effort,
+      reasoningEffort: hasEffort ? effort : null,
       flavor: 'codex',
     );
   }
@@ -481,12 +483,10 @@ class ChatModelMode {
   static List<ChatModelMode> fromCodexCatalog(List<CodexModelInfo> catalog) {
     final models = <ChatModelMode>[defaultModel];
     for (final item in catalog) {
+      if (!item.isVisibleInPicker || item.slug.trim().isEmpty) continue;
       final efforts = item.supportedReasoningEfforts.isNotEmpty
           ? item.supportedReasoningEfforts
-          : [
-              if (item.defaultReasoningEffort != null)
-                item.defaultReasoningEffort!,
-            ];
+          : [item.defaultReasoningEffort];
       for (final effort in efforts) {
         models.add(
           ChatModelMode.fromCodexModel(

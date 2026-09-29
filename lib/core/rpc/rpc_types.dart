@@ -165,6 +165,7 @@ class CodexModelInfo {
     required this.displayName,
     required this.supportedReasoningEfforts,
     this.defaultReasoningEffort,
+    this.isVisibleInPicker = true,
   });
 
   factory CodexModelInfo.fromJson(Map<dynamic, dynamic> json) {
@@ -180,6 +181,12 @@ class CodexModelInfo {
           (json['defaultReasoningEffort'] ?? json['default_reasoning_level'])
               as String?,
       supportedReasoningEfforts: _parseReasoningEfforts(supportedRaw),
+      isVisibleInPicker:
+          json['visibility'] != 'hide' &&
+          json['visibility'] != 'none' &&
+          json['hidden'] != true &&
+          json['showInPicker'] != false &&
+          json['show_in_picker'] != false,
     );
   }
 
@@ -187,6 +194,7 @@ class CodexModelInfo {
   final String displayName;
   final List<String> supportedReasoningEfforts;
   final String? defaultReasoningEffort;
+  final bool isVisibleInPicker;
 }
 
 List<String> _parseReasoningEfforts(dynamic value) {

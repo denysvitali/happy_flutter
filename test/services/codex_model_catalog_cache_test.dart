@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/rpc/rpc_exception.dart';
+import 'package:happy_flutter/core/rpc/rpc_types.dart';
 import 'package:happy_flutter/core/services/logger_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 
@@ -54,6 +55,126 @@ void main() {
 
     await Future.wait([first, second]);
     expect(calls, 1);
+  });
+
+  test('refresh bypasses the cache and reaches the daemon', () async {
+    var calls = 0;
+    sync.testMachineRPCOverride = (machineId, method, params) async {
+      calls++;
+      expect(params['refresh'], calls == 2);
+      return _catalog('model-$calls');
+    };
+
+    await sync.machineGetCodexModels(machineId: 'machine-1');
+    final refreshed = await sync.machineGetCodexModels(
+      machineId: 'machine-1',
+      refresh: true,
+    );
+    final cached = await sync.machineGetCodexModels(machineId: 'machine-1');
+
+    expect(refreshed.models.single.slug, 'model-2');
+    expect(cached.models.single.slug, 'model-2');
+    expect(calls, 2);
+  });
+
+  test('catalogs are isolated by profile and project directory', () async {
+    var calls = 0;
+    sync.testMachineRPCOverride = (machineId, method, params) async {
+      calls++;
+      expect(params['profileId'], isNotNull);
+      expect(params['directory'], isNotNull);
+      return _catalog('model-$calls');
+    };
+
+    Future<CodexModelsResponse> load(String profileId, String directory) =>
+        sync.machineGetCodexModels(
+          machineId: 'machine-1',
+          profileId: profileId,
+          directory: directory,
+        );
+    await load('profile-a', '/repo-a');
+    await load('profile-b', '/repo-a');
+    await load('profile-b', '/repo-b');
+    final original = await load('profile-a', '/repo-a');
+
+    expect(original.models.single.slug, 'model-1');
+    expect(calls, 3);
+  });
+
+  test('concurrent forced refreshes share one transport request', () async {
+    sync.testMachineRPCOverride = (_, __, ___) async => _catalog('initial');
+    await sync.machineGetCodexModels(machineId: 'machine-1');
+    var calls = 0;
+    final pending = Completer<Map<String, dynamic>>();
+    sync.testMachineRPCOverride = (machineId, method, params) {
+      calls++;
+      expect(params['refresh'], isTrue);
+      return pending.future;
+    };
+    final first = sync.machineGetCodexModels(
+      machineId: 'machine-1',
+      refresh: true,
+    );
+    final second = sync.machineGetCodexModels(
+      machineId: 'machine-1',
+      refresh: true,
+    );
+    pending.complete(_catalog('fresh'));
+    final results = await Future.wait([first, second]);
+
+    expect(calls, 1);
+    expect(
+      results.every((result) => result.models.single.slug == 'fresh'),
+      true,
+    );
+  });
+
+  test('failed refreshes retain a previously successful catalog', () async {
+    sync.testMachineRPCOverride = (_, __, ___) async => _catalog('existing');
+    await sync.machineGetCodexModels(machineId: 'machine-1');
+    sync.testMachineRPCOverride = (_, __, ___) async {
+      throw const RpcException(
+        code: RpcErrorCode.handlerOffline,
+        message: 'machine offline',
+        retryable: true,
+      );
+    };
+    final refreshed = await sync.machineGetCodexModels(
+      machineId: 'machine-1',
+      refresh: true,
+    );
+
+    expect(refreshed.success, isTrue);
+    expect(refreshed.models.single.slug, 'existing');
+    expect(refreshed.error, contains('Could not refresh models'));
+  });
+
+  test('expired catalogs are reloaded', () async {
+    var calls = 0;
+    sync.testMachineRPCOverride = (machineId, method, params) async {
+      calls++;
+      return _catalog('model-$calls');
+    };
+    await sync.machineGetCodexModels(machineId: 'machine-1');
+    sync.testExpireCodexModelsCache();
+    final refreshed = await sync.machineGetCodexModels(machineId: 'machine-1');
+
+    expect(refreshed.models.single.slug, 'model-2');
+    expect(calls, 2);
+  });
+
+  test('late catalog completions cannot repopulate a reset runtime', () async {
+    final pending = Completer<Map<String, dynamic>>();
+    sync.testMachineRPCOverride = (_, __, ___) => pending.future;
+    final oldRequest = sync.machineGetCodexModels(machineId: 'machine-1');
+    sync.testClearCodexModelsCache();
+    sync.testMachineRPCOverride = (_, __, ___) async => _catalog('new-model');
+    await sync.machineGetCodexModels(machineId: 'machine-1');
+    pending.complete(_catalog('old-model'));
+
+    expect((await oldRequest).success, isFalse);
+    final current = await sync.machineGetCodexModels(machineId: 'machine-1');
+    expect(current.models.single.slug, 'new-model');
   });
 
   test('missing Codex is a cached unavailable capability', () async {
@@ -113,9 +234,7 @@ void main() {
         };
       LoggerService().clear();
 
-      final response = await sync.machineGetCodexModels(
-        machineId: 'machine-1',
-      );
+      final response = await sync.machineGetCodexModels(machineId: 'machine-1');
 
       expect(response.providerUnavailable, isTrue, reason: 'code=$code');
       expect(response.error, contains('Install Codex'), reason: 'code=$code');

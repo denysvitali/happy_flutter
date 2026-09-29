@@ -8,6 +8,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../model_selection_resolver.dart';
 import 'favorite_model_picker.dart';
 import 'model_mode.dart';
+import 'model_picker_catalog.dart';
 
 // ---------------------------------------------------------------------------
 // Model picker bottom sheet
@@ -112,9 +113,9 @@ void showModelPickerSheet(
   ValueChanged<List<String>>? onCustomModelsChanged,
   String? favorite,
   ValueChanged<String?>? onFavoriteChanged,
+  ModelCatalogLoader? onRefreshModels,
 }) {
   final theme = Theme.of(context);
-  final hasGroupedModels = models.any((m) => m.modelSlug != null);
 
   showAppSheet<void>(
     context,
@@ -129,63 +130,64 @@ void showModelPickerSheet(
             top: AppSpacing.sm,
             bottom: AppSpacing.xs,
           ),
-          child: !hasGroupedModels
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (catalogNotice != null)
+          child: ModelPickerCatalog(
+            models: models,
+            notice: catalogNotice,
+            onRefresh: onRefreshModels,
+            builder: (ctx, models) =>
+                !models.any((model) => model.modelSlug != null)
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Padding(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: Text(catalogNotice),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.lg,
-                        0,
-                        AppSpacing.lg,
-                        AppSpacing.sm,
-                      ),
-                      child: Text(
-                        'Model',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          0,
+                          AppSpacing.lg,
+                          AppSpacing.sm,
+                        ),
+                        child: Text(
+                          'Model',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                          for (final model in models)
-                            _buildModelTile(
-                              ctx,
-                              model,
-                              current,
-                              theme,
-                              onChanged,
-                            ),
-                        ],
+                      Flexible(
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: [
+                            for (final model in models)
+                              _buildModelTile(
+                                ctx,
+                                model,
+                                current,
+                                theme,
+                                onChanged,
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    if (onFavoriteChanged != null)
-                      FavoriteModelPicker(
-                        models: models,
-                        current: current,
-                        favorite: favorite,
-                        onChanged: onFavoriteChanged,
-                      ),
-                  ],
-                )
-              : _GroupedModelPickerContent(
-                  current: current,
-                  models: models,
-                  onChanged: onChanged,
-                  settings: settings,
-                  onCustomModelsChanged: onCustomModelsChanged,
-                  favorite: favorite,
-                  onFavoriteChanged: onFavoriteChanged,
-                ),
+                      if (onFavoriteChanged != null)
+                        FavoriteModelPicker(
+                          models: models,
+                          current: current,
+                          favorite: favorite,
+                          onChanged: onFavoriteChanged,
+                        ),
+                    ],
+                  )
+                : _GroupedModelPickerContent(
+                    current: current,
+                    models: models,
+                    onChanged: onChanged,
+                    settings: settings,
+                    onCustomModelsChanged: onCustomModelsChanged,
+                    favorite: favorite,
+                    onFavoriteChanged: onFavoriteChanged,
+                  ),
+          ),
         ),
       ),
     ),
@@ -229,6 +231,15 @@ class _GroupedModelPickerContentState
       if (model.modelSlug != null) return model.modelSlug;
     }
     return null;
+  }
+
+  @override
+  void didUpdateWidget(_GroupedModelPickerContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.models.any((model) => model.modelSlug == _selectedSlug)) {
+      _selectedSlug = _firstSlug;
+      _current = widget.current;
+    }
   }
 
   String _displayNameForSlug(List<ChatModelMode> variants) {

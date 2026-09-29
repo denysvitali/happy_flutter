@@ -27,6 +27,7 @@ import 'widgets/file_autocomplete.dart';
 import 'widgets/fullscreen_composer.dart';
 import 'widgets/input_toolbar.dart';
 import 'widgets/model_mode.dart';
+import 'widgets/model_picker_catalog.dart';
 import 'widgets/permission_mode_selector.dart' as perm;
 import 'widgets/picker_sheets.dart';
 import 'widgets/slash_commands.dart';
@@ -57,6 +58,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.onModelModeChanged,
     this.availableModels = ChatModelMode.values,
     this.modelCatalogNotice,
+    this.onRefreshModels,
     this.availableSlashCommands = const [],
     this.fileSuggestions = const [],
     this.onFileSuggestionsRequested,
@@ -117,6 +119,7 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Machine setup guidance when the optional model catalog is unavailable.
   final String? modelCatalogNotice;
+  final ModelCatalogLoader? onRefreshModels;
 
   /// Agent flavor for the session (`claude`, `codex`, and so on).
   final String? sessionFlavor;
@@ -908,6 +911,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   onPermissionModeChanged: widget.onPermissionModeChanged,
                   modelMode: widget.modelMode,
                   availableModels: widget.availableModels,
+                  canRefreshModels: widget.onRefreshModels != null,
                   onShowModelPicker: () => widget.onModelModeChanged != null
                       ? _showModelPicker(context)
                       : null,
@@ -988,6 +992,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
       (model) => widget.onModelModeChanged?.call(model),
       settings: settings,
       catalogNotice: widget.modelCatalogNotice,
+      onRefreshModels: widget.onRefreshModels,
       favorite: favoriteModelForProvider(
         settings.favoriteModelsByProfile,
         widget.selectedProfile,

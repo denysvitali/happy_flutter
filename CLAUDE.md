@@ -275,6 +275,14 @@ linkage.
 
 **Notable:** `AuthStateNotifier` acts as a coordinator — on auth changes it calls `loadFromSync()`/`clear()` on all other providers.
 
+Codex model catalogs are scoped to machine, profile, and project directory
+with a five-minute cache. Opening the picker or tapping Refresh bypasses
+the Happy caches; Codex still applies its own upstream refresh policy.
+Filter hidden models without dropping models that have no reasoning effort.
+Profile-defined models remain authoritative. Fence async catalog commits
+against runtime resets and UI context changes; preserve choices on transient
+refresh failures and show the notice inside the picker.
+
 **`_shared.dart`** files in feature directories contain an `unset` sentinel (`const Object()`) used in `copyWith` methods to distinguish "not provided" from `null`.
 
 **Immutable updates:** Always use spread copies: `{...state, id: value}`, `[...state.list, item]`

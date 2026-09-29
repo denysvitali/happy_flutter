@@ -124,6 +124,7 @@ extension _ChatScreenActions on _ChatScreenState {
       _selectedProfile = resolution.resolvedProfile;
       _availableProfiles = resolution.availableProfiles;
     });
+    unawaited(_refreshCodexModelModes(_session));
   }
 
   Future<void> _doInitialLoad() async {
@@ -573,38 +574,95 @@ extension _ChatScreenActions on _ChatScreenState {
     }
   }
 
-  Future<void> _refreshCodexModelModes(Session? session) async {
+  String _codexModelCatalogContext(Session? session) => jsonEncode([
+    session?.id,
+    session?.metadata?.machineId,
+    session?.metadata?.path,
+    _selectedProfile?.id,
+  ]);
+
+  List<ChatModelMode> _availableChatModelModes() {
+    String? providerOwnedCodexModel;
+    if (_session?.metadata?.flavor == 'codex' &&
+        profileOwnsRawCodexModel(_selectedProfile)) {
+      providerOwnedCodexModel =
+          _profileModelOverride ?? _selectedProfile?.defaultModelMode;
+    }
+    return ChatModelMode.availableForProfile(
+      flavor: _session?.metadata?.flavor,
+      claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
+      allowClaudeAliases: !profileUsesThirdPartyAnthropicBaseUrl(
+        _selectedProfile,
+      ),
+      codexModels:
+          _codexModelModesContext == _codexModelCatalogContext(_session)
+          ? _codexModelModes
+          : const [ChatModelMode.defaultModel],
+      providerOwnedCodexModel: providerOwnedCodexModel,
+      profileModels: _selectedProfile?.models,
+    );
+  }
+
+  Future<ModelPickerCatalogData> _refreshModelPickerCatalog() async {
+    final catalogContext = _codexModelCatalogContext(_session);
+    await _refreshCodexModelModes(_session, refresh: true);
+    if (!mounted || catalogContext != _codexModelCatalogContext(_session)) {
+      return (
+        models: const [ChatModelMode.defaultModel],
+        notice: 'Model catalog context changed. Reopen the picker.',
+      );
+    }
+    return (
+      models: _availableChatModelModes(),
+      notice: _codexModelCatalogNoticeContext == catalogContext
+          ? _codexModelCatalogNotice
+          : 'Model catalog is not available yet. Try refreshing again.',
+    );
+  }
+
+  Future<void> _refreshCodexModelModes(
+    Session? session, {
+    bool refresh = false,
+  }) async {
     if (session?.metadata?.flavor != 'codex') return;
-    final machineId = session?.metadata?.machineId;
-    if (machineId == null || machineId.isEmpty) return;
-    if (_codexModelModesMachineId == machineId && _codexModelModes.length > 1) {
+    if ((_selectedProfile?.models.isNotEmpty ?? false) ||
+        profileOwnsRawCodexModel(_selectedProfile)) {
       return;
     }
-    if (_isLoadingCodexModelModes) return;
+    final machineId = session?.metadata?.machineId;
+    if (machineId == null || machineId.isEmpty) return;
+    final catalogContext = _codexModelCatalogContext(session);
+    if (!refresh && _codexModelModesLoadingContext == catalogContext) return;
     if (!sync.isEncryptionInitialized) return;
 
-    _isLoadingCodexModelModes = true;
+    final request = ++_codexModelCatalogRequest;
+    _codexModelModesLoadingContext = catalogContext;
     try {
       final response = await ref
           .read(chatActionNotifierProvider.notifier)
-          .loadCodexModels(machineId);
-      if (!mounted || _session?.metadata?.machineId != machineId) return;
-      if (response.providerUnavailable) {
-        if (_codexModelCatalogNotice != response.error ||
-            _codexModelCatalogNoticeMachineId != machineId) {
-          setState(() {
-            _codexModelCatalogNotice = response.error;
-            _codexModelCatalogNoticeMachineId = machineId;
-          });
-        }
+          .loadCodexModels(
+            machineId,
+            profileId: _selectedProfile?.id,
+            directory: session?.metadata?.path,
+            refresh: refresh,
+          );
+      if (!mounted ||
+          request != _codexModelCatalogRequest ||
+          catalogContext != _codexModelCatalogContext(_session)) {
         return;
       }
-      if (!response.success || response.models.isEmpty) return;
-      final modes = ChatModelMode.fromCodexCatalog(response.models);
+      if (identical(response, _codexModelCatalogResponse) &&
+          _codexModelCatalogNoticeContext == catalogContext) {
+        return;
+      }
       setState(() {
-        _codexModelCatalogNotice = null;
-        _codexModelModes = modes;
-        _codexModelModesMachineId = machineId;
+        _codexModelCatalogResponse = response;
+        _codexModelCatalogNotice = response.error;
+        _codexModelCatalogNoticeContext = catalogContext;
+        if (response.success || response.providerUnavailable) {
+          _codexModelModes = ChatModelMode.fromCodexCatalog(response.models);
+          _codexModelModesContext = catalogContext;
+        }
       });
     } catch (e) {
       // Encryption not initialized (syncRestore hasn't run yet) or
@@ -613,8 +671,18 @@ extension _ChatScreenActions on _ChatScreenState {
       // applyUpdates / onSessionVisible cycle can retry once sync
       // is ready.
       logger.warning('_refreshCodexModelModes: skipping - $e');
+      if (mounted &&
+          request == _codexModelCatalogRequest &&
+          catalogContext == _codexModelCatalogContext(_session)) {
+        setState(() {
+          _codexModelCatalogNotice = 'Could not refresh models. Try again.';
+          _codexModelCatalogNoticeContext = catalogContext;
+        });
+      }
     } finally {
-      _isLoadingCodexModelModes = false;
+      if (request == _codexModelCatalogRequest) {
+        _codexModelModesLoadingContext = null;
+      }
     }
   }
 
@@ -670,6 +738,7 @@ extension _ChatScreenActions on _ChatScreenState {
       _profileModelOverride = rawModelString;
       _permissionMode = newPermissionMode;
     });
+    unawaited(_refreshCodexModelModes(_session));
     // Save the profile's defaultModelMode, not 'default'. Profile, model,
     // and (when the profile defines one) permission mode are written
     // atomically so the pairing can never desync.

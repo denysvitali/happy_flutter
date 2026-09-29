@@ -298,6 +298,7 @@ class InputToolbar extends StatelessWidget {
     this.onPermissionModeChanged,
     this.modelMode,
     this.availableModels = ChatModelMode.values,
+    this.canRefreshModels = false,
     this.selectedProfile,
     this.contextSize,
     this.sessionFlavor,
@@ -308,6 +309,7 @@ class InputToolbar extends StatelessWidget {
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
   final ChatModelMode? modelMode;
   final List<ChatModelMode> availableModels;
+  final bool canRefreshModels;
   final VoidCallback onShowModelPicker;
   final AIBackendProfile? selectedProfile;
   final VoidCallback onShowProfilePicker;
@@ -346,7 +348,7 @@ class InputToolbar extends StatelessWidget {
           ],
           ModelChip(
             model: model,
-            enabled: availableModels.length > 1,
+            enabled: availableModels.length > 1 || canRefreshModels,
             onTap: onShowModelPicker,
           ),
           const SizedBox(width: AppSpacing.xs),

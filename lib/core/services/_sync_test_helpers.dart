@@ -4,9 +4,12 @@ extension SyncTestHelpers on Sync {
   /// Clears the read-only Codex catalog cache between singleton-backed tests.
   @visibleForTesting
   void testClearCodexModelsCache() {
-    _codexModelsCache.clear();
-    _codexModelsCacheAtMs.clear();
-    _codexModelsInFlight.clear();
+    _clearCodexModelsCache();
+  }
+
+  @visibleForTesting
+  void testExpireCodexModelsCache() {
+    _codexModelsCacheAtMs.updateAll((key, value) => 0);
   }
 
   @visibleForTesting

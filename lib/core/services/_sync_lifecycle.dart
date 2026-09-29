@@ -996,6 +996,7 @@ extension SyncLifecycle on Sync {
     // from the old account observes a stale generation and cannot resurrect
     // sessions, machines, or readiness after logout.
     _runtimeGeneration++;
+    _clearCodexModelsCache();
     _clearMessageStreams();
     _deferredResumeInvalidationTimer?.cancel();
     _deferredResumeInvalidationTimer = null;

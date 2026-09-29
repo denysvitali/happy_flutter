@@ -111,6 +111,14 @@ Editing or duplicating a profile preserves its structured provider settings
 and session defaults. API keys load lazily from secure storage, with hydration
 and settings writes ordered to preserve concurrent edits.
 
+The Codex model picker reloads the machine catalog when opened and offers
+**Refresh models** without closing the sheet. Catalogs are scoped to the
+machine, selected profile, and project directory, with a five-minute cache.
+Hidden/internal models are excluded. Explicit profile model lists remain
+authoritative; refresh failures retain existing choices and show a notice.
+The machine's Codex installation still controls the upstream catalog and
+its own refresh policy.
+
 ## Setup Instructions
 
 ### Prerequisites

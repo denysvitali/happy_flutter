@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart'
     show ValueListenable, kDebugMode, listEquals, visibleForTesting;
@@ -72,6 +73,7 @@ import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
 import 'widgets/model_change_divider.dart';
 import 'widgets/model_mode.dart';
+import 'widgets/model_picker_catalog.dart';
 import 'widgets/pagination_failure_retry.dart';
 import 'widgets/pending_permission_bar.dart';
 import 'widgets/permission_mode_selector.dart';
@@ -259,10 +261,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   AIBackendProfile? _selectedProfile;
   List<AIBackendProfile> _availableProfiles = const [];
   List<ChatModelMode> _codexModelModes = const [ChatModelMode.defaultModel];
-  String? _codexModelModesMachineId;
+  String? _codexModelModesContext;
   String? _codexModelCatalogNotice;
-  String? _codexModelCatalogNoticeMachineId;
-  bool _isLoadingCodexModelModes = false;
+  String? _codexModelCatalogNoticeContext;
+  String? _codexModelModesLoadingContext;
+  int _codexModelCatalogRequest = 0;
+  Object? _codexModelCatalogResponse;
   Session? _session;
   String? _lastLoggedLifecycleError;
   List<Map<String, dynamic>> _messages = const [];
@@ -746,8 +750,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               profileOwnsRawCodexModel(_selectedProfile) ||
               profileUsesThirdPartyAnthropicBaseUrl(_selectedProfile),
         );
-        unawaited(_refreshCodexModelModes(latestSession));
       }
+      unawaited(_refreshCodexModelModes(latestSession));
 
       // Handle markLoaded unconditionally — the HTTP fetch completed even if
       // no messages changed (e.g. empty session or subagent session).
@@ -1754,27 +1758,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // the provider, but the user can still vary the reasoning effort.
     // Hand the picker the provider-owned model so it offers an effort
     // selector instead of the machine's OpenAI catalog.
-    String? providerOwnedCodexModel;
-    if (_session?.metadata?.flavor == 'codex' &&
-        profileOwnsRawCodexModel(_selectedProfile)) {
-      final raw = _profileModelOverride ?? _selectedProfile?.defaultModelMode;
-      if (raw != null &&
-          raw.trim().isNotEmpty &&
-          raw.trim() != ChatModelMode.defaultModel.modeString) {
-        providerOwnedCodexModel = raw;
-      }
-    }
-
-    final availableModels = ChatModelMode.availableForProfile(
-      flavor: _session?.metadata?.flavor,
-      claudeCompatible: _selectedProfile?.compatibility.claude ?? true,
-      allowClaudeAliases: !profileUsesThirdPartyAnthropicBaseUrl(
-        _selectedProfile,
-      ),
-      codexModels: _codexModelModes,
-      providerOwnedCodexModel: providerOwnedCodexModel,
-      profileModels: _selectedProfile?.models,
-    );
+    final availableModels = _availableChatModelModes();
 
     // Use select() so this build only re-runs when the specific settings
     // fields actually change, not on any settings mutation.
@@ -1962,9 +1946,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             availableModels: availableModels,
             modelCatalogNotice:
                 _session?.metadata?.flavor == 'codex' &&
-                    _session?.metadata?.machineId ==
-                        _codexModelCatalogNoticeMachineId
+                    _codexModelCatalogContext(_session) ==
+                        _codexModelCatalogNoticeContext
                 ? _codexModelCatalogNotice
+                : null,
+            onRefreshModels:
+                _session?.metadata?.flavor == 'codex' &&
+                    (_selectedProfile?.models.isEmpty ?? true) &&
+                    !profileOwnsRawCodexModel(_selectedProfile)
+                ? _refreshModelPickerCatalog
                 : null,
             sessionFlavor: _session?.metadata?.flavor,
             availableSlashCommands:
@@ -2099,7 +2089,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 (_session?.isPresenceOnline ?? false) ||
             requestThinking ||
             (request.phase == ChatRequestPhase.none &&
-                request.localId == null && _isAgentWorking));
+                request.localId == null &&
+                _isAgentWorking));
     if (_stopRequestedAt == 0 || !working) {
       if (working) return ChatAgentActivity.thinking;
       if (stopped || _sessionSendIssue != null) return null;
