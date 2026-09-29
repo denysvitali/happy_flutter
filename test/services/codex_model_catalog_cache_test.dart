@@ -132,7 +132,9 @@ void main() {
   test('failed refreshes retain a previously successful catalog', () async {
     sync.testMachineRPCOverride = (_, __, ___) async => _catalog('existing');
     await sync.machineGetCodexModels(machineId: 'machine-1');
+    var calls = 0;
     sync.testMachineRPCOverride = (_, __, ___) async {
+      calls++;
       throw const RpcException(
         code: RpcErrorCode.handlerOffline,
         message: 'machine offline',
@@ -147,6 +149,9 @@ void main() {
     expect(refreshed.success, isTrue);
     expect(refreshed.models.single.slug, 'existing');
     expect(refreshed.error, contains('Could not refresh models'));
+    final backedOff = await sync.machineGetCodexModels(machineId: 'machine-1');
+    expect(backedOff.error, refreshed.error);
+    expect(calls, 1);
   });
 
   test('expired catalogs are reloaded', () async {

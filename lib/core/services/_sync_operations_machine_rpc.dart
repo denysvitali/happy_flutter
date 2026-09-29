@@ -339,7 +339,7 @@ extension SyncMachineRpcOperations on Sync {
     if (!refresh && cached != null && cachedAtMs != null) {
       final ttlMs = cached.providerUnavailable
           ? 5 * 60 * 1000
-          : cached.success
+          : cached.success && cached.error == null
           ? _codexModelsSuccessTtlMs
           : _codexModelsFailureTtlMs;
       if (nowMs - cachedAtMs < ttlMs) {
@@ -375,20 +375,22 @@ extension SyncMachineRpcOperations on Sync {
                   error: 'Model catalog context changed. Reopen the picker.',
                 );
               }
-              if (!response.success &&
-                  !response.providerUnavailable &&
-                  cached?.success == true) {
-                return CodexModelsResponse(
-                  success: true,
-                  models: cached!.models,
-                  error:
-                      'Could not refresh models. Showing the previous catalog.',
-                );
-              }
-              _codexModelsCache[cacheKey] = response;
+              final catalog =
+                  !response.success &&
+                      !response.providerUnavailable &&
+                      cached?.success == true
+                  ? CodexModelsResponse(
+                      success: true,
+                      models: cached!.models,
+                      error:
+                          'Could not refresh models. '
+                          'Showing the previous catalog.',
+                    )
+                  : response;
+              _codexModelsCache[cacheKey] = catalog;
               _codexModelsCacheAtMs[cacheKey] =
                   DateTime.now().millisecondsSinceEpoch;
-              return response;
+              return catalog;
             })
             .whenComplete(() {
               if (identical(_codexModelsInFlight[cacheKey], request)) {
