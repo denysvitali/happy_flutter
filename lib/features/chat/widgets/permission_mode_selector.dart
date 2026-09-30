@@ -6,7 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Visual chip height (dense). Hit target expanded to [AppTouchTarget.min].
-const double _selectorChipVisualHeight = 30;
+const double _selectorChipVisualHeight = 24;
 
 /// Permission mode options for Claude/Gemini agents
 enum PermissionMode {
@@ -283,7 +283,7 @@ class PermissionModeSelector extends ConsumerWidget {
             child: Container(
               width: width,
               height: _selectorChipVisualHeight,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xsm),
               decoration: BoxDecoration(
                 color: isDefault
                     ? cs.onSurface.withValues(alpha: 0.05)
@@ -295,14 +295,14 @@ class PermissionModeSelector extends ConsumerWidget {
                 children: [
                   Icon(
                     currentMode.icon,
-                    size: AppIconSize.sm,
+                    size: AppIconSize.xs,
                     color: isDefault ? cs.onSurfaceVariant : currentMode.color,
                   ),
-                  const SizedBox(width: AppSpacing.xs),
+                  const SizedBox(width: AppSpacing.xxxs),
                   Text(
                     displayLabel,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontSize: AppFontSize.sm,
+                      fontSize: AppFontSize.xxs,
                       fontWeight: FontWeight.w500,
                       color: isDefault
                           ? cs.onSurfaceVariant
@@ -312,7 +312,7 @@ class PermissionModeSelector extends ConsumerWidget {
                   const SizedBox(width: 1),
                   Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    size: 12,
+                    size: 11,
                     color: isDefault
                         ? cs.onSurfaceVariant.withValues(alpha: 0.5)
                         : currentMode.color.withValues(alpha: 0.6),

@@ -62,7 +62,7 @@ abstract final class AppTypography {
     fontSize: 16,
     fontWeight: FontWeight.w500,
     height: AppLineHeight.normal,
-    letterSpacing: 0.15,
+    letterSpacing: 0,
   );
 
   static const TextStyle titleSmall = TextStyle(
@@ -70,15 +70,15 @@ abstract final class AppTypography {
     fontSize: 14,
     fontWeight: FontWeight.w500,
     height: AppLineHeight.normal,
-    letterSpacing: 0.1,
+    letterSpacing: 0,
   );
 
   static const TextStyle bodyLarge = TextStyle(
     fontFamily: _fontFamily,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: FontWeight.w400,
     height: AppLineHeight.relaxed,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   );
 
   static const TextStyle bodyMedium = TextStyle(
@@ -86,7 +86,7 @@ abstract final class AppTypography {
     fontSize: 14,
     fontWeight: FontWeight.w400,
     height: AppLineHeight.normal,
-    letterSpacing: 0.25,
+    letterSpacing: 0,
   );
 
   static const TextStyle bodySmall = TextStyle(
@@ -94,7 +94,7 @@ abstract final class AppTypography {
     fontSize: 12,
     fontWeight: FontWeight.w400,
     height: AppLineHeight.normal,
-    letterSpacing: 0.4,
+    letterSpacing: 0,
   );
 
   static const TextStyle labelLarge = TextStyle(
@@ -102,7 +102,7 @@ abstract final class AppTypography {
     fontSize: 14,
     fontWeight: FontWeight.w500,
     height: AppLineHeight.normal,
-    letterSpacing: 0.1,
+    letterSpacing: 0,
   );
 
   static const TextStyle labelMedium = TextStyle(
@@ -110,15 +110,15 @@ abstract final class AppTypography {
     fontSize: 12,
     fontWeight: FontWeight.w500,
     height: AppLineHeight.normal,
-    letterSpacing: 0.5,
+    letterSpacing: 0.1,
   );
 
   static const TextStyle labelSmall = TextStyle(
     fontFamily: _fontFamily,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: FontWeight.w500,
     height: AppLineHeight.normal,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   );
 
   static TextTheme applyToTextTheme(TextTheme base) {

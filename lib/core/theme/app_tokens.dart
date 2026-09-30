@@ -111,8 +111,8 @@ abstract final class AppFontSize {
   /// 12 px – compact labels, timestamps.
   static const double xs = 12;
 
-  /// 13 px – body small, secondary text.
-  static const double sm = 13;
+  /// 12 px – body small, secondary text.
+  static const double sm = 12;
 
   /// 13 px – code blocks, tool output.
   static const double md = 13;

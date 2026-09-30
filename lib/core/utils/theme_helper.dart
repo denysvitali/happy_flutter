@@ -242,48 +242,48 @@ TextTheme _buildTextTheme({required bool dark}) {
         titleMedium: _inter(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.15,
+          letterSpacing: 0,
           color: dark ? Colors.white : _kLightTextPrimary,
         ),
         titleSmall: _inter(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.1,
+          letterSpacing: 0,
           color: dark ? _kDarkTextMuted : _kLightTextSecondary,
         ),
         // Body — Inter
         bodyLarge: _inter(
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w400,
-          letterSpacing: 0.15,
+          letterSpacing: 0,
           color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
         ),
         bodyMedium: _inter(
           fontSize: 14,
           fontWeight: FontWeight.w400,
-          letterSpacing: 0.25,
+          letterSpacing: 0,
           color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
         ),
         bodySmall: _inter(
           fontSize: 12,
           fontWeight: FontWeight.w400,
-          letterSpacing: 0.4,
+          letterSpacing: 0,
           color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
         ),
         labelLarge: _inter(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          letterSpacing: 0.1,
+          letterSpacing: 0,
         ),
         labelMedium: _inter(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          letterSpacing: 0.5,
+          letterSpacing: 0.1,
         ),
         labelSmall: _inter(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w500,
-          letterSpacing: 0.5,
+          letterSpacing: 0.2,
         ),
       );
 }
@@ -410,7 +410,7 @@ ChipThemeData _buildChipTheme({required bool dark}) {
     labelStyle: _inter(
       fontSize: 12,
       fontWeight: FontWeight.w500,
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
     ),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.sm),
