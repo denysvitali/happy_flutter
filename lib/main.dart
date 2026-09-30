@@ -489,6 +489,9 @@ Future<String?> _getInitialDeepLink() async {
   }
 }
 
+/// Upper bound for the system text scale applied to the whole app.
+const double _kMaxTextScale = 1.1;
+
 class HappyApp extends ConsumerStatefulWidget {
   const HappyApp({
     super.key,
@@ -751,13 +754,23 @@ class _HappyAppState extends ConsumerState<HappyApp>
               supportedLocales: AppLocalizations.supportedLocales,
               routerConfig: _router,
               builder: (context, child) {
-                return FocusTraversalGroup(
-                  policy: AppReadingOrderTraversalPolicy(),
-                  child: CommandPaletteKeyboardHandler(
-                    appRouter: _router,
-                    child: CommandPaletteAppOverlay(
+                // Dense operational UI: honour the system font size, but cap
+                // it so a large OS setting cannot balloon rows and chips.
+                final media = MediaQuery.of(context);
+                return MediaQuery(
+                  data: media.copyWith(
+                    textScaler: media.textScaler.clamp(
+                      maxScaleFactor: _kMaxTextScale,
+                    ),
+                  ),
+                  child: FocusTraversalGroup(
+                    policy: AppReadingOrderTraversalPolicy(),
+                    child: CommandPaletteKeyboardHandler(
                       appRouter: _router,
-                      child: child ?? const SizedBox.shrink(),
+                      child: CommandPaletteAppOverlay(
+                        appRouter: _router,
+                        child: child ?? const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 );
