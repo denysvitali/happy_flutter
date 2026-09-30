@@ -249,9 +249,14 @@ class StreamWallSection extends StatefulWidget {
     required this.onOpenSession,
     required this.onPeekSession,
     super.key,
+    this.hiddenSessionIds = const <String>{},
   });
 
   final List<WireEvent> events;
+
+  /// Sessions already surfaced by the Focus queue. Their wire rows would
+  /// repeat the same update, so the wall skips them.
+  final Set<String> hiddenSessionIds;
 
   /// Number of streams being watched — used by the empty-state hint.
   final int streamCount;
@@ -273,7 +278,12 @@ class _StreamWallSectionState extends State<StreamWallSection> {
     final l10n = context.l10n;
     final accent = cs.tertiary;
     final children = <Widget>[];
-    if (widget.events.isEmpty) {
+    final events = widget.hiddenSessionIds.isEmpty
+        ? widget.events
+        : widget.events
+              .where((e) => !widget.hiddenSessionIds.contains(e.sessionId))
+              .toList(growable: false);
+    if (events.isEmpty) {
       children.add(
         Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -307,8 +317,8 @@ class _StreamWallSectionState extends State<StreamWallSection> {
       );
     } else {
       final shown = _expanded
-          ? widget.events
-          : widget.events.take(_previewCount).toList(growable: false);
+          ? events
+          : events.take(_previewCount).toList(growable: false);
       for (var i = 0; i < shown.length; i++) {
         children.add(
           _WireRow(
@@ -318,7 +328,7 @@ class _StreamWallSectionState extends State<StreamWallSection> {
           ),
         );
       }
-      final hidden = widget.events.length - shown.length;
+      final hidden = events.length - shown.length;
       if (hidden > 0) {
         children.add(
           _DisclosureRow(
@@ -354,9 +364,9 @@ class _StreamWallSectionState extends State<StreamWallSection> {
                   ),
                 ),
               ),
-              if (widget.events.isNotEmpty)
+              if (events.isNotEmpty)
                 Text(
-                  '${widget.events.length}',
+                  '${events.length}',
                   style: theme.textTheme.labelSmall?.copyWith(
                     fontSize: AppFontSize.xs,
                     fontWeight: FontWeight.w700,

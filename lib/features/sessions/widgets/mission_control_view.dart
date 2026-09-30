@@ -529,6 +529,7 @@ class _MissionControlViewState extends State<MissionControlView> {
           child: RepaintBoundary(
             child: StreamWallSection(
               events: _wireEvents,
+              hiddenSessionIds: {for (final s in shownActions) s.id},
               streamCount: widget.activeSessions.length,
               onOpenSession: widget.onOpenSession!,
               onPeekSession: widget.onPeekSession ?? (_) {},
