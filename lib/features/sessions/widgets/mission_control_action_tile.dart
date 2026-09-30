@@ -7,6 +7,7 @@ import '../../../core/providers/session_ui_state_notifier.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
+import 'mission_control_type.dart';
 import 'mission_control_types.dart';
 import 'mission_heartbeat.dart';
 import 'session_cards.dart';
@@ -111,9 +112,9 @@ class MissionActionRow extends StatelessWidget {
       MissionLane.quiet => laneLabel,
     };
     final name = getSessionName(session);
-    final detailStyle = theme.textTheme.labelSmall?.copyWith(
-      fontSize: AppFontSize.xs,
-      color: lane == MissionLane.error ? laneColor : cs.onSurfaceVariant,
+    final detailStyle = MissionType.meta(
+      theme,
+      lane == MissionLane.error ? laneColor : cs.onSurfaceVariant,
     );
 
     return Semantics(
@@ -200,10 +201,7 @@ class MissionActionRow extends StatelessWidget {
                                 name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: cs.onSurface,
-                                ),
+                                style: MissionType.title(theme, cs.onSurface),
                               ),
                               const SizedBox(height: 1),
                               Row(
@@ -422,12 +420,7 @@ class _OutcomePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: DefaultTextStyle(
-        style: theme.textTheme.labelSmall!.copyWith(
-          color: pillColor,
-          fontWeight: FontWeight.w700,
-          fontSize: AppFontSize.xs,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
+        style: MissionType.badge(theme, pillColor),
         textAlign: TextAlign.center,
         child: child,
       ),

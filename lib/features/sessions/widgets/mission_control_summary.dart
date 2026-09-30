@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'mission_control_type.dart';
 import 'mission_control_types.dart';
 
 /// Compact filters for the actionable Mission Control queue.
@@ -133,9 +134,9 @@ class _FocusFilterChip extends StatelessWidget {
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         label,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: selected ? color : cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
+                        style: MissionType.label(
+                          theme,
+                          selected ? color : cs.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.xs),
@@ -144,10 +145,9 @@ class _FocusFilterChip extends StatelessWidget {
                         child: Text(
                           '$count',
                           textAlign: TextAlign.center,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: selected ? color : cs.onSurfaceVariant,
-                            fontWeight: FontWeight.w800,
-                            fontFeatures: const [FontFeature.tabularFigures()],
+                          style: MissionType.badge(
+                            theme,
+                            selected ? color : cs.onSurfaceVariant,
                           ),
                         ),
                       ),

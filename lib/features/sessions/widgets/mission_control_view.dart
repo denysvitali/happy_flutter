@@ -13,6 +13,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/performance_buckets.dart';
 import '../../../core/utils/session_utils.dart';
 import 'mission_control_summary.dart';
+import 'mission_control_type.dart';
 import 'mission_control_types.dart';
 import 'mission_control_workspace_list.dart';
 import 'mission_heartbeat.dart';
@@ -594,10 +595,7 @@ class _AllClearBanner extends StatelessWidget {
           Expanded(
             child: Text(
               context.l10n.missionControlAllClear,
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: cs.onSurface,
-              ),
+              style: MissionType.title(theme, cs.onSurface),
             ),
           ),
         ],
@@ -729,10 +727,7 @@ class _ActionSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: cs.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: MissionType.label(theme, cs.onSurface),
                 ),
               ),
               _CountBadge(count: count, color: color),
@@ -780,12 +775,7 @@ class _CountBadge extends StatelessWidget {
       child: Text(
         '$count',
         textAlign: TextAlign.center,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontSize: AppFontSize.xs,
-          fontWeight: FontWeight.w700,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
+        style: MissionType.badge(theme, color),
       ),
     );
   }
@@ -919,11 +909,7 @@ class _QuietDrawer extends StatelessWidget {
                       Expanded(
                         child: Text(
                           label,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: cs.onSurfaceVariant,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
+                          style: MissionType.label(theme, cs.onSurface),
                         ),
                       ),
                       AnimatedRotation(

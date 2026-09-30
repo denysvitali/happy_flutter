@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import 'mission_control_type.dart';
 import 'mission_control_types.dart';
 import 'workspace_identity.dart';
 
@@ -223,20 +224,14 @@ class _WorkspaceTile extends StatelessWidget {
                             missionShortPath(header.displayPath),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: cs.onSurface,
-                            ),
+                            style: MissionType.title(theme, cs.onSurface),
                           ),
                           Text(
                             '${missionShortHost(header.machineName)}'
                             '  ·  $breakdown',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontSize: AppFontSize.xs,
-                              color: cs.onSurfaceVariant,
-                            ),
+                            style: MissionType.meta(theme, cs.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -276,15 +271,7 @@ class _WorkspaceSignal extends StatelessWidget {
       children: [
         _WorkspaceStatusDot(color: color, size: 5),
         const SizedBox(width: AppSpacing.xxxs),
-        Text(
-          '$count',
-          style: theme.textTheme.labelSmall?.copyWith(
-            fontSize: AppFontSize.xxs,
-            fontWeight: FontWeight.w700,
-            color: color,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
+        Text('$count', style: MissionType.badge(theme, color)),
       ],
     );
   }
