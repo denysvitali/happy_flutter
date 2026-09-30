@@ -105,14 +105,14 @@ abstract final class AppRadius {
 /// Prefer [AppTypography] for body/label/title text. Use [AppFontSize]
 /// only when you need a bare size without the full TextStyle.
 abstract final class AppFontSize {
-  /// 10 px – micro labels, status badges.
-  static const double xxs = 10;
+  /// 11 px – micro labels, status badges.
+  static const double xxs = 11;
 
-  /// 11 px – compact labels, timestamps.
-  static const double xs = 11;
+  /// 12 px – compact labels, timestamps.
+  static const double xs = 12;
 
-  /// 12 px – body small, secondary text.
-  static const double sm = 12;
+  /// 13 px – body small, secondary text.
+  static const double sm = 13;
 
   /// 13 px – code blocks, tool output.
   static const double md = 13;

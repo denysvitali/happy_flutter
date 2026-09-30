@@ -115,10 +115,10 @@ abstract final class AppTypography {
 
   static const TextStyle labelSmall = TextStyle(
     fontFamily: _fontFamily,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: FontWeight.w500,
     height: AppLineHeight.normal,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   );
 
   static TextTheme applyToTextTheme(TextTheme base) {

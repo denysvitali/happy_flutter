@@ -434,7 +434,7 @@ class _VitalPill extends StatelessWidget {
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
-              fontSize: 10,
+              fontSize: 11,
             ),
           ),
           const SizedBox(width: AppSpacing.xxs),
@@ -455,7 +455,7 @@ class _VitalPill extends StatelessWidget {
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onSurface,
               fontWeight: FontWeight.w600,
-              fontSize: 10,
+              fontSize: 11,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),

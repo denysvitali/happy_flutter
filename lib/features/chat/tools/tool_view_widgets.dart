@@ -466,7 +466,7 @@ class ToolStatusBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: bg,
               letterSpacing: 0.2,

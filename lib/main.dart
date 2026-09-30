@@ -490,7 +490,7 @@ Future<String?> _getInitialDeepLink() async {
 }
 
 /// Upper bound for the system text scale applied to the whole app.
-const double _kMaxTextScale = 1.1;
+const double _kMaxTextScale = 1.0;
 
 class HappyApp extends ConsumerStatefulWidget {
   const HappyApp({

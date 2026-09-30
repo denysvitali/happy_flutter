@@ -281,7 +281,7 @@ TextTheme _buildTextTheme({required bool dark}) {
           letterSpacing: 0.5,
         ),
         labelSmall: _inter(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w500,
           letterSpacing: 0.5,
         ),
@@ -408,7 +408,7 @@ ChipThemeData _buildChipTheme({required bool dark}) {
     ),
     labelPadding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
     labelStyle: _inter(
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: FontWeight.w500,
       letterSpacing: 0.2,
     ),

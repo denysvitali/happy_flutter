@@ -705,7 +705,7 @@ class _FileSuggestionItem extends StatelessWidget {
         badgeText,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
-          fontSize: 10,
+          fontSize: 11,
         ),
       ),
     );

@@ -192,7 +192,7 @@ class _ChangelogEntryTile extends StatelessWidget {
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: cs.error,
                             fontWeight: FontWeight.w600,
-                            fontSize: 9,
+                            fontSize: 11,
                           ),
                         ),
                       ),

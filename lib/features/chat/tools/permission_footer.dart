@@ -230,7 +230,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
                 color: theme.colorScheme.onSurfaceVariant,
                 fontFamily: 'monospace',
                 fontFamilyFallback: const ['Courier New', 'Courier'],
-                fontSize: 11.5,
+                fontSize: 12.5,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
