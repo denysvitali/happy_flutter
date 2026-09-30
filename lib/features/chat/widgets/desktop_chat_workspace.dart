@@ -79,13 +79,16 @@ class _DesktopChatWorkspaceState extends State<DesktopChatWorkspace> {
     );
     // Only allocate inspector space after an explicit selection. Flex sizes
     // use the actual chat pane, including when nested beside the session list.
-    if (widget.inspector == null) return conversation;
+    // Keep the conversation under the same parent when the inspector opens
+    // or closes, so drafts, focus, scroll and expanded rows stay mounted.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(flex: 3, child: conversation),
-        VerticalDivider(width: 1, color: cs.outlineVariant),
-        Expanded(flex: 2, child: widget.inspector!),
+        if (widget.inspector case final inspector?) ...[
+          VerticalDivider(width: 1, color: cs.outlineVariant),
+          Expanded(flex: 2, child: inspector),
+        ],
       ],
     );
   }

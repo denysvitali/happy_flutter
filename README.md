@@ -80,7 +80,9 @@ separate unread assistant results from unread activity while still working.
 The session pane can be hidden without losing its selection or scroll state;
 dragging its divider resizes it. Chat inspectors allocate space only when
 opened and use the available chat-pane width. The conversation and composer
-share an 880px maximum reading width on desktop.
+share an 880px maximum reading width on desktop. Opening and closing an
+inspector keeps the conversation mounted, preserving composer focus, draft
+text, scroll position, and expanded tool rows.
 
 - **State Management**: Riverpod v3 with manual `NotifierProvider` (no code generation)
 - **Sync Singleton**: Central in-memory data hub (`Sync` class) — main file ~1,700 lines, split across 21 `part` files. `InvalidateSync` provides debounced server fetches with exponential backoff.

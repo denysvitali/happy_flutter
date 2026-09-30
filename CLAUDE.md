@@ -452,7 +452,9 @@ separate unread assistant results from unread activity while still working.
 The session pane can be hidden without losing its selection or scroll state;
 dragging its divider resizes it. Chat inspectors allocate space only when
 opened and use the available chat-pane width. The conversation and composer
-share an 880px maximum reading width on desktop.
+share an 880px maximum reading width on desktop. Opening and closing an
+inspector keeps the conversation mounted, preserving composer focus, draft
+text, scroll position, and expanded tool rows.
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 
