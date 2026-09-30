@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/app_inline_row.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/message_widget.dart';
 
@@ -70,9 +71,7 @@ void main() {
     });
 
     testWidgets('expands and shows content on tap', (tester) async {
-      await tester.pumpWidget(
-        _thinkingMessage(content: 'Detailed reasoning'),
-      );
+      await tester.pumpWidget(_thinkingMessage(content: 'Detailed reasoning'));
       await tester.pumpAndSettle();
 
       // Tap the header to expand.
@@ -87,9 +86,7 @@ void main() {
     });
 
     testWidgets('collapses again on second tap', (tester) async {
-      await tester.pumpWidget(
-        _thinkingMessage(content: 'Collapse test'),
-      );
+      await tester.pumpWidget(_thinkingMessage(content: 'Collapse test'));
       await tester.pumpAndSettle();
 
       // Expand.
@@ -129,8 +126,9 @@ void main() {
       expect(find.byIcon(Icons.copy_outlined), findsOneWidget);
     });
 
-    testWidgets('has ClipRRect and ClipRect for proper clipping',
-        (tester) async {
+    testWidgets('has ClipRRect and ClipRect for proper clipping', (
+      tester,
+    ) async {
       await tester.pumpWidget(_thinkingMessage());
       await tester.pumpAndSettle();
 
@@ -142,8 +140,9 @@ void main() {
       expect(find.byType(ClipRect), findsWidgets);
     });
 
-    testWidgets('does not render thinking block for user messages',
-        (tester) async {
+    testWidgets('does not render thinking block for user messages', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(
           MessageWidget(
@@ -166,9 +165,7 @@ void main() {
     testWidgets('hides block when content is literally **', (tester) async {
       // Simulates Opus 4.7 redacted thinking: the parser wraps an empty
       // `thinking` field into `*Thinking...*\n\n**`, which cleans to `**`.
-      await tester.pumpWidget(
-        _thinkingMessage(content: '*Thinking...*\n\n**'),
-      );
+      await tester.pumpWidget(_thinkingMessage(content: '*Thinking...*\n\n**'));
       await tester.pumpAndSettle();
 
       expect(find.text('Thinking'), findsNothing);
@@ -183,24 +180,18 @@ void main() {
       expect(find.byIcon(Icons.psychology_outlined), findsNothing);
     });
 
-    testWidgets('no background fill color on container', (tester) async {
+    testWidgets('reasoning uses the same flat row as other chat headers', (
+      tester,
+    ) async {
       await tester.pumpWidget(_thinkingMessage());
       await tester.pumpAndSettle();
 
-      // Find the decorated container inside ClipRRect.
-      final clipRRect = find.byType(ClipRRect);
-      expect(clipRRect, findsWidgets);
-
-      // The Container should NOT have a background color — only
-      // a border. This prevents the gray blob effect.
-      final container = tester.widget<Container>(
-        find.descendant(
-          of: find.byType(ClipRRect).first,
-          matching: find.byType(Container).first,
-        ),
+      final row = find.byType(AppInlineRow);
+      expect(row, findsOneWidget);
+      final material = tester.widget<Material>(
+        find.descendant(of: row, matching: find.byType(Material)).first,
       );
-      final decoration = container.decoration as BoxDecoration?;
-      expect(decoration?.color, isNull);
+      expect(material.color, Colors.transparent);
     });
 
     testWidgets('expanded state restores after widget rebuild', (tester) async {
@@ -244,7 +235,9 @@ void main() {
       expect(find.textContaining('Reasoning to preserve'), findsOneWidget);
     });
 
-    testWidgets('collapsed state restores after widget rebuild', (tester) async {
+    testWidgets('collapsed state restores after widget rebuild', (
+      tester,
+    ) async {
       final bucket = PageStorageBucket();
       const messageId = 'msg-thinking-collapsed';
 
