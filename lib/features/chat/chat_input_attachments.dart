@@ -100,19 +100,11 @@ class _AttachButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = AppLocalizations.of(context).chatAttachImage;
-    return IconButton(
+    return ComposerIconChip(
       key: const ValueKey<String>('composer-attach-button'),
-      onPressed: onTap,
-      tooltip: label,
-      constraints: const BoxConstraints.tightFor(
-        width: AppTouchTarget.min,
-        height: AppTouchTarget.min,
-      ),
-      padding: EdgeInsets.zero,
-      iconSize: AppIconSize.xl,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-      icon: const Icon(Icons.add_photo_alternate_outlined),
+      icon: Icons.add_photo_alternate_outlined,
+      tooltip: AppLocalizations.of(context).chatAttachImage,
+      onTap: onTap,
     );
   }
 }

@@ -23,6 +23,7 @@ import 'send/image_attachment_service.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_input_buttons.dart';
+import 'widgets/composer_selector_chip.dart';
 import 'widgets/file_autocomplete.dart';
 import 'widgets/fullscreen_composer.dart';
 import 'widgets/input_toolbar.dart';

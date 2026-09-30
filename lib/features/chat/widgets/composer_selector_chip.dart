@@ -167,3 +167,68 @@ class ComposerSelectorChip extends StatelessWidget {
     );
   }
 }
+
+/// Icon-only toolbar control that matches [ComposerSelectorChip]'s height,
+/// outline and fill, so utilities (attach, options, expand) line up with
+/// the setting pills instead of floating as bare glyphs.
+class ComposerIconChip extends StatelessWidget {
+  const ComposerIconChip({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    super.key,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    const shape = CircleBorder();
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: tooltip,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          excludeFromSemantics: true,
+          child: SizedBox.square(
+            dimension: AppTouchTarget.min,
+            child: Center(
+              child: Material(
+                color: cs.onSurface.withValues(alpha: 0.04),
+                shape: shape.copyWith(
+                  side: BorderSide(
+                    color: appCs.glassBorder,
+                    width: AppBorder.hairline,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onTap,
+                  customBorder: shape,
+                  child: SizedBox.square(
+                    dimension: ComposerChipMetrics.height,
+                    child: Icon(
+                      icon,
+                      size: AppIconSize.lg,
+                      color: cs.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

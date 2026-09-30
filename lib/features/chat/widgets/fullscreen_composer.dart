@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'composer_selector_chip.dart';
 
 /// Opens the composer text in a full-screen editor.
 ///
@@ -166,21 +167,11 @@ class ExpandComposerButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = AppLocalizations.of(context).chatComposerExpand;
-    return IconButton(
+    return ComposerIconChip(
       key: const ValueKey<String>('expand-composer-button'),
-      onPressed: onTap,
+      icon: Icons.open_in_full_rounded,
       tooltip: label,
-      constraints: const BoxConstraints.tightFor(
-        width: AppTouchTarget.min,
-        height: AppTouchTarget.min,
-      ),
-      padding: EdgeInsets.zero,
-      // Quieter than send: small glyph, muted color.
-      iconSize: AppIconSize.md,
-      color: Theme.of(
-        context,
-      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-      icon: const Icon(Icons.open_in_full_rounded),
+      onTap: onTap,
     );
   }
 }

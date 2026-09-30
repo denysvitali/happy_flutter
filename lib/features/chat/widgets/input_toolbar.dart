@@ -226,18 +226,11 @@ class InputToolbar extends StatelessWidget {
             onTap: onShowModelPicker,
           ),
           if (compact)
-            IconButton(
+            ComposerIconChip(
               key: const ValueKey('composer-options-button'),
+              icon: Icons.tune_rounded,
               tooltip: context.l10n.chatComposerOptions,
-              onPressed: () => _showOptions(context),
-              constraints: const BoxConstraints.tightFor(
-                width: AppTouchTarget.min,
-                height: AppTouchTarget.min,
-              ),
-              padding: EdgeInsets.zero,
-              iconSize: AppIconSize.xl,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              icon: const Icon(Icons.tune_rounded),
+              onTap: () => _showOptions(context),
             )
           else ...[
             const SizedBox(width: AppSpacing.xs),
