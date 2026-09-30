@@ -18,6 +18,11 @@ opened and use the available chat-pane width. The conversation and composer
 share an 880px maximum reading width on desktop. Opening and closing an
 inspector keeps the conversation mounted, preserving composer focus, draft
 text, scroll position, and expanded tool rows.
+Search temporarily shows individual tool calls so matching commands and
+files can be revealed, then restores the previous tool visibility preference.
+On desktop, Ctrl/Cmd+F opens and focuses conversation search. Enter and
+Shift+Enter navigate search results; Escape closes the focused search field.
+
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 

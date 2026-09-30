@@ -1831,7 +1831,7 @@ void main() {
     // Drives the real app-bar toggle and query field so a regression in the
     // wiring (search action missing, index not rebuilt, counter wrong,
     // highlight not applied) fails here rather than in a manual check.
-    Future<void> pumpChat(WidgetTester tester) async {
+    Future<void> pumpChat(WidgetTester tester, {bool withTool = false}) async {
       sync.isInitialized = true;
       sync.testEncryptionInitialized = true;
       sync.messagesSync['session_1'] = InvalidateSync(() async {});
@@ -1860,6 +1860,18 @@ void main() {
           'kind': 'text',
           'content': 'second needle',
         },
+        if (withTool)
+          <String, dynamic>{
+            'id': 'tool-search',
+            'seq': 4,
+            'createdAt': 4,
+            'role': 'agent',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'state': 'completed',
+            'input': {'file_path': '/tmp/desktop_search_target.txt'},
+            'result': 'file contents',
+          },
       ]);
       await tester.pumpWidget(
         _buildApp(child: const ChatScreen(sessionId: 'session_1')),
@@ -1867,6 +1879,34 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
     }
+
+    testWidgets('desktop keyboard search reveals a grouped tool match', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await pumpChat(tester, withTool: true);
+      expect(find.byType(HiddenToolSummary), findsOneWidget);
+      await tester.tap(find.byType(TextField));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('chat-search-bar')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('chat-search-field')),
+        'desktop_search_target',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('1 of 1'), findsOneWidget);
+      expect(_tintOn('tool-search'), findsOneWidget);
+      expect(find.byType(HiddenToolSummary), findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('chat-search-bar')), findsNothing);
+      expect(find.byType(HiddenToolSummary), findsOneWidget);
+    });
 
     testWidgets('counts matches, highlights one and pages between them', (
       tester,

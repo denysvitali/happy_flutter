@@ -63,6 +63,11 @@ lib/
     └── zen/                     # Todo/zen mode
 ```
 
+Search temporarily shows individual tool calls so matching commands and
+files can be revealed, then restores the previous tool visibility preference.
+On desktop, Ctrl/Cmd+F opens and focuses conversation search. Enter and
+Shift+Enter navigate search results; Escape closes the focused search field.
+
 ### Key Architectural Patterns
 
 Desktop chats group completed tool calls by default, with a per-chat control

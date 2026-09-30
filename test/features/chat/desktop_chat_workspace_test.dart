@@ -9,6 +9,7 @@ const _inspector = Key('inspector');
 Widget _harness({
   bool hideTools = false,
   bool inspector = false,
+  bool searching = false,
   Widget? content,
 }) {
   return MaterialApp(
@@ -17,6 +18,7 @@ Widget _harness({
     home: Scaffold(
       body: DesktopChatWorkspace(
         mobileHideToolCalls: hideTools,
+        searching: searching,
         inspector: inspector ? const SizedBox(key: _inspector) : null,
         builder: (collapseTools) =>
             content ??
@@ -111,6 +113,28 @@ void main() {
     expect(find.text('full trace'), findsOneWidget);
     expect(find.text('Show all tool calls'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('search reveals tools and restores each viewport preference', (
+    tester,
+  ) async {
+    viewport(tester, 1200);
+    for (final width in [1200.0, 390.0]) {
+      tester.view.physicalSize = Size(width, 800);
+      await tester.pumpWidget(_harness(hideTools: true));
+      expect(find.text('grouped'), findsOneWidget);
+      await tester.pumpWidget(_harness(hideTools: true, searching: true));
+      expect(find.text('full trace'), findsOneWidget);
+      await tester.pumpWidget(_harness(hideTools: true));
+      expect(find.text('grouped'), findsOneWidget);
+    }
+    tester.view.physicalSize = const Size(1200, 800);
+    await tester.pumpWidget(_harness());
+    await tester.tap(find.text('Show all tool calls'));
+    await tester.pump();
+    await tester.pumpWidget(_harness(searching: true));
+    await tester.pumpWidget(_harness());
+    expect(find.text('full trace'), findsOneWidget);
   });
 
   testWidgets('inspector takes space only while selected', (tester) async {

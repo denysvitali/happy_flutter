@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_search_bar.dart';
@@ -16,6 +17,39 @@ Widget _host(Widget child) => MaterialApp(
 );
 
 void main() {
+  testWidgets('Enter, Shift+Enter and Escape navigate without editing query', (
+    tester,
+  ) async {
+    final controller = TextEditingController(text: 'needle');
+    addTearDown(controller.dispose);
+    var previous = 0;
+    var next = 0;
+    var closed = 0;
+    await tester.pumpWidget(
+      _host(
+        ChatSearchBar(
+          controller: controller,
+          matchCount: 2,
+          currentIndex: 0,
+          onChanged: (_) {},
+          onPrevious: () => previous++,
+          onNext: () => next++,
+          onClose: () => closed++,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    expect(next, 1);
+    expect(previous, 1);
+    expect(closed, 1);
+    expect(controller.text, 'needle');
+  });
+
   testWidgets('empty query shows the hint and no counter', (tester) async {
     final controller = TextEditingController();
     addTearDown(controller.dispose);
@@ -35,10 +69,7 @@ void main() {
     );
 
     expect(find.text('Search in conversation'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('chat-search-counter')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('chat-search-counter')), findsNothing);
   });
 
   testWidgets('counter reports the selected match position', (tester) async {

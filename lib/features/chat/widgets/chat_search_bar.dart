@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
@@ -18,10 +19,12 @@ class ChatSearchBar extends StatelessWidget {
     required this.onNext,
     required this.onClose,
     this.isSearchingOlderMessages = false,
+    this.focusNode,
     super.key,
   });
 
   final TextEditingController controller;
+  final FocusNode? focusNode;
 
   /// Number of rows matching the current query.
   final int matchCount;
@@ -44,64 +47,75 @@ class ChatSearchBar extends StatelessWidget {
     final hasMatches = matchCount > 0;
     final query = controller.text.trim();
 
-    return Row(
-      key: const ValueKey('chat-search-bar'),
-      children: [
-        Expanded(
-          child: TextField(
-            key: const ValueKey('chat-search-field'),
-            controller: controller,
-            onChanged: onChanged,
-            autofocus: true,
-            textInputAction: TextInputAction.search,
-            style: theme.textTheme.bodyMedium,
-            decoration: InputDecoration(
-              isDense: true,
-              border: InputBorder.none,
-              hintText: context.l10n.chatSearchHint,
-              hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.half),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.escape): onClose,
+        if (hasMatches) ...{
+          const SingleActivator(LogicalKeyboardKey.enter): onNext,
+          const SingleActivator(LogicalKeyboardKey.enter, shift: true):
+              onPrevious,
+        },
+      },
+      child: Row(
+        key: const ValueKey('chat-search-bar'),
+        children: [
+          Expanded(
+            child: TextField(
+              key: const ValueKey('chat-search-field'),
+              controller: controller,
+              focusNode: focusNode,
+              onChanged: onChanged,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              style: theme.textTheme.bodyMedium,
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: context.l10n.chatSearchHint,
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.half),
+                ),
               ),
             ),
           ),
-        ),
-        if (query.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-            child: Text(
-              hasMatches
-                  ? context.l10n.chatSearchCounter(
-                      currentIndex + 1,
-                      matchCount,
-                    )
-                  : isSearchingOlderMessages
-                  ? '…'
-                  : context.l10n.chatSearchNoMatches,
-              key: const ValueKey('chat-search-counter'),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
+          if (query.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: Text(
+                hasMatches
+                    ? context.l10n.chatSearchCounter(
+                        currentIndex + 1,
+                        matchCount,
+                      )
+                    : isSearchingOlderMessages
+                    ? '…'
+                    : context.l10n.chatSearchNoMatches,
+                key: const ValueKey('chat-search-counter'),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
               ),
             ),
+          _SearchAction(
+            icon: Icons.keyboard_arrow_up_rounded,
+            tooltip: context.l10n.chatSearchPrevious,
+            onPressed: hasMatches ? onPrevious : null,
+            semanticKey: 'chat-search-previous',
           ),
-        _SearchAction(
-          icon: Icons.keyboard_arrow_up_rounded,
-          tooltip: context.l10n.chatSearchPrevious,
-          onPressed: hasMatches ? onPrevious : null,
-          semanticKey: 'chat-search-previous',
-        ),
-        _SearchAction(
-          icon: Icons.keyboard_arrow_down_rounded,
-          tooltip: context.l10n.chatSearchNext,
-          onPressed: hasMatches ? onNext : null,
-          semanticKey: 'chat-search-next',
-        ),
-        _SearchAction(
-          icon: Icons.close_rounded,
-          tooltip: context.l10n.chatSearchClose,
-          onPressed: onClose,
-          semanticKey: 'chat-search-close',
-        ),
-      ],
+          _SearchAction(
+            icon: Icons.keyboard_arrow_down_rounded,
+            tooltip: context.l10n.chatSearchNext,
+            onPressed: hasMatches ? onNext : null,
+            semanticKey: 'chat-search-next',
+          ),
+          _SearchAction(
+            icon: Icons.close_rounded,
+            tooltip: context.l10n.chatSearchClose,
+            onPressed: onClose,
+            semanticKey: 'chat-search-close',
+          ),
+        ],
+      ),
     );
   }
 }

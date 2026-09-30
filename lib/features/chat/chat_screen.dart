@@ -343,6 +343,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // ── In-conversation search ──────────────────────────────────────────────
   final TextEditingController _searchController = TextEditingController();
   bool _searchOpen = false;
+  final _searchFocusNode = FocusNode();
 
   /// Prepared rows for the resident window; rebuilt when the transcript
   /// changes so each keystroke is a plain `indexOf` over short strings.
@@ -532,6 +533,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _controller.dispose();
     _attachmentController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _scrollController.dispose();
     _autoScrollNotifier.dispose();
     _messagePaneRevision.dispose();
@@ -1217,8 +1219,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   // ── In-conversation search ──────────────────────────────────────────────
 
-  void _toggleSearch() => _searchOpen ? _closeSearch() : _openSearch();
-
   void _openSearch() {
     HapticFeedback.lightImpact();
     setState(() {
@@ -1231,6 +1231,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
     _bumpMessagePaneRevision();
     _ensureSearchEntries();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _searchOpen) _searchFocusNode.requestFocus();
+    });
   }
 
   void _closeSearch() {
@@ -1823,25 +1826,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               child: child!,
             );
           },
-          child: Scaffold(
-            appBar: PreferredSize(
-              preferredSize: const Size.fromHeight(kToolbarHeight),
-              child: ValueListenableBuilder<int>(
-                valueListenable: _chatChromeRevision,
-                builder: (context, revision, child) => _buildChatAppBar(
-                  context: context,
-                  isWide: isWide,
-                  avatarStyle: avatarStyle,
+          child: CallbackShortcuts(
+            bindings: {
+              if (MediaQuery.sizeOf(context).width >=
+                  AppBreakpoint.desktop) ...{
+                const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+                    _openSearch,
+                const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+                    _openSearch,
+              },
+            },
+            child: Scaffold(
+              appBar: PreferredSize(
+                preferredSize: const Size.fromHeight(kToolbarHeight),
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _chatChromeRevision,
+                  builder: (context, revision, child) => _buildChatAppBar(
+                    context: context,
+                    isWide: isWide,
+                    avatarStyle: avatarStyle,
+                  ),
                 ),
               ),
-            ),
-            body: ChatChromeScope(
-              density: chromeDensity,
-              child: _buildScaffoldBody(
-                isWide: isWide,
-                hideToolCalls: hideToolCalls,
-                enterToSend: enterToSend,
-                availableModels: availableModels,
+              body: ChatChromeScope(
+                density: chromeDensity,
+                child: _buildScaffoldBody(
+                  isWide: isWide,
+                  hideToolCalls: hideToolCalls,
+                  enterToSend: enterToSend,
+                  availableModels: availableModels,
+                ),
               ),
             ),
           ),
@@ -1858,6 +1872,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }) {
     return DesktopChatWorkspace(
       mobileHideToolCalls: hideToolCalls,
+      searching: _searchOpen,
       inspector: isWide && _detailKind != _ChatDetailKind.none
           ? _buildDetailPane()
           : null,
@@ -2027,6 +2042,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       searchField: _searchOpen
           ? ChatSearchBar(
               controller: _searchController,
+              focusNode: _searchFocusNode,
               matchCount: _searchMatches.length,
               currentIndex: _searchCurrent,
               onChanged: _onSearchQueryChanged,

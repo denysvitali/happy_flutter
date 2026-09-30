@@ -9381,6 +9381,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quiet'**
   String get chatSessionQuiet;
+
+  /// No description provided for @desktopSearchToolsVisible.
+  ///
+  /// In en, this message translates to:
+  /// **'Tool calls visible for search'**
+  String get desktopSearchToolsVisible;
 }
 
 class _AppLocalizationsDelegate

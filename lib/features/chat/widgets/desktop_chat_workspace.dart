@@ -10,12 +10,16 @@ class DesktopChatWorkspace extends StatefulWidget {
     required this.mobileHideToolCalls,
     required this.builder,
     this.inspector,
+    this.searching = false,
     super.key,
   });
 
   final bool mobileHideToolCalls;
   final Widget Function(bool collapseTools) builder;
   final Widget? inspector;
+
+  /// Search addresses individual tool IDs rather than collapsed summaries.
+  final bool searching;
 
   @override
   State<DesktopChatWorkspace> createState() => _DesktopChatWorkspaceState();
@@ -27,7 +31,7 @@ class _DesktopChatWorkspaceState extends State<DesktopChatWorkspace> {
   @override
   Widget build(BuildContext context) {
     if (MediaQuery.sizeOf(context).width < AppBreakpoint.desktop) {
-      return widget.builder(widget.mobileHideToolCalls);
+      return widget.builder(!widget.searching && widget.mobileHideToolCalls);
     }
     final cs = Theme.of(context).colorScheme;
     final l10n = context.l10n;
@@ -51,13 +55,17 @@ class _DesktopChatWorkspaceState extends State<DesktopChatWorkspace> {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () => setState(() => _showTools = !_showTools),
+                  onPressed: widget.searching
+                      ? null
+                      : () => setState(() => _showTools = !_showTools),
                   icon: Icon(
                     _showTools ? Icons.unfold_less : Icons.terminal,
                     size: 18,
                   ),
                   label: Text(
-                    _showTools
+                    widget.searching
+                        ? l10n.desktopSearchToolsVisible
+                        : _showTools
                         ? l10n.settingsHideToolCalls
                         : l10n.desktopShowToolCalls,
                   ),
@@ -71,7 +79,7 @@ class _DesktopChatWorkspaceState extends State<DesktopChatWorkspace> {
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 880),
-              child: widget.builder(!_showTools),
+              child: widget.builder(!widget.searching && !_showTools),
             ),
           ),
         ),

@@ -5378,4 +5378,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSessionQuiet => 'Quiet';
+
+  @override
+  String get desktopSearchToolsVisible => 'Tool calls visible for search';
 }

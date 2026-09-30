@@ -2944,5 +2944,6 @@
     }
   },
   "chatSessionFailed": "Failed",
-  "chatSessionQuiet": "Quiet"
+  "chatSessionQuiet": "Quiet",
+  "desktopSearchToolsVisible": "Tool calls visible for search"
 }
