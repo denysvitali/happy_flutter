@@ -55,6 +55,7 @@ class ChatInput extends ConsumerStatefulWidget {
     this.permissionMode,
     this.onPermissionModeChanged,
     this.modelMode,
+    this.resolvedModelLabel,
     this.onModelModeChanged,
     this.availableModels = ChatModelMode.values,
     this.modelCatalogNotice,
@@ -110,6 +111,7 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Active model selection, or null for server default.
   final ChatModelMode? modelMode;
+  final String? resolvedModelLabel;
 
   /// Callback invoked when the user changes the model.
   final ValueChanged<ChatModelMode>? onModelModeChanged;
@@ -805,50 +807,87 @@ class _ChatInputState extends ConsumerState<ChatInput>
                         onTap: _onDictationTap,
                       ),
               ),
-              if (widget.onQueueNextTurn != null)
+              if (widget.onQueueNextTurn == null)
                 Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.xxs),
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.xxs,
+                    right: AppSpacing.xsm,
+                  ),
                   child: ListenableBuilder(
                     listenable: Listenable.merge([
                       widget.controller,
                       if (widget.attachmentController != null)
                         widget.attachmentController!,
                     ]),
-                    builder: (context, _) => QueueNextTurnButton(
-                      isDisabled:
-                          widget.isSendDisabled ||
-                          widget.isSending ||
-                          !_hasSendableContent,
-                      onTap: _onQueueNextTurnTap,
+                    builder: (context, _) => SendButton(
+                      isSending: widget.isSending,
+                      isSendDisabled:
+                          widget.isSendDisabled || !_hasSendableContent,
+                      onTap: _onSendTap,
+                      scaleAnimation: _sendScale,
+                      lastDeliveryStatus: widget.lastDeliveryStatus,
+                      actionLabel: widget.onQueueNextTurn == null
+                          ? null
+                          : context.l10n.chatUpdateCurrentTurn,
                     ),
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.xxs,
-                  right: AppSpacing.xsm,
-                ),
-                child: ListenableBuilder(
-                  listenable: Listenable.merge([
-                    widget.controller,
-                    if (widget.attachmentController != null)
-                      widget.attachmentController!,
-                  ]),
-                  builder: (context, _) => SendButton(
-                    isSending: widget.isSending,
-                    isSendDisabled:
-                        widget.isSendDisabled || !_hasSendableContent,
-                    onTap: _onSendTap,
-                    scaleAnimation: _sendScale,
-                    lastDeliveryStatus: widget.lastDeliveryStatus,
-                    actionLabel: widget.onQueueNextTurn == null
-                        ? null
-                        : context.l10n.chatUpdateCurrentTurn,
-                  ),
-                ),
-              ),
             ],
           ),
+          if (widget.onQueueNextTurn != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              child: Wrap(
+                key: const ValueKey('chat-follow-up-actions'),
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xxs,
+                alignment: WrapAlignment.end,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: AppSpacing.xxs,
+                      right: AppSpacing.xsm,
+                    ),
+                    child: ListenableBuilder(
+                      listenable: Listenable.merge([
+                        widget.controller,
+                        if (widget.attachmentController != null)
+                          widget.attachmentController!,
+                      ]),
+                      builder: (context, _) => SendButton(
+                        isSending: widget.isSending,
+                        isSendDisabled:
+                            widget.isSendDisabled || !_hasSendableContent,
+                        onTap: _onSendTap,
+                        scaleAnimation: _sendScale,
+                        lastDeliveryStatus: widget.lastDeliveryStatus,
+                        actionLabel: widget.onQueueNextTurn == null
+                            ? null
+                            : context.l10n.chatUpdateCurrentTurn,
+                      ),
+                    ),
+                  ),
+                  if (widget.onQueueNextTurn != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: AppSpacing.xxs),
+                      child: ListenableBuilder(
+                        listenable: Listenable.merge([
+                          widget.controller,
+                          if (widget.attachmentController != null)
+                            widget.attachmentController!,
+                        ]),
+                        builder: (context, _) => QueueNextTurnButton(
+                          isDisabled:
+                              widget.isSendDisabled ||
+                              widget.isSending ||
+                              !_hasSendableContent,
+                          onTap: _onQueueNextTurnTap,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           _buildSelectorRow(context, cs),
         ],
       ),
@@ -907,9 +946,12 @@ class _ChatInputState extends ConsumerState<ChatInput>
             children: [
               Expanded(
                 child: InputToolbar(
+                  compact:
+                      MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
                   permissionMode: widget.permissionMode,
                   onPermissionModeChanged: widget.onPermissionModeChanged,
                   modelMode: widget.modelMode,
+                  resolvedModelLabel: widget.resolvedModelLabel,
                   availableModels: widget.availableModels,
                   canRefreshModels: widget.onRefreshModels != null,
                   onShowModelPicker: () => widget.onModelModeChanged != null

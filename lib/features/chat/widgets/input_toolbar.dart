@@ -19,19 +19,21 @@ class ModelChip extends StatelessWidget {
     required this.model,
     required this.onTap,
     this.enabled = true,
+    this.resolvedLabel,
     super.key,
   });
 
   final ChatModelMode model;
   final VoidCallback onTap;
   final bool enabled;
+  final String? resolvedLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final isDefault = model == ChatModelMode.defaultModel;
-    final displayLabel = isDefault ? 'Model' : model.label;
+    final displayLabel = resolvedLabel ?? (isDefault ? 'Model' : model.label);
     final iconColor = isDefault ? cs.onSurfaceVariant : cs.primary;
     final chevronColor = isDefault
         ? cs.onSurfaceVariant.withValues(alpha: 0.65)
@@ -40,7 +42,7 @@ class ModelChip extends StatelessWidget {
     return Semantics(
       button: true,
       enabled: enabled,
-      label: 'Model: ${model.label}',
+      label: 'Model: ${resolvedLabel ?? model.label}',
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -84,7 +86,7 @@ class ModelChip extends StatelessWidget {
                         : model.modelSlug == 'fable'
                         ? Icons.auto_stories_outlined
                         : Icons.smart_toy_outlined,
-                    size: 11,
+                    size: AppIconSize.sm,
                     color: enabled
                         ? iconColor
                         : iconColor.withValues(alpha: 0.7),
@@ -93,7 +95,7 @@ class ModelChip extends StatelessWidget {
                   Text(
                     displayLabel,
                     style: theme.textTheme.labelSmall?.copyWith(
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                       color: enabled
                           ? iconColor
                           : iconColor.withValues(alpha: 0.7),
@@ -181,16 +183,16 @@ class ProfileChip extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.swap_horiz_rounded,
-                      size: 11,
+                      size: AppIconSize.sm,
                       color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 68),
+                      constraints: const BoxConstraints(maxWidth: 160),
                       child: Text(
                         displayLabel,
                         style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: AppFontSize.xxs,
+                          fontSize: AppFontSize.sm,
                           color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                           fontWeight: FontWeight.w500,
                         ),
@@ -279,7 +281,7 @@ class ContextSizeIndicator extends StatelessWidget {
           label,
           style: theme.textTheme.labelSmall?.copyWith(
             color: indicatorColor,
-            fontSize: AppFontSize.xxs,
+            fontSize: AppFontSize.sm,
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -303,6 +305,8 @@ class InputToolbar extends StatelessWidget {
     this.contextSize,
     this.sessionFlavor,
     this.maxContext,
+    this.compact = false,
+    this.resolvedModelLabel,
   });
 
   final perm.PermissionMode? permissionMode;
@@ -323,6 +327,8 @@ class InputToolbar extends StatelessWidget {
   /// [ContextSizeIndicator.defaultMaxContext]. Derived from the selected
   /// profile's context-window setting.
   final int? maxContext;
+  final bool compact;
+  final String? resolvedModelLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -348,12 +354,21 @@ class InputToolbar extends StatelessWidget {
           ],
           ModelChip(
             model: model,
+            resolvedLabel: resolvedModelLabel,
             enabled: availableModels.length > 1 || canRefreshModels,
             onTap: onShowModelPicker,
           ),
           const SizedBox(width: AppSpacing.xs),
-          ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
-          if (contextSize != null && contextSize! > 0) ...[
+          if (compact)
+            IconButton(
+              key: const ValueKey('composer-options-button'),
+              tooltip: context.l10n.chatComposerOptions,
+              onPressed: () => _showOptions(context),
+              icon: const Icon(Icons.tune, size: AppIconSize.lg),
+            )
+          else
+            ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
+          if (!compact && contextSize != null && contextSize! > 0) ...[
             const SizedBox(width: AppSpacing.xs),
             ContextSizeIndicator(
               contextSize: contextSize!,
@@ -361,6 +376,55 @@ class InputToolbar extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _showOptions(BuildContext context) {
+    final l10n = context.l10n;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.chatComposerOptions,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.swap_horiz),
+                title: Text(
+                  selectedProfile?.name ?? l10n.chatInputProfileDefault,
+                ),
+                subtitle: profileBackendHost(selectedProfile) == null
+                    ? null
+                    : Text(profileBackendHost(selectedProfile)!),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  onShowProfilePicker();
+                },
+              ),
+              if (contextSize != null && contextSize! > 0)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(l10n.chatComposerContext),
+                  trailing: ContextSizeIndicator(
+                    contextSize: contextSize!,
+                    maxContext:
+                        maxContext ?? ContextSizeIndicator.defaultMaxContext,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

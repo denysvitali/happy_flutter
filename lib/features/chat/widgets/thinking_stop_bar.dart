@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
@@ -49,6 +51,8 @@ class ThinkingStopBar extends StatelessWidget {
   const ThinkingStopBar({
     required this.onStop,
     this.activity = ChatAgentActivity.thinking,
+    this.workLabel,
+    this.startedAt,
     super.key,
   });
 
@@ -57,6 +61,8 @@ class ThinkingStopBar extends StatelessWidget {
   /// Current agent activity. Drives the leading indicator, the label,
   /// and whether the stop action is tappable.
   final ChatAgentActivity activity;
+  final String? workLabel;
+  final int? startedAt;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +88,7 @@ class ThinkingStopBar extends StatelessWidget {
     final label = switch (activity) {
       ChatAgentActivity.sending => l10n.chatSending,
       ChatAgentActivity.waiting => l10n.chatActivityWaiting,
-      ChatAgentActivity.thinking => l10n.chatActivityThinking,
+      ChatAgentActivity.thinking => workLabel ?? l10n.chatActivityThinking,
       ChatAgentActivity.stopping => l10n.chatActivityStopping,
       ChatAgentActivity.stopUnconfirmed => l10n.chatActivityStopUnconfirmed,
     };
@@ -146,6 +152,10 @@ class ThinkingStopBar extends StatelessWidget {
                   ),
                 ),
               ),
+              if (startedAt != null) ...[
+                const SizedBox(width: AppSpacing.xs),
+                ExcludeSemantics(child: _ElapsedLabel(startedAt: startedAt!)),
+              ],
               TextButton(
                 // Disabled (not removed) while the request is in flight:
                 // the row keeps its width and the greyed label confirms the
@@ -160,12 +170,61 @@ class ThinkingStopBar extends StatelessWidget {
                   minimumSize: const Size(0, AppTouchTarget.min),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(l10n.chatActivityStop),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.stop_rounded, size: AppIconSize.md),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Text(l10n.chatActivityStop),
+                  ],
+                ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// One low-frequency clock, scoped to a visible active bar. Never ticks when
+/// the route/window has muted its tickers, and never announces every second.
+class _ElapsedLabel extends StatefulWidget {
+  const _ElapsedLabel({required this.startedAt});
+  final int startedAt;
+
+  @override
+  State<_ElapsedLabel> createState() => _ElapsedLabelState();
+}
+
+class _ElapsedLabelState extends State<_ElapsedLabel> {
+  Timer? _timer;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _timer?.cancel();
+    if (TickerMode.valuesOf(context).enabled) {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = DateTime.now().millisecondsSinceEpoch - widget.startedAt;
+    final seconds = elapsed.clamp(0, 1 << 53) ~/ 1000;
+    final minutes = seconds ~/ 60;
+    return Text(
+      minutes == 0 ? '${seconds}s' : '${minutes}m ${seconds % 60}s',
+      style: Theme.of(context).textTheme.labelMedium,
     );
   }
 }

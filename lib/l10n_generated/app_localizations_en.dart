@@ -5235,4 +5235,147 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get desktopShowSessions => 'Show sessions';
+
+  @override
+  String chatWorkReadFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '1 file',
+    );
+    return 'Read $_temp0';
+  }
+
+  @override
+  String chatWorkEditedFiles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files',
+      one: '1 file',
+    );
+    return 'Edited $_temp0';
+  }
+
+  @override
+  String chatWorkEdits(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count edits',
+      one: '1 edit',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chatWorkCommands(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count commands',
+      one: '1 command',
+    );
+    return 'Ran $_temp0';
+  }
+
+  @override
+  String chatWorkOther(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count other tools complete',
+      one: '1 other tool complete',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String chatWorkFailed(int count) {
+    return '$count failed';
+  }
+
+  @override
+  String chatWorkPending(int count) {
+    return '$count pending';
+  }
+
+  @override
+  String chatWorkCanceled(int count) {
+    return '$count canceled';
+  }
+
+  @override
+  String chatWorkApprovals(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count approvals needed',
+      one: '1 approval needed',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get chatWorkEditing => 'Editing files';
+
+  @override
+  String get chatWorkReading => 'Reading files';
+
+  @override
+  String get chatWorkRunningCommands => 'Running commands';
+
+  @override
+  String get chatWorkSearching => 'Searching';
+
+  @override
+  String chatWorkUsing(String tool) {
+    return 'Using $tool';
+  }
+
+  @override
+  String get chatWorkTools => 'tools';
+
+  @override
+  String get chatReviewTurn => 'Review results';
+
+  @override
+  String get chatReviewAnswer => 'Latest answer';
+
+  @override
+  String get chatReviewFiles => 'Changed files';
+
+  @override
+  String get chatReviewCommands => 'Commands and checks';
+
+  @override
+  String get chatReviewFailures => 'Failed tools';
+
+  @override
+  String get chatReviewCommandsHint =>
+      'Review command output for check results.';
+
+  @override
+  String get chatReviewNoAnswer => 'No final answer recorded for this turn.';
+
+  @override
+  String get chatComposerOptions => 'Composer options';
+
+  @override
+  String get chatComposerContext => 'Context usage';
+
+  @override
+  String get chatSessionResultsReady => 'Results ready';
+
+  @override
+  String chatSessionWorkingUnread(int count) {
+    return 'Working · $count unread';
+  }
+
+  @override
+  String get chatSessionFailed => 'Failed';
+
+  @override
+  String get chatSessionQuiet => 'Quiet';
 }

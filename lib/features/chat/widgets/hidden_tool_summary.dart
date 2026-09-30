@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
-import '../tools/tool_status_indicator.dart';
+import '../tool_work_summary.dart';
 import '../tools/tool_view.dart';
 import 'thinking_block.dart';
 
@@ -32,9 +33,7 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
   Object? _cachedItemsRef;
   List<Map<String, dynamic>> _cachedTools = const [];
   List<Map<String, dynamic>> _cachedItems = const [];
-  int _cachedCompleted = 0;
-  int _cachedPending = 0;
-  int _cachedRunning = 0;
+  ToolWorkSummary _summary = ToolWorkSummary.fromTools(const []);
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +44,7 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
       _cachedTools = (rawTools as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .toList(growable: false);
-      _cachedCompleted = _cachedTools.where(_isCompleted).length;
-      _cachedPending = _cachedTools.where(_isPending).length;
-      _cachedRunning = _cachedTools
-          .where((tool) => tool['state'] == 'running')
-          .length;
+      _summary = ToolWorkSummary.fromTools(_cachedTools);
     }
     final tools = _cachedTools;
     // `items` holds everything collapsed into this row, in original
@@ -65,17 +60,12 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
     final items = _cachedItems;
     if (items.isEmpty) return const SizedBox.shrink();
 
-    final completed = _cachedCompleted;
-    final pending = _cachedPending;
-    final running = _cachedRunning;
+    final running = _summary.running;
     final total = tools.length;
-    // A group can be thinking-only (the agent reasoned between texts
-    // without calling a tool) — there is no tool count to report.
     final summary = total == 0
-        ? 'Thinking'
-        : pending > 0
-        ? '$completed of $total tools complete, $pending pending'
-        : '$completed tool${completed == 1 ? '' : 's'} complete';
+        ? context.l10n.chatActivityThinking
+        : _summary.describe(context.l10n);
+    final needsAttention = _summary.failed > 0 || _summary.approvals > 0;
 
     final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     return Column(
@@ -111,9 +101,13 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
                     Icon(
                       total == 0
                           ? Icons.psychology_outlined
+                          : needsAttention
+                          ? Icons.error_outline_rounded
                           : Icons.build_circle_outlined,
                       size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: needsAttention
+                          ? theme.colorScheme.error
+                          : theme.colorScheme.onSurfaceVariant,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
@@ -198,23 +192,5 @@ class _HiddenToolSummaryState extends State<HiddenToolSummary> {
   static String _thinkingText(Map<String, dynamic> item) {
     final content = item['content'] ?? item['text'] ?? '';
     return content is String ? content : content.toString();
-  }
-
-  bool _isCompleted(Map<String, dynamic> tool) {
-    final state = parseToolState(tool['state'] as String?);
-    return state == ToolState.completed;
-  }
-
-  bool _isPending(Map<String, dynamic> tool) {
-    final raw = tool['state'] as String?;
-    // `canceled` is terminal — no process will ever finish the row. It parses
-    // to [ToolState.pending] (the enum has no `canceled` member), so counting
-    // it here would keep the collapsed indeterminate spinner ticking at full
-    // frame rate forever on a resting chat, which is exactly what the
-    // running->canceled reconcile is meant to stop (progressive-lag audit
-    // 2026-08-24, fifth pass). Treat it as done.
-    if (raw == 'canceled') return false;
-    final state = parseToolState(raw);
-    return state == ToolState.pending || state == ToolState.running;
   }
 }

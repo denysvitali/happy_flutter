@@ -100,9 +100,10 @@ class MissionActionRow extends StatelessWidget {
     final semanticOutcome = switch (lane) {
       MissionLane.blocked => context.l10n.missionControlReview,
       MissionLane.error => laneLabel,
-      MissionLane.unread => context.l10n.missionControlNewCount(
-        entry.unreadCount,
-      ),
+      MissionLane.unread =>
+        status.state == SessionState.thinking
+            ? context.l10n.chatSessionWorkingUnread(entry.unreadCount)
+            : missionUnreadOutcome(context, entry),
       MissionLane.live =>
         isSilent
             ? context.l10n.missionControlSilent(formatSilenceShort(silenceMs))
@@ -120,7 +121,7 @@ class MissionActionRow extends StatelessWidget {
       entry: entry,
       since: since,
       nowMs: nowMs,
-      live: lane == MissionLane.live,
+      live: status.state == SessionState.thinking,
       onMarkRead: lane == MissionLane.unread && !selected ? onMarkRead : null,
     );
 
@@ -170,10 +171,7 @@ class MissionActionRow extends StatelessWidget {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final stacked =
-                        MediaQuery.sizeOf(context).width >=
-                            AppBreakpoint.desktop &&
-                        constraints.maxWidth < 480;
+                    final stacked = constraints.maxWidth < 480;
                     return Row(
                       children: [
                         _LaneTile(
@@ -394,7 +392,9 @@ class _OutcomePill extends StatelessWidget {
       MissionLane.blocked => Text(l10n.missionControlReview),
       MissionLane.error => Text(missionLaneLabel(context, lane)),
       MissionLane.unread => Text(
-        l10n.missionControlNewCount(entry.unreadCount),
+        live
+            ? l10n.chatSessionWorkingUnread(entry.unreadCount)
+            : missionUnreadOutcome(context, entry),
       ),
       MissionLane.live => Text(
         isSilent
@@ -404,7 +404,7 @@ class _OutcomePill extends StatelessWidget {
       MissionLane.quiet => Text(missionLaneLabel(context, lane)),
     };
     final pill = Container(
-      width: 72,
+      constraints: const BoxConstraints(minWidth: 72, maxWidth: 180),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xs,

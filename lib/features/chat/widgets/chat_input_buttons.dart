@@ -64,7 +64,7 @@ class QueueNextTurnButton extends StatelessWidget {
           ),
           icon: const Icon(Icons.schedule_send_rounded, size: AppIconSize.md),
           label: Text(
-            context.l10n.chatNextTurn,
+            context.l10n.chatQueueNextTurn,
             style: Theme.of(
               context,
             ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
@@ -271,15 +271,42 @@ class _SendButtonState extends State<SendButton>
       excludeSemantics: true,
       child: Tooltip(
         message: semanticLabel,
-        child: IconButton(
-          onPressed: canSend ? widget.onTap : null,
-          padding: EdgeInsets.zero,
-          style: IconButton.styleFrom(
-            minimumSize: const Size.square(AppTouchTarget.min),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          icon: icon,
-        ),
+        child: widget.actionLabel != null
+            ? FilledButton.icon(
+                onPressed: canSend ? widget.onTap : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, AppTouchTarget.min),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                ),
+                icon: widget.isSending
+                    ? const SizedBox(
+                        width: AppIconSize.md,
+                        height: AppIconSize.md,
+                        child: AppCircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        showCheck ? Icons.check_rounded : Icons.send_rounded,
+                        size: AppIconSize.md,
+                      ),
+                label: Text(
+                  widget.isSending
+                      ? l10n.chatSending
+                      : showCheck
+                      ? l10n.chatSent
+                      : widget.actionLabel!,
+                ),
+              )
+            : IconButton(
+                onPressed: canSend ? widget.onTap : null,
+                padding: EdgeInsets.zero,
+                style: IconButton.styleFrom(
+                  minimumSize: const Size.square(AppTouchTarget.min),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                icon: icon,
+              ),
       ),
     );
   }

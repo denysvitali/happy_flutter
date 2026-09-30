@@ -15,6 +15,28 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('ThinkingStopBar', () {
+    testWidgets('recorded work and elapsed time keep Stop accessible', (
+      tester,
+    ) async {
+      var stops = 0;
+      await tester.pumpWidget(
+        _app(
+          ThinkingStopBar(
+            workLabel: 'Editing files',
+            startedAt: DateTime.now().millisecondsSinceEpoch - 65000,
+            onStop: () => stops++,
+          ),
+        ),
+      );
+      expect(find.text('Editing files'), findsOneWidget);
+      expect(find.textContaining('1m '), findsOneWidget);
+      await tester.tap(find.text('Stop'));
+      expect(stops, 1);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('delivery and waiting do not offer an unconfirmed Stop', (
       tester,
     ) async {
@@ -43,9 +65,7 @@ void main() {
 
     testWidgets('thinking state offers an enabled Stop action', (tester) async {
       var stops = 0;
-      await tester.pumpWidget(
-        _app(ThinkingStopBar(onStop: () => stops++)),
-      );
+      await tester.pumpWidget(_app(ThinkingStopBar(onStop: () => stops++)));
 
       expect(find.text('Thinking…'), findsOneWidget);
       await tester.tap(find.text('Stop'));
@@ -57,10 +77,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _app(
-          ThinkingStopBar(
-            activity: ChatAgentActivity.stopping,
-            onStop: () {},
-          ),
+          ThinkingStopBar(activity: ChatAgentActivity.stopping, onStop: () {}),
         ),
       );
 
@@ -89,9 +106,7 @@ void main() {
       expect(stops, 1);
     });
 
-    testWidgets('height is stable across every activity state', (
-      tester,
-    ) async {
+    testWidgets('height is stable across every activity state', (tester) async {
       final heights = <double>[];
       for (final activity in ChatAgentActivity.values) {
         await tester.pumpWidget(

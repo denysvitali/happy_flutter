@@ -18,6 +18,51 @@ void main() {
     );
   }
 
+  testWidgets('provider-owned model labels remain visible and readable', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          resolvedModelLabel: 'GLM-5',
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+        ),
+      ),
+    );
+    final label = tester.widget<Text>(find.text('GLM-5'));
+    expect(label.style?.fontSize, greaterThanOrEqualTo(12));
+    expect(find.bySemanticsLabel('Model: GLM-5'), findsOneWidget);
+  });
+
+  testWidgets('compact toolbar moves profile and context into options', (
+    tester,
+  ) async {
+    var profileOpened = 0;
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          compact: true,
+          modelMode: ChatModelMode.sonnet,
+          contextSize: 12000,
+          onShowModelPicker: () {},
+          onShowProfilePicker: () => profileOpened++,
+        ),
+      ),
+    );
+    expect(find.byType(ModelChip), findsOneWidget);
+    expect(find.byType(ProfileChip), findsNothing);
+    expect(find.byType(ContextSizeIndicator), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('composer-options-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Context usage'), findsOneWidget);
+    expect(find.byType(ContextSizeIndicator), findsOneWidget);
+    await tester.tap(find.text('Default'));
+    await tester.pumpAndSettle();
+    expect(profileOpened, 1);
+    expect(find.text('Context usage'), findsNothing);
+  });
+
   testWidgets('single-model sessions hide the dropdown affordance', (
     tester,
   ) async {

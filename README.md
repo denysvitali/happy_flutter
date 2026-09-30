@@ -66,7 +66,17 @@ lib/
 ### Key Architectural Patterns
 
 Desktop chats group completed tool calls by default, with a per-chat control
-to show the full trace. Mobile keeps its existing hide-tools preference.
+to show the full trace. Mobile keeps its existing hide-tools preference. Tool
+summaries name successful file work and commands while retaining failures,
+queued calls, cancellations, and approvals. The activity bar shows the recorded
+running tool family and elapsed request time; its clock pauses with TickerMode.
+An idle turn offers a result review sheet with the latest answer, recorded
+changed files/diffs, and command output. These are bounded, cached display
+projections of resident messages; command completion never implies tests passed.
+Active Codex turns have separate, visible Update current turn and Queue for
+next turn actions. Mobile keeps model/permission controls in the composer and
+moves profile/context settings into Composer options. Session triage labels
+separate unread assistant results from unread activity while still working.
 The session pane can be hidden without losing its selection or scroll state;
 dragging its divider resizes it. Chat inspectors allocate space only when
 opened and use the available chat-pane width. The conversation and composer

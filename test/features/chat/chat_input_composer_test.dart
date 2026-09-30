@@ -303,15 +303,17 @@ void main() {
       find.descendant(of: inputRow, matching: find.byType(TextField)),
       findsOneWidget,
     );
-    expect(
-      find.descendant(of: inputRow, matching: queueButton),
-      findsOneWidget,
-    );
+    expect(find.descendant(of: inputRow, matching: queueButton), findsNothing);
     expect(
       find.descendant(of: inputRow, matching: find.byType(SendButton)),
+      findsNothing,
+    );
+    expect(find.text('Queue for next turn'), findsOneWidget);
+    expect(find.text('Update current turn'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('chat-follow-up-actions')),
       findsOneWidget,
     );
-    expect(find.text('Queue'), findsOneWidget);
     expect(
       find.text('Update changes the running turn; Queue starts afterward.'),
       findsNothing,
@@ -375,7 +377,7 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('active-turn actions do not add another composer row', (
+  testWidgets('active-turn actions have a separate readable destination row', (
     tester,
   ) async {
     final controller = TextEditingController(text: 'A compact follow-up');
@@ -398,7 +400,11 @@ void main() {
     );
     await tester.pump();
 
-    expect(tester.getSize(composerCard).height, idleHeight);
+    expect(
+      tester.getSize(composerCard).height,
+      greaterThanOrEqualTo(idleHeight + AppTouchTarget.min),
+    );
+    expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

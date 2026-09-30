@@ -2839,5 +2839,110 @@
   "desktopShowToolCalls": "Show all tool calls",
   "desktopToolCallsCollapsed": "Completed tools are grouped; expand a summary to inspect them.",
   "desktopHideSessions": "Hide sessions",
-  "desktopShowSessions": "Show sessions"
+  "desktopShowSessions": "Show sessions",
+  "chatWorkReadFiles": "Read {count, plural, =1{1 file} other{{count} files}}",
+  "@chatWorkReadFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkEditedFiles": "Edited {count, plural, =1{1 file} other{{count} files}}",
+  "@chatWorkEditedFiles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkEdits": "{count, plural, =1{1 edit} other{{count} edits}}",
+  "@chatWorkEdits": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkCommands": "Ran {count, plural, =1{1 command} other{{count} commands}}",
+  "@chatWorkCommands": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkOther": "{count, plural, =1{1 other tool complete} other{{count} other tools complete}}",
+  "@chatWorkOther": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkFailed": "{count} failed",
+  "@chatWorkFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkPending": "{count} pending",
+  "@chatWorkPending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkCanceled": "{count} canceled",
+  "@chatWorkCanceled": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkApprovals": "{count, plural, =1{1 approval needed} other{{count} approvals needed}}",
+  "@chatWorkApprovals": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatWorkEditing": "Editing files",
+  "chatWorkReading": "Reading files",
+  "chatWorkRunningCommands": "Running commands",
+  "chatWorkSearching": "Searching",
+  "chatWorkUsing": "Using {tool}",
+  "@chatWorkUsing": {
+    "placeholders": {
+      "tool": {
+        "type": "String"
+      }
+    }
+  },
+  "chatWorkTools": "tools",
+  "chatReviewTurn": "Review results",
+  "chatReviewAnswer": "Latest answer",
+  "chatReviewFiles": "Changed files",
+  "chatReviewCommands": "Commands and checks",
+  "chatReviewFailures": "Failed tools",
+  "chatReviewCommandsHint": "Review command output for check results.",
+  "chatReviewNoAnswer": "No final answer recorded for this turn.",
+  "chatComposerOptions": "Composer options",
+  "chatComposerContext": "Context usage",
+  "chatSessionResultsReady": "Results ready",
+  "chatSessionWorkingUnread": "Working · {count} unread",
+  "@chatSessionWorkingUnread": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chatSessionFailed": "Failed",
+  "chatSessionQuiet": "Quiet"
 }

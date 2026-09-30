@@ -62,6 +62,7 @@ import 'send/image_attachment_service.dart';
 import 'session_file_viewer_screen.dart';
 import 'session_files_screen.dart';
 import 'session_info_screen.dart';
+import 'tool_work_summary.dart';
 import 'widgets/agents_list_sheet.dart';
 import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_app_bar.dart';
@@ -85,6 +86,7 @@ import 'widgets/sidechain_orphan_more.dart';
 import 'widgets/sub_agent_status_banner.dart';
 import 'widgets/thinking_stop_bar.dart';
 import 'widgets/tts_playback_bar.dart';
+import 'widgets/turn_review_bar.dart';
 
 // NOTE: chat_screen uses `part` files (_chat_screen_actions.dart, etc.)
 // because Dart's library-private (`_`) visibility is required for
@@ -377,6 +379,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _detailFileContent;
 
   int _lastMessagesRevision = -1;
+  List<Map<String, dynamic>>? _turnWorkSource;
+  int _turnWorkRevision = -1;
+  ChatTurnWork? _turnWork;
+
+  ChatTurnWork get _currentTurnWork {
+    if (!identical(_turnWorkSource, _messages) ||
+        _turnWorkRevision != _lastMessagesRevision) {
+      _turnWorkSource = _messages;
+      _turnWorkRevision = _lastMessagesRevision;
+      _turnWork = ChatTurnWork.fromMessages(_messages);
+    }
+    return _turnWork!;
+  }
+
   String _initialContentSource = 'none';
   bool _hadInMemoryMessagesAtEntry = false;
 
@@ -1942,6 +1958,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             permissionMode: _permissionMode,
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,
+            resolvedModelLabel: _profileModelOverride,
             availableModels: availableModels,
             modelCatalogNotice:
                 _session?.metadata?.flavor == 'codex' &&
@@ -2023,6 +2040,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   Widget _buildActivityChrome() {
+    final activity = _resolveAgentActivity();
+    final turn = _currentTurnWork;
     final hasSendIssue = _sessionSendIssue != null;
     final pendingRequests = _session?.agentState?.requests;
     final hasPendingPermission =
@@ -2056,8 +2075,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           canGoPrev: _ttsCanGoPrev(),
           canGoNext: _ttsCanGoNext(),
         ),
-        if (_resolveAgentActivity() case final activity?)
-          ThinkingStopBar(activity: activity, onStop: _abortSession),
+        if (activity != null)
+          ThinkingStopBar(
+            activity: activity,
+            onStop: _abortSession,
+            workLabel: turn.summary.activityLabel(context.l10n),
+            startedAt: turn.startedAt,
+          )
+        else if (!hasSendIssue &&
+            !hasPendingPermission &&
+            !(_session?.thinking ?? false) &&
+            turn.summary.running == 0 &&
+            turn.hasResult)
+          TurnReviewBar(
+            turn: turn,
+            onOpenTool: (tool) {
+              final id = tool['id'];
+              if (id is String) {
+                context.push(
+                  '/chat/${widget.sessionId}/message/$id',
+                  extra: tool,
+                );
+              }
+            },
+          ),
       ],
     );
   }

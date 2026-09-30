@@ -9213,6 +9213,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show sessions'**
   String get desktopShowSessions;
+
+  /// No description provided for @chatWorkReadFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Read {count, plural, =1{1 file} other{{count} files}}'**
+  String chatWorkReadFiles(int count);
+
+  /// No description provided for @chatWorkEditedFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Edited {count, plural, =1{1 file} other{{count} files}}'**
+  String chatWorkEditedFiles(int count);
+
+  /// No description provided for @chatWorkEdits.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 edit} other{{count} edits}}'**
+  String chatWorkEdits(int count);
+
+  /// No description provided for @chatWorkCommands.
+  ///
+  /// In en, this message translates to:
+  /// **'Ran {count, plural, =1{1 command} other{{count} commands}}'**
+  String chatWorkCommands(int count);
+
+  /// No description provided for @chatWorkOther.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 other tool complete} other{{count} other tools complete}}'**
+  String chatWorkOther(int count);
+
+  /// No description provided for @chatWorkFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} failed'**
+  String chatWorkFailed(int count);
+
+  /// No description provided for @chatWorkPending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} pending'**
+  String chatWorkPending(int count);
+
+  /// No description provided for @chatWorkCanceled.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} canceled'**
+  String chatWorkCanceled(int count);
+
+  /// No description provided for @chatWorkApprovals.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 approval needed} other{{count} approvals needed}}'**
+  String chatWorkApprovals(int count);
+
+  /// No description provided for @chatWorkEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing files'**
+  String get chatWorkEditing;
+
+  /// No description provided for @chatWorkReading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading files'**
+  String get chatWorkReading;
+
+  /// No description provided for @chatWorkRunningCommands.
+  ///
+  /// In en, this message translates to:
+  /// **'Running commands'**
+  String get chatWorkRunningCommands;
+
+  /// No description provided for @chatWorkSearching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching'**
+  String get chatWorkSearching;
+
+  /// No description provided for @chatWorkUsing.
+  ///
+  /// In en, this message translates to:
+  /// **'Using {tool}'**
+  String chatWorkUsing(String tool);
+
+  /// No description provided for @chatWorkTools.
+  ///
+  /// In en, this message translates to:
+  /// **'tools'**
+  String get chatWorkTools;
+
+  /// No description provided for @chatReviewTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Review results'**
+  String get chatReviewTurn;
+
+  /// No description provided for @chatReviewAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest answer'**
+  String get chatReviewAnswer;
+
+  /// No description provided for @chatReviewFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed files'**
+  String get chatReviewFiles;
+
+  /// No description provided for @chatReviewCommands.
+  ///
+  /// In en, this message translates to:
+  /// **'Commands and checks'**
+  String get chatReviewCommands;
+
+  /// No description provided for @chatReviewFailures.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed tools'**
+  String get chatReviewFailures;
+
+  /// No description provided for @chatReviewCommandsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Review command output for check results.'**
+  String get chatReviewCommandsHint;
+
+  /// No description provided for @chatReviewNoAnswer.
+  ///
+  /// In en, this message translates to:
+  /// **'No final answer recorded for this turn.'**
+  String get chatReviewNoAnswer;
+
+  /// No description provided for @chatComposerOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Composer options'**
+  String get chatComposerOptions;
+
+  /// No description provided for @chatComposerContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Context usage'**
+  String get chatComposerContext;
+
+  /// No description provided for @chatSessionResultsReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Results ready'**
+  String get chatSessionResultsReady;
+
+  /// No description provided for @chatSessionWorkingUnread.
+  ///
+  /// In en, this message translates to:
+  /// **'Working · {count} unread'**
+  String chatSessionWorkingUnread(int count);
+
+  /// No description provided for @chatSessionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get chatSessionFailed;
+
+  /// No description provided for @chatSessionQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet'**
+  String get chatSessionQuiet;
 }
 
 class _AppLocalizationsDelegate

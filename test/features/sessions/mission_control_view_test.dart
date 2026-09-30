@@ -15,6 +15,37 @@ import 'package:happy_flutter/features/sessions/widgets/mission_control_view.dar
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('unread results remain distinct from work still in progress', (
+    tester,
+  ) async {
+    for (final thinking in [false, true]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: MissionActionRow(
+              session: _session(id: 'review-status', thinking: thinking),
+              entry: const SessionUiEntry(
+                unreadCount: 2,
+                lastMessageRole: 'agent',
+              ),
+              lane: MissionLane.unread,
+              animateActivity: false,
+              onTap: () {},
+              onLongPress: () {},
+            ),
+          ),
+        ),
+      );
+      expect(
+        find.text(thinking ? 'Working · 2 unread' : 'Results ready · 2'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   group('missionLaneFor', () {
     test('a pending permission request is blocked, even with unread', () {
       final session = _session(

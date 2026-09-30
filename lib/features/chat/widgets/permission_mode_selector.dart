@@ -295,14 +295,14 @@ class PermissionModeSelector extends ConsumerWidget {
                 children: [
                   Icon(
                     currentMode.icon,
-                    size: 11,
+                    size: AppIconSize.sm,
                     color: isDefault ? cs.onSurfaceVariant : currentMode.color,
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
                     displayLabel,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                       fontWeight: FontWeight.w500,
                       color: isDefault
                           ? cs.onSurfaceVariant

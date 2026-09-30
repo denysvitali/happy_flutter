@@ -79,11 +79,19 @@ String missionLaneLabel(BuildContext context, MissionLane lane) {
   final l10n = context.l10n;
   return switch (lane) {
     MissionLane.blocked => l10n.missionControlStatBlocked,
-    MissionLane.error => l10n.missionControlStatError,
+    MissionLane.error => l10n.chatSessionFailed,
     MissionLane.unread => l10n.missionControlStatUnread,
     MissionLane.live => l10n.missionControlStatWorking,
-    MissionLane.quiet => l10n.missionControlStatIdle,
+    MissionLane.quiet => l10n.chatSessionQuiet,
   };
+}
+
+/// Only assistant activity can be presented as a result ready to review.
+String missionUnreadOutcome(BuildContext context, SessionUiEntry entry) {
+  return entry.lastMessageRole == 'agent' ||
+          entry.lastMessageRole == 'assistant'
+      ? '${context.l10n.chatSessionResultsReady} · ${entry.unreadCount}'
+      : context.l10n.missionControlNewCount(entry.unreadCount);
 }
 
 /// Formats a running duration as `12s`, `4m 05s` or `1h 12m`.

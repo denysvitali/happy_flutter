@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/widgets/hidden_tool_summary.dart';
 
 /// Progressive-lag remediation, 2026-08-24 (fifth pass).
@@ -14,10 +15,33 @@ void main() {
   Future<void> pump(WidgetTester tester, List<Map<String, dynamic>> tools) {
     return tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(body: HiddenToolSummary(data: {'tools': tools})),
       ),
     );
   }
+
+  testWidgets('collapsed groups name completed work and surface failures', (
+    tester,
+  ) async {
+    await pump(tester, [
+      {
+        'name': 'Read',
+        'state': 'completed',
+        'input': {'file_path': 'a.dart'},
+      },
+      {
+        'name': 'Edit',
+        'state': 'completed',
+        'input': {'file_path': 'a.dart'},
+      },
+      {'name': 'Bash', 'state': 'error'},
+    ]);
+    expect(find.text('Read 1 file · Edited 1 file · 1 failed'), findsOneWidget);
+    expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
 
   testWidgets('a canceled tool does not spin the collapsed summary', (
     tester,

@@ -129,6 +129,52 @@ void main() {
     await TtsService().dispose();
   });
 
+  testWidgets('result review waits for the turn to become idle', (
+    tester,
+  ) async {
+    sync.isInitialized = true;
+    sync.messagesSync['session_1'] = InvalidateSync(() async {});
+    sync.testSetSessionMessages('session_1', [
+      {
+        'id': 'user',
+        'localId': 'user',
+        'role': 'user',
+        'kind': 'text',
+        'content': 'Fix layout',
+        'sendStatus': 'sent',
+      },
+      {
+        'id': 'answer',
+        'role': 'agent',
+        'kind': 'text',
+        'content': 'Layout updated.',
+      },
+    ]);
+    sync.testSessions['session_1'] = _makeSession(
+      thinking: true,
+      presence: 'online',
+    );
+    await tester.pumpWidget(
+      _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(const ValueKey('turn-review-bar')), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    sync.testSessions['session_1'] = _makeSession(
+      thinking: false,
+      presence: 'online',
+    );
+    await tester.pumpWidget(
+      _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(const ValueKey('turn-review-bar')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   group('ChatScreen', () {
     testWidgets('shows loading shimmer when messages are loading', (
       tester,
@@ -428,11 +474,7 @@ void main() {
 
       for (var token = 1; token <= 10; token++) {
         sync.testSetSessionMessages('session_1', [
-          {
-            'id': 'stream',
-            'role': 'agent',
-            'content': 'partial token $token',
-          },
+          {'id': 'stream', 'role': 'agent', 'content': 'partial token $token'},
         ]);
         sync.testNotifySessionMessagesChanged('session_1');
         await tester.pump();
@@ -440,8 +482,10 @@ void main() {
       }
       // Every interval is shorter than the 50 ms refresh window. A trailing
       // debounce would still show "initial" until the stream ended.
-      expect(sync.messagesForSession('session_1').single['content'],
-          'partial token 10');
+      expect(
+        sync.messagesForSession('session_1').single['content'],
+        'partial token 10',
+      );
       expect(find.textContaining('partial token'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 60));
       expect(find.textContaining('partial token 10'), findsOneWidget);
@@ -1831,10 +1875,7 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.search_rounded));
       await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('chat-search-bar')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const ValueKey('chat-search-bar')), findsOneWidget);
 
       await tester.enterText(
         find.byKey(const ValueKey('chat-search-field')),
