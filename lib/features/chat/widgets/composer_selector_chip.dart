@@ -4,28 +4,25 @@ import '../../../core/theme/app_tokens.dart';
 
 /// Shared metrics for the composer's permission / model / profile chips.
 ///
-/// Material 3 assist-chip proportions. Gaps are tuned so the *visible* ink
-/// spacing is an even ~8dp: the 16dp leading icons carry ~1.5dp of side
-/// bearing and the chevron glyph ~4.5dp, so the chevron sits 2dp after the
-/// label and 4dp before the edge.
+/// Compact pill: 11sp regular label, 14dp icons. The chevron glyph carries
+/// ~4dp of side bearing, so it sits 2dp after the label.
 abstract final class ComposerChipMetrics {
-  static const double height = 32;
-  static const double radius = AppRadius.sm;
-  static const double paddingStart = AppSpacing.sm;
-  static const double paddingEnd = AppSpacing.xs;
+  static const double height = 28;
+  static const double paddingStart = AppSpacing.smd;
+  static const double paddingEnd = AppSpacing.sm;
   static const double paddingEndNoChevron = AppSpacing.smd;
-  static const double iconSize = AppIconSize.md;
-  static const double iconLabelGap = AppSpacing.xsm;
+  static const double iconSize = AppIconSize.sm;
+  static const double iconLabelGap = AppSpacing.xs;
   static const double labelChevronGap = AppSpacing.xxs;
-  static const double chevronSize = AppIconSize.md;
-  static const double labelFontSize = AppFontSize.xs;
+  static const double chevronSize = AppIconSize.sm;
+  static const double labelFontSize = AppFontSize.xxs;
 }
 
-/// Compact rounded-rectangle selector chip used in the chat composer.
+/// Compact pill selector chip used in the chat composer.
 ///
 /// The visual chip is [ComposerChipMetrics.height] tall; the tap target is
 /// expanded to [AppTouchTarget.min]. The ink ripple is clipped to the chip's
-/// rounded rectangle, not the enlarged hit area.
+/// pill, not the enlarged hit area.
 class ComposerSelectorChip extends StatelessWidget {
   const ComposerSelectorChip({
     required this.icon,
@@ -54,21 +51,21 @@ class ComposerSelectorChip extends StatelessWidget {
   final double? width;
   final double? labelMaxWidth;
 
-  static const _shape = RoundedRectangleBorder(
-    borderRadius: BorderRadius.all(Radius.circular(ComposerChipMetrics.radius)),
-  );
+  static const _shape = StadiumBorder();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // bodySmall resolves to the regular Inter face; label styles are bound
-    // to the medium face and read as bold at this size.
+    // Pin the regular Inter file: the theme binds each weight to its own
+    // family, so a weight override alone keeps the medium face and the
+    // label reads as bold.
     final labelStyle = (theme.textTheme.bodySmall ?? const TextStyle())
         .copyWith(
+          fontFamily: 'Inter_regular',
           fontSize: ComposerChipMetrics.labelFontSize,
           fontWeight: FontWeight.w400,
-          letterSpacing: 0,
-          height: 16 / 12,
+          letterSpacing: 0.1,
+          height: 1.2,
           color: foreground,
         );
     final hasChevron = chevronColor != null;
