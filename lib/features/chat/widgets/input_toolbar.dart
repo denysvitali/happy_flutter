@@ -11,7 +11,7 @@ import 'permission_mode_selector.dart' as perm;
 
 /// Visual chip height (dense). Hit target is expanded to
 /// [AppTouchTarget.min] via outer padding so fat-finger misses drop.
-const double _toolbarChipVisualHeight = 24;
+const double _toolbarChipVisualHeight = 28;
 
 /// Inline chip for model selection — subtle, tappable.
 class ModelChip extends StatelessWidget {
@@ -45,7 +45,7 @@ class ModelChip extends StatelessWidget {
       label: 'Model: ${resolvedLabel ?? model.label}',
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: AppTouchTarget.min,
@@ -59,12 +59,12 @@ class ModelChip extends StatelessWidget {
             heightFactor: 1,
             child: Container(
               height: _toolbarChipVisualHeight,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xsm),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               decoration: BoxDecoration(
                 color: isDefault
                     ? cs.onSurface.withValues(alpha: 0.05)
                     : cs.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(
                   color:
                       (theme.extension<AppColorScheme>() ??
@@ -86,12 +86,12 @@ class ModelChip extends StatelessWidget {
                         : model.modelSlug == 'fable'
                         ? Icons.auto_stories_outlined
                         : Icons.smart_toy_outlined,
-                    size: AppIconSize.xs,
+                    size: AppIconSize.sm,
                     color: enabled
                         ? iconColor
                         : iconColor.withValues(alpha: 0.7),
                   ),
-                  const SizedBox(width: AppSpacing.xxxs),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     displayLabel,
                     style: theme.textTheme.labelSmall?.copyWith(
@@ -103,10 +103,10 @@ class ModelChip extends StatelessWidget {
                     ),
                   ),
                   if (enabled) ...[
-                    const SizedBox(width: 1),
+                    const SizedBox(width: AppSpacing.xxs),
                     Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      size: 11,
+                      size: AppIconSize.sm,
                       color: chevronColor,
                     ),
                   ],
@@ -150,7 +150,7 @@ class ProfileChip extends StatelessWidget {
         message: tooltip,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
           child: ConstrainedBox(
             constraints: const BoxConstraints(
               minHeight: AppTouchTarget.min,
@@ -164,12 +164,12 @@ class ProfileChip extends StatelessWidget {
               heightFactor: 1,
               child: Container(
                 height: _toolbarChipVisualHeight,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xsm),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: isDefault
                       ? cs.onSurface.withValues(alpha: 0.05)
                       : cs.tertiary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   border: Border.all(
                     color:
                         (theme.extension<AppColorScheme>() ??
@@ -183,10 +183,10 @@ class ProfileChip extends StatelessWidget {
                   children: [
                     Icon(
                       Icons.swap_horiz_rounded,
-                      size: AppIconSize.xs,
+                      size: AppIconSize.sm,
                       color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
                     ),
-                    const SizedBox(width: AppSpacing.xxxs),
+                    const SizedBox(width: AppSpacing.xs),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 160),
                       child: Text(
@@ -200,10 +200,10 @@ class ProfileChip extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 1),
+                    const SizedBox(width: AppSpacing.xxs),
                     Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      size: 11,
+                      size: AppIconSize.sm,
                       color: isDefault
                           ? cs.onSurfaceVariant.withValues(alpha: 0.65)
                           : cs.tertiary.withValues(alpha: 0.65),

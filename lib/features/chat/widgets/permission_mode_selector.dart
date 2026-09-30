@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
 /// Visual chip height (dense). Hit target expanded to [AppTouchTarget.min].
-const double _selectorChipVisualHeight = 24;
+const double _selectorChipVisualHeight = 28;
 
 /// Permission mode options for Claude/Gemini agents
 enum PermissionMode {
@@ -268,7 +269,7 @@ class PermissionModeSelector extends ConsumerWidget {
       label: 'Permission mode: ${currentMode.localizedDisplayName(l10n)}',
       child: InkWell(
         onTap: enabled ? () => _showModeSheet(context) : null,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
         child: ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: AppTouchTarget.min,
@@ -283,22 +284,30 @@ class PermissionModeSelector extends ConsumerWidget {
             child: Container(
               width: width,
               height: _selectorChipVisualHeight,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xsm),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               decoration: BoxDecoration(
                 color: isDefault
                     ? cs.onSurface.withValues(alpha: 0.05)
                     : currentMode.color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                border: Border.all(
+                  color: isDefault
+                      ? (Theme.of(context).extension<AppColorScheme>() ??
+                                AppColorScheme.dark())
+                            .glassBorder
+                      : currentMode.color.withValues(alpha: 0.35),
+                  width: AppBorder.hairline,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     currentMode.icon,
-                    size: AppIconSize.xs,
+                    size: AppIconSize.sm,
                     color: isDefault ? cs.onSurfaceVariant : currentMode.color,
                   ),
-                  const SizedBox(width: AppSpacing.xxxs),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     displayLabel,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -309,10 +318,10 @@ class PermissionModeSelector extends ConsumerWidget {
                           : currentMode.color,
                     ),
                   ),
-                  const SizedBox(width: 1),
+                  const SizedBox(width: AppSpacing.xxs),
                   Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    size: 11,
+                    size: AppIconSize.sm,
                     color: isDefault
                         ? cs.onSurfaceVariant.withValues(alpha: 0.5)
                         : currentMode.color.withValues(alpha: 0.6),
