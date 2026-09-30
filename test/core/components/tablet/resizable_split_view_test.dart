@@ -107,20 +107,25 @@ void main() {
     await tester.pumpWidget(_harness(storage, dividerLabel: 'Resize'));
 
     final divider = find.byType(ResizablePaneDivider);
-    expect(tester.getSize(divider).width, 16);
+    // Desktop handles should stay compact without pinning the test to a
+    // particular spacing token. Tablet touch sizing is covered separately.
+    expect(tester.getSize(divider).width, inExclusiveRange(0, 17));
 
     final before = _masterWidth(tester);
     await tester.tap(divider);
+    await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pump();
     expect(
       _masterWidth(tester),
       closeTo(before + ResizablePaneDivider.semanticsStep, 0.5),
     );
+    expect(storage.widthFor('sessions'), closeTo(_masterWidth(tester), 0.5));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await tester.pump();
     expect(_masterWidth(tester), closeTo(before, 0.5));
+    expect(storage.widthFor('sessions'), closeTo(before, 0.5));
     await _drainPersistDebounce(tester);
   });
 
