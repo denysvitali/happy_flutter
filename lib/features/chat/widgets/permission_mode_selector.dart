@@ -5,9 +5,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-
-/// Visual chip height (dense). Hit target expanded to [AppTouchTarget.min].
-const double _selectorChipVisualHeight = 28;
+import 'composer_selector_chip.dart';
 
 /// Permission mode options for Claude/Gemini agents
 enum PermissionMode {
@@ -267,70 +265,23 @@ class PermissionModeSelector extends ConsumerWidget {
       button: true,
       enabled: enabled,
       label: 'Permission mode: ${currentMode.localizedDisplayName(l10n)}',
-      child: InkWell(
+      child: ComposerSelectorChip(
         onTap: enabled ? () => _showModeSheet(context) : null,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: AppTouchTarget.min,
-            minWidth: AppTouchTarget.min,
-          ),
-          // widthFactor/heightFactor keep Align intrinsic-sized so parent
-          // Wrap places chips on one row; bare Align expands to full width.
-          child: Align(
-            alignment: Alignment.center,
-            widthFactor: 1,
-            heightFactor: 1,
-            child: Container(
-              width: width,
-              height: _selectorChipVisualHeight,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: isDefault
-                    ? cs.onSurface.withValues(alpha: 0.05)
-                    : currentMode.color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(
-                  color: isDefault
-                      ? (Theme.of(context).extension<AppColorScheme>() ??
-                                AppColorScheme.dark())
-                            .glassBorder
-                      : currentMode.color.withValues(alpha: 0.35),
-                  width: AppBorder.hairline,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    currentMode.icon,
-                    size: AppIconSize.sm,
-                    color: isDefault ? cs.onSurfaceVariant : currentMode.color,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    displayLabel,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontSize: AppFontSize.xxs,
-                      fontWeight: FontWeight.w500,
-                      color: isDefault
-                          ? cs.onSurfaceVariant
-                          : currentMode.color,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.xxs),
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: AppIconSize.sm,
-                    color: isDefault
-                        ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-                        : currentMode.color.withValues(alpha: 0.6),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+        width: width,
+        icon: currentMode.icon,
+        label: displayLabel,
+        foreground: isDefault ? cs.onSurfaceVariant : currentMode.color,
+        background: isDefault
+            ? cs.onSurface.withValues(alpha: 0.05)
+            : currentMode.color.withValues(alpha: 0.1),
+        borderColor: isDefault
+            ? (Theme.of(context).extension<AppColorScheme>() ??
+                      AppColorScheme.dark())
+                  .glassBorder
+            : currentMode.color.withValues(alpha: 0.35),
+        chevronColor: isDefault
+            ? cs.onSurfaceVariant.withValues(alpha: 0.5)
+            : currentMode.color.withValues(alpha: 0.6),
       ),
     );
   }

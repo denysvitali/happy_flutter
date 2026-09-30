@@ -6,12 +6,9 @@ import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../model_selection_resolver.dart';
+import 'composer_selector_chip.dart';
 import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
-
-/// Visual chip height (dense). Hit target is expanded to
-/// [AppTouchTarget.min] via outer padding so fat-finger misses drop.
-const double _toolbarChipVisualHeight = 28;
 
 /// Inline chip for model selection — subtle, tappable.
 class ModelChip extends StatelessWidget {
@@ -43,78 +40,26 @@ class ModelChip extends StatelessWidget {
       button: true,
       enabled: enabled,
       label: 'Model: ${resolvedLabel ?? model.label}',
-      child: InkWell(
+      child: ComposerSelectorChip(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: AppTouchTarget.min,
-            minWidth: AppTouchTarget.min,
-          ),
-          // widthFactor/heightFactor keep Align intrinsic-sized so Wrap
-          // places chips on one row; bare Align expands to full width.
-          child: Align(
-            alignment: Alignment.center,
-            widthFactor: 1,
-            heightFactor: 1,
-            child: Container(
-              height: _toolbarChipVisualHeight,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: isDefault
-                    ? cs.onSurface.withValues(alpha: 0.05)
-                    : cs.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                border: Border.all(
-                  color:
-                      (theme.extension<AppColorScheme>() ??
-                              AppColorScheme.dark())
-                          .glassBorder,
-                  width: AppBorder.hairline,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    model.isCodex
-                        ? Icons.psychology_alt_outlined
-                        : model.modelSlug == 'opus'
-                        ? Icons.diamond_outlined
-                        : model.modelSlug == 'sonnet'
-                        ? Icons.auto_awesome_outlined
-                        : model.modelSlug == 'fable'
-                        ? Icons.auto_stories_outlined
-                        : Icons.smart_toy_outlined,
-                    size: AppIconSize.sm,
-                    color: enabled
-                        ? iconColor
-                        : iconColor.withValues(alpha: 0.7),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    displayLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontSize: AppFontSize.xxs,
-                      color: enabled
-                          ? iconColor
-                          : iconColor.withValues(alpha: 0.7),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (enabled) ...[
-                    const SizedBox(width: AppSpacing.xxs),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: AppIconSize.sm,
-                      color: chevronColor,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
+        icon: model.isCodex
+            ? Icons.psychology_alt_outlined
+            : model.modelSlug == 'opus'
+            ? Icons.diamond_outlined
+            : model.modelSlug == 'sonnet'
+            ? Icons.auto_awesome_outlined
+            : model.modelSlug == 'fable'
+            ? Icons.auto_stories_outlined
+            : Icons.smart_toy_outlined,
+        label: displayLabel,
+        foreground: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
+        background: isDefault
+            ? cs.onSurface.withValues(alpha: 0.05)
+            : cs.primary.withValues(alpha: 0.1),
+        borderColor:
+            (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                .glassBorder,
+        chevronColor: enabled ? chevronColor : null,
       ),
     );
   }
@@ -148,71 +93,21 @@ class ProfileChip extends StatelessWidget {
       label: semanticLabel,
       child: Tooltip(
         message: tooltip,
-        child: InkWell(
+        child: ComposerSelectorChip(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minHeight: AppTouchTarget.min,
-              minWidth: AppTouchTarget.min,
-            ),
-            // widthFactor/heightFactor keep Align intrinsic-sized so Wrap
-            // places chips on one row; bare Align expands to full width.
-            child: Align(
-              alignment: Alignment.center,
-              widthFactor: 1,
-              heightFactor: 1,
-              child: Container(
-                height: _toolbarChipVisualHeight,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: isDefault
-                      ? cs.onSurface.withValues(alpha: 0.05)
-                      : cs.tertiary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(
-                    color:
-                        (theme.extension<AppColorScheme>() ??
-                                AppColorScheme.dark())
-                            .glassBorder,
-                    width: AppBorder.hairline,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.swap_horiz_rounded,
-                      size: AppIconSize.sm,
-                      color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 160),
-                      child: Text(
-                        displayLabel,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: AppFontSize.xxs,
-                          color: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.xxs),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: AppIconSize.sm,
-                      color: isDefault
-                          ? cs.onSurfaceVariant.withValues(alpha: 0.65)
-                          : cs.tertiary.withValues(alpha: 0.65),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          icon: Icons.swap_horiz_rounded,
+          label: displayLabel,
+          labelMaxWidth: 160,
+          foreground: isDefault ? cs.onSurfaceVariant : cs.tertiary,
+          background: isDefault
+              ? cs.onSurface.withValues(alpha: 0.05)
+              : cs.tertiary.withValues(alpha: 0.1),
+          borderColor:
+              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                  .glassBorder,
+          chevronColor: isDefault
+              ? cs.onSurfaceVariant.withValues(alpha: 0.65)
+              : cs.tertiary.withValues(alpha: 0.65),
         ),
       ),
     );
