@@ -61,6 +61,18 @@ void main() {
     );
     expect(determinate.value, 0.5);
     expect(determinate.controller, isNull);
+    // The production 291100 stack failed in the determinate build path:
+    // its null widget controller fell through to a defunct Theme ancestor.
+    final indicatorContext = tester.element(
+      find.byType(LinearProgressIndicator),
+    );
+    expect(
+      indicatorContext
+          .getInheritedWidgetOfExactType<ProgressIndicatorTheme>()
+          ?.data
+          .controller,
+      same(controller),
+    );
     expect(controller.isAnimating, isFalse);
     expect(determinate.color, Colors.orange);
     expect(determinate.backgroundColor, Colors.black);
@@ -79,6 +91,38 @@ void main() {
     expect(controller.isAnimating, isTrue);
     await tester.pumpWidget(const SizedBox.shrink());
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('determinate bar survives a theme replacement and route pop', (
+    tester,
+  ) async {
+    final navigator = GlobalKey<NavigatorState>();
+    final theme = ValueNotifier(ThemeData.light());
+    addTearDown(theme.dispose);
+    await tester.pumpWidget(
+      ValueListenableBuilder<ThemeData>(
+        valueListenable: theme,
+        builder: (context, data, child) => MaterialApp(
+          navigatorKey: navigator,
+          theme: data,
+          home: const SizedBox.shrink(),
+        ),
+      ),
+    );
+    unawaited(
+      navigator.currentState!.push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              const Scaffold(body: AppLinearProgressIndicator(value: 0.5)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    theme.value = ThemeData.dark();
+    navigator.currentState!.pop();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(AppLinearProgressIndicator), findsNothing);
   });
 
   testWidgets('survives reparenting and respects TickerMode', (tester) async {

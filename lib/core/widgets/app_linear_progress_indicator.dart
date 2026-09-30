@@ -79,17 +79,22 @@ class _AppLinearProgressIndicatorState extends State<AppLinearProgressIndicator>
   }
 
   @override
-  Widget build(BuildContext context) => LinearProgressIndicator(
-    value: widget.value,
-    // A determinate value and controller cannot both be provided. Only the
-    // indeterminate path resolves its controller repeatedly on animation ticks.
-    controller: widget.value == null ? _controller : null,
-    backgroundColor: widget.backgroundColor,
-    color: widget.color,
-    valueColor: widget.valueColor,
-    minHeight: widget.minHeight,
-    borderRadius: widget.borderRadius,
-    semanticsLabel: widget.semanticsLabel,
-    semanticsValue: widget.semanticsValue,
+  Widget build(BuildContext context) => ProgressIndicatorTheme(
+    // Flutter 3.41 also resolves _controller in its determinate build path.
+    // A local theme controller avoids walking Theme ancestors there without
+    // violating the assertion against supplying both value and controller.
+    data: ProgressIndicatorTheme.of(context).copyWith(controller: _controller),
+    child: LinearProgressIndicator(
+      value: widget.value,
+      // A determinate value and widget controller cannot both be provided.
+      controller: widget.value == null ? _controller : null,
+      backgroundColor: widget.backgroundColor,
+      color: widget.color,
+      valueColor: widget.valueColor,
+      minHeight: widget.minHeight,
+      borderRadius: widget.borderRadius,
+      semanticsLabel: widget.semanticsLabel,
+      semanticsValue: widget.semanticsValue,
+    ),
   );
 }

@@ -958,9 +958,19 @@ extension SyncMessagingMerge on Sync {
       // results at INFO with no counter, which hid the loss entirely. Only
       // main-chain drops are real loss worth a warning: their tool call can
       // still arrive and would then render without output.
-      PowerDiagnosticsOtelReporter.instance.recordToolResultDropped(
-        count: dropped,
-      );
+      final mainLoss = mainDropped > 0 ? mainDropped : 0;
+      final sidechainEvictions = dropped - mainLoss;
+      if (sidechainEvictions > 0) {
+        PowerDiagnosticsOtelReporter.instance.recordToolResultDropped(
+          count: sidechainEvictions,
+          sidechain: true,
+        );
+      }
+      if (mainLoss > 0) {
+        PowerDiagnosticsOtelReporter.instance.recordToolResultDropped(
+          count: mainLoss,
+        );
+      }
       final message =
           '[toolResults] pending queue for $sessionId over cap — '
           'dropped $dropped oldest unmatched result(s) '

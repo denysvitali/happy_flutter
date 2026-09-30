@@ -11,6 +11,41 @@ import 'package:happy_flutter/core/services/power_diagnostics_service.dart';
 /// are still updated.
 void main() {
   test(
+    'tool-result drops distinguish main-chain loss from sidechain eviction',
+    () async {
+      await OTel.initialize(enableLogs: false, detectPlatformResources: false);
+      final service = OpenTelemetryService();
+      addTearDown(() async {
+        service.debugResetCounters();
+        await OTel.reset();
+      });
+      final meter = OTel.meterProvider().getMeter(name: 'tool-drop-test');
+      service.debugInitializeCounters(
+        buildNumber: 'test-build',
+        factory: (name, description, unit) =>
+            meter.createCounter<int>(
+                  name: name,
+                  description: description,
+                  unit: unit,
+                )
+                as Counter<int>,
+      );
+      final reporter = PowerDiagnosticsOtelReporter.instance;
+      reporter.recordToolResultDropped(count: 3);
+      reporter.recordToolResultDropped(count: 7, sidechain: true);
+      final metrics = await OTel.meterProvider().collectAllMetrics();
+      final metric = metrics.singleWhere(
+        (metric) => metric.name == 'happy_flutter.tool_results.dropped',
+      );
+      final values = {
+        for (final point in metric.points)
+          point.attributes.toMap()['chain']?.value: point.value,
+      };
+      expect(values, {'main': 3, 'sidechain': 7});
+    },
+  );
+
+  test(
     'zero invariant prime survives a full startup buffer with build identity',
     () async {
       final reporter = PowerDiagnosticsOtelReporter.instance;
