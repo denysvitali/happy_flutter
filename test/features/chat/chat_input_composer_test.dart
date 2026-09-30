@@ -303,13 +303,13 @@ void main() {
       find.descendant(of: inputRow, matching: find.byType(TextField)),
       findsOneWidget,
     );
-    expect(find.descendant(of: inputRow, matching: queueButton), findsNothing);
+    // Both follow-up actions live beside the field as icon buttons, so the
+    // composer never grows a second action row.
+    expect(find.descendant(of: inputRow, matching: queueButton), findsOne);
     expect(
       find.descendant(of: inputRow, matching: find.byType(SendButton)),
-      findsNothing,
+      findsOneWidget,
     );
-    expect(find.text('Queue for next turn'), findsOneWidget);
-    expect(find.text('Update current turn'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('chat-follow-up-actions')),
       findsOneWidget,
@@ -377,7 +377,7 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('active-turn actions have a separate readable destination row', (
+  testWidgets('active-turn actions do not grow the composer', (
     tester,
   ) async {
     final controller = TextEditingController(text: 'A compact follow-up');
@@ -399,14 +399,34 @@ void main() {
       ),
     );
     await tester.pump();
-    // The follow-up row animates in.
-    await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      tester.getSize(composerCard).height,
-      greaterThanOrEqualTo(idleHeight + AppTouchTarget.min),
-    );
+    expect(tester.getSize(composerCard).height, idleHeight);
+    expect(find.byType(QueueNextTurnButton), findsOneWidget);
     expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  });
+
+  testWidgets('empty active-turn composer hides the queue action', (
+    tester,
+  ) async {
+    final controller = TextEditingController();
+
+    await tester.pumpWidget(
+      _buildComposer(
+        controller: controller,
+        onSend: () {},
+        onQueueNextTurn: () {},
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(QueueNextTurnButton), findsNothing);
+    expect(find.byType(SendButton), findsOneWidget);
+
+    controller.text = 'now there is text';
+    await tester.pump();
+    expect(find.byType(QueueNextTurnButton), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();

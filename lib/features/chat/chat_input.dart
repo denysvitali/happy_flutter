@@ -819,67 +819,46 @@ class _ChatInputState extends ConsumerState<ChatInput>
               ListenableBuilder(
                 listenable: _sendableListenable,
                 builder: (context, _) {
-                  // Active Codex turns move send into the follow-up row once
-                  // there is something to send; an empty composer keeps the
-                  // plain round button so no grey action slab lingers.
-                  if (_showFollowUpActions) return const SizedBox.shrink();
+                  final send = SendButton(
+                    isSending: widget.isSending,
+                    isSendDisabled:
+                        widget.isSendDisabled || !_hasSendableContent,
+                    onTap: _onSendTap,
+                    scaleAnimation: _sendScale,
+                    lastDeliveryStatus: widget.lastDeliveryStatus,
+                    actionLabel: widget.onQueueNextTurn == null
+                        ? null
+                        : context.l10n.chatUpdateCurrentTurn,
+                  );
                   return Padding(
                     padding: const EdgeInsets.only(
                       left: AppSpacing.xxs,
                       right: AppSpacing.xsm,
                     ),
-                    child: SendButton(
-                      isSending: widget.isSending,
-                      isSendDisabled:
-                          widget.isSendDisabled || !_hasSendableContent,
-                      onTap: _onSendTap,
-                      scaleAnimation: _sendScale,
-                      lastDeliveryStatus: widget.lastDeliveryStatus,
-                    ),
+                    // During an active Codex turn the round send button
+                    // steers the running turn; a sibling icon button queues
+                    // the draft for the next turn. Both stay in the input
+                    // row so the composer never grows a second action row.
+                    child: !_showFollowUpActions
+                        ? send
+                        : Row(
+                            key: const ValueKey('chat-follow-up-actions'),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              QueueNextTurnButton(
+                                isDisabled:
+                                    widget.isSendDisabled ||
+                                    widget.isSending ||
+                                    !_hasSendableContent,
+                                onTap: _onQueueNextTurnTap,
+                              ),
+                              send,
+                            ],
+                          ),
                   );
                 },
               ),
             ],
-          ),
-          ListenableBuilder(
-            listenable: _sendableListenable,
-            builder: (context, _) => AnimatedSize(
-              duration: AppMotion.duration(context, AppDuration.fast),
-              curve: AppCurve.standard,
-              alignment: Alignment.topCenter,
-              child: !_showFollowUpActions
-                  ? const SizedBox(width: double.infinity)
-                  : Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.sm,
-                        0,
-                        AppSpacing.sm,
-                        AppSpacing.xs,
-                      ),
-                      child: Wrap(
-                        key: const ValueKey('chat-follow-up-actions'),
-                        spacing: AppSpacing.xs,
-                        runSpacing: AppSpacing.xs,
-                        alignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          QueueNextTurnButton(
-                            isDisabled:
-                                widget.isSendDisabled || widget.isSending,
-                            onTap: _onQueueNextTurnTap,
-                          ),
-                          SendButton(
-                            isSending: widget.isSending,
-                            isSendDisabled: widget.isSendDisabled,
-                            onTap: _onSendTap,
-                            scaleAnimation: _sendScale,
-                            lastDeliveryStatus: widget.lastDeliveryStatus,
-                            actionLabel: context.l10n.chatUpdateCurrentTurn,
-                          ),
-                        ],
-                      ),
-                    ),
-            ),
           ),
           _buildSelectorRow(context, cs),
         ],
@@ -921,13 +900,6 @@ class _ChatInputState extends ConsumerState<ChatInput>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Divider(
-          height: AppBorder.hairline,
-          thickness: AppBorder.hairline,
-          indent: AppSpacing.md,
-          endIndent: AppSpacing.md,
-          color: cs.outlineVariant.withValues(alpha: AppOpacity.subtle),
-        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.xsm,
@@ -992,8 +964,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
         disabledBorder: InputBorder.none,
-        contentPadding: const EdgeInsets.fromLTRB(
-          AppSpacing.xs,
+        contentPadding: EdgeInsets.fromLTRB(
+          widget.attachmentController == null ? AppSpacing.md : AppSpacing.xs,
           AppSpacing.xsm,
           AppSpacing.sm,
           AppSpacing.xsm,
