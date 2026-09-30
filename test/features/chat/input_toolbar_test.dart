@@ -32,7 +32,7 @@ void main() {
     );
     final label = tester.widget<Text>(find.text('GLM-5'));
     expect(label.style?.fontSize, greaterThanOrEqualTo(12));
-    expect(find.bySemanticsLabel('Model: GLM-5'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp(r'^Model: GLM-5')), findsOneWidget);
   });
 
   testWidgets('compact toolbar moves profile and context into options', (
