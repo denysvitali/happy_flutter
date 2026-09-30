@@ -929,7 +929,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final hintColor = cs.onSurfaceVariant;
     final l10n = AppLocalizations.of(context);
     // The draft is the clearest content in the composer.
-    final draftStyle = theme.textTheme.bodyLarge?.copyWith(
+    // Same 14sp as the transcript body and the picker sheets.
+    final draftStyle = theme.textTheme.bodyMedium?.copyWith(
       color: cs.onSurface,
       height: 1.45,
     );

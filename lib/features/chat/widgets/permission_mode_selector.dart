@@ -31,7 +31,7 @@ extension PermissionModeExtension on PermissionMode {
       case PermissionMode.plan:
         return 'Plan';
       case PermissionMode.bypassPermissions:
-        return 'Yolo';
+        return 'YOLO';
       case PermissionMode.readOnly:
         return 'Read-only';
       case PermissionMode.safeYolo:
@@ -165,26 +165,6 @@ extension PermissionModeExtension on PermissionMode {
   bool get skipsConfirmation =>
       this == PermissionMode.bypassPermissions || this == PermissionMode.yolo;
 
-  /// Short, self-explanatory approval-policy value for the composer chip.
-  String composerApprovalLabel(AppLocalizations l10n) {
-    switch (this) {
-      case PermissionMode.defaultMode:
-        return l10n.composerApprovalsAsk;
-      case PermissionMode.acceptEdits:
-        return l10n.composerApprovalsAutoEdits;
-      case PermissionMode.plan:
-        return l10n.composerApprovalsPlan;
-      case PermissionMode.bypassPermissions:
-        return l10n.composerApprovalsNoApprovals;
-      case PermissionMode.yolo:
-        return l10n.composerApprovalsFullAccess;
-      case PermissionMode.readOnly:
-        return l10n.composerApprovalsReadOnly;
-      case PermissionMode.safeYolo:
-        return l10n.composerApprovalsSandboxed;
-    }
-  }
-
   /// Check if this is a Claude/AGY compatible mode
   bool get isClaudeAgyMode {
     return this == PermissionMode.defaultMode ||
@@ -285,15 +265,17 @@ class PermissionModeSelector extends ConsumerWidget {
       enabled: enabled,
       label:
           '${l10n.composerApprovalsLabel}: '
-          '${currentMode.composerApprovalLabel(l10n)}',
+          '${currentMode.localizedDisplayName(l10n)}',
       excludeSemantics: true,
       child: ComposerSelectorChip(
         onTap: enabled ? () => _showModeSheet(context) : null,
         width: width,
-        label: currentMode.composerApprovalLabel(l10n),
+        label: currentMode.localizedDisplayName(l10n),
         // The high-risk state stays visible and distinct at every width.
-        icon: risky ? Icons.warning_amber_rounded : null,
+        // Same icon and color as the mode in the picker sheet.
+        icon: risky ? currentMode.icon : null,
         warning: risky,
+        warningColor: currentMode.color,
       ),
     );
   }
@@ -404,7 +386,8 @@ class PermissionModeSelector extends ConsumerWidget {
                   ),
                   Text(
                     mode.localizedDescription(tileL10n),
-                    style: theme.textTheme.labelSmall?.copyWith(
+                    // Same 12sp regular as the composer chips.
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
                   ),

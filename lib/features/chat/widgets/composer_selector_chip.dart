@@ -6,19 +6,19 @@ import '../../../core/theme/app_tokens.dart';
 
 /// Shared metrics for the composer's model / approvals / profile selectors.
 abstract final class ComposerChipMetrics {
-  static const double height = 32;
-  static const double paddingStart = AppSpacing.md;
-  static const double paddingEnd = AppSpacing.sm;
-  static const double paddingEndNoChevron = AppSpacing.md;
-  static const double iconSize = AppIconSize.md;
-  static const double iconLabelGap = AppSpacing.xsm;
+  static const double height = 28;
+  static const double paddingStart = AppSpacing.smd;
+  static const double paddingEnd = AppSpacing.xsm;
+  static const double paddingEndNoChevron = AppSpacing.smd;
+  static const double iconSize = AppIconSize.sm;
+  static const double iconLabelGap = AppSpacing.xs;
   static const double labelChevronGap = AppSpacing.xxs;
   static const double chevronSize = AppIconSize.md;
   static const double labelFontSize = AppFontSize.sm;
 }
 
 /// Compact, neutral pill showing a composer setting's current value —
-/// e.g. `Ask ▾` or `Opus ▾`; the setting's name lives in its semantics.
+/// e.g. `Default ▾` or `Opus ▾`; the setting's name lives in its semantics.
 ///
 /// Routine configuration stays quiet: a hairline outline and a
 /// regular-weight value. Only [warning] states (settings that
@@ -32,6 +32,7 @@ class ComposerSelectorChip extends StatelessWidget {
     required this.label,
     this.icon,
     this.warning = false,
+    this.warningColor,
     this.onTap,
     this.width,
     this.labelMaxWidth,
@@ -44,6 +45,10 @@ class ComposerSelectorChip extends StatelessWidget {
   /// Optional leading icon; shown in [warning] color when [warning].
   final IconData? icon;
   final bool warning;
+
+  /// Overrides [AppColors.warning] so the chip matches the setting's own
+  /// color elsewhere (e.g. the permission picker).
+  final Color? warningColor;
 
   /// Null renders a non-interactive chip without the dropdown chevron.
   final VoidCallback? onTap;
@@ -58,20 +63,21 @@ class ComposerSelectorChip extends StatelessWidget {
     final cs = theme.colorScheme;
     final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final enabled = onTap != null;
+    final accent = warningColor ?? AppColors.warning;
 
     final valueColor = warning
-        ? AppColors.warning
+        ? accent
         : enabled
         ? cs.onSurface
         : cs.onSurfaceVariant;
     final mutedColor = warning
-        ? AppColors.warning.withValues(alpha: 0.8)
+        ? accent.withValues(alpha: 0.8)
         : cs.onSurfaceVariant;
     final background = warning
-        ? AppColors.warning.withValues(alpha: 0.10)
+        ? accent.withValues(alpha: 0.10)
         : cs.onSurface.withValues(alpha: 0.04);
     final borderColor = warning
-        ? AppColors.warning.withValues(alpha: 0.45)
+        ? accent.withValues(alpha: 0.45)
         : appCs.glassBorder;
 
     // Pin the regular Inter file: the theme binds each weight to its own
@@ -219,7 +225,7 @@ class ComposerIconChip extends StatelessWidget {
                     dimension: ComposerChipMetrics.height,
                     child: Icon(
                       icon,
-                      size: AppIconSize.lg,
+                      size: AppIconSize.md,
                       color: cs.onSurfaceVariant,
                     ),
                   ),

@@ -194,7 +194,7 @@ void main() {
     );
 
     expect(
-      find.bySemanticsLabel(RegExp(r'Approvals: Ask')),
+      find.bySemanticsLabel(RegExp(r'Approvals: Default')),
       findsOneWidget,
     );
     expect(find.bySemanticsLabel(RegExp(r'Model: Sonnet')), findsOneWidget);

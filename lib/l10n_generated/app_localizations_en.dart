@@ -1439,27 +1439,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get composerApprovalsLabel => 'Approvals';
 
   @override
-  String get composerApprovalsAsk => 'Ask';
-
-  @override
-  String get composerApprovalsAutoEdits => 'Auto edits';
-
-  @override
-  String get composerApprovalsPlan => 'Plan';
-
-  @override
-  String get composerApprovalsNoApprovals => 'YOLO';
-
-  @override
-  String get composerApprovalsFullAccess => 'YOLO';
-
-  @override
-  String get composerApprovalsReadOnly => 'Read-only';
-
-  @override
-  String get composerApprovalsSandboxed => 'Sandboxed';
-
-  @override
   String get chatQueueNextTurn => 'Queue for next turn';
 
   @override
@@ -1859,7 +1838,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionModePlan => 'Plan';
 
   @override
-  String get permissionModeBypass => 'Yolo';
+  String get permissionModeBypass => 'YOLO';
 
   @override
   String get permissionModeReadOnly => 'Read-only';

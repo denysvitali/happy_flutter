@@ -2663,48 +2663,6 @@ abstract class AppLocalizations {
   /// **'Approvals'**
   String get composerApprovalsLabel;
 
-  /// No description provided for @composerApprovalsAsk.
-  ///
-  /// In en, this message translates to:
-  /// **'Ask'**
-  String get composerApprovalsAsk;
-
-  /// No description provided for @composerApprovalsAutoEdits.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto edits'**
-  String get composerApprovalsAutoEdits;
-
-  /// No description provided for @composerApprovalsPlan.
-  ///
-  /// In en, this message translates to:
-  /// **'Plan'**
-  String get composerApprovalsPlan;
-
-  /// No description provided for @composerApprovalsNoApprovals.
-  ///
-  /// In en, this message translates to:
-  /// **'YOLO'**
-  String get composerApprovalsNoApprovals;
-
-  /// No description provided for @composerApprovalsFullAccess.
-  ///
-  /// In en, this message translates to:
-  /// **'YOLO'**
-  String get composerApprovalsFullAccess;
-
-  /// No description provided for @composerApprovalsReadOnly.
-  ///
-  /// In en, this message translates to:
-  /// **'Read-only'**
-  String get composerApprovalsReadOnly;
-
-  /// No description provided for @composerApprovalsSandboxed.
-  ///
-  /// In en, this message translates to:
-  /// **'Sandboxed'**
-  String get composerApprovalsSandboxed;
-
   /// No description provided for @chatQueueNextTurn.
   ///
   /// In en, this message translates to:
@@ -3464,7 +3422,7 @@ abstract class AppLocalizations {
   /// No description provided for @permissionModeBypass.
   ///
   /// In en, this message translates to:
-  /// **'Yolo'**
+  /// **'YOLO'**
   String get permissionModeBypass;
 
   /// No description provided for @permissionModeReadOnly.
