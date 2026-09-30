@@ -2684,13 +2684,13 @@ abstract class AppLocalizations {
   /// No description provided for @composerApprovalsNoApprovals.
   ///
   /// In en, this message translates to:
-  /// **'No approvals'**
+  /// **'YOLO'**
   String get composerApprovalsNoApprovals;
 
   /// No description provided for @composerApprovalsFullAccess.
   ///
   /// In en, this message translates to:
-  /// **'Full access'**
+  /// **'YOLO'**
   String get composerApprovalsFullAccess;
 
   /// No description provided for @composerApprovalsReadOnly.

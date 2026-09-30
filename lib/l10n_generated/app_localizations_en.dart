@@ -1448,10 +1448,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get composerApprovalsPlan => 'Plan';
 
   @override
-  String get composerApprovalsNoApprovals => 'No approvals';
+  String get composerApprovalsNoApprovals => 'YOLO';
 
   @override
-  String get composerApprovalsFullAccess => 'Full access';
+  String get composerApprovalsFullAccess => 'YOLO';
 
   @override
   String get composerApprovalsReadOnly => 'Read-only';
