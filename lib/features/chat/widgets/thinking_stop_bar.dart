@@ -78,7 +78,6 @@ class ThinkingStopBar extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [colorScheme.primary, colorScheme.secondary],
         );
-    final glassBorder = appScheme?.glassBorder ?? colorScheme.outlineVariant;
     final l10n = context.l10n;
     final stopping = activity == ChatAgentActivity.stopping;
     final unconfirmed = activity == ChatAgentActivity.stopUnconfirmed;
@@ -100,22 +99,16 @@ class ThinkingStopBar extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       container: true,
+      // A flat status row — no capsule fill, border or shadow — with its
+      // indicator lined up under the draft text, matching the tasks row.
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: dense ? AppSpacing.md : AppSpacing.lg,
-          vertical: dense ? 1 : AppSpacing.xs,
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.md + AppSpacing.lg,
+          dense ? 0 : AppSpacing.xxs,
+          AppSpacing.md,
+          dense ? 0 : AppSpacing.xxs,
         ),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppSpacing.smd,
-            vertical: dense ? 0 : AppSpacing.xxs,
-          ),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerLow.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: glassBorder, width: AppBorder.hairline),
-            boxShadow: dense ? null : AppShadow.floating,
-          ),
+        child: SizedBox(
           child: Row(
             children: [
               SizedBox(
@@ -143,9 +136,7 @@ class ThinkingStopBar extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppFontSize.sm,
-                    fontWeight: FontWeight.w500,
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: unconfirmed
                         ? AppColors.warning
                         : colorScheme.onSurfaceVariant,
@@ -169,6 +160,9 @@ class ThinkingStopBar extends StatelessWidget {
                   ),
                   minimumSize: Size(0, dense ? 36 : AppTouchTarget.min),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

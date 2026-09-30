@@ -53,30 +53,22 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
         .length;
     final running = items.where((i) => i.status == TodoState.inProgress).length;
     final total = items.length;
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     // A short pane cannot afford the two-line header, the 32 px tile and the
     // segmented meter — see ChatChromeDensity. The dense form keeps the same
     // tap-to-expand row and "View all" link, just on one line.
     final dense = chatChromeIsSlim(context);
 
-    // Aurora glass dock: a floating capsule above the composer instead of a
-    // full-width slab, so the composer stays the hero and progress reads as
-    // material. The expanded list keeps the capsule's rounded silhouette.
-    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    // A flat status row above the composer — no card, border or shadow —
+    // so the activity chrome reads as quiet context and the composer stays
+    // the one boundary. Its leading icon lines up with the draft text.
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: dense ? 1 : AppSpacing.xs,
+        vertical: dense ? 0 : AppSpacing.xxs,
       ),
       child: Material(
-        color: cs.surfaceContainerLow.withValues(alpha: 0.92),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          side: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
-        ),
-        elevation: dense ? 0 : AppElevation.low,
-        shadowColor: Colors.black.withValues(alpha: 0.24),
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(AppRadius.md),
         clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -168,7 +160,7 @@ class _Header extends StatelessWidget {
                   ),
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
-                      AppSpacing.md,
+                      AppSpacing.lg,
                       dense ? AppSpacing.xxs : AppSpacing.xsm,
                       AppSpacing.xs,
                       dense ? AppSpacing.xxs : AppSpacing.xsm,
@@ -196,8 +188,8 @@ class _Header extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             minimumSize: Size(0, dense ? 40 : AppTouchTarget.min),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            textStyle: theme.textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+            textStyle: theme.textTheme.bodySmall?.copyWith(
+              fontWeight: FontWeight.w500,
             ),
           ),
           child: const Text('View all'),
@@ -229,10 +221,9 @@ class _Header extends StatelessWidget {
           context.l10n.tasksTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelMedium?.copyWith(
+          style: theme.textTheme.bodySmall?.copyWith(
             color: cs.onSurface,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.1,
+            fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -241,9 +232,8 @@ class _Header extends StatelessWidget {
             detailLabel,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
+            style: theme.textTheme.bodySmall?.copyWith(
               color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -341,21 +331,13 @@ class _ExpandChevron extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: 28,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: AnimatedRotation(
-        duration: AppDuration.fast,
-        turns: expanded ? 0.5 : 0.0,
-        child: Icon(
-          Icons.expand_more_rounded,
-          size: AppIconSize.lg,
-          color: cs.onSurfaceVariant,
-        ),
+    return AnimatedRotation(
+      duration: AppDuration.fast,
+      turns: expanded ? 0.5 : 0.0,
+      child: Icon(
+        Icons.expand_more_rounded,
+        size: AppIconSize.lg,
+        color: cs.onSurfaceVariant,
       ),
     );
   }

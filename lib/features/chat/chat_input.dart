@@ -803,10 +803,21 @@ class _ChatInputState extends ConsumerState<ChatInput>
   /// (`Approvals: …`, `Model: …`, options) and the expand utility.
   ///
   /// A **tight** chat pane (Android split screen, a short desktop window)
-  /// folds only the settings lane while the field is idle and empty; add
-  /// and expand stay reachable.
+  /// folds the whole toolbar while the field is idle and empty — dictate
+  /// and send live in the draft row, so the composer stays usable — and
+  /// brings it back on focus or content.
   Widget _buildToolbar(BuildContext context) {
     final density = ChatChromeScope.of(context);
+    if (!density.isTight) return _toolbarRow(context);
+    return ListenableBuilder(
+      listenable: Listenable.merge([_isFocused, _sendableListenable]),
+      builder: (context, _) => !_isFocused.value && !_hasSendableContent
+          ? const SizedBox.shrink()
+          : _toolbarRow(context),
+    );
+  }
+
+  Widget _toolbarRow(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.xxs,
@@ -821,20 +832,7 @@ class _ChatInputState extends ConsumerState<ChatInput>
             _AttachButton(onTap: _onAttachTap)
           else
             const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: !density.isTight
-                ? _settingsLane(context)
-                : ListenableBuilder(
-                    listenable: Listenable.merge([
-                      _isFocused,
-                      _sendableListenable,
-                    ]),
-                    builder: (context, _) =>
-                        !_isFocused.value && !_hasSendableContent
-                        ? const SizedBox.shrink()
-                        : _settingsLane(context),
-                  ),
-          ),
+          Expanded(child: _settingsLane(context)),
           ExpandComposerButton(onTap: _openFullscreenComposer),
         ],
       ),
