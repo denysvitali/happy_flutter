@@ -19,6 +19,10 @@ coverage/
 pubspec.lock
 *.jks
 
+# Python bytecode caches
+__pycache__/
+*.py[cod]
+
 .claude/*
 !.claude/skills/
 .dart_tool
