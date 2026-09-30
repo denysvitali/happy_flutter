@@ -17,7 +17,20 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   MMKVPluginPlatform.instance = FakeMmkvPlatform();
   await _loadInterFont();
+  await _loadMaterialIcons();
   await testMain();
+}
+
+/// Loads the Material Icons font so rendered test frames show real glyphs
+/// instead of placeholder boxes. The test asset bundle ships it because
+/// `uses-material-design: true`; a missing asset is ignored.
+Future<void> _loadMaterialIcons() async {
+  try {
+    final data = rootBundle.load('fonts/MaterialIcons-Regular.otf');
+    await (FontLoader('MaterialIcons')..addFont(data)).load();
+  } on Object {
+    // Icons fall back to Ahem boxes; layout is unaffected.
+  }
 }
 
 /// Loads the app's bundled Inter files under the families used by ThemeHelper.

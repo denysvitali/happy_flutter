@@ -302,7 +302,7 @@ class PermissionModeSelector extends ConsumerWidget {
                   Text(
                     displayLabel,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.xs,
                       fontWeight: FontWeight.w500,
                       color: isDefault
                           ? cs.onSurfaceVariant
