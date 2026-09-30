@@ -698,10 +698,23 @@ void main() {
 
     testWidgets('collapsing and re-expanding archived groups keeps every '
         'row on its own session ($mode)', (tester) async {
+      final sessions = _seedSessions();
+      final now = DateTime.now();
+      final today = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).millisecondsSinceEpoch;
+      // These rows must share the Today group even when CI runs within
+      // 45 minutes of midnight. Relative ages can put them in Yesterday.
+      for (final id in ['alpha-arch-1', 'beta-arch-1']) {
+        sessions[id] = sessions[id]!.copyWith(updatedAt: today);
+      }
       final harness = await _pumpHarness(
         tester,
         viewStyle: 'list',
         tablet: tablet,
+        sessions: sessions,
       );
       // Collapse "Today" (holds alpha/beta archived one), tap the rows that
       // are left, expand it again, then tap the ones that came back.
