@@ -66,7 +66,7 @@ class MissionWorkspaceList extends StatelessWidget {
                     Divider(
                       height: 1,
                       thickness: 1,
-                      indent: 58,
+                      indent: 48,
                       color: cs.outlineVariant,
                     ),
                   _WorkspaceTile(
@@ -170,19 +170,19 @@ class _WorkspaceTile extends StatelessWidget {
             onTap: onTap,
             onLongPress: onLongPress,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 60),
+              constraints: const BoxConstraints(minHeight: 44),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.sm,
-                  AppSpacing.sm,
+                  AppSpacing.smd,
+                  AppSpacing.xs,
+                  AppSpacing.smd,
+                  AppSpacing.xs,
                 ),
                 child: Row(
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: 26,
+                      height: 26,
                       decoration: BoxDecoration(
                         color: identityColor != null
                             ? workspaceIdentityContainer(context, identityColor)
@@ -196,15 +196,15 @@ class _WorkspaceTile extends StatelessWidget {
                             muted
                                 ? Icons.notifications_off_outlined
                                 : Icons.folder_outlined,
-                            size: AppIconSize.lg,
+                            size: AppIconSize.md,
                             color:
                                 identityColor ??
                                 missionLaneColor(context, leadingLane),
                           ),
                           if (leadingLane != MissionLane.quiet && !muted)
                             Positioned(
-                              right: AppSpacing.xsm,
-                              top: AppSpacing.xsm,
+                              right: AppSpacing.xxs,
+                              top: AppSpacing.xxs,
                               child: _WorkspaceStatusDot(
                                 color: missionLaneColor(context, leadingLane),
                                 size: 4,
@@ -228,7 +228,6 @@ class _WorkspaceTile extends StatelessWidget {
                               color: cs.onSurface,
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xxs),
                           Text(
                             '${missionShortHost(header.machineName)}'
                             '  ·  $breakdown',
@@ -243,26 +242,11 @@ class _WorkspaceTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    SizedBox(
-                      width: 58,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (!muted) ...[
-                            _WorkspaceSignal(
-                              lane: leadingLane,
-                              count: counts[leadingLane]!,
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                          ],
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: AppIconSize.lg,
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ],
+                    if (!muted)
+                      _WorkspaceSignal(
+                        lane: leadingLane,
+                        count: counts[leadingLane]!,
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -283,7 +267,7 @@ class _WorkspaceSignal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (lane == MissionLane.quiet) {
-      return const SizedBox(width: 22);
+      return const SizedBox.shrink();
     }
     final theme = Theme.of(context);
     final color = missionLaneColor(context, lane);

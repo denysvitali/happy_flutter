@@ -536,7 +536,7 @@ void main() {
     );
   });
 
-  testWidgets('desktop sidebar puts the outcome below a readable title', (
+  testWidgets('narrow sidebar keeps a single-line readable title', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1280, 800);
@@ -569,8 +569,8 @@ void main() {
       ),
     );
     final title = find.text('happy_flutter');
-    expect(tester.widget<Text>(title).maxLines, 2);
-    expect(tester.getSize(title).width, greaterThan(180));
+    expect(tester.widget<Text>(title).maxLines, 1);
+    expect(tester.getSize(title).width, greaterThan(120));
     expect(tester.takeException(), isNull);
   });
 

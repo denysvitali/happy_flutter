@@ -14,7 +14,7 @@ import 'workspace_identity.dart';
 
 /// Compact operational tile used by Mission Control.
 ///
-/// The title owns the full width (wrapping to two lines). Workspace and the
+/// The title owns the row width on a single ellipsized line. Workspace and the
 /// last message or tool call share one detail line, while the lane-specific
 /// outcome stays in a trailing pill. The pill doubles as a mark-read button
 /// for unread rows; an overflow menu exposes pin and snooze triage actions.
@@ -116,15 +116,6 @@ class MissionActionRow extends StatelessWidget {
       color: lane == MissionLane.error ? laneColor : cs.onSurfaceVariant,
     );
 
-    final outcome = _OutcomePill(
-      lane: lane,
-      entry: entry,
-      since: since,
-      nowMs: nowMs,
-      live: status.state == SessionState.thinking,
-      onMarkRead: lane == MissionLane.unread && !selected ? onMarkRead : null,
-    );
-
     return Semantics(
       button: true,
       selected: selected,
@@ -165,13 +156,24 @@ class MissionActionRow extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.smd,
-                  AppSpacing.sm,
-                  AppSpacing.sm,
-                  AppSpacing.sm,
+                  AppSpacing.xs,
+                  AppSpacing.xs,
+                  AppSpacing.xs,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final stacked = constraints.maxWidth < 480;
+                    final compact = constraints.maxWidth < 480;
+                    final outcome = _OutcomePill(
+                      compact: compact,
+                      lane: lane,
+                      entry: entry,
+                      since: since,
+                      nowMs: nowMs,
+                      live: status.state == SessionState.thinking,
+                      onMarkRead: lane == MissionLane.unread && !selected
+                          ? onMarkRead
+                          : null,
+                    );
                     return Row(
                       children: [
                         _LaneTile(
@@ -196,14 +198,14 @@ class MissionActionRow extends StatelessWidget {
                             children: [
                               Text(
                                 name,
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                   color: cs.onSurface,
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.xxs),
+                              const SizedBox(height: 1),
                               Row(
                                 children: [
                                   if (workspace != null) ...[
@@ -235,14 +237,10 @@ class MissionActionRow extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              if (stacked) ...[
-                                const SizedBox(height: AppSpacing.xs),
-                                outcome,
-                              ],
                             ],
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
+                        const SizedBox(width: AppSpacing.xs),
                         if (isPinned) ...[
                           Icon(
                             Icons.push_pin_rounded,
@@ -251,7 +249,7 @@ class MissionActionRow extends StatelessWidget {
                           ),
                           const SizedBox(width: AppSpacing.xs),
                         ],
-                        if (!stacked) outcome,
+                        outcome,
                         if (_hasOverflowMenu) ...[
                           _TriageMenu(
                             isPinned: isPinned,
@@ -309,8 +307,8 @@ class _LaneTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 34,
-      height: 34,
+      width: 28,
+      height: 28,
       decoration: BoxDecoration(
         // Freshness glow: the tile brightens right after an update and
         // decays as the stream goes quiet. Blocked/error keep their full
@@ -337,13 +335,13 @@ class _LaneTile extends StatelessWidget {
         children: [
           Icon(
             selected ? Icons.check_rounded : missionLaneIcon(lane),
-            size: AppIconSize.lg,
+            size: AppIconSize.md,
             color: color,
           ),
           if (pulse)
             Positioned(
-              right: AppSpacing.xs,
-              bottom: AppSpacing.xs,
+              right: AppSpacing.xxs,
+              bottom: AppSpacing.xxs,
               child: AppStatusDot(color: color, pulse: true, size: 4),
             ),
         ],
@@ -359,8 +357,13 @@ class _OutcomePill extends StatelessWidget {
     required this.since,
     required this.nowMs,
     required this.live,
+    this.compact = false,
     this.onMarkRead,
   });
+
+  /// Narrow layouts trade the long outcome label for a short count so the
+  /// row stays on one line.
+  final bool compact;
 
   final MissionLane lane;
   final SessionUiEntry entry;
@@ -392,7 +395,9 @@ class _OutcomePill extends StatelessWidget {
       MissionLane.blocked => Text(l10n.missionControlReview),
       MissionLane.error => Text(missionLaneLabel(context, lane)),
       MissionLane.unread => Text(
-        live
+        compact
+            ? l10n.missionControlNewCount(entry.unreadCount)
+            : live
             ? l10n.chatSessionWorkingUnread(entry.unreadCount)
             : missionUnreadOutcome(context, entry),
       ),
@@ -404,10 +409,13 @@ class _OutcomePill extends StatelessWidget {
       MissionLane.quiet => Text(missionLaneLabel(context, lane)),
     };
     final pill = Container(
-      constraints: const BoxConstraints(minWidth: 72, maxWidth: 180),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+      constraints: BoxConstraints(
+        minWidth: compact ? 0 : 72,
+        maxWidth: compact ? 96 : 180,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? AppSpacing.xsm : AppSpacing.sm,
+        vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
         color: pillBg,
