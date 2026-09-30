@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/components/app_inline_row.dart';
 import '../../../core/components/task_detail_dialog.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/todo.dart';
@@ -136,188 +137,55 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final allDone = completed == total;
     final progressLabel = '$completed of $total complete';
     final detailLabel = running > 0
         ? '$progressLabel · $running running'
         : progressLabel;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Semantics(
-            button: true,
-            expanded: expanded,
-            label: '${context.l10n.tasksTitle}, $detailLabel',
-            onTap: onTap,
-            child: ExcludeSemantics(
-              child: InkWell(
-                onTap: onTap,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: dense ? 40 : AppTouchTarget.comfortable,
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      dense ? AppSpacing.xxs : AppSpacing.xsm,
-                      AppSpacing.xs,
-                      dense ? AppSpacing.xxs : AppSpacing.xsm,
-                    ),
-                    child: dense
-                        ? _denseRow(context, theme, cs, detailLabel, allDone)
-                        : _fullRow(
-                            context,
-                            theme,
-                            cs,
-                            appCs,
-                            detailLabel,
-                            allDone,
-                          ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        TextButton(
-          onPressed: onViewAll,
-          style: TextButton.styleFrom(
-            foregroundColor: cs.primary,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            minimumSize: Size(0, dense ? 40 : AppTouchTarget.min),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            textStyle: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          child: const Text('View all'),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-      ],
+    final title = Text(
+      context.l10n.tasksTitle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppInlineText.title(context),
     );
-  }
-
-  /// Describes the plan in the space a two-line header would spend on
-  /// repetition: icon, title and progress all on the touch-target row.
-  Widget _denseRow(
-    BuildContext context,
-    ThemeData theme,
-    ColorScheme cs,
-    String detailLabel,
-    bool allDone,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Icon(
-          allDone ? Icons.check_circle_rounded : Icons.checklist_rounded,
-          size: AppIconSize.md,
-          color: allDone ? AppColors.success : cs.primary,
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          context.l10n.tasksTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: cs.onSurface,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            detailLabel,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        _ExpandChevron(expanded: expanded, cs: cs),
-      ],
+    final detail = Text(
+      detailLabel,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: AppInlineText.secondary(context),
     );
-  }
-
-  /// The full-height header: gradient tile, stacked labels, segmented meter.
-  Widget _fullRow(
-    BuildContext context,
-    ThemeData theme,
-    ColorScheme cs,
-    AppColorScheme appCs,
-    String detailLabel,
-    bool allDone,
-  ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Container(
-          width: 32,
-          height: 32,
-          // All-done gets a filled success tile; active gets the signature
-          // gradient — one glance tells you whether the session's plan is
-          // finished.
-          decoration: BoxDecoration(
-            gradient: allDone
-                ? null
-                : LinearGradient(
-                    colors: appCs.accentGradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-            color: allDone
-                ? AppColors.success.withValues(alpha: AppOpacity.subtle)
-                : null,
-            borderRadius: BorderRadius.circular(AppRadius.smd),
-          ),
-          child: Icon(
-            allDone ? Icons.check_rounded : Icons.checklist_rounded,
-            size: AppIconSize.lg,
-            color: allDone ? AppColors.success : Colors.white,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.smd),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                context.l10n.tasksTitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: cs.onSurface,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.1,
+    return AppInlineRow(
+      leading: Icon(
+        allDone ? Icons.check_circle_rounded : Icons.checklist_rounded,
+        color: allDone ? AppColors.success : cs.primary,
+      ),
+      onTap: onTap,
+      semanticLabel: '${context.l10n.tasksTitle}, $detailLabel',
+      expanded: expanded,
+      trailing: _ExpandChevron(expanded: expanded, cs: cs),
+      action: AppInlineAction(label: 'View all', onPressed: onViewAll),
+      child: dense
+          ? Row(
+              children: [
+                Flexible(child: title),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(flex: 2, child: detail),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                title,
+                detail,
+                const SizedBox(height: AppSpacing.xs),
+                _SegmentedProgress(
+                  key: const ValueKey('session-tasks-progress'),
+                  completed: completed,
+                  total: total,
                 ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                detailLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              _SegmentedProgress(
-                key: const ValueKey('session-tasks-progress'),
-                completed: completed,
-                total: total,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        _ExpandChevron(expanded: expanded, cs: cs),
-      ],
+              ],
+            ),
     );
   }
 }
@@ -336,7 +204,7 @@ class _ExpandChevron extends StatelessWidget {
       turns: expanded ? 0.5 : 0.0,
       child: Icon(
         Icons.expand_more_rounded,
-        size: AppIconSize.lg,
+        size: AppIconSize.md,
         color: cs.onSurfaceVariant,
       ),
     );

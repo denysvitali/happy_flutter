@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/components/app_inline_row.dart';
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../markdown/markdown.dart';
 import '../thinking_content.dart';
@@ -45,10 +45,9 @@ class _ThinkingBlockState extends State<ThinkingBlock>
     _cleanedContent = cleanThinkingContent(widget.content);
     final key = widget.storageKey;
     if (key != null && key.isNotEmpty) {
-      final saved = PageStorage.of(context).readState(
+      final saved = PageStorage.of(
         context,
-        identifier: 'thinking_expanded_$key',
-      );
+      ).readState(context, identifier: 'thinking_expanded_$key');
       if (saved is bool) {
         _expanded = saved;
       }
@@ -102,11 +101,9 @@ class _ThinkingBlockState extends State<ThinkingBlock>
     setState(() => _expanded = !_expanded);
     final key = widget.storageKey;
     if (key != null && key.isNotEmpty) {
-      PageStorage.of(context).writeState(
+      PageStorage.of(
         context,
-        _expanded,
-        identifier: 'thinking_expanded_$key',
-      );
+      ).writeState(context, _expanded, identifier: 'thinking_expanded_$key');
     }
     if (_expanded) {
       // About to expand — ensure markdown is in the tree before animating.
@@ -141,136 +138,71 @@ class _ThinkingBlockState extends State<ThinkingBlock>
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.sm),
-          child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: cs.outlineVariant.withValues(
-                  alpha: AppOpacity.subtle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppInlineRow(
+                leading: const Icon(Icons.psychology_outlined),
+                onTap: _toggle,
+                semanticLabel: 'Thinking',
+                expanded: _expanded,
+                trailing: AnimatedRotation(
+                  turns: _expanded ? 0.5 : 0,
+                  duration: AppDuration.normal,
+                  child: const Icon(Icons.expand_more_rounded),
                 ),
-                width: 0.5,
+                action: AppInlineAction(
+                  label: context.l10n.chatCopyThinking,
+                  icon: Icons.copy_outlined,
+                  iconOnly: true,
+                  onPressed: () async {
+                    await HapticFeedback.lightImpact();
+                    await Clipboard.setData(
+                      ClipboardData(text: _cleanedContent),
+                    );
+                  },
+                ),
+                child: Text('Thinking', style: AppInlineText.title(context)),
               ),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header — always visible, tap to toggle.
-                GestureDetector(
-                  onTap: _toggle,
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm + 2,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.psychology_outlined,
-                          size: 14,
-                          color: cs.onSurfaceVariant.withValues(
-                            alpha: 0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Thinking',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant.withValues(
-                              alpha: 0.5,
+              // Expanded content — ClipRect prevents overflow
+              // during animation.
+              ClipRect(
+                child: SizeTransition(
+                  sizeFactor: _expandAnimation,
+                  child: showContent
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Divider(
+                              height: 0.5,
+                              thickness: 0.5,
+                              color: cs.outlineVariant.withValues(alpha: 0.2),
                             ),
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        const Spacer(),
-                        Tooltip(
-                          message: context.l10n.chatCopyThinking,
-                          child: Semantics(
-                            button: true,
-                            label: context.l10n.chatCopyThinking,
-                            child: GestureDetector(
-                              onTap: () async {
-                                await HapticFeedback.lightImpact();
-                                await Clipboard.setData(
-                                  ClipboardData(text: _cleanedContent),
-                                );
-                              },
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                                padding: const EdgeInsets.all(AppSpacing.xs),
-                                child: Icon(
-                                  Icons.copy_outlined,
-                                  size: 14,
+                            Padding(
+                              padding: const EdgeInsets.all(AppSpacing.md),
+                              child: DefaultTextStyle.merge(
+                                style: TextStyle(
                                   color: cs.onSurfaceVariant.withValues(
-                                    alpha: 0.35,
+                                    alpha: 0.85,
+                                  ),
+                                  fontSize: AppFontSize.md,
+                                  height: 1.5,
+                                ),
+                                child: SelectionArea(
+                                  child: SimpleMarkdownView(
+                                    markdown: _cleanedContent,
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        AnimatedRotation(
-                          turns: _expanded ? 0.5 : 0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            Icons.expand_more_rounded,
-                            size: 16,
-                            color: cs.onSurfaceVariant.withValues(
-                              alpha: 0.35,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
                 ),
-                // Expanded content — ClipRect prevents overflow
-                // during animation.
-                ClipRect(
-                  child: SizeTransition(
-                    sizeFactor: _expandAnimation,
-                    child: showContent
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Divider(
-                                height: 0.5,
-                                thickness: 0.5,
-                                color: cs.outlineVariant.withValues(
-                                  alpha: 0.2,
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(
-                                  AppSpacing.md,
-                                ),
-                                child: DefaultTextStyle.merge(
-                                  style: TextStyle(
-                                    color:
-                                        cs.onSurfaceVariant.withValues(
-                                      alpha: 0.85,
-                                    ),
-                                    fontSize: AppFontSize.md,
-                                    height: 1.5,
-                                  ),
-                                  child: SelectionArea(
-                                    child: SimpleMarkdownView(
-                                      markdown: _cleanedContent,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

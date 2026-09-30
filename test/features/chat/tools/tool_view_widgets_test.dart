@@ -286,7 +286,7 @@ void main() {
       }
     });
 
-    testWidgets('completed collapsed header uses compact timeline height', (
+    testWidgets('completed header uses shared accessible row height', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -309,11 +309,14 @@ void main() {
 
       final primary = find.byKey(const ValueKey('tool-header-primary-action'));
       final details = find.byKey(const ValueKey('tool-header-details-action'));
-      expect(tester.getSize(primary).height, 30);
-      expect(tester.getSize(details), const Size(36, 30));
+      expect(tester.getSize(primary).height, AppTouchTarget.min);
+      expect(
+        tester.getSize(details),
+        const Size(AppTouchTarget.min, AppTouchTarget.min),
+      );
     });
 
-    testWidgets('collapsed active header is dense but expanded stays full', (
+    testWidgets('active and expanded headers share a touch target', (
       tester,
     ) async {
       Future<double> pumpHeader({
@@ -342,7 +345,7 @@ void main() {
             .height;
       }
 
-      expect(await pumpHeader(state: ToolState.running, expanded: false), 36);
+      expect(await pumpHeader(state: ToolState.running, expanded: false), 44);
       expect(
         await pumpHeader(state: ToolState.completed, expanded: true),
         greaterThanOrEqualTo(AppTouchTarget.min),

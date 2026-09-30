@@ -1,20 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:happy_flutter/core/theme/app_colors.dart';
-import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/components/app_inline_row.dart';
 
-/// Default style for inline elapsed-time readouts: quiet monospace pill
-/// with tabular figures so ticking digits don't jitter the row.
+/// Shared row typography with tabular figures so ticking digits stay aligned.
 TextStyle _elapsedStyle(BuildContext context) {
-  return TextStyle(
-    fontSize: AppFontSize.xs,
-    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(
-      alpha: AppOpacity.high,
-    ),
-    fontFamily: 'monospace',
-    fontFeatures: const [FontFeature.tabularFigures()],
-  );
+  return AppInlineText.secondary(
+    context,
+  ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
 }
 
 /// Shared 1-second ticker that all [ElapsedTimeWidget] and [ElapsedTime]
@@ -26,9 +19,7 @@ final _sharedTicker = _SharedTicker();
 class _SharedTicker {
   Timer? _timer;
   int _subscriberCount = 0;
-  final _notifier = ValueNotifier<int>(
-    DateTime.now().millisecondsSinceEpoch,
-  );
+  final _notifier = ValueNotifier<int>(DateTime.now().millisecondsSinceEpoch);
 
   ValueNotifier<int> get notifier => _notifier;
 
@@ -54,8 +45,8 @@ class _SharedTicker {
 
 /// Timer widget that updates every second to show elapsed time.
 class ElapsedTimeWidget extends StatefulWidget {
-
   const ElapsedTimeWidget({required this.startTime, super.key, this.style});
+
   /// The start timestamp in milliseconds since epoch.
   final int? startTime;
 
@@ -100,10 +91,7 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
       child: ValueListenableBuilder<int>(
         valueListenable: _sharedTicker.notifier,
         builder: (context, nowMs, _) {
-          final elapsed = ((nowMs - startTime) / 1000).floor().clamp(
-            0,
-            999999,
-          );
+          final elapsed = ((nowMs - startTime) / 1000).floor().clamp(0, 999999);
           return Text(
             '${elapsed}s',
             style: widget.style ?? _elapsedStyle(context),
@@ -116,10 +104,12 @@ class _ElapsedTimeWidgetState extends State<ElapsedTimeWidget> {
 
 /// Hook-style widget that updates every second.
 class ElapsedTime extends StatelessWidget {
-
   const ElapsedTime({
-    required this.startTime, required this.builder, super.key,
+    required this.startTime,
+    required this.builder,
+    super.key,
   });
+
   /// The start timestamp in milliseconds since epoch.
   final int? startTime;
 
@@ -136,11 +126,7 @@ class ElapsedTime extends StatelessWidget {
 }
 
 class _ElapsedTimeBuilder extends StatefulWidget {
-
-  const _ElapsedTimeBuilder({
-    required this.startTime,
-    required this.builder,
-  });
+  const _ElapsedTimeBuilder({required this.startTime, required this.builder});
   final int? startTime;
   final Widget Function(BuildContext context, int elapsedSeconds) builder;
 
@@ -180,10 +166,7 @@ class _ElapsedTimeBuilderState extends State<_ElapsedTimeBuilder> {
     return ValueListenableBuilder<int>(
       valueListenable: _sharedTicker.notifier,
       builder: (context, nowMs, _) {
-        final elapsed = ((nowMs - startTime) / 1000).floor().clamp(
-          0,
-          999999,
-        );
+        final elapsed = ((nowMs - startTime) / 1000).floor().clamp(0, 999999);
         return widget.builder(context, elapsed);
       },
     );

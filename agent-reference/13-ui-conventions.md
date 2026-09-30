@@ -28,6 +28,13 @@ Arrow-key resizing persists the selected pane width immediately.
 
 **Design tokens** in `lib/core/theme/app_tokens.dart`: `AppSpacing` (xxs=2 to xxxl=32), `AppRadius` (xs=4 to pill=100), `AppFontSize` (xxs=10 to lg=16), `AppDuration` (fast=150ms to slower=500ms), `AppTouchTarget` (min=44, comfortable=48), `AppBreakpoint` (tablet=600, desktop=960), `AppScreenPadding` (standard, compact, settings, listItem).
 
+**Inline rows:** Reuse `AppInlineRow`, `AppInlineAction`, and `AppInlineText`
+from `lib/core/components/app_inline_row.dart` for compact headers and status
+rows. Thinking, tools, tasks, activity, and turn review share flat surfaces,
+icon slots, spacing, body-medium text (14px), and 44px action targets. Separate
+secondary actions from the row tap target. Composer selectors use the same
+body typography; keep state emphasis in color and weight rather than size.
+
 **Widget layers:**
 - `lib/core/components/` — higher-level (AppCard, AppEmptyState, sidebar, settings sections)
 - `lib/core/ui/` — lower-level (avatars, tab_bar, shimmer, diff, status_bar)

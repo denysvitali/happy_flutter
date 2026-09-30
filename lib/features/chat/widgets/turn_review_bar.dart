@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_inline_row.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
@@ -26,66 +27,37 @@ class TurnReviewBar extends StatelessWidget {
     final cs = theme.colorScheme;
     final failed = turn.summary.failed > 0;
     final detail = turn.summary.describe(l10n);
-    // Flat status row matching the tasks and activity rows: no fill, the
-    // leading icon lined up with the draft text, 12sp labels.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      child: Material(
-        type: MaterialType.transparency,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          key: const ValueKey('turn-review-bar'),
-          onTap: () => _openReview(context),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 40),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.xxs,
-                AppSpacing.sm,
-                AppSpacing.xxs,
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    failed ? Icons.error_outline : Icons.task_alt,
-                    size: AppIconSize.md,
-                    color: failed ? cs.error : cs.primary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Flexible(
-                    child: Text(
-                      l10n.chatReviewTurn,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    size: AppIconSize.lg,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ],
+      child: AppInlineRow(
+        primaryActionKey: const ValueKey('turn-review-bar'),
+        onTap: () => _openReview(context),
+        leading: Icon(
+          failed ? Icons.error_outline : Icons.task_alt,
+          color: failed ? cs.error : cs.primary,
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        child: Row(
+          children: [
+            Flexible(
+              child: Text(
+                l10n.chatReviewTurn,
+                style: AppInlineText.title(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              flex: 2,
+              child: Text(
+                detail,
+                style: AppInlineText.secondary(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );

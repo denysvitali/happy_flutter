@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_inline_row.dart';
 
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
@@ -14,7 +15,7 @@ abstract final class ComposerChipMetrics {
   static const double iconLabelGap = AppSpacing.xs;
   static const double labelChevronGap = AppSpacing.xxs;
   static const double chevronSize = AppIconSize.md;
-  static const double labelFontSize = AppFontSize.sm;
+  static const double labelFontSize = AppFontSize.md;
 }
 
 /// Compact, neutral pill showing a composer setting's current value —
@@ -80,16 +81,7 @@ class ComposerSelectorChip extends StatelessWidget {
         ? accent.withValues(alpha: 0.45)
         : appCs.glassBorder;
 
-    // Pin the regular Inter file: the theme binds each weight to its own
-    // family, so a weight override alone keeps the medium face and the
-    // label reads as bold.
-    final base = (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
-      fontFamily: 'Inter_regular',
-      fontSize: ComposerChipMetrics.labelFontSize,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0,
-      height: 1.25,
-    );
+    final base = AppInlineText.body(context);
 
     Widget text = Text(
       label,
@@ -120,11 +112,15 @@ class ComposerSelectorChip extends StatelessWidget {
         customBorder: _shape,
         child: Container(
           width: width,
-          height: ComposerChipMetrics.height,
+          constraints: const BoxConstraints(
+            minHeight: ComposerChipMetrics.height,
+          ),
           padding: EdgeInsetsDirectional.only(
             start: icon == null
                 ? ComposerChipMetrics.paddingStart
                 : ComposerChipMetrics.paddingEnd,
+            top: AppSpacing.xxs,
+            bottom: AppSpacing.xxs,
             end: enabled
                 ? ComposerChipMetrics.paddingEnd
                 : ComposerChipMetrics.paddingEndNoChevron,

@@ -650,10 +650,10 @@ class _ToolViewState extends ConsumerState<ToolView>
     // per-server emojis mixed badly with the rest of the iconography.
     final iconColor = hasPermissionRequest ? permissionColor : typeAccentColor;
     final toolIcon = isSshExec
-        ? KnownTools.bashIcon(18, iconColor)
+        ? KnownTools.bashIcon(AppIconSize.md, iconColor)
         : isMCP
-        ? KnownTools.mcpIcon(18, iconColor)
-        : KnownTools.iconFor(toolName, 18, iconColor);
+        ? KnownTools.mcpIcon(AppIconSize.md, iconColor)
+        : KnownTools.iconFor(toolName, AppIconSize.md, iconColor);
 
     final hasContent = !minimal;
     final primaryNavigates =
@@ -694,31 +694,27 @@ class _ToolViewState extends ConsumerState<ToolView>
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Material(
-            color: headerTint ?? Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            clipBehavior: Clip.antiAlias,
-            child: ToolHeader(
-              toolIcon: toolIcon,
-              toolTitle: toolTitle,
-              status: status,
-              subtitle: subtitle,
-              subtitleMonospace: _monoSubtitleToolNames.contains(
-                KnownTools.canonicalName(toolName).toLowerCase(),
-              ),
-              state: state,
-              createdAt: createdAt,
-              statusIcon: statusIcon,
-              statusLabel: statusLabel,
-              hasContent: headerHasDisclosure,
-              expanded: _expanded,
-              showCheckFlash: _showCheckFlash,
-              chevronAnim: _chevronAnim,
-              hasPermissionRequest: hasPermissionRequest,
-              onTap: headerOnTap,
-              onLongPress: headerOnLongPress,
-              onOpenDetails: primaryNavigates ? null : widget.onPress,
+          ToolHeader(
+            backgroundColor: headerTint,
+            toolIcon: toolIcon,
+            toolTitle: toolTitle,
+            status: status,
+            subtitle: subtitle,
+            subtitleMonospace: _monoSubtitleToolNames.contains(
+              KnownTools.canonicalName(toolName).toLowerCase(),
             ),
+            state: state,
+            createdAt: createdAt,
+            statusIcon: statusIcon,
+            statusLabel: statusLabel,
+            hasContent: headerHasDisclosure,
+            expanded: _expanded,
+            showCheckFlash: _showCheckFlash,
+            chevronAnim: _chevronAnim,
+            hasPermissionRequest: hasPermissionRequest,
+            onTap: headerOnTap,
+            onLongPress: headerOnLongPress,
+            onOpenDetails: primaryNavigates ? null : widget.onPress,
           ),
           // Expanded body: nested panel below the chromeless header.
           if (hasContent)

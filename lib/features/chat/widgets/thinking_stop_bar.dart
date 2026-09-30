@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_inline_row.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
@@ -33,20 +34,8 @@ enum ChatAgentActivity {
   stopUnconfirmed,
 }
 
-/// A compact **glass capsule** shown between the chat list and the input
-/// while the agent is working. Provides a one-tap **Stop** button so the
-/// user can interrupt a long-running turn without hunting through the
-/// overflow menu, and stays mounted (same height, same layout) while the
-/// stop request is in flight.
-///
-/// Aurora Glass material: translucent surface fill, hairline glass
-/// border, soft floating shadow. The leading indicator carries state as
-/// colour and motion, not extra labels — an accent-gradient dot that
-/// breathes while thinking, a static muted ring while stopping, and the
-/// warning icon for an unconfirmed stop.
-///
-/// Placed in the activity-chrome stack (after TTS, before input) per
-/// the banner-priority comment in `_ChatScreenState.build`.
+/// Shared inline status row above the composer with a persistent Stop action.
+/// The indicator conveys activity while the text explains delivery/stop state.
 class ThinkingStopBar extends StatelessWidget {
   const ThinkingStopBar({
     required this.onStop,
@@ -99,81 +88,36 @@ class ThinkingStopBar extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       container: true,
-      // A flat status row — no capsule fill, border or shadow — with its
-      // indicator lined up under the draft text, matching the tasks row.
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          AppSpacing.md + AppSpacing.lg,
-          dense ? 0 : AppSpacing.xxs,
-          AppSpacing.md,
-          dense ? 0 : AppSpacing.xxs,
+        padding: EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: dense ? 0 : AppSpacing.xxs,
         ),
-        child: SizedBox(
-          child: Row(
-            children: [
-              SizedBox(
-                width: AppIconSize.sm,
-                height: AppIconSize.sm,
-                child: Center(
-                  child: unconfirmed
-                      ? const Icon(
-                          Icons.error_outline_rounded,
-                          size: AppIconSize.sm,
-                          color: AppColors.warning,
-                        )
-                      // One primitive per live state: the accent dot
-                      // breathes while the turn progresses and freezes
-                      // into a static ring while it winds down. Muted
-                      // while stopping — the copy already says so.
-                      : stopping || awaiting
-                      ? _StatusRing(color: colorScheme.onSurfaceVariant)
-                      : _BreathingAccentDot(gradient: accentGradient),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: unconfirmed
-                        ? AppColors.warning
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              if (startedAt != null) ...[
-                const SizedBox(width: AppSpacing.xs),
-                ExcludeSemantics(child: _ElapsedLabel(startedAt: startedAt!)),
-              ],
-              TextButton(
-                // Disabled (not removed) while the request is in flight:
-                // the row keeps its width and the greyed label confirms the
-                // tap registered, instead of the button vanishing.
-                onPressed: stopping || awaiting ? null : onStop,
-                style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.error,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  minimumSize: Size(0, dense ? 36 : AppTouchTarget.min),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.stop_rounded, size: AppIconSize.md),
-                    const SizedBox(width: AppSpacing.xxs),
-                    Text(l10n.chatActivityStop),
-                  ],
-                ),
-              ),
-            ],
+        child: AppInlineRow(
+          leading: unconfirmed
+              ? const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.warning,
+                )
+              : stopping || awaiting
+              ? _StatusRing(color: colorScheme.onSurfaceVariant)
+              : _BreathingAccentDot(gradient: accentGradient),
+          trailing: startedAt == null
+              ? null
+              : ExcludeSemantics(child: _ElapsedLabel(startedAt: startedAt!)),
+          action: AppInlineAction(
+            label: l10n.chatActivityStop,
+            icon: Icons.stop_rounded,
+            color: colorScheme.error,
+            onPressed: stopping || awaiting ? null : onStop,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppInlineText.secondary(
+              context,
+            ).copyWith(color: unconfirmed ? AppColors.warning : null),
           ),
         ),
       ),
@@ -218,7 +162,9 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
     final minutes = seconds ~/ 60;
     return Text(
       minutes == 0 ? '${seconds}s' : '${minutes}m ${seconds % 60}s',
-      style: Theme.of(context).textTheme.labelMedium,
+      style: AppInlineText.secondary(
+        context,
+      ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
     );
   }
 }

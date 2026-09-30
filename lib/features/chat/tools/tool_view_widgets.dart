@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_inline_row.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
@@ -61,6 +62,7 @@ class ToolHeader extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.onOpenDetails,
+    this.backgroundColor,
   });
 
   /// The leading icon widget for this tool type.
@@ -113,34 +115,14 @@ class ToolHeader extends StatelessWidget {
 
   /// Explicit alternative to [onLongPress] for opening tool details.
   final VoidCallback? onOpenDetails;
-
-  static const double _completedHeight = 30;
-  static const double _activeHeight = 36;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final compact = !expanded && !hasPermissionRequest;
-    final completedCompact = compact && state == ToolState.completed;
-    final rowHeight = completedCompact
-        ? _completedHeight
-        : compact
-        ? _activeHeight
-        : AppTouchTarget.min;
-
-    final titleStyle = theme.textTheme.titleSmall?.copyWith(
-      fontWeight: FontWeight.w600,
-      fontSize: AppFontSize.md,
-    );
-    final statusStyle = theme.textTheme.titleSmall?.copyWith(
-      fontWeight: FontWeight.w400,
-      fontSize: AppFontSize.md,
-      color: colorScheme.onSurfaceVariant,
-    );
-    final subtitleStyle = theme.textTheme.bodySmall?.copyWith(
-      fontSize: AppFontSize.sm,
-      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.9),
+    final colorScheme = Theme.of(context).colorScheme;
+    final titleStyle = AppInlineText.title(context);
+    final statusStyle = AppInlineText.secondary(context);
+    final subtitleStyle = statusStyle.copyWith(
       fontFamily: subtitleMonospace ? 'monospace' : null,
       fontFamilyFallback: subtitleMonospace
           ? const ['Courier New', 'Courier']
@@ -164,8 +146,6 @@ class ToolHeader extends StatelessWidget {
     ].join(', ');
 
     List<Widget> titleChildren() => [
-      SizedBox(width: 18, height: 18, child: Center(child: toolIcon)),
-      const SizedBox(width: AppSpacing.smd),
       Expanded(
         // One line, one RichText: title, status and subtitle share a baseline.
         child: Text.rich(
@@ -213,13 +193,13 @@ class ToolHeader extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         SizedBox.square(
           key: const ValueKey('tool-disclosure-icon-slot'),
-          dimension: AppIconSize.lg,
+          dimension: AppIconSize.md,
           child: hasContent
               ? RotationTransition(
                   turns: chevronAnim,
                   child: Icon(
                     Icons.expand_more,
-                    size: AppIconSize.lg,
+                    size: AppIconSize.md,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 )
@@ -228,100 +208,56 @@ class ToolHeader extends StatelessWidget {
       ],
     ];
 
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: rowHeight),
-      child: Row(
-        children: [
-          Expanded(
-            child: Semantics(
-              button: onTap != null,
-              enabled: onTap != null,
-              expanded: hasContent ? expanded : null,
-              label: semanticLabel,
-              hint: hasContent
-                  ? (expanded
-                        ? context.l10n.toolOutputCollapseHint
-                        : context.l10n.toolOutputExpandHint)
-                  : onTap != null
-                  ? context.l10n.toolDetailsOpenHint
-                  : null,
-              onTap: onTap,
-              onLongPress: onLongPress,
-              child: ExcludeSemantics(
-                child: InkWell(
-                  key: const ValueKey('tool-header-primary-action'),
-                  onTap: onTap,
-                  onLongPress: onLongPress,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: rowHeight),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compact ? AppSpacing.sm : AppSpacing.smd,
-                        vertical: compact ? AppSpacing.xxs : AppSpacing.xsm,
-                      ),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final textScale = MediaQuery.textScalerOf(
-                            context,
-                          ).scale(1);
-                          final stackState =
-                              textScale > 1.3 || constraints.maxWidth < 280;
-                          if (stackState) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(children: titleChildren()),
-                                const SizedBox(height: AppSpacing.xs),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: stateChildren(constrainCue: true),
-                                ),
-                              ],
-                            );
-                          }
-                          return Row(
-                            children: [
-                              ...titleChildren(),
-                              const SizedBox(width: AppSpacing.sm),
-                              ...stateChildren(),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (onOpenDetails != null)
-            IconButton(
-              key: const ValueKey('tool-header-details-action'),
+    return AppInlineRow(
+      leading: toolIcon,
+      backgroundColor: backgroundColor,
+      primaryActionKey: const ValueKey('tool-header-primary-action'),
+      onTap: onTap,
+      onLongPress: onLongPress,
+      expanded: hasContent ? expanded : null,
+      semanticLabel: semanticLabel,
+      semanticHint: hasContent
+          ? (expanded
+                ? context.l10n.toolOutputCollapseHint
+                : context.l10n.toolOutputExpandHint)
+          : onTap != null
+          ? context.l10n.toolDetailsOpenHint
+          : null,
+      action: onOpenDetails == null
+          ? null
+          : AppInlineAction(
+              buttonKey: const ValueKey('tool-header-details-action'),
+              label: context.l10n.toolDetailsView,
+              icon: Icons.open_in_new_rounded,
+              iconOnly: true,
               onPressed: onOpenDetails,
-              tooltip: context.l10n.toolDetailsView,
-              constraints: compact
-                  ? BoxConstraints.tightFor(
-                      width: _activeHeight,
-                      height: rowHeight,
-                    )
-                  : BoxConstraints(minWidth: rowHeight, minHeight: rowHeight),
-              style: IconButton.styleFrom(
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              padding: EdgeInsets.all(
-                completedCompact
-                    ? AppSpacing.xsm
-                    : compact
-                    ? AppSpacing.sm
-                    : AppSpacing.md,
-              ),
-              icon: Icon(
-                Icons.open_in_new_rounded,
-                size: compact ? AppIconSize.md : AppIconSize.lg,
-              ),
             ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final textScale = MediaQuery.textScalerOf(context).scale(1);
+          final stackState = textScale > 1.3 || constraints.maxWidth < 280;
+          if (stackState) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(children: titleChildren()),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: stateChildren(constrainCue: true),
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              ...titleChildren(),
+              const SizedBox(width: AppSpacing.sm),
+              ...stateChildren(),
+            ],
+          );
+        },
       ),
     );
   }
@@ -376,7 +312,7 @@ class _ToolStateCue extends StatelessWidget {
       children: [
         SizedBox.square(
           key: const ValueKey('tool-state-icon-slot'),
-          dimension: AppIconSize.lg,
+          dimension: AppIconSize.md,
           child: Center(
             child: AnimatedSwitcher(
               duration: AppMotion.duration(context, AppDuration.normal),
@@ -399,11 +335,7 @@ class _ToolStateCue extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppFontSize.xs,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+                style: AppInlineText.body(context).copyWith(color: color),
               ),
             )
           else
@@ -411,11 +343,7 @@ class _ToolStateCue extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: AppFontSize.xs,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
+              style: AppInlineText.body(context).copyWith(color: color),
             ),
         ],
       ],

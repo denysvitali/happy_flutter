@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/components/app_inline_row.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/utils/grok_acp_normalize.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
@@ -10,11 +11,7 @@ import 'tool_view_helpers.dart';
 /// Compact tool view for minimal mode (header only, no expandable content).
 class ToolViewMinimal extends StatelessWidget {
   /// Creates a [ToolViewMinimal].
-  const ToolViewMinimal({
-    required this.tool,
-    super.key,
-    this.metadata,
-  });
+  const ToolViewMinimal({required this.tool, super.key, this.metadata});
 
   /// The tool call data.
   final Map<String, dynamic> tool;
@@ -59,7 +56,7 @@ class ToolViewMinimal extends StatelessWidget {
 
     final icon = KnownTools.iconFor(
       toolName,
-      18,
+      AppIconSize.md,
       theme.colorScheme.onSurfaceVariant,
     );
     final String title;
@@ -69,34 +66,26 @@ class ToolViewMinimal extends StatelessWidget {
       title = KnownTools.titleFor(toolName, tool, metadata);
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
-      child: Row(
+    return AppInlineRow(
+      leading: icon,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          icon,
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              title,
-              style: theme.textTheme.bodyMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (state == 'running' && createdAt != null)
-            Padding(
-              padding: const EdgeInsets.only(left: AppSpacing.sm),
-              child: ElapsedTimeWidget(startTime: createdAt),
-            ),
-          const SizedBox(width: AppSpacing.xs),
+          if (state == 'running' && createdAt != null) ...[
+            ElapsedTimeWidget(startTime: createdAt),
+            const SizedBox(width: AppSpacing.sm),
+          ],
           ToolStatusIndicator(
             state: parseToolState(state),
-            size: 16,
+            size: AppIconSize.md,
           ),
         ],
+      ),
+      child: Text(
+        title,
+        style: AppInlineText.title(context),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
