@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'mission_control_types.dart';
+import 'mission_heartbeat.dart';
 import 'workspace_identity.dart';
 
 /// What kind of change a [WireEvent] describes.
@@ -490,7 +491,7 @@ class _WireRow extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    _timeLabel(event.atMs),
+                    formatWireAge(missionNowOf(context) - event.atMs),
                     style: theme.textTheme.labelSmall?.copyWith(
                       fontSize: AppFontSize.xxs,
                       color: cs.onSurfaceVariant.withValues(alpha: 0.7),
@@ -504,13 +505,6 @@ class _WireRow extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _timeLabel(int atMs) {
-    final time = DateTime.fromMillisecondsSinceEpoch(atMs);
-    final h = time.hour.toString().padLeft(2, '0');
-    final m = time.minute.toString().padLeft(2, '0');
-    return '$h:$m';
   }
 }
 

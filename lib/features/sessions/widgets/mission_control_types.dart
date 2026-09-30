@@ -97,6 +97,15 @@ String formatElapsedShort(int millis) {
   return '${minutes ~/ 60}h ${minutes % 60}m';
 }
 
+/// Coarse age for Live wire rows: "now", "3m", "2h". Never shows seconds —
+/// the wire is a glance surface, and a ticking "47s" would demand attention.
+String formatWireAge(int millis) {
+  final minutes = (millis < 0 ? 0 : millis) ~/ 60000;
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return '${minutes}m';
+  return '${minutes ~/ 60}h';
+}
+
 /// Shortens a display path to its last two segments.
 String missionShortPath(String displayPath) {
   final segments = displayPath

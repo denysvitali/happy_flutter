@@ -20,6 +20,8 @@ void main() {
     isError: false,
   );
 
+  _wireAgeTests();
+
   group('diffWireEvents', () {
     test('the first snapshot only seeds the baseline', () {
       final next = {'s1': base};
@@ -266,3 +268,21 @@ WireSessionState _with(
   role: role ?? state.role,
   isError: isError ?? state.isError,
 );
+
+void _wireAgeTests() {
+  group('formatWireAge', () {
+    test('reads "now" under a minute and never shows seconds', () {
+      expect(formatWireAge(0), 'now');
+      expect(formatWireAge(59999), 'now');
+      expect(formatWireAge(-5000), 'now');
+    });
+
+    test('rounds down to whole minutes then hours', () {
+      expect(formatWireAge(60000), '1m');
+      expect(formatWireAge(179000), '2m');
+      expect(formatWireAge(59 * 60000), '59m');
+      expect(formatWireAge(60 * 60000), '1h');
+      expect(formatWireAge(119 * 60000), '1h');
+    });
+  });
+}
