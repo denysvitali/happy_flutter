@@ -667,7 +667,8 @@ void main() {
       expect(find.text('Queued for next turn'), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('queue-next-turn-button')),
-        findsOneWidget,
+        // Follow-up actions stay hidden until the composer has content.
+        findsNothing,
       );
     });
 

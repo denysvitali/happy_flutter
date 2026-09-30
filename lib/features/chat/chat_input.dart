@@ -243,6 +243,15 @@ class _ChatInputState extends ConsumerState<ChatInput>
   late final AnimationController _sendScaleController;
   late final Animation<double> _sendScale;
 
+  Listenable get _sendableListenable => Listenable.merge([
+    widget.controller,
+    if (widget.attachmentController != null) widget.attachmentController!,
+  ]);
+
+  bool get _showFollowUpActions =>
+      widget.onQueueNextTurn != null &&
+      (_hasSendableContent || widget.isSending);
+
   bool get _hasSendableContent {
     return widget.controller.text.trim().isNotEmpty ||
         (widget.attachmentController?.isNotEmpty ?? false);
@@ -807,85 +816,71 @@ class _ChatInputState extends ConsumerState<ChatInput>
                         onTap: _onDictationTap,
                       ),
               ),
-              if (widget.onQueueNextTurn == null)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    left: AppSpacing.xxs,
-                    right: AppSpacing.xsm,
-                  ),
-                  child: ListenableBuilder(
-                    listenable: Listenable.merge([
-                      widget.controller,
-                      if (widget.attachmentController != null)
-                        widget.attachmentController!,
-                    ]),
-                    builder: (context, _) => SendButton(
+              ListenableBuilder(
+                listenable: _sendableListenable,
+                builder: (context, _) {
+                  // Active Codex turns move send into the follow-up row once
+                  // there is something to send; an empty composer keeps the
+                  // plain round button so no grey action slab lingers.
+                  if (_showFollowUpActions) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                      left: AppSpacing.xxs,
+                      right: AppSpacing.xsm,
+                    ),
+                    child: SendButton(
                       isSending: widget.isSending,
                       isSendDisabled:
                           widget.isSendDisabled || !_hasSendableContent,
                       onTap: _onSendTap,
                       scaleAnimation: _sendScale,
                       lastDeliveryStatus: widget.lastDeliveryStatus,
-                      actionLabel: widget.onQueueNextTurn == null
-                          ? null
-                          : context.l10n.chatUpdateCurrentTurn,
                     ),
-                  ),
-                ),
+                  );
+                },
+              ),
             ],
           ),
-          if (widget.onQueueNextTurn != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-              child: Wrap(
-                key: const ValueKey('chat-follow-up-actions'),
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xxs,
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: AppSpacing.xxs),
-                    child: ListenableBuilder(
-                      listenable: Listenable.merge([
-                        widget.controller,
-                        if (widget.attachmentController != null)
-                          widget.attachmentController!,
-                      ]),
-                      builder: (context, _) => SendButton(
-                        isSending: widget.isSending,
-                        isSendDisabled:
-                            widget.isSendDisabled || !_hasSendableContent,
-                        onTap: _onSendTap,
-                        scaleAnimation: _sendScale,
-                        lastDeliveryStatus: widget.lastDeliveryStatus,
-                        actionLabel: widget.onQueueNextTurn == null
-                            ? null
-                            : context.l10n.chatUpdateCurrentTurn,
+          ListenableBuilder(
+            listenable: _sendableListenable,
+            builder: (context, _) => AnimatedSize(
+              duration: AppMotion.duration(context, AppDuration.fast),
+              curve: AppCurve.standard,
+              alignment: Alignment.topCenter,
+              child: !_showFollowUpActions
+                  ? const SizedBox(width: double.infinity)
+                  : Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.sm,
+                        0,
+                        AppSpacing.sm,
+                        AppSpacing.xs,
+                      ),
+                      child: Wrap(
+                        key: const ValueKey('chat-follow-up-actions'),
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        alignment: WrapAlignment.end,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          QueueNextTurnButton(
+                            isDisabled:
+                                widget.isSendDisabled || widget.isSending,
+                            onTap: _onQueueNextTurnTap,
+                          ),
+                          SendButton(
+                            isSending: widget.isSending,
+                            isSendDisabled: widget.isSendDisabled,
+                            onTap: _onSendTap,
+                            scaleAnimation: _sendScale,
+                            lastDeliveryStatus: widget.lastDeliveryStatus,
+                            actionLabel: context.l10n.chatUpdateCurrentTurn,
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  if (widget.onQueueNextTurn != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: AppSpacing.xxs),
-                      child: ListenableBuilder(
-                        listenable: Listenable.merge([
-                          widget.controller,
-                          if (widget.attachmentController != null)
-                            widget.attachmentController!,
-                        ]),
-                        builder: (context, _) => QueueNextTurnButton(
-                          isDisabled:
-                              widget.isSendDisabled ||
-                              widget.isSending ||
-                              !_hasSendableContent,
-                          onTap: _onQueueNextTurnTap,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
             ),
+          ),
           _buildSelectorRow(context, cs),
         ],
       ),

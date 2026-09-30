@@ -19,6 +19,61 @@ const kCheckMorphDuration = AppDuration.normal;
 // How long the checkmark stays visible before reverting.
 const kCheckHoldDuration = AppDuration.slower;
 
+/// Shared compact pill style for the active-turn follow-up actions, so
+/// "Queue for next turn" and "Update current turn" read as one pair.
+ButtonStyle followUpActionStyle(BuildContext context, {required bool primary}) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+  final disabled = cs.onSurface.withValues(
+    alpha: AppMotion.disabledContentOpacity,
+  );
+  return ButtonStyle(
+    minimumSize: const WidgetStatePropertyAll(Size(0, 32)),
+    padding: const WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: AppSpacing.smd),
+    ),
+    visualDensity: VisualDensity.compact,
+    tapTargetSize: MaterialTapTargetSize.padded,
+    shape: const WidgetStatePropertyAll(StadiumBorder()),
+    iconSize: const WidgetStatePropertyAll(AppIconSize.md),
+    textStyle: WidgetStatePropertyAll(
+      theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+    ),
+    foregroundColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled)
+          ? disabled
+          : primary
+          ? Colors.white
+          : cs.primary,
+    ),
+    iconColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled)
+          ? disabled
+          : primary
+          ? Colors.white
+          : cs.primary,
+    ),
+    backgroundColor: WidgetStateProperty.resolveWith(
+      (states) => !primary
+          ? Colors.transparent
+          : states.contains(WidgetState.disabled)
+          ? cs.onSurface.withValues(alpha: 0.06)
+          : cs.primary,
+    ),
+    side: WidgetStateProperty.resolveWith(
+      (states) => primary
+          ? BorderSide.none
+          : BorderSide(
+              color: states.contains(WidgetState.disabled)
+                  ? cs.outlineVariant.withValues(alpha: 0.4)
+                  : cs.primary.withValues(alpha: 0.5),
+              width: AppBorder.hairline,
+            ),
+    ),
+    elevation: const WidgetStatePropertyAll(0),
+  );
+}
+
 /// Explicit Codex follow-up action shown while a turn is active.
 ///
 /// Unlike the primary send button, this asks the daemon to retain the
@@ -35,7 +90,6 @@ class QueueNextTurnButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final label = context.l10n.chatQueueNextTurn;
     final enabled = !isDisabled;
     return Semantics(
@@ -48,27 +102,11 @@ class QueueNextTurnButton extends StatelessWidget {
       excludeSemantics: true,
       child: Tooltip(
         message: label,
-        child: TextButton.icon(
+        child: OutlinedButton.icon(
           onPressed: enabled ? onTap : null,
-          style: TextButton.styleFrom(
-            minimumSize: const Size(0, AppTouchTarget.min),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            foregroundColor: cs.secondary,
-            backgroundColor: enabled
-                ? cs.secondaryContainer.withValues(alpha: 0.35)
-                : Colors.transparent,
-            disabledForegroundColor: cs.onSurface.withValues(
-              alpha: AppMotion.disabledContentOpacity,
-            ),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          icon: const Icon(Icons.schedule_send_rounded, size: AppIconSize.md),
-          label: Text(
-            context.l10n.chatQueueNextTurn,
-            style: Theme.of(
-              context,
-            ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
+          style: followUpActionStyle(context, primary: false),
+          icon: const Icon(Icons.schedule_send_rounded),
+          label: Text(label),
         ),
       ),
     );
@@ -272,27 +310,16 @@ class _SendButtonState extends State<SendButton>
       child: Tooltip(
         message: semanticLabel,
         child: widget.actionLabel != null
-            ? FilledButton.tonalIcon(
+            ? FilledButton.icon(
                 onPressed: canSend ? widget.onTap : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, AppTouchTarget.min),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                  ),
-                  textStyle: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+                style: followUpActionStyle(context, primary: true),
                 icon: widget.isSending
-                    ? const SizedBox(
-                        width: AppIconSize.md,
-                        height: AppIconSize.md,
+                    ? const SizedBox.square(
+                        dimension: AppIconSize.sm,
                         child: AppCircularProgressIndicator(strokeWidth: 2),
                       )
                     : Icon(
                         showCheck ? Icons.check_rounded : Icons.send_rounded,
-                        size: AppIconSize.sm,
                       ),
                 label: Text(
                   widget.isSending

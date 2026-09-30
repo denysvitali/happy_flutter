@@ -399,6 +399,8 @@ void main() {
       ),
     );
     await tester.pump();
+    // The follow-up row animates in.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(
       tester.getSize(composerCard).height,
