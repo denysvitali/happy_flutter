@@ -15,12 +15,27 @@ import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
 
+/// A shortcut promoted into the top of the session menu, used for app bar
+/// actions that do not fit inline on phone widths.
+class SessionMenuShortcut {
+  const SessionMenuShortcut({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+}
+
 /// Shows a modal bottom sheet with session actions (settings, stop,
 /// delete).
 void showSessionMenu(
   BuildContext outerContext, {
   required String sessionId,
   required VoidCallback onAbort,
+  List<SessionMenuShortcut> shortcuts = const [],
 }) {
   final l10n = outerContext.l10n;
   final cs = Theme.of(outerContext).colorScheme;
@@ -63,6 +78,17 @@ void showSessionMenu(
                     ),
                   ),
                 ),
+                for (final shortcut in shortcuts)
+                  ListTile(
+                    leading: Icon(shortcut.icon, color: cs.onSurfaceVariant),
+                    title: Text(shortcut.label),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.pop(sheetContext);
+                      shortcut.onTap();
+                    },
+                  ),
+                if (shortcuts.isNotEmpty) const Divider(),
                 ListTile(
                   leading: Icon(
                     Icons.folder_open_outlined,

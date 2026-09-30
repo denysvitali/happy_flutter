@@ -95,15 +95,15 @@ class ThinkingStopBar extends StatelessWidget {
     // Short panes shed the capsule's floating margin and inner padding: the
     // bar still sits between the list and the composer with the same Stop
     // affordance, it just stops costing a full touch target of margin.
-    final dense = ChatChromeScope.of(context).isDense;
+    final dense = chatChromeIsSlim(context);
 
     return Semantics(
       liveRegion: true,
       container: true,
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: dense ? 0 : AppSpacing.xs,
+          horizontal: dense ? AppSpacing.md : AppSpacing.lg,
+          vertical: dense ? 1 : AppSpacing.xs,
         ),
         child: Container(
           padding: EdgeInsets.symmetric(
@@ -114,7 +114,7 @@ class ThinkingStopBar extends StatelessWidget {
             color: colorScheme.surfaceContainerLow.withValues(alpha: 0.9),
             borderRadius: BorderRadius.circular(AppRadius.pill),
             border: Border.all(color: glassBorder, width: AppBorder.hairline),
-            boxShadow: AppShadow.floating,
+            boxShadow: dense ? null : AppShadow.floating,
           ),
           child: Row(
             children: [
@@ -167,7 +167,7 @@ class ThinkingStopBar extends StatelessWidget {
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.xxs,
                   ),
-                  minimumSize: const Size(0, AppTouchTarget.min),
+                  minimumSize: Size(0, dense ? 36 : AppTouchTarget.min),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Row(

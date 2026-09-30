@@ -78,3 +78,15 @@ class ChatChromeScope extends InheritedWidget {
   bool updateShouldNotify(ChatChromeScope oldWidget) =>
       density != oldWidget.density;
 }
+
+/// Phone widths below this render the banner chrome in its slim form.
+const double kChatChromeSlimMaxWidth = 480;
+
+/// Whether the task capsule and activity bar should render slim: a short
+/// pane (see [ChatChromeDensity]) or a phone-width pane, where two stacked
+/// floating cards above the composer cost more height than they earn.
+bool chatChromeIsSlim(BuildContext context) {
+  if (ChatChromeScope.of(context).isDense) return true;
+  final media = MediaQuery.maybeSizeOf(context);
+  return media != null && media.width < kChatChromeSlimMaxWidth;
+}

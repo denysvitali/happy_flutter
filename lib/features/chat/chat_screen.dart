@@ -2036,6 +2036,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         context,
         sessionId: widget.sessionId,
         onAbort: _abortSession,
+        shortcuts: chatAppBarIsCompact(context)
+            ? [
+                if (_buildMachineVitals() case final vitals?)
+                  SessionMenuShortcut(
+                    icon: Icons.monitor_heart_outlined,
+                    label: 'Machine health',
+                    onTap: () => showMachineVitalsSheet(context, vitals),
+                  ),
+                SessionMenuShortcut(
+                  icon: Icons.search_rounded,
+                  label: context.l10n.chatSearchMessages,
+                  onTap: _openSearch,
+                ),
+              ]
+            : const [],
       ),
       onBackTap: widget.onBack,
       onSearchTap: _openSearch,

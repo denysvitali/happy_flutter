@@ -63,6 +63,7 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    final compact = chatAppBarIsCompact(context);
     // Aurora glass chrome: near-opaque surface with a hairline glass seam so
     // content scrolling beneath reads through without a hard elevation step.
     return AppBar(
@@ -92,8 +93,11 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 progress: AgentsListSheet.computeTaskProgress(sessionId),
                 sessionId: sessionId,
               ),
-              if (machineVitals != null) _VitalsButton(vitals: machineVitals!),
-              if (onSearchTap != null)
+              // Phone widths keep agents + more inline; vitals and search move
+              // into the more-menu (see [chatAppBarIsCompact]).
+              if (machineVitals != null && !compact)
+                _VitalsButton(vitals: machineVitals!),
+              if (onSearchTap != null && !compact)
                 _AppBarAction(
                   icon: Icons.search_rounded,
                   tooltip: context.l10n.chatSearchMessages,
@@ -102,7 +106,7 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
               // On phone widths the title already opens session info on tap;
               // dropping this action hands its width back to the title so the
               // session name and status chips are not squeezed to "Asse…".
-              if (MediaQuery.sizeOf(context).width >= _kInfoActionMinWidth)
+              if (!compact)
                 _AppBarAction(
                   icon: Icons.info_outline_rounded,
                   tooltip: context.l10n.chatSessionSettings,
@@ -187,8 +191,18 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 }
 
-/// Below this width the info action is redundant with the tappable title.
+/// Below this width the info action is redundant with the tappable title and
+/// search / vitals move into the more-menu so the title keeps its width.
 const double _kInfoActionMinWidth = 480;
+
+/// Whether the app bar is on a phone-width layout that keeps only the agents
+/// and more actions inline.
+bool chatAppBarIsCompact(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < _kInfoActionMinWidth;
+
+/// Opens the machine health sheet (also reachable from the more-menu).
+void showMachineVitalsSheet(BuildContext context, ChatMachineVitals vitals) =>
+    _VitalsButton(vitals: vitals)._showDetails(context);
 
 /// Animates the session title and status row into view with a
 /// delayed parallax effect that complements the Hero avatar flight.

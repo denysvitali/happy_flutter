@@ -58,7 +58,7 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     // A short pane cannot afford the two-line header, the 32 px tile and the
     // segmented meter — see ChatChromeDensity. The dense form keeps the same
     // tap-to-expand row and "View all" link, just on one line.
-    final dense = ChatChromeScope.of(context).isDense;
+    final dense = chatChromeIsSlim(context);
 
     // Aurora glass dock: a floating capsule above the composer instead of a
     // full-width slab, so the composer stays the hero and progress reads as
@@ -67,7 +67,7 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: dense ? AppSpacing.xxs : AppSpacing.xs,
+        vertical: dense ? 1 : AppSpacing.xs,
       ),
       child: Material(
         color: cs.surfaceContainerLow.withValues(alpha: 0.92),
@@ -75,7 +75,7 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
           borderRadius: BorderRadius.circular(AppRadius.xl),
           side: BorderSide(color: appCs.glassBorder, width: AppBorder.hairline),
         ),
-        elevation: AppElevation.low,
+        elevation: dense ? 0 : AppElevation.low,
         shadowColor: Colors.black.withValues(alpha: 0.24),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -164,9 +164,7 @@ class _Header extends StatelessWidget {
                 onTap: onTap,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    minHeight: dense
-                        ? AppTouchTarget.min
-                        : AppTouchTarget.comfortable,
+                    minHeight: dense ? 40 : AppTouchTarget.comfortable,
                   ),
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
@@ -196,7 +194,7 @@ class _Header extends StatelessWidget {
           style: TextButton.styleFrom(
             foregroundColor: cs.primary,
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            minimumSize: const Size(0, AppTouchTarget.min),
+            minimumSize: Size(0, dense ? 40 : AppTouchTarget.min),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             textStyle: theme.textTheme.labelMedium?.copyWith(
               fontWeight: FontWeight.w600,
