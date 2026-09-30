@@ -31,7 +31,7 @@ void main() {
       ),
     );
     final label = tester.widget<Text>(find.text('GLM-5'));
-    expect(label.style?.fontSize, greaterThanOrEqualTo(12));
+    expect(label.style?.fontSize, greaterThanOrEqualTo(11));
     expect(find.bySemanticsLabel(RegExp(r'^Model: GLM-5')), findsOneWidget);
   });
 
