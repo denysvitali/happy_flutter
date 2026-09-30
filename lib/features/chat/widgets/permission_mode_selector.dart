@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/i18n/app_localizations.dart';
-import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'composer_selector_chip.dart';
@@ -162,6 +161,30 @@ extension PermissionModeExtension on PermissionMode {
     }
   }
 
+  /// True when the agent may run tools or edit files without asking.
+  bool get skipsConfirmation =>
+      this == PermissionMode.bypassPermissions || this == PermissionMode.yolo;
+
+  /// Short, self-explanatory approval-policy value for the composer chip.
+  String composerApprovalLabel(AppLocalizations l10n) {
+    switch (this) {
+      case PermissionMode.defaultMode:
+        return l10n.composerApprovalsAsk;
+      case PermissionMode.acceptEdits:
+        return l10n.composerApprovalsAutoEdits;
+      case PermissionMode.plan:
+        return l10n.composerApprovalsPlan;
+      case PermissionMode.bypassPermissions:
+        return l10n.composerApprovalsNoApprovals;
+      case PermissionMode.yolo:
+        return l10n.composerApprovalsFullAccess;
+      case PermissionMode.readOnly:
+        return l10n.composerApprovalsReadOnly;
+      case PermissionMode.safeYolo:
+        return l10n.composerApprovalsSandboxed;
+    }
+  }
+
   /// Check if this is a Claude/AGY compatible mode
   bool get isClaudeAgyMode {
     return this == PermissionMode.defaultMode ||
@@ -254,34 +277,23 @@ class PermissionModeSelector extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMode = selectedMode ?? PermissionMode.defaultMode;
-    final cs = Theme.of(context).colorScheme;
-    final isDefault = currentMode == PermissionMode.defaultMode;
     final l10n = AppLocalizations.of(context);
-    final displayLabel = isDefault
-        ? 'Permissions'
-        : currentMode.localizedDisplayName(l10n);
+    final risky = currentMode.skipsConfirmation;
 
     return Semantics(
       button: true,
       enabled: enabled,
-      label: 'Permission mode: ${currentMode.localizedDisplayName(l10n)}',
+      label:
+          '${l10n.composerApprovalsLabel}: '
+          '${currentMode.composerApprovalLabel(l10n)}',
+      excludeSemantics: true,
       child: ComposerSelectorChip(
         onTap: enabled ? () => _showModeSheet(context) : null,
         width: width,
-        icon: currentMode.icon,
-        label: displayLabel,
-        foreground: isDefault ? cs.onSurfaceVariant : currentMode.color,
-        background: isDefault
-            ? cs.onSurface.withValues(alpha: 0.05)
-            : currentMode.color.withValues(alpha: 0.1),
-        borderColor: isDefault
-            ? (Theme.of(context).extension<AppColorScheme>() ??
-                      AppColorScheme.dark())
-                  .glassBorder
-            : currentMode.color.withValues(alpha: 0.35),
-        chevronColor: isDefault
-            ? cs.onSurfaceVariant.withValues(alpha: 0.5)
-            : currentMode.color.withValues(alpha: 0.6),
+        label: currentMode.composerApprovalLabel(l10n),
+        // The high-risk state stays visible and distinct at every width.
+        icon: risky ? Icons.warning_amber_rounded : null,
+        warning: risky,
       ),
     );
   }

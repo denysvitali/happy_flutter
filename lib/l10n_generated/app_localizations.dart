@@ -2633,6 +2633,78 @@ abstract class AppLocalizations {
   /// **'Send'**
   String get chatSend;
 
+  /// No description provided for @chatSendMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Send message'**
+  String get chatSendMessage;
+
+  /// No description provided for @chatDictateMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictate message'**
+  String get chatDictateMessage;
+
+  /// No description provided for @chatStopDictation.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop dictation'**
+  String get chatStopDictation;
+
+  /// No description provided for @composerModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get composerModelLabel;
+
+  /// No description provided for @composerApprovalsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Approvals'**
+  String get composerApprovalsLabel;
+
+  /// No description provided for @composerApprovalsAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get composerApprovalsAsk;
+
+  /// No description provided for @composerApprovalsAutoEdits.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto edits'**
+  String get composerApprovalsAutoEdits;
+
+  /// No description provided for @composerApprovalsPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get composerApprovalsPlan;
+
+  /// No description provided for @composerApprovalsNoApprovals.
+  ///
+  /// In en, this message translates to:
+  /// **'No approvals'**
+  String get composerApprovalsNoApprovals;
+
+  /// No description provided for @composerApprovalsFullAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Full access'**
+  String get composerApprovalsFullAccess;
+
+  /// No description provided for @composerApprovalsReadOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only'**
+  String get composerApprovalsReadOnly;
+
+  /// No description provided for @composerApprovalsSandboxed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sandboxed'**
+  String get composerApprovalsSandboxed;
+
   /// No description provided for @chatQueueNextTurn.
   ///
   /// In en, this message translates to:
@@ -3416,43 +3488,43 @@ abstract class AppLocalizations {
   /// No description provided for @permissionModeDefaultDesc.
   ///
   /// In en, this message translates to:
-  /// **'Ask for permissions'**
+  /// **'Asks before running tools or editing files'**
   String get permissionModeDefaultDesc;
 
   /// No description provided for @permissionModeAcceptEditsDesc.
   ///
   /// In en, this message translates to:
-  /// **'Auto-approve edits'**
+  /// **'Edits files without asking; asks before other tools'**
   String get permissionModeAcceptEditsDesc;
 
   /// No description provided for @permissionModePlanDesc.
   ///
   /// In en, this message translates to:
-  /// **'Plan before executing'**
+  /// **'Proposes a plan and changes nothing until you approve'**
   String get permissionModePlanDesc;
 
   /// No description provided for @permissionModeBypassDesc.
   ///
   /// In en, this message translates to:
-  /// **'Skip all permissions'**
+  /// **'Runs every tool and edit without asking. Use only in trusted workspaces.'**
   String get permissionModeBypassDesc;
 
   /// No description provided for @permissionModeReadOnlyDesc.
   ///
   /// In en, this message translates to:
-  /// **'Read-only mode'**
+  /// **'Reads files; cannot edit files or run changing commands'**
   String get permissionModeReadOnlyDesc;
 
   /// No description provided for @permissionModeSafeYoloDesc.
   ///
   /// In en, this message translates to:
-  /// **'Safe YOLO mode'**
+  /// **'Runs without asking, confined to the workspace sandbox'**
   String get permissionModeSafeYoloDesc;
 
   /// No description provided for @permissionModeYoloDesc.
   ///
   /// In en, this message translates to:
-  /// **'YOLO mode'**
+  /// **'Full access: no sandbox and no confirmations. Use only in trusted workspaces.'**
   String get permissionModeYoloDesc;
 
   /// No description provided for @voiceAssistantActive.
@@ -9349,7 +9421,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatComposerOptions.
   ///
   /// In en, this message translates to:
-  /// **'Composer options'**
+  /// **'Profile and context'**
   String get chatComposerOptions;
 
   /// No description provided for @chatComposerContext.

@@ -1025,7 +1025,7 @@ void main() {
       expect(
         tester.getSemantics(find.byType(SendButton)),
         isSemantics(
-          label: 'Send',
+          label: 'Send message',
           isButton: true,
           hasEnabledState: true,
           isEnabled: false,

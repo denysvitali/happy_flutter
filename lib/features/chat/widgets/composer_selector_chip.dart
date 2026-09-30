@@ -1,52 +1,51 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_color_scheme.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 
-/// Shared metrics for the composer's permission / model / profile chips.
-///
-/// Compact pill: 11sp regular label, 14dp icons. The chevron glyph carries
-/// ~4dp of side bearing, so it sits 2dp after the label.
+/// Shared metrics for the composer's model / approvals / profile selectors.
 abstract final class ComposerChipMetrics {
-  static const double height = 28;
-  static const double paddingStart = AppSpacing.smd;
+  static const double height = 32;
+  static const double paddingStart = AppSpacing.md;
   static const double paddingEnd = AppSpacing.sm;
-  static const double paddingEndNoChevron = AppSpacing.smd;
-  static const double iconSize = AppIconSize.sm;
-  static const double iconLabelGap = AppSpacing.xs;
+  static const double paddingEndNoChevron = AppSpacing.md;
+  static const double iconSize = AppIconSize.md;
+  static const double iconLabelGap = AppSpacing.xsm;
   static const double labelChevronGap = AppSpacing.xxs;
-  static const double chevronSize = AppIconSize.sm;
-  static const double labelFontSize = AppFontSize.xxs;
+  static const double chevronSize = AppIconSize.md;
+  static const double labelFontSize = AppFontSize.sm;
 }
 
-/// Compact pill selector chip used in the chat composer.
+/// Compact, neutral pill showing a composer setting's current value —
+/// e.g. `Ask ▾` or `Opus ▾`; the setting's name lives in its semantics.
 ///
-/// The visual chip is [ComposerChipMetrics.height] tall; the tap target is
-/// expanded to [AppTouchTarget.min]. The ink ripple is clipped to the chip's
-/// pill, not the enlarged hit area.
+/// Routine configuration stays quiet: a hairline outline and a
+/// regular-weight value. Only [warning] states (settings that
+/// let the agent act without confirmation) get color and a leading icon, so
+/// the one setting that deserves attention is the one that stands out.
+///
+/// The visual pill is [ComposerChipMetrics.height] tall; the tap target is
+/// expanded to [AppTouchTarget.min]. The ink ripple is clipped to the pill.
 class ComposerSelectorChip extends StatelessWidget {
   const ComposerSelectorChip({
-    required this.icon,
     required this.label,
-    required this.foreground,
-    required this.background,
-    required this.borderColor,
-    this.chevronColor,
+    this.icon,
+    this.warning = false,
     this.onTap,
     this.width,
     this.labelMaxWidth,
     super.key,
   });
 
-  final IconData icon;
+  /// The current value, e.g. `Opus`.
   final String label;
 
-  /// Icon and label color.
-  final Color foreground;
-  final Color background;
-  final Color borderColor;
+  /// Optional leading icon; shown in [warning] color when [warning].
+  final IconData? icon;
+  final bool warning;
 
-  /// Trailing dropdown chevron color; `null` hides the chevron.
-  final Color? chevronColor;
+  /// Null renders a non-interactive chip without the dropdown chevron.
   final VoidCallback? onTap;
   final double? width;
   final double? labelMaxWidth;
@@ -56,23 +55,39 @@ class ComposerSelectorChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final appCs = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    final enabled = onTap != null;
+
+    final valueColor = warning
+        ? AppColors.warning
+        : enabled
+        ? cs.onSurface
+        : cs.onSurfaceVariant;
+    final mutedColor = warning
+        ? AppColors.warning.withValues(alpha: 0.8)
+        : cs.onSurfaceVariant;
+    final background = warning
+        ? AppColors.warning.withValues(alpha: 0.10)
+        : cs.onSurface.withValues(alpha: 0.04);
+    final borderColor = warning
+        ? AppColors.warning.withValues(alpha: 0.45)
+        : appCs.glassBorder;
+
     // Pin the regular Inter file: the theme binds each weight to its own
     // family, so a weight override alone keeps the medium face and the
     // label reads as bold.
-    final labelStyle = (theme.textTheme.bodySmall ?? const TextStyle())
-        .copyWith(
-          fontFamily: 'Inter_regular',
-          fontSize: ComposerChipMetrics.labelFontSize,
-          fontWeight: FontWeight.w400,
-          letterSpacing: 0.1,
-          height: 1.2,
-          color: foreground,
-        );
-    final hasChevron = chevronColor != null;
+    final base = (theme.textTheme.bodySmall ?? const TextStyle()).copyWith(
+      fontFamily: 'Inter_regular',
+      fontSize: ComposerChipMetrics.labelFontSize,
+      fontWeight: FontWeight.w400,
+      letterSpacing: 0,
+      height: 1.25,
+    );
 
     Widget text = Text(
       label,
-      style: labelStyle,
+      style: base.copyWith(color: valueColor),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textHeightBehavior: const TextHeightBehavior(
@@ -101,23 +116,31 @@ class ComposerSelectorChip extends StatelessWidget {
           width: width,
           height: ComposerChipMetrics.height,
           padding: EdgeInsetsDirectional.only(
-            start: ComposerChipMetrics.paddingStart,
-            end: hasChevron
+            start: icon == null
+                ? ComposerChipMetrics.paddingStart
+                : ComposerChipMetrics.paddingEnd,
+            end: enabled
                 ? ComposerChipMetrics.paddingEnd
                 : ComposerChipMetrics.paddingEndNoChevron,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: ComposerChipMetrics.iconSize, color: foreground),
-              const SizedBox(width: ComposerChipMetrics.iconLabelGap),
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: ComposerChipMetrics.iconSize,
+                  color: valueColor,
+                ),
+                const SizedBox(width: ComposerChipMetrics.iconLabelGap),
+              ],
               text,
-              if (hasChevron) ...[
+              if (enabled) ...[
                 const SizedBox(width: ComposerChipMetrics.labelChevronGap),
                 Icon(
                   Icons.keyboard_arrow_down_rounded,
                   size: ComposerChipMetrics.chevronSize,
-                  color: chevronColor,
+                  color: mutedColor,
                 ),
               ],
             ],
@@ -127,7 +150,7 @@ class ComposerSelectorChip extends StatelessWidget {
     );
 
     // The outer detector widens the hit area to the minimum touch target;
-    // taps on the chip itself are won by the inner InkWell (ripple).
+    // taps on the pill itself are won by the inner InkWell (ripple).
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -138,7 +161,7 @@ class ComposerSelectorChip extends StatelessWidget {
           minWidth: AppTouchTarget.min,
         ),
         // widthFactor/heightFactor keep Align intrinsic-sized so a parent
-        // Wrap places chips on one row; bare Align expands to full width.
+        // Row places chips on one line; bare Align expands to full width.
         child: Align(widthFactor: 1, heightFactor: 1, child: chip),
       ),
     );

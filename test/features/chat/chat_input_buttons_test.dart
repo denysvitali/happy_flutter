@@ -93,7 +93,7 @@ void main() {
       expect(
         node,
         isSemantics(
-          label: 'Send',
+          label: 'Send message',
           isButton: true,
           hasEnabledState: true,
           isEnabled: true,
@@ -143,7 +143,7 @@ void main() {
       expect(
         node,
         isSemantics(
-          label: 'Send',
+          label: 'Send message',
           isButton: true,
           hasEnabledState: true,
           isEnabled: false,

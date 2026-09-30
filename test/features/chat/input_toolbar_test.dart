@@ -85,12 +85,10 @@ void main() {
       ),
       findsNothing,
     );
+    // Routine settings carry no decorative icon.
     expect(
-      find.descendant(
-        of: modelChip,
-        matching: find.byIcon(Icons.smart_toy_outlined),
-      ),
-      findsOneWidget,
+      find.descendant(of: modelChip, matching: find.byType(Icon)),
+      findsNothing,
     );
   });
 
@@ -116,16 +114,16 @@ void main() {
       ),
       findsOneWidget,
     );
+    // The chevron is the only glyph; no decorative model icon.
     expect(
-      find.descendant(
-        of: modelChip,
-        matching: find.byIcon(Icons.auto_awesome_outlined),
-      ),
+      find.descendant(of: modelChip, matching: find.byType(Icon)),
       findsOneWidget,
     );
   });
 
-  testWidgets('codex model sessions use the reasoning icon', (tester) async {
+  testWidgets('codex model chips show the model without a badge icon', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       wrap(
         InputToolbar(
@@ -146,6 +144,10 @@ void main() {
         of: modelChip,
         matching: find.byIcon(Icons.psychology_alt_outlined),
       ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: modelChip, matching: find.byType(Icon)),
       findsOneWidget,
     );
   });
@@ -192,7 +194,7 @@ void main() {
     );
 
     expect(
-      find.bySemanticsLabel(RegExp(r'Permission mode: Default')),
+      find.bySemanticsLabel(RegExp(r'Approvals: Ask')),
       findsOneWidget,
     );
     expect(find.bySemanticsLabel(RegExp(r'Model: Sonnet')), findsOneWidget);
@@ -201,7 +203,7 @@ void main() {
     final modelSize = tester.getSize(find.byType(ModelChip));
     final profileSize = tester.getSize(find.byType(ProfileChip));
 
-    // Visual chip is dense (~24) but hit target pads to AppTouchTarget.min.
+    // Visual chip is dense (~32) but hit target pads to AppTouchTarget.min.
     expect(modelSize.height, greaterThanOrEqualTo(44));
     expect(profileSize.height, greaterThanOrEqualTo(44));
     expect(modelSize.width, greaterThanOrEqualTo(44));

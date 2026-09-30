@@ -1,8 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
-import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../model_selection_resolver.dart';
@@ -27,40 +28,18 @@ class ModelChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final l10n = context.l10n;
     final isDefault = model == ChatModelMode.defaultModel;
-    final displayLabel = resolvedLabel ?? (isDefault ? 'Model' : model.label);
-    final iconColor = isDefault ? cs.onSurfaceVariant : cs.primary;
-    final chevronColor = isDefault
-        ? cs.onSurfaceVariant.withValues(alpha: 0.65)
-        : cs.primary.withValues(alpha: 0.65);
+    final value =
+        resolvedLabel ??
+        (isDefault ? l10n.chatInputProfileDefault : model.label);
 
     return Semantics(
       button: true,
       enabled: enabled,
-      label: 'Model: ${resolvedLabel ?? model.label}',
-      child: ComposerSelectorChip(
-        onTap: enabled ? onTap : null,
-        icon: model.isCodex
-            ? Icons.psychology_alt_outlined
-            : model.modelSlug == 'opus'
-            ? Icons.diamond_outlined
-            : model.modelSlug == 'sonnet'
-            ? Icons.auto_awesome_outlined
-            : model.modelSlug == 'fable'
-            ? Icons.auto_stories_outlined
-            : Icons.smart_toy_outlined,
-        label: displayLabel,
-        foreground: enabled ? iconColor : iconColor.withValues(alpha: 0.7),
-        background: isDefault
-            ? cs.onSurface.withValues(alpha: 0.05)
-            : cs.primary.withValues(alpha: 0.1),
-        borderColor:
-            (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                .glassBorder,
-        chevronColor: enabled ? chevronColor : null,
-      ),
+      label: '${l10n.composerModelLabel}: ${resolvedLabel ?? model.label}',
+      excludeSemantics: true,
+      child: ComposerSelectorChip(onTap: enabled ? onTap : null, label: value),
     );
   }
 }
@@ -75,12 +54,8 @@ class ProfileChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final isDefault = profile == null;
-    final label =
-        profile?.name ?? AppLocalizations.of(context).chatInputProfileDefault;
-    final displayLabel = isDefault ? 'Profile' : label;
+    final l10n = AppLocalizations.of(context);
+    final label = profile?.name ?? l10n.chatInputProfileDefault;
     // Name alone is not routing — host shows which API the spawn hits.
     final host = profileBackendHost(profile);
     final semanticLabel = host == null
@@ -91,23 +66,13 @@ class ProfileChip extends StatelessWidget {
     return Semantics(
       button: true,
       label: semanticLabel,
+      excludeSemantics: true,
       child: Tooltip(
         message: tooltip,
         child: ComposerSelectorChip(
           onTap: onTap,
-          icon: Icons.swap_horiz_rounded,
-          label: displayLabel,
-          labelMaxWidth: 160,
-          foreground: isDefault ? cs.onSurfaceVariant : cs.tertiary,
-          background: isDefault
-              ? cs.onSurface.withValues(alpha: 0.05)
-              : cs.tertiary.withValues(alpha: 0.1),
-          borderColor:
-              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                  .glassBorder,
-          chevronColor: isDefault
-              ? cs.onSurfaceVariant.withValues(alpha: 0.65)
-              : cs.tertiary.withValues(alpha: 0.65),
+          label: label,
+          labelMaxWidth: 180,
         ),
       ),
     );
@@ -185,6 +150,9 @@ class ContextSizeIndicator extends StatelessWidget {
   }
 }
 
+/// Width of the trailing fade on the scrolling settings lane.
+const double _laneFade = 16;
+
 /// Toolbar row — clean horizontal strip with inline chips.
 class InputToolbar extends StatelessWidget {
   const InputToolbar({
@@ -202,12 +170,7 @@ class InputToolbar extends StatelessWidget {
     this.maxContext,
     this.compact = false,
     this.resolvedModelLabel,
-    this.trailing,
   });
-
-  /// Pinned after the scrolling chip lane (e.g. the expand button), so
-  /// trailing actions stay column-aligned with the input row above.
-  final Widget? trailing;
 
   final perm.PermissionMode? permissionMode;
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
@@ -236,12 +199,16 @@ class InputToolbar extends StatelessWidget {
 
     // Long provider and model names must not split composer controls across
     // two rows. Keep one dense lane and let overflow scroll instead.
+    // Long provider and model names must not split composer controls across
+    // two rows. Keep one dense lane and let overflow scroll instead.
     final lane = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      clipBehavior: Clip.none,
-      padding: EdgeInsets.zero,
+      clipBehavior: Clip.hardEdge,
+      // Room for the fade so chips that fit are never dimmed.
+      padding: const EdgeInsetsDirectional.only(end: _laneFade),
       child: Row(
         children: [
+          // Approvals lead so a high-risk state is never scrolled away.
           if (onPermissionModeChanged != null) ...[
             perm.PermissionModeSelector(
               selectedMode: permissionMode,
@@ -258,12 +225,26 @@ class InputToolbar extends StatelessWidget {
             enabled: availableModels.length > 1 || canRefreshModels,
             onTap: onShowModelPicker,
           ),
-          if (!compact) ...[
+          if (compact)
+            IconButton(
+              key: const ValueKey('composer-options-button'),
+              tooltip: context.l10n.chatComposerOptions,
+              onPressed: () => _showOptions(context),
+              constraints: const BoxConstraints.tightFor(
+                width: AppTouchTarget.min,
+                height: AppTouchTarget.min,
+              ),
+              padding: EdgeInsets.zero,
+              iconSize: AppIconSize.xl,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              icon: const Icon(Icons.tune_rounded),
+            )
+          else ...[
             const SizedBox(width: AppSpacing.xs),
             ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
           ],
           if (!compact && contextSize != null && contextSize! > 0) ...[
-            const SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: AppSpacing.sm),
             ContextSizeIndicator(
               contextSize: contextSize!,
               maxContext: maxContext ?? ContextSizeIndicator.defaultMaxContext,
@@ -272,31 +253,15 @@ class InputToolbar extends StatelessWidget {
         ],
       ),
     );
-    return Row(
-      children: [
-        Expanded(child: lane),
-        // Trailing icons use the same 48dp column as the input row's mic
-        // and send buttons so they sit directly beneath them.
-        if (compact)
-          IconButton(
-            key: const ValueKey('composer-options-button'),
-            tooltip: context.l10n.chatComposerOptions,
-            onPressed: () => _showOptions(context),
-            constraints: const BoxConstraints.tightFor(
-              width: AppTouchTarget.min,
-              height: AppTouchTarget.min,
-            ),
-            padding: EdgeInsets.zero,
-            iconSize: AppIconSize.xl,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            icon: const Icon(Icons.tune_rounded),
-          ),
-        if (trailing != null) ...[
-          // Matches the input row's mic → send spacing.
-          const SizedBox(width: AppSpacing.xxs),
-          trailing!,
-        ],
-      ],
+    // Overflowing settings fade out at the trailing edge instead of being
+    // cut mid-glyph against the expand button.
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (rect) => LinearGradient(
+        colors: const [Colors.black, Colors.black, Colors.transparent],
+        stops: [0, math.max(0, (rect.width - _laneFade) / rect.width), 1],
+      ).createShader(rect),
+      child: lane,
     );
   }
 

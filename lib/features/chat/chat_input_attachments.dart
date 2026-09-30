@@ -100,34 +100,19 @@ class _AttachButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final label = AppLocalizations.of(context).chatAttachImage;
-    return Semantics(
-      button: true,
-      label: label,
-      child: Tooltip(
-        message: label,
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: SizedBox.square(
-            dimension: AppTouchTarget.min,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SizedBox.square(
-                dimension: 36,
-                child: Center(
-                  child: Icon(
-                    Icons.add_rounded,
-                    color: colorScheme.onSurfaceVariant,
-                    size: AppIconSize.xxl,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+    return IconButton(
+      key: const ValueKey<String>('composer-attach-button'),
+      onPressed: onTap,
+      tooltip: label,
+      constraints: const BoxConstraints.tightFor(
+        width: AppTouchTarget.min,
+        height: AppTouchTarget.min,
       ),
+      padding: EdgeInsets.zero,
+      iconSize: AppIconSize.xl,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      icon: const Icon(Icons.add_photo_alternate_outlined),
     );
   }
 }
@@ -211,13 +196,14 @@ class _DictationButton extends StatelessWidget {
         : colorScheme.onSurfaceVariant;
     final busy = isTranscribing || isDownloadingModel;
     final progressLabel = downloadProgress?.label;
+    final l10n = AppLocalizations.of(context);
     final label = isRecording
-        ? 'Stop dictation'
+        ? l10n.chatStopDictation
         : isDownloadingModel
         ? (progressLabel ?? 'Downloading model')
         : isTranscribing
         ? 'Transcribing'
-        : 'Start dictation';
+        : l10n.chatDictateMessage;
 
     return Semantics(
       button: true,
@@ -244,7 +230,7 @@ class _DictationButton extends StatelessWidget {
                   : Icon(
                       isRecording ? Icons.stop_rounded : Icons.mic_none_rounded,
                       color: color,
-                      size: AppIconSize.xxl,
+                      size: AppIconSize.xl,
                     ),
             ),
           ),

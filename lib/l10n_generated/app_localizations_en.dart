@@ -1424,6 +1424,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSend => 'Send';
 
   @override
+  String get chatSendMessage => 'Send message';
+
+  @override
+  String get chatDictateMessage => 'Dictate message';
+
+  @override
+  String get chatStopDictation => 'Stop dictation';
+
+  @override
+  String get composerModelLabel => 'Model';
+
+  @override
+  String get composerApprovalsLabel => 'Approvals';
+
+  @override
+  String get composerApprovalsAsk => 'Ask';
+
+  @override
+  String get composerApprovalsAutoEdits => 'Auto edits';
+
+  @override
+  String get composerApprovalsPlan => 'Plan';
+
+  @override
+  String get composerApprovalsNoApprovals => 'No approvals';
+
+  @override
+  String get composerApprovalsFullAccess => 'Full access';
+
+  @override
+  String get composerApprovalsReadOnly => 'Read-only';
+
+  @override
+  String get composerApprovalsSandboxed => 'Sandboxed';
+
+  @override
   String get chatQueueNextTurn => 'Queue for next turn';
 
   @override
@@ -1835,25 +1871,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionModeYolo => 'YOLO';
 
   @override
-  String get permissionModeDefaultDesc => 'Ask for permissions';
+  String get permissionModeDefaultDesc =>
+      'Asks before running tools or editing files';
 
   @override
-  String get permissionModeAcceptEditsDesc => 'Auto-approve edits';
+  String get permissionModeAcceptEditsDesc =>
+      'Edits files without asking; asks before other tools';
 
   @override
-  String get permissionModePlanDesc => 'Plan before executing';
+  String get permissionModePlanDesc =>
+      'Proposes a plan and changes nothing until you approve';
 
   @override
-  String get permissionModeBypassDesc => 'Skip all permissions';
+  String get permissionModeBypassDesc =>
+      'Runs every tool and edit without asking. Use only in trusted workspaces.';
 
   @override
-  String get permissionModeReadOnlyDesc => 'Read-only mode';
+  String get permissionModeReadOnlyDesc =>
+      'Reads files; cannot edit files or run changing commands';
 
   @override
-  String get permissionModeSafeYoloDesc => 'Safe YOLO mode';
+  String get permissionModeSafeYoloDesc =>
+      'Runs without asking, confined to the workspace sandbox';
 
   @override
-  String get permissionModeYoloDesc => 'YOLO mode';
+  String get permissionModeYoloDesc =>
+      'Full access: no sandbox and no confirmations. Use only in trusted workspaces.';
 
   @override
   String get voiceAssistantActive => 'Voice assistant active';
@@ -5360,7 +5403,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatReviewNoAnswer => 'No final answer recorded for this turn.';
 
   @override
-  String get chatComposerOptions => 'Composer options';
+  String get chatComposerOptions => 'Profile and context';
 
   @override
   String get chatComposerContext => 'Context usage';

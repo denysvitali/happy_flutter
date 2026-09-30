@@ -175,8 +175,11 @@ class ExpandComposerButton extends StatelessWidget {
         height: AppTouchTarget.min,
       ),
       padding: EdgeInsets.zero,
-      iconSize: AppIconSize.xl,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      // Quieter than send: small glyph, muted color.
+      iconSize: AppIconSize.md,
+      color: Theme.of(
+        context,
+      ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
       icon: const Icon(Icons.open_in_full_rounded),
     );
   }

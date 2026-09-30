@@ -203,22 +203,19 @@ class _SendButtonState extends State<SendButton>
         ? l10n.chatSending
         : showCheck
         ? l10n.chatSent
-        : widget.actionLabel ?? l10n.chatSend;
+        : widget.actionLabel ?? l10n.chatSendMessage;
 
     final icon = ScaleTransition(
       scale: widget.scaleAnimation,
       child: AnimatedContainer(
         duration: AppMotion.duration(context, kBorderAnimDuration),
-        width: 32,
-        height: 32,
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: isActive ? appCs.accentLinearGradient : null,
-          color: isActive
-              ? null
-              : cs.onSurface.withValues(
-                  alpha: AppMotion.disabledContainerOpacity,
-                ),
+          // Empty draft: inactive but still recognizably Send.
+          color: isActive ? null : cs.onSurface.withValues(alpha: 0.08),
           boxShadow: isActive
               ? AppElevationShadow.interactive(theme.brightness)
               : null,
@@ -244,7 +241,7 @@ class _SendButtonState extends State<SendButton>
                   key: const ValueKey('check'),
                   Icons.check_rounded,
                   size: AppIconSize.lg,
-                  color: cs.onPrimary,
+                  color: Colors.white,
                 )
               : widget.isSending
               ? Padding(
@@ -252,7 +249,7 @@ class _SendButtonState extends State<SendButton>
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   child: AppCircularProgressIndicator(
                     strokeWidth: AppBorder.thin,
-                    color: cs.onPrimary,
+                    color: Colors.white,
                   ),
                 )
               : Icon(
@@ -260,10 +257,8 @@ class _SendButtonState extends State<SendButton>
                   Icons.arrow_upward_rounded,
                   size: AppIconSize.lg,
                   color: canSend
-                      ? cs.onPrimary
-                      : cs.onSurface.withValues(
-                          alpha: AppMotion.disabledContentOpacity,
-                        ),
+                      ? Colors.white
+                      : cs.onSurfaceVariant.withValues(alpha: 0.7),
                 ),
         ),
       ),

@@ -692,15 +692,8 @@ class _ChatInputState extends ConsumerState<ChatInput>
     final colorScheme = Theme.of(context).colorScheme;
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-            width: AppBorder.hairline,
-          ),
-        ),
-      ),
+      // No top rule: the composer card is the single boundary.
+      decoration: BoxDecoration(color: colorScheme.surface),
       child: SafeArea(
         top: false,
         child: Center(
@@ -755,9 +748,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
                   : cs.outlineVariant.withValues(alpha: AppOpacity.medium),
               width: isFocused ? AppBorder.thin : AppBorder.hairline,
             ),
+            // Resting: one hairline boundary. Focused: accent border + lift.
             boxShadow: isFocused
                 ? AppElevationShadow.floating(Theme.of(context).brightness)
-                : AppElevationShadow.card(Theme.of(context).brightness),
+                : null,
           ),
           child: child,
         );
@@ -765,17 +759,13 @@ class _ChatInputState extends ConsumerState<ChatInput>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.attachmentController != null)
-            _buildAttachmentStrip(context),
+          // Writing area first: the draft is the primary content with a
+          // clean left edge; dictate and send sit at its trailing edge and
+          // never move as the draft grows or attachments appear.
           Row(
             key: const ValueKey<String>('chat-composer-input-row'),
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (widget.attachmentController != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: AppSpacing.xs),
-                  child: _AttachButton(onTap: _onAttachTap),
-                ),
               Expanded(
                 child: _isDownloadingModel
                     ? ValueListenableBuilder<
@@ -791,145 +781,140 @@ class _ChatInputState extends ConsumerState<ChatInput>
                     : _buildTextField(context),
               ),
               Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.xs),
-                child: _isDownloadingModel
-                    ? ValueListenableBuilder<
-                        Map<String, OfflineSttDownloadProgress>
-                      >(
-                        valueListenable: _dictationService.progress,
-                        builder: (context, progressMap, _) {
-                          final p =
-                              progressMap[_dictationService.selectedModelId];
-                          return _DictationButton(
-                            isRecording: _isRecording,
-                            isTranscribing: _isTranscribing,
-                            isDownloadingModel: true,
-                            downloadProgress: p,
-                            onTap: _onDictationTap,
-                          );
-                        },
-                      )
-                    : _DictationButton(
-                        isRecording: _isRecording,
-                        isTranscribing: _isTranscribing,
-                        isDownloadingModel: false,
-                        onTap: _onDictationTap,
-                      ),
-              ),
-              ListenableBuilder(
-                listenable: _sendableListenable,
-                builder: (context, _) {
-                  final send = SendButton(
-                    isSending: widget.isSending,
-                    isSendDisabled:
-                        widget.isSendDisabled || !_hasSendableContent,
-                    onTap: _onSendTap,
-                    scaleAnimation: _sendScale,
-                    lastDeliveryStatus: widget.lastDeliveryStatus,
-                    actionLabel: widget.onQueueNextTurn == null
-                        ? null
-                        : context.l10n.chatUpdateCurrentTurn,
-                  );
-                  return Padding(
-                    padding: const EdgeInsets.only(
-                      left: AppSpacing.xxs,
-                      right: AppSpacing.xsm,
-                    ),
-                    // During an active Codex turn the round send button
-                    // steers the running turn; a sibling icon button queues
-                    // the draft for the next turn. Both stay in the input
-                    // row so the composer never grows a second action row.
-                    child: !_showFollowUpActions
-                        ? send
-                        : Row(
-                            key: const ValueKey('chat-follow-up-actions'),
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              QueueNextTurnButton(
-                                isDisabled:
-                                    widget.isSendDisabled ||
-                                    widget.isSending ||
-                                    !_hasSendableContent,
-                                onTap: _onQueueNextTurnTap,
-                              ),
-                              send,
-                            ],
-                          ),
-                  );
-                },
+                padding: const EdgeInsets.only(
+                  top: AppSpacing.xxs,
+                  right: AppSpacing.xsm,
+                ),
+                child: _buildPrimaryActions(context),
               ),
             ],
           ),
-          _buildSelectorRow(context, cs),
+          // Attachments sit between the draft and the toolbar.
+          if (widget.attachmentController != null)
+            _buildAttachmentStrip(context),
+          _buildToolbar(context),
         ],
       ),
     );
   }
 
-  /// The composer's second row — permission mode, model, profile, context
-  /// usage, and the full-screen-expand affordance.
+  /// One toolbar under the draft: add, the explicit settings
+  /// (`Approvals: …`, `Model: …`, options) and the expand utility.
   ///
   /// A **tight** chat pane (Android split screen, a short desktop window)
-  /// cannot afford it while the user is reading: two rows of composer plus
-  /// the app bar and the activity chrome cost more than the pane, and the
-  /// transcript is what gets squeezed out. The row therefore folds away when
-  /// the field is idle and empty and returns the moment the field is focused
-  /// or holds content, so every control stays one tap on the message field
-  /// away. Full-height panes always keep it. The fold is intentionally
-  /// unintimated — it coincides with the keyboard's own open/close
-  /// animation, which already moves the field.
-  Widget _buildSelectorRow(BuildContext context, ColorScheme cs) {
+  /// folds only the settings lane while the field is idle and empty; add
+  /// and expand stay reachable.
+  Widget _buildToolbar(BuildContext context) {
     final density = ChatChromeScope.of(context);
-    if (!density.isTight) return _selectorRow(context, cs);
-    return ListenableBuilder(
-      listenable: Listenable.merge([
-        _isFocused,
-        widget.controller,
-        if (widget.attachmentController != null) widget.attachmentController!,
-      ]),
-      builder: (context, _) {
-        if (!_isFocused.value && !_hasSendableContent) {
-          return const SizedBox.shrink();
-        }
-        return _selectorRow(context, cs);
-      },
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxs,
+        0,
+        AppSpacing.xsm,
+        AppSpacing.xxs,
+      ),
+      child: Row(
+        key: const ValueKey<String>('chat-composer-toolbar'),
+        children: [
+          if (widget.attachmentController != null)
+            _AttachButton(onTap: _onAttachTap)
+          else
+            const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: !density.isTight
+                ? _settingsLane(context)
+                : ListenableBuilder(
+                    listenable: Listenable.merge([
+                      _isFocused,
+                      _sendableListenable,
+                    ]),
+                    builder: (context, _) =>
+                        !_isFocused.value && !_hasSendableContent
+                        ? const SizedBox.shrink()
+                        : _settingsLane(context),
+                  ),
+          ),
+          ExpandComposerButton(onTap: _openFullscreenComposer),
+        ],
+      ),
     );
   }
 
-  Widget _selectorRow(BuildContext context, ColorScheme cs) {
-    return Column(
+  /// Dictate and send (plus queue during an active Codex turn).
+  Widget _buildPrimaryActions(BuildContext context) {
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Padding(
-          // Left inset puts the first chip under the attach button's icon;
-          // right inset matches the input row so options/expand sit
-          // directly beneath mic/send.
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.xxs,
-            AppSpacing.xs,
-            AppSpacing.xxs,
-          ),
-          child: InputToolbar(
-            compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
-            permissionMode: widget.permissionMode,
-            onPermissionModeChanged: widget.onPermissionModeChanged,
-            modelMode: widget.modelMode,
-            resolvedModelLabel: widget.resolvedModelLabel,
-            availableModels: widget.availableModels,
-            canRefreshModels: widget.onRefreshModels != null,
-            onShowModelPicker: () => widget.onModelModeChanged != null
-                ? _showModelPicker(context)
-                : null,
-            selectedProfile: widget.selectedProfile,
-            onShowProfilePicker: () => _showProfilePicker(context),
-            contextSize: widget.contextSize,
-            sessionFlavor: widget.sessionFlavor,
-            maxContext: widget.maxContext,
-            trailing: ExpandComposerButton(onTap: _openFullscreenComposer),
-          ),
+        _isDownloadingModel
+            ? ValueListenableBuilder<Map<String, OfflineSttDownloadProgress>>(
+                valueListenable: _dictationService.progress,
+                builder: (context, progressMap, _) => _DictationButton(
+                  isRecording: _isRecording,
+                  isTranscribing: _isTranscribing,
+                  isDownloadingModel: true,
+                  downloadProgress:
+                      progressMap[_dictationService.selectedModelId],
+                  onTap: _onDictationTap,
+                ),
+              )
+            : _DictationButton(
+                isRecording: _isRecording,
+                isTranscribing: _isTranscribing,
+                isDownloadingModel: false,
+                onTap: _onDictationTap,
+              ),
+        ListenableBuilder(
+          listenable: _sendableListenable,
+          builder: (context, _) {
+            final send = SendButton(
+              isSending: widget.isSending,
+              isSendDisabled: widget.isSendDisabled || !_hasSendableContent,
+              onTap: _onSendTap,
+              scaleAnimation: _sendScale,
+              lastDeliveryStatus: widget.lastDeliveryStatus,
+              actionLabel: widget.onQueueNextTurn == null
+                  ? null
+                  : context.l10n.chatUpdateCurrentTurn,
+            );
+            // During an active Codex turn send steers the running turn; a
+            // sibling button queues the draft for the next turn.
+            if (!_showFollowUpActions) return send;
+            return Row(
+              key: const ValueKey('chat-follow-up-actions'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                QueueNextTurnButton(
+                  isDisabled:
+                      widget.isSendDisabled ||
+                      widget.isSending ||
+                      !_hasSendableContent,
+                  onTap: _onQueueNextTurnTap,
+                ),
+                send,
+              ],
+            );
+          },
         ),
       ],
+    );
+  }
+
+  Widget _settingsLane(BuildContext context) {
+    return InputToolbar(
+      compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
+      permissionMode: widget.permissionMode,
+      onPermissionModeChanged: widget.onPermissionModeChanged,
+      modelMode: widget.modelMode,
+      resolvedModelLabel: widget.resolvedModelLabel,
+      availableModels: widget.availableModels,
+      canRefreshModels: widget.onRefreshModels != null,
+      onShowModelPicker: () =>
+          widget.onModelModeChanged != null ? _showModelPicker(context) : null,
+      selectedProfile: widget.selectedProfile,
+      onShowProfilePicker: () => _showProfilePicker(context),
+      contextSize: widget.contextSize,
+      sessionFlavor: widget.sessionFlavor,
+      maxContext: widget.maxContext,
     );
   }
 
@@ -939,8 +924,14 @@ class _ChatInputState extends ConsumerState<ChatInput>
   }) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final hintColor = cs.onSurfaceVariant.withValues(alpha: 0.7);
+    // Full onSurfaceVariant keeps the placeholder above 4.5:1 on the card.
+    final hintColor = cs.onSurfaceVariant;
     final l10n = AppLocalizations.of(context);
+    // The draft is the clearest content in the composer.
+    final draftStyle = theme.textTheme.bodyLarge?.copyWith(
+      color: cs.onSurface,
+      height: 1.45,
+    );
 
     return TextField(
       controller: widget.controller,
@@ -953,21 +944,21 @@ class _ChatInputState extends ConsumerState<ChatInput>
             : _isTranscribing
             ? 'Transcribing...'
             : l10n.chatInputHint,
-        hintStyle: theme.textTheme.bodyMedium?.copyWith(color: hintColor),
+        hintStyle: draftStyle?.copyWith(color: hintColor),
         filled: false,
         isDense: true,
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
         disabledBorder: InputBorder.none,
-        contentPadding: EdgeInsets.fromLTRB(
-          widget.attachmentController == null ? AppSpacing.md : AppSpacing.xs,
-          AppSpacing.xsm,
+        contentPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.md,
+          AppSpacing.xs,
           AppSpacing.sm,
-          AppSpacing.xsm,
         ),
       ),
-      style: theme.textTheme.bodyMedium,
+      style: draftStyle,
       textAlignVertical: TextAlignVertical.center,
       keyboardType: TextInputType.multiline,
       textCapitalization: TextCapitalization.sentences,
