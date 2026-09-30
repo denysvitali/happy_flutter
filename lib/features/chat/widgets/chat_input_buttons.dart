@@ -67,7 +67,7 @@ class QueueNextTurnButton extends StatelessWidget {
             context.l10n.chatQueueNextTurn,
             style: Theme.of(
               context,
-            ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+            ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -272,13 +272,17 @@ class _SendButtonState extends State<SendButton>
       child: Tooltip(
         message: semanticLabel,
         child: widget.actionLabel != null
-            ? FilledButton.icon(
+            ? FilledButton.tonalIcon(
                 onPressed: canSend ? widget.onTap : null,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size(0, AppTouchTarget.min),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
                   ),
+                  textStyle: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 icon: widget.isSending
                     ? const SizedBox(
@@ -288,7 +292,7 @@ class _SendButtonState extends State<SendButton>
                       )
                     : Icon(
                         showCheck ? Icons.check_rounded : Icons.send_rounded,
-                        size: AppIconSize.md,
+                        size: AppIconSize.sm,
                       ),
                 label: Text(
                   widget.isSending

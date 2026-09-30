@@ -99,11 +99,15 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
                   tooltip: context.l10n.chatSearchMessages,
                   onPressed: onSearchTap!,
                 ),
-              _AppBarAction(
-                icon: Icons.info_outline_rounded,
-                tooltip: context.l10n.chatSessionSettings,
-                onPressed: onInfoTap,
-              ),
+              // On phone widths the title already opens session info on tap;
+              // dropping this action hands its width back to the title so the
+              // session name and status chips are not squeezed to "Asse…".
+              if (MediaQuery.sizeOf(context).width >= _kInfoActionMinWidth)
+                _AppBarAction(
+                  icon: Icons.info_outline_rounded,
+                  tooltip: context.l10n.chatSessionSettings,
+                  onPressed: onInfoTap,
+                ),
               _AppBarAction(
                 icon: Icons.more_horiz_rounded,
                 tooltip: context.l10n.chatMoreOptions,
@@ -182,6 +186,9 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
     );
   }
 }
+
+/// Below this width the info action is redundant with the tappable title.
+const double _kInfoActionMinWidth = 480;
 
 /// Animates the session title and status row into view with a
 /// delayed parallax effect that complements the Hero avatar flight.

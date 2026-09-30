@@ -842,12 +842,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.xxs,
                 alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(
-                      left: AppSpacing.xxs,
-                      right: AppSpacing.xsm,
-                    ),
+                    padding: const EdgeInsets.only(left: AppSpacing.xxs),
                     child: ListenableBuilder(
                       listenable: Listenable.merge([
                         widget.controller,
