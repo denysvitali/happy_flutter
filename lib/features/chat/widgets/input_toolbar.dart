@@ -202,7 +202,12 @@ class InputToolbar extends StatelessWidget {
     this.maxContext,
     this.compact = false,
     this.resolvedModelLabel,
+    this.trailing,
   });
+
+  /// Pinned after the scrolling chip lane (e.g. the expand button), so
+  /// trailing actions stay column-aligned with the input row above.
+  final Widget? trailing;
 
   final perm.PermissionMode? permissionMode;
   final ValueChanged<perm.PermissionMode>? onPermissionModeChanged;
@@ -231,7 +236,7 @@ class InputToolbar extends StatelessWidget {
 
     // Long provider and model names must not split composer controls across
     // two rows. Keep one dense lane and let overflow scroll instead.
-    return SingleChildScrollView(
+    final lane = SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       clipBehavior: Clip.none,
       padding: EdgeInsets.zero,
@@ -253,16 +258,10 @@ class InputToolbar extends StatelessWidget {
             enabled: availableModels.length > 1 || canRefreshModels,
             onTap: onShowModelPicker,
           ),
-          const SizedBox(width: AppSpacing.xs),
-          if (compact)
-            IconButton(
-              key: const ValueKey('composer-options-button'),
-              tooltip: context.l10n.chatComposerOptions,
-              onPressed: () => _showOptions(context),
-              icon: const Icon(Icons.tune, size: AppIconSize.lg),
-            )
-          else
+          if (!compact) ...[
+            const SizedBox(width: AppSpacing.xs),
             ProfileChip(profile: selectedProfile, onTap: onShowProfilePicker),
+          ],
           if (!compact && contextSize != null && contextSize! > 0) ...[
             const SizedBox(width: AppSpacing.xs),
             ContextSizeIndicator(
@@ -272,6 +271,32 @@ class InputToolbar extends StatelessWidget {
           ],
         ],
       ),
+    );
+    return Row(
+      children: [
+        Expanded(child: lane),
+        // Trailing icons use the same 48dp column as the input row's mic
+        // and send buttons so they sit directly beneath them.
+        if (compact)
+          IconButton(
+            key: const ValueKey('composer-options-button'),
+            tooltip: context.l10n.chatComposerOptions,
+            onPressed: () => _showOptions(context),
+            constraints: const BoxConstraints.tightFor(
+              width: AppTouchTarget.min,
+              height: AppTouchTarget.min,
+            ),
+            padding: EdgeInsets.zero,
+            iconSize: AppIconSize.xl,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            icon: const Icon(Icons.tune_rounded),
+          ),
+        if (trailing != null) ...[
+          // Matches the input row's mic → send spacing.
+          const SizedBox(width: AppSpacing.xxs),
+          trailing!,
+        ],
+      ],
     );
   }
 

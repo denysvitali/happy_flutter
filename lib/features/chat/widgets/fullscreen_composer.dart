@@ -170,12 +170,12 @@ class ExpandComposerButton extends StatelessWidget {
       key: const ValueKey<String>('expand-composer-button'),
       onPressed: onTap,
       tooltip: label,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(
-        minWidth: AppTouchTarget.min,
-        minHeight: AppTouchTarget.min,
+      constraints: const BoxConstraints.tightFor(
+        width: AppTouchTarget.min,
+        height: AppTouchTarget.min,
       ),
-      iconSize: AppIconSize.md,
+      padding: EdgeInsets.zero,
+      iconSize: AppIconSize.xl,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
       icon: const Icon(Icons.open_in_full_rounded),
     );

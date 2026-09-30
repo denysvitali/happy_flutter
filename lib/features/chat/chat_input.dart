@@ -901,36 +901,32 @@ class _ChatInputState extends ConsumerState<ChatInput>
       mainAxisSize: MainAxisSize.min,
       children: [
         Padding(
+          // Left inset puts the first chip under the attach button's icon;
+          // right inset matches the input row so options/expand sit
+          // directly beneath mic/send.
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xsm,
+            AppSpacing.md,
             AppSpacing.xxs,
             AppSpacing.xs,
             AppSpacing.xxs,
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: InputToolbar(
-                  compact:
-                      MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
-                  permissionMode: widget.permissionMode,
-                  onPermissionModeChanged: widget.onPermissionModeChanged,
-                  modelMode: widget.modelMode,
-                  resolvedModelLabel: widget.resolvedModelLabel,
-                  availableModels: widget.availableModels,
-                  canRefreshModels: widget.onRefreshModels != null,
-                  onShowModelPicker: () => widget.onModelModeChanged != null
-                      ? _showModelPicker(context)
-                      : null,
-                  selectedProfile: widget.selectedProfile,
-                  onShowProfilePicker: () => _showProfilePicker(context),
-                  contextSize: widget.contextSize,
-                  sessionFlavor: widget.sessionFlavor,
-                  maxContext: widget.maxContext,
-                ),
-              ),
-              ExpandComposerButton(onTap: _openFullscreenComposer),
-            ],
+          child: InputToolbar(
+            compact: MediaQuery.sizeOf(context).width < AppBreakpoint.desktop,
+            permissionMode: widget.permissionMode,
+            onPermissionModeChanged: widget.onPermissionModeChanged,
+            modelMode: widget.modelMode,
+            resolvedModelLabel: widget.resolvedModelLabel,
+            availableModels: widget.availableModels,
+            canRefreshModels: widget.onRefreshModels != null,
+            onShowModelPicker: () => widget.onModelModeChanged != null
+                ? _showModelPicker(context)
+                : null,
+            selectedProfile: widget.selectedProfile,
+            onShowProfilePicker: () => _showProfilePicker(context),
+            contextSize: widget.contextSize,
+            sessionFlavor: widget.sessionFlavor,
+            maxContext: widget.maxContext,
+            trailing: ExpandComposerButton(onTap: _openFullscreenComposer),
           ),
         ),
       ],
