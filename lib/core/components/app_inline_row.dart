@@ -135,18 +135,25 @@ class AppInlineAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (iconOnly) {
-      return IconButton(
-        key: buttonKey,
-        tooltip: label,
-        onPressed: onPressed,
-        icon: Icon(icon, size: AppIconSize.md),
-        color: color,
-        constraints: const BoxConstraints.tightFor(
-          width: AppTouchTarget.min,
-          height: AppTouchTarget.min,
-        ),
-        style: IconButton.styleFrom(
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      return Semantics(
+        label: label,
+        button: true,
+        enabled: onPressed != null,
+        onTap: onPressed,
+        excludeSemantics: true,
+        child: IconButton(
+          key: buttonKey,
+          tooltip: label,
+          onPressed: onPressed,
+          icon: Icon(icon, size: AppIconSize.md),
+          color: color,
+          constraints: const BoxConstraints.tightFor(
+            width: AppTouchTarget.min,
+            height: AppTouchTarget.min,
+          ),
+          style: IconButton.styleFrom(
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ),
       );
     }
