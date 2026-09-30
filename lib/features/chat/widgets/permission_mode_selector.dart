@@ -117,7 +117,8 @@ extension PermissionModeExtension on PermissionMode {
       case PermissionMode.safeYolo:
         return AppColors.info;
       case PermissionMode.yolo:
-        return AppColors.permissionUnrestricted;
+        // Same color as Claude's YOLO: one name, one look.
+        return AppColors.permissionBypass;
     }
   }
 
@@ -137,7 +138,8 @@ extension PermissionModeExtension on PermissionMode {
       case PermissionMode.safeYolo:
         return Icons.security_outlined;
       case PermissionMode.yolo:
-        return Icons.rocket_launch_outlined;
+        // Same glyph as Claude's YOLO: one name, one icon.
+        return Icons.flash_on_outlined;
     }
   }
 
@@ -157,7 +159,7 @@ extension PermissionModeExtension on PermissionMode {
       case PermissionMode.safeYolo:
         return 'shield';
       case PermissionMode.yolo:
-        return 'rocket';
+        return 'flash';
     }
   }
 
@@ -272,8 +274,9 @@ class PermissionModeSelector extends ConsumerWidget {
         width: width,
         label: currentMode.localizedDisplayName(l10n),
         // The high-risk state stays visible and distinct at every width.
-        // Same icon and color as the mode in the picker sheet.
-        icon: risky ? currentMode.icon : null,
+        // Same icon as the mode's row in the picker sheet; color only
+        // when the mode skips confirmation.
+        icon: currentMode.icon,
         warning: risky,
         warningColor: currentMode.color,
       ),

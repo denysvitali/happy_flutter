@@ -136,7 +136,7 @@ class ComposerSelectorChip extends StatelessWidget {
                 Icon(
                   icon,
                   size: ComposerChipMetrics.iconSize,
-                  color: valueColor,
+                  color: warning ? accent : cs.onSurfaceVariant,
                 ),
                 const SizedBox(width: ComposerChipMetrics.iconLabelGap),
               ],
