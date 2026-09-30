@@ -697,25 +697,6 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             animateActivity: animateActivity,
             highlighted: highlighted,
           ),
-      onOpenSession: (sessionId) {
-        final session = [
-          ...activeSessions,
-          ...inactiveSessions,
-        ].where((s) => s.id == sessionId).firstOrNull;
-        if (session != null) _navigateToChat(sessionId);
-      },
-      onPeekSession: (sessionId) {
-        final session = [
-          ...activeSessions,
-          ...inactiveSessions,
-        ].where((s) => s.id == sessionId).firstOrNull;
-        if (session == null) return;
-        showSessionPeek(
-          context,
-          session: session,
-          onOpen: () => _navigateToChat(sessionId),
-        );
-      },
       onOpenWorkspace: (header) => _openFolder(header.folderKey, header),
     );
   }

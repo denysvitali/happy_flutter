@@ -15,10 +15,9 @@ import 'workspace_identity.dart';
 /// Compact operational tile used by Mission Control.
 ///
 /// The title owns the full width (wrapping to two lines). Workspace and the
-/// last message or tool call share the detail line, which also wraps to two,
-/// while the lane-specific outcome stays in a trailing pill. The pill
-/// doubles as a mark-read button for unread rows; an overflow menu exposes
-/// pin and snooze triage actions.
+/// last message or tool call share one detail line, while the lane-specific
+/// outcome stays in a trailing pill. The pill doubles as a mark-read button
+/// for unread rows; an overflow menu exposes pin and snooze triage actions.
 class MissionActionRow extends StatelessWidget {
   const MissionActionRow({
     required this.session,
@@ -226,10 +225,12 @@ class MissionActionRow extends StatelessWidget {
                                   Expanded(
                                     child: Text(
                                       detail,
-                                      // The concrete update is the point
-                                      // of a queue row — two lines beat an
-                                      // elided sentence.
-                                      maxLines: 2,
+                                      // The error reason is why the user is
+                                      // looking — one extra line beats an
+                                      // elided diagnosis.
+                                      maxLines: lane == MissionLane.error
+                                          ? 2
+                                          : 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: detailStyle,
                                     ),

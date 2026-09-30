@@ -1173,23 +1173,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get missionControlAllClear => 'All clear';
 
   @override
-  String get missionControlLiveWire => 'Live wire';
-
-  @override
-  String missionControlLiveWireEmpty(int count) {
-    return 'Watching $count streams…';
-  }
-
-  @override
-  String get missionControlWireSent => 'You';
-
-  @override
-  String get missionControlWireDone => 'Finished';
-
-  @override
-  String get missionControlWireJoined => 'Started';
-
-  @override
   String get missionControlPeekQuickLook => 'Quick look';
 
   @override

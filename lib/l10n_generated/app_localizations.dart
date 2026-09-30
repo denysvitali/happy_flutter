@@ -2159,36 +2159,6 @@ abstract class AppLocalizations {
   /// **'All clear'**
   String get missionControlAllClear;
 
-  /// Cross-session chronological activity feed heading
-  ///
-  /// In en, this message translates to:
-  /// **'Live wire'**
-  String get missionControlLiveWire;
-
-  /// Live wire placeholder before any event fires
-  ///
-  /// In en, this message translates to:
-  /// **'Watching {count} streams…'**
-  String missionControlLiveWireEmpty(int count);
-
-  /// Live wire label for a message the user sent from anywhere
-  ///
-  /// In en, this message translates to:
-  /// **'You'**
-  String get missionControlWireSent;
-
-  /// Live wire label for an agent that stopped working cleanly
-  ///
-  /// In en, this message translates to:
-  /// **'Finished'**
-  String get missionControlWireDone;
-
-  /// Live wire label for a session entering the active set
-  ///
-  /// In en, this message translates to:
-  /// **'Started'**
-  String get missionControlWireJoined;
-
   /// Menu item opening the glanceable session preview sheet
   ///
   /// In en, this message translates to:

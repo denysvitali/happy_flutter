@@ -3,7 +3,7 @@
 // Covers every `SessionsListContent` entry point — the legacy list (active
 // cards, archived cards grouped by date and by folder), the folder-centric
 // view (active, recent-archived and older-archived rows), the unread-focus
-// view and Mission Control (focus-queue rows, Live wire rows, the peek
+// view and Mission Control (focus-queue rows, the peek
 // sheet and the workspace drill-in to an archived row). Companion suites:
 // `session_open_contract_screens_test.dart` (tablet master-detail, command
 // palette, notifications, artifacts) and
@@ -25,7 +25,6 @@ import 'package:happy_flutter/features/sessions/widgets/mission_control_workspac
 import 'package:happy_flutter/features/sessions/widgets/session_list_helpers.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_peek_sheet.dart';
 import 'package:happy_flutter/features/sessions/widgets/sessions_list_content.dart';
-import 'package:happy_flutter/features/sessions/widgets/stream_wall.dart';
 
 import '../../helpers/session_open_harness.dart';
 
@@ -272,59 +271,6 @@ void main() {
       await tester.tap(find.text('Open chat'));
       await _settle(tester);
       _expectOpened(h, contractBravoId);
-    });
-
-    testWidgets('live wire row opens the session that joined', (tester) async {
-      final h = await _pumpList(tester, viewStyle: 'mission_control');
-      // The first real update after mounting must produce a joined row.
-      const golfId = 'c0ffee0007';
-      const golfLabel = 'Golf review';
-      final startedAt = DateTime.now().millisecondsSinceEpoch;
-      h.sessions.replace(
-        contractSession(
-          id: golfId,
-          label: golfLabel,
-          presence: 'online',
-          age: const Duration(seconds: 30),
-        ).copyWith(createdAt: startedAt, activeAt: startedAt),
-      );
-      await _settle(tester);
-      final wireRow = find.descendant(
-        of: find.byType(StreamWallSection),
-        matching: find.textContaining(golfLabel, findRichText: true),
-      );
-      expect(wireRow, findsOneWidget);
-      await tester.tap(wireRow);
-      await _settle(tester);
-      _expectOpened(h, golfId);
-    });
-
-    testWidgets('live wire long-press peek opens the peeked id', (
-      tester,
-    ) async {
-      final h = await _pumpList(tester, viewStyle: 'mission_control');
-      const golfId = 'c0ffee0007';
-      const golfLabel = 'Golf review';
-      final startedAt = DateTime.now().millisecondsSinceEpoch;
-      h.sessions.replace(
-        contractSession(
-          id: golfId,
-          label: golfLabel,
-          presence: 'online',
-          age: const Duration(seconds: 30),
-        ).copyWith(createdAt: startedAt, activeAt: startedAt),
-      );
-      await _settle(tester);
-      final wireRow = find.descendant(
-        of: find.byType(StreamWallSection),
-        matching: find.textContaining(golfLabel, findRichText: true),
-      );
-      await tester.longPress(wireRow);
-      await _settle(tester);
-      expect(find.byType(SessionPeekSheet), findsOneWidget);
-      await tester.tap(find.text('Open chat'));
-      await _settle(tester);
-      _expectOpened(h, golfId);
     });
 
     testWidgets('workspace drill-in reaches an archived row by id', (

@@ -17,7 +17,6 @@ import 'mission_control_types.dart';
 import 'mission_control_workspace_list.dart';
 import 'mission_heartbeat.dart';
 import 'session_headers.dart';
-import 'stream_wall.dart';
 
 export 'mission_control_action_tile.dart' show MissionActionRow;
 export 'mission_control_types.dart'
@@ -73,8 +72,6 @@ class MissionControlView extends StatefulWidget {
     this.onTogglePin,
     this.onToggleSnooze,
     this.onToggleMuteFolder,
-    this.onOpenSession,
-    this.onPeekSession,
     this.uiState,
     this.uiProjection,
   }) : assert(uiState != null || uiProjection != null);
@@ -110,14 +107,6 @@ class MissionControlView extends StatefulWidget {
   final void Function(String sessionId, bool snooze)? onToggleSnooze;
   final void Function(String folderKey)? onToggleMuteFolder;
 
-  /// Opens a session's chat from Live wire rows. Null hides the wall —
-  /// rows without navigation would be read-only decoration.
-  final void Function(String sessionId)? onOpenSession;
-
-  /// Opens the glanceable peek sheet for a session (Live wire rows and
-  /// focus-queue triage menus). Null hides those entry points.
-  final void Function(String sessionId)? onPeekSession;
-
   @override
   State<MissionControlView> createState() => _MissionControlViewState();
 }
@@ -143,13 +132,6 @@ class _MissionControlViewState extends State<MissionControlView> {
   /// subtle tint; the slot order itself never moves.
   final Set<String> _seenActionIds = {};
   bool _queueSeeded = false;
-
-  // Live wire: rolling buffer of cross-session change events, derived by
-  // diffing consecutive snapshots of the active sessions.
-  bool _wireSeeded = false;
-  late final int _wireStartedAtMs;
-  WireSnapshot? _wirePrevious;
-  List<WireEvent> _wireEvents = [];
 
   // All-clear moment: shown once when the focus queue drains to zero.
   int _prevActionCount = -1;
@@ -179,14 +161,6 @@ class _MissionControlViewState extends State<MissionControlView> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _wireStartedAtMs = DateTime.now().millisecondsSinceEpoch;
-    // Seed from the mounted snapshot so the first actual update is diffed.
-    _observeWireEvents();
-  }
-
-  @override
   void dispose() {
     _allClearTimer?.cancel();
     super.dispose();
@@ -202,59 +176,6 @@ class _MissionControlViewState extends State<MissionControlView> {
       _projectedEntrySources.removeWhere((id, _) => !retained.contains(id));
       _projectedEntries.removeWhere((id, _) => !retained.contains(id));
     }
-    _observeWireEvents();
-  }
-
-  /// Diffs the previous active-session snapshot against the current one
-  /// and folds any changes into the Live wire buffer.
-  ///
-  /// Seeds in [initState], then diffs in [didUpdateWidget]. Opening the
-  /// board does not emit joined rows for the initial session collection.
-  void _observeWireEvents() {
-    final next = _buildWireSnapshot();
-    if (!_wireSeeded) {
-      _wireSeeded = true;
-      _wirePrevious = next;
-      return;
-    }
-    final previous = _wirePrevious;
-    _wirePrevious = next;
-    if (previous == null) return;
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final fresh = diffWireEvents(
-      previous: previous,
-      next: next,
-      nowMs: nowMs,
-      sinceMs: _wireStartedAtMs,
-    );
-    if (fresh.isEmpty) return;
-    setState(() {
-      _wireEvents = mergeWireEvents(_wireEvents, fresh, nowMs: nowMs);
-    });
-  }
-
-  WireSnapshot _buildWireSnapshot() {
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final snapshot = <String, WireSessionState>{};
-    for (final session in widget.activeSessions) {
-      final entry = _entry(session.id);
-      snapshot[session.id] = WireSessionState(
-        name: getSessionName(session),
-        workspaceKey: sessionFolderKey(session),
-        live: session.presence == 'online' && session.thinking,
-        lane: widget.triage.isSnoozed(session.id, nowMs: nowMs)
-            ? MissionLane.quiet
-            : missionLaneFor(session, entry),
-        unreadCount: entry.unreadCount,
-        createdAt: session.createdAt,
-        activeAt: session.activeAt,
-        lastMessageAt: entry.lastMessageTimestamp,
-        preview: entry.lastMessagePreview,
-        role: entry.lastMessageRole,
-        isError: entry.lastMessageIsError,
-      );
-    }
-    return snapshot;
   }
 
   void _markSeen(String sessionId) {
@@ -520,22 +441,6 @@ class _MissionControlViewState extends State<MissionControlView> {
     if (_showAllClear) {
       slivers.add(
         SliverToBoxAdapter(child: RepaintBoundary(child: _AllClearBanner())),
-      );
-    }
-
-    if (widget.activeSessions.isNotEmpty && widget.onOpenSession != null) {
-      slivers.add(
-        SliverToBoxAdapter(
-          child: RepaintBoundary(
-            child: StreamWallSection(
-              events: _wireEvents,
-              hiddenSessionIds: {for (final s in shownActions) s.id},
-              streamCount: widget.activeSessions.length,
-              onOpenSession: widget.onOpenSession!,
-              onPeekSession: widget.onPeekSession ?? (_) {},
-            ),
-          ),
-        ),
       );
     }
 

@@ -328,10 +328,10 @@ Guard on `sync.isInitialized` — `loadFromSync()` is a no-op when `false`. `syn
 
 **ChatScreen exception:** Subscribes to BOTH `sync.onDataChanged` AND `sync.onSessionMessagesChanged`, uses `setState()` with local `_refreshFromSync()` for paginated message lists. Do not apply the standard template here.
 
-Mission Control Live wire uses message and session activity timestamps for
-its rows. Its mounted snapshot is the activity baseline: history hydrated
-later must not appear as new activity, and rows older than two hours are
-excluded.
+Mission Control has no cross-session activity feed: the former Live wire
+duplicated the Focus queue and was removed. Focus queue rows let the title
+wrap to two lines and keep workspace plus the latest update on one detail
+line (two for errors).
 
 Chat list projection drops empty/redacted reasoning, empty non-streaming
 assistant text and sidechain scaffolding before grouping and row spacing.

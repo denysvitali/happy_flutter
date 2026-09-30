@@ -536,31 +536,6 @@
   "@missionControlAllClear": {
     "description": "Momentary banner when the Mission Control focus queue becomes empty"
   },
-  "missionControlLiveWire": "Live wire",
-  "@missionControlLiveWire": {
-    "description": "Cross-session chronological activity feed heading"
-  },
-  "missionControlLiveWireEmpty": "Watching {count} streams…",
-  "@missionControlLiveWireEmpty": {
-    "description": "Live wire placeholder before any event fires",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "missionControlWireSent": "You",
-  "@missionControlWireSent": {
-    "description": "Live wire label for a message the user sent from anywhere"
-  },
-  "missionControlWireDone": "Finished",
-  "@missionControlWireDone": {
-    "description": "Live wire label for an agent that stopped working cleanly"
-  },
-  "missionControlWireJoined": "Started",
-  "@missionControlWireJoined": {
-    "description": "Live wire label for a session entering the active set"
-  },
   "missionControlPeekQuickLook": "Quick look",
   "@missionControlPeekQuickLook": {
     "description": "Menu item opening the glanceable session preview sheet"
