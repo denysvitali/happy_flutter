@@ -192,6 +192,32 @@ mise exec -- flutter build ios --release
 
 ### Install the Linux release
 
+**Flatpak is the recommended Linux package**, including on musl-based
+distributions. Download `happy-flutter-linux-x64.flatpak` for Intel/AMD or
+`happy-flutter-linux-arm64.flatpak` for ARM64 from the
+[latest GitHub Release](https://github.com/denysvitali/happy_flutter/releases/latest).
+Install it and launch:
+
+```bash
+flatpak remote-add --user --if-not-exists flathub \
+  https://dl.flathub.org/repo/flathub.flatpakrepo
+ARCH=x64 # use arm64 on ARM64 Linux
+flatpak install --user "happy-flutter-linux-${ARCH}.flatpak"
+flatpak run io.github.denysvitali.happy_flutter
+```
+
+The package uses GNOME 49's glibc, GTK3, and libsecret, with network,
+graphics, audio/microphone, and keyring access. File selection and browser
+launching use desktop portals; install your desktop's `xdg-desktop-portal`
+backend and ensure a Secret Service keyring is running. Flatpak keeps app
+data separate from tarball installs; linking the account again may be needed.
+The in-app tarball updater is disabled, even with `HAPPY_FORCE_UPDATER=1`.
+Update the runtime with `flatpak update`; to update Happy Flutter, download
+and install the newer `.flatpak` release. These bundles have no hosted app
+update remote yet, so `flatpak update` alone does not fetch new app releases.
+
+#### Optional tarball installation
+
 Download and extract the `happy-flutter-linux-x64.tar.gz` asset for Intel/AMD
 Linux, or `happy-flutter-linux-arm64.tar.gz` for ARM64 Linux, from a GitHub
 Release. Then run the included installer:
@@ -215,7 +241,7 @@ systems are not supported by the Flutter Linux runtime in these bundles.
 
 #### Auto-updates
 
-Local installs keep themselves current, both while the app is running and in
+Tarball installs keep themselves current, both while the app is running and in
 the background:
 
 - **In-app updater** (`lib/core/services/desktop_updater_service.dart`) —

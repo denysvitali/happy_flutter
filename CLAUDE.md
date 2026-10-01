@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Always commit and push** after completing changes — do not wait for the user to ask
 - **Use conventional commits** — prefix messages with `feat:`, `fix:`, `test:`, `refactor:`, `docs:`, `chore:`, etc.
 - **Check CI status** after pushing using GitHub Actions MCP tools — aim for green CI
-- **Releases are automatic** — every commit to `main` produces a GitHub Release (`v1.0.0-<build#>`) with the signed production APK and Linux x64 archive. Never tag or cut releases manually; landing a fix on `main` ships it.
+- **Releases are automatic** — every commit to `main` produces a GitHub Release (`v1.0.0-<build#>`) with the signed production APK and Linux x64/ARM64 Flatpaks and optional archives. Never tag or cut releases manually; landing a fix on `main` ships it.
+- **Linux Flatpak builds use GNOME 49** — `packaging/flatpak/` and `scripts/build-flatpak.sh` compile Flutter plugins and Rust inside the SDK. Flatpak owns updates; never enable the tarball updater inside its sandbox. GitHub bundles currently require installing each new release; there is no hosted app update remote.
 - **Never run tests locally** — the full test suite consumes large amounts of RAM and can crash the device. Always rely on CI for test execution.
 - **Always use `rg` (ripgrep)** when searching for code, symbols, or strings
 - **Do not create new documentation files** (`*.md`, `README` updates) unless explicitly requested.

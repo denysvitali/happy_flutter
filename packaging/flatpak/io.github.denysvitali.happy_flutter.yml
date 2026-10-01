@@ -1,0 +1,40 @@
+app-id: io.github.denysvitali.happy_flutter
+runtime: org.gnome.Platform
+runtime-version: '49'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.llvm20
+command: happy_flutter
+separate-locales: false
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --socket=pulseaudio
+  - --talk-name=org.freedesktop.secrets
+  - --env=GTK_USE_PORTAL=1
+build-options:
+  append-path: /usr/lib/sdk/llvm20/bin:/usr/lib/sdk/rust-stable/bin
+  # CI stages the pinned Flutter SDK and mise binary, then compiles all
+  # plugins and the Rust core inside the SDK. Network is build-only, for
+  # pub/cargo and native dependency downloads; this is not a Flathub build.
+  build-args:
+    - --share=network
+  env:
+    PUB_CACHE: /run/build/happy-flutter/.pub-cache
+    CARGO_HOME: /run/build/happy-flutter/.cargo
+    DART_VM_OPTIONS: --max-gen-heap-size=4096
+    MISE_CONFIG_FILE: /run/build/happy-flutter/toolchain/mise.toml
+    MISE_DATA_DIR: /run/build/happy-flutter/toolchain/mise-data
+    MISE_CACHE_DIR: /run/build/happy-flutter/toolchain/mise-cache
+modules:
+  - name: happy-flutter
+    buildsystem: simple
+    build-commands:
+      - bash packaging/flatpak/build-in-sdk.sh
+    sources:
+      - type: dir
+        path: ../../build/flatpak/source

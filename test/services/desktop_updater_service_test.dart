@@ -9,6 +9,36 @@ import 'package:happy_flutter/core/services/desktop_updater_models.dart';
 import 'package:happy_flutter/core/services/desktop_updater_service.dart';
 
 void main() {
+  test('Flatpak rejects automatic and manual tarball updates', () async {
+    var fetches = 0;
+    var filesystemAccesses = 0;
+    final service = DesktopUpdaterService(
+      isFlatpak: () => true,
+      initialCheckDelay: Duration.zero,
+      checkInterval: const Duration(milliseconds: 1),
+      fetchLatestRelease: (_) async {
+        fetches++;
+        throw StateError('Flatpak must not fetch tarball updates');
+      },
+      installDirResolver: () {
+        filesystemAccesses++;
+        throw StateError('Flatpak must not touch a tarball installation');
+      },
+    );
+    addTearDown(service.dispose);
+
+    service.start();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(await service.checkForUpdates(), isFalse);
+    expect(await service.applyUpdate(), isFalse);
+    service.restartIntoUpdatedVersion();
+
+    expect(fetches, 0);
+    expect(filesystemAccesses, 0);
+    expect(service.state.status, DesktopUpdateStatus.idle);
+    expect(service.state.error, isNull);
+  });
+
   group('DesktopReleaseInfo.parse', () {
     test('parses v-prefixed tag with numeric build', () {
       final info = DesktopReleaseInfo.parse('v1.2.3-4200');

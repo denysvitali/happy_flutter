@@ -136,8 +136,10 @@ class DesktopUpdaterService {
     this.checkInterval = defaultCheckInterval,
     this.initialCheckDelay = defaultInitialCheckDelay,
     this.autoDownload = true,
+    bool Function()? isFlatpak,
   }) : _fetchLatestRelease = fetchLatestRelease ?? fetchReleaseFromGitHub,
        _downloadFile = downloadFile ?? downloadFileToPath,
+       _isFlatpak = isFlatpak ?? (() => runningInFlatpak),
        _installDirResolver =
            installDirResolver ?? (() => resolveInstallDir().dir);
 
@@ -165,6 +167,7 @@ class DesktopUpdaterService {
   final Future<DesktopRemoteRelease?> Function(Uri) _fetchLatestRelease;
   final Future<void> Function(Uri, String, void Function(int?)) _downloadFile;
   final String? Function() _installDirResolver;
+  final bool Function() _isFlatpak;
 
   /// Process filesystem used to retain assets referenced by live executables.
   /// Injectable so cleanup tests can model a complete process namespace.
@@ -216,7 +219,7 @@ class DesktopUpdaterService {
   /// Arms the startup check plus periodic re-checks. Idempotent and a no-op
   /// on unsupported platforms.
   void start() {
-    if (_started || _disposed || !autoStartAllowed) return;
+    if (_started || _disposed || _isFlatpak() || !autoStartAllowed) return;
     _started = true;
     logger.info(
       '[DesktopUpdater] started (interval=${checkInterval.inMinutes}m)',
@@ -244,7 +247,12 @@ class DesktopUpdaterService {
   /// Queries the release feed and transitions to [DesktopUpdateStatus]
   /// `.available` (auto-download follows), `.upToDate` or an error state.
   Future<bool> checkForUpdates() async {
-    if (_disposed || !isPlatformSupported || _operationInFlight) return false;
+    if (_disposed ||
+        _isFlatpak() ||
+        !isPlatformSupported ||
+        _operationInFlight) {
+      return false;
+    }
     _operationInFlight = true;
     _update(
       _state.copyWith(status: DesktopUpdateStatus.checking, clearError: true),
@@ -306,7 +314,7 @@ class DesktopUpdaterService {
   /// Downloads the newest release and swaps it onto disk. Resolves true
   /// when the new version is ready and only a restart is left.
   Future<bool> applyUpdate() async {
-    if (_operationInFlight) return false;
+    if (_disposed || _isFlatpak() || _operationInFlight) return false;
     _operationInFlight = true;
     try {
       final release = await _fetchLatestRelease(feedUri);
@@ -497,6 +505,7 @@ class DesktopUpdaterService {
   /// Launches the freshly-installed binary detached and exits. Never call
   /// without a preceding successful [applyUpdate].
   void restartIntoUpdatedVersion() {
+    if (_isFlatpak()) return;
     if (_state.status != DesktopUpdateStatus.readyToRestart) return;
     final dir = _currentInstallDir();
     final binary = '$dir/happy_flutter';
@@ -640,10 +649,18 @@ class DesktopUpdaterService {
   static bool get isPlatformSupported {
     if (kIsWeb) return false;
     try {
-      return Platform.isLinux;
+      return Platform.isLinux && !runningInFlatpak;
     } catch (_) {
       return false;
     }
+  }
+
+  /// Flatpak owns package updates, including when the debug override is set.
+  static bool get runningInFlatpak {
+    if (kIsWeb) return false;
+    return Platform.isLinux &&
+        (Platform.environment.containsKey('FLATPAK_ID') ||
+            File('/.flatpak-info').existsSync());
   }
 
   /// Whether [start] may arm automatic checks. Debug builds launched via

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.denysvitali.happy_flutter</id>
+  <name>Happy Flutter</name>
+  <summary>Connect to Happy coding sessions</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <description>
+    <p>Happy Flutter connects to your Happy sessions so you can follow
+    coding agents, send messages, and review tool activity from your desktop.</p>
+  </description>
+  <launchable type="desktop-id">
+    io.github.denysvitali.happy_flutter.desktop
+  </launchable>
+  <url type="homepage">https://github.com/denysvitali/happy_flutter</url>
+  <url type="bugtracker">
+    https://github.com/denysvitali/happy_flutter/issues
+  </url>
+  <provides><binary>happy_flutter</binary></provides>
+  <content_rating type="oars-1.1" />
+</component>

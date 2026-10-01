@@ -27,6 +27,8 @@ __pycache__/
 !.claude/skills/
 .dart_tool
 /build
+.flatpak-builder/
+/happy-flutter-linux-*.flatpak
 .flutter-plugins-dependencies
 
 # FVM Version Cache

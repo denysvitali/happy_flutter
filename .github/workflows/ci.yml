@@ -863,9 +863,97 @@ jobs:
           path: happy-flutter-linux-${{ matrix.architecture }}.tar.gz
           retention-days: 14
 
+  build-flatpak:
+    name: Build Flatpak ${{ matrix.architecture }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.build_type == 'release' || inputs.build_type == 'both')) ||
+      startsWith(github.ref, 'refs/tags/v') ||
+      github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: x64
+            runner: ubuntu-22.04
+          - architecture: arm64
+            runner: ubuntu-22.04-arm
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Flatpak build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder desktop-file-utils xvfb
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+
+      - name: Setup Flutter
+        uses: ./.github/actions/setup-flutter
+        with:
+          platform: ${{ matrix.architecture == 'arm64' && 'host-arm64' || 'host' }}
+          cache-write: 'false'
+
+      - name: Get dependencies
+        run: mise exec -- flutter pub get
+
+      - name: Validate desktop entry
+        run: |
+          desktop-file-validate packaging/flatpak/*.desktop
+
+      - name: Build against the GNOME SDK
+        run: |
+          mise exec -- scripts/build-flatpak.sh "$(( ${{ github.run_number }} * 100 ))"
+
+      - name: Check dependencies in the runtime and launch the app
+        run: |
+          flatpak install --user --noninteractive \
+            happy-flutter-linux-${{ matrix.architecture }}.flatpak
+          dbus-run-session -- flatpak run --command=sh \
+            io.github.denysvitali.happy_flutter -c '
+              set -eu
+              for elf in /app/lib/happy_flutter/happy_flutter \
+                  /app/lib/happy_flutter/lib/*.so*; do
+                ldd "$elf" > /tmp/ldd-output
+                cat /tmp/ldd-output
+                if grep -q "not found" /tmp/ldd-output; then exit 1; fi
+              done
+            '
+          # A live headless window must survive the startup interval. This
+          # catches loader/Sentry crashes without an account or host keyring.
+          set +e
+          timeout 30s dbus-run-session -- xvfb-run -a \
+            flatpak run --env=GDK_BACKEND=x11 \
+              --env=LIBGL_ALWAYS_SOFTWARE=1 \
+              io.github.denysvitali.happy_flutter > flatpak-startup.log 2>&1
+          status=$?
+          set -e
+          cat flatpak-startup.log
+          test "$status" -eq 124
+
+      - name: Upload Flatpak startup log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: flatpak-startup-${{ matrix.architecture }}
+          path: flatpak-startup.log
+          if-no-files-found: ignore
+
+      - name: Upload Flatpak ${{ matrix.architecture }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: happy-flutter-flatpak-${{ matrix.architecture }}-b${{ github.run_number }}00
+          path: happy-flutter-linux-${{ matrix.architecture }}.flatpak
+          if-no-files-found: error
+          retention-days: 14
+
   attach-linux:
     name: Attach Linux to GitHub Release
-    needs: [build-release, build-linux]
+    needs: [build-release, build-linux, build-flatpak]
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -873,6 +961,7 @@ jobs:
       always() &&
       needs.build-release.result == 'success' &&
       needs.build-linux.result == 'success' &&
+      needs.build-flatpak.result == 'success' &&
       (github.event_name == 'workflow_dispatch' ||
        startsWith(github.ref, 'refs/tags/v') ||
        github.ref == 'refs/heads/main')
@@ -883,6 +972,15 @@ jobs:
         with:
           pattern: >-
             happy-flutter-linux-*-b${{
+            needs.build-release.outputs.build_number }}
+          path: release-assets
+          merge-multiple: true
+
+      - name: Download Flatpak bundles
+        uses: actions/download-artifact@v8
+        with:
+          pattern: >-
+            happy-flutter-flatpak-*-b${{
             needs.build-release.outputs.build_number }}
           path: release-assets
           merge-multiple: true
@@ -898,6 +996,8 @@ jobs:
           files: |
             release-assets/happy-flutter-linux-x64.tar.gz
             release-assets/happy-flutter-linux-arm64.tar.gz
+            release-assets/happy-flutter-linux-x64.flatpak
+            release-assets/happy-flutter-linux-arm64.flatpak
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Happy Flutter
+Comment=Mobile and desktop client for Happy coding sessions
+Exec=happy_flutter
+Icon=io.github.denysvitali.happy_flutter
+Terminal=false
+Categories=Development;
+StartupNotify=true
+StartupWMClass=io.github.denysvitali.happy_flutter
