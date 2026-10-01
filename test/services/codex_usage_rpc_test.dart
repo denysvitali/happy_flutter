@@ -52,6 +52,17 @@ void main() {
     expect((await first).error, contains('context changed'));
   });
 
+  test('legacy missing handler errors do not invoke Bash fallback', () async {
+    final methods = <String>[];
+    sync.testMachineRPCOverride = (_, method, __) async {
+      methods.add(method);
+      throw StateError('RPC handler is not registered');
+    };
+    final result = await sync.machineGetCodexUsage(machineId: 'machine-1');
+    expect(result.success, isFalse);
+    expect(methods, ['get-codex-usage']);
+  });
+
   test('concurrent usage refreshes share a single daemon request', () async {
     var calls = 0;
     final pending = Completer<Map<String, dynamic>>();

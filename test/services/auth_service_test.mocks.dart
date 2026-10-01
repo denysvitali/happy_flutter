@@ -47,6 +47,12 @@ class MockApiClient extends _i1.Mock implements _i4.ApiClient {
   }
 
   @override
+  void renewTransport() => super.noSuchMethod(
+    Invocation.method(#renewTransport, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
   void setSuspended(bool? suspended) => super.noSuchMethod(
     Invocation.method(#setSuspended, [suspended]),
     returnValueForMissingStub: null,

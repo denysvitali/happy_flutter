@@ -727,14 +727,15 @@ PY
           success: false,
           error: 'machine offline',
         );
-      } else if (Sync._isRpcMethodNotAvailable(error)) {
-        if (error is RpcException &&
-            error.code == RpcErrorCode.handlerOffline) {
-          return const CodexUsageSummaryResponse(
-            success: false,
-            error: 'Machine unavailable. Retry when connected.',
-          );
-        }
+      } else if ((error is RpcException &&
+              (error.code == RpcErrorCode.methodUnsupported ||
+                  error.code == RpcErrorCode.protocolUnsupported)) ||
+          (error is StateError &&
+              (error.message.toLowerCase().contains('method not found') ||
+                  error.message.toLowerCase().contains('unknown method') ||
+                  error.message.toLowerCase().contains(
+                    'method not available',
+                  )))) {
         logger.info(
           'machineGetCodexUsage: RPC method not available '
           '(daemon too old); falling back to machineBash',
