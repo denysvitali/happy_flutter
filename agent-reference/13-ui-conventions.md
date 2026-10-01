@@ -37,6 +37,25 @@ chips are 12px medium (`AppInlineText.chip`) with a 16px chevron, below the
 14px draft; keep state emphasis in color and weight rather than size. Elapsed
 labels switch to `Xh Ym` past one hour.
 
+**One component per element** (`test/core/theme/design_system_guard_test.dart`
+fails if a parallel copy comes back):
+
+| Element | Use | Not |
+|---------|-----|-----|
+| Primary / secondary / tertiary button | themed `FilledButton` / `OutlinedButton` / `TextButton` | `ElevatedButton`, per-site `styleFrom` sizes |
+| Destructive button | `AppButtonStyle.destructive` / `.destructiveFilled` | `styleFrom(foregroundColor: cs.error)` (the themed FilledButton paints a gradient over `backgroundColor`) |
+| Dense button | `AppButtonStyle.compact` | ad-hoc `minimumSize: Size(44, 32)` |
+| Status / count pill | `AppBadge` (full-radius, `AppBadge.defaultPadding`) | `Container` + `Text` with `AppRadius.pill` |
+| Filter / choice chip | themed `ChoiceChip`/`FilterChip` with `VisualDensity.compact` (28px) | custom `InkWell` pills |
+| Composer setting | `ComposerSelectorChip` (28px) | — |
+| Icon in a tinted box | `AppIconTile` (`AppControlSize.md`/`lg`) | hand-built circles/squares |
+| Card | `AppCard` (`color`/`borderColor` for tonal cards) | raw `Card` with per-site shape/elevation |
+| Inline row / row action | `AppInlineRow` / `AppInlineAction` (`AppRowHeight.compact` = 36) | 44px rows in the transcript |
+
+Control sizes are `AppControlSize` 28/32/40; row height is `AppRowHeight.compact`
+36. Transcript rows and their actions are 36px — dozens stack, so they trade
+the 44px minimum for density; standalone buttons keep `AppTouchTarget.min`.
+
 **Type and icon scale:** The theme (`theme_helper.dart`) and every component
 theme use only `AppFontSize` sizes; `test/core/theme/type_scale_test.dart` pins
 that. Do not write literal `fontSize:` values — use `textTheme` slots or the

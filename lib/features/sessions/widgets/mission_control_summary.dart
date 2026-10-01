@@ -90,76 +90,42 @@ class _FocusFilterChip extends StatelessWidget {
     final icon = lane == null
         ? Icons.view_list_rounded
         : missionLaneIcon(lane!);
-    final reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final foreground = selected ? color : cs.onSurfaceVariant;
 
     return Semantics(
       button: true,
       selected: selected,
       label: '$label, $count',
       child: ExcludeSemantics(
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
-              child: Center(
-                child: AnimatedContainer(
-                  duration: reduceMotion ? Duration.zero : AppDuration.fast,
-                  constraints: const BoxConstraints(
-                    minHeight: AppControlSize.sm,
-                  ),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? color.withValues(alpha: 0.12)
-                        : cs.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(AppRadius.pill),
-                    border: Border.all(
-                      color: selected
-                          ? color.withValues(alpha: 0.45)
-                          : cs.outlineVariant,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        selected ? Icons.check_rounded : icon,
-                        size: AppIconSize.sm,
-                        color: selected ? color : cs.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        label,
-                        style: MissionType.label(
-                          theme,
-                          selected ? color : cs.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      SizedBox(
-                        width: 20,
-                        child: Text(
-                          '$count',
-                          textAlign: TextAlign.center,
-                          style: MissionType.badge(
-                            theme,
-                            selected ? color : cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+        child: ChoiceChip(
+          visualDensity: VisualDensity.compact,
+          selected: selected,
+          showCheckmark: false,
+          onSelected: (_) => onTap(),
+          avatar: Icon(
+            selected ? Icons.check_rounded : icon,
+            size: AppIconSize.sm,
+            color: foreground,
+          ),
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label, style: MissionType.label(theme, foreground)),
+              const SizedBox(width: AppSpacing.xs),
+              SizedBox(
+                width: 20,
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: MissionType.badge(theme, foreground),
                 ),
               ),
-            ),
+            ],
+          ),
+          selectedColor: color.withValues(alpha: 0.12),
+          backgroundColor: cs.surfaceContainerLow,
+          side: BorderSide(
+            color: selected ? color.withValues(alpha: 0.45) : cs.outlineVariant,
           ),
         ),
       ),
