@@ -5,6 +5,7 @@ import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/components/app_icon_tile.dart';
 
 /// Sticky chat banner showing the current Codex goal for this session.
 ///
@@ -135,15 +136,7 @@ class _GoalIconTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: AppControlSize.md,
-      height: AppControlSize.md,
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Icon(Icons.flag_rounded, size: AppIconSize.lg, color: accent),
-    );
+    return AppIconTile(icon: Icons.flag_rounded, color: accent);
   }
 }
 

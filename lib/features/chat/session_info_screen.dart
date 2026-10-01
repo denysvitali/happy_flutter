@@ -23,6 +23,7 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/components/app_card.dart';
 
 // Reusable thin divider used inside the metadata/info cards.
 const _kRowDivider = Divider(
@@ -311,7 +312,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               child: Text(l10n.commonCancel),
             ),
             FilledButton(
-              style: AppButtonStyle.destructiveFilled(Theme.of(ctx).colorScheme),
+              style: AppButtonStyle.destructiveFilled(
+                Theme.of(ctx).colorScheme,
+              ),
               onPressed: () => Navigator.of(ctx).pop(true),
               child: Text(l10n.sessionsArchive),
             ),
@@ -364,7 +367,9 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               child: Text(l10n.commonCancel),
             ),
             FilledButton(
-              style: AppButtonStyle.destructiveFilled(Theme.of(ctx).colorScheme),
+              style: AppButtonStyle.destructiveFilled(
+                Theme.of(ctx).colorScheme,
+              ),
               onPressed: () => Navigator.of(ctx).pop(true),
               child: Text(l10n.commonDelete),
             ),
@@ -407,17 +412,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
     return ListView(
       padding: AppScreenPadding.standard,
       children: [
-        Card(
-          elevation: 0,
+        AppCard(
+          padding: EdgeInsets.zero,
           color: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color:
-                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                      .glassBorder,
-            ),
-          ),
+          borderColor:
+              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                  .glassBorder,
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(
@@ -480,13 +480,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         // CLI Version Outdated Warning
         if (isCliOutdated) ...[
-          Card(
-            elevation: 0,
+          AppCard(
+            padding: EdgeInsets.zero,
             color: theme.colorScheme.tertiaryContainer,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(color: theme.colorScheme.tertiary, width: 1),
-            ),
+            borderColor: theme.colorScheme.tertiary,
             child: InkWell(
               borderRadius: BorderRadius.circular(AppRadius.md),
               onTap: () => _copyToClipboard(
@@ -542,17 +539,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           uppercase: true,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Card(
-          elevation: 0,
+        AppCard(
+          padding: EdgeInsets.zero,
           color: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color:
-                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                      .glassBorder,
-            ),
-          ),
+          borderColor:
+              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                  .glassBorder,
           child: Column(
             children: [
               InfoRow(
@@ -593,17 +585,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Card(
-            elevation: 0,
+          AppCard(
+            padding: EdgeInsets.zero,
             color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color:
-                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                        .glassBorder,
-              ),
-            ),
+            borderColor:
+                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                    .glassBorder,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
@@ -655,17 +642,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           uppercase: true,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Card(
-          elevation: 0,
+        AppCard(
+          padding: EdgeInsets.zero,
           color: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color:
-                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                      .glassBorder,
-            ),
-          ),
+          borderColor:
+              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                  .glassBorder,
           child: Column(
             children: [
               ActionRow(
@@ -714,17 +696,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Card(
-            elevation: 0,
+          AppCard(
+            padding: EdgeInsets.zero,
             color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color:
-                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                        .glassBorder,
-              ),
-            ),
+            borderColor:
+                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                    .glassBorder,
             child: Column(
               children: [
                 InfoRow(
@@ -837,17 +814,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Card(
-            elevation: 0,
+          AppCard(
+            padding: EdgeInsets.zero,
             color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color:
-                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                        .glassBorder,
-              ),
-            ),
+            borderColor:
+                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                    .glassBorder,
             child: Column(
               children: [
                 InfoRow(
@@ -877,17 +849,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           uppercase: true,
         ),
         const SizedBox(height: AppSpacing.sm),
-        Card(
-          elevation: 0,
+        AppCard(
+          padding: EdgeInsets.zero,
           color: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(
-              color:
-                  (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                      .glassBorder,
-            ),
-          ),
+          borderColor:
+              (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                  .glassBorder,
           child: Column(
             children: [
               InfoRow(
@@ -918,17 +885,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
             uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Card(
-            elevation: 0,
+          AppCard(
+            padding: EdgeInsets.zero,
             color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              side: BorderSide(
-                color:
-                    (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
-                        .glassBorder,
-              ),
-            ),
+            borderColor:
+                (theme.extension<AppColorScheme>() ?? AppColorScheme.dark())
+                    .glassBorder,
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Wrap(
@@ -1009,13 +971,10 @@ class _SessionPodCard extends StatelessWidget {
       SessionPodDisplayState.failed => l10n.sessionPodFailed,
     };
 
-    return Card(
-      elevation: 0,
+    return AppCard(
+      padding: EdgeInsets.zero,
       color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
-      ),
+      borderColor: theme.colorScheme.outlineVariant,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(

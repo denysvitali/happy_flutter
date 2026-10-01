@@ -22,6 +22,7 @@ import 'tools/views/codex_mcp_view.dart';
 import 'tools/views/mcp_exec_view.dart';
 import 'tools/views/send_message_view.dart';
 import 'tools/views/web_search_view.dart';
+import 'package:happy_flutter/core/components/app_card.dart';
 
 const int _largePayloadThreshold = 16 * 1024;
 const int _payloadPageSize = 12 * 1024;
@@ -569,13 +570,10 @@ class _DeferredToolResultSectionState
     }
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    return Card(
-      elevation: 0,
+    return AppCard(
+      padding: EdgeInsets.zero,
       color: cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
-      ),
+      borderColor: cs.outlineVariant,
       child: ListTile(
         leading: Icon(
           widget.icon,
@@ -642,13 +640,10 @@ class _ImmediateToolResultSectionState
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Card(
-      elevation: 0,
+    return AppCard(
+      padding: EdgeInsets.zero,
       color: cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
-      ),
+      borderColor: cs.outlineVariant,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -709,14 +704,10 @@ class _RawPayloadDisclosure extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return Card(
-      elevation: 0,
+    return AppCard(
+      padding: EdgeInsets.zero,
       color: cs.surfaceContainerHighest,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
-      ),
+      borderColor: cs.outlineVariant,
       child: ExpansionTile(
         leading: Icon(Icons.data_object, size: 18, color: cs.primary),
         // TODO(i18n): raw-payload label not yet localized
@@ -787,13 +778,10 @@ class _ChildToolItem extends StatelessWidget {
       title = knownTool?.title as String? ?? toolName;
     }
 
-    return Card(
-      elevation: 0,
+    return AppCard(
+      padding: EdgeInsets.zero,
       color: theme.colorScheme.surfaceContainerHighest,
       margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: () => _showToolDetail(context, tool),
@@ -951,13 +939,10 @@ class _DetailCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    return Card(
-      elevation: 0,
+    return AppCard(
+      padding: EdgeInsets.zero,
       color: cs.surfaceContainerHighest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: cs.outlineVariant, width: AppBorder.hairline),
-      ),
+      borderColor: cs.outlineVariant,
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(

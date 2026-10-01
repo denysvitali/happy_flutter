@@ -5,6 +5,7 @@ import '../../../core/models/settings.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/utf16_sanitizer.dart';
+import 'package:happy_flutter/core/components/app_icon_tile.dart';
 
 /// A settings row that shows a horizontal strip of profile avatar circles
 /// (up to [maxVisible]) plus a "See all" trailing chevron.
@@ -54,18 +55,9 @@ class ProfileSwitcherTile extends StatelessWidget {
           child: Row(
             children: [
               // Leading icon container — mirrors SettingsIconContainer style
-              Container(
-                width: AppControlSize.lg,
-                height: AppControlSize.lg,
-                decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: AppOpacity.faint),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Icon(
-                  Icons.account_tree,
-                  size: 18,
-                  color: cs.primary,
-                ),
+              AppIconTile(
+                icon: Icons.account_tree,
+                size: AppControlSize.lg,
               ),
               const SizedBox(width: AppSpacing.md),
               // Title column

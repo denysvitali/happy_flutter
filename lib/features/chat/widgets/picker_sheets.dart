@@ -9,6 +9,7 @@ import '../model_selection_resolver.dart';
 import 'favorite_model_picker.dart';
 import 'model_mode.dart';
 import 'model_picker_catalog.dart';
+import 'package:happy_flutter/core/components/app_icon_tile.dart';
 
 // ---------------------------------------------------------------------------
 // Model picker bottom sheet
@@ -33,20 +34,10 @@ Widget _modelLeading(
   Color? accent,
 }) {
   final color = accent ?? cs.primary;
-  return Container(
-    width: AppControlSize.md,
-    height: AppControlSize.md,
-    decoration: BoxDecoration(
-      color: highlighted
-          ? color.withValues(alpha: 0.12)
-          : cs.onSurface.withValues(alpha: 0.05),
-      shape: BoxShape.circle,
-    ),
-    child: Icon(
-      icon,
-      size: 16,
-      color: highlighted ? color : cs.onSurfaceVariant,
-    ),
+  return AppIconTile(
+    icon: icon,
+    color: color,
+    neutral: !highlighted,
   );
 }
 
@@ -718,20 +709,10 @@ Widget _buildProfileTile(
       ),
       child: Row(
         children: [
-          Container(
-            width: AppControlSize.md,
-            height: AppControlSize.md,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? cs.tertiary.withValues(alpha: 0.12)
-                  : cs.onSurface.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.swap_horiz_rounded,
-              size: 16,
-              color: isSelected ? cs.tertiary : cs.onSurfaceVariant,
-            ),
+          AppIconTile(
+            icon: Icons.swap_horiz_rounded,
+            color: cs.tertiary,
+            neutral: !isSelected,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

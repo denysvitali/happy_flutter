@@ -3,9 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'app_icon_tile.dart';
 
 /// Edge length of the leading icon container in a settings row.
-const double kSettingsIconContainerSize = 36;
+const double kSettingsIconContainerSize = AppControlSize.lg;
 
 /// Minimum row height when a subtitle is present. Rows grow beyond this
 /// at large text scales — the constraint is a floor, never a cap.
@@ -23,22 +24,10 @@ class SettingsIconContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final effectiveColor = color ?? cs.primary;
-    final bgAlpha = dark
-        ? AppOpacity
-              .subtle // 0.12
-        : AppOpacity.faint; // 0.08
-
-    return Container(
-      width: kSettingsIconContainerSize,
-      height: kSettingsIconContainerSize,
-      decoration: BoxDecoration(
-        color: effectiveColor.withValues(alpha: bgAlpha),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Icon(icon, size: AppIconSize.lg, color: effectiveColor),
+    return AppIconTile(
+      icon: icon,
+      color: color,
+      size: kSettingsIconContainerSize,
     );
   }
 }

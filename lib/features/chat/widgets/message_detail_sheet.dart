@@ -9,6 +9,7 @@ import '../../../core/theme/app_scroll_behavior.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
+import 'package:happy_flutter/core/components/app_icon_tile.dart';
 
 /// Maximum raw message content laid out in one selectable text widget.
 /// Keeping the reader paged prevents a very large message from exhausting
@@ -330,15 +331,7 @@ class MessageInfoRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: AppControlSize.md,
-            height: AppControlSize.md,
-            decoration: BoxDecoration(
-              color: cs.onSurface.withValues(alpha: 0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 16, color: cs.onSurfaceVariant),
-          ),
+          AppIconTile(icon: icon, neutral: true),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -416,18 +409,10 @@ class _SpeakRow extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: AppControlSize.md,
-                    height: AppControlSize.md,
-                    decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isPlaying ? Icons.stop_rounded : Icons.volume_up_rounded,
-                      size: 18,
-                      color: cs.primary,
-                    ),
+                  AppIconTile(
+                    icon: isPlaying
+                        ? Icons.stop_rounded
+                        : Icons.volume_up_rounded,
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(

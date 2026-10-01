@@ -23,6 +23,8 @@ class AppCard extends StatefulWidget {
     this.onTap,
     this.margin,
     this.haptic = true,
+    this.color,
+    this.borderColor,
   });
 
   /// The widget to display inside the card.
@@ -44,6 +46,12 @@ class AppCard extends StatefulWidget {
   /// Defaults to true. Has no effect when [onTap] is null.
   final bool haptic;
 
+  /// Fill override for tonal or accented cards. Defaults to the surface.
+  final Color? color;
+
+  /// Outline override. Defaults to the neutral card outline.
+  final Color? borderColor;
+
   static const _radius = BorderRadius.all(Radius.circular(AppRadius.lg));
 
   @override
@@ -63,10 +71,13 @@ class _AppCardState extends State<AppCard> {
     final effectivePadding =
         widget.padding ?? const EdgeInsets.all(AppSpacing.lg);
 
-    final borderColor = isDark
-        ? cs.outlineVariant.withValues(alpha: 0.72)
-        : cs.onSurface.withValues(alpha: 0.08);
-    final backgroundColor = isDark ? cs.surfaceContainerLow : cs.surface;
+    final borderColor =
+        widget.borderColor ??
+        (isDark
+            ? cs.outlineVariant.withValues(alpha: 0.72)
+            : cs.onSurface.withValues(alpha: 0.08));
+    final backgroundColor =
+        widget.color ?? (isDark ? cs.surfaceContainerLow : cs.surface);
 
     final Widget content = Padding(
       padding: effectivePadding,

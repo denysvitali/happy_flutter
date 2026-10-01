@@ -5,6 +5,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'composer_selector_chip.dart';
+import 'package:happy_flutter/core/components/app_icon_tile.dart';
 
 /// Permission mode options for Claude/Gemini agents
 enum PermissionMode {
@@ -358,20 +359,10 @@ class PermissionModeSelector extends ConsumerWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: AppControlSize.md,
-              height: AppControlSize.md,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? mode.color.withValues(alpha: 0.12)
-                    : cs.onSurface.withValues(alpha: 0.05),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                mode.icon,
-                size: 16,
-                color: isSelected ? mode.color : cs.onSurfaceVariant,
-              ),
+            AppIconTile(
+              icon: mode.icon,
+              color: mode.color,
+              neutral: !isSelected,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
