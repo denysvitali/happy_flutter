@@ -22,7 +22,8 @@ bundle="build/linux/$flutter_arch/release/bundle"
 test -s "$bundle/lib/libhappy_core.so"
 # Check every bundled ELF against the SDK, rather than the Ubuntu host.
 while IFS= read -r -d '' elf; do
-  ldd "$elf" | tee /tmp/happy-flatpak-ldd
+  LD_LIBRARY_PATH="$PWD/$bundle/lib:${LD_LIBRARY_PATH:-}" \
+    ldd "$elf" | tee /tmp/happy-flatpak-ldd
   awk '/not found/ { missing = 1 } END { exit missing }' \
     /tmp/happy-flatpak-ldd
 done < <(find "$bundle" -type f \( -name '*.so*' -o -name happy_flutter \) -print0)
