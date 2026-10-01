@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A small chip used in the session header to display status or machine info
 class SessionHeaderChip extends StatelessWidget {
@@ -56,10 +57,7 @@ class SessionHeaderChip extends StatelessWidget {
             Flexible(
               child: Text(
                 text,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: resolvedTextColor,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppText.label(Theme.of(context), resolvedTextColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

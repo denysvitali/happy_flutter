@@ -9,6 +9,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import 'new_session_dialog.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Empty sessions view with tiered state.
 ///
@@ -263,10 +264,7 @@ class _OnboardingStepCard extends StatelessWidget {
             child: Center(
               child: Text(
                 '$step',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onPrimaryContainer,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppText.secondary(theme, cs.onPrimaryContainer),
               ),
             ),
           ),
@@ -284,9 +282,7 @@ class _OnboardingStepCard extends StatelessWidget {
                 ),
                 Text(
                   detail,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ],
             ),

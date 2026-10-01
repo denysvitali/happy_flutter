@@ -15,6 +15,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'agents_list_sheet.dart';
 import 'chat_chrome_density.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sticky banner shown above the chat messages when a session has any
 /// spawned sub-agents (Task/Agent tool calls). Communicates overall
@@ -349,25 +350,14 @@ class _BannerBody extends StatelessWidget {
                     Expanded(
                       child: Text(
                         label,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: foregroundColor,
-                          fontWeight: FontWeight.w600,
-                          fontFeatures: const [
-                            FontFeature.tabularFigures(),
-                          ],
-                        ),
+                        style: AppText.label(theme, foregroundColor).copyWith(fontFeatures: const [ FontFeature.tabularFigures(), ]),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       l10n.subAgentBannerTapToOpen,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: dimForeground,
-                        fontFeatures: const [
-                          FontFeature.tabularFigures(),
-                        ],
-                      ),
+                      style: AppText.badge(theme, dimForeground),
                     ),
                     const SizedBox(width: AppSpacing.xxs),
                     Icon(

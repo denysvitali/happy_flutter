@@ -8,6 +8,7 @@ import '../../core/components/app_loading_indicator.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/services/changelog_service.dart';
 import '../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Changelog screen — shows commits between the previous and current version.
 ///
@@ -161,19 +162,14 @@ class _ChangelogEntryTile extends StatelessWidget {
                       ),
                       child: Text(
                         entry.type,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: typeColor,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppText.label(theme, typeColor),
                       ),
                     ),
                     if (entry.scope != null) ...[
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         entry.scope!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                       ),
                     ],
                     if (entry.isBreaking == true) ...[
@@ -189,11 +185,7 @@ class _ChangelogEntryTile extends StatelessWidget {
                         ),
                         child: Text(
                           'BREAKING',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.error,
-                            fontWeight: FontWeight.w600,
-                            fontSize: AppFontSize.sm,
-                          ),
+                          style: AppText.label(theme, cs.error),
                         ),
                       ),
                     ],
@@ -205,9 +197,7 @@ class _ChangelogEntryTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     _formatDate(entry.date),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   ),
                 ],
               ],

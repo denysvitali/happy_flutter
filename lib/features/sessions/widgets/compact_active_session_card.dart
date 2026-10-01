@@ -6,6 +6,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Compact active session row with press animation.
 class CompactActiveSessionCard extends StatefulWidget {
@@ -77,10 +78,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
       activity: activity,
       preview: widget.lastMessagePreview,
       previewRole: widget.lastMessageRole,
-      style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.sm,
-        height: 1.2,
-      ),
+      style: AppText.secondary(theme),
     );
     final hasActivity = activityLine != null;
 
@@ -158,10 +156,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
                                 buildNameRow(
                                   name: _d.name,
                                   sessionStatus: _d.status,
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: cs.onSurface,
-                                  ),
+                                  style: AppText.title(theme, cs.onSurface),
                                   pulseDot: needsAttention,
                                   badge:
                                       widget.archiveCountdownLabel == null

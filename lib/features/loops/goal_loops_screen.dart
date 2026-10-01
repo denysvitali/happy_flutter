@@ -12,6 +12,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'create_goal_loop_sheet.dart';
 import 'goal_loop_card.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Goal loops across every machine.
 ///
@@ -124,12 +125,8 @@ class _SectionHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Text(
-        label.toUpperCase(),
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-        ),
+        label,
+        style: AppText.badge(theme, theme.colorScheme.onSurfaceVariant),
       ),
     );
   }

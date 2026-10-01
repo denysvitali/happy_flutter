@@ -89,7 +89,7 @@ class AuroraSectionHeader extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                title.toUpperCase(),
+                title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

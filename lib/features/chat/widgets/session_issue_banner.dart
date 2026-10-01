@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'chat_app_bar.dart' show SendIssue;
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sticky banner shown above the chat input when the session has a
 /// lifecycle error (e.g. the local agent process is gone, or the
@@ -84,18 +85,12 @@ class SessionIssueBanner extends StatelessWidget {
                   children: [
                     Text(
                       issue.title,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: foregroundColor,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppText.badge(theme, foregroundColor),
                     ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       issue.message,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: foregroundColor,
-                        height: 1.25,
-                      ),
+                      style: AppText.secondary(theme, foregroundColor),
                     ),
                   ],
                 ),

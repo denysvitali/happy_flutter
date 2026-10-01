@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
 import 'app_circular_progress_indicator.dart';
 import 'app_linear_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A compact status bar for connection and sync activity.
 class SyncProgressBar extends ConsumerWidget {
@@ -82,10 +83,7 @@ class SyncProgressBar extends ConsumerWidget {
                                 status.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: status.foregroundColor(cs),
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                style: AppText.badge(theme, status.foregroundColor(cs)),
                               ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
@@ -94,12 +92,7 @@ class SyncProgressBar extends ConsumerWidget {
                                 status.detail,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: status
-                                      .foregroundColor(cs)
-                                      .withValues(alpha: 0.82),
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: AppText.label(theme, status .foregroundColor(cs) .withValues(alpha: 0.82)),
                               ),
                             ),
                           ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/utils/session_utils.dart';
 import 'package:happy_flutter/features/sessions/widgets/session_headers.dart';
@@ -22,7 +23,7 @@ void main() {
       expect(find.text('Active Sessions'), findsOneWidget);
     });
 
-    testWidgets('applies uppercase label style', (tester) async {
+    testWidgets('uses the shared label role (12 / w600)', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -32,15 +33,15 @@ void main() {
       );
 
       final text = tester.widget<Text>(find.text('Archived'));
-      // The labelSmall style should have fontWeight w600
       expect(text.style?.fontWeight, FontWeight.w600);
+      expect(text.style?.fontSize, AppFontSize.sm);
     });
   });
 
   // ─── PathHeader ──────────────────────────────────────────
 
   group('PathHeader', () {
-    testWidgets('renders path basename uppercase', (tester) async {
+    testWidgets('renders the path basename as written', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -56,7 +57,7 @@ void main() {
         ),
       );
 
-      expect(find.text('PROJECTS'), findsOneWidget);
+      expect(find.text('projects'), findsOneWidget);
       expect(find.text('3'), findsOneWidget);
     });
 
@@ -78,7 +79,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.text('DEV'));
+      await tester.tap(find.text('dev'));
       expect(toggled, isTrue);
     });
 

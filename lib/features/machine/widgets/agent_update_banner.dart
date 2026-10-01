@@ -6,6 +6,7 @@ import '../../../core/models/provider_versions.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Per-machine banner shown above [MachineProviderVersions] when a coding
 /// agent on this machine has an update available. The user can update from the
@@ -216,9 +217,7 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
                     entry.value.version ?? l10n.machineAgentsUnknown,
                     entry.value.latestVersion ?? l10n.machineAgentsUnknown,
                   ),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSecondaryContainer,
-                  ),
+                  style: AppText.secondary(theme, theme.colorScheme.onSecondaryContainer),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Row(
@@ -243,9 +242,7 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 _error!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
-                ),
+                style: AppText.secondary(theme, theme.colorScheme.error),
               ),
             ],
           ],

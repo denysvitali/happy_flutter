@@ -8,6 +8,7 @@ import '../../../core/theme/code_viewer_theme.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
 import 'message_detail_sheet.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Tappable error card that shows a detail sheet on tap.
 class ErrorMessageWidget extends StatelessWidget {
@@ -48,17 +49,12 @@ class ErrorMessageWidget extends StatelessWidget {
                   children: [
                     Text(
                       errorType.replaceAll('_', ' '),
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: cs.onErrorContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.label(theme, cs.onErrorContainer),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       errorMessage,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onErrorContainer.withValues(alpha: 0.8),
-                      ),
+                      style: AppText.secondary(theme, cs.onErrorContainer.withValues(alpha: 0.8)),
                     ),
                   ],
                 ),
@@ -188,9 +184,7 @@ class ErrorMessageWidget extends StatelessWidget {
                   // Debug data
                   Text(
                     l10n.messageDetailDebugData,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.label(theme),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Container(
@@ -204,12 +198,7 @@ class ErrorMessageWidget extends StatelessWidget {
                       debugData != null
                           ? _jsonEncoder.convert(debugData)
                           : 'No debug data',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                        fontSize: AppFontSize.sm,
-                        color: code.foreground,
-                        height: 1.4,
-                      ),
+                      style: AppText.secondary(theme, code.foreground).copyWith(fontFamily: 'monospace'),
                     ),
                   ),
                 ],

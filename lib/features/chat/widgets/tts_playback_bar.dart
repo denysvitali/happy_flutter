@@ -4,6 +4,7 @@ import '../../../core/services/tts_service.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Compact playback bar shown above the chat input while TTS speech
 /// is in progress.
@@ -222,10 +223,7 @@ class _QueueBadge extends StatelessWidget {
             ),
             child: Text(
               '+$n',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: cs.primary,
-                fontWeight: FontWeight.w700,
-              ),
+              style: AppText.badge(Theme.of(context), cs.primary),
             ),
           ),
         );

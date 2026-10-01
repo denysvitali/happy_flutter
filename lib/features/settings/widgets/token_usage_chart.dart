@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/claude_local_usage.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Normalised daily token total used by the chart painter.
 typedef _DayPoint = ({String date, int tokens});
@@ -184,17 +185,12 @@ class _MetricCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             value,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: cs.onSurface,
-            ),
+            style: AppText.title(theme, cs.onSurface),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: AppText.secondary(theme, cs.onSurfaceVariant),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

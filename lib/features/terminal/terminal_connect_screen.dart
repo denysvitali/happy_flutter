@@ -8,6 +8,7 @@ import '../../core/models/machine.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Selects the machine and working directory for one-off shell commands.
 class TerminalConnectScreen extends ConsumerStatefulWidget {
@@ -56,9 +57,7 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
       appBar: AppBar(
         title: Text(
           context.l10n.terminalConnect,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppText.screenTitle(theme),
         ),
       ),
       body: SingleChildScrollView(
@@ -109,12 +108,8 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                   bottom: AppSpacing.xs,
                 ),
                 child: Text(
-                  context.l10n.sessionSelectMachine.toUpperCase(),
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.8,
-                  ),
+                  context.l10n.sessionSelectMachine,
+                  style: AppText.label(theme, cs.onSurfaceVariant),
                 ),
               ),
               if (machineList.isEmpty)
@@ -210,9 +205,7 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                                 ),
                                 child: Text(
                                   context.l10n.machineOffline,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
+                                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                                 ),
                               ),
                             ],
@@ -252,12 +245,8 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                   bottom: AppSpacing.xs,
                 ),
                 child: Text(
-                  context.l10n.terminalIdLabel.toUpperCase(),
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.8,
-                  ),
+                  context.l10n.terminalIdLabel,
+                  style: AppText.label(theme, cs.onSurfaceVariant),
                 ),
               ),
               AppCard(

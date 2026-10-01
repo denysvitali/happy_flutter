@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/utf16_sanitizer.dart';
 import '../../../core/widgets/network_avatar_image.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Compact account summary used at the top of Settings.
 class ProfileHeader extends StatelessWidget {
@@ -75,9 +76,7 @@ class ProfileHeader extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         bio,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),

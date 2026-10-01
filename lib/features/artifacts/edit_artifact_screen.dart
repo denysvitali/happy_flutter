@@ -11,6 +11,7 @@ import 'widgets/artifact_form_fields.dart';
 import 'widgets/artifact_pane_header.dart';
 import '../../core/utils/snack.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Screen for editing an existing artifact.
 ///
@@ -387,11 +388,7 @@ class _EncryptionNote extends StatelessWidget {
             child: Text(
               'The existing content is encrypted. '
               'Fields below will replace it once saved.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: cs.onSecondaryContainer,
-                fontWeight: FontWeight.w500,
-                height: AppLineHeight.normal,
-              ),
+              style: AppText.label(Theme.of(context), cs.onSecondaryContainer),
             ),
           ),
         ],

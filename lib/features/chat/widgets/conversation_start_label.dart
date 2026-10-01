@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A centered label shown at the top of the chat message list indicating
 /// the beginning of the conversation.
@@ -32,11 +33,7 @@ class ConversationStartLabel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Text(
               context.l10n.chatBeginningOfConversation.toUpperCase(),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.half),
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.4,
-              ),
+              style: AppText.label(Theme.of(context), cs.onSurfaceVariant.withValues(alpha: AppOpacity.half)),
             ),
           ),
           Expanded(child: _HairlineRule(color: ruleColor)),

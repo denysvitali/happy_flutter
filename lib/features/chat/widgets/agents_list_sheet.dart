@@ -11,6 +11,7 @@ import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../../../core/wire/wire_parsers.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart' show parseToolState;
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Immutable snapshot of Task/Agent progress for a session.
 class TaskProgress {
@@ -460,10 +461,7 @@ class AgentsListSheet extends StatelessWidget {
                     ),
                     child: Text(
                       '${agents.length}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onPrimaryContainer,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.label(theme, cs.onPrimaryContainer),
                     ),
                   ),
               ],
@@ -492,10 +490,7 @@ class AgentsListSheet extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     _progressLabel(progress),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontSize: AppFontSize.sm,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -810,10 +805,7 @@ class _ChildCountBadge extends StatelessWidget {
       ),
       child: Text(
         '$count',
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-          fontSize: AppFontSize.sm,
-        ),
+        style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
       ),
     );
   }

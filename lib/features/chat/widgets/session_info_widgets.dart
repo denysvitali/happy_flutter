@@ -6,6 +6,7 @@ import '../../../core/models/session.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Status chip showing online/offline indicator.
 class StatusChip extends StatelessWidget {
@@ -156,9 +157,7 @@ class InfoRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: 2),
                   Text(

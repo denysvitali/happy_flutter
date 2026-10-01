@@ -10,6 +10,7 @@ import '../../../core/utils/session_status.dart';
 import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 export 'active_session_card.dart';
 export 'archived_session_card.dart';
@@ -343,10 +344,7 @@ Widget buildTimestampBadges({
     children: [
       Text(
         formatTimestamp(timestamp, relative: true),
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: cs.onSurfaceVariant,
-          fontSize: AppFontSize.sm,
-        ),
+        style: AppText.secondary(theme, cs.onSurfaceVariant),
       ),
       if (unreadCount > 0) ...[
         SizedBox(height: badgeGap),

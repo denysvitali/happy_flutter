@@ -9,6 +9,7 @@ import '../../core/services/server_config.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 class ServerSettingsScreen extends ConsumerStatefulWidget {
   const ServerSettingsScreen({super.key});
@@ -192,13 +193,7 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
                         if (_statusMessage != null)
                           Text(
                             _statusMessage!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: _isConnected ?? false
-                                  ? cs.primary
-                                  : _isConnected == false
-                                  ? cs.error
-                                  : cs.onSurfaceVariant,
-                            ),
+                            style: AppText.secondary(theme, _isConnected ?? false ? cs.primary : _isConnected == false ? cs.error : cs.onSurfaceVariant),
                           ),
                       ],
                     ),
@@ -213,12 +208,8 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
                 bottom: AppSpacing.sm,
               ),
               child: Text(
-                l10n.serverCustomUrlSectionLabel.toUpperCase(),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.8,
-                ),
+                l10n.serverCustomUrlSectionLabel,
+                style: AppText.label(theme, cs.onSurfaceVariant),
               ),
             ),
             TextField(
@@ -249,7 +240,7 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
                 padding: const EdgeInsets.only(left: AppSpacing.xs),
                 child: Text(
                   l10n.serverCurrentlyUsingCustomUrl,
-                  style: theme.textTheme.bodySmall?.copyWith(color: cs.primary),
+                  style: AppText.secondary(theme, cs.primary),
                 ),
               ),
             const SizedBox(height: AppSpacing.xxl),
@@ -283,9 +274,7 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
                 'This is an advanced feature. Changing'
                 ' the server URL will disconnect you'
                 ' from the current server.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             ),
           ],

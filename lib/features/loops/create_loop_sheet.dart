@@ -7,6 +7,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/snack.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Bottom sheet for creating a new scheduled prompt (loop).
 ///
@@ -185,7 +186,7 @@ class _CreateLoopSheetState extends ConsumerState<CreateLoopSheet> {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   _validationErrorMessage(_validationError!, l10n),
-                  style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
+                  style: AppText.secondary(theme, cs.error),
                 ),
               ],
               const SizedBox(height: AppSpacing.lg),

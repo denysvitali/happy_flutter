@@ -15,6 +15,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import 'widgets/artifact_pane_header.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Screen showing detail view for a single artifact.
 class ArtifactDetailScreen extends ConsumerStatefulWidget {
@@ -225,9 +226,7 @@ class _ArtifactDetailBody extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             context.l10n.artifactsSourceSessionsSubtitle,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
@@ -358,10 +357,7 @@ class _MetaRow extends StatelessWidget {
             width: 80,
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppText.label(theme, cs.onSurfaceVariant),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
@@ -432,11 +428,7 @@ class _ContentBlockState extends State<_ContentBlock> {
               children: [
                 Text(
                   'text',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
                 ),
                 const Spacer(),
                 if (hasBody)
@@ -503,10 +495,7 @@ class _CopyButton extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Text(
               copied ? context.l10n.commonDone : context.l10n.commonCopy,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: copied ? cs.primary : cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.label(Theme.of(context), copied ? cs.primary : cs.onSurfaceVariant),
             ),
           ],
         ),

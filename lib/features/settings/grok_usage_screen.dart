@@ -7,6 +7,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/machine_usage_scaffold.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Grok Build monthly billing usage for a selected machine.
 class GrokUsageScreen extends StatelessWidget {
@@ -83,9 +84,7 @@ class GrokUsageScreen extends StatelessWidget {
                 dense: false,
                 footer: Text(
                   '$usedLabel / $limitLabel · $remainingLabel left',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
               UsageStatRow(

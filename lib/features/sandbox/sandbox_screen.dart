@@ -18,6 +18,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../settings/widgets/machine_picker.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Per-project sandbox policy for a machine.
 ///
@@ -634,9 +635,7 @@ class _NoticeCard extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              style: AppText.secondary(Theme.of(context), cs.onSurfaceVariant),
             ),
           ),
         ],

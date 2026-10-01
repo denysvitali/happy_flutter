@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/find_text_ci.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/settings.dart';
@@ -75,7 +76,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Developer Mode'), findsOneWidget);
+      // Section header and the toggle row both carry the title.
+      expect(find.text('Developer Mode'), findsNWidgets(2));
       expect(find.byIcon(Icons.developer_mode), findsOneWidget);
     });
 
@@ -244,7 +246,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('DANGER ZONE'), findsOneWidget);
+      expect(findTextIgnoreCase('DANGER ZONE'), findsOneWidget);
     });
 
     testWidgets('shows cache and storage section when developer mode is on', (

@@ -10,6 +10,7 @@ import 'favorite_model_picker.dart';
 import 'model_mode.dart';
 import 'model_picker_catalog.dart';
 import 'package:happy_flutter/core/components/app_icon_tile.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 // ---------------------------------------------------------------------------
 // Model picker bottom sheet
@@ -140,9 +141,7 @@ void showModelPickerSheet(
                         ),
                         child: Text(
                           'Model',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: AppText.title(theme),
                         ),
                       ),
                       Flexible(
@@ -283,9 +282,7 @@ class _GroupedModelPickerContentState
             ),
             child: Text(
               'Model',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.title(theme),
             ),
           ),
           if (defaultModel.isNotEmpty)
@@ -316,9 +313,7 @@ class _GroupedModelPickerContentState
               ),
               child: Text(
                 'Effort',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppText.title(theme),
               ),
             ),
             _buildEffortSlider(context, selectedModels),
@@ -347,9 +342,7 @@ class _GroupedModelPickerContentState
               ),
               child: Text(
                 'Custom',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppText.title(theme),
               ),
             ),
             for (final model in _recentCustomModels)
@@ -469,14 +462,7 @@ class _GroupedModelPickerContentState
                         : i == labels.length - 1
                         ? TextAlign.end
                         : TextAlign.center,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: i == currentIndex
-                          ? cs.primary
-                          : cs.onSurfaceVariant,
-                      fontWeight: i == currentIndex
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                    ),
+                    style: AppText.label(theme, i == currentIndex ? cs.primary : cs.onSurfaceVariant),
                   ),
                 ),
             ],
@@ -731,9 +717,7 @@ Widget _buildProfileTile(
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   ),
               ],
             ),
@@ -780,9 +764,7 @@ void showProfilePickerSheet(
                 ),
                 child: Text(
                   sheetL10n.chatInputProfileTitle,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppText.title(theme),
                 ),
               ),
               Flexible(

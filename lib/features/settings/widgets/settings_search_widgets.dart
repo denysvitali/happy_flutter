@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 class SettingsSearchField extends StatelessWidget {
   const SettingsSearchField({
@@ -63,9 +64,7 @@ class SettingsNoSearchResults extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             'Try searching for sync, voice, sessions, server, or backup.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],

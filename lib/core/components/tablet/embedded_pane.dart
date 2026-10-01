@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Thin in-pane header used when a screen renders as a pane inside the
 /// tablet master-detail layout instead of as a pushed route.
@@ -70,9 +71,7 @@ class EmbeddedPaneHeader extends StatelessWidget {
                 if (subtitleText != null)
                   Text(
                     subtitleText,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                   ),
               ],
             ),
@@ -169,9 +168,7 @@ class EmbeddedPaneShell extends StatelessWidget {
                     ),
                     Text(
                       subtitleText,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),

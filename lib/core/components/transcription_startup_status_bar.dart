@@ -5,6 +5,7 @@ import '../i18n/app_localizations.dart';
 import '../providers/app_providers.dart';
 import '../theme/app_tokens.dart';
 import '../widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 class TranscriptionStartupStatusBar extends ConsumerWidget {
   const TranscriptionStartupStatusBar({super.key});
@@ -74,10 +75,7 @@ class TranscriptionStartupStatusBar extends ConsumerWidget {
                     text,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: foreground,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.label(theme, foreground),
                   ),
                 ),
               ],

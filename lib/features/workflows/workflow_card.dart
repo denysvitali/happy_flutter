@@ -6,6 +6,7 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Static wait copy for a live run that is not actively starting yet, so
 /// the body never contradicts the status badge (queued/paused ≠ starting)
@@ -132,9 +133,7 @@ class WorkflowCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   run.runId,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -162,18 +161,14 @@ class WorkflowCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   _phaseLabel(groups),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ],
               if (subtitle.isNotEmpty) ...[
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ],
               if (!hasDetails) ...[
@@ -189,10 +184,7 @@ class WorkflowCard extends StatelessWidget {
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         '$stepCount step${stepCount == 1 ? '' : 's'}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppText.label(theme, cs.onSurfaceVariant),
                       ),
                       if (WorkflowStatus.isLive(run.status)) ...[
                         const SizedBox(width: AppSpacing.sm),
@@ -213,10 +205,7 @@ class WorkflowCard extends StatelessWidget {
                       stepPreview!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontStyle: FontStyle.italic),
                     ),
                   ],
                 ] else if (WorkflowStatus.isStarting(run.status))
@@ -233,26 +222,19 @@ class WorkflowCard extends StatelessWidget {
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         'Starting…',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                       ),
                     ],
                   )
                 else if (WorkflowStatus.isLive(run.status))
                   Text(
                     _liveWaitLabel(run.status),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   )
                 else
                   Text(
                     'No progress details',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontStyle: FontStyle.italic),
                   ),
               ],
             ],

@@ -8,6 +8,7 @@ import '../i18n/app_localizations.dart';
 import '../services/logger_service.dart';
 import '../theme/app_tokens.dart';
 import '../utils/tool_error_parser.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Error boundary widget that catches and displays errors gracefully.
 ///
@@ -440,9 +441,7 @@ class _DefaultErrorWidget extends StatelessWidget {
                     Expanded(
                       child: Text(
                         toolError!.suggestion!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
+                        style: AppText.secondary(theme, theme.colorScheme.onPrimaryContainer),
                       ),
                     ),
                   ],
@@ -466,9 +465,7 @@ class _DefaultErrorWidget extends StatelessWidget {
                     ),
                     child: SelectableText(
                       stackTrace.toString(),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
+                      style: AppText.secondary(theme).copyWith(fontFamily: 'monospace'),
                     ),
                   ),
                 ],
@@ -626,10 +623,7 @@ class ErrorSnackbarManager {
                             ),
                             child: Text(
                               'x$count',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onError,
-                                fontWeight: FontWeight.w700,
-                              ),
+                              style: AppText.badge(theme, theme.colorScheme.onError),
                             ),
                           ),
                       ],

@@ -31,6 +31,7 @@ import 'session_list_helpers.dart';
 import 'session_peek_sheet.dart';
 import 'session_shimmer.dart';
 import 'unread_focus_cards.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 // ─── Main widget ──────────────────────────────────────
 
@@ -495,10 +496,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           const SizedBox(height: AppSpacing.xl),
           Text(
             l10n.sessionsNoSearchResults,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.half),
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppText.title(Theme.of(context), cs.onSurfaceVariant.withValues(alpha: AppOpacity.half)),
           ),
           const SizedBox(height: AppSpacing.lg),
           TextButton.icon(
@@ -786,11 +784,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             ),
             child: Text(
               '${needsAttention.length}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onPrimary,
-                fontWeight: FontWeight.w700,
-                fontSize: AppFontSize.sm,
-              ),
+              style: AppText.badge(theme, cs.onPrimary),
             ),
           ),
         ),
@@ -819,11 +813,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
             title: l10n.sessionsAllSessions,
             trailing: Text(
               '${allOthers.length}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                fontSize: AppFontSize.sm,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+              style: AppText.badge(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
             ),
           ),
         )

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Inline recovery UI for a failed older-message page request.
 class PaginationFailureRetry extends StatelessWidget {
@@ -50,18 +51,14 @@ class PaginationFailureRetry extends StatelessWidget {
                 ),
                 Text(
                   context.l10n.chatFailedToLoadMessages,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
                 ),
                 TextButton.icon(
                   onPressed: onRetry,
                   style: TextButton.styleFrom(
                     minimumSize: const Size(0, AppTouchTarget.min),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    textStyle: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    textStyle: AppText.label(theme),
                   ),
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: Text(context.l10n.commonRetry),

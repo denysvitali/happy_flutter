@@ -5,6 +5,7 @@ import '../../core/models/loop.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Card displaying a single [Loop].
 ///
@@ -122,9 +123,7 @@ class LoopCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xxs),
                 Text(
                   l10n.loopsFireCount(loop.fireCount),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
                 const SizedBox(width: AppSpacing.lg),
                 Icon(
@@ -136,9 +135,7 @@ class LoopCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     l10n.loopsLastFired(_relativeTime(loop.lastFiredAt, l10n)),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -147,9 +144,7 @@ class LoopCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               _expiresLabel(l10n),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: _isExpired ? cs.error : cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, _isExpired ? cs.error : cs.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
@@ -256,10 +251,7 @@ class _StatusChip extends StatelessWidget {
           const SizedBox(width: AppSpacing.xxs),
           Text(
             label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppText.label(theme, fg),
           ),
         ],
       ),

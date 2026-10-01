@@ -161,7 +161,6 @@ class _OfflineVoicesScreenState extends ConsumerState<OfflineVoicesScreen> {
               for (final locale in locales) ...[
                 SettingsSection(
                   title: _localeLabel(locale),
-                  uppercase: false,
                   children: [
                     for (final voice in grouped[locale]!)
                       _VoiceRow(

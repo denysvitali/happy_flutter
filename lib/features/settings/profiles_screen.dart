@@ -72,7 +72,6 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
       children: [
         SettingsSection(
           title: l10n.profilesTitle,
-          uppercase: false,
           children: [
             _buildProfileRow(
               context: context,

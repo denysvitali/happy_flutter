@@ -9,6 +9,7 @@ import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
 import 'session_headers.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 const double _folderStatusDotSlotSize = 17;
 
@@ -88,10 +89,7 @@ class FolderSessionRow extends StatelessWidget {
       activity: activity,
       preview: lastMessagePreview,
       previewRole: lastMessageRole,
-      style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.sm,
-        height: 1.25,
-      ),
+      style: AppText.secondary(theme),
     );
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
@@ -166,10 +164,7 @@ class FolderSessionRow extends StatelessWidget {
                             Flexible(
                               child: Text(
                                 displayName ?? derived.name,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: titleColor,
-                                ),
+                                style: AppText.title(theme, titleColor),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -192,12 +187,7 @@ class FolderSessionRow extends StatelessWidget {
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             derived.subtitle,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                              fontFamily: 'monospace',
-                              fontSize: AppFontSize.sm,
-                              height: 1.2,
-                            ),
+                            style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -295,18 +285,14 @@ class FolderOverviewCard extends StatelessWidget {
                     children: [
                       Text(
                         _folderName(header.displayPath),
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppText.title(theme),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         folderBreakdownLabel(context, header),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -321,9 +307,7 @@ class FolderOverviewCard extends StatelessWidget {
                     if (latestActivity != null)
                       Text(
                         latestActivity,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

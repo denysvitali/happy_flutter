@@ -11,6 +11,7 @@ import '../../../core/models/provider_versions.dart';
 import '../../../core/services/sync_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Checks and updates the coding agents installed on one connected machine.
 class MachineProviderVersions extends StatefulWidget {
@@ -235,9 +236,7 @@ class _MachineProviderVersionsState extends State<MachineProviderVersions> {
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   _error!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
+                  style: AppText.secondary(theme, theme.colorScheme.error),
                 ),
               ],
               const SizedBox(height: AppSpacing.md),
@@ -282,9 +281,7 @@ class _MachineProviderVersionsState extends State<MachineProviderVersions> {
       children: [
         Text(
           agent.displayName,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppText.title(theme),
         ),
         if (provider != null) ...[
           const SizedBox(height: AppSpacing.xs),

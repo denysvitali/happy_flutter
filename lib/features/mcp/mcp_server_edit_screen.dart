@@ -12,6 +12,7 @@ import '../../core/routing/safe_pop.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'mcp_servers_screen.dart' show scopeLabel;
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Navigation payload for [McpServerEditScreen].
 class McpServerEditArgs {
@@ -418,9 +419,7 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
                       Expanded(
                         child: Text(
                           _error!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.error,
-                          ),
+                          style: AppText.secondary(theme, theme.colorScheme.error),
                         ),
                       ),
                     ],
@@ -541,9 +540,7 @@ class _SecretMapEditor extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           helper,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          style: AppText.secondary(Theme.of(context), cs.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.sm),
         for (final key in controller.keys)

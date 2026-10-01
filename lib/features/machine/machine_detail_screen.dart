@@ -31,6 +31,7 @@ import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'widgets/agent_update_banner.dart';
 import 'widgets/machine_provider_versions.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -152,9 +153,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
       appBar: AppBar(
         title: Text(
           machineName,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppText.screenTitle(theme),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -206,10 +205,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                             children: [
                               Text(
                                 context.l10n.machineCompatibilityTitle,
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  color: cs.onTertiaryContainer,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: AppText.title(theme, cs.onTertiaryContainer),
                               ),
                               const SizedBox(height: AppSpacing.xxs),
                               Text(
@@ -217,17 +213,12 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                                   cliVersion,
                                   minimumCliVersion,
                                 ),
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: cs.onTertiaryContainer,
-                                ),
+                                style: AppText.secondary(theme, cs.onTertiaryContainer),
                               ),
                               const SizedBox(height: AppSpacing.xs),
                               Text(
                                 context.l10n.machineCompatibilityAction,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  color: cs.onTertiaryContainer,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                style: AppText.badge(theme, cs.onTertiaryContainer),
                               ),
                             ],
                           ),
@@ -654,9 +645,7 @@ class _StatusBanner extends StatelessWidget {
                   isOnline
                       ? context.l10n.machineConnectedNow
                       : context.l10n.machineLastSeenAt(lastSeen),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ],
             ),
@@ -822,9 +811,7 @@ class _ResourceRow extends StatelessWidget {
                         width: 72,
                         child: Text(
                           label,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
+                          style: AppText.secondary(theme, cs.onSurfaceVariant),
                         ),
                       ),
                       Expanded(
@@ -853,10 +840,7 @@ class _ResourceRow extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       subtitle!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontFamily: 'monospace',
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -958,9 +942,7 @@ class _GroupedRow extends StatelessWidget {
                 width: 100,
                 child: Text(
                   label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ),
             if (label.isNotEmpty) const SizedBox(width: AppSpacing.md),
@@ -1039,9 +1021,7 @@ class _SessionRow extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),

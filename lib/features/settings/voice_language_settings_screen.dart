@@ -6,6 +6,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/voice_languages.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Picker for the voice assistant language. Sources its entries from
 /// the shared catalog in `core/utils/voice_languages.dart` (the same
@@ -113,9 +114,7 @@ class _VoiceLanguageSettingsScreenState
               child: Text(
                 l10n.voiceLanguagesCount(filtered.length),
                 style:
-                    theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                    AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             ),
           ),

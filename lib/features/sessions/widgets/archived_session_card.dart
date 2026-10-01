@@ -7,6 +7,7 @@ import '../../../core/utils/session_utils.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Session card for archived/inactive sessions with
 /// press animation and improved visual hierarchy.
@@ -125,10 +126,7 @@ class _SessionCardState extends State<SessionCard> {
       activity: activity,
       preview: widget.lastMessagePreview,
       previewRole: widget.lastMessageRole,
-      style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.sm,
-        height: 1.3,
-      ),
+      style: AppText.secondary(theme),
       maxLines: 2,
     );
 
@@ -185,10 +183,7 @@ class _SessionCardState extends State<SessionCard> {
                             buildNameRow(
                               name: _d.name,
                               sessionStatus: _d.status,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: _titleColor ?? cs.onSurfaceVariant,
-                              ),
+                              style: AppText.title(theme, _titleColor ?? cs.onSurfaceVariant),
                               dotColor: _d.status.isConnected
                                   ? null
                               : cs.outlineVariant,
@@ -202,12 +197,7 @@ class _SessionCardState extends State<SessionCard> {
                         if (activityLine == null)
                           Text(
                             _d.subtitle,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                fontFamily: 'monospace',
-                                fontSize: AppFontSize.sm,
-                                height: 1.2,
-                              ),
+                            style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
@@ -233,10 +223,7 @@ class _SessionCardState extends State<SessionCard> {
                                   session.updatedAt,
                               relative: true,
                             ),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                              fontSize: AppFontSize.sm,
-                            ),
+                            style: AppText.secondary(theme, cs.onSurfaceVariant),
                           ),
                           if (todoProgress != null) ...[
                             const SizedBox(height: AppSpacing.xsm),

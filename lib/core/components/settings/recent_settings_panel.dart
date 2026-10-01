@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
 import '../../theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 // ─── Recent Settings Panel ────────────────────────────────────────────────────
 
@@ -34,10 +35,7 @@ class RecentSettingsPanel extends StatelessWidget {
       children: [
         Text(
           'Quick access',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.high),
-            letterSpacing: 0.5,
-          ),
+          style: AppText.label(theme, cs.onSurfaceVariant.withValues(alpha: AppOpacity.high)),
         ),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
@@ -117,10 +115,7 @@ class _QuickChip extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Text(
               chip.label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppText.label(theme, cs.onSurface),
             ),
           ],
         ),

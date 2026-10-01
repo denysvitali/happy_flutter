@@ -15,6 +15,7 @@ import 'loop_actions.dart';
 import 'loop_card.dart';
 import 'loop_refresh_state.dart';
 import '../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Per-session list of scheduled prompts (loops).
 ///
@@ -146,9 +147,7 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen>
                       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                       child: Text(
                         l10n.loopsCount(loops.length),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     );
                   }

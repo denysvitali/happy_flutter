@@ -24,6 +24,7 @@ import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
 import 'package:happy_flutter/core/components/app_card.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 // Reusable thin divider used inside the metadata/info cards.
 const _kRowDivider = Divider(
@@ -460,7 +461,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         const SizedBox(height: AppSpacing.lg),
 
         if (session.isKubernetesSession) ...[
-          AppSectionHeader(title: l10n.sessionPodSection, uppercase: true),
+          AppSectionHeader(title: l10n.sessionPodSection),
           const SizedBox(height: AppSpacing.sm),
           _SessionPodCard(
             session: session,
@@ -506,17 +507,12 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                         children: [
                           Text(
                             l10n.sessionInfoCliOutdated,
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              color: theme.colorScheme.onTertiaryContainer,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: AppText.title(theme, theme.colorScheme.onTertiaryContainer),
                           ),
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             'Run: npm install -g happy-coder@latest',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onTertiaryContainer,
-                            ),
+                            style: AppText.secondary(theme, theme.colorScheme.onTertiaryContainer),
                           ),
                         ],
                       ),
@@ -536,7 +532,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         AppSectionHeader(
           title: l10n.sessionInfoSectionDetails,
-          uppercase: true,
         ),
         const SizedBox(height: AppSpacing.sm),
         AppCard(
@@ -582,7 +577,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           const SizedBox(height: AppSpacing.lg),
           AppSectionHeader(
             title: l10n.sessionStartupResumeSection,
-            uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
@@ -639,7 +633,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         const SizedBox(height: AppSpacing.lg),
         AppSectionHeader(
           title: l10n.sessionInfoSectionQuickActions,
-          uppercase: true,
         ),
         const SizedBox(height: AppSpacing.sm),
         AppCard(
@@ -693,7 +686,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           const SizedBox(height: AppSpacing.lg),
           AppSectionHeader(
             title: l10n.sessionInfoSectionMetadata,
-            uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
@@ -811,7 +803,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           const SizedBox(height: AppSpacing.lg),
           AppSectionHeader(
             title: l10n.sessionInfoSectionAgentState,
-            uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
@@ -846,7 +837,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         const SizedBox(height: AppSpacing.lg),
         AppSectionHeader(
           title: l10n.sessionInfoSectionActivity,
-          uppercase: true,
         ),
         const SizedBox(height: AppSpacing.sm),
         AppCard(
@@ -882,7 +872,6 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           const SizedBox(height: AppSpacing.lg),
           AppSectionHeader(
             title: l10n.sessionInfoSectionTools,
-            uppercase: true,
           ),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
@@ -900,9 +889,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                   return Chip(
                     label: Text(
                       tool,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: AppFontSize.sm,
-                      ),
+                      style: AppText.secondary(theme),
                     ),
                     backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     padding: EdgeInsets.zero,
@@ -1007,9 +994,7 @@ class _SessionPodCard extends StatelessWidget {
                 true)
               Text(
                 currentPod?.namespace ?? session.metadata!.namespace!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
               ),
             if (currentPod?.reason.isNotEmpty == true ||
                 currentPod?.message.isNotEmpty == true) ...[
@@ -1068,9 +1053,7 @@ class _SessionPodCard extends StatelessWidget {
                     logs!.content.isEmpty
                         ? l10n.sessionPodLogsEmpty
                         : logs!.content,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                    ),
+                    style: AppText.secondary(theme).copyWith(fontFamily: 'monospace'),
                   ),
                 ),
               ),

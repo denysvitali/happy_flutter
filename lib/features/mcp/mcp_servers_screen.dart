@@ -22,6 +22,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../features/settings/widgets/machine_picker.dart';
 import 'mcp_server_edit_screen.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Remote management of a machine's Claude Code MCP servers.
 ///
@@ -552,9 +553,7 @@ class _NoticeCard extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
             ),
           ),
         ],
@@ -578,11 +577,7 @@ class _SourcePaths extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
       child: Text(
         '$label: $value',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: cs.onSurfaceVariant,
-          fontFamily: 'monospace',
-          fontSize: AppFontSize.sm,
-        ),
+        style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
       ),
     );
 
@@ -591,10 +586,7 @@ class _SourcePaths extends StatelessWidget {
       children: [
         Text(
           l10n.mcpSourceFiles,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: cs.onSurfaceVariant,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppText.label(theme, cs.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.xs),
         if (config.claudeConfigPath != null)
@@ -608,9 +600,7 @@ class _SourcePaths extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpacing.xs),
             child: Text(
               l10n.mcpApproveAllEnabled,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
           ),
       ],

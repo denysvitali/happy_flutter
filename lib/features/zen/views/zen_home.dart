@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 // ─── Priority definitions ────────────────────────────────────────────────────
 
@@ -653,26 +654,18 @@ class _TodoRow extends StatelessWidget {
                         when parentId.isNotEmpty)
                       Text(
                         'Sub-item of #$parentId',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                       ),
                     if (sessionTodo.agentId case final agentId?
                         when agentId.isNotEmpty)
                       Text(
                         'Assigned to $agentId',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                       ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       sessionTodo.sessionTitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.65,
-                        ),
-                      ),
+                      style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant.withValues( alpha: 0.65, )),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

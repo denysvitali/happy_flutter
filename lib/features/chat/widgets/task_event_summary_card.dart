@@ -5,6 +5,7 @@ import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/task_label.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Aurora-glass status chip for a sub-agent task completion event,
 /// sibling of the agent-event start/progress markers so a task's
@@ -131,11 +132,7 @@ class TaskEventSummaryCard extends StatelessWidget {
                 SizedBox(width: AppSpacing.xs),
                 Text(
                   _statusLabel(),
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: muted,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
-                  ),
+                  style: AppText.badge(theme, muted),
                 ),
               ],
             ),
@@ -154,9 +151,7 @@ class TaskEventSummaryCard extends StatelessWidget {
               compactTaskLabel(summary),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
               textAlign: TextAlign.start,
             ),
           ),
@@ -187,12 +182,7 @@ class TaskEventSummaryCard extends StatelessWidget {
                     Flexible(
                       child: Text(
                         transcriptDir,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          fontFeatures: const [
-                            FontFeature.tabularFigures(),
-                          ],
-                        ),
+                        style: AppText.badge(theme, cs.onSurfaceVariant),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -216,10 +206,7 @@ class TaskEventSummaryCard extends StatelessWidget {
             ),
             child: Text(
               'run: $runId',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+              style: AppText.badge(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
             ),
           ),
       ],

@@ -114,7 +114,6 @@ class _VoiceSettingsScreenState
             const SizedBox(height: AppSpacing.lg),
             SettingsSection(
               title: l10n.voiceSelectEngineHint,
-              uppercase: false,
               children: [
                 SettingsRow(
                   icon: Icons.settings_voice,
@@ -182,7 +181,6 @@ class _VoiceSettingsScreenState
           const SizedBox(height: AppSpacing.lg),
           SettingsSection(
             title: l10n.voiceSelectLanguageHint,
-            uppercase: false,
             children: [
               SettingsRow(
                 icon: Icons.record_voice_over,

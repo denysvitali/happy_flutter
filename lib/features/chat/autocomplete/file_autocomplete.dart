@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/services/logger_service.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Characters that stop the active word search
 const List<String> _stopCharacters = [
@@ -534,9 +535,7 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                               const SizedBox(width: 8),
                               Text(
                                 'Searching files...',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
+                                style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                               ),
                             ],
                           ),
@@ -654,9 +653,7 @@ class _FileSuggestionItem extends StatelessWidget {
                     if (suggestion.path.isNotEmpty)
                       Text(
                         suggestion.path,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -703,10 +700,7 @@ class _FileSuggestionItem extends StatelessWidget {
       ),
       child: Text(
         badgeText,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontSize: AppFontSize.sm,
-        ),
+        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
       ),
     );
   }

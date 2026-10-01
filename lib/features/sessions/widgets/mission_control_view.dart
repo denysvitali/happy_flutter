@@ -18,6 +18,7 @@ import 'mission_control_types.dart';
 import 'mission_control_workspace_list.dart';
 import 'mission_heartbeat.dart';
 import 'session_headers.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 export 'mission_control_action_tile.dart' show MissionActionRow;
 export 'mission_control_types.dart'
@@ -814,12 +815,7 @@ class _DisclosureButton extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: AppFontSize.sm,
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurfaceVariant,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                      style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     AnimatedRotation(

@@ -15,6 +15,7 @@ import 'artifact_detail_screen.dart';
 import 'edit_artifact_screen.dart';
 import 'new_artifact_screen.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Inline detail mode rendered in the side pane on wide layouts.
 enum _InlineMode { none, view, edit, create }
@@ -320,9 +321,7 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
               _searchQuery.isNotEmpty
                   ? l10n.artifactsCount(filtered.length)
                   : l10n.artifactsCount(totalCount),
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+              style: AppText.secondary(Theme.of(context), cs.onSurfaceVariant),
             ),
           ),
         ),
@@ -485,10 +484,7 @@ class _ArtifactListCard extends StatelessWidget {
                   // Content preview snippet.
                   Text(
                     artifact.body!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      height: AppLineHeight.tight,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

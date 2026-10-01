@@ -15,6 +15,7 @@ import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Prominent card used in the "Needs Attention" section of the
 /// Unread Focus view. Filled with a primary tint and a thick left
@@ -157,10 +158,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                               children: [
                                 Text(
                                   _d.name,
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: cs.onSurface,
-                                  ),
+                                  style: AppText.title(theme, cs.onSurface),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -174,13 +172,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                                     context: context,
                                     preview: widget.lastMessagePreview!,
                                     role: widget.lastMessageRole,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontSize: AppFontSize.sm,
-                                      height: 1.25,
-                                      color: cs.onSurface.withValues(
-                                        alpha: AppOpacity.high,
-                                      ),
-                                    ),
+                                    style: AppText.secondary(theme, cs.onSurface.withValues( alpha: AppOpacity.high, )),
                                     maxLines: 2,
                                   ),
                                 ],
@@ -288,7 +280,7 @@ class _CardPermissionRowState extends ConsumerState<_CardPermissionRow> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
+            style: AppText.secondary(theme, cs.error),
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
@@ -368,11 +360,7 @@ class UnreadFocusListRow extends StatelessWidget {
       activity: activity,
       preview: lastMessagePreview,
       previewRole: lastMessageRole,
-      style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.sm,
-        height: 1.2,
-        color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium),
-      ),
+      style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium)),
     );
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
@@ -436,12 +424,7 @@ class UnreadFocusListRow extends StatelessWidget {
                           Flexible(
                             child: Text(
                               derived.name,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w500,
-                                color: cs.onSurface.withValues(
-                                  alpha: AppOpacity.high,
-                                ),
-                              ),
+                              style: AppText.title(theme, cs.onSurface.withValues( alpha: AppOpacity.high, )),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),

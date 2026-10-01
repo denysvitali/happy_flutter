@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Uppercase-ish section label above an artifact form field.
 class ArtifactSectionLabel extends StatelessWidget {
@@ -13,12 +14,7 @@ class ArtifactSectionLabel extends StatelessWidget {
     final theme = Theme.of(context);
     return Text(
       label,
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
-        fontSize: AppFontSize.sm,
-      ),
+      style: AppText.badge(theme, theme.colorScheme.onSurfaceVariant),
     );
   }
 }

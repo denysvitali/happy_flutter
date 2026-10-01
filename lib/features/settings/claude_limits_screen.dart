@@ -14,6 +14,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/machine_usage_scaffold.dart';
 import 'widgets/token_usage_chart.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Screen showing Claude Code rate limits fetched from a connected
 /// machine's local Claude credentials.
@@ -188,9 +189,7 @@ class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
     final theme = Theme.of(context);
     return Text(
       resetsIn,
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
-      ),
+      style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
     );
   }
 
@@ -264,9 +263,7 @@ class _LocalUsageSection extends StatelessWidget {
                       ? l10n.claudeLocalUsageRequiresUpdate
                       : (l10n.claudeLocalUsageFailed +
                             (error != null ? ' — $error' : '')),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ),
             ],
@@ -293,9 +290,7 @@ class _LocalUsageSection extends StatelessWidget {
             child: Text(
               '${l10n.claudeLocalUsageLifetime}: '
               '${u.lastComputedDate}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
           ),
         );
@@ -323,9 +318,7 @@ class _LocalUsageSection extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   l10n.claudeLocalUsageNoDataSubtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ],
             ),
@@ -359,9 +352,7 @@ class _LocalUsageSection extends StatelessWidget {
               ),
               child: Text(
                 l10n.claudeLocalUsageLast30Days,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.label(theme, cs.onSurfaceVariant),
               ),
             ),
           )
@@ -451,9 +442,7 @@ class _ModelTokenRow extends StatelessWidget {
                 ),
                 Text(
                   rawModelId,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ],
             ),
@@ -497,17 +486,13 @@ class _DailyTokenRow extends StatelessWidget {
           if (topModelName != null) ...[
             Text(
               topModelName!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
             const SizedBox(width: AppSpacing.sm),
           ],
           Text(
             ClaudeLocalUsage.formatTokenCount(totalTokens),
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppText.label(theme),
           ),
         ],
       ),

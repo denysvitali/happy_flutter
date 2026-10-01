@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'composer_selector_chip.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Opens the composer text in a full-screen editor.
 ///
@@ -134,9 +135,7 @@ class _FullscreenComposerBar extends StatelessWidget {
               Expanded(
                 child: Text(
                   l10n.chatComposerCharacterCount(text.length),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ),
               FilledButton.icon(

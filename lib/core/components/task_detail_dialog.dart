@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/todo.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Shows a modal dialog with the full task title, status, and description.
 ///
@@ -75,26 +76,19 @@ class _TaskDetailDialog extends StatelessWidget {
               ),
               child: Text(
                 statusLabel,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: statusColor,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppText.label(theme, statusColor),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
             if (item.parentId case final parentId? when parentId.isNotEmpty)
               Text(
                 'Sub-item of #$parentId',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             if (item.agentId case final agentId? when agentId.isNotEmpty)
               Text(
                 'Assigned to $agentId',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             if (item.parentId != null || item.agentId != null)
               const SizedBox(height: AppSpacing.sm),

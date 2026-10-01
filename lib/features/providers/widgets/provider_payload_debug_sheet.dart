@@ -8,6 +8,7 @@ import '../../../core/theme/app_scroll_behavior.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Modal bottom sheet that renders the raw provider response payload captured
 /// by the usage API clients ([KimiUsageApi], [MiniMaxUsageApi], [ZaiUsageApi]).
@@ -114,9 +115,7 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
                 children: [
                   Text(
                     'Payload',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.title(theme),
                   ),
                   const Spacer(),
                   TextButton.icon(
@@ -160,9 +159,7 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
                           child: Text(
                             'No payload captured for this account yet. '
                             'Pull-to-refresh to retry.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -202,9 +199,7 @@ class _MetadataRow extends StatelessWidget {
             width: 96,
             child: Text(
               label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: AppText.label(theme, colorScheme.onSurfaceVariant),
             ),
           ),
           Expanded(

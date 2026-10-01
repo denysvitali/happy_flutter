@@ -20,6 +20,7 @@ import 'sftp_connection_history_screen.dart';
 import 'sftp_log_viewer_screen.dart';
 import '../../../core/utils/utils.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Right-pane modes when the directory manager is rendered as a
 /// master-detail layout on wider viewports.
@@ -252,9 +253,7 @@ class _SftpDirectoryManagerScreenState
               ),
               child: Text(
                 'Sort by',
-                style: Theme.of(
-                  ctx,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                style: AppText.title(Theme.of(ctx)),
               ),
             ),
             _SortOption(
@@ -394,9 +393,7 @@ class _SftpDirectoryManagerScreenState
                   Expanded(
                     child: Text(
                       _currentPath,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
+                      style: AppText.secondary(Theme.of(context)).copyWith(fontFamily: 'monospace'),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -622,9 +619,7 @@ class _FileEntityCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     subtitle,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    style: AppText.secondary(Theme.of(context), cs.onSurfaceVariant),
                   ),
                 ],
               ],
@@ -749,9 +744,7 @@ class _InfoChip extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+            style: AppText.secondary(Theme.of(context), cs.onSurfaceVariant),
           ),
         ],
       ),

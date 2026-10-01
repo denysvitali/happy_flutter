@@ -56,6 +56,16 @@ Control sizes are `AppControlSize` 28/32/40; row height is `AppRowHeight.compact
 36. Transcript rows and their actions are 36px — dozens stack, so they trade
 the 44px minimum for density; standalone buttons keep `AppTouchTarget.min`.
 
+**Text roles (`AppText`, `lib/core/theme/app_text.dart`):** Row and header text
+is one of five roles — `screenTitle` (18/600, the app bar style), `title`
+(14/600, `onSurface`), `secondary` (12/400), `label` (12/600) and `badge`
+(12/700, tabular) — with one line height (1.3) and default color per role.
+Never build row text from `textTheme.x?.copyWith(fontSize/fontWeight)`: the
+same job then renders with a different weight, height or color on every page
+(titles were 500, 600 and 700; `titleSmall` defaulted to the muted color).
+Section headers are never force-uppercased and have no `uppercase` option.
+`MissionType` is a thin alias for these roles.
+
 **Type and icon scale:** The theme (`theme_helper.dart`) and every component
 theme use only `AppFontSize` sizes; `test/core/theme/type_scale_test.dart` pins
 that. Do not write literal `fontSize:` values — use `textTheme` slots or the

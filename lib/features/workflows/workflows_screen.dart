@@ -15,6 +15,7 @@ import '../../core/services/logger_service.dart' show logger;
 import '../../core/services/sync_service.dart';
 import '../../core/theme/app_tokens.dart';
 import 'workflow_card.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Per-session list of Claude Code workflow runs.
 class WorkflowsScreen extends ConsumerStatefulWidget {
@@ -241,9 +242,7 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
                       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                       child: Text(
                         context.l10n.workflowsCount(runs.length),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     );
                   }

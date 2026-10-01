@@ -15,6 +15,7 @@ import '../../sessions/session_avatar.dart';
 import 'agents_list_sheet.dart';
 import 'chat_app_bar_status.dart';
 import 'session_header_chip.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 // The chip model, the chip builder and the store fallback live in a sibling
 // file (see chat_app_bar_status.dart); re-exported so existing callers can
@@ -132,7 +133,7 @@ class ChatAppBar extends ConsumerWidget implements PreferredSizeWidget {
     if (currentSession == null) {
       return Text(
         context.l10n.chatChat,
-        style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        style: AppText.screenTitle(Theme.of(context)),
       );
     }
 
@@ -431,11 +432,7 @@ class _VitalPill extends StatelessWidget {
           const SizedBox(width: AppSpacing.xxs),
           Text(
             label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              fontSize: AppFontSize.sm,
-            ),
+            style: AppText.label(theme, cs.onSurfaceVariant),
           ),
           const SizedBox(width: AppSpacing.xxs),
           Expanded(
@@ -452,12 +449,7 @@ class _VitalPill extends StatelessWidget {
           const SizedBox(width: AppSpacing.xxs),
           Text(
             '${value.toStringAsFixed(0)}%',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurface,
-              fontWeight: FontWeight.w600,
-              fontSize: AppFontSize.sm,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+            style: AppText.label(theme, cs.onSurface).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ],
       ),

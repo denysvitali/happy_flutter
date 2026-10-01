@@ -4,6 +4,7 @@ import 'package:flutter/semantics.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Tiny status label shown below user bubbles for optimistic messages.
 ///
@@ -73,11 +74,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
     final theme = Theme.of(context);
     final l10n = context.l10n;
     final cs = theme.colorScheme;
-    final style = theme.textTheme.labelSmall?.copyWith(
-      fontSize: AppFontSize.sm,
-      height: 1.2,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
+    final style = AppText.badge(theme);
 
     switch (widget.status) {
       case 'sending':
@@ -196,12 +193,7 @@ class _StatusLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-      fontSize: AppFontSize.sm,
-      height: 1.2,
-      color: color,
-      fontFeatures: const [FontFeature.tabularFigures()],
-    );
+    final style = AppText.badge(Theme.of(context), color);
 
     return Padding(
       padding: const EdgeInsets.only(top: 3, right: 2),

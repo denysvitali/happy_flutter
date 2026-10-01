@@ -15,6 +15,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'chat_chrome_density.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A sticky banner at the bottom of the chat session that shows the
 /// current agent task list for the active session.
@@ -431,21 +432,14 @@ class _Row extends StatelessWidget {
                 children: [
                   Text(
                     item.content,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: textColor,
-                      decoration: decoration,
-                      decorationColor: textColor,
-                      height: AppLineHeight.normal,
-                    ),
+                    style: AppText.secondary(theme, textColor).copyWith(decoration: decoration, decorationColor: textColor),
                   ),
                   if (assignedAgent case final agentId? when agentId.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.xxxs),
                       child: Text(
                         'Assigned to $agentId',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                       ),
                     ),
                   if (item.description case final description?
@@ -456,11 +450,7 @@ class _Row extends StatelessWidget {
                         _abbreviated(description),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.75),
-                          height: AppLineHeight.normal,
-                          fontSize: AppFontSize.sm,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.75)),
                       ),
                     ),
                 ],

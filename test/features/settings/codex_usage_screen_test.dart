@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/find_text_ci.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -303,10 +304,10 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(seconds: 1));
 
-        expect(find.text('MODEL AVAILABILITY'), findsOneWidget);
+        expect(findTextIgnoreCase('MODEL AVAILABILITY'), findsOneWidget);
         expect(find.text('gpt-6-astra'), findsOneWidget);
         expect(find.text('Credits required'), findsOneWidget);
-        expect(find.text('RESERVE'), findsOneWidget);
+        expect(findTextIgnoreCase('RESERVE'), findsOneWidget);
         expect(find.text(title), findsNWidgets(2));
         expect(find.text('Usage allowed'), findsNWidgets(2));
         expect(find.text('Credits Available'), findsNothing);

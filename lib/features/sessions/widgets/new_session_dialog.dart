@@ -20,6 +20,7 @@ import '../../../core/widgets/app_focus_traversal.dart';
 import '../../chat/model_selection_resolver.dart'
     show profileOwnsRawCodexModel, profileUsesThirdPartyAnthropicBaseUrl;
 import '../../chat/widgets/model_mode.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 enum NewSessionCreateBlocker {
   missingMachine,
@@ -320,9 +321,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                 ),
                                 child: Text(
                                   l10n.machineOffline,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
+                                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                                 ),
                               ),
                             ],
@@ -450,9 +449,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                     padding: const EdgeInsets.only(left: AppSpacing.xl),
                     child: Text(
                       l10n.machineOfflineHelp,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant),
                     ),
                   ),
                 ],
@@ -470,7 +467,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                   liveRegion: true,
                   child: Text(
                     _createError!,
-                    style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
+                    style: AppText.secondary(theme, cs.error),
                   ),
                 ),
               ],
@@ -1101,9 +1098,7 @@ class _AgentPicker extends StatelessWidget {
           header: true,
           child: Text(
             l10n.sessionsAgent,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: AppText.label(theme, cs.onSurfaceVariant),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -1194,11 +1189,7 @@ class _AgentOption extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: foreground,
-                      fontSize: AppFontSize.sm,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    ),
+                    style: AppText.badge(theme, foreground),
                   ),
                 ],
               ),
@@ -1250,7 +1241,7 @@ class _DialogRequirementStatus extends StatelessWidget {
             liveRegion: true,
             child: Text(
               _dialogRequirementText(l10n, blocker),
-              style: theme.textTheme.bodySmall?.copyWith(color: color),
+              style: AppText.secondary(theme, color),
             ),
           ),
         ),

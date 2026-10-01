@@ -9,6 +9,7 @@ import '../../../platform_io.dart'
 import '../../i18n/app_localizations.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Tab type for the app
 enum AppTab { sessions, loops, providers, settings }
@@ -155,12 +156,7 @@ class _TabItem extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: itemColor,
-                          fontWeight: isActive
-                              ? FontWeight.w700
-                              : FontWeight.normal,
-                        ),
+                        style: AppText.badge(theme, itemColor),
                       ),
                     ),
                   ],
@@ -262,12 +258,7 @@ class _TabBadge extends StatelessWidget {
       child: Text(
         label,
         textAlign: TextAlign.center,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onError,
-          fontSize: AppFontSize.sm,
-          height: AppLineHeight.tight,
-          fontWeight: FontWeight.w700,
-        ),
+        style: AppText.badge(theme, theme.colorScheme.onError),
       ),
     );
   }

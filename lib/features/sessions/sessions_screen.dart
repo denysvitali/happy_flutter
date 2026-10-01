@@ -34,6 +34,7 @@ import 'widgets/new_session_dialog.dart';
 import 'widgets/session_headers.dart';
 import 'widgets/session_list_helpers.dart';
 import 'widgets/sessions_list_content.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Persistence key for the sessions master-pane width in the tablet
 /// split layout.
@@ -396,7 +397,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
     AppLocalizations l10n,
     SessionFolderHeader folder,
   ) {
-    final cs = Theme.of(context).colorScheme;
     // Extract machineId and raw path from folderKey ('machineId:path').
     final colonIndex = folder.folderKey.indexOf(':');
     final machineId = colonIndex > 0
@@ -416,18 +416,14 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
         children: [
           Text(
             folder.displayPath,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: AppText.screenTitle(Theme.of(context)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           Text(
             '${folder.machineName} • '
             '${folderBreakdownLabel(context, folder)}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            style: AppText.secondary(Theme.of(context)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

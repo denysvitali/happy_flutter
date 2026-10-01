@@ -10,6 +10,7 @@ import '../model_selection_resolver.dart';
 import 'composer_selector_chip.dart';
 import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Inline chip for model selection — subtle, tappable.
 class ModelChip extends StatelessWidget {
@@ -139,11 +140,7 @@ class ContextSizeIndicator extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Text(
           label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: indicatorColor,
-            fontSize: AppFontSize.sm,
-            fontWeight: FontWeight.w400,
-          ),
+          style: AppText.secondary(theme, indicatorColor),
         ),
       ],
     );

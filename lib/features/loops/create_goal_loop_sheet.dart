@@ -11,6 +11,7 @@ import '../../core/providers/goal_loops_notifier.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Bottom sheet for starting a goal loop.
 ///
@@ -154,9 +155,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
             const SizedBox(height: AppSpacing.xs),
             Text(
               l10n.goalLoopsCreateSubtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.lg),
 
@@ -299,9 +298,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
                   ),
                   Text(
                     l10n.goalLoopsMaxIterationsHelper,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   TextField(
@@ -333,7 +330,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 _error!,
-                style: theme.textTheme.bodySmall?.copyWith(color: cs.error),
+                style: AppText.secondary(theme, cs.error),
               ),
             ],
             const SizedBox(height: AppSpacing.lg),

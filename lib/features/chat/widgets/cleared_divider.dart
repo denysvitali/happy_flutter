@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A horizontal divider with a "conversation cleared" label, shown
 /// after a `/clear` command in the chat message list.
@@ -41,12 +42,7 @@ class ClearedDivider extends StatelessWidget {
             ),
             child: Text(
               context.l10n.chatConversationCleared,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: labelColor,
-                fontWeight: FontWeight.w600,
-                fontSize: AppFontSize.sm,
-                letterSpacing: 0.4,
-              ),
+              style: AppText.label(theme, labelColor),
             ),
           ),
           Expanded(child: _buildRule(glass)),

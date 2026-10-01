@@ -17,6 +17,7 @@ import '../../core/widgets/app_linear_progress_indicator.dart';
 import '../../core/wire/wire_parsers.dart';
 import 'workflow_display.dart';
 import 'workflow_status_badge.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Detail view for a single Claude Code workflow run.
 ///
@@ -377,9 +378,7 @@ class _WorkflowRunScreenState extends ConsumerState<WorkflowRunScreen> {
                     run.runId,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -473,9 +472,7 @@ class _WorkflowElapsedTimeState extends State<_WorkflowElapsedTime> {
     if (elapsedMs == null) return const SizedBox.shrink();
     return Text(
       formatDuration(Duration(milliseconds: elapsedMs)),
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
+      style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
     );
   }
 }
@@ -578,9 +575,7 @@ class _StatChip extends StatelessWidget {
         const SizedBox(width: AppSpacing.xxs),
         Text(
           label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          style: AppText.secondary(Theme.of(context), cs.onSurfaceVariant),
         ),
       ],
     );
@@ -632,9 +627,7 @@ class _PhaseProgress extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: cs.onSurfaceVariant,
-          ),
+          style: AppText.secondary(theme, cs.onSurfaceVariant),
         ),
       ],
     );
@@ -689,9 +682,7 @@ class _PhaseSection extends StatelessWidget {
             ),
             Text(
               runIsLive ? 'Pending' : 'Skipped',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
           ],
         ),
@@ -716,18 +707,14 @@ class _PhaseSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   group.phase.title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppText.title(theme),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (agentCount > 0)
                 Text(
                   '$agentCount ${agentCount == 1 ? 'agent' : 'agents'}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
             ],
           ),
@@ -737,9 +724,7 @@ class _PhaseSection extends StatelessWidget {
               padding: const EdgeInsets.only(left: 16 + AppSpacing.sm),
               child: Text(
                 group.phase.detail!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             ),
           ],
@@ -821,10 +806,7 @@ class _PhasePlaceholder extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: cs.onSurfaceVariant,
-          fontStyle: FontStyle.italic,
-        ),
+        style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontStyle: FontStyle.italic),
       ),
     );
   }
@@ -883,9 +865,7 @@ class _AgentRow extends StatelessWidget {
             if (!hideModel && agent.model.isNotEmpty)
               Text(
                 agent.model,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
           ],
         ),
@@ -951,9 +931,7 @@ class _AgentSubtitle extends StatelessWidget {
         if (stats.isNotEmpty)
           Text(
             stats,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: cs.onSurfaceVariant,
-            ),
+            style: AppText.secondary(theme, cs.onSurfaceVariant),
           ),
         if (toolLine != null)
           Row(
@@ -965,9 +943,7 @@ class _AgentSubtitle extends StatelessWidget {
                   toolLine,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
               ),
             ],
@@ -1016,10 +992,7 @@ class _AgentDetailBlockState extends State<_AgentDetailBlock> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final bodyStyle = theme.textTheme.bodySmall?.copyWith(
-      color: widget.color ?? cs.onSurfaceVariant,
-      height: 1.35,
-    );
+    final bodyStyle = AppText.secondary(theme, widget.color ?? cs.onSurfaceVariant);
     final trimmed = widget.text.trim();
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -1027,12 +1000,8 @@ class _AgentDetailBlockState extends State<_AgentDetailBlock> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.label.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.4,
-            ),
+            widget.label,
+            style: AppText.label(theme, cs.onSurfaceVariant),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Container(
@@ -1129,10 +1098,7 @@ class _RunTextSection extends StatelessWidget {
         children: [
           Text(
             title,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
+            style: AppText.title(theme, color),
           ),
           const SizedBox(height: AppSpacing.xs),
           Container(
@@ -1146,9 +1112,7 @@ class _RunTextSection extends StatelessWidget {
               body.trim(),
               style:
                   (monospace
-                          ? theme.textTheme.bodySmall?.copyWith(
-                              fontFamily: 'RobotoMono',
-                            )
+                          ? AppText.secondary(theme).copyWith(fontFamily: 'RobotoMono')
                           : theme.textTheme.bodySmall)
                       ?.copyWith(color: color ?? cs.onSurface, height: 1.35),
             ),
@@ -1223,19 +1187,14 @@ class _StepRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppText.label(theme, cs.onSurface),
             ),
           ),
           if (lastTool != null && lastTool.isNotEmpty) ...[
             const SizedBox(width: AppSpacing.xs),
             Text(
               lastTool,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
           ],
         ],

@@ -6,6 +6,7 @@ import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/components/app_icon_tile.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sticky chat banner showing the current Codex goal for this session.
 ///
@@ -94,10 +95,7 @@ class _GoalBannerBody extends StatelessWidget {
                               children: [
                                 Text(
                                   'Goal',
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: cs.onSurface,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                  style: AppText.badge(theme, cs.onSurface),
                                 ),
                                 const SizedBox(width: AppSpacing.xs),
                                 _StatusPill(label: goal.status, color: accent),
@@ -108,10 +106,7 @@ class _GoalBannerBody extends StatelessWidget {
                               goal.objective,
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: cs.onSurfaceVariant,
-                                height: 1.25,
-                              ),
+                              style: AppText.secondary(theme, cs.onSurfaceVariant),
                             ),
                           ],
                         ),
@@ -166,10 +161,7 @@ class _StatusPill extends StatelessWidget {
       ),
       child: Text(
         normalized,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-        ),
+        style: AppText.badge(theme, color),
       ),
     );
   }

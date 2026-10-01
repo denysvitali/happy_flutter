@@ -6,6 +6,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'package:happy_flutter/core/theme/app_button_style.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Card for a single goal loop.
 ///
@@ -83,9 +84,7 @@ class GoalLoopCard extends StatelessWidget {
                   child: Text(
                     loop.directory,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   ),
                 ),
               ],
@@ -107,9 +106,7 @@ class GoalLoopCard extends StatelessWidget {
                         if (loop.model.isNotEmpty) loop.model,
                       ].join(' · '),
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant),
                     ),
                   ),
                 ],
@@ -141,18 +138,13 @@ class GoalLoopCard extends StatelessWidget {
                     loop.completedIterations,
                     maxIterations,
                   ),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
                 const Spacer(),
                 if (loop.isIterating)
                   Text(
                     l10n.goalLoopsIterating,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.label(theme, cs.primary),
                   ),
               ],
             ),
@@ -310,10 +302,7 @@ class _GoalStatusChip extends StatelessWidget {
           const SizedBox(width: AppSpacing.xxs),
           Text(
             label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: fg,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppText.label(theme, fg),
           ),
         ],
       ),

@@ -7,6 +7,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Shared machine dropdown used by machine-bound settings screens
 /// (Codex / Grok / Claude usage, etc.).
@@ -113,9 +114,7 @@ class MachinePicker extends StatelessWidget {
                         child: Text(
                           reason,
                           overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
+                          style: AppText.secondary(theme, cs.onSurfaceVariant),
                         ),
                       ),
                     ],

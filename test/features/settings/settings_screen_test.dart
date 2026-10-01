@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/find_text_ci.dart';
 import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/components/settings_section.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -138,7 +139,7 @@ void main() {
     expect(find.text('Quick access'), findsNothing);
 
     final searchY = tester.getTopLeft(find.byType(TextField)).dy;
-    final statusY = tester.getTopLeft(find.text('STATUS')).dy;
+    final statusY = tester.getTopLeft(findTextIgnoreCase('STATUS')).dy;
     expect(searchY, lessThan(statusY));
   });
 
@@ -159,7 +160,7 @@ void main() {
     // The only remaining "Account"-titled section is the danger zone.
     // Assert after scrolling: the hub is a lazy ListView and the
     // bottom DangerZone block is not built until it is scrolled in.
-    expect(find.text('ACCOUNT'), findsOneWidget);
+    expect(findTextIgnoreCase('ACCOUNT'), findsOneWidget);
     expect(find.text('Sign out'), findsOneWidget);
   });
 
@@ -192,11 +193,11 @@ void main() {
 
     // Only the auto-archive row survives inside Sessions (title and
     // subtitle both render the same string).
-    expect(find.text('SESSIONS'), findsOneWidget);
+    expect(findTextIgnoreCase('SESSIONS'), findsOneWidget);
     expect(find.text('Auto-Archive'), findsNWidgets(2));
     expect(find.text('Session Folders'), findsNothing);
     expect(find.text('Session view style'), findsNothing);
-    expect(find.text('STATUS'), findsNothing);
+    expect(findTextIgnoreCase('STATUS'), findsNothing);
   });
 
   testWidgets('server row opens the server-settings route', (tester) async {

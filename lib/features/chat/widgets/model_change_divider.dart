@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../model_display_name.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A horizontal divider marking the point where the agent started
 /// answering with a different model — a `/model` switch, a fallback, or
@@ -56,12 +57,7 @@ class ModelChangeDivider extends StatelessWidget {
                       modelDisplayName(toModel),
                     ),
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                      fontSize: AppFontSize.sm,
-                      letterSpacing: 0.4,
-                    ),
+                    style: AppText.label(theme, cs.onSurfaceVariant),
                   ),
                 ),
               ],

@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'composer_selector_chip.dart';
 import 'package:happy_flutter/core/components/app_icon_tile.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Permission mode options for Claude/Gemini agents
 enum PermissionMode {
@@ -313,9 +314,7 @@ class PermissionModeSelector extends ConsumerWidget {
                   ),
                   child: Text(
                     sheetL10n.permissionModeTitle,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.title(theme),
                   ),
                 ),
                 Flexible(
@@ -381,9 +380,7 @@ class PermissionModeSelector extends ConsumerWidget {
                   Text(
                     mode.localizedDescription(tileL10n),
                     // Same 12sp regular as the composer chips.
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -477,10 +474,7 @@ class PermissionModeSettingsList extends StatelessWidget {
             ),
             child: Text(
               l10n.permissionModeTitle,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.label(theme, theme.colorScheme.onSurfaceVariant),
             ),
           ),
           ...modes.map(

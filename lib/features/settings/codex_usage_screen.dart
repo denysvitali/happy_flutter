@@ -11,6 +11,7 @@ import '../../core/services/sync_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import 'widgets/machine_usage_scaffold.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 class CodexUsageScreen extends StatelessWidget {
   const CodexUsageScreen({super.key});
@@ -273,9 +274,7 @@ Widget? _windowFooter(BuildContext context, CodexUsageWindow window) {
   final theme = Theme.of(context);
   return Text(
     description,
-    style: theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
-    ),
+    style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
   );
 }
 

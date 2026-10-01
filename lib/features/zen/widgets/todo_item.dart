@@ -8,6 +8,7 @@ import '../../../core/models/todo.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/text_truncate.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A single zen todo row wrapped in a [Dismissible] for swipe-to-complete.
 ///
@@ -92,12 +93,7 @@ class _SwipeBackground extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: isCompleted
-                  ? Theme.of(context).colorScheme.onSurfaceVariant
-                  : AppColors.success,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppText.label(Theme.of(context), isCompleted ? Theme.of(context).colorScheme.onSurfaceVariant : AppColors.success),
           ),
         ],
       ),
@@ -166,11 +162,7 @@ class _TodoRow extends StatelessWidget {
                         _abbreviated(description),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.8),
-                          height: AppLineHeight.normal,
-                        ),
+                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant .withValues(alpha: 0.8)),
                       ),
                     ),
                   if (item.priority.isNotEmpty && item.priority != 'low')
@@ -242,11 +234,7 @@ class _PriorityChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-          fontSize: AppFontSize.sm,
-        ),
+        style: AppText.label(theme, color),
       ),
     );
   }

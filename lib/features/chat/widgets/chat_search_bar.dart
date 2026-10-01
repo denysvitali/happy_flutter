@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// In-conversation search field, rendered in the chat app bar.
 ///
@@ -91,9 +92,7 @@ class ChatSearchBar extends StatelessWidget {
                     ? '…'
                     : context.l10n.chatSearchNoMatches,
                 key: const ValueKey('chat-search-counter'),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             ),
           _SearchAction(

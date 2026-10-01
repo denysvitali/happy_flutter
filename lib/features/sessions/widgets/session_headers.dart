@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
 import 'package:happy_flutter/core/components/app_badge.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// How to group archived sessions.
 enum ArchivedGrouping { date, folder }
@@ -46,11 +47,7 @@ class SectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-              ),
+              style: AppText.label(theme, cs.onSurfaceVariant),
             ),
           ),
           ?trailing,
@@ -105,12 +102,8 @@ class ProjectHeader extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
-                projectName.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                ),
+                projectName,
+                style: AppText.label(theme, cs.onSurfaceVariant),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -181,13 +174,8 @@ class PathHeader extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                path.split('/').last.toUpperCase(),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontFamily: 'monospace',
-                  fontSize: AppFontSize.sm,
-                  letterSpacing: 0,
-                ),
+                path.split('/').last,
+                style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -257,11 +245,7 @@ class CollapsibleDateHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 date,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0,
-                ),
+                style: AppText.label(theme, cs.onSurfaceVariant),
               ),
             ),
             _HeaderCountPill(count: sessionCount),
@@ -317,30 +301,18 @@ class CollapsibleFolderHeader extends StatelessWidget {
                 children: [
                   Text(
                     header.displayPath,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant,
-                      fontFamily: 'monospace',
-                      fontSize: AppFontSize.sm,
-                      letterSpacing: 0,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
                   Text(
                     header.machineName,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: AppFontSize.sm,
-                    ),
+                    style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.6)),
                   ),
                   if (hasBreakdown)
                     Text(
                       folderBreakdownLabel(context, header),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.72),
-                        fontSize: AppFontSize.sm,
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.72)),
                     ),
                 ],
               ),
@@ -356,10 +328,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
             ],
             Text(
               '${header.sessionCount}',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                fontSize: AppFontSize.sm,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.6)),
             ),
             const SizedBox(width: 2),
             _CollapseChevron(isCollapsed: isCollapsed),
@@ -395,18 +364,12 @@ class FolderSectionHeader extends StatelessWidget {
         children: [
           Text(
             title,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppText.label(theme, cs.onSurfaceVariant),
           ),
           const SizedBox(width: AppSpacing.xs),
           Text(
             '$count',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-              fontSize: AppFontSize.sm,
-            ),
+            style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
           ),
         ],
       ),
@@ -446,11 +409,7 @@ class ArchiveSectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               l10n.sessionHistory,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-              ),
+              style: AppText.label(theme, cs.onSurfaceVariant),
             ),
           ),
           _GroupingToggle(grouping: grouping, onChanged: onGroupingChanged),

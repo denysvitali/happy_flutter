@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../helpers/find_text_ci.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/profile.dart';
@@ -118,7 +119,7 @@ void main() {
     testWidgets('renders backup key section', (tester) async {
       await _pumpAccountScreen(tester);
 
-      expect(find.text('BACKUP KEY'), findsOneWidget);
+      expect(findTextIgnoreCase('BACKUP KEY'), findsOneWidget);
       expect(find.text('Show Backup Key'), findsOneWidget);
       expect(find.text('Copy Backup Key'), findsOneWidget);
       expect(find.byIcon(Icons.key), findsOneWidget);
@@ -128,7 +129,7 @@ void main() {
     testWidgets('renders restore section', (tester) async {
       await _pumpAccountScreen(tester);
 
-      expect(find.text('RESTORE'), findsOneWidget);
+      expect(findTextIgnoreCase('RESTORE'), findsOneWidget);
       expect(find.text('Restore Account'), findsOneWidget);
       expect(find.byIcon(Icons.restore), findsOneWidget);
     });
@@ -136,7 +137,7 @@ void main() {
     testWidgets('renders devices section', (tester) async {
       await _pumpAccountScreen(tester);
 
-      expect(find.text('DEVICES'), findsOneWidget);
+      expect(findTextIgnoreCase('DEVICES'), findsOneWidget);
       expect(find.text('Linked Devices'), findsOneWidget);
       expect(find.text('Link New Device'), findsOneWidget);
       expect(find.byIcon(Icons.devices), findsOneWidget);

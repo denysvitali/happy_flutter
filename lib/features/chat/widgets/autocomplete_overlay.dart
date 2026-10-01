@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Represents a single autocomplete suggestion
 class AutocompleteSuggestion {
@@ -248,9 +249,7 @@ class _SuggestionItem extends StatelessWidget {
                     if (suggestion.description != null)
                       Text(
                         suggestion.description!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -310,10 +309,7 @@ class _SuggestionItem extends StatelessWidget {
       ),
       child: Text(
         badgeText,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-          fontSize: AppFontSize.sm,
-        ),
+        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
       ),
     );
   }

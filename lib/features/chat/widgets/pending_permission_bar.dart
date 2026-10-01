@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sticky bar above the composer when the session has pending
 /// permission requests. Keeps Allow/Deny reachable on long transcripts
@@ -132,16 +133,11 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
                   children: [
                     Text(
                       l10n.permissionRequired,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: cs.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppText.badge(theme, cs.onSurface),
                     ),
                     Text(
                       subtitle,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

@@ -12,6 +12,7 @@ import '../i18n/app_localizations.dart';
 import '../utils/utils.dart';
 import 'app_status_dot.dart';
 import 'voice_assistant_status_bar.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Sidebar navigation widget matching React Native's SidebarView.tsx.
 ///
@@ -196,10 +197,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: connectionInfo.color,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: AppText.label(theme, connectionInfo.color),
                           ),
                         ],
                       ),
@@ -261,10 +259,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                           const SizedBox(width: AppSpacing.xs),
                           Text(
                             connectionInfo.text,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: connectionInfo.color,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: AppText.label(theme, connectionInfo.color),
                           ),
                         ],
                       ),
@@ -409,18 +404,14 @@ class _SidebarSessionListItem extends ConsumerWidget {
                   children: [
                     Text(
                       session.metadata?.name ?? session.id,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: AppText.title(theme),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
                     if (session.metadata?.path != null)
                       Text(
                         session.metadata!.path!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
                       ),
@@ -435,9 +426,7 @@ class _SidebarSessionListItem extends ConsumerWidget {
                       session.updatedAt,
                   context,
                 ),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             ],
           ),

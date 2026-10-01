@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import '../widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Centered loading indicator using the theme primary color.
 ///
@@ -71,9 +72,7 @@ class AppLoadingIndicator extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               label!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
             ),
           ],
         ),

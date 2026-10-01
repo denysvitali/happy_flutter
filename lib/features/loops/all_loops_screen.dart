@@ -15,6 +15,7 @@ import '../../core/theme/app_tokens.dart';
 import 'loop_actions.dart';
 import 'loop_card.dart';
 import 'loop_refresh_state.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 enum _LoopsDestination { scheduled, goals }
 
@@ -357,21 +358,15 @@ class _LoopsOverview extends StatelessWidget {
                         children: [
                           Text(
                             l10n.allLoopsPausedCount(pausedCount),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
+                            style: AppText.secondary(theme, cs.onSurfaceVariant),
                           ),
                           Text(
                             '•',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
+                            style: AppText.secondary(theme, cs.onSurfaceVariant),
                           ),
                           Text(
                             l10n.allLoopsAcrossSessions(sessionCount),
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
+                            style: AppText.secondary(theme, cs.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -538,10 +533,7 @@ class _SessionGroupSection extends StatelessWidget {
                                   l10n.allLoopsGroupLoopCount(
                                     group.loops.length,
                                   ),
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: AppText.label(theme, cs.onSurfaceVariant),
                                 ),
                                 const SizedBox(width: AppSpacing.xs),
                                 AnimatedRotation(

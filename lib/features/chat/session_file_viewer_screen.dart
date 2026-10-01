@@ -16,6 +16,7 @@ import '../../core/providers/app_providers.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'markdown/markdown_view.dart';
 import 'syntax_highlighter.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Whether [extension] (without dot) is a markdown file.
 bool _isMarkdown(String extension) =>
@@ -507,11 +508,7 @@ class _PathHeader extends StatelessWidget {
           Expanded(
             child: Text(
               path,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-                fontSize: AppFontSize.sm,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -519,12 +516,7 @@ class _PathHeader extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Text(
               language!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: AppFontSize.sm,
-                color: theme.colorScheme.onSurfaceVariant.withValues(
-                  alpha: 0.7,
-                ),
-              ),
+              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant.withValues( alpha: 0.7, )),
             ),
           ],
         ],

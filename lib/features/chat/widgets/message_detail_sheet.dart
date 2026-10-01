@@ -10,6 +10,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
 import 'package:happy_flutter/core/components/app_icon_tile.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Maximum raw message content laid out in one selectable text widget.
 /// Keeping the reader paged prevents a very large message from exhausting
@@ -84,9 +85,7 @@ void showMessageDetailSheet(
               ),
               child: Text(
                 l10n.messageDetailDetails,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AppText.title(theme),
               ),
             ),
             if (!hasDetails)
@@ -339,9 +338,7 @@ class MessageInfoRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
                 Text(
                   value,
@@ -453,18 +450,13 @@ class DetailRow extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppText.label(theme, theme.colorScheme.onSurfaceVariant),
             ),
           ),
           Expanded(
             child: SelectableText(
               value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-              ),
+              style: AppText.secondary(theme).copyWith(fontFamily: 'monospace'),
             ),
           ),
         ],

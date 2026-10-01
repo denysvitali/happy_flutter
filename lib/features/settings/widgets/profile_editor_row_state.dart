@@ -4,6 +4,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'profile_editor_widgets.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Mutable row state for a single model entry.
 class ModelRow {
@@ -322,9 +323,7 @@ class ModelsSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   l10n.profilesModelsEmpty,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: context.textSubtle),
+                  style: AppText.secondary(Theme.of(context), context.textSubtle),
                   textAlign: TextAlign.center,
                 ),
               ),

@@ -12,6 +12,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
 import '../../../core/wire/wire_parsers.dart';
 import 'message_detail_sheet.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 // ---------------------------------------------------------------------------
 // Focused message view (long-press on a chat bubble)
@@ -404,9 +405,7 @@ class MessageFocusCard extends StatelessWidget {
               child: chips.isEmpty
                   ? Text(
                       l10n.messageDetailNoDetails,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant),
                     )
                   : Wrap(
                       spacing: AppSpacing.xs,
@@ -486,10 +485,7 @@ class _MetaChip extends StatelessWidget {
             const SizedBox(width: AppSpacing.xxs + 2),
             Text(
               label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppText.label(theme, cs.onSurfaceVariant),
             ),
           ],
         ),
@@ -539,10 +535,7 @@ class _FocusAction extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AppText.label(theme, color),
                 ),
               ],
             ),

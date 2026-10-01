@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../models/friend.dart';
 import 'friend_avatar_with_status.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A list card that shows a friend's avatar (with an online-status dot),
 /// display name, and a human-readable presence label.
@@ -104,19 +105,14 @@ class _FriendCardState extends State<FriendCard> {
                           widget.friend.displayName.isNotEmpty
                               ? widget.friend.displayName
                               : widget.friend.id,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: AppText.title(theme),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
                           _presenceLabel,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            fontSize: AppFontSize.sm,
-                          ),
+                          style: AppText.secondary(theme, cs.onSurfaceVariant),
                         ),
                       ],
                     ),

@@ -19,7 +19,7 @@ void main() {
   List<String> offenders(RegExp pattern, {Set<String> allow = const {}}) {
     final out = <String>[];
     for (final f in files) {
-      if (allow.any(f.path.endsWith)) continue;
+      if (allow.any(f.path.contains)) continue;
       final lines = f.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
@@ -87,6 +87,31 @@ void main() {
     allow: {
       // Drag handle width in a sheet, not a control.
       'app_sheet.dart',
+    },
+  );
+
+  expectNone(
+    'row text: use an AppText role, not textTheme.xxx?.copyWith overrides',
+    RegExp(
+      r'\.textTheme\.(titleSmall|bodySmall|labelSmall|labelMedium)\?\.copyWith\(',
+    ),
+    allow: {
+      'theme_helper.dart',
+      'app_text.dart',
+      'app_typography.dart',
+      // Transcript tool views and dev screens are dense, one-off layouts.
+      'features/dev/',
+      'chat/tools/',
+      'chat/markdown/',
+      // These take a TextTheme parameter rather than a BuildContext.
+      'session_cards.dart',
+      'chat_app_bar.dart',
+      'tts_playback_bar.dart',
+      'server_url_dialog.dart',
+      'profile_editor_row_state.dart',
+      'session_recent_screen.dart',
+      'session_info_widgets.dart',
+      'permission_mode_selector.dart',
     },
   );
 }

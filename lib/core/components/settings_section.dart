@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/theme/app_colors.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'app_icon_tile.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Edge length of the leading icon container in a settings row.
 const double kSettingsIconContainerSize = AppControlSize.lg;
@@ -126,9 +127,7 @@ class SettingsRow extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
                           sub,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
+                          style: AppText.secondary(theme, cs.onSurfaceVariant),
                           maxLines: maxLines,
                           overflow: maxLines == null
                               ? TextOverflow.clip
@@ -241,8 +240,9 @@ class SettingsToggleRow extends StatelessWidget {
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             subtitle!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
+                            style: AppText.secondary(
+                              theme,
+                              cs.onSurfaceVariant,
                             ),
                             maxLines: maxLines,
                             overflow: maxLines == null
@@ -316,7 +316,6 @@ class SettingsSection extends StatelessWidget {
     super.key,
     this.title,
     this.description,
-    this.uppercase = true,
     this.danger = false,
   });
 
@@ -325,9 +324,6 @@ class SettingsSection extends StatelessWidget {
 
   /// Optional description shown below the section card.
   final String? description;
-
-  /// Whether to force the title to uppercase. Defaults to true.
-  final bool uppercase;
 
   /// When true, renders a red-tinted border to indicate a
   /// destructive section (e.g. sign-out, delete account).
@@ -364,11 +360,10 @@ class SettingsSection extends StatelessWidget {
               label: title,
               child: ExcludeSemantics(
                 child: Text(
-                  uppercase ? title!.toUpperCase() : title!,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: danger ? cs.error : cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0,
+                  title!,
+                  style: AppText.label(
+                    theme,
+                    danger ? cs.error : cs.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -391,9 +386,7 @@ class SettingsSection extends StatelessWidget {
             ),
             child: Text(
               description!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
           ),
       ],

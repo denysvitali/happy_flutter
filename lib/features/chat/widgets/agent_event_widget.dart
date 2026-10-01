@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/task_label.dart';
 import '../tools/known_tools.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Renders a centered system-style label for agent lifecycle events.
 ///
@@ -134,10 +135,7 @@ class AgentEventWidget extends StatelessWidget {
         (displayLabel.trim().isEmpty ||
             displayLabel.trim() == _taskPhaseLabel ||
             displayLabel.trim() == 'Task');
-    final titleStyle = theme.textTheme.labelMedium?.copyWith(
-      color: color,
-      fontWeight: isUnrendered ? FontWeight.w600 : null,
-    );
+    final titleStyle = AppText.label(theme, color);
     final titleText = compactTaskLabel(displayLabel);
     final toolChip = subAgentTool == null
         ? const <Widget>[]
@@ -149,10 +147,7 @@ class AgentEventWidget extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Text(
               subAgentTool,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.label(theme, color),
             ),
           ];
     if (_isTaskEvent) {
@@ -212,19 +207,13 @@ class AgentEventWidget extends StatelessWidget {
                   SizedBox(width: AppSpacing.xs),
                   Text(
                     _taskPhaseLabel,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.1,
-                    ),
+                    style: AppText.badge(theme, color),
                   ),
                   if (toolChip.isNotEmpty) ...[
                     SizedBox(width: AppSpacing.xs),
                     Text(
                       '·',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: color,
-                      ),
+                      style: AppText.secondary(theme, color),
                     ),
                     SizedBox(width: AppSpacing.xs),
                     ...toolChip,

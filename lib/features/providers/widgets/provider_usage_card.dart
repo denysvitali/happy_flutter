@@ -10,6 +10,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/utils.dart' show formatDuration;
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import 'provider_payload_debug_sheet.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Card displaying usage for a single provider account.
 class ProviderUsageCard extends ConsumerWidget {
@@ -107,9 +108,7 @@ class ProviderUsageCard extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     l10n.providersNoUsageData,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
                   ),
                 ] else ...[
                   const SizedBox(height: AppSpacing.xs),
@@ -164,10 +163,7 @@ class _AccountHealthLabel extends StatelessWidget {
             hasError
                 ? context.l10n.providersNeedsAttention
                 : context.l10n.providersHealthy,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppText.label(Theme.of(context), color),
           ),
         ],
       ],
@@ -221,9 +217,7 @@ class _ProviderLabelColumn extends StatelessWidget {
         ),
         Text(
           vendorName,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -314,10 +308,7 @@ class _UsageWindowRow extends StatelessWidget {
                 ),
                 Text(
                   '$healthLabel · ${window.utilization.toStringAsFixed(1)}%',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: barColor,
-                  ),
+                  style: AppText.label(theme, barColor),
                 ),
               ],
             ),
@@ -339,18 +330,14 @@ class _UsageWindowRow extends StatelessWidget {
                   if (hasUsedLimit)
                     Text(
                       '${_formatNumber(window.used!)} / ${_formatNumber(window.limit!)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
                     )
                   else
                     const SizedBox.shrink(),
                   if (reset != null)
                     Text(
                       reset,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
                     )
                   else
                     const SizedBox.shrink(),
@@ -411,9 +398,7 @@ class _ErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               error,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onErrorContainer,
-              ),
+              style: AppText.secondary(Theme.of(context), colorScheme.onErrorContainer),
             ),
           ),
         ],

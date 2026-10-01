@@ -199,7 +199,6 @@ class _OfflineSttModelsScreenState
                   for (final tier in tiers) ...[
                     SettingsSection(
                       title: _tierLabel(tier),
-                      uppercase: false,
                       children: [
                         for (final model in grouped[tier]!)
                           _ModelRow(

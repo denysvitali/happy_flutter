@@ -27,6 +27,7 @@ import 'tools/tool_view.dart';
 import 'widgets/agent_event_widget.dart';
 import 'widgets/agent_result_summary.dart';
 import 'widgets/task_event_summary_card.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Full-screen view for a Task (sub-agent) tool call's
 /// conversation.
@@ -584,22 +585,14 @@ class _AgentConversationScreenState
                   children: [
                     Text(
                       description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: AppText.label(theme, theme.colorScheme.onSurface),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (subagentType != null)
                       Text(
                         subagentType,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withValues(
-                            alpha: AppOpacity.high,
-                          ),
-                          fontSize: AppFontSize.sm,
-                        ),
+                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant.withValues( alpha: AppOpacity.high, )),
                       ),
                   ],
                 ),
@@ -609,11 +602,7 @@ class _AgentConversationScreenState
                   padding: const EdgeInsets.only(right: AppSpacing.xs),
                   child: Text(
                     '$childCount',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(
-                        alpha: AppOpacity.half,
-                      ),
-                    ),
+                    style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant.withValues( alpha: AppOpacity.half, )),
                   ),
                 ),
               Icon(
@@ -716,12 +705,7 @@ class _ThinkingRow extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Text(
             AppLocalizations.of(context).chatThinking,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(
-                alpha: AppOpacity.high,
-              ),
-              fontStyle: FontStyle.italic,
-            ),
+            style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant.withValues( alpha: AppOpacity.high, )).copyWith(fontStyle: FontStyle.italic),
           ),
         ],
       ),
@@ -767,10 +751,7 @@ class _ErrorRow extends StatelessWidget {
               Flexible(
                 child: Text(
                   '$errorType: $errorMessage',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onErrorContainer,
-                    fontSize: AppFontSize.sm,
-                  ),
+                  style: AppText.secondary(theme, cs.onErrorContainer),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -797,17 +778,12 @@ class _ErrorRow extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'Debug data:',
-                  style: Theme.of(
-                    ctx,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+                  style: AppText.title(Theme.of(ctx)),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   debugData.toString(),
-                  style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.sm,
-                  ),
+                  style: AppText.secondary(Theme.of(ctx)).copyWith(fontFamily: 'monospace'),
                 ),
               ],
             ],
@@ -878,10 +854,7 @@ class _PromptSectionState extends State<_PromptSection> {
                   Expanded(
                     child: Text(
                       'Prompt',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppText.label(theme, theme.colorScheme.onSurfaceVariant),
                     ),
                   ),
                   Icon(
@@ -987,10 +960,7 @@ class _DebugInfoCard extends StatelessWidget {
                 // TODO(i18n): localize these debug-card labels.
                 Text(
                   'Debug',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppText.label(theme, cs.onSurfaceVariant),
                 ),
               ],
             ),
@@ -1034,17 +1004,13 @@ class _DebugRow extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
             ),
           ),
           Expanded(
             child: SelectableText(
               value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontFamily: mono ? 'monospace' : null,
-              ),
+              style: AppText.secondary(theme).copyWith(fontFamily: mono ? 'monospace' : null),
             ),
           ),
         ],
@@ -1085,10 +1051,7 @@ class _StepChipRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AppText.label(theme, cs.onSurface),
             ),
           ),
         ],
@@ -1133,9 +1096,7 @@ class _BackgroundAgentTranscriptNote extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Background agent',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.title(theme),
             ),
             const SizedBox(height: AppSpacing.xxs),
             Text(
@@ -1143,9 +1104,7 @@ class _BackgroundAgentTranscriptNote extends StatelessWidget {
               'stream its step-by-step tool calls here; none were '
               'recorded for this run.',
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, cs.onSurfaceVariant),
             ),
           ],
         ),

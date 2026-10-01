@@ -13,6 +13,7 @@ import '../../../core/widgets/app_circular_progress_indicator.dart';
 import 'mission_control_types.dart';
 import 'session_cards.dart';
 import 'workspace_identity.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Same rejection text the chat composer sends on Stop, so the agent
 /// sees one consistent signal regardless of where the stop came from.
@@ -141,9 +142,7 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                       children: [
                         Text(
                           derived.name,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: AppText.title(theme),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -165,10 +164,7 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                               Flexible(
                                 child: Text(
                                   missionShortPath(path),
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    fontSize: AppFontSize.sm,
-                                    color: cs.onSurfaceVariant,
-                                  ),
+                                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -208,9 +204,7 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                       child: Text(
                         l10n.missionControlPeekNoMessages,
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                       ),
                     );
                   }
@@ -401,11 +395,7 @@ class _LaneBadge extends StatelessWidget {
           const SizedBox(width: AppSpacing.xxxs),
           Text(
             missionLaneLabel(context, lane),
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: AppFontSize.sm,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
+            style: AppText.badge(theme, color),
           ),
         ],
       ),
@@ -454,11 +444,7 @@ class _PeekBubble extends StatelessWidget {
           children: [
             Text(
               roleLabel,
-              style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: AppFontSize.sm,
-                fontWeight: FontWeight.w700,
-                color: isUser ? cs.primary : cs.onSurfaceVariant,
-              ),
+              style: AppText.badge(theme, isUser ? cs.primary : cs.onSurfaceVariant),
             ),
             const SizedBox(height: AppSpacing.xxxs),
             if (item.isTool)
@@ -474,10 +460,7 @@ class _PeekBubble extends StatelessWidget {
                   Flexible(
                     child: Text(
                       item.text,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: AppFontSize.sm,
-                        color: cs.onSurfaceVariant,
-                      ),
+                      style: AppText.secondary(theme, cs.onSurfaceVariant),
                     ),
                   ),
                 ],
@@ -485,7 +468,7 @@ class _PeekBubble extends StatelessWidget {
             else
               Text(
                 item.text,
-                style: theme.textTheme.bodySmall?.copyWith(color: fg),
+                style: AppText.secondary(theme, fg),
               ),
           ],
         ),

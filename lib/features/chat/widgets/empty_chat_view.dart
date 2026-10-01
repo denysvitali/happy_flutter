@@ -5,6 +5,7 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// View shown when the chat is empty: a quiet aurora showpiece behind
 /// the greeting plus glass suggestion affordances.
@@ -314,20 +315,14 @@ class _SuggestionCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.smd),
                 Text(
                   title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: cs.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppText.title(theme, cs.onSurface),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    height: 1.35,
-                  ),
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

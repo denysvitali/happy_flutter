@@ -6,6 +6,7 @@ import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_status.dart' show SessionState;
 import '../session_avatar.dart';
 import 'session_cards.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Active session card with smooth press animation and
 /// clear visual hierarchy.
@@ -63,10 +64,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
       activity: activity,
       preview: widget.lastMessagePreview,
       previewRole: widget.lastMessageRole,
-      style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.sm,
-        height: 1.2,
-      ),
+      style: AppText.secondary(theme),
     );
     // The activity line already says "<tool> needs approval"; don't
     // repeat it as "Permission required" one row below.
@@ -134,21 +132,14 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                             buildNameRow(
                               name: _d.name,
                               sessionStatus: _d.status,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: AppText.title(theme),
                               pulseDot: hasUnread,
                             ),
                             const SizedBox(height: AppSpacing.xxs),
                             if (activityLine == null)
                               Text(
                                 _d.subtitle,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
-                                  fontFamily: 'monospace',
-                                  fontSize: AppFontSize.sm,
-                                  height: 1.2,
-                                ),
+                                style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
                               )

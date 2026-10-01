@@ -23,6 +23,7 @@ import 'tools/views/mcp_exec_view.dart';
 import 'tools/views/send_message_view.dart';
 import 'tools/views/web_search_view.dart';
 import 'package:happy_flutter/core/components/app_card.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 const int _largePayloadThreshold = 16 * 1024;
 const int _payloadPageSize = 12 * 1024;
@@ -291,9 +292,7 @@ class _ToolDetailView extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Text(
               context.l10n.messageDetailSubagentTools,
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppText.title(theme),
             ),
           ),
           _TaskChildToolList(messages: messages),
@@ -661,10 +660,7 @@ class _ImmediateToolResultSectionState
                 Expanded(
                   child: Text(
                     widget.title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: widget.isError ? cs.error : null,
-                    ),
+                    style: AppText.title(theme, widget.isError ? cs.error : null),
                   ),
                 ),
                 _CopyButton(json: widget.json, content: widget.text ?? ''),
@@ -713,9 +709,7 @@ class _RawPayloadDisclosure extends StatelessWidget {
         // TODO(i18n): raw-payload label not yet localized
         title: Text(
           'Raw JSON',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppText.title(theme),
         ),
         childrenPadding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -797,10 +791,7 @@ class _ChildToolItem extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontFamily: 'monospace',
-                    fontSize: AppFontSize.sm,
-                  ),
+                  style: AppText.secondary(theme).copyWith(fontFamily: 'monospace'),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -955,9 +946,7 @@ class _DetailCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: AppText.title(theme),
                   ),
                 ),
                 ?trailing,
@@ -989,9 +978,7 @@ class _LabelValue extends StatelessWidget {
             width: 90,
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
             ),
           ),
           Expanded(

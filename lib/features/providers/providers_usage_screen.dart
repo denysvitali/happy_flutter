@@ -17,6 +17,7 @@ import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'widgets/add_provider_dialog.dart';
 import 'widgets/provider_usage_card.dart';
 import 'widgets/rename_provider_dialog.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Tab screen showing usage across third-party LLM providers.
 ///
@@ -451,9 +452,7 @@ class _ProviderOverview extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -469,9 +468,7 @@ class _ProviderOverview extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 l10n.providersUpdatingUsage,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             ],
           ],
@@ -510,10 +507,7 @@ class _ProviderRefreshError extends StatelessWidget {
                 message,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: cs.onErrorContainer,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppText.label(theme, cs.onErrorContainer),
               ),
             ),
             TextButton(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// "Show N more sub-agent messages" row.
 ///
@@ -69,11 +70,7 @@ class SidechainOrphanMore extends StatelessWidget {
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       label,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                        fontSize: AppFontSize.sm,
-                        letterSpacing: 0.5,
-                      ),
+                      style: AppText.label(theme, cs.onSurfaceVariant),
                     ),
                   ],
                 ),

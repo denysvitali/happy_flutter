@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// A titled section divider used in lists and settings screens.
 ///
@@ -16,14 +17,10 @@ class AppSectionHeader extends StatelessWidget {
     super.key,
     this.trailing,
     this.padding,
-    this.uppercase = false,
   });
 
   /// The section label text.
   final String title;
-
-  /// Whether to render the title in ALL CAPS. Defaults to false.
-  final bool uppercase;
 
   /// Optional widget aligned to the trailing edge.
   final Widget? trailing;
@@ -37,7 +34,8 @@ class AppSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectivePadding = padding ??
+    final effectivePadding =
+        padding ??
         const EdgeInsets.fromLTRB(
           AppSpacing.lg,
           AppSpacing.md,
@@ -52,24 +50,16 @@ class AppSectionHeader extends StatelessWidget {
           Container(
             width: 3,
             height: 14,
-            margin: const EdgeInsets.only(
-              right: AppSpacing.sm,
-            ),
+            margin: const EdgeInsets.only(right: AppSpacing.sm),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary
-                  .withValues(alpha: 0.5),
-              borderRadius:
-                  BorderRadius.circular(AppRadius.xs),
+              color: theme.colorScheme.primary.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(AppRadius.xs),
             ),
           ),
           Expanded(
             child: Text(
-              uppercase ? title.toUpperCase() : title,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-              ),
+              title,
+              style: AppText.label(theme, theme.colorScheme.primary),
               overflow: TextOverflow.ellipsis,
             ),
           ),

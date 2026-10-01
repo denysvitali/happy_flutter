@@ -1,47 +1,25 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/theme/app_tokens.dart';
+import '../../../core/theme/app_text.dart';
 
-/// The one type scale for the Sessions list (Mission Control).
+/// Sessions-list names for the shared [AppText] roles.
 ///
-/// Every text run on the screen is one of four roles, so sizes, weights and
-/// tracking cannot drift apart between the focus queue, the workspace list,
-/// the filter chips and the section headers.
+/// Kept so Mission Control call sites read the same; the styles themselves
+/// live in [AppText] and are shared with every other row in the app.
 abstract final class MissionType {
-  /// Row names — session and workspace titles. 14sp / 600.
-  static TextStyle title(ThemeData theme, Color color) => _base(
-    theme,
-    size: AppFontSize.base,
-    weight: FontWeight.w600,
-    color: color,
-  );
+  /// Row names — see [AppText.title].
+  static TextStyle title(ThemeData theme, Color color) =>
+      AppText.title(theme, color);
 
-  /// Secondary detail under a row name. 12sp / 400.
+  /// Secondary detail under a row name — see [AppText.secondary].
   static TextStyle meta(ThemeData theme, Color color) =>
-      _base(theme, size: AppFontSize.sm, weight: FontWeight.w400, color: color);
+      AppText.secondary(theme, color);
 
-  /// Section headers, filter chips and their labels. 12sp / 600.
+  /// Section headers and chip labels — see [AppText.label].
   static TextStyle label(ThemeData theme, Color color) =>
-      _base(theme, size: AppFontSize.sm, weight: FontWeight.w600, color: color);
+      AppText.label(theme, color);
 
-  /// Counts, pills and timers. 12sp / 700 with tabular figures.
-  static TextStyle badge(ThemeData theme, Color color) => _base(
-    theme,
-    size: AppFontSize.sm,
-    weight: FontWeight.w700,
-    color: color,
-  ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
-
-  static TextStyle _base(
-    ThemeData theme, {
-    required double size,
-    required FontWeight weight,
-    required Color color,
-  }) => (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
-    fontSize: size,
-    fontWeight: weight,
-    color: color,
-    letterSpacing: 0,
-    height: 1.3,
-  );
+  /// Counts and pills — see [AppText.badge].
+  static TextStyle badge(ThemeData theme, Color color) =>
+      AppText.badge(theme, color);
 }
