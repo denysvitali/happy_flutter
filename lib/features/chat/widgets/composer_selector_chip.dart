@@ -8,23 +8,25 @@ import '../../../core/theme/app_tokens.dart';
 /// Shared metrics for the composer's model / approvals / profile selectors.
 abstract final class ComposerChipMetrics {
   static const double height = 28;
-  static const double paddingStart = AppSpacing.smd;
-  static const double paddingEnd = AppSpacing.xsm;
-  static const double paddingEndNoChevron = AppSpacing.smd;
-  static const double iconSize = AppIconSize.sm;
+  static const double paddingStart = AppSpacing.md;
+  static const double paddingStartWithIcon = AppSpacing.sm;
+  static const double paddingEnd = AppSpacing.xs;
+  static const double paddingEndNoChevron = AppSpacing.md;
+  static const double iconSize = 14;
   static const double iconLabelGap = AppSpacing.xs;
-  static const double labelChevronGap = AppSpacing.xxs;
-  static const double chevronSize = AppIconSize.md;
-  static const double labelFontSize = AppFontSize.md;
+  static const double labelChevronGap = 0;
+  static const double chevronSize = 16;
+  static const double labelFontSize = AppFontSize.sm;
 }
 
 /// Compact, neutral pill showing a composer setting's current value —
 /// e.g. `Default ▾` or `Opus ▾`; the setting's name lives in its semantics.
 ///
-/// Routine configuration stays quiet: a hairline outline and a
-/// regular-weight value. Only [warning] states (settings that
-/// let the agent act without confirmation) get color and a leading icon, so
-/// the one setting that deserves attention is the one that stands out.
+/// Routine configuration stays quiet: a hairline outline and a small
+/// 12sp medium-weight value (the draft above it is 14sp). Only [warning]
+/// states (settings that let the agent act without confirmation) get color
+/// and a leading icon, so the one setting that deserves attention is the one
+/// that stands out.
 ///
 /// The visual pill is [ComposerChipMetrics.height] tall; the tap target is
 /// expanded to [AppTouchTarget.min]. The ink ripple is clipped to the pill.
@@ -81,11 +83,14 @@ class ComposerSelectorChip extends StatelessWidget {
         ? accent.withValues(alpha: 0.45)
         : appCs.glassBorder;
 
-    final base = AppInlineText.body(context);
+    final base = AppInlineText.chip(context);
 
     Widget text = Text(
       label,
-      style: base.copyWith(color: valueColor),
+      style: base.copyWith(
+        color: valueColor,
+        fontWeight: warning ? FontWeight.w600 : null,
+      ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textHeightBehavior: const TextHeightBehavior(
@@ -118,7 +123,7 @@ class ComposerSelectorChip extends StatelessWidget {
           padding: EdgeInsetsDirectional.only(
             start: icon == null
                 ? ComposerChipMetrics.paddingStart
-                : ComposerChipMetrics.paddingEnd,
+                : ComposerChipMetrics.paddingStartWithIcon,
             top: AppSpacing.xxs,
             bottom: AppSpacing.xxs,
             end: enabled

@@ -160,8 +160,14 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
     final elapsed = DateTime.now().millisecondsSinceEpoch - widget.startedAt;
     final seconds = elapsed.clamp(0, 1 << 53) ~/ 1000;
     final minutes = seconds ~/ 60;
+    // Past an hour, "545m 3s" is unreadable — switch to hours and minutes.
+    final label = seconds >= 3600
+        ? '${seconds ~/ 3600}h ${minutes % 60}m'
+        : minutes == 0
+        ? '${seconds}s'
+        : '${minutes}m ${seconds % 60}s';
     return Text(
-      minutes == 0 ? '${seconds}s' : '${minutes}m ${seconds % 60}s',
+      label,
       style: AppInlineText.secondary(
         context,
       ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),

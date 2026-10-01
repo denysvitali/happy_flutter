@@ -37,6 +37,25 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('elapsed time past an hour reads as hours and minutes', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          ThinkingStopBar(
+            workLabel: 'Running commands',
+            startedAt:
+                DateTime.now().millisecondsSinceEpoch - (545 * 60 + 3) * 1000,
+            onStop: () {},
+          ),
+        ),
+      );
+      expect(find.text('9h 5m'), findsOneWidget);
+      expect(find.textContaining('545m'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+    });
+
     testWidgets('delivery and waiting do not offer an unconfirmed Stop', (
       tester,
     ) async {

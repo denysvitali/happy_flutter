@@ -31,9 +31,11 @@ Arrow-key resizing persists the selected pane width immediately.
 **Inline rows:** Reuse `AppInlineRow`, `AppInlineAction`, and `AppInlineText`
 from `lib/core/components/app_inline_row.dart` for compact headers and status
 rows. Thinking, tools, tasks, activity, and turn review share flat surfaces,
-icon slots, spacing, body-medium text (14px), and 44px action targets. Separate
-secondary actions from the row tap target. Composer selectors use the same
-body typography; keep state emphasis in color and weight rather than size.
+icon slots, spacing, 13px chrome text (`AppInlineText.body`), and 44px action
+targets. Separate secondary actions from the row tap target. Composer selector
+chips are 12px medium (`AppInlineText.chip`) with a 16px chevron, below the
+14px draft; keep state emphasis in color and weight rather than size. Elapsed
+labels switch to `Xh Ym` past one hour.
 
 **Widget layers:**
 - `lib/core/components/` — higher-level (AppCard, AppEmptyState, sidebar, settings sections)

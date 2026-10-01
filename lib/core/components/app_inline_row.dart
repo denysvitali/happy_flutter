@@ -3,9 +3,19 @@ import 'package:flutter/material.dart';
 import '../theme/app_tokens.dart';
 
 /// Shared typography for compact headers, status rows and their actions.
+///
+/// Chrome text steps down from the 14sp draft and transcript body: rows are
+/// 13sp ([AppFontSize.md]) and selector chips are 12sp ([AppFontSize.sm]), so
+/// the composer, not its surroundings, is the largest type on screen.
 abstract final class AppInlineText {
-  static TextStyle body(BuildContext context) =>
-      Theme.of(context).textTheme.bodyMedium!;
+  static TextStyle body(BuildContext context) => Theme.of(
+    context,
+  ).textTheme.bodyMedium!.copyWith(fontSize: AppFontSize.md);
+
+  /// Label inside a composer selector chip.
+  static TextStyle chip(BuildContext context) => Theme.of(
+    context,
+  ).textTheme.bodySmall!.copyWith(fontWeight: FontWeight.w500);
 
   static TextStyle title(BuildContext context) =>
       body(context).copyWith(fontWeight: FontWeight.w500);

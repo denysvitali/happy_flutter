@@ -98,19 +98,22 @@ void main() {
           '0 of 1 complete',
           'Using github-actions',
           'Running',
-          'opus:medium',
         ]) {
           final text = tester.widget<Text>(find.text(label));
-          expect(text.style?.fontSize, AppTypography.bodyMedium.fontSize);
+          expect(text.style?.fontSize, AppFontSize.md);
           expect(text.style?.fontFamily, AppTypography.bodyMedium.fontFamily);
         }
+        // Selector chips sit one step below the row chrome.
+        final chip = tester.widget<Text>(find.text('opus:medium'));
+        expect(chip.style?.fontSize, AppFontSize.sm);
+        expect(chip.style?.fontFamily, AppTypography.bodyMedium.fontFamily);
         for (final label in ['Stop', 'View all']) {
           final button = tester.widget<TextButton>(
             find.widgetWithText(TextButton, label),
           );
           expect(
             button.style?.textStyle?.resolve({})?.fontSize,
-            AppTypography.bodyMedium.fontSize,
+            AppFontSize.md,
           );
           expect(
             tester.getSize(find.widgetWithText(TextButton, label)).height,
