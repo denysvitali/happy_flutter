@@ -2,7 +2,7 @@
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.
 
-**Last Updated**: 2026-09-29
+**Last Updated**: 2026-10-01
 
 Keep this file to live priorities, open production bugs, and status. Git history
 has the fixes.
@@ -34,8 +34,11 @@ The current test count is not enough if this contract can break without failing 
 
 | Issue | Severity | Count | Status | Description |
 |-------|----------|-------|--------|-------------|
+| DNS/transport outage delays sends (8916–8918 / 5054) | P1 latency; delivery recovered | One Oct-1 incident; 5054 has 7 lifetime events | Open — trace transport recovery | Build 297900: foreground send hit its 12s deadline, POST attempts hit 20s deadlines, history GET hit 38s, and a machine refresh reported Cronet `ERR_NAME_NOT_RESOLVED`. Loki confirms the original `localId` was ACKed at 14:36:18 UTC as seq 116; the server already had it, and the outbox marked it delivered roughly 51s after the send. Investigate DNS/network-change and NativeAdapter recovery while preserving retry identity; this incident does not establish message loss. Server Loki queries returned no logs, so server-side timing remains unverified. |
+| History response body times out (5048) | P1 history loading | 6 lifetime events | Open — measure body transfer separately | Oct-1 build 297800 requested 500 messages after seq 14494. Headers arrived in 138ms, but the request timed out at 30.26s. This differs from the DNS/header-stall incident: inspect response bytes, body throughput, and pagination/retry recovery before choosing a byte bound or changing timeouts. |
+| Slow daemon catalog/usage/spawn RPCs (3632 / 3794 / 3661) | P1 responsiveness | 366 / 45 / 97 lifetime events | Open — daemon/routing investigation | Latest events: Codex models took 10.16s on build 295800, usage took 12.27s on web build 291800, and spawn took 2.23s on build 297500; each reports 0ms pre-send work. Correlate daemon execution and server forwarding using the recorded machine/request IDs. These counts are lifetime totals, not recent incident rates. |
 | Browser Rust core disabled by timing panic (8914) | Performance fallback | 1 event, build 291200 | Fix in source; verify web CI and rollout | The deployed WASM panic stack reaches the literal `time not implemented on this platform`: sidechain planning called unsupported `std::time::Instant::now()`, then `NativeCore` disabled all Rust paths for that page. Crypto, JSON, sidechain and terminal stage timers now use `web_time::Instant`; web CI exercises the release WASM sync bridge. |
-| Startup-resume teardown null check (8785) | Warning | 3 lifetime events | Source fix present; disconnected-machine saves can still fail | The Sep-23 286800 event has no Dart symbols. GlitchTip breadcrumbs show the RPC returned `handler_offline`; Jaeger records a Session Info pop at 19:55:53 in the same app launch. The catch then evaluated `context.l10n` before `_showError` could check `mounted`. The localized message now resolves before the async gap; the underlying disconnected-machine save still surfaces an error when the screen is present. |
+| Startup-resume teardown null check / offline save (8785) | Warning | 3 lifetime events; latest build 293200 | UI fix shipped; offline RPC remains actionable | The Sep-30 event and Loki show `handler_offline` for `session-startup-resume-set` after leaving Session Info. Build 293200 contains the context-lifetime fix `6ab112fc`; this recurrence reports an unreachable machine handler, not proof of another localization crash. Investigate handler availability/routing and save retry feedback. The localized failure message already resolves before the async gap. |
 | Pending sidechain results exceed cap (8880–8883, 8907–8909) | Warning / potential tool-output loss | Historical sidechain bursts | Preservation fixes on main; verify rollout | Results whose parent Task has left the resident message window cannot be rendered. The merge path now drops only those orphan sidechain results before they evict results waiting for resident tool calls; a result still queues when its Task remains resident. Sidechain entries are evicted ahead of main-chain results, and the drop counter now labels `chain=main` versus `chain=sidechain` so eviction is not mistaken for main-chain output loss. |
 | Determinate progress-bar ancestor null check (3604) | Widget error | 2,087 lifetime events; latest build 291100 | Local controller theme fix; verify CI and rollout | Exact-build release symbols match build ID `7a3ef9309cb306703fa36f07b9379a40`. The Sep-28 stack resolves to `Element.widget` → `findAncestorWidgetOfExactType` → `LinearProgressIndicator._controller` in its determinate build branch. The existing owned widget controller covered only indeterminate bars. A local ProgressIndicatorTheme now supplies the owned controller for determinate bars too; route removal and theme replacement have regression coverage. |
 | Terminal-session stale spawn refusal (8910 / 8911) | Misleading failed-send state | One Sep-26 incident | Existing fix 4da4e59b; CI 36776180687 passed | An RPC stale-spawn refusal falls back to posting the canonical message to the parked session, allowing the daemon to restart it. It no longer emits a restore failure or flashes Failed on a delivered message. |
@@ -168,8 +171,9 @@ For core chat flows, no layer may invent a second message identity when a canoni
 1. **Note**: Releases are automatic — every commit to `main` publishes a GitHub Release. A fix on `main` has shipped; there is no tagging step.
 2. **P0**: Finish the contract-test rows above (identity, repeated sends, real-server E2E).
 3. **Verify after rollout**: the "Verify" rows in Open production bugs.
-4. **Open investigations**: model/profile mismatch (8875), default-profile respawn (5198), `CryptoSecretBox.decrypt failed` telemetry, resident-row memory (RSS 1.8GB).
-5. **Later**: sidebar navigation for tablet/desktop.
+4. **P1 investigations**: DNS/transport recovery with preserved outbox identity (8916–8918), history response-body timeout (5048), slow/offline daemon RPCs (3632/3794/3661/8785). Progress-bar 3604 and WASM 8914 latest reports predate their fixes; verify updated-device/web behavior before calling them regressions.
+5. **Other open investigations**: model/profile mismatch (8875), default-profile respawn (5198), `CryptoSecretBox.decrypt failed` telemetry, resident-row memory (RSS 1.8GB).
+6. **Later**: sidebar navigation for tablet/desktop.
 
 ---
 
