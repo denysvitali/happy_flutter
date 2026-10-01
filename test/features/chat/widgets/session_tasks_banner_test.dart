@@ -125,7 +125,7 @@ void main() {
       final viewAllSize = tester.getSize(
         find.widgetWithText(TextButton, 'View all'),
       );
-      expect(viewAllSize.height, greaterThanOrEqualTo(AppRowHeight.compact));
+      expect(viewAllSize.height, greaterThanOrEqualTo(AppControlSize.sm));
     });
 
     testWidgets('expands on header tap and reveals the full list', (

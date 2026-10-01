@@ -92,32 +92,35 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(find.byType(AppInlineRow), findsNWidgets(4));
 
-        for (final label in [
-          'Thinking',
-          'Tasks',
-          '0 of 1 complete',
-          'Using github-actions',
-          'Running',
-        ]) {
+        // Transcript rows (thinking, tool calls) share the 13sp row style.
+        for (final label in ['Thinking', 'Running']) {
           final text = tester.widget<Text>(find.text(label));
           expect(text.style?.fontSize, AppFontSize.md);
           expect(text.style?.fontFamily, AppTypography.bodyMedium.fontFamily);
         }
-        // Selector chips sit one step below the row chrome.
-        final chip = tester.widget<Text>(find.text('opus:medium'));
-        expect(chip.style?.fontSize, AppFontSize.sm);
-        expect(chip.style?.fontFamily, AppTypography.bodyMedium.fontFamily);
+        // Composer chrome (task / activity rows and selector chips) is one
+        // smaller, quieter 11sp style, clearly below the 14sp draft.
+        for (final label in [
+          'Tasks',
+          '0 of 1 complete',
+          'Using github-actions',
+          'opus:medium',
+        ]) {
+          final text = tester.widget<Text>(find.text(label));
+          expect(text.style?.fontSize, AppFontSize.xs, reason: label);
+          expect(text.style?.fontFamily, AppTypography.bodyMedium.fontFamily);
+        }
         for (final label in ['Stop', 'View all']) {
           final button = tester.widget<TextButton>(
             find.widgetWithText(TextButton, label),
           );
           expect(
             button.style?.textStyle?.resolve({})?.fontSize,
-            AppFontSize.md,
+            AppFontSize.xs,
           );
           expect(
             tester.getSize(find.widgetWithText(TextButton, label)).height,
-            greaterThanOrEqualTo(AppRowHeight.compact),
+            greaterThanOrEqualTo(AppControlSize.sm),
           );
         }
         await tester.tap(find.text('Stop'));

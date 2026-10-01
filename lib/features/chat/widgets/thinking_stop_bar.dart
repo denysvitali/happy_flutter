@@ -97,7 +97,9 @@ class ThinkingStopBar extends StatelessWidget {
           trailing: startedAt == null
               ? null
               : ExcludeSemantics(child: _ElapsedLabel(startedAt: startedAt!)),
+          dense: true,
           action: AppInlineAction(
+            dense: true,
             label: l10n.chatActivityStop,
             icon: Icons.stop_rounded,
             color: colorScheme.error,
@@ -107,7 +109,7 @@ class ThinkingStopBar extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppInlineText.secondary(
+            style: AppInlineText.chrome(
               context,
             ).copyWith(color: unconfirmed ? AppColors.warning : null),
           ),
@@ -160,7 +162,7 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
         : '${minutes}m ${seconds % 60}s';
     return Text(
       label,
-      style: AppInlineText.secondary(
+      style: AppInlineText.chrome(
         context,
       ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
     );

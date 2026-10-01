@@ -146,13 +146,13 @@ class _Header extends StatelessWidget {
       context.l10n.tasksTitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: AppInlineText.title(context),
+      style: AppInlineText.chromeStrong(context),
     );
     final detail = Text(
       detailLabel,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: AppInlineText.secondary(context),
+      style: AppInlineText.chrome(context),
     );
     return AppInlineRow(
       leading: Icon(
@@ -163,7 +163,12 @@ class _Header extends StatelessWidget {
       semanticLabel: '${context.l10n.tasksTitle}, $detailLabel',
       expanded: expanded,
       trailing: _ExpandChevron(expanded: expanded, cs: cs),
-      action: AppInlineAction(label: 'View all', onPressed: onViewAll),
+      dense: true,
+      action: AppInlineAction(
+        label: 'View all',
+        onPressed: onViewAll,
+        dense: true,
+      ),
       child: dense
           ? Row(
               children: [
@@ -204,7 +209,7 @@ class _ExpandChevron extends StatelessWidget {
       turns: expanded ? 0.5 : 0.0,
       child: Icon(
         Icons.expand_more_rounded,
-        size: AppIconSize.md,
+        size: AppIconSize.sm,
         color: cs.onSurfaceVariant,
       ),
     );

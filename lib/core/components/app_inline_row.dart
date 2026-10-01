@@ -12,10 +12,29 @@ abstract final class AppInlineText {
     context,
   ).textTheme.bodyMedium!.copyWith(fontSize: AppFontSize.md);
 
+  /// Composer chrome: selector pills and the task / activity rows above the
+  /// composer. One small, quiet style (11sp regular, muted) so the chrome is
+  /// clearly secondary to the 14sp draft.
+  static TextStyle chrome(BuildContext context) {
+    final theme = Theme.of(context);
+    return theme.textTheme.bodyMedium!.copyWith(
+      fontSize: AppFontSize.xs,
+      fontWeight: FontWeight.w400,
+      height: 1.3,
+      letterSpacing: 0,
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+  }
+
+  /// [chrome] for the one emphasized word in a row (its title or action).
+  static TextStyle chromeStrong(BuildContext context) => chrome(context)
+      .copyWith(
+        fontWeight: FontWeight.w600,
+        color: Theme.of(context).colorScheme.onSurface,
+      );
+
   /// Label inside a composer selector chip.
-  static TextStyle chip(BuildContext context) => Theme.of(
-    context,
-  ).textTheme.bodySmall!.copyWith(fontWeight: FontWeight.w500);
+  static TextStyle chip(BuildContext context) => chrome(context);
 
   static TextStyle title(BuildContext context) =>
       body(context).copyWith(fontWeight: FontWeight.w500);
@@ -42,6 +61,7 @@ class AppInlineRow extends StatelessWidget {
     this.expanded,
     this.primaryActionKey,
     this.backgroundColor,
+    this.dense = false,
   });
 
   final Widget leading;
@@ -56,6 +76,10 @@ class AppInlineRow extends StatelessWidget {
   final Key? primaryActionKey;
   final Color? backgroundColor;
 
+  /// Composer-chrome density: a [AppControlSize.sm] tall row with
+  /// [AppInlineText.chrome] text. Pair with a dense [AppInlineAction].
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     final content = InkWell(
@@ -63,7 +87,9 @@ class AppInlineRow extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppRowHeight.compact),
+        constraints: BoxConstraints(
+          minHeight: dense ? AppControlSize.sm : AppRowHeight.compact,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
@@ -92,10 +118,12 @@ class AppInlineRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.sm),
       clipBehavior: Clip.antiAlias,
       child: DefaultTextStyle.merge(
-        style: AppInlineText.body(context),
+        style: dense
+            ? AppInlineText.chrome(context)
+            : AppInlineText.body(context),
         child: IconTheme.merge(
           data: IconThemeData(
-            size: AppIconSize.md,
+            size: dense ? AppIconSize.sm : AppIconSize.md,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           child: Row(
@@ -134,6 +162,7 @@ class AppInlineAction extends StatelessWidget {
     this.iconOnly = false,
     this.color,
     this.buttonKey,
+    this.dense = false,
   });
 
   final String label;
@@ -142,6 +171,9 @@ class AppInlineAction extends StatelessWidget {
   final bool iconOnly;
   final Color? color;
   final Key? buttonKey;
+
+  /// Composer-chrome density; see [AppInlineRow.dense].
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
@@ -173,8 +205,12 @@ class AppInlineAction extends StatelessWidget {
       onPressed: onPressed,
       style: TextButton.styleFrom(
         foregroundColor: color,
-        textStyle: AppInlineText.title(context),
-        minimumSize: const Size(AppRowHeight.compact, AppRowHeight.compact),
+        textStyle: dense
+            ? AppInlineText.chromeStrong(context)
+            : AppInlineText.title(context),
+        minimumSize: dense
+            ? const Size(AppControlSize.sm, AppControlSize.sm)
+            : const Size(AppRowHeight.compact, AppRowHeight.compact),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
@@ -182,7 +218,7 @@ class AppInlineAction extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: AppIconSize.md),
+            Icon(icon, size: dense ? AppIconSize.sm : AppIconSize.md),
             const SizedBox(width: AppSpacing.xxs),
           ],
           Text(label),

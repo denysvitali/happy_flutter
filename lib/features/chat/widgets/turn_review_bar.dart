@@ -30,6 +30,7 @@ class TurnReviewBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: AppInlineRow(
+        dense: true,
         primaryActionKey: const ValueKey('turn-review-bar'),
         onTap: () => _openReview(context),
         leading: Icon(
@@ -42,7 +43,7 @@ class TurnReviewBar extends StatelessWidget {
             Flexible(
               child: Text(
                 l10n.chatReviewTurn,
-                style: AppInlineText.title(context),
+                style: AppInlineText.chromeStrong(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -52,7 +53,7 @@ class TurnReviewBar extends StatelessWidget {
               flex: 2,
               child: Text(
                 detail,
-                style: AppInlineText.secondary(context),
+                style: AppInlineText.chrome(context),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

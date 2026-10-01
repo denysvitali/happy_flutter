@@ -59,8 +59,13 @@ void main() {
   );
 
   expectNone(
-    'type scale: AppFontSize.xxs/xs were removed, use sm',
+    'type scale: AppFontSize.xs (11) is for composer chrome only',
     RegExp(r'AppFontSize\.(xxs|xs)\b'),
+    allow: {
+      'app_tokens.dart',
+      'app_inline_row.dart', // AppInlineText.chrome
+      'composer_selector_chip.dart',
+    },
   );
 
   expectNone(

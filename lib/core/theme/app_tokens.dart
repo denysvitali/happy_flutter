@@ -110,12 +110,17 @@ abstract final class AppRadius {
 /// | [lg]  | 16 | section and card titles |
 /// | [xl]  | 18 | app bar and dialog titles |
 ///
-/// There is deliberately no size below 12: state is carried by weight and
-/// color, not by shrinking text.
+/// Content never goes below 12. The single exception is [xs] (11) for the
+/// composer chrome, which is deliberately quieter than everything else.
 ///
 /// Prefer a `textTheme` style for body/label/title text; use these tokens
 /// when you need a bare size (code blocks, tool views, badges).
 abstract final class AppFontSize {
+  /// 11 px – composer chrome only: selector pills and the task / activity
+  /// rows above the composer, which must read as clearly secondary to the
+  /// 14 px draft. Not for content.
+  static const double xs = 11;
+
   /// 12 px – all small text.
   static const double sm = 12;
 

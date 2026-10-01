@@ -7,16 +7,16 @@ import '../../../core/theme/app_tokens.dart';
 
 /// Shared metrics for the composer's model / approvals / profile selectors.
 abstract final class ComposerChipMetrics {
-  static const double height = AppControlSize.sm;
-  static const double paddingStart = AppSpacing.md;
-  static const double paddingStartWithIcon = AppSpacing.sm;
+  static const double height = 24;
+  static const double paddingStart = AppSpacing.smd;
+  static const double paddingStartWithIcon = AppSpacing.xsm;
   static const double paddingEnd = AppSpacing.xs;
-  static const double paddingEndNoChevron = AppSpacing.md;
-  static const double iconSize = 14;
-  static const double iconLabelGap = AppSpacing.xs;
+  static const double paddingEndNoChevron = AppSpacing.smd;
+  static const double iconSize = AppIconSize.xs;
+  static const double iconLabelGap = AppSpacing.xxs;
   static const double labelChevronGap = 0;
-  static const double chevronSize = 16;
-  static const double labelFontSize = AppFontSize.sm;
+  static const double chevronSize = AppIconSize.sm;
+  static const double labelFontSize = AppFontSize.xs;
 }
 
 /// Compact, neutral pill showing a composer setting's current value —
@@ -68,11 +68,8 @@ class ComposerSelectorChip extends StatelessWidget {
     final enabled = onTap != null;
     final accent = warningColor ?? AppColors.warning;
 
-    final valueColor = warning
-        ? accent
-        : enabled
-        ? cs.onSurface
-        : cs.onSurfaceVariant;
+    // Quiet by default: the value is muted grey; only a warning gets color.
+    final valueColor = warning ? accent : cs.onSurfaceVariant;
     final mutedColor = warning
         ? accent.withValues(alpha: 0.8)
         : cs.onSurfaceVariant;
@@ -124,8 +121,8 @@ class ComposerSelectorChip extends StatelessWidget {
             start: icon == null
                 ? ComposerChipMetrics.paddingStart
                 : ComposerChipMetrics.paddingStartWithIcon,
-            top: AppSpacing.xxs,
-            bottom: AppSpacing.xxs,
+            top: 0,
+            bottom: 0,
             end: enabled
                 ? ComposerChipMetrics.paddingEnd
                 : ComposerChipMetrics.paddingEndNoChevron,
@@ -226,7 +223,7 @@ class ComposerIconChip extends StatelessWidget {
                     dimension: ComposerChipMetrics.height,
                     child: Icon(
                       icon,
-                      size: AppIconSize.md,
+                      size: AppIconSize.sm,
                       color: cs.onSurfaceVariant,
                     ),
                   ),

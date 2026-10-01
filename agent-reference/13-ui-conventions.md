@@ -33,8 +33,10 @@ from `lib/core/components/app_inline_row.dart` for compact headers and status
 rows. Thinking, tools, tasks, activity, and turn review share flat surfaces,
 icon slots, spacing, 13px chrome text (`AppInlineText.body`), and 44px action
 targets. Separate secondary actions from the row tap target. Composer selector
-chips are 12px medium (`AppInlineText.chip`) with a 16px chevron, below the
-14px draft; keep state emphasis in color and weight rather than size. Elapsed
+chips and the task / activity / review rows above the composer are the
+*composer chrome*: 11px regular muted text (`AppInlineText.chrome`,
+`AppFontSize.xs`), 24px pills and 28px rows (`dense: true`), so they are
+clearly secondary to the 14px draft. State emphasis is color and icon only. Elapsed
 labels switch to `Xh Ym` past one hour.
 
 **One component per element** (`test/core/theme/design_system_guard_test.dart`
