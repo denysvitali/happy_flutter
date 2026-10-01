@@ -66,7 +66,7 @@ Future<void> showBackupKeyDialog(BuildContext context) async {
                 onPressed: () => Navigator.pop(context),
                 child: Text(l10n.commonClose),
               ),
-              ElevatedButton.icon(
+              FilledButton.icon(
                 onPressed: () async {
                   await _copySecretWithExpiry(key);
                   if (!context.mounted) return;

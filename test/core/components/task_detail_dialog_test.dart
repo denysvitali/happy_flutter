@@ -33,7 +33,7 @@ void main() {
       await tester.pumpWidget(
         wrap(
           Builder(
-            builder: (context) => ElevatedButton(
+            builder: (context) => FilledButton(
               onPressed: () => showTaskDetailDialog(
                 context: context,
                 item: item(
@@ -61,7 +61,7 @@ void main() {
       await tester.pumpWidget(
         wrap(
           Builder(
-            builder: (context) => ElevatedButton(
+            builder: (context) => FilledButton(
               onPressed: () => showTaskDetailDialog(
                 context: context,
                 item: item(content: 'No details'),
@@ -83,7 +83,7 @@ void main() {
       await tester.pumpWidget(
         wrap(
           Builder(
-            builder: (context) => ElevatedButton(
+            builder: (context) => FilledButton(
               onPressed: () => showTaskDetailDialog(
                 context: context,
                 item: item(description: 'Text'),

@@ -22,6 +22,7 @@ import '../../core/utils/version_utils.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'session_debug_export.dart';
 import 'widgets/session_info_widgets.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 // Reusable thin divider used inside the metadata/info cards.
 const _kRowDivider = Divider(
@@ -309,11 +310,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               onPressed: () => Navigator.of(ctx).pop(false),
               child: Text(l10n.commonCancel),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error,
-                foregroundColor: Theme.of(ctx).colorScheme.onError,
-              ),
+            FilledButton(
+              style: AppButtonStyle.destructiveFilled(Theme.of(ctx).colorScheme),
               onPressed: () => Navigator.of(ctx).pop(true),
               child: Text(l10n.sessionsArchive),
             ),
@@ -365,11 +363,8 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
               onPressed: () => Navigator.of(ctx).pop(false),
               child: Text(l10n.commonCancel),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error,
-                foregroundColor: Theme.of(ctx).colorScheme.onError,
-              ),
+            FilledButton(
+              style: AppButtonStyle.destructiveFilled(Theme.of(ctx).colorScheme),
               onPressed: () => Navigator.of(ctx).pop(true),
               child: Text(l10n.commonDelete),
             ),

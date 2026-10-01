@@ -390,7 +390,7 @@ class _ActionButtons extends StatelessWidget {
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
           children: [
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: enabled ? onAllow : null,
               icon: const Icon(Icons.check_rounded, size: AppIconSize.md),
               label: Text(l10n.permissionAllow),
@@ -471,7 +471,7 @@ class _CodexActionButtons extends StatelessWidget {
           spacing: AppSpacing.sm,
           runSpacing: AppSpacing.sm,
           children: [
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: enabled ? onCodexApprove : null,
               icon: const Icon(Icons.check_rounded, size: AppIconSize.md),
               label: Text(l10n.permissionYes),
@@ -553,7 +553,7 @@ ButtonStyle _primaryButtonStyle(
   Color? backgroundColor,
   Color? foregroundColor,
 }) {
-  return ElevatedButton.styleFrom(
+  return FilledButton.styleFrom(
     backgroundColor: backgroundColor ?? theme.colorScheme.primary,
     foregroundColor: foregroundColor ?? theme.colorScheme.onPrimary,
     minimumSize: const Size(0, AppTouchTarget.min),
@@ -650,11 +650,11 @@ class PermissionButtons extends StatelessWidget {
       spacing: AppSpacing.sm,
       runSpacing: AppSpacing.sm,
       children: [
-        ElevatedButton.icon(
+        FilledButton.icon(
           onPressed: isPending ? onAllow : null,
           icon: const Icon(Icons.check_rounded, size: 14),
           label: Text(AppLocalizations.of(context).permissionAllow),
-          style: ElevatedButton.styleFrom(
+          style: FilledButton.styleFrom(
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: theme.colorScheme.onPrimary,
             elevation: 0,

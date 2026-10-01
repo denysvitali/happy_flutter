@@ -19,6 +19,7 @@ import '../providers/sftp_provider.dart';
 import 'sftp_connection_history_screen.dart';
 import 'sftp_log_viewer_screen.dart';
 import '../../../core/utils/utils.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Right-pane modes when the directory manager is rendered as a
 /// master-detail layout on wider viewports.
@@ -148,9 +149,7 @@ class _SftpDirectoryManagerScreenState
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
+            style: AppButtonStyle.destructive(Theme.of(ctx).colorScheme),
             child: const Text('Remove'),
           ),
         ],
@@ -440,7 +439,7 @@ class _SftpDirectoryManagerScreenState
               const Spacer(),
               TextButton.icon(
                 onPressed: _removeShare,
-                style: TextButton.styleFrom(foregroundColor: cs.error),
+                style: AppButtonStyle.destructive(cs),
                 icon: const Icon(Icons.link_off, size: 18),
                 label: const Text('Remove Share'),
               ),

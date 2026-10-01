@@ -6,6 +6,7 @@ import '../../../../core/components/settings_section.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_tokens.dart';
 import '../../models/sftp_log.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Stats tab content for the SFTP log viewer
 class SftpLogStatsTab extends StatelessWidget {
@@ -190,9 +191,7 @@ class SftpLogStatsTab extends StatelessWidget {
           onPressed: onClearLogs,
           icon: const Icon(Icons.delete_outline, size: 18),
           label: const Text('Clear all logs'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: cs.error,
-          ),
+          style: AppButtonStyle.destructive(cs),
         ),
       ],
     );

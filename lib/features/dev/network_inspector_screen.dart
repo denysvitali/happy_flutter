@@ -15,6 +15,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 import '../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Debug screen that shows all HTTP requests made by [ApiClient].
 class NetworkInspectorScreen extends StatefulWidget {
@@ -137,9 +138,7 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
               child: Text(l10n.commonCancel),
             ),
             TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
+              style: AppButtonStyle.destructive(Theme.of(context).colorScheme),
               onPressed: () => Navigator.pop(ctx, true),
               child: Text(l10n.developerClearCacheAction),
             ),

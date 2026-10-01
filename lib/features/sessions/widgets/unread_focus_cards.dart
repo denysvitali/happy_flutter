@@ -14,6 +14,7 @@ import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Prominent card used in the "Needs Attention" section of the
 /// Unread Focus view. Filled with a primary tint and a thick left
@@ -302,19 +303,14 @@ class _CardPermissionRowState extends ConsumerState<_CardPermissionRow> {
             onPressed: widget.isOnline ? () => _act(false) : null,
             style: TextButton.styleFrom(
               foregroundColor: cs.onSurfaceVariant,
-              minimumSize: const Size(AppTouchTarget.min, 32),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+            ).merge(AppButtonStyle.compact),
             child: Text(l10n.permissionDeny),
           ),
           FilledButton(
             onPressed: widget.isOnline ? () => _act(true) : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: cs.error,
-              foregroundColor: cs.onError,
-              minimumSize: const Size(AppTouchTarget.min, 32),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+            style: AppButtonStyle.destructiveFilled(
+              cs,
+            ).merge(AppButtonStyle.compact),
             child: Text(l10n.permissionAllow),
           ),
         ],

@@ -63,7 +63,7 @@ void main() {
           supportedLocales: AppLocalizations.supportedLocales,
           home: Builder(
             builder: (context) => Scaffold(
-              body: ElevatedButton(
+              body: FilledButton(
                 onPressed: () async {
                   createdLoop = await CreateGoalLoopSheet.show(
                     context,

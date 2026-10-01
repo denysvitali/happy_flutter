@@ -131,8 +131,8 @@ void main() {
       expect(find.text('Deny'), findsOneWidget);
       expect(
         tester
-            .widget<ElevatedButton>(
-              find.widgetWithText(ElevatedButton, 'Allow'),
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, 'Allow'),
             )
             .onPressed,
         isNull,
@@ -423,7 +423,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       final interactive = <Finder>[
-        find.widgetWithText(ElevatedButton, 'Allow'),
+        find.widgetWithText(FilledButton, 'Allow'),
         find.widgetWithText(OutlinedButton, 'Deny'),
         find.widgetWithText(TextButton, 'More approval options'),
       ];

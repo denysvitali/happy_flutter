@@ -12,6 +12,7 @@ import '../services/connection_history_store.dart';
 import 'widgets/connection_event_card.dart';
 import 'widgets/device_analytics_card.dart';
 import '../../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 export '../models/connection_event.dart';
 export '../services/connection_history_store.dart';
@@ -104,9 +105,7 @@ class _SftpConnectionHistoryScreenState
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
+            style: AppButtonStyle.destructive(Theme.of(ctx).colorScheme),
             child: const Text('Clear'),
           ),
         ],

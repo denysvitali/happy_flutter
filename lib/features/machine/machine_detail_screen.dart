@@ -30,6 +30,7 @@ import '../../core/utils/version_utils.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
 import 'widgets/agent_update_banner.dart';
 import 'widgets/machine_provider_versions.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Detail screen for a single machine.
 ///
@@ -420,7 +421,7 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                style: TextButton.styleFrom(foregroundColor: cs.error),
+                style: AppButtonStyle.destructive(cs),
               ),
             ),
           ],

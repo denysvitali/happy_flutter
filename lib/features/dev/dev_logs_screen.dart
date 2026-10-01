@@ -12,6 +12,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/clipboard_utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 import '../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Debug logs screen - available when developer mode is enabled
 class DevLogsScreen extends ConsumerWidget {
@@ -209,9 +210,7 @@ class DevLogsScreen extends ConsumerWidget {
             ),
             TextButton(
               onPressed: () => context.pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
+              style: AppButtonStyle.destructive(Theme.of(context).colorScheme),
               child: Text(l10n.devLogsClearAction),
             ),
           ],

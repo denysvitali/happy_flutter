@@ -59,13 +59,13 @@ void main() {
           child: const AppEmptyState(
             icon: Icons.inbox,
             title: 'No items',
-            action: ElevatedButton(onPressed: null, child: Text('Add Item')),
+            action: FilledButton(onPressed: null, child: Text('Add Item')),
           ),
         ),
       );
 
       expect(find.text('Add Item'), findsOneWidget);
-      expect(find.byType(ElevatedButton), findsOneWidget);
+      expect(find.byType(FilledButton), findsOneWidget);
     });
 
     testWidgets('does not render action when null', (tester) async {
@@ -75,7 +75,7 @@ void main() {
         ),
       );
 
-      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.byType(FilledButton), findsNothing);
     });
 
     testWidgets('is centered in parent', (tester) async {

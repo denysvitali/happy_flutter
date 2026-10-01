@@ -1296,7 +1296,7 @@ class _CreateButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = ElevatedButton(
+    final button = FilledButton(
       onPressed: onPressed,
       child: isCreating
           ? const Icon(Icons.hourglass_top_rounded, size: AppIconSize.md)

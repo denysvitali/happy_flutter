@@ -14,6 +14,7 @@ import '../../../core/services/draft_storage.dart';
 import '../../../core/services/logger_service.dart' show logger;
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// A shortcut promoted into the top of the session menu, used for app bar
 /// actions that do not fit inline on phone widths.
@@ -285,7 +286,7 @@ void showUnsentMessageDialog(
           child: Text(l10n.chatStay),
         ),
         TextButton(
-          style: TextButton.styleFrom(foregroundColor: cs.error),
+          style: AppButtonStyle.destructive(cs),
           onPressed: () {
             controller.clear();
             unawaited(DraftStorage().removeDraft(sessionId));

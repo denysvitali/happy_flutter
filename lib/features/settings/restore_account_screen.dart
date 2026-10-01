@@ -123,7 +123,7 @@ class _RestoreAccountScreenState extends ConsumerState<RestoreAccountScreen> {
             const SizedBox(height: AppSpacing.xxl),
             SizedBox(
               height: AppTouchTarget.comfortable,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: _isLoading ? null : _restoreAccount,
                 child: _isLoading
                     ? const AppLoadingIndicator(

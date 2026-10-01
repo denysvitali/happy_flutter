@@ -12,6 +12,7 @@ import '../models/sftp_log.dart';
 import 'widgets/sftp_log_entry_card.dart';
 import 'widgets/sftp_log_stats_tab.dart';
 import '../../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 export 'widgets/sftp_log_entry_card.dart';
 export 'widgets/sftp_log_stats_tab.dart';
@@ -164,9 +165,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
+            style: AppButtonStyle.destructive(Theme.of(ctx).colorScheme),
             child: const Text('Clear'),
           ),
         ],

@@ -198,7 +198,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(l10n.commonCancel),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(l10n.profilesImportButton),
           ),

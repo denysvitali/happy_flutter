@@ -5,6 +5,7 @@ import '../../core/models/loop.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/widgets/app_linear_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Card for a single goal loop.
 ///
@@ -208,7 +209,7 @@ class GoalLoopCard extends StatelessWidget {
                   onPressed: () => _confirmDelete(context),
                   icon: const Icon(Icons.delete_outline, size: 18),
                   label: Text(l10n.loopsDeleteButton),
-                  style: TextButton.styleFrom(foregroundColor: cs.error),
+                  style: AppButtonStyle.destructive(cs),
                 ),
               ],
             ),
@@ -231,9 +232,7 @@ class GoalLoopCard extends StatelessWidget {
             child: Text(l10n.commonCancel),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
+            style: AppButtonStyle.destructiveFilled(Theme.of(ctx).colorScheme),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(l10n.loopsDeleteButton),
           ),

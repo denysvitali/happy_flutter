@@ -76,7 +76,7 @@ void main() {
             home: Builder(
               builder: (context) => Scaffold(
                 body: Center(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () async {
                       popped = await showModalBottomSheet<Loop>(
                         context: context,

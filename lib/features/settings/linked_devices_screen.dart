@@ -13,6 +13,7 @@ import '../../core/routing/safe_pop.dart';
 import '../../core/utils/utils.dart';
 import '../../core/utils/datetime_extensions.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Linked devices screen
 class LinkedDevicesScreen extends ConsumerStatefulWidget {
@@ -68,11 +69,8 @@ class _LinkedDevicesScreenState
               onPressed: () => Navigator.pop(context, false),
               child: Text(l10nDialog.commonCancel),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: cs.error,
-                foregroundColor: cs.onError,
-              ),
+            FilledButton(
+              style: AppButtonStyle.destructiveFilled(cs),
               onPressed: () => Navigator.pop(context, true),
               child: Text(l10nDialog.accountUnlink),
             ),

@@ -10,6 +10,7 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import 'widgets/artifact_form_fields.dart';
 import 'widgets/artifact_pane_header.dart';
 import '../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Screen for editing an existing artifact.
 ///
@@ -341,7 +342,7 @@ class _EditArtifactScreenState extends ConsumerState<EditArtifactScreen> {
               child: Text(l10n.chatStay),
             ),
             TextButton(
-              style: TextButton.styleFrom(foregroundColor: cs.error),
+              style: AppButtonStyle.destructive(cs),
               onPressed: () {
                 Navigator.pop(dialogContext);
                 if (embedded) {

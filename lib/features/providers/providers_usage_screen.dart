@@ -320,7 +320,7 @@ class _ProvidersUsageBody extends StatelessWidget {
                   icon: Icons.cloud_outlined,
                   title: l10n.providersEmptyTitle,
                   subtitle: l10n.providersEmptySubtitle,
-                  action: ElevatedButton.icon(
+                  action: FilledButton.icon(
                     onPressed: onAddProvider,
                     icon: const Icon(Icons.add),
                     label: Text(l10n.providersAddAccount),

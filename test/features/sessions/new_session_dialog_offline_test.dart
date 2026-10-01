@@ -543,7 +543,7 @@ void main() {
       );
       await tester.tap(find.text('Open dialog'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 600));
@@ -585,8 +585,8 @@ void main() {
       );
 
       // The Create button must be present but disabled.
-      final createButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Create'),
+      final createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
       );
       expect(
         createButton.onPressed,
@@ -615,8 +615,8 @@ void main() {
           ),
         );
 
-        final createButton = tester.widget<ElevatedButton>(
-          find.widgetWithText(ElevatedButton, 'Create'),
+        final createButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Create'),
         );
         expect(createButton.onPressed, isNull);
       },
@@ -640,8 +640,8 @@ void main() {
         ),
       );
 
-      final createButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Create'),
+      final createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
       );
       expect(
         createButton.onPressed,
@@ -681,7 +681,7 @@ void main() {
           ),
         );
 
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Create'));
         await tester.pump();
         await probeStarted.future;
 
@@ -739,7 +739,7 @@ void main() {
           ),
         );
 
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Create'));
         await tester.pump();
         await spawnStarted.future;
 
@@ -802,7 +802,7 @@ void main() {
 
         await tester.tap(find.text('Open dialog'));
         await tester.pumpAndSettle();
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Create'));
         await tester.pump();
         await spawnStarted.future;
 
@@ -887,8 +887,8 @@ void main() {
       expect(find.text('Kubernetes'), findsOneWidget);
       expect(find.text('Path'), findsOneWidget);
       expect(find.text('Git repository'), findsNothing);
-      final createButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Create'),
+      final createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
       );
       expect(createButton.onPressed, isNotNull);
     });
@@ -914,8 +914,8 @@ void main() {
 
       expect(find.text('Git repository'), findsOneWidget);
       expect(find.text('A git repository is required'), findsOneWidget);
-      var createButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Create'),
+      var createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
       );
       expect(createButton.onPressed, isNull);
 
@@ -925,8 +925,8 @@ void main() {
       );
       await tester.pump();
 
-      createButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Create'),
+      createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
       );
       expect(createButton.onPressed, isNotNull);
     });
@@ -971,7 +971,7 @@ void main() {
           ),
         );
 
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Create'));
         await tester.pump();
         await tester.pump();
 
@@ -1030,8 +1030,8 @@ void main() {
         find.text('Launcher disabled while machine is offline'),
         findsOneWidget,
       );
-      var createButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Create'),
+      var createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
       );
       expect(
         createButton.onPressed,
@@ -1063,8 +1063,8 @@ void main() {
       );
       await tester.pump();
 
-      createButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Create'),
+      createButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Create'),
       );
       expect(
         createButton.onPressed,
@@ -1172,7 +1172,7 @@ void main() {
           isSemantics(isLiveRegion: true),
         );
 
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Create'));
         await tester.pump();
         await tester.pump();
 

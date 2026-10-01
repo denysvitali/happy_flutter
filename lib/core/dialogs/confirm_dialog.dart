@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../i18n/app_localizations.dart';
 import 'app_dialog.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Shows a confirmation dialog and resolves to `true` if confirmed.
 Future<bool> showConfirmDialog(
@@ -26,7 +27,7 @@ Future<bool> showConfirmDialog(
         ),
         TextButton(
           style: isDestructive
-              ? TextButton.styleFrom(foregroundColor: cs.error)
+              ? AppButtonStyle.destructive(cs)
               : null,
           onPressed: () => Navigator.pop(dialogContext, true),
           child: Text(confirmLabel ?? l10n.commonConfirm),

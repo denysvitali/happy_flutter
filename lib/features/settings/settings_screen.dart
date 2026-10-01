@@ -18,6 +18,7 @@ import 'widgets/profile_switcher_tile.dart';
 import 'widgets/settings_health_section.dart';
 import 'widgets/settings_search_widgets.dart';
 import 'widgets/workflow_presets_section.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 part 'settings_screen_search.dart';
 part 'settings_screen_specs.dart';
@@ -339,11 +340,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(l10nDialog.commonCancel),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.error,
-                foregroundColor: colorScheme.onError,
-              ),
+            FilledButton(
+              style: AppButtonStyle.destructiveFilled(colorScheme),
               onPressed: () {
                 Navigator.pop(dialogContext);
                 ref.read(authStateNotifierProvider.notifier).signOut();

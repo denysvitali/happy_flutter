@@ -13,6 +13,7 @@ import '../../core/theme/app_tokens.dart';
 import '../../core/utils/package_info_cache.dart';
 import '../../dart_version.dart';
 import '../../core/utils/snack.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Developer screen - Debug tools (10x click to enable)
 class DeveloperScreen extends ConsumerStatefulWidget {
@@ -270,7 +271,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(l10nDialog.commonCancel),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () async {
                 Navigator.pop(context);
                 await Storage().clearAll();
@@ -302,11 +303,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(l10nDialog.commonCancel),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.error,
-                foregroundColor: colorScheme.onError,
-              ),
+            FilledButton(
+              style: AppButtonStyle.destructiveFilled(colorScheme),
               onPressed: () {
                 Navigator.pop(context);
                 throw StateError('Sentry unhandled test error');
@@ -332,10 +330,8 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(l10nDialog.commonCancel),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-              ),
+            FilledButton(
+              style: AppButtonStyle.destructiveFilled(Theme.of(context).colorScheme),
               onPressed: () async {
                 Navigator.pop(context);
                 await SettingsStorage().clearSettings();
@@ -371,7 +367,7 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(l10nDialog.commonCancel),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () async {
                 Navigator.pop(context);
                 try {

@@ -478,7 +478,7 @@ class _DefaultErrorWidget extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ElevatedButton.icon(
+                FilledButton.icon(
                   onPressed: onRetry,
                   icon: const Icon(Icons.refresh),
                   label: Text(_tryAgainLabel(context)),

@@ -413,7 +413,7 @@ class _ProfileWizardScreenState extends ConsumerState<ProfileWizardScreen> {
             padding: const EdgeInsets.only(top: AppSpacing.md),
             child: Row(
               children: [
-                ElevatedButton(
+                FilledButton(
                   onPressed: details.onStepContinue,
                   child: Text(
                     _currentStep == 2 ? l10n.commonSave : l10n.commonContinue,

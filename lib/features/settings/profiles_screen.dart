@@ -18,6 +18,7 @@ import '../../core/utils/shell_script_parser.dart';
 import '../../core/utils/snack.dart';
 import 'profile_editor_screen.dart';
 import 'widgets/profile_badge.dart';
+import 'package:happy_flutter/core/theme/app_button_style.dart';
 
 /// Profiles screen - AI backend profiles management in Settings.
 class ProfilesScreen extends ConsumerStatefulWidget {
@@ -431,7 +432,7 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(l10n.commonCancel),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(l10n.profilesImportButton),
           ),
@@ -527,10 +528,8 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               onPressed: () => Navigator.pop(context),
               child: Text(l10n.commonCancel),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-              ),
+            FilledButton(
+              style: AppButtonStyle.destructiveFilled(Theme.of(context).colorScheme),
               onPressed: () {
                 final settings = ref.read(settingsNotifierProvider);
                 final notifier = ref.read(settingsNotifierProvider.notifier);
