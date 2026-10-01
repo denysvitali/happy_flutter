@@ -145,4 +145,26 @@ void main() {
       });
     }
   }
+
+  testWidgets('warning and neutral composer chips share one text style', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Row(
+            children: [
+              ComposerSelectorChip(label: 'YOLO', warning: true, onTap: () {}),
+              ComposerSelectorChip(label: 'sonnet:high', onTap: () {}),
+            ],
+          ),
+        ),
+      ),
+    );
+    final warning = tester.widget<Text>(find.text('YOLO')).style!;
+    final neutral = tester.widget<Text>(find.text('sonnet:high')).style!;
+    expect(warning.fontSize, neutral.fontSize);
+    expect(warning.fontWeight, neutral.fontWeight);
+    expect(warning.fontFamily, neutral.fontFamily);
+  });
 }

@@ -87,10 +87,10 @@ class ComposerSelectorChip extends StatelessWidget {
 
     Widget text = Text(
       label,
-      style: base.copyWith(
-        color: valueColor,
-        fontWeight: warning ? FontWeight.w600 : null,
-      ),
+      // Same size and weight in every state: the warning state is carried by
+      // color and the leading icon, never by heavier type (an all-caps label
+      // such as YOLO already reads larger than lowercase neighbours).
+      style: base.copyWith(color: valueColor),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       textHeightBehavior: const TextHeightBehavior(
