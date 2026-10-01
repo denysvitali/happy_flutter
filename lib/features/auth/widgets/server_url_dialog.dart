@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -6,21 +7,27 @@ import '../../../core/api/api_client.dart';
 import '../../../core/api/socket_io_client.dart';
 import '../../../core/components/app_loading_indicator.dart';
 import '../../../core/i18n/app_localizations.dart';
+import '../../../core/services/logger_service.dart';
 import '../../../core/services/server_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/clipboard_utils.dart';
+import '../../../core/utils/package_info_cache.dart';
 
 /// Dialog for configuring the server URL.
 class ServerUrlDialog extends StatefulWidget {
   const ServerUrlDialog({
     required this.initialUrl,
     required this.defaultUrl,
+    this.verifyUrl = verifyServerUrl,
     super.key,
   });
 
   final String initialUrl;
   final String defaultUrl;
+
+  /// Reachability check, called only after the shared URL policy accepts input.
+  final Future<ServerUrlVerificationResult> Function(String) verifyUrl;
 
   @override
   State<ServerUrlDialog> createState() => _ServerUrlDialogState();
@@ -33,11 +40,23 @@ class _ServerUrlDialogState extends State<ServerUrlDialog> {
   String? _detailedError;
   String? _errorType;
   bool _isVerifying = false;
+  String? _appVersion;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.initialUrl);
+    unawaited(_loadAppVersion());
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final info = await PackageInfoCache.get();
+      if (!mounted) return;
+      setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    } catch (error) {
+      logger.warning('Could not load server dialog app version', error);
+    }
   }
 
   @override
@@ -62,8 +81,12 @@ class _ServerUrlDialogState extends State<ServerUrlDialog> {
     if (!validation.valid) {
       setState(() {
         _errorText = validation.error;
-        _detailedError = null;
-        _errorType = null;
+        final uri = Uri.tryParse(url);
+        _detailedError =
+            '${validation.error}\n'
+            'Scheme: ${jsonEncode(uri?.scheme)}\n'
+            'Hostname: ${jsonEncode(uri?.host)}';
+        _errorType = 'Validation';
       });
       return;
     }
@@ -75,7 +98,8 @@ class _ServerUrlDialogState extends State<ServerUrlDialog> {
       _isVerifying = true;
     });
 
-    final result = await verifyServerUrl(url);
+    final result = await widget.verifyUrl(url);
+    if (!mounted) return;
     setState(() => _isVerifying = false);
 
     if (!result.isValid) {
@@ -197,6 +221,13 @@ class _ServerUrlDialogState extends State<ServerUrlDialog> {
                       },
                     ),
                     const SizedBox(height: AppSpacing.lg),
+                    if (_appVersion != null) ...[
+                      Text(
+                        'Happy $_appVersion',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
                     if (_detailedError != null) ...[
                       _ErrorDetailBox(
                         errorType: _errorType,
