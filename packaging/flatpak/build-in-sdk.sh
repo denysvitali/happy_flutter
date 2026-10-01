@@ -40,5 +40,7 @@ install -Dm644 "packaging/flatpak/$FLATPAK_ID.desktop" \
   "/app/share/applications/$FLATPAK_ID.desktop"
 install -Dm644 "packaging/flatpak/$FLATPAK_ID.metainfo.xml" \
   "/app/share/metainfo/$FLATPAK_ID.metainfo.xml"
-install -Dm644 assets/icon/app_icon.png \
-  "/app/share/icons/hicolor/1024x1024/apps/$FLATPAK_ID.png"
+# Flatpak exports icons no larger than 512px; the source asset is 1024px.
+install -d /app/share/icons/hicolor/512x512/apps
+gdk-pixbuf-thumbnailer -s 512 assets/icon/app_icon.png \
+  "/app/share/icons/hicolor/512x512/apps/$FLATPAK_ID.png"
