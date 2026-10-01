@@ -3422,7 +3422,7 @@ abstract class AppLocalizations {
   /// No description provided for @permissionModeBypass.
   ///
   /// In en, this message translates to:
-  /// **'YOLO'**
+  /// **'Yolo'**
   String get permissionModeBypass;
 
   /// No description provided for @permissionModeReadOnly.
@@ -3434,13 +3434,13 @@ abstract class AppLocalizations {
   /// No description provided for @permissionModeSafeYolo.
   ///
   /// In en, this message translates to:
-  /// **'Safe YOLO'**
+  /// **'Safe Yolo'**
   String get permissionModeSafeYolo;
 
   /// No description provided for @permissionModeYolo.
   ///
   /// In en, this message translates to:
-  /// **'YOLO'**
+  /// **'Yolo'**
   String get permissionModeYolo;
 
   /// No description provided for @permissionModeDefaultDesc.

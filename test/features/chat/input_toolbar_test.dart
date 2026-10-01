@@ -171,8 +171,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Read-only'), findsOneWidget);
-    expect(find.text('Safe YOLO'), findsOneWidget);
-    expect(find.text('YOLO'), findsOneWidget);
+    expect(find.text('Safe Yolo'), findsOneWidget);
+    expect(find.text('Yolo'), findsOneWidget);
     expect(find.text('Accept Edits'), findsNothing);
     expect(find.text('Plan'), findsNothing);
   });

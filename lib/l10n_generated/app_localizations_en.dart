@@ -1838,16 +1838,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get permissionModePlan => 'Plan';
 
   @override
-  String get permissionModeBypass => 'YOLO';
+  String get permissionModeBypass => 'Yolo';
 
   @override
   String get permissionModeReadOnly => 'Read-only';
 
   @override
-  String get permissionModeSafeYolo => 'Safe YOLO';
+  String get permissionModeSafeYolo => 'Safe Yolo';
 
   @override
-  String get permissionModeYolo => 'YOLO';
+  String get permissionModeYolo => 'Yolo';
 
   @override
   String get permissionModeDefaultDesc =>
