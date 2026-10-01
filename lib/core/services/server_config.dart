@@ -97,9 +97,9 @@ class ServerUrlValidation {
 }
 
 /// Validate a server URL
-/// Production credentials must only be sent over HTTPS. Debug builds permit
-/// plain HTTP for loopback development servers, while Tailscale endpoints in
-/// the `100.64.0.0/10` CGNAT range are allowed in all build modes.
+/// HTTPS is required except for Tailscale endpoints (`*.ts.net` hostnames or
+/// addresses in `100.64.0.0/10`), which permit HTTP in all build modes.
+/// Debug builds also permit HTTP for loopback development servers.
 ServerUrlValidation validateServerUrl(String url) {
   if (!url.trim().isNotEmpty) {
     return const ServerUrlValidation(
@@ -143,8 +143,15 @@ ServerUrlValidation validateServerUrl(String url) {
   }
 }
 
-/// Whether [host] is an IPv4 address in Tailscale's CGNAT allocation.
+/// Whether [host] is a Tailscale DNS name or CGNAT IPv4 address.
 bool _isTailscaleAddress(String host) {
+  final hostname = host.toLowerCase();
+  if (hostname.endsWith('.ts.net')) {
+    // Match complete DNS labels, never lookalike suffixes or empty labels.
+    final label = RegExp(r'^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$');
+    return hostname.split('.').every(label.hasMatch);
+  }
+
   final octets = host.split('.');
   if (octets.length != 4) return false;
 

@@ -327,6 +327,9 @@ can be filtered by agent.
 - **Credentials**: Stored in `flutter_secure_storage`
 - **App data**: Stored in MMKV (separate instance for server config that persists across logouts)
 - **Certificate pinning**: Currently relies on platform CA store via NativeAdapter
+- **Custom server URLs**: HTTPS is required, with HTTP allowed for Tailscale
+  `*.ts.net` hostnames and `100.64.0.0/10` addresses in all builds. Debug builds
+  also allow HTTP loopback servers.
 
 **Web platform**: Web is supported — CI runs `flutter build web --release` and deploys it. Web-specific shims are used for storage (`mmkv_storage_web.dart` falls back to `SharedPreferences`) and crypto (`sodium_loader_web.dart`).
 

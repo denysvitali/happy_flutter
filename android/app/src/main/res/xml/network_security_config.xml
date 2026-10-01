@@ -6,4 +6,8 @@
             <certificates src="user" />
         </trust-anchors>
     </base-config>
+    <!-- Tailscale carries HTTP inside its encrypted tunnel. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">ts.net</domain>
+    </domain-config>
 </network-security-config>

@@ -26,6 +26,44 @@ void main() {
       expect(result.error, isNull);
     });
 
+    test('validates HTTP Tailscale DNS names', () {
+      for (final url in <String>[
+        'http://foo.tailnet-name.ts.net',
+        'http://foo.tailnet-name.ts.net:3000',
+        'http://foo.tailnet-name.ts.net:8080/v1',
+        'http://FOO.TAILNET-NAME.TS.NET',
+      ]) {
+        final result = validateServerUrl(url);
+        expect(result.valid, isTrue, reason: url);
+        expect(result.error, isNull, reason: url);
+      }
+    });
+
+    test('rejects HTTP Tailscale lookalikes and malformed DNS names', () {
+      for (final host in <String>[
+        'ts.net',
+        'foo.tailnet-name.ts.net.example.com',
+        'foo.tailnet-name.fakets.net',
+        'foo.tailnet-name.ts.net.evil',
+        'foo..ts.net',
+        '-foo.tailnet-name.ts.net',
+        'foo_.tailnet-name.ts.net',
+        'example.com',
+      ]) {
+        expect(validateServerUrl('http://$host').valid, isFalse, reason: host);
+      }
+    });
+
+    test('rejects credentials, query, and fragment on Tailscale HTTP', () {
+      for (final url in <String>[
+        'http://user:pass@foo.tailnet-name.ts.net',
+        'http://foo.tailnet-name.ts.net?q=1',
+        'http://foo.tailnet-name.ts.net/#fragment',
+      ]) {
+        expect(validateServerUrl(url).valid, isFalse, reason: url);
+      }
+    });
+
     test('validates URL with port', () {
       final result = validateServerUrl('https://api.example.com:8443');
 

@@ -66,6 +66,21 @@
 	<key>NSUserNotificationUsageDescription</key>
 	<string>Notifications are used to alert you of important updates.</string>
 
+	<!-- Tailscale carries HTTP inside its encrypted tunnel. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>ts.net</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
 	<!-- Local network permission for Bonjour/discovery -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Local network access is used to discover devices on your network.</string>
