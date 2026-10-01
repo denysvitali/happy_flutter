@@ -28,6 +28,11 @@ flutter_root="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
 cp -a "$flutter_root" "$stage/toolchain/flutter"
 cp "$(command -v mise)" "$stage/toolchain/mise"
 touch "$stage/toolchain/mise.toml"
+# mise also discovers the repository config in its working directory.
+# Keep the host pins as a reference, but do not reinstall host tools inside
+# the SDK (the standard Flutter archive does not contain an ARM64 host VM).
+mv "$stage/.mise.toml" "$stage/toolchain/host-mise.toml"
+touch "$stage/.mise.toml"
 semver="$(awk '/^version:/ {print $2}' pubspec.yaml | cut -d+ -f1)"
 printf '%s %s\n' "$semver" "$build_number" \
   > "$stage/packaging/flatpak/build-metadata"
