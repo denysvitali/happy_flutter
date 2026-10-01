@@ -512,18 +512,21 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                   runSpacing: AppSpacing.sm,
                   children: [
                     FilterChip(
+                      visualDensity: VisualDensity.compact,
                       label: Text(l10n.agentAgentClaude),
                       selected: _compatibility.claude,
                       onSelected: (selected) =>
                           _setAgentCompatibility('claude', selected),
                     ),
                     FilterChip(
+                      visualDensity: VisualDensity.compact,
                       label: Text(l10n.agentAgentCodex),
                       selected: _compatibility.codex,
                       onSelected: (selected) =>
                           _setAgentCompatibility('codex', selected),
                     ),
                     FilterChip(
+                      visualDensity: VisualDensity.compact,
                       label: Text(l10n.agentAgentAgy),
                       selected: _compatibility.agy,
                       onSelected: (selected) =>

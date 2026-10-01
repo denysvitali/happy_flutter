@@ -376,7 +376,7 @@ class _SftpLogViewerScreenState extends State<SftpLogViewerScreen>
               ),
               const SizedBox(height: AppSpacing.xs),
               SizedBox(
-                height: 36,
+                height: AppControlSize.lg,
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(

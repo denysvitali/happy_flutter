@@ -50,7 +50,7 @@ class SyncProgressBar extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      height: 30,
+                      height: AppControlSize.md,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.md,

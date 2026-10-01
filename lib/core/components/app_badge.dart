@@ -17,6 +17,13 @@ enum AppBadgeTone { neutral, info, success, warning, danger }
 /// Colors and dimensions default to design tokens but every aspect is
 /// overridable so callers can match their existing look.
 class AppBadge extends StatelessWidget {
+  /// The one padding every status pill uses, so badges of the same text size
+  /// have the same height wherever they appear.
+  static const EdgeInsets defaultPadding = EdgeInsets.symmetric(
+    horizontal: AppSpacing.xsm,
+    vertical: AppSpacing.xxs,
+  );
+
   /// Creates an [AppBadge].
   const AppBadge({
     required this.label,
@@ -88,11 +95,7 @@ class AppBadge extends StatelessWidget {
 
     return Container(
       padding:
-          padding ??
-          const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xs + 2,
-            vertical: 2,
-          ),
+          padding ?? defaultPadding,
       decoration: BoxDecoration(
         color: backgroundColor ?? visuals.background,
         borderRadius: BorderRadius.circular(AppRadius.xs),

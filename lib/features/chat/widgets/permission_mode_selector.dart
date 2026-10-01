@@ -359,8 +359,8 @@ class PermissionModeSelector extends ConsumerWidget {
         child: Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: AppControlSize.md,
+              height: AppControlSize.md,
               decoration: BoxDecoration(
                 color: isSelected
                     ? mode.color.withValues(alpha: 0.12)

@@ -150,6 +150,7 @@ class EventTypeChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
+      visualDensity: VisualDensity.compact,
       label: Text(
         label,
         style: TextStyle(

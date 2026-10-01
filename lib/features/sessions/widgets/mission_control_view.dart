@@ -893,8 +893,8 @@ class _QuietDrawer extends StatelessWidget {
                   child: Row(
                     children: [
                       Container(
-                        width: 30,
-                        height: 30,
+                        width: AppControlSize.md,
+                        height: AppControlSize.md,
                         decoration: BoxDecoration(
                           color: cs.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(AppRadius.sm),

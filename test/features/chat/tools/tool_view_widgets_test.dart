@@ -309,10 +309,10 @@ void main() {
 
       final primary = find.byKey(const ValueKey('tool-header-primary-action'));
       final details = find.byKey(const ValueKey('tool-header-details-action'));
-      expect(tester.getSize(primary).height, AppTouchTarget.min);
+      expect(tester.getSize(primary).height, AppRowHeight.compact);
       expect(
         tester.getSize(details),
-        const Size(AppTouchTarget.min, AppTouchTarget.min),
+        const Size(AppRowHeight.compact, AppRowHeight.compact),
       );
     });
 
@@ -345,10 +345,10 @@ void main() {
             .height;
       }
 
-      expect(await pumpHeader(state: ToolState.running, expanded: false), 44);
+      expect(await pumpHeader(state: ToolState.running, expanded: false), AppRowHeight.compact);
       expect(
         await pumpHeader(state: ToolState.completed, expanded: true),
-        greaterThanOrEqualTo(AppTouchTarget.min),
+        greaterThanOrEqualTo(AppRowHeight.compact),
       );
     });
 
@@ -383,15 +383,15 @@ void main() {
       final details = find.byKey(const ValueKey('tool-header-details-action'));
       expect(
         tester.getSize(primary).height,
-        greaterThanOrEqualTo(AppTouchTarget.min),
+        greaterThanOrEqualTo(AppRowHeight.compact),
       );
       expect(
         tester.getSize(details).height,
-        greaterThanOrEqualTo(AppTouchTarget.min),
+        greaterThanOrEqualTo(AppRowHeight.compact),
       );
       expect(
         tester.getSize(details).width,
-        greaterThanOrEqualTo(AppTouchTarget.min),
+        greaterThanOrEqualTo(AppRowHeight.compact),
       );
 
       final collapsedNode = tester.getSemantics(
@@ -460,7 +460,7 @@ void main() {
         tester
             .getSize(find.byKey(const ValueKey('tool-header-primary-action')))
             .height,
-        greaterThan(AppTouchTarget.min),
+        greaterThan(AppRowHeight.compact),
       );
     });
   });

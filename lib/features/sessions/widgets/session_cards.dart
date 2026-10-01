@@ -383,10 +383,7 @@ class ArchiveCountdownBadge extends StatelessWidget {
       label: label,
       backgroundColor: cs.surfaceContainer,
       borderColor: cs.outlineVariant.withValues(alpha: AppOpacity.soft),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
+      padding: AppBadge.defaultPadding,
       labelStyle: const TextStyle(fontWeight: FontWeight.w500),
     );
   }

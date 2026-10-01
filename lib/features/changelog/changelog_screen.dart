@@ -130,8 +130,8 @@ class _ChangelogEntryTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: AppControlSize.sm,
+            height: AppControlSize.sm,
             decoration: BoxDecoration(
               color: typeColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppRadius.xs),

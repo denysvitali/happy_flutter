@@ -303,8 +303,8 @@ class _SuggestionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: AppControlSize.lg,
+                  height: AppControlSize.lg,
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: AppOpacity.subtle),
                     shape: BoxShape.circle,

@@ -215,6 +215,36 @@ abstract final class AppLineHeight {
   static const double loose = 1.6;
 }
 
+// ─── Control sizes ───────────────────────────────────────────────────────────
+
+/// Visual size of interactive controls (the painted pill, tile or circle —
+/// the tap target stays [AppTouchTarget.min] regardless).
+///
+/// Three steps, so neighbouring controls line up instead of landing on a
+/// near-miss 30 or 36: [sm] for chips and pills in dense rows, [md] for
+/// compact icon tiles, [lg] for standard controls such as Send.
+abstract final class AppControlSize {
+  /// 28 px – chips, pills, dense icon tiles.
+  static const double sm = 28;
+
+  /// 32 px – compact icon tiles and leading glyph tiles.
+  static const double md = 32;
+
+  /// 40 px – standard controls (Send, primary tiles).
+  static const double lg = 40;
+}
+
+// ─── Row heights ─────────────────────────────────────────────────────────────
+
+/// Height of single-line list and chrome rows (tool calls, activity, tasks).
+///
+/// Transcript rows stack dozens deep, so they use [compact] rather than the
+/// full [AppTouchTarget.min]; their actions are [compact] square too.
+abstract final class AppRowHeight {
+  /// 36 px – one-line transcript and chrome rows.
+  static const double compact = 36;
+}
+
 // ─── Touch targets ───────────────────────────────────────────────────────────
 
 /// Minimum interactive touch target sizes (WCAG 2.5.5 guidance).

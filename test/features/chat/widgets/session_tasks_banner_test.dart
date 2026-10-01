@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -124,7 +125,7 @@ void main() {
       final viewAllSize = tester.getSize(
         find.widgetWithText(TextButton, 'View all'),
       );
-      expect(viewAllSize.height, greaterThanOrEqualTo(44));
+      expect(viewAllSize.height, greaterThanOrEqualTo(AppRowHeight.compact));
     });
 
     testWidgets('expands on header tap and reveals the full list', (

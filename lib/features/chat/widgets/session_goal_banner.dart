@@ -136,8 +136,8 @@ class _GoalIconTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 30,
-      height: 30,
+      width: AppControlSize.md,
+      height: AppControlSize.md,
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.sm),

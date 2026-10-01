@@ -322,8 +322,8 @@ class _ModelRow extends StatelessWidget {
     if (isDownloading) {
       final fraction = progress?.fraction;
       trailing = SizedBox(
-        width: 28,
-        height: 28,
+        width: AppControlSize.sm,
+        height: AppControlSize.sm,
         child: AppCircularProgressIndicator(
           strokeWidth: 2.5,
           value: fraction,

@@ -81,8 +81,8 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                 child: Row(
                   children: [
                     Container(
-                      width: 36,
-                      height: 36,
+                      width: AppControlSize.lg,
+                      height: AppControlSize.lg,
                       decoration: BoxDecoration(
                         color: cs.primary.withValues(alpha: AppOpacity.faint),
                         borderRadius: BorderRadius.circular(AppRadius.sm),

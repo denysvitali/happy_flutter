@@ -178,10 +178,7 @@ class TodoProgressBadge extends StatelessWidget {
     return AppBadge(
       leading: const Icon(Icons.lightbulb_outline, size: AppIconSize.xs),
       label: '$completed/$total',
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
+      padding: AppBadge.defaultPadding,
       labelStyle: const TextStyle(fontWeight: FontWeight.w500),
     );
   }
@@ -201,10 +198,7 @@ class UnreadBadge extends StatelessWidget {
     if (count <= 0) return const SizedBox.shrink();
     final cs = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
+      padding: AppBadge.defaultPadding,
       decoration: BoxDecoration(
         color: cs.primary,
         borderRadius: BorderRadius.circular(AppRadius.pill),

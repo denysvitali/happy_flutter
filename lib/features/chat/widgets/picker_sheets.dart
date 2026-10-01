@@ -34,8 +34,8 @@ Widget _modelLeading(
 }) {
   final color = accent ?? cs.primary;
   return Container(
-    width: 32,
-    height: 32,
+    width: AppControlSize.md,
+    height: AppControlSize.md,
     decoration: BoxDecoration(
       color: highlighted
           ? color.withValues(alpha: 0.12)
@@ -719,8 +719,8 @@ Widget _buildProfileTile(
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: AppControlSize.md,
+            height: AppControlSize.md,
             decoration: BoxDecoration(
               color: isSelected
                   ? cs.tertiary.withValues(alpha: 0.12)
@@ -824,8 +824,8 @@ void showProfilePickerSheet(
                           child: Row(
                             children: [
                               Container(
-                                width: 32,
-                                height: 32,
+                                width: AppControlSize.md,
+                                height: AppControlSize.md,
                                 decoration: BoxDecoration(
                                   color: current == null
                                       ? cs.tertiary.withValues(alpha: 0.12)

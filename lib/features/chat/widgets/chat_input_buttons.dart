@@ -56,8 +56,8 @@ class QueueNextTurnButton extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           icon: Container(
-            width: 32,
-            height: 32,
+            width: AppControlSize.md,
+            height: AppControlSize.md,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
@@ -209,8 +209,8 @@ class _SendButtonState extends State<SendButton>
       scale: widget.scaleAnimation,
       child: AnimatedContainer(
         duration: AppMotion.duration(context, kBorderAnimDuration),
-        width: 36,
-        height: 36,
+        width: AppControlSize.lg,
+        height: AppControlSize.lg,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: isActive ? appCs.accentLinearGradient : null,

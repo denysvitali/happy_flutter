@@ -110,8 +110,8 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
           child: Row(
             children: [
               Container(
-                width: 30,
-                height: 30,
+                width: AppControlSize.md,
+                height: AppControlSize.md,
                 decoration: BoxDecoration(
                   color: AppColors.warning.withValues(
                     alpha: AppOpacity.subtle,

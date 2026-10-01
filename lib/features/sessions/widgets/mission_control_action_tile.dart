@@ -305,8 +305,8 @@ class _LaneTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 28,
-      height: 28,
+      width: AppControlSize.sm,
+      height: AppControlSize.sm,
       decoration: BoxDecoration(
         // Freshness glow: the tile brightens right after an update and
         // decays as the stream goes quiet. Blocked/error keep their full

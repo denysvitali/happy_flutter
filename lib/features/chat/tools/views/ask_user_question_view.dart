@@ -372,8 +372,8 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: AppControlSize.md,
+            height: AppControlSize.md,
             decoration: BoxDecoration(
               color: primary.withValues(alpha: 22 / 255),
               borderRadius: BorderRadius.circular(AppRadius.sm),

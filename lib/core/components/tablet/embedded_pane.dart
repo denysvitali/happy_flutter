@@ -96,7 +96,7 @@ class EmbeddedPaneHeader extends StatelessWidget {
               // TODO(i18n): close tooltip not yet localized
               tooltip: 'Close',
               onPressed: onClose,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              constraints: const BoxConstraints(minWidth: AppControlSize.lg, minHeight: AppControlSize.lg),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
             ),

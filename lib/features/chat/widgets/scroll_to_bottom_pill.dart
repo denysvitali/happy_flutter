@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 /// Floating "jump to latest" pill above the composer while the
 /// transcript is scrolled away from the bottom.
@@ -211,7 +212,7 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
   /// element, popping once each time the count grows.
   Widget _buildBadge(AppColorScheme glass, ColorScheme cs, int count) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      padding: AppBadge.defaultPadding,
       constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
       alignment: Alignment.center,
       decoration: BoxDecoration(

@@ -117,7 +117,7 @@ void main() {
           );
           expect(
             tester.getSize(find.widgetWithText(TextButton, label)).height,
-            greaterThanOrEqualTo(AppTouchTarget.min),
+            greaterThanOrEqualTo(AppRowHeight.compact),
           );
         }
         await tester.tap(find.text('Stop'));

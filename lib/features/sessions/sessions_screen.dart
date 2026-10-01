@@ -466,7 +466,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen>
           },
         ),
         title: Container(
-          height: 40,
+          height: AppControlSize.lg,
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppRadius.pill),

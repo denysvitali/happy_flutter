@@ -276,8 +276,8 @@ class FolderOverviewCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: AppControlSize.lg,
+                  height: AppControlSize.lg,
                   decoration: BoxDecoration(
                     color: cs.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.md),

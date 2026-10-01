@@ -50,7 +50,7 @@ class TranscriptionStartupStatusBar extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: SizedBox(
-          height: 32,
+          height: AppControlSize.md,
           width: double.infinity,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),

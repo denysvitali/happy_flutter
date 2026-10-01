@@ -63,11 +63,11 @@ class AppInlineRow extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
+        constraints: const BoxConstraints(minHeight: AppRowHeight.compact),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
+            vertical: AppSpacing.xxs,
           ),
           child: Row(
             children: [
@@ -123,7 +123,8 @@ class AppInlineRow extends StatelessWidget {
   }
 }
 
-/// A row action with the same typography and 44px target everywhere.
+/// A row action with the same typography and [AppRowHeight.compact] target
+/// everywhere, so an action never makes its row taller than its neighbours.
 class AppInlineAction extends StatelessWidget {
   const AppInlineAction({
     required this.label,
@@ -158,8 +159,8 @@ class AppInlineAction extends StatelessWidget {
           icon: Icon(icon, size: AppIconSize.md),
           color: color,
           constraints: const BoxConstraints.tightFor(
-            width: AppTouchTarget.min,
-            height: AppTouchTarget.min,
+            width: AppRowHeight.compact,
+            height: AppRowHeight.compact,
           ),
           style: IconButton.styleFrom(
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -173,7 +174,7 @@ class AppInlineAction extends StatelessWidget {
       style: TextButton.styleFrom(
         foregroundColor: color,
         textStyle: AppInlineText.title(context),
-        minimumSize: const Size(AppTouchTarget.min, AppTouchTarget.min),
+        minimumSize: const Size(AppRowHeight.compact, AppRowHeight.compact),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),

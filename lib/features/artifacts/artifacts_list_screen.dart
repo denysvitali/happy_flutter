@@ -14,6 +14,7 @@ import '../../core/sync/sync_subscription_mixin.dart';
 import 'artifact_detail_screen.dart';
 import 'edit_artifact_screen.dart';
 import 'new_artifact_screen.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 /// Inline detail mode rendered in the side pane on wide layouts.
 enum _InlineMode { none, view, edit, create }
@@ -561,10 +562,7 @@ class _TypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
+      padding: AppBadge.defaultPadding,
       decoration: BoxDecoration(
         color: color.withValues(alpha: AppOpacity.soft),
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -621,8 +619,8 @@ class _ArtifactsLoadingShimmer extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: AppControlSize.lg,
+                    height: AppControlSize.lg,
                     decoration: BoxDecoration(
                       color: color,
                       borderRadius: BorderRadius.circular(AppRadius.sm),

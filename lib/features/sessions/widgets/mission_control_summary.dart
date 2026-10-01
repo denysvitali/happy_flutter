@@ -108,6 +108,10 @@ class _FocusFilterChip extends StatelessWidget {
               child: Center(
                 child: AnimatedContainer(
                   duration: reduceMotion ? Duration.zero : AppDuration.fast,
+                  constraints: const BoxConstraints(
+                    minHeight: AppControlSize.sm,
+                  ),
+                  alignment: Alignment.center,
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm,
                     vertical: AppSpacing.xs,

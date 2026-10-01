@@ -93,7 +93,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
     ThemeData theme,
   ) {
     return Container(
-      height: 32,
+      height: AppControlSize.md,
       width: double.infinity,
       color: statusInfo.backgroundColor,
       child: Center(
@@ -146,7 +146,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
     ThemeData theme,
   ) {
     return Container(
-      height: 32,
+      height: AppControlSize.md,
       width: double.infinity,
       color: statusInfo.backgroundColor,
       child: Row(

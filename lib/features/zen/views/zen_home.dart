@@ -12,6 +12,7 @@ import '../../../core/sync/sync_subscription_mixin.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 // ─── Priority definitions ────────────────────────────────────────────────────
 
@@ -415,10 +416,7 @@ class _PrioritySectionHeader extends StatelessWidget {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
-              ),
+              padding: AppBadge.defaultPadding,
               decoration: BoxDecoration(
                 color: borderColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -535,10 +533,7 @@ class _DirectorySectionHeader extends StatelessWidget {
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
-              ),
+              padding: AppBadge.defaultPadding,
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(AppRadius.pill),

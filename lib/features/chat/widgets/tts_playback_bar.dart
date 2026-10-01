@@ -277,8 +277,8 @@ class _PulsingSpeakerState extends State<_PulsingSpeaker>
       builder: (context, _) {
         final t = _ctrl.value;
         return SizedBox(
-          width: 32,
-          height: 32,
+          width: AppControlSize.md,
+          height: AppControlSize.md,
           child: Stack(
             alignment: Alignment.center,
             children: [

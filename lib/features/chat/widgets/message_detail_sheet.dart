@@ -331,8 +331,8 @@ class MessageInfoRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: AppControlSize.md,
+            height: AppControlSize.md,
             decoration: BoxDecoration(
               color: cs.onSurface.withValues(alpha: 0.05),
               shape: BoxShape.circle,
@@ -417,8 +417,8 @@ class _SpeakRow extends ConsumerWidget {
               child: Row(
                 children: [
                   Container(
-                    width: 32,
-                    height: 32,
+                    width: AppControlSize.md,
+                    height: AppControlSize.md,
                     decoration: BoxDecoration(
                       color: cs.primary.withValues(alpha: 0.12),
                       shape: BoxShape.circle,

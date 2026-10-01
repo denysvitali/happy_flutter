@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/i18n/app_localizations.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 /// Compact chip showing the active loop count for the current session.
 ///
@@ -42,10 +43,7 @@ class LoopCountBadge extends ConsumerWidget {
           );
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xxs,
-          ),
+          padding: AppBadge.defaultPadding,
           decoration: BoxDecoration(
             color: cs.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(AppRadius.pill),

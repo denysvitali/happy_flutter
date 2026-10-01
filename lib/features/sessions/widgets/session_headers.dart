@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/session_utils.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 /// How to group archived sessions.
 enum ArchivedGrouping { date, folder }
@@ -135,10 +136,7 @@ class _ActiveBadge extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       constraints: const BoxConstraints(minWidth: 20),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
+      padding: AppBadge.defaultPadding,
       decoration: BoxDecoration(
         color: cs.primary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -225,10 +223,7 @@ class _HeaderCountPill extends StatelessWidget {
     final cs = theme.colorScheme;
     return Container(
       constraints: const BoxConstraints(minWidth: 24),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 2,
-      ),
+      padding: AppBadge.defaultPadding,
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -375,10 +370,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
             ),
             if (header.hasUpdates) ...[
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xxs,
-                ),
+                padding: AppBadge.defaultPadding,
                 decoration: BoxDecoration(
                   color: cs.primary,
                   borderRadius: BorderRadius.circular(AppRadius.pill),

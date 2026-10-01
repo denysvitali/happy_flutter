@@ -272,8 +272,8 @@ class _SuggestionItem extends StatelessWidget {
     final iconColor = _getIconColor(theme);
 
     return Container(
-      width: 32,
-      height: 32,
+      width: AppControlSize.md,
+      height: AppControlSize.md,
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.sm),

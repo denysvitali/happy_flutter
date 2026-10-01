@@ -399,8 +399,8 @@ class _EntryRow extends StatelessWidget {
           children: [
             // Icon badge
             Container(
-              width: 28,
-              height: 28,
+              width: AppControlSize.sm,
+              height: AppControlSize.sm,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.xxs2),

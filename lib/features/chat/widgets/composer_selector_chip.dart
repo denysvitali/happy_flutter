@@ -7,7 +7,7 @@ import '../../../core/theme/app_tokens.dart';
 
 /// Shared metrics for the composer's model / approvals / profile selectors.
 abstract final class ComposerChipMetrics {
-  static const double height = 28;
+  static const double height = AppControlSize.sm;
   static const double paddingStart = AppSpacing.md;
   static const double paddingStartWithIcon = AppSpacing.sm;
   static const double paddingEnd = AppSpacing.xs;
