@@ -916,7 +916,8 @@ jobs:
           dbus-run-session -- flatpak run --command=sh \
             io.github.denysvitali.happy_flutter -c '
               set -eu
-              export LD_LIBRARY_PATH=/app/lib/happy_flutter/lib
+              export LD_LIBRARY_PATH=/app/lib/happy_flutter/lib:/app/jre/lib/server
+              for tool in ffmpeg parecord pactl; do command -v "$tool"; done
               for elf in /app/lib/happy_flutter/happy_flutter \
                   /app/lib/happy_flutter/lib/*.so*; do
                 ldd "$elf" > /tmp/ldd-output

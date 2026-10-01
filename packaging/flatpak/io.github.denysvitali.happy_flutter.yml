@@ -5,6 +5,7 @@ sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
   - org.freedesktop.Sdk.Extension.llvm20
+  - org.freedesktop.Sdk.Extension.openjdk21
 command: happy_flutter
 separate-locales: false
 # Ubuntu 22.04's builder invokes legacy appstream-compose, which GNOME 49
@@ -20,6 +21,8 @@ finish-args:
   - --socket=pulseaudio
   - --talk-name=org.freedesktop.secrets
   - --env=GTK_USE_PORTAL=1
+  - --env=JAVA_HOME=/app/jre
+  - --env=LD_LIBRARY_PATH=/app/lib/happy_flutter/lib:/app/jre/lib/server
 build-options:
   append-path: /usr/lib/sdk/llvm20/bin:/usr/lib/sdk/rust-stable/bin
   # CI stages the pinned Flutter SDK and mise binary, then compiles all
@@ -34,6 +37,7 @@ build-options:
     MISE_CONFIG_FILE: /run/build/happy-flutter/toolchain/mise.toml
     MISE_DATA_DIR: /run/build/happy-flutter/toolchain/mise-data
     MISE_CACHE_DIR: /run/build/happy-flutter/toolchain/mise-cache
+    JAVA_HOME: /usr/lib/sdk/openjdk21/jvm/openjdk-21
 modules:
   - name: happy-flutter
     buildsystem: simple
