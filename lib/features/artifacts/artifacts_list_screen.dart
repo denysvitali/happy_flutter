@@ -561,24 +561,12 @@ class _TypeBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: AppBadge.defaultPadding,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: AppOpacity.soft),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: color.withValues(alpha: 0.25),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: AppFontSize.sm,
-        ),
-      ),
+    return AppBadge(
+      label: label,
+      foregroundColor: color,
+      backgroundColor: color.withValues(alpha: AppOpacity.soft),
+      borderColor: color.withValues(alpha: 0.25),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w700),
     );
   }
 }

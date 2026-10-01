@@ -42,30 +42,12 @@ class LoopCountBadge extends ConsumerWidget {
             pathParameters: {'sessionId': sessionId},
           );
         },
-        child: Container(
-          padding: AppBadge.defaultPadding,
-          decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.schedule,
-                size: 14,
-                color: cs.primary,
-              ),
-              const SizedBox(width: AppSpacing.xxs),
-              Text(
-                l10n.loopsBadgeCount(count),
-                style: theme.textTheme.labelSmall?.copyWith(
-                      color: cs.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
+        child: AppBadge(
+          leading: const Icon(Icons.schedule),
+          label: l10n.loopsBadgeCount(count),
+          foregroundColor: cs.primary,
+          backgroundColor: cs.primary.withValues(alpha: 0.12),
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
     );

@@ -14,6 +14,7 @@ import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'chat_chrome_density.dart';
+import 'package:happy_flutter/core/components/app_badge.dart';
 
 /// A sticky banner at the bottom of the chat session that shows the
 /// current agent task list for the active session.
@@ -300,28 +301,12 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: 3,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: color.withValues(alpha: 0.18),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+    return AppBadge(
+      label: label,
+      foregroundColor: color,
+      backgroundColor: color.withValues(alpha: 0.10),
+      borderColor: color.withValues(alpha: 0.18),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w600),
     );
   }
 }

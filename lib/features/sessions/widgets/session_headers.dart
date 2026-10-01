@@ -134,26 +134,15 @@ class _ActiveBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      constraints: const BoxConstraints(minWidth: 20),
-      padding: AppBadge.defaultPadding,
-      decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: cs.primary.withValues(alpha: 0.25),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Text(
-        '$count',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: cs.primary,
-          fontSize: AppFontSize.sm,
-          fontWeight: FontWeight.w700,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
+    return AppBadge(
+      minWidth: 20,
+      label: '$count',
+      foregroundColor: cs.primary,
+      backgroundColor: cs.primary.withValues(alpha: 0.12),
+      borderColor: cs.primary.withValues(alpha: 0.25),
+      labelStyle: const TextStyle(
+        fontWeight: FontWeight.w700,
+        fontFeatures: [FontFeature.tabularFigures()],
       ),
     );
   }
@@ -221,26 +210,14 @@ class _HeaderCountPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    return Container(
-      constraints: const BoxConstraints(minWidth: 24),
-      padding: AppBadge.defaultPadding,
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
-          width: AppBorder.hairline,
-        ),
-      ),
-      child: Text(
-        '$count',
-        textAlign: TextAlign.center,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: cs.onSurfaceVariant,
-          fontSize: AppFontSize.sm,
-          fontWeight: FontWeight.w600,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
+    return AppBadge(
+      minWidth: 24,
+      label: '$count',
+      foregroundColor: cs.onSurfaceVariant,
+      backgroundColor: cs.surfaceContainerHighest,
+      borderColor: cs.outlineVariant.withValues(alpha: 0.5),
+      labelStyle: const TextStyle(
+        fontFeatures: [FontFeature.tabularFigures()],
       ),
     );
   }
@@ -369,20 +346,11 @@ class CollapsibleFolderHeader extends StatelessWidget {
               ),
             ),
             if (header.hasUpdates) ...[
-              Container(
-                padding: AppBadge.defaultPadding,
-                decoration: BoxDecoration(
-                  color: cs.primary,
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Text(
-                  unreadLabel,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: cs.onPrimary,
-                    fontSize: AppFontSize.sm,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              AppBadge(
+                label: unreadLabel,
+                foregroundColor: cs.onPrimary,
+                backgroundColor: cs.primary,
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(width: AppSpacing.sm),
             ],

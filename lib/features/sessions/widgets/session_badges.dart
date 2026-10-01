@@ -197,20 +197,10 @@ class UnreadBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (count <= 0) return const SizedBox.shrink();
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: AppBadge.defaultPadding,
-      decoration: BoxDecoration(
-        color: cs.primary,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Text(
-        count > 99 ? '99+' : '$count',
-        style: TextStyle(
-          fontSize: AppFontSize.sm,
-          fontWeight: FontWeight.w600,
-          color: cs.onPrimary,
-        ),
-      ),
+    return AppBadge(
+      label: count > 99 ? '99+' : '$count',
+      foregroundColor: cs.onPrimary,
+      backgroundColor: cs.primary,
     );
   }
 }

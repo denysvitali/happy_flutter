@@ -415,19 +415,11 @@ class _PrioritySectionHeader extends StatelessWidget {
                 ),
               ),
             ),
-            Container(
-              padding: AppBadge.defaultPadding,
-              decoration: BoxDecoration(
-                color: borderColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Text(
-                '$count',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: borderColor,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+            AppBadge(
+              label: '$count',
+              foregroundColor: borderColor,
+              backgroundColor: borderColor.withValues(alpha: 0.15),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(width: AppSpacing.sm),
             AnimatedRotation(
@@ -532,19 +524,11 @@ class _DirectorySectionHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Container(
-              padding: AppBadge.defaultPadding,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Text(
-                '$count',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: accent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+            AppBadge(
+              label: '$count',
+              foregroundColor: accent,
+              backgroundColor: accent.withValues(alpha: 0.15),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(width: AppSpacing.sm),
             AnimatedRotation(

@@ -35,6 +35,7 @@ class AppBadge extends StatelessWidget {
     this.foregroundColor,
     this.padding,
     this.labelStyle,
+    this.minWidth,
     this.tone = AppBadgeTone.neutral,
     this.showToneIcon = true,
   });
@@ -65,6 +66,10 @@ class AppBadge extends StatelessWidget {
   /// Style override for the label text. Merged over the default compact style.
   final TextStyle? labelStyle;
 
+  /// Minimum badge width; the label centers inside it. Keeps one- and
+  /// two-digit counters the same width.
+  final double? minWidth;
+
   /// Semantic appearance used when explicit colors are not provided.
   ///
   /// Defaults to [AppBadgeTone.neutral], which preserves the original badge
@@ -94,12 +99,16 @@ class AppBadge extends StatelessWidget {
     ).merge(labelStyle);
 
     return Container(
+      constraints: minWidth == null ? null : BoxConstraints(minWidth: minWidth!),
+      alignment: minWidth == null ? null : Alignment.center,
       padding:
           padding ?? defaultPadding,
       decoration: BoxDecoration(
         color: backgroundColor ?? visuals.background,
-        borderRadius: BorderRadius.circular(AppRadius.xs),
-        border: borderColor != null ? Border.all(color: borderColor!) : null,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: borderColor != null
+            ? Border.all(color: borderColor!, width: AppBorder.hairline)
+            : null,
       ),
       child: IconTheme.merge(
         data: IconThemeData(color: iconColor, size: AppFontSize.sm),
