@@ -780,6 +780,7 @@ extension SyncSocketEvents on Sync {
         _sessionLastSeq.remove(sessionId);
         _scheduleSaveSeq();
         _sessionFirstLoadedSeq.remove(sessionId);
+        _olderHistoryPageSizeLimits.remove(sessionId);
         _scheduleSaveFirstLoadedSeq();
         _saveMsgsDebounceTimers.remove(sessionId)?.cancel();
         _saveMsgsFirstScheduledAtMs.remove(sessionId);

@@ -23,6 +23,25 @@ void main() {
   });
 
   group('NetworkMonitorService lifecycle', () {
+    test('online Wi-Fi to cellular handoff reconnects once', () async {
+      var reconnects = 0;
+      final service = NetworkMonitorService.testCreate(
+        onReconnect: () => reconnects++,
+      );
+      await service.initialize();
+      await Future<void>.delayed(Duration.zero);
+      fakePlatform.emit([ConnectivityResult.wifi]);
+      await Future<void>.delayed(Duration.zero);
+      final before = reconnects;
+      fakePlatform.emit([ConnectivityResult.mobile]);
+      await Future<void>.delayed(Duration.zero);
+      expect(reconnects, before + 1);
+      fakePlatform.emit([ConnectivityResult.mobile]);
+      await Future<void>.delayed(Duration.zero);
+      expect(reconnects, before + 1);
+      service.dispose();
+    });
+
     test('initialize does not block on first connectivity check', () async {
       // Regression guard for GlitchTip app.deferredInit: the
       // initial Connectivity.checkConnectivity() platform-channel

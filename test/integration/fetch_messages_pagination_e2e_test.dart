@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
@@ -67,7 +69,42 @@ void main() {
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
       sync.testFetchMessagesOverride = null;
+      sync.testFetchOlderMessagesOverride = null;
     });
+
+    test(
+      'body timeout shrinks older page without skipping its boundary',
+      () async {
+        const id = 'adaptive-older-page';
+        sync.testSessions[id] = _makeSession(id, lastSeq: 1001);
+        sync.testSetSessionFirstLoadedSeq(id, 1001);
+        final requests = <(int, int)>[];
+        sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
+          requests.add((afterSeq, limit));
+          if (requests.length == 1) {
+            throw DioException(
+              requestOptions: RequestOptions(path: '/messages'),
+              type: DioExceptionType.receiveTimeout,
+            );
+          }
+          return _buildMessagesResponse([
+            _makeEncryptedMessage('older-$afterSeq',
+                seq: afterSeq + 1, content: 'A'),
+          ]);
+        };
+        await sync.fetchOlderMessages(id, pageSize: 500);
+        expect(requests, [(500, 500), (750, 250)]);
+        expect(sync.testSessionFirstLoadedSeq(id), 751);
+        expect(
+          sync.testSessionMessages(id)!.where((m) => m['id'] == 'older-750'),
+          hasLength(1),
+        );
+        await sync.fetchOlderMessages(id, pageSize: 500);
+        expect(requests.last, (500, 250));
+        expect(sync.testSessionFirstLoadedSeq(id), 501);
+        sync.testClearSessionMessageState(id);
+      },
+    );
 
     test(
       'fetches all messages in single page when hasMore is false',

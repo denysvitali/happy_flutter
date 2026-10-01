@@ -22,6 +22,7 @@ class HttpTransportTiming {
   Map<String, Object?> attributes() => {
     'http.adapter': adapter,
     'http.transport.phase_detail': 'headers_and_body',
+    'http.transport.received_bytes': bodyBytes,
     'app.lifecycle.dispatch': lifecycleAtDispatch,
     if (lifecycleAtHeaders != null) 'app.lifecycle.headers': lifecycleAtHeaders,
     if (headersUs != null) 'http.transport.headers_ms': headersUs! / 1000,

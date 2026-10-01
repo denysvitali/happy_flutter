@@ -118,6 +118,7 @@ part '_sync_health.dart';
 part '_sync_isolate_helpers.dart';
 part '_sync_lifecycle.dart';
 part '_sync_messaging.dart';
+part '_sync_messaging_history_transport.dart';
 part '_sync_message_stream.dart';
 part '_sync_messaging_merge.dart';
 part '_sync_messaging_rpc.dart';
@@ -129,6 +130,7 @@ part '_sync_operations_session.dart';
 part '_sync_operations_session_profile.dart';
 part '_sync_operations_session_model_env.dart';
 part '_sync_operations_machine_rpc.dart';
+part '_sync_machine_rpc_retry.dart';
 part '_sync_sessions.dart';
 part '_sync_socket.dart';
 part '_sync_socket_events.dart';
@@ -386,6 +388,8 @@ class Sync {
   /// CanvasKit memory spikes while decrypting and rendering large sessions.
   static const int _messageFetchPageSize = kIsWeb ? 100 : 200;
   static const int _olderMessagePageSize = 100;
+
+  final Map<String, int> _olderHistoryPageSizeLimits = {};
 
   /// Per-page fetch size for the automatic orphan-recovery walk-back.
   ///
@@ -1497,6 +1501,7 @@ what you have, you must use the options mode.
   final Map<String, int> _codexModelsCacheAtMs = <String, int>{};
   final Map<String, Future<CodexModelsResponse>> _codexModelsInFlight =
       <String, Future<CodexModelsResponse>>{};
+  final Map<String, Future<CodexUsageSummaryResponse>> _codexUsageInFlight = {};
 
   /// Test seam around the encrypted capability transport. Production uses
   /// [machineRPC]/[sessionRPC]; tests can assert policy without constructing

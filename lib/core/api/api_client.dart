@@ -23,6 +23,7 @@ import 'http_cache.dart';
 import 'native_adapter_helper.dart'
     if (dart.library.js_interop) 'native_adapter_helper_web.dart';
 import 'retry_interceptor.dart';
+import 'renewable_http_adapter.dart';
 import 'timed_http_adapter.dart';
 
 /// Custom Dio client with user CA certificate support and proper
@@ -35,6 +36,29 @@ class ApiClient {
   Dio? _dio;
   RetryInterceptor? _retryInterceptor;
   bool _suspended = false;
+
+  void renewTransport() {
+    final adapter = _dio?.httpClientAdapter;
+    if (adapter is RenewableHttpAdapter) adapter.renew();
+  }
+
+  void _recoverTransport(DioException error) {
+    final kind = classifyHttpFailure(error);
+    final timing =
+        error.requestOptions.extra[HttpTransportTiming.extraKey]
+            as HttpTransportTiming?;
+    final networkFailure =
+        isTransientConnectionError(error) ||
+        kind == 'dns' ||
+        kind == 'connection' ||
+        kind == 'network_unavailable';
+    final stalledHeaders =
+        timing?.headersUs == null && (kind == 'deadline' || kind == 'timeout');
+    final adapter = _dio?.httpClientAdapter;
+    if ((networkFailure || stalledHeaders) && adapter is RenewableHttpAdapter) {
+      adapter.renewForRequest(error.requestOptions);
+    }
+  }
 
   /// Cancel optional reads while backgrounded; resume sync schedules refreshes.
   void setSuspended(bool suspended) {
@@ -161,6 +185,7 @@ class ApiClient {
         baseDelayMs: 1000,
         maxDelayMs: 10000,
         maxTotalElapsedMs: 20000,
+        onTransportFailure: _recoverTransport,
       )..setSuspended(_suspended),
     );
 
@@ -853,14 +878,11 @@ class ApiClient {
       // (cupertino_http on iOS/macOS). This automatically respects
       // Android's network_security_config.xml and user-installed CA
       // certificates in the Android trust store.
-      final nativeAdapter = createNativeAdapter();
-      if (!identical(_dio, dio) || _dioGeneration != generation) {
-        nativeAdapter.close(force: true);
-        return;
-      }
-      dio.httpClientAdapter = TimedHttpAdapter(
-        nativeAdapter,
-        lifecycle: () => _suspended ? 'suspended' : 'active',
+      dio.httpClientAdapter = RenewableHttpAdapter(
+        () => TimedHttpAdapter(
+          createNativeAdapter(),
+          lifecycle: () => _suspended ? 'suspended' : 'active',
+        ),
       );
       logger.info(
         'Native HTTP adapter configured for platform-specific CA support',

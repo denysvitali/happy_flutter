@@ -122,11 +122,15 @@ class RetryInterceptor extends Interceptor {
     int baseDelayMs = 1000,
     int maxDelayMs = 10000,
     int maxTotalElapsedMs = 20000,
+    void Function(DioException)? onTransportFailure,
   }) : _dioGetter = dioGetter,
        _maxRetries = maxRetries,
        _baseDelayMs = baseDelayMs,
        _maxDelayMs = maxDelayMs,
-       _maxTotalElapsedMs = maxTotalElapsedMs;
+       _maxTotalElapsedMs = maxTotalElapsedMs,
+       _onTransportFailure = onTransportFailure;
+
+  final void Function(DioException)? _onTransportFailure;
 
   final Dio Function() _dioGetter;
   final int _maxRetries;
@@ -308,6 +312,7 @@ class RetryInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final options = err.requestOptions;
     _markCallback(options);
+    _onTransportFailure?.call(err);
     // An adapter must preserve the dispatched options. Without the original
     // budget we cannot safely replay its credentials, body or cancellation.
     final budget = options.extra[RequestBudget.extraKey];
@@ -453,9 +458,11 @@ class RetryInterceptor extends Interceptor {
       _maxDelayMs,
     );
 
-    if (elapsedMs + backoffMs > _maxTotalElapsedMs) {
+    final budgetMs =
+        options.extra[requestBudgetMsKey] as int? ?? _maxTotalElapsedMs;
+    if (elapsedMs + backoffMs > budgetMs) {
       _logGaveUp(
-        'RetryInterceptor: retry budget ($_maxTotalElapsedMs ms) exhausted '
+        'RetryInterceptor: retry budget ($budgetMs ms) exhausted '
         'after $elapsedMs ms for $label (giving up after $currentRetry '
         'retries)',
         error,

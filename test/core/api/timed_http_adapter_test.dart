@@ -43,6 +43,7 @@ void main() {
       expect(attributes['app.lifecycle.dispatch'], 'active');
       expect(attributes['app.lifecycle.headers'], 'suspended');
       expect(attributes['http.transport.body_ms'], isNonNegative);
+      expect(attributes['http.transport.received_bytes'], 3);
       expect(attributes['http.transport.callback_ms'], isNonNegative);
       expect(attributes.containsKey('http.transport.dns_ms'), isFalse);
     },

@@ -178,6 +178,7 @@ extension SyncTestHelpers on Sync {
     _sessionMessages.remove(sessionId);
     _sessionLastSeq.remove(sessionId);
     _sessionFirstLoadedSeq.remove(sessionId);
+    _olderHistoryPageSizeLimits.remove(sessionId);
     _sessionContentSignatures.remove(sessionId);
     _cancelMessageFetchProbe(sessionId);
     _messageFetchCoverage.remove(sessionId);

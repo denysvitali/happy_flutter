@@ -148,6 +148,15 @@ catalog.
 
 See `docs/SYNC_PATTERNS.md` for subscription template and details.
 
+HTTP pools renew on native link handoffs, DNS/connection failures and
+pre-header deadlines. Retired pools drain active writes; failures from an old
+pool cannot retire its replacement. Older-history body timeouts halve large
+pages against the same end cursor under one 40s deadline. Partial-body byte
+counts remain transport diagnostics, not complete response sizes. Machine RPC
+capability discovery, encryption, ACK and decode share one caller deadline.
+Startup-resume settings opt into one bounded idempotent routing retry; usage
+reads coalesce, and only unsupported methods fall back to Bash.
+
 HTTP suspension cancellations carry `HttpCancellationReason.appSuspended`.
 They remain failed refresh attempts with cached state preserved, but do not
 produce error spans or machine-fetch errors. Deadlines, disposal and arbitrary

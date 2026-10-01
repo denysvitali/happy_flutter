@@ -43,7 +43,7 @@ extension SyncMachineRpcOperations on Sync {
     required bool enabled,
     required String message,
   }) async {
-    await _typedMachineRPC<Object?>(
+    await _retryIdempotentMachineRPC<Object?>(
       machineId,
       'session-startup-resume-set',
       <String, dynamic>{
@@ -405,6 +405,7 @@ extension SyncMachineRpcOperations on Sync {
     _codexModelsCache.clear();
     _codexModelsCacheAtMs.clear();
     _codexModelsInFlight.clear();
+    _codexUsageInFlight.clear();
   }
 
   void _recordCodexModelsPolicy(String outcome) {
@@ -431,6 +432,7 @@ extension SyncMachineRpcOperations on Sync {
           'directory': ?directory,
         },
         CodexModelsResponse.fromJson,
+        timeout: const Duration(seconds: 20),
       );
     } catch (error, stackTrace) {
       // Identify "Codex is not on the daemon's PATH" by the message, not by
@@ -495,6 +497,33 @@ extension SyncMachineRpcOperations on Sync {
 
   /// Fetch Codex usage data from the machine's local Codex auth state.
   Future<CodexUsageSummaryResponse> machineGetCodexUsage({
+    required String machineId,
+  }) {
+    final existing = _codexUsageInFlight[machineId];
+    if (existing != null) return existing;
+    final generation = _runtimeGeneration;
+    late final Future<CodexUsageSummaryResponse> request;
+    request = _fetchCodexUsage(machineId: machineId)
+        .then((response) {
+          if (generation != _runtimeGeneration ||
+              !identical(_codexUsageInFlight[machineId], request)) {
+            return const CodexUsageSummaryResponse(
+              success: false,
+              error: 'Usage context changed. Refresh to retry.',
+            );
+          }
+          return response;
+        })
+        .whenComplete(() {
+          if (identical(_codexUsageInFlight[machineId], request)) {
+            _codexUsageInFlight.remove(machineId);
+          }
+        });
+    _codexUsageInFlight[machineId] = request;
+    return request;
+  }
+
+  Future<CodexUsageSummaryResponse> _fetchCodexUsage({
     required String machineId,
   }) async {
     final machine = _machines[machineId];
@@ -699,6 +728,13 @@ PY
           error: 'machine offline',
         );
       } else if (Sync._isRpcMethodNotAvailable(error)) {
+        if (error is RpcException &&
+            error.code == RpcErrorCode.handlerOffline) {
+          return const CodexUsageSummaryResponse(
+            success: false,
+            error: 'Machine unavailable. Retry when connected.',
+          );
+        }
         logger.info(
           'machineGetCodexUsage: RPC method not available '
           '(daemon too old); falling back to machineBash',
@@ -711,8 +747,16 @@ PY
         );
       } else if (Sync._isTransientRpcError(error)) {
         logger.info('machineGetCodexUsage: transient RPC failure — $error');
+        return const CodexUsageSummaryResponse(
+          success: false,
+          error: 'Machine unavailable. Retry when connected.',
+        );
       } else {
         logger.error('machineGetCodexUsage RPC error', error, stackTrace);
+        return const CodexUsageSummaryResponse(
+          success: false,
+          error: 'Codex usage request failed. Retry to refresh.',
+        );
       }
     }
 

@@ -1101,6 +1101,7 @@ extension SyncLifecycle on Sync {
     _sessionLastSeq.clear();
     MMKVStorage().clearSessionLastSeq();
     _sessionFirstLoadedSeq.clear();
+    _olderHistoryPageSizeLimits.clear();
     MMKVStorage().clearSessionFirstLoadedSeq();
     _loadingOlderMessages.clear();
     _recentInlineMessageKeys.clear();

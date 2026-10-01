@@ -57,6 +57,11 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   release account key material.
 - **Sync commits are runtime-scoped** — async work must verify the current
   account/runtime generation after every await before mutating state or cache.
+- **Network recovery preserves writes** — retire stale HTTP pools after their
+  active responses drain. Older-history retries keep the same end boundary
+  when reducing page size; failed pages never advance the cursor. Machine RPC
+  discovery, encryption, ACK and decode share one timeout; only explicitly
+  idempotent mutations may automatically retry routing failures.
 - **Per-session sends are FIFO** — foreground sends and outbox retries share
   one serialized delivery lane; confirmed `sent` state is monotonic.
 - **Merge fast paths validate the whole batch** — incoming IDs must be unique

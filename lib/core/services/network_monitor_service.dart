@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show visibleForTesting, setEquals;
 
 import '../api/socket_io_client.dart';
+import '../api/api_client.dart';
 import 'logger_service.dart';
 import 'power_diagnostics_otel_reporter.dart';
 import 'sync_service.dart';
@@ -17,12 +18,18 @@ import 'sync_service.dart';
 class NetworkMonitorService {
   factory NetworkMonitorService() => _instance;
 
-  NetworkMonitorService._({Connectivity? connectivity})
-    : _connectivity = connectivity ?? Connectivity();
+  NetworkMonitorService._({
+    Connectivity? connectivity,
+    void Function()? onReconnect,
+  }) : _connectivity = connectivity ?? Connectivity(),
+       _onReconnect = onReconnect;
 
   static NetworkMonitorService _instance = NetworkMonitorService._();
 
   final Connectivity _connectivity;
+  final void Function()? _onReconnect;
+  Set<ConnectivityResult>? _links;
+  int _snapshotGeneration = 0;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   final _controller = StreamController<bool>.broadcast();
 
@@ -66,10 +73,14 @@ class NetworkMonitorService {
   }
 
   Future<void> _refreshConnectivity({bool notify = false}) async {
+    final generation = _snapshotGeneration;
     try {
       final results = await _connectivity.checkConnectivity();
+      if (generation != _snapshotGeneration) return;
+      _links = results.toSet();
       _setOnline(_hasConnectivity(results), notify: notify);
     } catch (e) {
+      if (generation != _snapshotGeneration) return;
       // Assume online if the check fails (e.g. on desktop
       // where the plugin may not be fully supported).
       logger.warning('[Network] initial connectivity check failed: $e');
@@ -85,8 +96,13 @@ class NetworkMonitorService {
   }
 
   void _onConnectivityChanged(List<ConnectivityResult> results) {
+    _snapshotGeneration++;
+    final links = results.toSet();
+    final changedLinks = _links != null && !setEquals(_links, links);
+    _links = links;
     final online = _hasConnectivity(results);
-    if (!_setOnline(online, notify: true)) return;
+    final changedOnline = _setOnline(online, notify: true);
+    if (!changedOnline && !changedLinks) return;
 
     if (online) {
       logger.info('[Network] connectivity restored');
@@ -102,9 +118,15 @@ class NetworkMonitorService {
   /// waking up network I/O while the user isn't looking.
   void _triggerReconnect() {
     if (_isSuspended) return;
+    if (_onReconnect != null) {
+      _onReconnect();
+      return;
+    }
+    ApiClient().renewTransport();
 
     final s = Sync();
     if (s.isInitialized) {
+      socketIoClient.reconnect(reason: DialReason.networkRestored);
       s.resume();
       return;
     }
@@ -117,6 +139,7 @@ class NetworkMonitorService {
 
   /// Pause reconnection triggers while the app is backgrounded.
   void suspend() {
+    _snapshotGeneration++;
     _isSuspended = true;
     _subscription?.cancel();
     _subscription = null;
@@ -135,6 +158,7 @@ class NetworkMonitorService {
 
   /// Dispose resources.
   void dispose() {
+    _snapshotGeneration++;
     _subscription?.cancel();
     _subscription = null;
     _controller.close();
@@ -154,8 +178,14 @@ class NetworkMonitorService {
 
   /// Create a test instance with a custom [Connectivity].
   @visibleForTesting
-  static NetworkMonitorService testCreate({Connectivity? connectivity}) {
-    return NetworkMonitorService._(connectivity: connectivity);
+  static NetworkMonitorService testCreate({
+    Connectivity? connectivity,
+    void Function()? onReconnect,
+  }) {
+    return NetworkMonitorService._(
+      connectivity: connectivity,
+      onReconnect: onReconnect,
+    );
   }
 
   /// Override the online state for testing.

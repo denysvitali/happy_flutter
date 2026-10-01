@@ -76,6 +76,22 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   _outageTests();
 
+  test('request-specific budget admits retries past the generic deadline',
+      () async {
+    final adapter = _ScriptedAdapter([503, 200]);
+    final dio = _buildDio(adapter);
+    addTearDown(dio.close);
+    final response = await dio.get<dynamic>('/messages', options: Options(
+      extra: {
+        RetryInterceptor.requestBudgetMsKey: 40000,
+        RetryInterceptor.retryStartKey:
+            DateTime.now().millisecondsSinceEpoch - 21000,
+      },
+    ));
+    expect(response.statusCode, 200);
+    expect(adapter.calls, 2);
+  });
+
   group('HTTP failure causes', () {
     final options = RequestOptions(path: '/v2/sessions');
 

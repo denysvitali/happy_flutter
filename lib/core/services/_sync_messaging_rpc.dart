@@ -20,6 +20,18 @@ extension SyncMessagingRpc on Sync {
     Duration timeout = const Duration(seconds: 30),
   }) async {
     final stopwatch = Stopwatch()..start();
+    final generation = _runtimeGeneration;
+    Duration remaining() {
+      if (generation != _runtimeGeneration) {
+        throw StateError('Machine RPC runtime changed');
+      }
+      final left = timeout - stopwatch.elapsed;
+      if (left <= Duration.zero) {
+        throw const SocketAckTimeoutException('rpc-call');
+      }
+      return left;
+    }
+
     final rpcMetrics = OpenTelemetryService();
     var stageStartedMs = 0;
     final requestId = _createRpcRequestId('mrpc');
@@ -41,14 +53,24 @@ extension SyncMessagingRpc on Sync {
       // Encryption may not be initialized yet — wait for pending fetch.
       // This can happen after socket reconnect when machinesSync was
       // invalidated but fetch hasn't completed yet.
-      await machinesSync.invalidateAndAwait();
+      await machinesSync.invalidateAndAwait().timeout(
+        remaining(),
+        onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
+      );
+      remaining();
       machineEncryption = encryption.getMachineEncryption(machineId);
       if (machineEncryption == null) {
         throw StateError('Machine encryption not found for $machineId');
       }
     }
 
-    final encrypted = await machineEncryption.encryptRaw(params);
+    final encrypted = await machineEncryption
+        .encryptRaw(params)
+        .timeout(
+          remaining(),
+          onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
+        );
+    final ackTimeout = remaining();
     rpcMetrics.recordDuration(
       'app.machine_rpc.stage',
       Duration(milliseconds: stopwatch.elapsedMilliseconds - stageStartedMs),
@@ -66,7 +88,8 @@ extension SyncMessagingRpc on Sync {
         'method': '$machineId:$method',
         'params': encrypted,
         'requestId': requestId,
-      }, timeout: timeout);
+      }, timeout: ackTimeout);
+      remaining();
       rpcMetrics.recordDuration(
         'app.machine_rpc.stage',
         Duration(milliseconds: stopwatch.elapsedMilliseconds - stageStartedMs),
@@ -139,7 +162,13 @@ extension SyncMessagingRpc on Sync {
       if (encryptedResult == null) {
         throw StateError('Machine RPC $method returned null result');
       }
-      final decrypted = await machineEncryption.decryptRaw(encryptedResult);
+      final decrypted = await machineEncryption
+          .decryptRaw(encryptedResult)
+          .timeout(
+            remaining(),
+            onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
+          );
+      remaining();
       rpcMetrics.recordDuration(
         'app.machine_rpc.stage',
         Duration(milliseconds: stopwatch.elapsedMilliseconds - stageStartedMs),
@@ -477,12 +506,27 @@ extension SyncMessagingRpc on Sync {
     Duration timeout = const Duration(seconds: 30),
   }) async {
     final override = testMachineRPCOverride;
+    final generation = _runtimeGeneration;
+    final clock = Stopwatch()..start();
     if (override == null) {
-      await ensureMachineRPCSupported(machineId, method);
+      await ensureMachineRPCSupported(machineId, method).timeout(
+        timeout,
+        onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
+      );
+    }
+    if (generation != _runtimeGeneration) {
+      throw StateError('Machine RPC runtime changed');
+    }
+    final remaining = timeout - clock.elapsed;
+    if (remaining <= Duration.zero) {
+      throw const SocketAckTimeoutException('rpc-call');
     }
     final raw = override != null
-        ? await override(machineId, method, params)
-        : await machineRPC(machineId, method, params, timeout: timeout);
+        ? await override(machineId, method, params).timeout(remaining)
+        : await machineRPC(machineId, method, params, timeout: remaining);
+    if (generation != _runtimeGeneration) {
+      throw StateError('Machine RPC runtime changed');
+    }
     // machineRPC now throws on null — this check is only needed for the
     // test override path which may return null.
     if (raw == null) {

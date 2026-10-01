@@ -1656,6 +1656,7 @@ extension SyncMessaging on Sync {
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) return;
 
+    final runtimeGeneration = _runtimeGeneration;
     _loadingOlderMessages.add(sessionId);
     _notifyDataChanged({SyncDomain.messages});
 
@@ -1666,68 +1667,29 @@ extension SyncMessaging on Sync {
     )..setData('sessionId', sessionId);
 
     try {
-      final effectivePageSize = pageSize
-          .clamp(1, Sync._orphanFetchOlderPageSize)
-          .toInt();
-      final startSeq = (firstLoaded - 1 - effectivePageSize).clamp(
-        0,
-        firstLoaded - 1,
-      );
-
-      final Response<dynamic> response;
       final httpSpan = transaction.startChild(
         'chat.fetchOlderMessages.http',
         description: 'Fetch older message page',
       );
-      if (testFetchOlderMessagesOverride != null) {
-        final overrideResult = await testFetchOlderMessagesOverride!(
-          sessionId,
-          startSeq,
-          effectivePageSize,
-        );
-        response = Response(
-          requestOptions: RequestOptions(path: ''),
-          statusCode: 200,
-          data: overrideResult,
-        );
-      } else {
-        final apiClient = ApiClient();
-        response = await apiClient.get(
-          '/v3/sessions/$sessionId/messages',
-          queryParameters: {'after_seq': startSeq, 'limit': effectivePageSize},
-          options: Options(
-            extra: const {
-              'bypassCache': true,
-              'disableRetry': true,
-              RetryInterceptor.requestBudgetMsKey: 40000,
-            },
-            connectTimeout: Sync._messageFetchConnectTimeout,
-            receiveTimeout: Sync._messageFetchReceiveTimeout,
-          ),
-        );
-
-        if (!apiClient.isSuccess(response)) {
-          httpSpan.setData('statusCode', response.statusCode ?? 0);
-          await httpSpan.finish(status: const SpanStatus.internalError());
-          if (response.statusCode == 404) {
-            logger.info(
-              '[fetchOlderMessages] $sessionId returned 404 — '
-              'cleaning up deleted session',
-            );
-            _cleanupDeletedSession(sessionId);
-            await transaction.finish();
-            return;
-          }
-          logger.warning(
-            'Failed to fetch older messages: ${response.statusCode}',
-          );
-          await transaction.finish(status: const SpanStatus.internalError());
-          return;
-        }
-      }
+      final page = await _fetchOlderMessagePage(
+        sessionId,
+        firstLoaded,
+        pageSize,
+        runtimeGeneration,
+      );
+      if (runtimeGeneration != _runtimeGeneration) return;
+      final response = page.response;
+      final startSeq = page.afterSeq;
       httpSpan.setData('statusCode', response.statusCode ?? 0);
       await httpSpan.finish();
-
+      if (runtimeGeneration != _runtimeGeneration) return;
+      if (!ApiClient().isSuccess(response)) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          type: DioExceptionType.badResponse,
+        );
+      }
       final data = WireParsers.asMap(response.data);
       if (data == null) {
         logger.warning(
@@ -1760,6 +1722,7 @@ extension SyncMessaging on Sync {
         applyMutations: false,
         emitSessionNotification: false,
       );
+      if (runtimeGeneration != _runtimeGeneration) return;
       transaction
         ..setData('decryptMs', decryptStart.elapsedMilliseconds)
         ..setData('processedMessages', processed.messages.length)
@@ -1778,6 +1741,7 @@ extension SyncMessaging on Sync {
 
       // Yield before main-thread merge work
       await Future<void>.delayed(Duration.zero);
+      if (runtimeGeneration != _runtimeGeneration) return;
 
       if (processed.messages.isNotEmpty) {
         _upsertSessionMessages(sessionId, processed.messages);
@@ -1888,6 +1852,7 @@ extension SyncMessaging on Sync {
       _notifyDataChanged({SyncDomain.messages});
       await transaction.finish();
     } on DioException catch (e) {
+      if (runtimeGeneration != _runtimeGeneration) return;
       if (e.response?.statusCode == 404) {
         logger.info(
           '[fetchOlderMessages] $sessionId returned 404 — '
@@ -1900,18 +1865,24 @@ extension SyncMessaging on Sync {
           ..setData('error', e.toString())
           ..setData('currentRoute', PerformanceContextService().currentRoute);
         await transaction.finish(status: const SpanStatus.internalError());
+        if (runtimeGeneration != _runtimeGeneration) return;
         _paginationErrorController.add(sessionId);
       }
     } catch (error, stack) {
+      if (runtimeGeneration != _runtimeGeneration) return;
       transaction
         ..setData('error', error.toString())
         ..setData('currentRoute', PerformanceContextService().currentRoute);
       await transaction.finish(status: const SpanStatus.internalError());
+      if (runtimeGeneration != _runtimeGeneration) return;
       logger.error('Error fetching older messages', error, stack);
       _paginationErrorController.add(sessionId);
     } finally {
-      _loadingOlderMessages.remove(sessionId);
-      _notifyDataChanged({SyncDomain.messages});
+      if (runtimeGeneration == _runtimeGeneration) {
+        _loadingOlderMessages.remove(sessionId);
+        _notifyDataChanged({SyncDomain.messages});
+      }
+      unawaited(transaction.finish());
     }
   }
 
@@ -1993,6 +1964,7 @@ extension SyncMessaging on Sync {
 
   /// Clean up all local state for a session that was deleted on the server.
   void _cleanupDeletedSession(String sessionId) {
+    _olderHistoryPageSizeLimits.remove(sessionId);
     messagesSync.remove(sessionId)?.dispose();
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     _loadingOlderMessages.remove(sessionId);
