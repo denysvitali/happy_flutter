@@ -24,6 +24,10 @@ mkdir -p "$stage/toolchain"
 # but the host dependency resolution supplies the lock used by the SDK.
 git archive HEAD | tar -x -C "$stage"
 cp pubspec.lock "$stage/"
+# Flatpak caps exported icons at 512px. Resize on the build host; the GNOME
+# SDK provides image libraries but omits their thumbnail command-line tool.
+convert assets/icon/app_icon.png -resize 512x512 \
+  "$stage/packaging/flatpak/app_icon_512.png"
 flutter_root="$(dirname "$(dirname "$(readlink -f "$(command -v flutter)")")")"
 cp -a "$flutter_root" "$stage/toolchain/flutter"
 cp "$(command -v mise)" "$stage/toolchain/mise"

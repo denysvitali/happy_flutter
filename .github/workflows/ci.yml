@@ -888,7 +888,7 @@ jobs:
       - name: Install Flatpak build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder desktop-file-utils xvfb
+          sudo apt-get install -y flatpak flatpak-builder desktop-file-utils xvfb imagemagick
           flatpak remote-add --user --if-not-exists flathub \
             https://dl.flathub.org/repo/flathub.flatpakrepo
 
