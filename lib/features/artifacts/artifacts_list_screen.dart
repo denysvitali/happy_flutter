@@ -578,7 +578,7 @@ class _TypeBadge extends StatelessWidget {
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: color,
           fontWeight: FontWeight.w700,
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
         ),
       ),
     );

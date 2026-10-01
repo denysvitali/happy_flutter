@@ -152,7 +152,7 @@ class _ActiveBadge extends StatelessWidget {
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: cs.primary,
-          fontSize: AppFontSize.xs,
+          fontSize: AppFontSize.sm,
           fontWeight: FontWeight.w700,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
@@ -242,7 +242,7 @@ class _HeaderCountPill extends StatelessWidget {
         textAlign: TextAlign.center,
         style: theme.textTheme.labelSmall?.copyWith(
           color: cs.onSurfaceVariant,
-          fontSize: AppFontSize.xs,
+          fontSize: AppFontSize.sm,
           fontWeight: FontWeight.w600,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
@@ -359,7 +359,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
                     header.machineName,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                     ),
                   ),
                   if (hasBreakdown)
@@ -367,7 +367,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
                       folderBreakdownLabel(context, header),
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: cs.onSurfaceVariant.withValues(alpha: 0.72),
-                        fontSize: AppFontSize.xxs,
+                        fontSize: AppFontSize.sm,
                       ),
                     ),
                 ],
@@ -387,7 +387,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
                   unreadLabel,
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: cs.onPrimary,
-                    fontSize: AppFontSize.xxs,
+                    fontSize: AppFontSize.sm,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -398,7 +398,7 @@ class CollapsibleFolderHeader extends StatelessWidget {
               '${header.sessionCount}',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant.withValues(alpha: 0.6),
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
               ),
             ),
             const SizedBox(width: 2),
@@ -445,7 +445,7 @@ class FolderSectionHeader extends StatelessWidget {
             '$count',
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
             ),
           ),
         ],

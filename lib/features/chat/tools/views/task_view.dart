@@ -236,12 +236,12 @@ class _SubAgentBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: theme.colorScheme.onPrimaryContainer),
+          Icon(icon, size: AppIconSize.xs, color: theme.colorScheme.onPrimaryContainer),
           const SizedBox(width: 3),
           Text(
             type,
             style: TextStyle(
-              fontSize: AppFontSize.xxs,
+              fontSize: AppFontSize.sm,
               fontWeight: FontWeight.w500,
               color: theme.colorScheme.onPrimaryContainer,
               letterSpacing: 0.2,
@@ -286,7 +286,7 @@ class _InfoBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBadge(
-      leading: Icon(icon, size: AppFontSize.xxs, color: color),
+      leading: Icon(icon, size: AppFontSize.sm, color: color),
       label: label,
       backgroundColor: color.withValues(alpha: 0.15),
       foregroundColor: color,
@@ -295,7 +295,7 @@ class _InfoBadge extends StatelessWidget {
         vertical: AppSpacing.xxs,
       ),
       labelStyle: const TextStyle(
-        fontSize: AppFontSize.xxs,
+        fontSize: AppFontSize.sm,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.2,
       ),
@@ -348,7 +348,7 @@ class _InlineToolRow extends StatelessWidget {
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
                 fontFamily: 'monospace',
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -415,7 +415,7 @@ class _InlineNestedTaskRow extends StatelessWidget {
               const SizedBox(width: AppSpacing.xsm),
               Icon(
                 Icons.rocket_launch,
-                size: 10,
+                size: AppIconSize.xs,
                 color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 3),
@@ -425,7 +425,7 @@ class _InlineNestedTaskRow extends StatelessWidget {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontFamily: 'monospace',
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.sm,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),

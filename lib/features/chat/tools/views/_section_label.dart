@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 
 /// Small all-caps section label used by tool views
 /// (e.g. "COMMAND", "OUTPUT", "CONTENT").
@@ -15,7 +16,7 @@ class SectionLabel extends StatelessWidget {
     return Text(
       label,
       style: TextStyle(
-        fontSize: 11,
+        fontSize: AppFontSize.sm,
         fontWeight: FontWeight.w600,
         color: cs.onSurfaceVariant.withValues(alpha: 0.55),
         letterSpacing: 0.8,

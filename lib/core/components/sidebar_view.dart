@@ -181,7 +181,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                     Text(
                       l10n.sidebarSessionsTitle,
                       style: theme.appBarTheme.titleTextStyle?.copyWith(
-                        fontSize: 17,
+                        fontSize: AppFontSize.xl,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -245,7 +245,7 @@ class _SidebarViewState extends ConsumerState<SidebarView> {
                     Text(
                       l10n.sidebarSessionsTitle,
                       style: theme.appBarTheme.titleTextStyle?.copyWith(
-                        fontSize: 17,
+                        fontSize: AppFontSize.xl,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

@@ -246,7 +246,7 @@ class _ResultCountChip extends StatelessWidget {
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxxs,
       ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
+      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
     );
   }
 }
@@ -319,7 +319,7 @@ class _FileRow extends StatelessWidget {
                       _parentDir(file.path),
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: AppFontSize.xxs,
+                        fontSize: AppFontSize.sm,
                         color: cs.onSurfaceVariant,
                         fontFamily: 'monospace',
                       ),
@@ -338,7 +338,7 @@ class _FileRow extends StatelessWidget {
                   vertical: AppSpacing.xxs,
                 ),
                 labelStyle: const TextStyle(
-                  fontSize: AppFontSize.xxs,
+                  fontSize: AppFontSize.sm,
                   fontFamily: 'monospace',
                 ),
               ),

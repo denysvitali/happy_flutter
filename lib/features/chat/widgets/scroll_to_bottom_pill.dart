@@ -231,7 +231,7 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
         textAlign: TextAlign.center,
         style: TextStyle(
           color: cs.onPrimary,
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
           fontWeight: FontWeight.w600,
           height: 1.0,
         ),

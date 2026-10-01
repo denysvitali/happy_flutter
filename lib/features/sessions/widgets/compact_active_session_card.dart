@@ -78,7 +78,7 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
       preview: widget.lastMessagePreview,
       previewRole: widget.lastMessageRole,
       style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.xs,
+        fontSize: AppFontSize.sm,
         height: 1.2,
       ),
     );

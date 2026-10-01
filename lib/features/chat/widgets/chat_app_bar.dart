@@ -427,14 +427,14 @@ class _VitalPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: color),
+          Icon(icon, size: AppIconSize.sm, color: color),
           const SizedBox(width: AppSpacing.xxs),
           Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w600,
-              fontSize: 11,
+              fontSize: AppFontSize.sm,
             ),
           ),
           const SizedBox(width: AppSpacing.xxs),
@@ -455,7 +455,7 @@ class _VitalPill extends StatelessWidget {
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onSurface,
               fontWeight: FontWeight.w600,
-              fontSize: 11,
+              fontSize: AppFontSize.sm,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
@@ -522,7 +522,7 @@ class _StatusRow extends StatelessWidget {
                                   pulse: chip.pulse,
                                   size: 6,
                                 )
-                              : Icon(chip.icon, size: 11, color: chip.color),
+                              : Icon(chip.icon, size: AppIconSize.xs, color: chip.color),
                           textColor: chip.color,
                           backgroundColor: chip.color.withValues(alpha: 0.08),
                           borderColor: chip.color.withValues(alpha: 0.16),
@@ -684,7 +684,7 @@ class _AgentsListButton extends StatelessWidget {
                     )
                   : const Icon(
                       Icons.check_rounded,
-                      size: 10,
+                      size: AppIconSize.xs,
                       color: Colors.white,
                     ),
             ),

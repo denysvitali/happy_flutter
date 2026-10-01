@@ -780,7 +780,7 @@ class _ProviderCard extends StatelessWidget {
               Text(
                 description,
                 style: TextStyle(
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.sm,
                   color: cs.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,

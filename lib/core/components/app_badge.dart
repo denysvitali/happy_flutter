@@ -81,7 +81,7 @@ class AppBadge extends StatelessWidget {
             : null);
 
     final resolvedLabelStyle = TextStyle(
-      fontSize: AppFontSize.xxs,
+      fontSize: AppFontSize.sm,
       fontWeight: FontWeight.w600,
       color: fg,
     ).merge(labelStyle);
@@ -109,24 +109,29 @@ class AppBadge extends StatelessWidget {
             ],
             // Label changes (e.g. counts ticking up) crossfade with a
             // slight upward slide instead of snapping.
-            AnimatedSwitcher(
-              duration: AppMotion.duration(context, AppDuration.fast),
-              switchInCurve: AppCurve.enter,
-              switchOutCurve: AppCurve.exit,
-              transitionBuilder: (child, anim) => FadeTransition(
-                opacity: anim,
-                child: SlideTransition(
-                  position: Tween(
-                    begin: const Offset(0, 0.4),
-                    end: Offset.zero,
-                  ).animate(anim),
-                  child: child,
+            Flexible(
+              child: AnimatedSwitcher(
+                duration: AppMotion.duration(context, AppDuration.fast),
+                switchInCurve: AppCurve.enter,
+                switchOutCurve: AppCurve.exit,
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: SlideTransition(
+                    position: Tween(
+                      begin: const Offset(0, 0.4),
+                      end: Offset.zero,
+                    ).animate(anim),
+                    child: child,
+                  ),
                 ),
-              ),
-              child: Text(
-                label,
-                key: ValueKey(label),
-                style: resolvedLabelStyle,
+                child: Text(
+                  label,
+                  key: ValueKey(label),
+                  style: resolvedLabelStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: false,
+                ),
               ),
             ),
             if (trailing != null) ...[

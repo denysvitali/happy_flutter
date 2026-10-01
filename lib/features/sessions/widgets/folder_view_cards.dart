@@ -89,7 +89,7 @@ class FolderSessionRow extends StatelessWidget {
       preview: lastMessagePreview,
       previewRole: lastMessageRole,
       style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.xs,
+        fontSize: AppFontSize.sm,
         height: 1.25,
       ),
     );
@@ -195,7 +195,7 @@ class FolderSessionRow extends StatelessWidget {
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                               fontFamily: 'monospace',
-                              fontSize: AppFontSize.xs,
+                              fontSize: AppFontSize.sm,
                               height: 1.2,
                             ),
                             maxLines: 1,

@@ -205,7 +205,7 @@ class _UserBubbleState extends State<UserBubble> {
                         children: [
                           Icon(
                             Icons.schedule_send_rounded,
-                            size: 11,
+                            size: AppIconSize.xs,
                             color: Theme.of(context).colorScheme.secondary,
                           ),
                           const SizedBox(width: AppSpacing.xxs),
@@ -216,7 +216,7 @@ class _UserBubbleState extends State<UserBubble> {
                                   color: Theme.of(
                                     context,
                                   ).colorScheme.secondary,
-                                  fontSize: AppFontSize.xxs,
+                                  fontSize: AppFontSize.sm,
                                 ),
                           ),
                         ],
@@ -329,7 +329,7 @@ class _UserImageThumb extends StatelessWidget {
                   child: Text(
                     l10n.chatImageNotCached,
                     style: TextStyle(
-                      fontSize: AppFontSize.xs,
+                      fontSize: AppFontSize.sm,
                       color: onBubble.withValues(alpha: AppOpacity.high),
                     ),
                     overflow: TextOverflow.ellipsis,

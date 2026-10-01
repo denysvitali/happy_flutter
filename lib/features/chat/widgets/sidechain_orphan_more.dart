@@ -71,7 +71,7 @@ class SidechainOrphanMore extends StatelessWidget {
                       label,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: cs.onSurfaceVariant,
-                        fontSize: AppFontSize.xxs,
+                        fontSize: AppFontSize.sm,
                         letterSpacing: 0.5,
                       ),
                     ),

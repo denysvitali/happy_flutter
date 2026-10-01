@@ -183,7 +183,7 @@ class _FileDiffCardState extends State<FileDiffCard> {
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: cs.onPrimary,
                         fontWeight: FontWeight.w700,
-                        fontSize: AppFontSize.xs,
+                        fontSize: AppFontSize.sm,
                       ),
                     ),
                   ),
@@ -210,7 +210,7 @@ class _FileDiffCardState extends State<FileDiffCard> {
                         'replace all',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onTertiaryContainer,
-                          fontSize: AppFontSize.xxs,
+                          fontSize: AppFontSize.sm,
                         ),
                       ),
                     ),

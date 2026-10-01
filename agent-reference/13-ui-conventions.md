@@ -26,7 +26,7 @@ Shift+Enter navigate search results; Escape closes the focused search field.
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 
-**Design tokens** in `lib/core/theme/app_tokens.dart`: `AppSpacing` (xxs=2 to xxxl=32), `AppRadius` (xs=4 to pill=100), `AppFontSize` (xxs=10 to lg=16), `AppDuration` (fast=150ms to slower=500ms), `AppTouchTarget` (min=44, comfortable=48), `AppBreakpoint` (tablet=600, desktop=960), `AppScreenPadding` (standard, compact, settings, listItem).
+**Design tokens** in `lib/core/theme/app_tokens.dart`: `AppSpacing` (xxs=2 to xxxl=32), `AppRadius` (xs=4 to pill=100), `AppFontSize` (the whole type scale: sm=12, md=13, base=14, lg=16, xl=18 — nothing below 12; `xxs`/`xs` were removed), `AppDuration` (fast=150ms to slower=500ms), `AppTouchTarget` (min=44, comfortable=48), `AppBreakpoint` (tablet=600, desktop=960), `AppScreenPadding` (standard, compact, settings, listItem).
 
 **Inline rows:** Reuse `AppInlineRow`, `AppInlineAction`, and `AppInlineText`
 from `lib/core/components/app_inline_row.dart` for compact headers and status
@@ -36,6 +36,13 @@ targets. Separate secondary actions from the row tap target. Composer selector
 chips are 12px medium (`AppInlineText.chip`) with a 16px chevron, below the
 14px draft; keep state emphasis in color and weight rather than size. Elapsed
 labels switch to `Xh Ym` past one hour.
+
+**Type and icon scale:** The theme (`theme_helper.dart`) and every component
+theme use only `AppFontSize` sizes; `test/core/theme/type_scale_test.dart` pins
+that. Do not write literal `fontSize:` values — use `textTheme` slots or the
+tokens. Small text is always 12 (`bodySmall`, `labelSmall`, `labelMedium`);
+differentiate by weight and color, never by going to 11. Icons snap to
+`AppIconSize` (12/14/16/18/20/22/24); 4–8px status dots are the only exception.
 
 **Widget layers:**
 - `lib/core/components/` — higher-level (AppCard, AppEmptyState, sidebar, settings sections)

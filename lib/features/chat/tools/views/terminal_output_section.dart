@@ -155,7 +155,7 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
                   widget.label,
                   style: TextStyle(
                     fontFamily: 'monospace',
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.sm,
                     color: labelColor,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.4,
@@ -166,7 +166,7 @@ class _TerminalOutputSectionState extends State<TerminalOutputSection> {
                   '$_totalLines line${_totalLines == 1 ? '' : 's'}',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: cs.onSurfaceVariant,
-                    fontSize: AppFontSize.xxs,
+                    fontSize: AppFontSize.sm,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),

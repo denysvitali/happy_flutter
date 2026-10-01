@@ -138,7 +138,7 @@ class _MultiEditHeader extends StatelessWidget {
             style: theme.textTheme.labelSmall?.copyWith(
               color: cs.onPrimaryContainer,
               fontWeight: FontWeight.w700,
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
             ),
           ),
         ),

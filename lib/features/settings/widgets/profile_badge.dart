@@ -25,7 +25,7 @@ class ProfilePill extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
           fontWeight: FontWeight.w600,
           color: color,
           height: 1.2,

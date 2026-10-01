@@ -252,7 +252,7 @@ class _TokenUsagePainter extends CustomPainter {
 
     final labelStyle = ui.ParagraphStyle(
       textAlign: ui.TextAlign.right,
-      fontSize: 10 * textScale,
+      fontSize: AppFontSize.sm * textScale,
     );
 
     final steps = 3;
@@ -273,7 +273,7 @@ class _TokenUsagePainter extends CustomPainter {
         ..pushStyle(
           ui.TextStyle(
             color: colorScheme.onSurfaceVariant,
-            fontSize: 10 * textScale,
+            fontSize: AppFontSize.sm * textScale,
           ),
         )
         ..addText(ClaudeLocalUsage.formatTokenCount(value));
@@ -380,7 +380,7 @@ class _TokenUsagePainter extends CustomPainter {
 
     final labelStyle = ui.ParagraphStyle(
       textAlign: ui.TextAlign.center,
-      fontSize: 10 * textScale,
+      fontSize: AppFontSize.sm * textScale,
     );
 
     final indices = <int>{
@@ -399,7 +399,7 @@ class _TokenUsagePainter extends CustomPainter {
         ..pushStyle(
           ui.TextStyle(
             color: colorScheme.onSurfaceVariant,
-            fontSize: 10 * textScale,
+            fontSize: AppFontSize.sm * textScale,
           ),
         )
         ..addText(date);
@@ -448,13 +448,13 @@ class _TokenUsagePainter extends CustomPainter {
         '${ClaudeLocalUsage.formatTokenCount(point.tokens)}';
     final paragraphStyle = ui.ParagraphStyle(
       textAlign: ui.TextAlign.center,
-      fontSize: 11 * textScale,
+      fontSize: AppFontSize.sm * textScale,
     );
     final builder = ui.ParagraphBuilder(paragraphStyle)
       ..pushStyle(
         ui.TextStyle(
           color: colorScheme.onPrimary,
-          fontSize: 11 * textScale,
+          fontSize: AppFontSize.sm * textScale,
           fontWeight: FontWeight.w600,
         ),
       )

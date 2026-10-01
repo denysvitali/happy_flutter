@@ -482,7 +482,7 @@ class _MetaChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 13, color: cs.onSurfaceVariant),
+            Icon(icon, size: AppIconSize.sm, color: cs.onSurfaceVariant),
             const SizedBox(width: AppSpacing.xxs + 2),
             Text(
               label,
@@ -533,7 +533,7 @@ class _FocusAction extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 19, color: color),
+                Icon(icon, size: AppIconSize.xl, color: color),
                 const SizedBox(height: 3),
                 Text(
                   label,

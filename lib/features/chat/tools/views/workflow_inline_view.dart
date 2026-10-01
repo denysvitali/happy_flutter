@@ -203,9 +203,9 @@ class _PhaseDot extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (isFailed)
-            Icon(Icons.error_outline_rounded, size: 10, color: fg)
+            Icon(Icons.error_outline_rounded, size: AppIconSize.xs, color: fg)
           else if (isCompleted)
-            Icon(Icons.check_rounded, size: 10, color: fg)
+            Icon(Icons.check_rounded, size: AppIconSize.xs, color: fg)
           else if (isCurrent)
             SizedBox(
               width: 10,
@@ -216,7 +216,7 @@ class _PhaseDot extends StatelessWidget {
               ),
             )
           else
-            Icon(Icons.circle_outlined, size: 10, color: fg),
+            Icon(Icons.circle_outlined, size: AppIconSize.xs, color: fg),
           const SizedBox(width: 4),
           Text(
             group.phase.title,
@@ -308,12 +308,12 @@ class _MiniStat extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 10, color: cs.onSurfaceVariant),
+        Icon(icon, size: AppIconSize.xs, color: cs.onSurfaceVariant),
         const SizedBox(width: 2),
         Text(
           value,
           style: TextStyle(
-            fontSize: AppFontSize.xxs,
+            fontSize: AppFontSize.sm,
             color: cs.onSurfaceVariant,
           ),
         ),

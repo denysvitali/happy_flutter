@@ -44,7 +44,7 @@ class ClearedDivider extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: labelColor,
                 fontWeight: FontWeight.w600,
-                fontSize: AppFontSize.xxs,
+                fontSize: AppFontSize.sm,
                 letterSpacing: 0.4,
               ),
             ),

@@ -958,7 +958,7 @@ class _AgentSubtitle extends StatelessWidget {
         if (toolLine != null)
           Row(
             children: [
-              Icon(Icons.build_outlined, size: 11, color: cs.onSurfaceVariant),
+              Icon(Icons.build_outlined, size: AppIconSize.xs, color: cs.onSurfaceVariant),
               const SizedBox(width: AppSpacing.xxs),
               Expanded(
                 child: Text(

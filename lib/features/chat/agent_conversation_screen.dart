@@ -598,7 +598,7 @@ class _AgentConversationScreenState
                           color: theme.colorScheme.onSurfaceVariant.withValues(
                             alpha: AppOpacity.high,
                           ),
-                          fontSize: AppFontSize.xxs,
+                          fontSize: AppFontSize.sm,
                         ),
                       ),
                   ],

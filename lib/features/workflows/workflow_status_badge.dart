@@ -29,7 +29,7 @@ class WorkflowStatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
           fontWeight: FontWeight.w600,
           color: color,
           letterSpacing: 0.2,

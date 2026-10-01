@@ -271,7 +271,7 @@ class _FileHeader extends StatelessWidget {
                     ),
                     labelStyle: const TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -390,7 +390,7 @@ class _MetaChip extends StatelessWidget {
         vertical: AppSpacing.xs - 1,
       ),
       labelStyle: const TextStyle(
-        fontSize: AppFontSize.xs,
+        fontSize: AppFontSize.sm,
         fontWeight: FontWeight.normal,
         fontFamily: 'monospace',
       ),

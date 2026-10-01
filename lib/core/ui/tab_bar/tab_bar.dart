@@ -228,10 +228,10 @@ const double _kTabBadgeSize = 16;
 
 /// Diameter the badge needs at the current system text scale.
 ///
-/// The digit is rendered at [AppFontSize.xxs]; at 200 % system font that is
+/// The digit is rendered at [AppFontSize.sm]; at 200 % system font that is
 /// ~20 dp of glyph, which used to clip inside the fixed 16 dp pill.
 double tabBadgeExtent(BuildContext context) {
-  final scaled = MediaQuery.textScalerOf(context).scale(AppFontSize.xxs);
+  final scaled = MediaQuery.textScalerOf(context).scale(AppFontSize.sm);
   return math.max(_kTabBadgeSize, scaled * AppLineHeight.tight + AppSpacing.xs);
 }
 
@@ -264,7 +264,7 @@ class _TabBadge extends StatelessWidget {
         textAlign: TextAlign.center,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onError,
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
           height: AppLineHeight.tight,
           fontWeight: FontWeight.w700,
         ),
@@ -341,7 +341,7 @@ class TabBar extends StatefulWidget {
   /// the user's setting instead of clipping the label.
   static double resolveHeight(BuildContext context, double nominal) {
     final labelFontSize =
-        Theme.of(context).textTheme.labelSmall?.fontSize ?? AppFontSize.xs;
+        Theme.of(context).textTheme.labelSmall?.fontSize ?? AppFontSize.sm;
     final scaledLabel = MediaQuery.textScalerOf(context).scale(labelFontSize);
     // The badge overhangs the icon box by AppSpacing.xxs on the top edge and
     // grows with the text scale, so it — not the icon — can set the height.
@@ -534,7 +534,7 @@ class CompactTabBar extends StatelessWidget {
                         _badgeLabel(count),
                         style: TextStyle(
                           color: colorScheme.onError,
-                          fontSize: AppFontSize.xxs,
+                          fontSize: AppFontSize.sm,
                           height: AppLineHeight.tight,
                           fontWeight: FontWeight.w700,
                         ),

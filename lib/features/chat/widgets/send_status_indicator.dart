@@ -74,7 +74,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
     final l10n = context.l10n;
     final cs = theme.colorScheme;
     final style = theme.textTheme.labelSmall?.copyWith(
-      fontSize: AppFontSize.xxs,
+      fontSize: AppFontSize.sm,
       height: 1.2,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
@@ -106,7 +106,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
             color: cs.secondary,
             indicator: Icon(
               Icons.schedule_rounded,
-              size: 10,
+              size: AppIconSize.xs,
               color: cs.secondary,
             ),
           ),
@@ -124,7 +124,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
             color: cs.primary.withValues(alpha: 0.85),
             indicator: Icon(
               widget.slow ? Icons.schedule_rounded : Icons.check_rounded,
-              size: 10,
+              size: AppIconSize.xs,
               color: cs.primary.withValues(alpha: 0.85),
             ),
           ),
@@ -158,7 +158,7 @@ class _SendStatusIndicatorState extends State<SendStatusIndicator> {
                       children: [
                         Icon(
                           Icons.refresh_rounded,
-                          size: 11,
+                          size: AppIconSize.xs,
                           color: cs.onError,
                         ),
                         const SizedBox(width: AppSpacing.xxs),
@@ -197,7 +197,7 @@ class _StatusLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = Theme.of(context).textTheme.labelSmall?.copyWith(
-      fontSize: AppFontSize.xxs,
+      fontSize: AppFontSize.sm,
       height: 1.2,
       color: color,
       fontFeatures: const [FontFeature.tabularFigures()],

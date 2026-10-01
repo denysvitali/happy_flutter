@@ -64,7 +64,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
       preview: widget.lastMessagePreview,
       previewRole: widget.lastMessageRole,
       style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.xs,
+        fontSize: AppFontSize.sm,
         height: 1.2,
       ),
     );
@@ -146,7 +146,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: cs.onSurfaceVariant,
                                   fontFamily: 'monospace',
-                                  fontSize: AppFontSize.xs,
+                                  fontSize: AppFontSize.sm,
                                   height: 1.2,
                                 ),
                                 overflow: TextOverflow.ellipsis,

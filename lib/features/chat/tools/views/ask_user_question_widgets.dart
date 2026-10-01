@@ -54,7 +54,7 @@ class QuestionSection extends StatelessWidget {
                 child: Text(
                   question.header.toUpperCase(),
                   style: TextStyle(
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.sm,
                     fontWeight: FontWeight.w700,
                     color: theme.colorScheme
                         .onSecondaryContainer,

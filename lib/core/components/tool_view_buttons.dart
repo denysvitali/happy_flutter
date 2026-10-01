@@ -132,7 +132,7 @@ class ToolViewShowMoreButton extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.sm,
                   color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
                 ),

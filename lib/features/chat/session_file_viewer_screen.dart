@@ -520,7 +520,7 @@ class _PathHeader extends StatelessWidget {
             Text(
               language!,
               style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: AppFontSize.xxs,
+                fontSize: AppFontSize.sm,
                 color: theme.colorScheme.onSurfaceVariant.withValues(
                   alpha: 0.7,
                 ),

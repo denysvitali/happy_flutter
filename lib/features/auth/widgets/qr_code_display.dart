@@ -67,7 +67,7 @@ class QRCodeDisplay extends StatelessWidget {
               Text(
                 'End-to-end encrypted',
                 style: TextStyle(
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.sm,
                   fontWeight: FontWeight.w500,
                   color: scheme.onSurfaceVariant.withValues(
                     alpha: AppOpacity.half,

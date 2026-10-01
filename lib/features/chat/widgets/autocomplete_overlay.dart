@@ -312,7 +312,7 @@ class _SuggestionItem extends StatelessWidget {
         badgeText,
         style: theme.textTheme.labelSmall?.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
-          fontSize: 11,
+          fontSize: AppFontSize.sm,
         ),
       ),
     );

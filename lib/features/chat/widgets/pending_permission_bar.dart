@@ -120,7 +120,7 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
                 ),
                 child: Icon(
                   Icons.shield_outlined,
-                  size: 17,
+                  size: AppIconSize.lg,
                   color: AppColors.warning,
                 ),
               ),

@@ -99,29 +99,37 @@ abstract final class AppRadius {
 
 // ─── Font sizes ──────────────────────────────────────────────────────────────
 
-/// Raw font size tokens for cases where [AppTypography] text styles
-/// are too opinionated (e.g. code blocks, tool views, badges).
+/// The app's type scale. Every size on screen should come from here (or from
+/// the matching `textTheme` slot, which uses the same values).
 ///
-/// Prefer [AppTypography] for body/label/title text. Use [AppFontSize]
-/// only when you need a bare size without the full TextStyle.
+/// | token | px | use |
+/// |-------|----|-----|
+/// | [sm]  | 12 | everything small: captions, labels, chips, timestamps, badges |
+/// | [md]  | 13 | dense row chrome, list subtitles, code and tool output |
+/// | [base]| 14 | body, buttons, list titles, inputs, the composer draft |
+/// | [lg]  | 16 | section and card titles |
+/// | [xl]  | 18 | app bar and dialog titles |
+///
+/// There is deliberately no size below 12: state is carried by weight and
+/// color, not by shrinking text.
+///
+/// Prefer a `textTheme` style for body/label/title text; use these tokens
+/// when you need a bare size (code blocks, tool views, badges).
 abstract final class AppFontSize {
-  /// 11 px – micro labels, status badges.
-  static const double xxs = 11;
-
-  /// 12 px – compact labels, timestamps.
-  static const double xs = 12;
-
-  /// 12 px – body small, secondary text.
+  /// 12 px – all small text.
   static const double sm = 12;
 
-  /// 13 px – code blocks, tool output.
+  /// 13 px – dense chrome rows, subtitles, code and tool output.
   static const double md = 13;
 
-  /// 14 px – body medium, primary text.
+  /// 14 px – body and controls.
   static const double base = 14;
 
-  /// 16 px – body large, titles.
+  /// 16 px – titles.
   static const double lg = 16;
+
+  /// 18 px – app bar and dialog titles.
+  static const double xl = 18;
 }
 
 // ─── Icon sizes ──────────────────────────────────────────────────────────────

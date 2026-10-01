@@ -400,7 +400,7 @@ class LogEntryWidget extends StatelessWidget {
                   time,
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontFamily: 'monospace',
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.sm,
                     color: cs.outline,
                   ),
                 ),

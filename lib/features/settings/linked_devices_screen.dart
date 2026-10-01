@@ -162,7 +162,7 @@ class DeviceTile extends StatelessWidget {
                 child: Text(
                   l10n.accountThisDevice,
                   style: TextStyle(
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.sm,
                     color: cs.onPrimaryContainer,
                   ),
                 ),

@@ -474,7 +474,7 @@ class _Row extends StatelessWidget {
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant.withValues(alpha: 0.75),
                           height: AppLineHeight.normal,
-                          fontSize: AppFontSize.xs,
+                          fontSize: AppFontSize.sm,
                         ),
                       ),
                     ),

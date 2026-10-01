@@ -193,7 +193,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
               children: [
                 Icon(
                   Icons.security_rounded,
-                  size: 13,
+                  size: AppIconSize.sm,
                   color: isPending
                       ? AppColors.warning
                       : theme.colorScheme.onSurfaceVariant,
@@ -230,7 +230,7 @@ class _PermissionFooterState extends State<PermissionFooter> {
                 color: theme.colorScheme.onSurfaceVariant,
                 fontFamily: 'monospace',
                 fontFamilyFallback: const ['Courier New', 'Courier'],
-                fontSize: 12.5,
+                fontSize: AppFontSize.sm,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -392,7 +392,7 @@ class _ActionButtons extends StatelessWidget {
           children: [
             ElevatedButton.icon(
               onPressed: enabled ? onAllow : null,
-              icon: const Icon(Icons.check_rounded, size: 15),
+              icon: const Icon(Icons.check_rounded, size: AppIconSize.md),
               label: Text(l10n.permissionAllow),
               style: _primaryButtonStyle(theme),
             ),
@@ -473,7 +473,7 @@ class _CodexActionButtons extends StatelessWidget {
           children: [
             ElevatedButton.icon(
               onPressed: enabled ? onCodexApprove : null,
-              icon: const Icon(Icons.check_rounded, size: 15),
+              icon: const Icon(Icons.check_rounded, size: AppIconSize.md),
               label: Text(l10n.permissionYes),
               style: _primaryButtonStyle(
                 theme,

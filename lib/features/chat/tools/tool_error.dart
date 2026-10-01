@@ -73,7 +73,7 @@ class ToolError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.error_outline_rounded, size: 15, color: errorColor),
+          Icon(Icons.error_outline_rounded, size: AppIconSize.md, color: errorColor),
           const SizedBox(width: 8),
           Expanded(
             child: ToolOutputScrollFrame(

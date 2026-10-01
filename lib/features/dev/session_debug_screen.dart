@@ -296,7 +296,7 @@ class _SessionDebugScreenState extends ConsumerState<SessionDebugScreen>
               style: theme.textTheme.bodySmall?.copyWith(
                 color: cs.onSurfaceVariant,
                 fontFamily: 'monospace',
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
               ),
             ),
           ),

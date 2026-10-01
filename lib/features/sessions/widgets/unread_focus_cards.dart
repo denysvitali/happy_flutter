@@ -174,7 +174,7 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
                                     preview: widget.lastMessagePreview!,
                                     role: widget.lastMessageRole,
                                     style: theme.textTheme.bodySmall?.copyWith(
-                                      fontSize: AppFontSize.xs,
+                                      fontSize: AppFontSize.sm,
                                       height: 1.25,
                                       color: cs.onSurface.withValues(
                                         alpha: AppOpacity.high,
@@ -373,7 +373,7 @@ class UnreadFocusListRow extends StatelessWidget {
       preview: lastMessagePreview,
       previewRole: lastMessageRole,
       style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: AppFontSize.xs,
+        fontSize: AppFontSize.sm,
         height: 1.2,
         color: cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium),
       ),

@@ -74,7 +74,7 @@ class GoalLoopCard extends StatelessWidget {
               children: [
                 Icon(
                   Icons.folder_outlined,
-                  size: 15,
+                  size: AppIconSize.md,
                   color: cs.onSurfaceVariant,
                 ),
                 const SizedBox(width: AppSpacing.xxs),
@@ -95,7 +95,7 @@ class GoalLoopCard extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.smart_toy_outlined,
-                    size: 15,
+                    size: AppIconSize.md,
                     color: cs.onSurfaceVariant,
                   ),
                   const SizedBox(width: AppSpacing.xxs),

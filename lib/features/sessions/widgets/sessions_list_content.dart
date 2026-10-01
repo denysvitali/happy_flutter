@@ -789,7 +789,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onPrimary,
                 fontWeight: FontWeight.w700,
-                fontSize: AppFontSize.xxs,
+                fontSize: AppFontSize.sm,
               ),
             ),
           ),
@@ -821,7 +821,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
               '${allOthers.length}',
               style: theme.textTheme.labelSmall?.copyWith(
                 color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),

@@ -357,7 +357,7 @@ class _CountChip extends StatelessWidget {
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxxs,
       ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
+      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
     );
   }
 }
@@ -428,7 +428,7 @@ class _EntryRow extends StatelessWidget {
                     Text(
                       entry.permissions!,
                       style: TextStyle(
-                        fontSize: AppFontSize.xxs,
+                        fontSize: AppFontSize.sm,
                         fontFamily: 'monospace',
                         color: cs.onSurfaceVariant
                             .withValues(alpha: 0.7),
@@ -442,7 +442,7 @@ class _EntryRow extends StatelessWidget {
               Text(
                 formatBytes(entry.size!),
                 style: TextStyle(
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.sm,
                   fontFamily: 'monospace',
                   color: cs.onSurfaceVariant,
                 ),
@@ -459,7 +459,7 @@ class _EntryRow extends StatelessWidget {
                   vertical: AppSpacing.xxs,
                 ),
                 labelStyle: const TextStyle(
-                  fontSize: AppFontSize.xxs,
+                  fontSize: AppFontSize.sm,
                   fontFamily: 'monospace',
                 ),
               ),

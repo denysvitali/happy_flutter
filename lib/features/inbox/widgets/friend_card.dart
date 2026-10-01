@@ -115,7 +115,7 @@ class _FriendCardState extends State<FriendCard> {
                           _presenceLabel,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: cs.onSurfaceVariant,
-                            fontSize: AppFontSize.xs,
+                            fontSize: AppFontSize.sm,
                           ),
                         ),
                       ],

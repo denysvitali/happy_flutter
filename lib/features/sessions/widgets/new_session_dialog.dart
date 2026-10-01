@@ -1196,7 +1196,7 @@ class _AgentOption extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: foreground,
-                      fontSize: AppFontSize.xs,
+                      fontSize: AppFontSize.sm,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),

@@ -166,7 +166,7 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                                 child: Text(
                                   missionShortPath(path),
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    fontSize: AppFontSize.xs,
+                                    fontSize: AppFontSize.sm,
                                     color: cs.onSurfaceVariant,
                                   ),
                                   maxLines: 1,
@@ -402,7 +402,7 @@ class _LaneBadge extends StatelessWidget {
           Text(
             missionLaneLabel(context, lane),
             style: theme.textTheme.labelSmall?.copyWith(
-              fontSize: AppFontSize.xxs,
+              fontSize: AppFontSize.sm,
               fontWeight: FontWeight.w700,
               color: color,
             ),
@@ -455,7 +455,7 @@ class _PeekBubble extends StatelessWidget {
             Text(
               roleLabel,
               style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: AppFontSize.xxs,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w700,
                 color: isUser ? cs.primary : cs.onSurfaceVariant,
               ),
@@ -475,7 +475,7 @@ class _PeekBubble extends StatelessWidget {
                     child: Text(
                       item.text,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: AppFontSize.xs,
+                        fontSize: AppFontSize.sm,
                         color: cs.onSurfaceVariant,
                       ),
                     ),

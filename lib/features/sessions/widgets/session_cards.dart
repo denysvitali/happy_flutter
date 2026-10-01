@@ -83,7 +83,7 @@ Widget? buildStatusText(SessionStatus status, TextTheme textTheme) {
     style: textTheme.labelSmall?.copyWith(
       color: Color(status.statusColor),
       fontWeight: FontWeight.w500,
-      fontSize: AppFontSize.xs,
+      fontSize: AppFontSize.sm,
     ),
     overflow: TextOverflow.ellipsis,
     maxLines: 1,
@@ -315,7 +315,7 @@ Widget buildNameRow({
       ),
       if (badge != null) ...[
         const SizedBox(width: AppSpacing.xs),
-        badge,
+        Flexible(child: badge),
       ],
       const SizedBox(width: AppSpacing.xsm),
       SessionStatusIndicator(
@@ -345,7 +345,7 @@ Widget buildTimestampBadges({
         formatTimestamp(timestamp, relative: true),
         style: theme.textTheme.labelSmall?.copyWith(
           color: cs.onSurfaceVariant,
-          fontSize: AppFontSize.xs,
+          fontSize: AppFontSize.sm,
         ),
       ),
       if (unreadCount > 0) ...[
@@ -376,7 +376,10 @@ class ArchiveCountdownBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return AppBadge(
-      leading: const Icon(Icons.hourglass_bottom_outlined, size: 10),
+      leading: const Icon(
+        Icons.hourglass_bottom_outlined,
+        size: AppIconSize.xs,
+      ),
       label: label,
       backgroundColor: cs.surfaceContainer,
       borderColor: cs.outlineVariant.withValues(alpha: AppOpacity.soft),

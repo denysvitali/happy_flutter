@@ -96,7 +96,7 @@ class _TerminalCommandBarState extends State<TerminalCommandBar> {
                   Text(
                     '\u00b7',
                     style: TextStyle(
-                      fontSize: AppFontSize.xs,
+                      fontSize: AppFontSize.sm,
                       color: cs.onSurfaceVariant,
                     ),
                   ),
@@ -107,7 +107,7 @@ class _TerminalCommandBarState extends State<TerminalCommandBar> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: AppFontSize.xs,
+                        fontSize: AppFontSize.sm,
                         color: cs.onSurfaceVariant,
                       ),
                     ),

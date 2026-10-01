@@ -539,14 +539,14 @@ class _PatchHeaderBar extends StatelessWidget {
                 children: [
                   Icon(
                     Icons.check_circle_outline,
-                    size: 11,
+                    size: AppIconSize.xs,
                     color: AppColors.success,
                   ),
                   const SizedBox(width: 4),
                   Text(
                     'auto-approved',
                     style: TextStyle(
-                      fontSize: AppFontSize.xs,
+                      fontSize: AppFontSize.sm,
                       color: AppColors.success,
                       fontWeight: FontWeight.w500,
                       fontFamily: 'monospace',
@@ -674,7 +674,7 @@ class _FileChangeRow extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(icon, size: 15, color: iconColor),
+                    Icon(icon, size: AppIconSize.md, color: iconColor),
                     const SizedBox(width: 8),
                     Expanded(
                       child: RichText(
@@ -751,7 +751,7 @@ class _OperationChip extends StatelessWidget {
         label,
         style: TextStyle(
           fontFamily: 'monospace',
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
           color: cs.onSurfaceVariant,
           fontWeight: FontWeight.w500,
         ),
@@ -995,7 +995,7 @@ class _DetailSection extends StatelessWidget {
                 heading,
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.sm,
                   color: color,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
@@ -1046,7 +1046,7 @@ class _ExpandableCodeBlock extends StatefulWidget {
 
 class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
   static const int _collapsedLines = 18;
-  static const double _fontSize = AppFontSize.xs;
+  static const double _fontSize = AppFontSize.sm;
   static const double _lineHeight = 1.5;
   static const double _expandedMaxHeight = 420;
   bool _expanded = false;
@@ -1113,7 +1113,7 @@ class _ExpandableCodeBlockState extends State<_ExpandableCodeBlock> {
                 _expanded ? 'Show less' : 'Show all $_lineCount lines',
                 style: TextStyle(
                   fontFamily: 'monospace',
-                  fontSize: AppFontSize.xs,
+                  fontSize: AppFontSize.sm,
                   color: widget.textColor.withValues(alpha: 0.75),
                 ),
               ),

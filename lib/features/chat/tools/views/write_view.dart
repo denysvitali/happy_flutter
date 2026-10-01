@@ -87,13 +87,13 @@ class _WriteViewState extends State<WriteView> {
                   color: cs.surfaceContainerHighest,
                   child: Row(
                     children: [
-                      Icon(Icons.code, size: 13, color: cs.onSurfaceVariant),
+                      Icon(Icons.code, size: AppIconSize.sm, color: cs.onSurfaceVariant),
                       const SizedBox(width: AppSpacing.xsm),
                       Text(
                         _languageHint(filePath),
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant,
-                          fontSize: AppFontSize.xs,
+                          fontSize: AppFontSize.sm,
                         ),
                       ),
                       const Spacer(),
@@ -101,7 +101,7 @@ class _WriteViewState extends State<WriteView> {
                         '${allLines.length} lines',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: cs.onSurfaceVariant,
-                          fontSize: AppFontSize.xs,
+                          fontSize: AppFontSize.sm,
                         ),
                       ),
                     ],
@@ -257,14 +257,14 @@ class _InfoPill extends StatelessWidget {
         children: [
           Icon(
             icon,
-            size: 10,
+            size: AppIconSize.xs,
             color: cs.onSurfaceVariant.withValues(alpha: 0.6),
           ),
           const SizedBox(width: 3),
           Text(
             label,
             style: TextStyle(
-              fontSize: AppFontSize.xxs,
+              fontSize: AppFontSize.sm,
               color: cs.onSurfaceVariant.withValues(alpha: 0.7),
               fontWeight: FontWeight.w500,
             ),
@@ -417,7 +417,7 @@ class _CreatedBadgeState extends State<_CreatedBadge>
               style: theme.textTheme.labelSmall?.copyWith(
                 color: AppColors.success,
                 fontWeight: FontWeight.w600,
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
               ),
             ),
           ],

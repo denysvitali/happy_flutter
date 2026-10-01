@@ -139,7 +139,7 @@ class _ChangelogEntryTile extends StatelessWidget {
             child: Center(
               child: Text(
                 _typeEmoji(entry.type),
-                style: const TextStyle(fontSize: 13),
+                style: const TextStyle(fontSize: AppFontSize.md),
               ),
             ),
           ),
@@ -192,7 +192,7 @@ class _ChangelogEntryTile extends StatelessWidget {
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: cs.error,
                             fontWeight: FontWeight.w600,
-                            fontSize: 11,
+                            fontSize: AppFontSize.sm,
                           ),
                         ),
                       ),

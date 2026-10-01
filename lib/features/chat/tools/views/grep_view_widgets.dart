@@ -38,7 +38,7 @@ class MatchCountBadge extends StatelessWidget {
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxxs,
       ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.xs),
+      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
     );
   }
 }
@@ -128,7 +128,7 @@ class GroupedMatchList extends StatelessWidget {
                     showAll
                         ? Icons.expand_less
                         : Icons.expand_more,
-                    size: 15,
+                    size: AppIconSize.md,
                     color: cs.tertiary,
                   ),
                   const SizedBox(width: AppSpacing.xs),
@@ -196,7 +196,7 @@ class FileMatchGroup extends StatelessWidget {
             children: [
               Icon(
                 Icons.insert_drive_file_outlined,
-                size: 13,
+                size: AppIconSize.sm,
                 color: cs.secondary,
               ),
               const SizedBox(width: AppSpacing.xxs2),
@@ -223,7 +223,7 @@ class FileMatchGroup extends StatelessWidget {
                     parentDir,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                       color: cs.onSurfaceVariant,
                       fontFamily: 'monospace',
                     ),
@@ -301,7 +301,7 @@ class MatchCountPill extends StatelessWidget {
         horizontal: AppSpacing.xxs2,
         vertical: 1,
       ),
-      labelStyle: const TextStyle(fontSize: AppFontSize.xxs),
+      labelStyle: const TextStyle(fontSize: AppFontSize.sm),
     );
   }
 }
@@ -367,7 +367,7 @@ class GrepMatchRow extends StatelessWidget {
                 child: Text(
                   '${match.lineNumber}',
                   style: TextStyle(
-                    fontSize: AppFontSize.xs,
+                    fontSize: AppFontSize.sm,
                     fontFamily: 'monospace',
                     color: cs.onSurfaceVariant
                         .withValues(alpha: 0.6),
@@ -535,7 +535,7 @@ class FileListMatchRow extends StatelessWidget {
           children: [
             Icon(
               Icons.insert_drive_file_outlined,
-              size: 15,
+              size: AppIconSize.md,
               color: cs.secondary,
             ),
             const SizedBox(width: AppSpacing.sm),

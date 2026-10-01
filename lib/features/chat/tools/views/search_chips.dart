@@ -45,7 +45,7 @@ class SearchToolBadge extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
               fontWeight: FontWeight.w600,
               color: cs.onSurfaceVariant,
               letterSpacing: 0.3,
@@ -104,7 +104,7 @@ class SearchPathChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
                 color: cs.onSurfaceVariant,
               ),
             ),

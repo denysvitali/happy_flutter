@@ -119,7 +119,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
                     statusInfo.text,
                     style: TextStyle(
                       color: statusInfo.textColor,
-                      fontSize: 14,
+                      fontSize: AppFontSize.base,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -130,7 +130,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
                 context.l10n.voiceAssistantTapToEnd,
                 style: TextStyle(
                   color: statusInfo.textColor,
-                  fontSize: 12,
+                  fontSize: AppFontSize.sm,
                 ),
               ),
             ],
@@ -169,7 +169,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
               statusInfo.text,
               style: TextStyle(
                 color: statusInfo.textColor,
-                fontSize: 12,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,

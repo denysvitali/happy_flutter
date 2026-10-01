@@ -113,7 +113,7 @@ class _MetaChip extends StatelessWidget {
             label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
-              fontSize: AppFontSize.xxs,
+              fontSize: AppFontSize.sm,
             ),
           ),
           const SizedBox(width: AppSpacing.xs),
@@ -122,7 +122,7 @@ class _MetaChip extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'monospace',
               fontFamilyFallback: const ['Courier New', 'Courier'],
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
               color: theme.colorScheme.onSurface,
             ),
           ),
@@ -157,7 +157,7 @@ class _CwdRow extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'monospace',
               fontFamilyFallback: const ['Courier New', 'Courier'],
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),

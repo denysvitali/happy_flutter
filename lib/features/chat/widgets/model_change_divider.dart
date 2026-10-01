@@ -59,7 +59,7 @@ class ModelChangeDivider extends StatelessWidget {
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
                       fontWeight: FontWeight.w600,
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                       letterSpacing: 0.4,
                     ),
                   ),

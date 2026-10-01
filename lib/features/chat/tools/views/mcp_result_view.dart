@@ -147,7 +147,7 @@ class _McpResultTitleBar extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.4,
                 color: cs.onSurfaceVariant,

@@ -205,7 +205,7 @@ class _SessionCardState extends State<SessionCard> {
                             style: theme.textTheme.bodySmall?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontFamily: 'monospace',
-                                fontSize: AppFontSize.xs,
+                                fontSize: AppFontSize.sm,
                                 height: 1.2,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -235,7 +235,7 @@ class _SessionCardState extends State<SessionCard> {
                             ),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: cs.onSurfaceVariant,
-                              fontSize: AppFontSize.xs,
+                              fontSize: AppFontSize.sm,
                             ),
                           ),
                           if (todoProgress != null) ...[

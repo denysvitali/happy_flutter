@@ -253,7 +253,7 @@ TextTheme _buildTextTheme({required bool dark}) {
         ),
         // Body — Inter
         bodyLarge: _inter(
-          fontSize: 15,
+          fontSize: AppFontSize.lg,
           fontWeight: FontWeight.w400,
           letterSpacing: 0,
           color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
@@ -280,10 +280,12 @@ TextTheme _buildTextTheme({required bool dark}) {
           fontWeight: FontWeight.w500,
           letterSpacing: 0.1,
         ),
+        // Smallest text is 12 — see [AppFontSize]; weight, not size, tells
+        // a caption from body-small.
         labelSmall: _inter(
-          fontSize: 11,
+          fontSize: AppFontSize.sm,
           fontWeight: FontWeight.w500,
-          letterSpacing: 0.2,
+          letterSpacing: 0.1,
         ),
       );
 }
@@ -300,7 +302,7 @@ AppBarTheme _buildAppBarTheme({required bool dark}) {
     foregroundColor: dark ? Colors.white : _kLightTextPrimary,
     centerTitle: false,
     titleTextStyle: _inter(
-      fontSize: 20,
+      fontSize: AppFontSize.xl,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
@@ -400,7 +402,7 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
 }
 
 ChipThemeData _buildChipTheme({required bool dark}) {
-  // 8 px radius, tighter label (11 px), improved horizontal padding.
+  // 8 px radius, 12 px label, improved horizontal padding.
   return ChipThemeData(
     padding: EdgeInsets.symmetric(
       horizontal: AppSpacing.sm,
@@ -408,7 +410,7 @@ ChipThemeData _buildChipTheme({required bool dark}) {
     ),
     labelPadding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
     labelStyle: _inter(
-      fontSize: 12,
+      fontSize: AppFontSize.sm,
       fontWeight: FontWeight.w500,
       letterSpacing: 0.1,
     ),
@@ -453,7 +455,7 @@ ElevatedButtonThemeData _buildElevatedButtonTheme() {
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       textStyle: _inter(
-        fontSize: 15,
+        fontSize: AppFontSize.base,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.1,
       ),
@@ -494,7 +496,11 @@ FilledButtonThemeData _buildFilledButtonTheme() {
         ),
       ),
       textStyle: WidgetStatePropertyAll(
-        _inter(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.1),
+        _inter(
+          fontSize: AppFontSize.base,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.1,
+        ),
       ),
       // Gradient via backgroundBuilder (Flutter ≥ 3.13).
       backgroundBuilder: (context, states, child) {
@@ -557,7 +563,11 @@ OutlinedButtonThemeData _buildOutlinedButtonTheme({required bool dark}) {
         ),
       ),
       textStyle: WidgetStatePropertyAll(
-        _inter(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: 0.1),
+        _inter(
+          fontSize: AppFontSize.base,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.1,
+        ),
       ),
     ),
   );
@@ -573,12 +583,12 @@ ListTileThemeData _buildListTileTheme({required bool dark}) {
       borderRadius: BorderRadius.circular(AppRadius.md),
     ),
     titleTextStyle: _inter(
-      fontSize: 15,
+      fontSize: AppFontSize.base,
       fontWeight: FontWeight.w500,
       color: dark ? _kDarkTextSecondary : _kLightTextSecondary,
     ),
     subtitleTextStyle: _inter(
-      fontSize: 13,
+      fontSize: AppFontSize.md,
       color: dark ? _kDarkTextSubtle : _kLightTextSubtle,
     ),
   );
@@ -593,7 +603,7 @@ NavigationBarThemeData _buildNavigationBarTheme({required bool dark}) {
     labelTextStyle: WidgetStateProperty.resolveWith((states) {
       final selected = states.contains(WidgetState.selected);
       return _inter(
-        fontSize: 12,
+        fontSize: AppFontSize.sm,
         fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
         color: selected
             ? _kSeedColor
@@ -635,12 +645,12 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
       borderRadius: BorderRadius.circular(AppRadius.xl),
     ),
     titleTextStyle: _inter(
-      fontSize: 20,
+      fontSize: AppFontSize.xl,
       fontWeight: FontWeight.w600,
       color: dark ? Colors.white : _kLightTextPrimary,
     ),
     contentTextStyle: _inter(
-      fontSize: 14,
+      fontSize: AppFontSize.base,
       color: dark ? _kDarkTextMuted : _kLightTextMuted,
     ),
   );
@@ -649,7 +659,7 @@ DialogThemeData _buildDialogTheme({required bool dark}) {
 SnackBarThemeData _buildSnackBarTheme({required bool dark}) {
   return SnackBarThemeData(
     backgroundColor: dark ? _kSnackBarDark : _kSnackBarLight,
-    contentTextStyle: _inter(fontSize: 14, color: Colors.white),
+    contentTextStyle: _inter(fontSize: AppFontSize.base, color: Colors.white),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.md),
     ),

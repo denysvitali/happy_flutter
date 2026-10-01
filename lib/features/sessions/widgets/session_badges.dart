@@ -154,7 +154,7 @@ class DraftBadge extends StatelessWidget {
         ),
         child: Icon(
           Icons.drive_file_rename_outline,
-          size: 10,
+          size: AppIconSize.xs,
           color: cs.onSurfaceVariant,
         ),
       ),
@@ -176,7 +176,7 @@ class TodoProgressBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBadge(
-      leading: const Icon(Icons.lightbulb_outline, size: 10),
+      leading: const Icon(Icons.lightbulb_outline, size: AppIconSize.xs),
       label: '$completed/$total',
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
@@ -212,7 +212,7 @@ class UnreadBadge extends StatelessWidget {
       child: Text(
         count > 99 ? '99+' : '$count',
         style: TextStyle(
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
           fontWeight: FontWeight.w600,
           color: cs.onPrimary,
         ),

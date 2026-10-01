@@ -142,7 +142,7 @@ class _GoalIconTile extends StatelessWidget {
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
-      child: Icon(Icons.flag_rounded, size: 17, color: accent),
+      child: Icon(Icons.flag_rounded, size: AppIconSize.lg, color: accent),
     );
   }
 }

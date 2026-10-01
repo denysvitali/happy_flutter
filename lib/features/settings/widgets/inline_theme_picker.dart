@@ -187,7 +187,7 @@ class _ThemePreviewCard extends StatelessWidget {
                     Text(
                       label,
                       style: TextStyle(
-                        fontSize: AppFontSize.xs,
+                        fontSize: AppFontSize.sm,
                         fontWeight: isSelected
                             ? FontWeight.w600
                             : FontWeight.w400,

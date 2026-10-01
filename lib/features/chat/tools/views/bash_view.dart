@@ -251,7 +251,7 @@ class FilePillChip extends StatelessWidget {
                       text: dir,
                       style: TextStyle(
                         fontFamily: 'monospace',
-                        fontSize: AppFontSize.xs,
+                        fontSize: AppFontSize.sm,
                         color: cs.onSurfaceVariant,
                       ),
                     ),
@@ -259,7 +259,7 @@ class FilePillChip extends StatelessWidget {
                     text: filename,
                     style: TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: AppFontSize.xs,
+                      fontSize: AppFontSize.sm,
                       fontWeight: FontWeight.w600,
                       color: cs.onSurface,
                     ),

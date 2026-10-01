@@ -93,7 +93,7 @@ class AuroraSectionHeader extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: AppFontSize.xs + 1,
+                  fontSize: AppFontSize.sm + 1,
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.w600,
                   color: context.textMuted,

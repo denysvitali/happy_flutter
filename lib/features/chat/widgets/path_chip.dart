@@ -27,7 +27,7 @@ class PathChip extends StatelessWidget {
         children: [
           Icon(
             Icons.folder_outlined,
-            size: 10,
+            size: AppIconSize.xs,
             color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
           ),
           const SizedBox(width: 3),
@@ -36,7 +36,7 @@ class PathChip extends StatelessWidget {
               path,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: AppFontSize.xxs,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w500,
                 color: colorScheme.onSurfaceVariant,
                 letterSpacing: -0.2,

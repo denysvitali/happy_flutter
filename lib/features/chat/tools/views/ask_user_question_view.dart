@@ -420,7 +420,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
             child: Text(
               'ACTION',
               style: TextStyle(
-                fontSize: AppFontSize.xxs,
+                fontSize: AppFontSize.sm,
                 fontWeight: FontWeight.w800,
                 color: primary,
                 letterSpacing: 0.8,

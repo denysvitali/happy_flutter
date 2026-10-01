@@ -289,7 +289,7 @@ class _Chip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: AppFontSize.xs,
+                fontSize: AppFontSize.sm,
                 color: color,
                 fontWeight: FontWeight.w600,
               ),

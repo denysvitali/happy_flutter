@@ -456,7 +456,7 @@ class _CommandPaletteOverlayState extends State<CommandPaletteOverlay> {
                             child: Text(
                               'ESC',
                               style: TextStyle(
-                                fontSize: AppFontSize.xs,
+                                fontSize: AppFontSize.sm,
                                 fontWeight: FontWeight.w500,
                                 color: colorScheme.onSurfaceVariant,
                                 fontFamily: 'monospace',

@@ -360,14 +360,14 @@ class _ResultSection extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.article_outlined,
-                    size: 13,
+                    size: AppIconSize.sm,
                     color: AppColors.success,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     'Content preview',
                     style: TextStyle(
-                      fontSize: AppFontSize.xs,
+                      fontSize: AppFontSize.sm,
                       fontWeight: FontWeight.w600,
                       color: AppColors.success.withValues(alpha: 204 / 255.0),
                       letterSpacing: 0.3,
@@ -377,7 +377,7 @@ class _ResultSection extends StatelessWidget {
                   Text(
                     '${content.length} chars',
                     style: TextStyle(
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                       color: theme.colorScheme.onSurfaceVariant
                           .withValues(alpha: 153 / 255.0),
                     ),
@@ -411,7 +411,7 @@ class _ResultSection extends StatelessWidget {
                     ),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      textStyle: const TextStyle(fontSize: 12),
+                      textStyle: const TextStyle(fontSize: AppFontSize.sm),
                       side: BorderSide(
                         color: theme.colorScheme.outlineVariant,
                       ),

@@ -170,7 +170,7 @@ class _DiffStatsRow extends StatelessWidget {
           Text(
             '+${stats.additions}',
             style: _monoStyle(
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
               color: colors.addedText,
               fontWeight: FontWeight.w600,
             ),
@@ -179,7 +179,7 @@ class _DiffStatsRow extends StatelessWidget {
           Text(
             '-${stats.deletions}',
             style: _monoStyle(
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
               color: colors.removedText,
               fontWeight: FontWeight.w600,
             ),
@@ -188,7 +188,7 @@ class _DiffStatsRow extends StatelessWidget {
           Text(
             '(${stats.totalChanges} changes)',
             style: _monoStyle(
-              fontSize: AppFontSize.xs,
+              fontSize: AppFontSize.sm,
               color: colors.hunkHeaderText,
             ),
           ),

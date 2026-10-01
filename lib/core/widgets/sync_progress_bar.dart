@@ -71,7 +71,7 @@ class SyncProgressBar extends ConsumerWidget {
                                     )
                                   : Icon(
                                       status.icon,
-                                      size: 15,
+                                      size: AppIconSize.md,
                                       color: status.foregroundColor(cs),
                                     ),
                             ),

@@ -815,7 +815,7 @@ class _DisclosureButton extends StatelessWidget {
                     Text(
                       label,
                       style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: AppFontSize.xs,
+                        fontSize: AppFontSize.sm,
                         fontWeight: FontWeight.w600,
                         color: cs.onSurfaceVariant,
                         fontFeatures: const [FontFeature.tabularFigures()],

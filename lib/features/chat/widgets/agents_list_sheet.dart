@@ -494,7 +494,7 @@ class AgentsListSheet extends StatelessWidget {
                     _progressLabel(progress),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: cs.onSurfaceVariant,
-                      fontSize: AppFontSize.xxs,
+                      fontSize: AppFontSize.sm,
                     ),
                   ),
                 ],
@@ -717,12 +717,12 @@ class _AgentTypeBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: cs.onPrimaryContainer),
+          Icon(icon, size: AppIconSize.xs, color: cs.onPrimaryContainer),
           const SizedBox(width: 3),
           Text(
             type,
             style: TextStyle(
-              fontSize: AppFontSize.xxs,
+              fontSize: AppFontSize.sm,
               fontWeight: FontWeight.w500,
               color: cs.onPrimaryContainer,
               letterSpacing: 0.2,
@@ -772,12 +772,12 @@ class _InfoBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 10, color: cs.onTertiaryContainer),
+          Icon(icon, size: AppIconSize.xs, color: cs.onTertiaryContainer),
           const SizedBox(width: 3),
           Text(
             label,
             style: TextStyle(
-              fontSize: AppFontSize.xxs,
+              fontSize: AppFontSize.sm,
               fontWeight: FontWeight.w500,
               color: cs.onTertiaryContainer,
               letterSpacing: 0.2,
@@ -812,7 +812,7 @@ class _ChildCountBadge extends StatelessWidget {
         '$count',
         style: theme.textTheme.labelSmall?.copyWith(
           color: cs.onSurfaceVariant.withValues(alpha: 0.7),
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
         ),
       ),
     );

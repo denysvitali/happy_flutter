@@ -18,16 +18,16 @@ abstract final class MissionType {
 
   /// Secondary detail under a row name. 12sp / 400.
   static TextStyle meta(ThemeData theme, Color color) =>
-      _base(theme, size: AppFontSize.xs, weight: FontWeight.w400, color: color);
+      _base(theme, size: AppFontSize.sm, weight: FontWeight.w400, color: color);
 
   /// Section headers, filter chips and their labels. 12sp / 600.
   static TextStyle label(ThemeData theme, Color color) =>
-      _base(theme, size: AppFontSize.xs, weight: FontWeight.w600, color: color);
+      _base(theme, size: AppFontSize.sm, weight: FontWeight.w600, color: color);
 
   /// Counts, pills and timers. 12sp / 700 with tabular figures.
   static TextStyle badge(ThemeData theme, Color color) => _base(
     theme,
-    size: AppFontSize.xs,
+    size: AppFontSize.sm,
     weight: FontWeight.w700,
     color: color,
   ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]);

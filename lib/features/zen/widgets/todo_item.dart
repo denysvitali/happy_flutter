@@ -245,7 +245,7 @@ class _PriorityChip extends StatelessWidget {
         style: theme.textTheme.labelSmall?.copyWith(
           color: color,
           fontWeight: FontWeight.w600,
-          fontSize: AppFontSize.xxs,
+          fontSize: AppFontSize.sm,
         ),
       ),
     );
