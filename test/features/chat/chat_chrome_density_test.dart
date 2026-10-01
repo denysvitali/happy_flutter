@@ -250,7 +250,9 @@ void main() {
       final regular = await pumpBar(tester, ChatChromeDensity.regular);
       final dense = await pumpBar(tester, ChatChromeDensity.tight);
 
-      expect(dense, lessThan(regular));
+      // The bar is one compact row at every density now, so a short pane
+      // never gets a taller bar than a full-height one.
+      expect(dense, lessThanOrEqualTo(regular));
       // The Stop affordance and the single live-state label both survive.
       expect(find.text('Stop'), findsOneWidget);
       expect(find.byType(TextButton), findsOneWidget);

@@ -162,20 +162,16 @@ const _kSnackBarLight = Color(0xFF1E293B);
 
 // ─── Text themes ─────────────────────────────────────────────────────────────
 
+/// The one UI font family. It declares the 400/500/600/700 files in
+/// pubspec.yaml, so any `copyWith(fontWeight: …)` downstream resolves to the
+/// real weight.
+///
+/// Do not reintroduce per-weight families (`Inter_regular`, `Inter_600`, …)
+/// here: a style built on `Inter_regular` and then given `w600` keeps the
+/// regular-only family, so Flutter synthesizes a smeared faux bold that is
+/// visibly wider and heavier than real Inter SemiBold — the same nominal
+/// size then looks different from screen to screen.
 const _kInterFontFamily = 'Inter';
-const _kInterRegularFontFamily = 'Inter_regular';
-const _kInterMediumFontFamily = 'Inter_500';
-const _kInterSemiBoldFontFamily = 'Inter_600';
-const _kInterBoldFontFamily = 'Inter_700';
-
-String _interFamilyFor(FontWeight? fontWeight) {
-  return switch (fontWeight) {
-    FontWeight.w500 => _kInterMediumFontFamily,
-    FontWeight.w600 => _kInterSemiBoldFontFamily,
-    FontWeight.w700 => _kInterBoldFontFamily,
-    _ => _kInterRegularFontFamily,
-  };
-}
 
 TextStyle _inter({
   double? fontSize,
@@ -184,8 +180,7 @@ TextStyle _inter({
   Color? color,
 }) {
   return TextStyle(
-    fontFamily: _interFamilyFor(fontWeight),
-    fontFamilyFallback: const [_kInterFontFamily],
+    fontFamily: _kInterFontFamily,
     fontSize: fontSize,
     fontWeight: fontWeight,
     letterSpacing: letterSpacing,
@@ -402,7 +397,7 @@ InputDecorationTheme _buildInputDecorationTheme({required bool dark}) {
 }
 
 ChipThemeData _buildChipTheme({required bool dark}) {
-  // 8 px radius, 12 px label, improved horizontal padding.
+  // Pill shape, 12 px label, improved horizontal padding.
   return ChipThemeData(
     padding: EdgeInsets.symmetric(
       horizontal: AppSpacing.sm,
@@ -414,9 +409,8 @@ ChipThemeData _buildChipTheme({required bool dark}) {
       fontWeight: FontWeight.w500,
       letterSpacing: 0.1,
     ),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-    ),
+    // Full pill, like AppBadge and the composer chips.
+    shape: const StadiumBorder(),
     side: BorderSide(
       color: dark
           ? Colors.white.withValues(alpha: 25 / 255)

@@ -28,7 +28,7 @@ class TurnReviewBar extends StatelessWidget {
     final failed = turn.summary.failed > 0;
     final detail = turn.summary.describe(l10n);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: AppInlineRow(
         primaryActionKey: const ValueKey('turn-review-bar'),
         onTap: () => _openReview(context),

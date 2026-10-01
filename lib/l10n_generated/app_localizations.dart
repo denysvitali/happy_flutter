@@ -1790,7 +1790,7 @@ abstract class AppLocalizations {
   /// No description provided for @sessionsActiveSessions.
   ///
   /// In en, this message translates to:
-  /// **'ACTIVE SESSIONS'**
+  /// **'Active sessions'**
   String get sessionsActiveSessions;
 
   /// No description provided for @sessionsNeedsAttention.

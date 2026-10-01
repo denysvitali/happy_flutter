@@ -7,7 +7,6 @@ import '../../../core/i18n/app_localizations.dart';
 import '../../../core/theme/app_color_scheme.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
-import 'chat_chrome_density.dart';
 
 /// What the agent is doing right now, from the chat's point of view.
 ///
@@ -80,19 +79,12 @@ class ThinkingStopBar extends StatelessWidget {
       ChatAgentActivity.stopping => l10n.chatActivityStopping,
       ChatAgentActivity.stopUnconfirmed => l10n.chatActivityStopUnconfirmed,
     };
-    // Short panes shed the capsule's floating margin and inner padding: the
-    // bar still sits between the list and the composer with the same Stop
-    // affordance, it just stops costing a full touch target of margin.
-    final dense = chatChromeIsSlim(context);
-
     return Semantics(
       liveRegion: true,
       container: true,
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: dense ? 0 : AppSpacing.xxs,
-        ),
+        // Same inset as transcript rows so icons share one left edge.
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
         child: AppInlineRow(
           leading: unconfirmed
               ? const Icon(

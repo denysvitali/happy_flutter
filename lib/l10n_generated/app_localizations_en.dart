@@ -939,7 +939,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dateGroupOlder => 'Older';
 
   @override
-  String get sessionsActiveSessions => 'ACTIVE SESSIONS';
+  String get sessionsActiveSessions => 'Active sessions';
 
   @override
   String get sessionsNeedsAttention => 'NEEDS ATTENTION';

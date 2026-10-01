@@ -65,10 +65,8 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
     // so the activity chrome reads as quiet context and the composer stays
     // the one boundary. Its leading icon lines up with the draft text.
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: dense ? 0 : AppSpacing.xxs,
-      ),
+      // Same inset as transcript rows so icons share one left edge.
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: Material(
         type: MaterialType.transparency,
         borderRadius: BorderRadius.circular(AppRadius.md),
