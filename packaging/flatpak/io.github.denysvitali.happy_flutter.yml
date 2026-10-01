@@ -7,6 +7,10 @@ sdk-extensions:
   - org.freedesktop.Sdk.Extension.llvm20
 command: happy_flutter
 separate-locales: false
+# Ubuntu 22.04's builder invokes legacy appstream-compose, which GNOME 49
+# replaced with appstreamcli. Bundles retain their desktop/metainfo files;
+# repository catalog generation belongs to a future hosted app remote.
+appstream-compose: false
 finish-args:
   - --share=network
   - --share=ipc
