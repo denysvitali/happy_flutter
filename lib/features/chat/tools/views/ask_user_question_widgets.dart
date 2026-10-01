@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_tokens.dart';
 import 'ask_user_question_view.dart' show Question, QuestionOption;
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Section displaying a single question with selectable option
 /// chips.
@@ -52,13 +53,10 @@ class QuestionSection extends StatelessWidget {
                       BorderRadius.circular(AppRadius.xsm),
                 ),
                 child: Text(
-                  question.header.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: AppFontSize.sm,
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme
-                        .onSecondaryContainer,
-                    letterSpacing: 0.5,
+                  question.header,
+                  style: AppText.label(
+                    theme,
+                    theme.colorScheme.onSecondaryContainer,
                   ),
                 ),
               ),
@@ -93,9 +91,8 @@ class QuestionSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   question.question,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(
-                    fontWeight: FontWeight.w500,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface,
                     height: 1.4,
                   ),
                 ),
@@ -317,14 +314,9 @@ class _OptionChipState extends State<OptionChip>
         const SizedBox(width: 6),
         Text(
           widget.option.label,
-          style: TextStyle(
-            fontSize: AppFontSize.md,
-            fontWeight: isSelected
-                ? FontWeight.w600
-                : FontWeight.w500,
-            color: isSelected
-                ? primary
-                : theme.colorScheme.onSurface,
+          style: AppText.title(
+            theme,
+            isSelected ? primary : theme.colorScheme.onSurface,
           ),
         ),
       ],
@@ -355,25 +347,15 @@ class _OptionChipState extends State<OptionChip>
             children: [
               Text(
                 widget.option.label,
-                style: TextStyle(
-                  fontSize: AppFontSize.base,
-                  fontWeight: isSelected
-                      ? FontWeight.w600
-                      : FontWeight.w500,
-                  color: isSelected
-                      ? primary
-                      : theme.colorScheme.onSurface,
+                style: AppText.title(
+                  theme,
+                  isSelected ? primary : theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 widget.option.description,
-                style: TextStyle(
-                  fontSize: AppFontSize.sm,
-                  color: theme
-                      .colorScheme.onSurfaceVariant,
-                  height: 1.3,
-                ),
+                style: AppText.secondary(theme),
               ),
             ],
           ),

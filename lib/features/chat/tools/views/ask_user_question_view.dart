@@ -6,6 +6,7 @@ import '../../../../core/theme/app_tokens.dart';
 import '../../../../core/widgets/app_circular_progress_indicator.dart';
 import '../../../../core/wire/wire_parsers.dart';
 import 'ask_user_question_widgets.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Question option model.
 class QuestionOption {
@@ -392,16 +393,13 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
               children: [
                 Text(
                   'Input needed',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    color: primary,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
-                  ),
+                  style: AppText.title(theme, primary),
                 ),
                 Text(
                   'Please choose an option below',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: primary.withValues(alpha: 180 / 255),
+                  style: AppText.secondary(
+                    theme,
+                    primary.withValues(alpha: 180 / 255),
                   ),
                 ),
               ],
@@ -418,13 +416,8 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
               ),
             ),
             child: Text(
-              'ACTION',
-              style: TextStyle(
-                fontSize: AppFontSize.sm,
-                fontWeight: FontWeight.w800,
-                color: primary,
-                letterSpacing: 0.8,
-              ),
+              'Action',
+              style: AppText.badge(theme, primary),
             ),
           ),
         ],
