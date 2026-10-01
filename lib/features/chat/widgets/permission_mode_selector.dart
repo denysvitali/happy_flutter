@@ -273,6 +273,7 @@ class PermissionModeSelector extends ConsumerWidget {
       excludeSemantics: true,
       child: ComposerSelectorChip(
         onTap: enabled ? () => _showModeSheet(context) : null,
+        bordered: false,
         width: width,
         label: currentMode.localizedDisplayName(l10n),
         // The high-risk state stays visible and distinct at every width.

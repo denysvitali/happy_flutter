@@ -37,10 +37,14 @@ class ComposerSelectorChip extends StatelessWidget {
     this.warning = false,
     this.warningColor,
     this.onTap,
+    this.bordered = true,
     this.width,
     this.labelMaxWidth,
     super.key,
   });
+
+  /// Draws the hairline outline; false leaves just the tinted fill.
+  final bool bordered;
 
   /// The current value, e.g. `Opus`.
   final String label;
@@ -105,9 +109,11 @@ class ComposerSelectorChip extends StatelessWidget {
 
     final chip = Material(
       color: background,
-      shape: _shape.copyWith(
-        side: BorderSide(color: borderColor, width: AppBorder.hairline),
-      ),
+      shape: bordered
+          ? _shape.copyWith(
+              side: BorderSide(color: borderColor, width: AppBorder.hairline),
+            )
+          : _shape,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
