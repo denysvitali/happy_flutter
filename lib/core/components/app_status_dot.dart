@@ -6,12 +6,12 @@ import '../theme/app_tokens.dart';
 ///
 /// Used to show connection/activity status throughout the app.
 /// When [pulse] is true the dot animates with a combined opacity
-/// and scale effect on a 1.5-second loop.
+/// and scale effect briefly, then remains visible without scheduling frames.
 class AppStatusDot extends StatefulWidget {
   /// Creates a status dot.
   ///
   /// [color] is required. [size] defaults to 8 logical pixels.
-  /// [pulse] enables the looping animation.
+  /// [pulse] enables a bounded activity animation.
   /// [pulseColor] overrides the outer ring color when pulsing;
   /// defaults to [color] at reduced opacity.
   const AppStatusDot({
@@ -30,7 +30,7 @@ class AppStatusDot extends StatefulWidget {
   /// Diameter of the dot in logical pixels.
   final double size;
 
-  /// Whether to show the looping pulse animation.
+  /// Whether to pulse briefly when activity starts.
   final bool pulse;
 
   /// Color used for the outer pulse ring.
@@ -53,7 +53,7 @@ class _AppStatusDotState extends State<AppStatusDot>
   late AnimationController _controller;
   late Animation<double> _opacity;
   late Animation<double> _scale;
-  bool _reduceMotion = false;
+  bool? _reduceMotion;
   bool _tickerActive = true;
 
   @override
@@ -71,7 +71,6 @@ class _AppStatusDotState extends State<AppStatusDot>
       begin: 1.0,
       end: 1.6,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-    _syncAnimation();
   }
 
   @override
@@ -93,12 +92,23 @@ class _AppStatusDotState extends State<AppStatusDot>
   @override
   void didUpdateWidget(AppStatusDot oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.pulse != widget.pulse) _syncAnimation();
+    if (oldWidget.pulse != widget.pulse || oldWidget.color != widget.color) {
+      _syncAnimation();
+    }
   }
 
   void _syncAnimation() {
-    if (widget.pulse && !_reduceMotion && _tickerActive) {
-      _controller.repeat(reverse: true);
+    if (widget.pulse && !(_reduceMotion ?? true) && _tickerActive) {
+      _controller.value = 0;
+      _controller
+          .repeat(reverse: true, count: AppMotion.activityPulseCount)
+          .whenCompleteOrCancel(() {
+            // The last frame can overshoot the repeat boundary. Restore the
+            // resting value without touching a newer animation or disposal.
+            if (mounted && !_controller.isAnimating) {
+              _controller.value = 0;
+            }
+          });
     } else {
       _controller
         ..stop()
@@ -115,7 +125,7 @@ class _AppStatusDotState extends State<AppStatusDot>
   @override
   Widget build(BuildContext context) {
     Widget dot;
-    if (!widget.pulse || _reduceMotion) {
+    if (!widget.pulse || (_reduceMotion ?? true)) {
       dot = _buildDot();
     } else {
       dot = AnimatedBuilder(

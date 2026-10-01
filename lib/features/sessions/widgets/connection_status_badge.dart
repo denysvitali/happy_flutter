@@ -7,7 +7,8 @@ import '../../../core/theme/app_tokens.dart';
 
 /// Connection status badge in the app bar.
 ///
-/// Shows a pulsing indicator while connecting. Each state uses a
+/// Pulses briefly when connecting, then keeps the connection glyph visible.
+/// Each state uses a
 /// distinct glyph as well as a distinct colour — colour alone is not
 /// perceivable for colourblind users — and carries a localized
 /// [Semantics] label for screen readers.
@@ -25,7 +26,8 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  bool _tickerActive = true;
+  bool? _tickerActive;
+  bool? _reduceMotion;
 
   @override
   void initState() {
@@ -34,11 +36,9 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
       duration: const Duration(milliseconds: 900),
       vsync: this,
     );
-    _pulseAnimation = CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
+    _pulseAnimation = Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
-    _updateAnimation();
   }
 
   @override
@@ -54,33 +54,32 @@ class _ConnectionStatusBadgeState extends State<ConnectionStatusBadge>
     super.didChangeDependencies();
     final tickerActive = TickerMode.valuesOf(context).enabled;
     final motionReduced = AppMotion.reduceMotion(context);
-    if (_tickerActive == tickerActive) {
-      if (motionReduced) {
-        _pulseController
-          ..stop()
-          ..value = 1;
-      } else {
-        _updateAnimation();
-      }
+    if (_tickerActive == tickerActive && _reduceMotion == motionReduced) {
       return;
     }
     _tickerActive = tickerActive;
-    if (motionReduced) {
-      _pulseController
-        ..stop()
-        ..value = 1;
-    } else {
-      _updateAnimation();
-    }
+    _reduceMotion = motionReduced;
+    _updateAnimation();
   }
 
   void _updateAnimation() {
-    if (widget.status == ConnectionStatus.connecting && _tickerActive) {
-      _pulseController.repeat(reverse: true);
+    if (widget.status == ConnectionStatus.connecting &&
+        (_tickerActive ?? false) &&
+        !(_reduceMotion ?? true)) {
+      _pulseController.value = 0;
+      _pulseController
+          .repeat(reverse: true, count: AppMotion.activityPulseCount)
+          .whenCompleteOrCancel(() {
+            // The last frame can overshoot the repeat boundary. Restore the
+            // resting value without touching a newer animation or disposal.
+            if (mounted && !_pulseController.isAnimating) {
+              _pulseController.value = 0;
+            }
+          });
     } else {
       _pulseController
         ..stop()
-        ..value = 1.0;
+        ..value = 0;
     }
   }
 

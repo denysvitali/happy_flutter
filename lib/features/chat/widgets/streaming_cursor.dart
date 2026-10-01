@@ -8,9 +8,9 @@ import '../../../core/theme/app_tokens.dart';
 ///
 /// Aurora Glass treatment: a rounded caret (with a trailing dot) painted
 /// with the signature [AppColorScheme.accentLinearGradient], breathing on
-/// a ~1 s scale + opacity loop to signal that the AI is still generating.
+/// a few scale + opacity pulses before settling while generation continues.
 /// Disappears once streaming ends. Honors
-/// [MediaQuery.disableAnimationsOf] — when animations are disabled the
+/// [AppMotion.reduceMotion] — when animations are disabled the
 /// caret renders static at full strength.
 ///
 /// Usage:
@@ -34,6 +34,7 @@ class _StreamingCursorState extends State<StreamingCursor>
   late final AnimationController _controller;
   late final Animation<double> _breath;
   bool? _animationsDisabled;
+  bool? _tickerActive;
 
   /// Caret stem width ([AppSpacing.xxxs]) and height — roughly the x-height
   /// of the body copy it trails.
@@ -53,24 +54,38 @@ class _StreamingCursorState extends State<StreamingCursor>
 
     // One pulse breathes down and back up (reverse repeat), so the caret
     // never blinks out completely — it dims toward [_minBreath] and
-    // returns, once per [AppDuration.pulse].
-    _breath = Tween<double>(begin: 1.0, end: _minBreath).animate(
-      CurvedAnimation(parent: _controller, curve: AppCurve.standard),
-    );
+    // returns, then settles at full strength after the bounded passes.
+    _breath = Tween<double>(
+      begin: 1.0,
+      end: _minBreath,
+    ).animate(CurvedAnimation(parent: _controller, curve: AppCurve.standard));
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final disabled = MediaQuery.disableAnimationsOf(context);
-    if (_animationsDisabled == disabled) return;
+    final disabled = AppMotion.reduceMotion(context);
+    final tickerActive = TickerMode.valuesOf(context).enabled;
+    if (_animationsDisabled == disabled && _tickerActive == tickerActive) {
+      return;
+    }
     _animationsDisabled = disabled;
-    if (disabled) {
+    _tickerActive = tickerActive;
+    if (disabled || !tickerActive) {
       _controller
         ..stop()
         ..value = 0;
     } else {
-      _controller.repeat(reverse: true);
+      _controller.value = 0;
+      _controller
+          .repeat(reverse: true, count: AppMotion.activityPulseCount)
+          .whenCompleteOrCancel(() {
+            // The last frame can overshoot the repeat boundary. Restore the
+            // resting value without touching a newer animation or disposal.
+            if (mounted && !_controller.isAnimating) {
+              _controller.value = 0;
+            }
+          });
     }
   }
 

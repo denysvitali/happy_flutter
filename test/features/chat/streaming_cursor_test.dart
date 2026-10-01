@@ -15,8 +15,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('StreamingCursor', () {
-    testWidgets('renders a FadeTransition inside StreamingCursor',
-        (tester) async {
+    testWidgets('renders a FadeTransition inside StreamingCursor', (
+      tester,
+    ) async {
       await tester.pumpWidget(_app(const StreamingCursor()));
 
       expect(
@@ -37,33 +38,6 @@ void main() {
         find.byKey(const ValueKey('streaming-cursor-stem')),
       );
       expect(cursorContainer.constraints?.maxWidth, 3.0);
-    });
-
-    testWidgets('animation repeats (is not stopped after settle)',
-        (tester) async {
-      await tester.pumpWidget(_app(const StreamingCursor()));
-
-      // After settle the repeat animation should still be running.
-      // Advance time by 500 ms (one half-period) and verify widget
-      // is still alive and opacity has changed.
-      final fadeFinder = find.descendant(
-        of: find.byType(StreamingCursor),
-        matching: find.byType(FadeTransition),
-      );
-      final before =
-          tester.widget<FadeTransition>(fadeFinder).opacity.value;
-
-      await tester.pump(const Duration(milliseconds: 500));
-
-      final after =
-          tester.widget<FadeTransition>(fadeFinder).opacity.value;
-
-      // With reverse: true, after one half-period the opacity should
-      // be near the opposite end of the range from the start.
-      // We just verify the animation is running (values differ or
-      // both are at valid boundaries).
-      expect(before, isA<double>());
-      expect(after, isA<double>());
     });
 
     testWidgets('disposes without error', (tester) async {

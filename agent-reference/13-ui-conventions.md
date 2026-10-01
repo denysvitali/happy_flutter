@@ -95,6 +95,11 @@ widget. Even `Text` performs implicit inherited-widget lookups and can recurse
 through defunct ancestors. Root error takeover waits until a failing build or
 layout frame finishes.
 
+**Activity motion:** Thinking dots, status dots, streaming cursors, and
+connection badges use `AppMotion.activityPulseCount` bounded passes, then
+remain visible without scheduling frames. Respect both reduced-motion flags
+and `TickerMode`; routine rebuilds must not restart settled indicators.
+
 **Progress and focus lifecycle:** Use `AppCircularProgressIndicator` and
 `AppLinearProgressIndicator` so animation controllers belong to the widget and
 avoid Flutter 3.41's per-tick Theme ancestor lookup after route removal. New

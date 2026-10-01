@@ -170,7 +170,7 @@ class _ElapsedLabelState extends State<_ElapsedLabel> {
 }
 
 /// Accent-gradient dot that breathes (scale + opacity) while the agent
-/// works. Honours `MediaQuery.disableAnimations` by rendering the same
+/// starts work, then settles. Honours reduced motion by rendering the same
 /// dot fully opaque and motionless — no ticker is ever started.
 class _BreathingAccentDot extends StatefulWidget {
   const _BreathingAccentDot({required this.gradient});
@@ -185,6 +185,7 @@ class _BreathingAccentDotState extends State<_BreathingAccentDot>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   bool? _animationsDisabled;
+  bool? _tickerActive;
 
   @override
   void initState() {
@@ -195,15 +196,28 @@ class _BreathingAccentDotState extends State<_BreathingAccentDot>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final disabled = MediaQuery.disableAnimationsOf(context);
-    if (_animationsDisabled == disabled) return;
+    final disabled = AppMotion.reduceMotion(context);
+    final tickerActive = TickerMode.valuesOf(context).enabled;
+    if (_animationsDisabled == disabled && _tickerActive == tickerActive) {
+      return;
+    }
     _animationsDisabled = disabled;
-    if (disabled) {
+    _tickerActive = tickerActive;
+    if (disabled || !tickerActive) {
       _controller
         ..stop()
-        ..value = 1;
+        ..value = 0;
     } else {
-      _controller.repeat(reverse: true);
+      _controller.value = 0;
+      _controller
+          .repeat(reverse: true, count: AppMotion.activityPulseCount)
+          .whenCompleteOrCancel(() {
+            // The last frame can overshoot the repeat boundary. Restore the
+            // resting value without touching a newer animation or disposal.
+            if (mounted && !_controller.isAnimating) {
+              _controller.value = 0;
+            }
+          });
     }
   }
 
@@ -226,11 +240,11 @@ class _BreathingAccentDotState extends State<_BreathingAccentDot>
     if (_animationsDisabled ?? false) return dot;
     return FadeTransition(
       opacity: Tween<double>(
-        begin: 0.55,
-        end: 1.0,
+        begin: 1.0,
+        end: 0.55,
       ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
       child: ScaleTransition(
-        scale: Tween<double>(begin: 0.85, end: 1.0).animate(
+        scale: Tween<double>(begin: 1.0, end: 0.85).animate(
           CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
         ),
         alignment: Alignment.center,
