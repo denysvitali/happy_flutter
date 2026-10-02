@@ -268,6 +268,88 @@ void main() {
       expect(_findRichTextContaining('before-value'), findsOneWidget);
       expect(_findRichTextContaining('after-value'), findsOneWidget);
     });
+
+    testWidgets(
+      'preserves collapsed rows as patch files are added or removed',
+      (tester) async {
+        Widget patchView({required bool includeSecond}) => _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'auto_approved': true,
+                'changes': {
+                  'lib/first.dart': {
+                    'add': {'content': 'first-content'},
+                  },
+                  if (includeSecond)
+                    'lib/second.dart': {
+                      'add': {'content': 'second-content'},
+                    },
+                },
+              },
+            },
+          ),
+        );
+
+        await tester.pumpWidget(patchView(includeSecond: false));
+        await tester.pumpAndSettle();
+        expect(find.text('auto-approved'), findsOneWidget);
+        expect(_findRichTextContaining('first-content'), findsOneWidget);
+
+        await tester.tap(_findRichTextContaining('lib/first.dart'));
+        await tester.pumpAndSettle();
+        expect(_findRichTextContaining('first-content'), findsNothing);
+
+        await tester.pumpWidget(patchView(includeSecond: true));
+        await tester.pumpAndSettle();
+        expect(find.text('2 files changed'), findsOneWidget);
+        expect(_findRichTextContaining('first-content'), findsNothing);
+        expect(_findRichTextContaining('second-content'), findsOneWidget);
+
+        await tester.pumpWidget(patchView(includeSecond: false));
+        await tester.pumpAndSettle();
+        expect(find.text('1 file changed'), findsOneWidget);
+        expect(_findRichTextContaining('second-content'), findsNothing);
+        expect(_findRichTextContaining('first-content'), findsNothing);
+
+        await tester.tap(_findRichTextContaining('lib/first.dart'));
+        await tester.pumpAndSettle();
+        expect(_findRichTextContaining('first-content'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('long code content can expand and collapse', (tester) async {
+      final content = List.generate(20, (index) => 'line $index').join('\n');
+      await tester.pumpWidget(
+        _wrap(
+          CodexPatchView(
+            tool: {
+              'input': {
+                'changes': {
+                  'lib/long.dart': {
+                    'add': {'content': content},
+                  },
+                },
+              },
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Show all 20 lines'), findsOneWidget);
+      await tester.ensureVisible(find.text('Show all 20 lines'));
+      await tester.tap(find.text('Show all 20 lines'));
+      await tester.pumpAndSettle();
+      expect(find.text('Show less'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Show less'));
+      await tester.tap(find.text('Show less'));
+      await tester.pumpAndSettle();
+      expect(find.text('Show all 20 lines'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('ToolView apply_patch', () {
