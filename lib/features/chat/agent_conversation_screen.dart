@@ -19,8 +19,8 @@ import '../workflows/workflow_display.dart';
 import '../workflows/workflow_run_screen.dart';
 import 'agent_steps.dart';
 import 'chat_tts_gate.dart';
-import 'widgets/agent_conversation_header.dart';
-import 'widgets/agent_conversation_message.dart';
+import 'widgets/agent_conversation_info.dart';
+import 'widgets/agent_conversation_row.dart';
 import 'widgets/agent_result_summary.dart';
 
 /// Full-screen view for a Task (sub-agent) tool call's

@@ -115,7 +115,11 @@ void main() {
     await tester.tap(find.text('Reviewer'));
     await tester.pumpAndSettle();
 
-    SelectableText body() => tester.widget<SelectableText>(find.text(prompt));
+    SelectableText body() => tester.widget<SelectableText>(
+      find.byWidgetPredicate(
+        (widget) => widget is SelectableText && widget.data == prompt,
+      ),
+    );
     expect(body().maxLines, 8);
     await tester.tap(find.text('Show more'));
     await tester.pumpAndSettle();

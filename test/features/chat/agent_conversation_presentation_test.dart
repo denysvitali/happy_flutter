@@ -5,9 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/tools/tool_status_indicator.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
-
-import '../../../lib/features/chat/widgets/agent_conversation_header.dart';
-import '../../../lib/features/chat/widgets/agent_conversation_message.dart';
+import 'package:happy_flutter/features/chat/widgets/agent_conversation_info.dart';
+import 'package:happy_flutter/features/chat/widgets/agent_conversation_row.dart';
 
 Widget _app(Widget child, {Brightness brightness = Brightness.light}) =>
     ProviderScope(

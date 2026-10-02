@@ -91,8 +91,8 @@ missing or arrive late. ToDo `agentId` assignments alone are not transcript
 linkage.
 
 `AgentConversationScreen` owns subscriptions, workflow resolution, scrolling,
-and TTS; `widgets/agent_conversation_header.dart` and
-`widgets/agent_conversation_message.dart` own its presentation. Workflow detail
+and TTS; `widgets/agent_conversation_info.dart` and
+`widgets/agent_conversation_row.dart` own its presentation. Workflow detail
 uses `WorkflowRunHeader` and `WorkflowPhaseSection`, keeping fetch/projection
 state in `WorkflowRunScreen`. Codex patch parsing lives in
 `tools/views/codex_patch_data.dart`, with rendering split between the list view
