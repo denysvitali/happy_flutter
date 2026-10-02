@@ -146,6 +146,11 @@ authoritative; refresh failures retain existing choices and show a notice.
 The machine's Codex installation still controls the upstream catalog and
 its own refresh policy.
 
+Provider and model changes apply when the next message is sent. The selection
+stays pending across app restarts until the replacement session acknowledges
+it. If the switch fails, the message stays failed and retryable; Retry applies
+the selected configuration before delivering the same message.
+
 ## Setup Instructions
 
 ### Prerequisites

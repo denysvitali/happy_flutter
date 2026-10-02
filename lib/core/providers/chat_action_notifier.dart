@@ -6,6 +6,7 @@ import '../models/outgoing_image.dart';
 import '../repositories/messages_repository.dart';
 import '../rpc/rpc_types.dart' show CodexModelsResponse;
 import '../services/draft_storage.dart';
+import '../services/pending_session_configuration.dart';
 import '../services/sync_service.dart';
 import 'settings_notifier.dart';
 
@@ -191,6 +192,11 @@ class ChatActionNotifier extends Notifier<void> {
     String? profileId,
     String? permissionMode,
   }) {
+    PendingSessionConfiguration().save(
+      sessionId,
+      profileId: profileId ?? 'default',
+      modelMode: modelMode,
+    );
     saveProfile(sessionId, profileId);
     saveModelMode(sessionId, modelMode);
     if (permissionMode != null) {

@@ -63,6 +63,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   when reducing page size; failed pages never advance the cursor. Machine RPC
   discovery, encryption, ACK and decode share one timeout; only explicitly
   idempotent mutations may automatically retry routing failures.
+- **Provider/model switches must succeed before delivery** — persist picker
+  intent until the replacement spawn succeeds, including explicit Default.
+  Failed switches preserve a failed row and its `localId`; Retry must apply
+  the pending configuration before queuing delivery to the session.
 - **Per-session sends are FIFO** — foreground sends and outbox retries share
   one serialized delivery lane; confirmed `sent` state is monotonic.
 - **Merge fast paths validate the whole batch** — incoming IDs must be unique

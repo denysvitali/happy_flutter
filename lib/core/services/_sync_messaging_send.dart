@@ -189,6 +189,9 @@ extension SyncMessagingSend on Sync {
     // fail before the ordinary optimistic insert, but the user must still get
     // one retryable row carrying the same canonical localId.
     final localId = clientLocalId ?? createLocalMessageId();
+    final pendingSelection = PendingSessionConfiguration().read(sessionId);
+    profileId ??= pendingSelection?.profileId;
+    modelMode ??= pendingSelection?.modelMode;
     final runtimeGeneration = _runtimeGeneration;
     // Reserve the shared delivery lane before preparation can yield. The
     // reservation also remains held through delivery, so retries cannot pass.
@@ -2097,6 +2100,38 @@ extension SyncMessagingSend on Sync {
       return const MessageRetryResult(
         MessageRetryOutcome.encryptionUnavailable,
       );
+    }
+
+    // A failed provider/model replacement must be retried before the
+    // encrypted payload enters the outbox. Otherwise Retry bypasses target
+    // resolution and silently delivers to the old provider.
+    final pendingSelection = PendingSessionConfiguration().read(sessionId);
+    if (pendingSelection != null) {
+      final session = _sessions[sessionId];
+      if (session == null) {
+        return const MessageRetryResult(MessageRetryOutcome.sessionUnavailable);
+      }
+      final meta = raw['meta'] is Map<String, dynamic>
+          ? raw['meta'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final target = await _resolveSendTargetSession(
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+        effectivePermissionMode: meta['permissionMode'] as String? ?? 'default',
+        profileId: pendingSelection.profileId,
+        modelMode: pendingSelection.modelMode,
+        localId: localId,
+      );
+      checkRuntime();
+      sessionId = target.sessionId;
+      sessionEncryption = target.sessionEncryption;
+      raw['meta'] = {
+        ...meta,
+        'model': pendingSelection.modelMode == 'default'
+            ? null
+            : pendingSelection.modelMode,
+      };
     }
 
     late final String encryptedRawRecord;
