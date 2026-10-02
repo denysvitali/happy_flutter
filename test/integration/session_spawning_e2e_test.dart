@@ -2217,6 +2217,7 @@ void main() {
     late Sync sync;
     late _FakeEncryption encryption;
     late _CapturingSessionEncryption capturingEncryption;
+    late List<Map<String, dynamic>> spawnRequests;
 
     setUp(() async {
       sync = Sync();
@@ -2230,8 +2231,24 @@ void main() {
       sync.testSocketSendOverride = (_, __) {};
       sync.testSessions.clear();
       sync.testClearSessionSpawnedAt();
-      sync.testGetSpawnEnvVarsOverride = (_) async =>
-          (envVars: <String, String>{}, profile: null);
+      // These tests assert delivery after model selection, so acknowledge
+      // the required replacement instead of relying on a swallowed RPC error.
+      spawnRequests = [];
+      sync.testMachineRPCOverride = (_, method, params) async {
+        if (method == 'spawn-happy-session') spawnRequests.add(params);
+        return <String, dynamic>{'type': 'success', 'sessionId': 'model-sess'};
+      };
+      sync.testGetSpawnEnvVarsOverride = (_) async {
+        final profiles = sync.settingsSnapshot.profiles;
+        final profile = profiles.isEmpty ? null : profiles.first;
+        return (
+          envVars: <String, String>{
+            if (profile?.anthropicConfig?.baseUrl case final baseUrl?)
+              'ANTHROPIC_BASE_URL': baseUrl,
+          },
+          profile: profile,
+        );
+      };
       _stubAllSyncs(sync);
 
       await ApiClient().initialize(serverUrl: 'http://localhost');
@@ -2244,6 +2261,8 @@ void main() {
       ApiClient().dispose();
       sync.testSocketConnectedOverride = null;
       sync.testSocketSendOverride = null;
+      sync.testMachineRPCOverride = null;
+      sync.testGetSpawnEnvVarsOverride = null;
       sync.testFetchSingleSessionOverride = null;
     });
 
@@ -2283,6 +2302,11 @@ void main() {
         );
         await sync.lastCompleteSendFuture;
 
+        expect(spawnRequests.single['model'], 'grok/grok-4.6');
+        expect(
+          spawnRequests.single['environmentVariables'],
+          containsPair('ANTHROPIC_BASE_URL', 'https://proxy.example/anthropic'),
+        );
         final raw = capturingEncryption.lastRawRecord;
         expect(raw, isNotNull);
         final meta = raw!['meta'] as Map<String, dynamic>;
@@ -2332,6 +2356,7 @@ void main() {
       await sync.sendMessage('model-sess', 'test', modelMode: 'sonnet:high');
       await sync.lastCompleteSendFuture;
 
+      expect(spawnRequests.single['model'], 'sonnet:high');
       final raw = capturingEncryption.lastRawRecord;
       expect(raw, isNotNull);
       final meta = raw!['meta'] as Map<String, dynamic>;
