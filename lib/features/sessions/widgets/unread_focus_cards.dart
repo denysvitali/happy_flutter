@@ -2,24 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/components/app_status_dot.dart';
 import '../../../core/components/pressable_card.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/session.dart';
 import '../../../core/providers/app_providers.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_button_style.dart';
+import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/utils/snack.dart';
 import '../../../core/widgets/app_circular_progress_indicator.dart';
 import '../session_avatar.dart';
 import 'session_badges.dart';
 import 'session_cards.dart';
-import 'package:happy_flutter/core/theme/app_button_style.dart';
-import 'package:happy_flutter/core/theme/app_text.dart';
+import 'session_list_details.dart';
 
-/// Prominent card used in the "Needs Attention" section of the
-/// Unread Focus view. Filled with a primary tint and a thick left
-/// accent bar, no border — designed to draw the eye.
+/// Attention card with a quiet surface, slim accent and readable preview.
 class NeedsAttentionCard extends StatefulWidget {
   const NeedsAttentionCard({
     required this.session,
@@ -88,135 +85,118 @@ class _NeedsAttentionCardState extends State<NeedsAttentionCard> {
         widget.lastMessagePreview!.isNotEmpty;
 
     final bgColor = widget.isSelected
-        ? Color.alphaBlend(
-            cs.primary.withValues(alpha: 0.18),
-            cs.surfaceContainerHigh,
-          )
-        : Color.alphaBlend(
-            cs.primary.withValues(alpha: 0.08),
-            cs.surfaceContainerHigh,
-          );
+        ? Color.alphaBlend(cs.primary.withValues(alpha: 0.08), cs.surface)
+        : cs.surface;
 
-    return PressableCard(
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
-      pressedScale: 0.985,
-      child: Container(
-        margin: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xxs,
-        ),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          color: bgColor,
-          boxShadow: [
-            BoxShadow(
-              color: cs.primary.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+    return Semantics(
+      button: true,
+      selected: widget.isSelected,
+      child: PressableCard(
+        onTap: widget.onTap,
+        onLongPress: widget.onLongPress,
+        pressedScale: 0.985,
+        child: Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            color: bgColor,
+            border: Border.all(
+              color: cs.primary.withValues(
+                alpha: widget.isSelected ? 0.4 : 0.18,
+              ),
+              width: AppBorder.hairline,
             ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          clipBehavior: Clip.hardEdge,
-          child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (widget.selectionMode)
-                    SelectionCheckbox(
-                      isSelected: widget.isSelected,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                    )
-                  else
-                    Container(width: 4, color: cs.primary),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.md,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            clipBehavior: Clip.hardEdge,
+            child: Stack(
+              children: [
+                if (!widget.selectionMode)
+                  PositionedDirectional(
+                    start: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: ColoredBox(
+                      color: cs.primary,
+                      child: const SizedBox(width: AppBorder.accent),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          if (widget.selectionMode) ...[
+                            SelectionCheckbox(
+                              isSelected: widget.isSelected,
+                              borderRadius: BorderRadius.zero,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                          ],
                           buildSessionAvatar(
                             sessionId: session.id,
                             avatarId: _d.avatarId,
                             sessionFlavor: session.metadata?.flavor,
-                            size: AppAvatarSize.medium,
+                            size: AppAvatarSize.small,
                             showFlavorIcon: widget.showFlavorIcon,
                             hasDraft: hasDraft,
                             avatarStyle: widget.avatarStyle,
                           ),
                           const SizedBox(width: AppSpacing.md),
                           Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _d.name,
-                                  style: AppText.title(theme, cs.onSurface),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                if (statusWidget != null) ...[
-                                  const SizedBox(height: AppSpacing.xxs),
-                                  statusWidget,
-                                ],
-                                if (hasPreview) ...[
-                                  const SizedBox(height: AppSpacing.xxs),
-                                  buildPreviewText(
-                                    context: context,
-                                    preview: widget.lastMessagePreview!,
-                                    role: widget.lastMessageRole,
-                                    style: AppText.secondary(theme, cs.onSurface.withValues( alpha: AppOpacity.high, )),
-                                    maxLines: 2,
-                                  ),
-                                ],
-                                if (widget.permissionRequests != null &&
-                                    widget.permissionRequests!.isNotEmpty &&
-                                    !widget.selectionMode) ...[
-                                  const SizedBox(height: AppSpacing.xxs),
-                                  _CardPermissionRow(
-                                    sessionId: session.id,
-                                    requests: widget.permissionRequests!,
-                                    isOnline: session.presence == 'online',
-                                  ),
-                                ],
-                              ],
+                            child: SessionListDetails(
+                              name: _d.name,
+                              titleMaxLines: 2,
+                              timestamp:
+                                  widget.lastMessageTimestamp ??
+                                  session.lastMessageAt ??
+                                  session.updatedAt,
+                              sessionStatus: _d.status,
+                              status: statusWidget,
+                              unreadCount: widget.unreadCount,
+                              todoProgress: todoProgress,
+                              isPinned: session.pinned,
+                              detail: hasPreview
+                                  ? buildPreviewText(
+                                      context: context,
+                                      preview: widget.lastMessagePreview!,
+                                      role: widget.lastMessageRole,
+                                      style: AppText.secondary(theme),
+                                      maxLines: 2,
+                                    )
+                                  : null,
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          buildTimestampBadges(
-                            timestamp: widget.lastMessageTimestamp ??
-                                session.lastMessageAt ??
-                                session.updatedAt,
-                            theme: theme,
-                            cs: cs,
-                            unreadCount: widget.unreadCount,
-                            todoProgress: todoProgress,
-                          ),
-                          if (session.pinned) ...[
-                            const SizedBox(width: AppSpacing.sm),
-                            Icon(
-                              Icons.push_pin,
-                              size: AppIconSize.md,
-                              color: cs.primary,
-                            ),
-                          ],
                         ],
                       ),
-                    ),
+                      if (widget.permissionRequests != null &&
+                          widget.permissionRequests!.isNotEmpty &&
+                          !widget.selectionMode) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        _CardPermissionRow(
+                          sessionId: session.id,
+                          requests: widget.permissionRequests!,
+                          isOnline: session.presence == 'online',
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -235,8 +215,7 @@ class _CardPermissionRow extends ConsumerStatefulWidget {
   final bool isOnline;
 
   @override
-  ConsumerState<_CardPermissionRow> createState() =>
-      _CardPermissionRowState();
+  ConsumerState<_CardPermissionRow> createState() => _CardPermissionRowState();
 }
 
 class _CardPermissionRowState extends ConsumerState<_CardPermissionRow> {
@@ -271,41 +250,52 @@ class _CardPermissionRowState extends ConsumerState<_CardPermissionRow> {
     final label = count > 1
         ? '${first.value.tool} · +${count - 1}'
         : first.value.tool;
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.shield_outlined, size: 14, color: cs.error),
-        const SizedBox(width: AppSpacing.xxs),
-        Flexible(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppText.secondary(theme, cs.error),
-          ),
+        Row(
+          children: [
+            Icon(Icons.shield_outlined, size: AppIconSize.sm, color: cs.error),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.secondary(theme, cs.error),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xs),
         if (_busy)
           const SizedBox(
-            width: 16,
-            height: 16,
+            width: AppIconSize.md,
+            height: AppIconSize.md,
             child: AppCircularProgressIndicator(strokeWidth: 2),
           )
-        else ...[
-          TextButton(
-            onPressed: widget.isOnline ? () => _act(false) : null,
-            style: TextButton.styleFrom(
-              foregroundColor: cs.onSurfaceVariant,
-            ).merge(AppButtonStyle.compact),
-            child: Text(l10n.permissionDeny),
+        else
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: [
+              TextButton(
+                onPressed: widget.isOnline ? () => _act(false) : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: cs.onSurfaceVariant,
+                ).merge(AppButtonStyle.compact),
+                child: Text(l10n.permissionDeny),
+              ),
+              FilledButton(
+                onPressed: widget.isOnline ? () => _act(true) : null,
+                style: AppButtonStyle.destructiveFilled(
+                  cs,
+                ).merge(AppButtonStyle.compact),
+                child: Text(l10n.permissionAllow),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: widget.isOnline ? () => _act(true) : null,
-            style: AppButtonStyle.destructiveFilled(
-              cs,
-            ).merge(AppButtonStyle.compact),
-            child: Text(l10n.permissionAllow),
-          ),
-        ],
       ],
     );
   }
@@ -360,7 +350,7 @@ class UnreadFocusListRow extends StatelessWidget {
       activity: activity,
       preview: lastMessagePreview,
       previewRole: lastMessageRole,
-      style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: AppOpacity.medium)),
+      style: AppText.secondary(theme),
     );
     final hasDraft = session.draft != null && session.draft!.isNotEmpty;
     final todoProgress = getTodoProgress(session.todos);
@@ -384,23 +374,12 @@ class UnreadFocusListRow extends StatelessWidget {
               vertical: AppSpacing.smd,
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (selectionMode) ...[
                   SelectionCheckbox(
                     isSelected: isSelected,
                     borderRadius: BorderRadius.zero,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                ] else ...[
-                  SizedBox(
-                    width: 12,
-                    child: Center(
-                      child: AppStatusDot(
-                        color: Color(derived.status.statusDotColor),
-                        pulse: derived.status.isPulsing,
-                        size: 7,
-                      ),
-                    ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                 ],
@@ -415,56 +394,21 @@ class UnreadFocusListRow extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              derived.name,
-                              style: AppText.title(theme, cs.onSurface.withValues( alpha: AppOpacity.high, )),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (archiveCountdownLabel != null) ...[
-                            const SizedBox(width: AppSpacing.xs),
-                            ArchiveCountdownBadge(
-                              label: archiveCountdownLabel!,
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (statusWidget != null) ...[
-                        const SizedBox(height: AppSpacing.xxs),
-                        statusWidget,
-                      ] else if (activityLine != null) ...[
-                        const SizedBox(height: AppSpacing.xxs),
-                        activityLine,
-                      ],
-                    ],
+                  child: SessionListDetails(
+                    name: derived.name,
+                    timestamp:
+                        lastMessageTimestamp ??
+                        session.lastMessageAt ??
+                        session.updatedAt,
+                    sessionStatus: derived.status,
+                    status: statusWidget,
+                    detail: activityLine,
+                    unreadCount: unreadCount,
+                    todoProgress: todoProgress,
+                    archiveCountdownLabel: archiveCountdownLabel,
+                    isPinned: session.pinned,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
-                buildTimestampBadges(
-                  timestamp: lastMessageTimestamp ??
-                      session.lastMessageAt ??
-                      session.updatedAt,
-                  theme: theme,
-                  cs: cs,
-                  unreadCount: unreadCount,
-                  todoProgress: todoProgress,
-                ),
-                if (session.pinned) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  Icon(
-                    Icons.push_pin,
-                    size: AppIconSize.xs,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ],
               ],
             ),
           ),
@@ -492,8 +436,12 @@ class UnreadFocusListGroup extends StatelessWidget {
       ),
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: cs.outlineVariant.withValues(alpha: 0.45),
+          width: AppBorder.hairline,
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -504,7 +452,8 @@ class UnreadFocusListGroup extends StatelessWidget {
               Divider(
                 height: 1,
                 thickness: AppBorder.hairline,
-                indent: AppSpacing.xl + AppSpacing.xl + AppSpacing.md,
+                indent: AppSpacing.md + AppAvatarSize.small + AppSpacing.md,
+                endIndent: AppSpacing.md,
                 color: cs.outlineVariant.withValues(alpha: 0.35),
               ),
           ],

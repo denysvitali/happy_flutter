@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/components/app_badge.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/machine.dart';
 import '../../../core/models/session.dart';
@@ -773,19 +774,11 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
       items.add(
         SectionHeader(
           title: l10n.sessionsNeedsAttention,
-          trailing: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-              vertical: AppSpacing.xxs,
-            ),
-            decoration: BoxDecoration(
-              color: cs.primary,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: Text(
-              '${needsAttention.length}',
-              style: AppText.badge(theme, cs.onPrimary),
-            ),
+          trailing: AppBadge(
+            label: '${needsAttention.length}',
+            foregroundColor: cs.primary,
+            backgroundColor: cs.primary.withValues(alpha: 0.10),
+            labelStyle: AppText.badge(theme, cs.primary),
           ),
         ),
       );
@@ -811,10 +804,7 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
         ..add(
           SectionHeader(
             title: l10n.sessionsAllSessions,
-            trailing: Text(
-              '${allOthers.length}',
-              style: AppText.badge(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
-            ),
+            trailing: Text('${allOthers.length}', style: AppText.badge(theme)),
           ),
         )
         ..add(

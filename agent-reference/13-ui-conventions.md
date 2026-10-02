@@ -26,6 +26,13 @@ Shift+Enter navigate search results; Escape closes the focused search field.
 Desktop dividers stay compact; tablet dividers retain a 44px touch target.
 Arrow-key resizing persists the selected pane width immediately.
 
+Unread Focus uses neutral session surfaces and a slim primary accent for
+attention cards. Both sections share `SessionListDetails`: titles and previews
+use the available content width, with status, timestamps, unread counts and
+task progress in a wrapping footer. Attention titles and previews allow two
+lines. Approval controls sit below the card content and wrap independently;
+selection and larger text must not squeeze them into a trailing column.
+
 **Design tokens** in `lib/core/theme/app_tokens.dart`: `AppSpacing` (xxs=2 to xxxl=32), `AppRadius` (xs=4 to pill=100), `AppFontSize` (the whole type scale: sm=12, md=13, base=14, lg=16, xl=18 — nothing below 12; `xxs`/`xs` were removed), `AppDuration` (fast=150ms to slower=500ms), `AppTouchTarget` (min=44, comfortable=48), `AppBreakpoint` (tablet=600, desktop=960), `AppScreenPadding` (standard, compact, settings, listItem).
 
 **Inline rows:** Reuse `AppInlineRow`, `AppInlineAction`, and `AppInlineText`
