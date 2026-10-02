@@ -3,6 +3,24 @@
 **Date:** 2026-04-30 (refresh of 2026-03-13 review)
 **Agent:** A1 — Architect & Tech Lead
 
+## October 2026 refactoring update
+
+- Workflow detail presentation lives in `WorkflowRunHeader` and
+  `WorkflowPhaseSection`. `WorkflowRunScreen` retains fetching, subscriptions,
+  projection caching, and the fallback to recorded step events. The elapsed
+  label still owns its timer.
+- `AgentConversationScreen` retains transcript subscriptions, workflow
+  resolution, scrolling, and TTS. Its header and message widgets own the
+  extracted presentation, including the existing nested-agent route handling.
+- Codex patch payload interpretation lives in `codex_patch_data.dart`, separate
+  from file-list rendering and `codex_patch_detail.dart`. The original view
+  import continues to export `FileChange` for existing callers.
+- Provider usage clients retain HTTP requests, authentication, endpoint
+  fallbacks, and error handling. Five vendor-specific `*_usage_parser.dart`
+  files interpret usage windows; `_provider_usage_response.dart` holds private
+  response snapshots and formatting helpers. Vendor-specific precedence,
+  timestamp, and utilization rules remain separate.
+
 ## July 2026 implementation update
 
 - Repository boundaries now exist for sessions, machines, settings, artifacts,

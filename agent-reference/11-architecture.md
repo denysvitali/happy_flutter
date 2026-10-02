@@ -90,6 +90,14 @@ conversation separate from the parent chat, including when spawn items are
 missing or arrive late. ToDo `agentId` assignments alone are not transcript
 linkage.
 
+`AgentConversationScreen` owns subscriptions, workflow resolution, scrolling,
+and TTS; `widgets/agent_conversation_header.dart` and
+`widgets/agent_conversation_message.dart` own its presentation. Workflow detail
+uses `WorkflowRunHeader` and `WorkflowPhaseSection`, keeping fetch/projection
+state in `WorkflowRunScreen`. Codex patch parsing lives in
+`tools/views/codex_patch_data.dart`, with rendering split between the list view
+and `codex_patch_detail.dart`; the original view exports `FileChange`.
+
 **Notable:** `AuthStateNotifier` acts as a coordinator — on auth changes it calls `loadFromSync()`/`clear()` on all other providers.
 
 Codex model catalogs are scoped to machine, profile, and project directory
@@ -202,6 +210,12 @@ provider/action code behind repository interfaces.
 
 Some domains have both `XxxService` (production) and `XxxApi` (injectable for tests). `XxxApi` classes accept optional `ApiClient? client` for test injection.
 
+`provider_usage_api.dart` owns Kimi, MiniMax, Z.AI, Grok, and Qwen HTTP clients.
+Their `*_usage_parser.dart` files interpret usage windows independently of
+transport; `_provider_usage_response.dart` remains a private response-helper
+part. Preserve each vendor's payload precedence, reset-time rules, and error
+behavior when changing these boundaries.
+
 ### Storage
 
 | Class | Backend | Purpose |
@@ -221,4 +235,3 @@ cleared on sign-out so they cannot cross account boundaries.
 Settings hydration markers describe the current cached snapshot, not the fact
 that a profile was saved. Lazy snapshots still require secure-key reads.
 Suspension flushes pending settings writes before background termination.
-

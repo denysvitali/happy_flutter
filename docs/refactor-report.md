@@ -1,5 +1,36 @@
 # Refactor Report
 
+## 2026-10-02: Detail presentation and provider usage
+
+Four independently owned extractions preserve the existing public entry points
+and behavior while reducing the size of the coordinating files:
+
+| File | Before | After | Extracted responsibility |
+|---|---:|---:|---|
+| `workflow_run_screen.dart` | 1,204 | 512 | Run header and phase/agent presentation |
+| `agent_conversation_screen.dart` | 1,114 | 541 | Prompt/debug panels and message presentation/navigation |
+| `codex_patch_view.dart` | 1,165 | 310 | Payload interpretation and file-content rendering |
+| `provider_usage_api.dart` | 1,701 | 720 | Five vendor parsers and private response helpers |
+
+All new source files are below 800 lines. Screen subscriptions, projection
+caches, scrolling, TTS, and request routing remain with their existing owners.
+Provider-specific timestamp, utilization, and payload-precedence rules are
+preserved. `FileChange` remains exported from `codex_patch_view.dart`.
+
+Added 41 regression cases across five new test files and the existing Codex
+patch widget suite: narrow light/dark layouts, retry callbacks, timer disposal,
+expansion state, nested-agent/detail navigation, patch precedence and malformed
+payload fallback, and provider response contracts. Existing screen and API
+suites continue to exercise the original entry points.
+
+Pre-push verification: independent source-equivalence review, Dart formatting,
+`git diff --check`, instruction-size guard, and full `flutter analyze` with the
+repository's nonfatal warning/info flags (exit 0, no errors). Tests execute in
+GitHub Actions only; test and release outcomes are recorded on the pushed
+commit's checks.
+
+## 2026-07-25 audit batch
+
 **Date:** 2026-07-25
 **Audit:** `docs/refactor-audit.md` (Phase A)
 **Commits:** `66454f0f` … `f4ec4d18` (13)
