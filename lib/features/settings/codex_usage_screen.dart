@@ -14,12 +14,15 @@ import 'widgets/machine_usage_scaffold.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
 class CodexUsageScreen extends StatelessWidget {
-  const CodexUsageScreen({super.key});
+  const CodexUsageScreen({this.initialMachineId, super.key});
+
+  final String? initialMachineId;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return MachineUsageScaffold<CodexUsageSummary>(
+      initialMachineId: initialMachineId,
       title: l10n.codexUsageTitle,
       pickerTitle: l10n.codexUsageSelectMachine,
       noMachinesIcon: Icons.code,

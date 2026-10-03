@@ -21,6 +21,8 @@ tap a result to open its web page in your browser.
 Codex usage shows the account’s reported windows (including weekly and 5-hour
 labels), additional pools when provided, and per-model availability. Usage
 permission and purchased credit availability are shown separately.
+Official Codex and Claude/Anthropic conversations show live account usage bars
+below the header, with a shortcut to usage details for the session machine.
 
 ## Architecture
 

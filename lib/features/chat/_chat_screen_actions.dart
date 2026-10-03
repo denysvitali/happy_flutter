@@ -97,7 +97,10 @@ extension _ChatScreenActions on _ChatScreenState {
     // of its fields (including permission mode) to UI state *or* storage
     // would silently discard an interactive pick.
     if (_userOverrodeModelOrProfile) {
-      setState(() => _availableProfiles = resolution.availableProfiles);
+      setState(() {
+        _availableProfiles = resolution.availableProfiles;
+        _usageProfileResolved = true;
+      });
       return;
     }
 
@@ -118,6 +121,7 @@ extension _ChatScreenActions on _ChatScreenState {
     }
 
     setState(() {
+      _usageProfileResolved = true;
       _permissionMode = resolution.resolvedPermissionMode;
       _modelMode = resolution.resolvedModelMode;
       _profileModelOverride = resolution.resolvedRawModelString;

@@ -13,6 +13,7 @@ import 'package:sentry_flutter/sentry_flutter.dart'
 import '../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../core/i18n/app_localizations.dart';
 import '../../core/i18n/safe_ui_messages.dart';
+import '../../core/models/auth.dart';
 import '../../core/models/built_in_profiles.dart';
 import '../../core/models/favorite_model.dart';
 import '../../core/models/loop.dart';
@@ -68,6 +69,7 @@ import 'widgets/autocomplete_overlay.dart';
 import 'widgets/chat_app_bar.dart';
 import 'widgets/chat_chrome_density.dart';
 import 'widgets/chat_messages_body.dart';
+import 'widgets/chat_provider_usage.dart';
 import 'widgets/chat_search_bar.dart';
 import 'widgets/cleared_divider.dart';
 import 'widgets/conversation_start_label.dart';
@@ -193,6 +195,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _loadFailed = false;
 
   bool _didStartInitialLoad = false;
+  bool _usageProfileResolved = false;
   bool _mayStartInitialLoad = false;
   Timer? _loadingSafetyTimer;
 
@@ -1893,12 +1896,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // Banner priority (top → bottom, limited stack):
     // offline → sub-agent → issue → (goal/tasks only if no issue) →
     // permission sticky → TTS → thinking+stop → input
+    final authenticated =
+        ref.watch(authStateNotifierProvider) == AuthState.authenticated;
     final hasActiveCodexTurn =
         _session?.metadata?.flavor == 'codex' && (_session?.thinking ?? false);
     return Column(
       children: [
         const OfflineBanner(),
         const DesktopUpdateBanner(),
+        ValueListenableBuilder<int>(
+          valueListenable: _composerRevision,
+          builder: (context, revision, child) {
+            final flavor = officialUsageFlavor(
+              _session?.metadata?.flavor,
+              _selectedProfile,
+            );
+            final machineId = _session?.metadata?.machineId;
+            if (!_usageProfileResolved ||
+                !authenticated ||
+                flavor == null ||
+                machineId == null ||
+                machineId.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return ChatProviderUsage(
+              key: ValueKey((widget.sessionId, machineId, flavor)),
+              machineId: machineId,
+              flavor: flavor,
+              onTap: () => context.pushNamed(
+                flavor == 'codex' ? 'codex-usage' : 'claude-limits',
+                queryParameters: {'machineId': machineId},
+              ),
+            );
+          },
+        ),
         // Sticky sub-agent status banner. Re-renders on every
         // sync.onDataChanged tick via its own StatefulWidget so the
         // running/total counts stay current without invalidating the

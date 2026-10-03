@@ -49,6 +49,35 @@ void main() {
     OpenTelemetryService.debugDurationSink = null;
   });
 
+  testWidgets('chat details select the requested machine', (tester) async {
+    final requestedMachines = <String>[];
+    sync.testMachineRPCOverride = (machineId, method, params) async {
+      requestedMachines.add(machineId);
+      return <String, dynamic>{'success': false, 'error': 'unavailable'};
+    };
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          machinesNotifierProvider.overrideWith(
+            () => _StubMachinesNotifier({
+              'first': _onlineMachine(id: 'first'),
+              'chat-machine': _onlineMachine(id: 'chat-machine'),
+            }),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const CodexUsageScreen(initialMachineId: 'chat-machine'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(requestedMachines, isNotEmpty);
+    expect(requestedMachines.toSet(), {'chat-machine'});
+  });
+
   group('CodexUsageScreen error state', () {
     testWidgets(
       'renders the machine picker so the user can switch off a machine '

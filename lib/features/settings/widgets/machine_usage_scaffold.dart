@@ -80,9 +80,11 @@ class MachineUsageScaffold<T> extends ConsumerStatefulWidget {
     required this.fetch,
     required this.contentBuilder,
     this.actionsBuilder,
+    this.initialMachineId,
     super.key,
   });
 
+  final String? initialMachineId;
   final String title;
   final String pickerTitle;
 
@@ -125,11 +127,19 @@ class _MachineUsageScaffoldState<T>
   }
 
   void _autoSelectMachine() {
+    if (!mounted) return;
     final machineSortNow = DateTime.now().millisecondsSinceEpoch;
     final machines = ref.read(machinesNotifierProvider).values.toList()
       ..sort((a, b) => compareMachinesByAvailabilityAt(machineSortNow, a, b));
     final online = machines.where((machine) => machine.isOnline).toList();
-    final target = online.isNotEmpty ? online.first : null;
+    final requested = machines.where(
+      (machine) => machine.id == widget.initialMachineId,
+    );
+    final target = requested.isNotEmpty
+        ? requested.first
+        : online.isNotEmpty
+        ? online.first
+        : null;
     if (target != null) {
       setState(() => _selectedMachineId = target.id);
       unawaited(_load(target.id));

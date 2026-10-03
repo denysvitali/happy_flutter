@@ -1,5 +1,11 @@
 ## UI Conventions
 
+Official Codex (no profile) and Claude (default/Anthropic) chats show live
+account usage windows below the header, fetched from the session's machine.
+The strip refreshes once a minute while visible and opens usage details for
+that machine. Third-party profiles omit it; failed refreshes label retained
+limits as stale.
+
 Desktop chats group completed tool calls by default, with a per-chat control
 to show the full trace. Mobile keeps its existing hide-tools preference. Tool
 summaries name successful file work and commands while retaining failures,

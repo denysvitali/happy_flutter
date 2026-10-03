@@ -19,7 +19,9 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 /// Screen showing Claude Code rate limits fetched from a connected
 /// machine's local Claude credentials.
 class ClaudeLimitsScreen extends ConsumerStatefulWidget {
-  const ClaudeLimitsScreen({super.key});
+  const ClaudeLimitsScreen({this.initialMachineId, super.key});
+
+  final String? initialMachineId;
 
   @override
   ConsumerState<ClaudeLimitsScreen> createState() => _ClaudeLimitsScreenState();
@@ -37,6 +39,7 @@ class _ClaudeLimitsScreenState extends ConsumerState<ClaudeLimitsScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     return MachineUsageScaffold<ClaudeUsageLimits>(
+      initialMachineId: widget.initialMachineId,
       title: l10n.claudeLimitsTitle,
       pickerTitle: l10n.claudeLimitsSelectMachine,
       noMachinesIcon: Icons.computer,

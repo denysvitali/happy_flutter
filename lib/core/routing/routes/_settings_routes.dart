@@ -164,13 +164,21 @@ List<RouteBase> get settingsRoutes => [
       path: '/settings/claude-limits',
       name: 'claude-limits',
       pageBuilder: (context, state) =>
-          _slidePage(const AuthGate(child: ClaudeLimitsScreen()), state),
+          _slidePage(
+            AuthGate(child: ClaudeLimitsScreen(
+              initialMachineId: state.uri.queryParameters['machineId'],
+            )), state,
+          ),
     ),
     GoRoute(
       path: '/settings/codex-usage',
       name: 'codex-usage',
       pageBuilder: (context, state) =>
-          _slidePage(const AuthGate(child: CodexUsageScreen()), state),
+          _slidePage(
+            AuthGate(child: CodexUsageScreen(
+              initialMachineId: state.uri.queryParameters['machineId'],
+            )), state,
+          ),
     ),
     GoRoute(
       path: '/settings/grok-usage',
