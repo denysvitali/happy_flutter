@@ -105,6 +105,11 @@ void main() {
     await tester.pump();
     expect(find.text('24%'), findsOneWidget);
     expect(find.text('68%'), findsOneWidget);
+    final semantics = tester
+        .getSemantics(find.byType(LinearProgressIndicator).first)
+        .getSemanticsData();
+    expect(semantics.value, '24');
+    expect(semantics.label, isNotEmpty);
     expect(find.byType(AppLinearProgressIndicator), findsNWidgets(2));
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('24%'));

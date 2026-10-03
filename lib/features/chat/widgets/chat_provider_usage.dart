@@ -313,7 +313,6 @@ class _ChatProviderUsageState extends State<ChatProviderUsage>
                 : theme.colorScheme.primary,
             backgroundColor: theme.colorScheme.surfaceContainerHighest,
             semanticsLabel: label,
-            semanticsValue: '${percent.toStringAsFixed(0)}%',
           ),
         ],
       ),
