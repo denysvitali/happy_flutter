@@ -55,6 +55,7 @@ void _processCodexContent({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      'agentMetadata': ?WireParsers.asMap(data['agentMetadata']),
     });
     return;
   }
@@ -90,17 +91,23 @@ void _processCodexContent({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      'agentMetadata': ?WireParsers.asMap(data['agentMetadata']),
     });
     return;
   }
 
   if (_isToolResultEnvelope(data)) {
+    final previousCount = toolResults.length;
     _addToolResultEnvelope(
       data: data,
       createdAt: createdAt,
       toolResults: toolResults,
       meta: meta,
     );
+    final metadata = WireParsers.asMap(data['agentMetadata']);
+    if (toolResults.length > previousCount && metadata != null) {
+      toolResults.last['agentMetadata'] = metadata;
+    }
     return;
   }
 

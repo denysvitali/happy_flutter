@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/features/chat/agent_presentation.dart';
 import 'package:happy_flutter/features/chat/widgets/agents_list_sheet.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -16,7 +17,138 @@ void main() {
       sync.testClearSessionMessageState('test-session');
     });
 
+    test('task-event projection preserves native anchor and late metadata', () {
+      sync.testSetSessionMessages('test-session', [
+        {
+          'id': 'native-anchor',
+          'toolUseId': 'agent-call',
+          'kind': 'tool-call',
+          'name': 'Agent',
+          'state': 'running',
+          'model': 'gpt-6-sol',
+          'createdAt': 1000,
+          'input': {
+            'subagent_type': 'codex',
+            'agentMetadata': {'role': 'explorer', 'model': 'stale'},
+          },
+          'children': [
+            {
+              'id': 'child',
+              'kind': 'text',
+              'content': 'Working',
+              'createdAt': 2000,
+              'agentMetadata': {'model': 'gpt-6-luna', 'source': 'thread'},
+            },
+          ],
+          'result': {
+            'agentMetadata': {'model': 'terminal-old'},
+          },
+          'completedAt': 2500,
+        },
+        {
+          'id': 'task-event',
+          'taskEvent': true,
+          'agentId': 'native-thread',
+          'parentToolUseId': 'agent-call',
+          'taskType': 'local_agent',
+          'createdAt': 3000,
+          'event': {'message': 'Inspect UI'},
+          'agentMetadata': {
+            'role': 'explorer',
+            'model': 'event-new',
+            'reasoningEffort': 'high',
+            'status': 'notLoaded',
+            'source': 'thread',
+          },
+        },
+      ]);
+      final projected = AgentsListSheet.extractAgents('test-session').single;
+      expect(projected['_taskEventSynthetic'], true);
+      expect(projected['children'], hasLength(1));
+      final details = AgentPresentation.fromMessage(projected);
+      expect(details.isNativeCodex, true);
+      expect(details.model, 'event-new');
+      expect(details.role, 'explorer');
+      expect(details.effort, 'high');
+      expect(details.threadStatus, 'notLoaded');
+      expect(details.parentModel, isNull);
+    });
+
+    for (final snapshot in [
+      <String, dynamic>{'model': 'new-child'},
+      <String, dynamic>{},
+    ]) {
+      test('newer child snapshot survives historical task event $snapshot', () {
+        sync.testSetSessionMessages('test-session', [
+          {
+            'id': 'anchor',
+            'toolUseId': 'call',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'createdAt': 1000,
+            'input': {'subagent_type': 'codex'},
+            'agentMetadata': {'model': 'old-anchor'},
+            'children': [
+              {
+                'id': 'child',
+                'kind': 'text',
+                'createdAt': 3000,
+                'agentMetadata': snapshot,
+              },
+            ],
+          },
+          {
+            'id': 'event',
+            'taskEvent': true,
+            'agentId': 'thread',
+            'parentToolUseId': 'call',
+            'createdAt': 2000,
+            if (snapshot.isNotEmpty) 'agentMetadata': {'model': 'old-event'},
+          },
+        ]);
+        final details = AgentPresentation.fromMessage(
+          AgentsListSheet.extractAgents('test-session').single,
+        );
+        expect(details.model, snapshot['model']);
+        expect(details.metadata, snapshot);
+      });
+    }
+
     group('isSidechain filter (regression: inflated agent count)', () {
+      test('nested newer event wins over older top-level event snapshot', () {
+        sync.testSetSessionMessages('test-session', [
+          {
+            'id': 'anchor',
+            'toolUseId': 'call',
+            'kind': 'tool-call',
+            'name': 'Agent',
+            'input': {'subagent_type': 'codex'},
+            'children': [
+              {
+                'id': 'new',
+                'taskEvent': true,
+                'agentId': 'thread',
+                'parentToolUseId': 'call',
+                'createdAt': 3000,
+                'agentMetadata': {'model': 'new'},
+              },
+            ],
+          },
+          {
+            'id': 'old',
+            'taskEvent': true,
+            'agentId': 'thread',
+            'parentToolUseId': 'call',
+            'createdAt': 2000,
+            'agentMetadata': {'model': 'old'},
+          },
+        ]);
+        final details = AgentPresentation.fromMessage(
+          AgentsListSheet.extractAgents('test-session').single,
+        );
+        expect(details.model, 'new');
+      });
+
       test('task lifecycle counts local agents, not background shell jobs', () {
         sync.testSetSessionMessages('test-session', [
           <String, dynamic>{

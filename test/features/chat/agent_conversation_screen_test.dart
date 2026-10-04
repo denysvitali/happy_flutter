@@ -30,6 +30,68 @@ void main() {
     await TtsService().dispose();
   });
 
+  testWidgets('native metadata arrives after anchor and updates details', (
+    tester,
+  ) async {
+    final anchor = <String, dynamic>{
+      'id': 'native',
+      'name': 'Agent',
+      'kind': 'tool-call',
+      'state': 'completed',
+      'model': 'gpt-6-sol',
+      'input': {'subagent_type': 'codex', 'description': 'Inspect UI'},
+    };
+    sync.testSetSessionMessages('session_1', [anchor]);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AgentConversationScreen(
+            sessionId: 'session_1',
+            messageId: 'native',
+            taskData: anchor,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Model not reported · completed'), findsOneWidget);
+    expect(find.text('gpt-6-sol'), findsNothing);
+    sync
+      ..testSetSessionMessages('session_1', [
+        {
+          ...anchor,
+          'children': [
+            {
+              'id': 'native-child',
+              'kind': 'text',
+              'content': 'Found issue',
+              'agentMetadata': {
+                'role': 'explorer',
+                'model': 'gpt-6-luna',
+                'reasoningEffort': 'high',
+                'source': 'thread',
+              },
+            },
+          ],
+        },
+      ])
+      ..testNotifySessionMessagesChanged('session_1');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('explorer · gpt-6-luna'), findsOneWidget);
+    expect(find.text('gpt-6-luna · completed'), findsOneWidget);
+    expect(find.text('Model not reported · completed'), findsNothing);
+    expect(find.text('gpt-6-sol'), findsNothing);
+    await tester.tap(find.text('Agent details'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('high'), findsOneWidget);
+    expect(find.text('Not reported'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('renders streamed subagent children after session update', (
     tester,
   ) async {

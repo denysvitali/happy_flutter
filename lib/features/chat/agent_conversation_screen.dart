@@ -17,6 +17,7 @@ import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/wire/wire_parsers.dart';
 import '../workflows/workflow_display.dart';
 import '../workflows/workflow_run_screen.dart';
+import 'agent_presentation.dart';
 import 'agent_steps.dart';
 import 'chat_tts_gate.dart';
 import 'widgets/agent_conversation_info.dart';
@@ -360,26 +361,7 @@ class _AgentConversationScreenState
         )?.whereType<Map<String, dynamic>>().toList() ??
         [];
 
-    final metadata = WireParsers.asMap(_taskMsg?['metadata']);
-    String? childModel;
-    for (final c in children) {
-      final m = _nonEmptyStr(c['model']);
-      if (m != null) {
-        childModel = m;
-        break;
-      }
-    }
-    // The model the sub-agent was invoked with. The Agent tool input
-    // only carries `model` when the parent passed one explicitly; the
-    // daemon otherwise records it on the sidechain assistant messages
-    // (child `model`), never on the Task message itself.
-    final subagentModel =
-        _nonEmptyStr(input?['model']) ??
-        _nonEmptyStr(metadata?['model']) ??
-        childModel;
-    // The Task message's own `model` is the orchestrator that spawned
-    // this sub-agent (see output_content_handler), not the sub-agent's.
-    final parentModel = _nonEmptyStr(_taskMsg?['model']);
+    final presentation = AgentPresentation.fromMessage(_taskMsg);
 
     final showPrompt =
         promptRaw != null &&
@@ -405,8 +387,9 @@ class _AgentConversationScreenState
         AgentConversationDebugCard(
           state: state,
           messageId: widget.messageId,
-          subagentModel: subagentModel,
-          parentModel: parentModel,
+          subagentModel: presentation.model,
+          parentModel: presentation.parentModel,
+          presentation: presentation,
         ),
         if (showPrompt) AgentConversationPrompt(prompt: promptRaw),
         Expanded(child: messagesView),
@@ -415,7 +398,9 @@ class _AgentConversationScreenState
 
     return EmbeddedPaneShell(
       title: description,
-      subtitle: subagentType,
+      subtitle: presentation.isNativeCodex
+          ? (presentation.overview ?? subagentType)
+          : subagentType,
       body: body,
       embedded: widget.embedded,
       showProgress: isRunning,
@@ -487,9 +472,6 @@ class _AgentConversationScreenState
     );
   }
 }
-
-/// Returns [v] when it is a non-empty string, else `null`.
-String? _nonEmptyStr(dynamic v) => (v is String && v.isNotEmpty) ? v : null;
 
 /// True when [text] is the async sub-agent launch receipt — internal metadata
 /// the tool result explicitly says must never be surfaced to the user. Used to

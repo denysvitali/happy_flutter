@@ -69,11 +69,7 @@ class ToolResultProcessor {
       if (children is List<dynamic>) {
         for (final child in children) {
           if (child is Map<String, dynamic> &&
-              _hasAnyMatch(
-                [child],
-                toolResultsById,
-                visited: visited,
-              )) {
+              _hasAnyMatch([child], toolResultsById, visited: visited)) {
             return true;
           }
         }
@@ -144,6 +140,9 @@ class ToolResultProcessor {
             'result': result['result'],
             'completedAt': result['createdAt'],
             'permission': ?permissionUpdate,
+            'agentMetadata': ?WireParsers.asMap(result['agentMetadata']),
+            if (WireParsers.asMap(result['agentMetadata']) != null)
+              '_agentMetadataObservedAt': result['createdAt'],
           };
           changed = true;
           matchedIds.add(toolUseId!);

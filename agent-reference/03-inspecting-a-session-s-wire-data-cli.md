@@ -13,3 +13,14 @@ happy debug session <session-id> --all --remote                         # everyt
 
   Useful flags: `--last-message`, `--no-messages`, `--no-process`, `--no-diagnostics`, `--remote`. Sibling verbs under `happy debug`: `bundle` (redacted tarball for bug reports), `doctor`, `logs`, `status`, `config`, `repair-sessions`.
 
+For native Codex children, inspect `agentMetadata` on the Agent input, child
+payloads, and terminal result. It carries reported role, model, reasoning effort,
+and thread status. Each present map replaces the previous snapshot, including
+`{}` to clear stale values; absence means no snapshot update. Later child
+metadata can fill an initially empty anchor. Thread status is separate from
+task completion: `idle` or `notLoaded` does not prove a successful task.
+Thread-reported model settings are not per-turn billing telemetry. Missing child
+values must not fall back to the coordinator's model or permission mode.
+Effective sandbox and approval policy are shown only when reported for that
+child; otherwise the details view says they are not reported. A read-only role
+describes its assignment and does not by itself establish enforced permissions.

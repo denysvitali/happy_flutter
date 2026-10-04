@@ -97,6 +97,8 @@ _AgentEventHead? _processAgentEventHead({
       'parentUuid': ?meta.parentUuid,
       'parentToolUseId': ?parentToolUseId,
       'agentId': ?agentId,
+      if (vendor == 'codex')
+        'agentMetadata': ?WireParsers.asMap(data['agentMetadata']),
     });
     emitted = true;
   }

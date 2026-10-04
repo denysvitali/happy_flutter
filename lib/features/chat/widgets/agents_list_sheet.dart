@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:happy_flutter/core/theme/app_text.dart';
 
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/services/sync_service.dart';
@@ -9,9 +10,10 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../../../core/wire/wire_parsers.dart';
+import '../agent_presentation.dart';
+import '../agent_task_projection.dart';
 import '../tools/tool_status_indicator.dart';
 import '../tools/tool_view.dart' show parseToolState;
-import 'package:happy_flutter/core/theme/app_text.dart';
 
 /// Immutable snapshot of Task/Agent progress for a session.
 class TaskProgress {
@@ -103,77 +105,6 @@ class AgentSessionProjectionCache {
       _entries[sessionId]?.projection;
 }
 
-String? _taskEventDescription(Map<String, dynamic> msg) {
-  final event = WireParsers.asMap(msg['event']);
-  final eventMessage = event?['message'] as String?;
-  if (eventMessage != null && eventMessage.isNotEmpty) {
-    return eventMessage;
-  }
-  final content = msg['content'] as String?;
-  if (content != null && content.isNotEmpty) {
-    return content;
-  }
-  return null;
-}
-
-class _TaskEventAgent {
-  _TaskEventAgent({required this.agentId});
-
-  final String agentId;
-  String state = 'running';
-  String? description;
-  String? taskType;
-  String? subagentType;
-  String? parentToolUseId;
-
-  void merge(Map<String, dynamic> msg) {
-    final status = msg['taskStatus'] as String?;
-    if (status == 'completed') {
-      state = 'completed';
-    } else if (status == 'failed') {
-      state = 'error';
-    } else if (state != 'completed' && state != 'error') {
-      state = 'running';
-    }
-
-    final nextDescription = _taskEventDescription(msg);
-    if (nextDescription != null && nextDescription.isNotEmpty) {
-      description = nextDescription;
-    }
-
-    final nextTaskType = msg['taskType'] as String?;
-    if (nextTaskType != null && nextTaskType.isNotEmpty) {
-      taskType = nextTaskType;
-    }
-
-    final nextSubagentType = msg['subagentType'] as String?;
-    if (nextSubagentType != null && nextSubagentType.isNotEmpty) {
-      subagentType = nextSubagentType;
-    }
-
-    final nextParentToolUseId = msg['parentToolUseId'] as String?;
-    if (nextParentToolUseId != null && nextParentToolUseId.isNotEmpty) {
-      parentToolUseId = nextParentToolUseId;
-    }
-  }
-
-  Map<String, dynamic> toAgentMap() => <String, dynamic>{
-    'id': 'task-event-$agentId',
-    'toolUseId': parentToolUseId ?? agentId,
-    'agentId': agentId,
-    'kind': 'tool-call',
-    'name': 'Agent',
-    'state': state,
-    '_taskEventSynthetic': true,
-    if (parentToolUseId != null) '_taskEventParentToolUseId': parentToolUseId,
-    'input': <String, dynamic>{
-      'description': description ?? agentId,
-      'subagent_type': ?(subagentType ?? taskType),
-      'run_in_background': true,
-    },
-  };
-}
-
 /// Bottom sheet showing all active/running Task agents in the session.
 class AgentsListSheet extends StatelessWidget {
   const AgentsListSheet({
@@ -239,7 +170,7 @@ class AgentsListSheet extends StatelessWidget {
   static AgentSessionProjection _computeProjection(
     List<Map<String, dynamic>> messages,
   ) {
-    final taskStates = <String, _TaskEventAgent>{};
+    final taskStates = <String, AgentTaskEventProjection>{};
     final backgroundShellTaskIds = <String>{};
     final catalogSeen = <String>{};
     final catalog = <String>[];
@@ -283,7 +214,10 @@ class AgentsListSheet extends StatelessWidget {
               collectTaskEventChildren = false;
             } else if (!backgroundShellTaskIds.contains(agentId)) {
               taskStates
-                  .putIfAbsent(agentId, () => _TaskEventAgent(agentId: agentId))
+                  .putIfAbsent(
+                    agentId,
+                    () => AgentTaskEventProjection(agentId: agentId),
+                  )
                   .merge(msg);
             } else {
               collectTaskEventChildren = false;
@@ -338,9 +272,17 @@ class AgentsListSheet extends StatelessWidget {
     );
 
     if (taskStates.isNotEmpty) {
-      final eventAgents = taskStates.values
-          .map((agent) => agent.toAgentMap())
-          .toList();
+      final eventAgents = taskStates.values.map((agent) {
+        final anchor = agents
+            .where(
+              (message) =>
+                  (agent.parentToolUseId != null &&
+                      message['toolUseId'] == agent.parentToolUseId) ||
+                  message['agentId'] == agent.agentId,
+            )
+            .firstOrNull;
+        return buildAgentTaskEventProjection(agent, anchor);
+      }).toList();
       final eventCompleted = taskStates.values
           .where((state) => state.state == 'completed')
           .length;
@@ -567,11 +509,13 @@ class _AgentTile extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
 
     final input = WireParsers.asMap(agent['input']);
+    final presentation = AgentPresentation.fromMessage(agent);
     final description =
         input?['description'] as String? ??
-        input?['prompt'] as String? ??
+        (presentation.isNativeCodex ? null : input?['prompt'] as String?) ??
         l10n.agentFallbackTask;
-    final subagentType = input?['subagent_type'] as String?;
+    final subagentType =
+        presentation.role ?? input?['subagent_type'] as String?;
     final state = agent['state'] as String? ?? 'pending';
     final toolState = _parseToolState(state);
     final runInBackground = input?['run_in_background'] as bool? ?? false;
@@ -653,19 +597,29 @@ class _AgentTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (subagentType != null || runInBackground)
-                    Row(
+                  if (subagentType != null ||
+                      runInBackground ||
+                      presentation.isNativeCodex)
+                    Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xxs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (subagentType != null)
                           _AgentTypeBadge(type: subagentType),
-                        if (runInBackground) ...[
-                          if (subagentType != null)
-                            const SizedBox(width: AppSpacing.xs),
+                        if (presentation.isNativeCodex)
+                          Text(
+                            presentation.model ?? 'Model not reported',
+                            style: AppText.secondary(
+                              theme,
+                              cs.onSurfaceVariant,
+                            ),
+                          ),
+                        if (runInBackground)
                           _InfoBadge(
                             icon: Icons.run_circle_outlined,
                             label: 'background',
                           ),
-                        ],
                       ],
                     ),
                 ],
@@ -714,13 +668,17 @@ class _AgentTypeBadge extends StatelessWidget {
         children: [
           Icon(icon, size: AppIconSize.xs, color: cs.onPrimaryContainer),
           const SizedBox(width: 3),
-          Text(
-            type,
-            style: TextStyle(
-              fontSize: AppFontSize.sm,
-              fontWeight: FontWeight.w500,
-              color: cs.onPrimaryContainer,
-              letterSpacing: 0.2,
+          Flexible(
+            child: Text(
+              type,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppFontSize.sm,
+                fontWeight: FontWeight.w500,
+                color: cs.onPrimaryContainer,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ],
@@ -805,7 +763,10 @@ class _ChildCountBadge extends StatelessWidget {
       ),
       child: Text(
         '$count',
-        style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
+        style: AppText.secondary(
+          theme,
+          cs.onSurfaceVariant.withValues(alpha: 0.7),
+        ),
       ),
     );
   }

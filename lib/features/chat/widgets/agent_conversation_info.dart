@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_text.dart';
 import '../../../core/theme/app_tokens.dart';
+import '../agent_presentation.dart';
 import '../markdown/markdown_view.dart';
 
 /// Collapsible prompt above the agent conversation feed.
@@ -112,6 +113,7 @@ class AgentConversationDebugCard extends StatelessWidget {
     required this.messageId,
     this.subagentModel,
     this.parentModel,
+    this.presentation,
     super.key,
   });
 
@@ -119,6 +121,7 @@ class AgentConversationDebugCard extends StatelessWidget {
   final String messageId;
   final String? subagentModel;
   final String? parentModel;
+  final AgentPresentation? presentation;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +130,14 @@ class AgentConversationDebugCard extends StatelessWidget {
     // Local copy so flow analysis promotes it past the null check
     // below (a public getter would not be promoted).
     final resolvedParentModel = parentModel;
+    final details = presentation;
+    if (details != null && details.isNativeCodex) {
+      return _NativeAgentDetails(
+        presentation: details,
+        state: state,
+        messageId: messageId,
+      );
+    }
     return Container(
       margin: const EdgeInsets.fromLTRB(
         AppSpacing.md,
@@ -172,6 +183,75 @@ class AgentConversationDebugCard extends StatelessWidget {
             _DebugRow(label: 'ID', value: messageId, mono: true),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Native configuration stays compact; expand only for detailed permissions.
+class _NativeAgentDetails extends StatelessWidget {
+  const _NativeAgentDetails({
+    required this.presentation,
+    required this.state,
+    required this.messageId,
+  });
+
+  final AgentPresentation presentation;
+  final String state;
+  final String messageId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.md,
+        0,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppRadius.smd),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: ExpansionTile(
+        title: Text('Agent details', style: AppText.label(theme)),
+        subtitle: Text(
+          '${presentation.model ?? 'Model not reported'} · $state',
+          style: AppText.secondary(theme),
+        ),
+        tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.sm,
+        ),
+        children: [
+          _DebugRow(label: 'Role', value: presentation.role ?? 'Not reported'),
+          if (presentation.threadStatus != null)
+            _DebugRow(
+              label: 'Thread status',
+              value: presentation.threadStatus!,
+            ),
+          if (presentation.nickname != null)
+            _DebugRow(label: 'Name', value: presentation.nickname!),
+          _DebugRow(
+            label: 'Effort',
+            value: presentation.effort ?? 'Not reported',
+          ),
+          _DebugRow(label: 'Permissions', value: presentation.sandboxLabel),
+          _DebugRow(label: 'Approvals', value: presentation.approvalLabel),
+          if (presentation.source != null)
+            _DebugRow(
+              label: 'Source',
+              value: presentation.source == 'thread'
+                  ? 'Thread configuration'
+                  : presentation.source!,
+            ),
+          _DebugRow(label: 'ID', value: messageId, mono: true),
+        ],
       ),
     );
   }

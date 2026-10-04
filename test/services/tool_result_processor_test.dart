@@ -50,6 +50,61 @@ void main() {
   // ── applyToolResults ──────────────────────────────────
 
   group('applyToolResults', () {
+    test('child result replaces metadata snapshot without changing output', () {
+      final child = {
+        ..._toolCallMsg(id: 'child', toolUseId: 'child-tool'),
+        'agentMetadata': {'model': 'stale', 'reasoningEffort': 'high'},
+      };
+      final result = processor.applyToolResults(
+        [
+          _toolCallMsg(id: 'parent', children: [child]),
+        ],
+        [
+          {
+            ..._toolResult(
+              toolUseId: 'child-tool',
+              result: 'Contents',
+              createdAt: 3000,
+            ),
+            'agentMetadata': {'model': 'gpt-6-luna', 'source': 'thread'},
+          },
+        ],
+      );
+      final updated = result.messages.single['children'].single;
+      expect(updated['agentMetadata'], {
+        'model': 'gpt-6-luna',
+        'source': 'thread',
+      });
+      expect(updated['result'], 'Contents');
+      expect(updated['state'], 'completed');
+      expect(updated['_agentMetadataObservedAt'], 3000);
+      expect(child['agentMetadata']['reasoningEffort'], 'high');
+    });
+
+    test(
+      'empty metadata snapshot clears old facts, absence preserves them',
+      () {
+        final message = {
+          ..._toolCallMsg(id: 'child', toolUseId: 'child-tool'),
+          'agentMetadata': {'model': 'old'},
+        };
+        final cleared = processor.applyToolResults(
+          [message],
+          [
+            {
+              ..._toolResult(toolUseId: 'child-tool', result: 'Done'),
+              'agentMetadata': <String, dynamic>{},
+            },
+          ],
+        );
+        expect(cleared.messages.single['agentMetadata'], isEmpty);
+        final unchanged = processor.applyToolResults(
+          [message],
+          [_toolResult(toolUseId: 'child-tool', result: 'Done')],
+        );
+        expect(unchanged.messages.single['agentMetadata'], {'model': 'old'});
+      },
+    );
     test('returns unchanged when no tool results', () {
       final messages = [_toolCallMsg(id: 'm1')];
       final r = processor.applyToolResults(messages, []);
