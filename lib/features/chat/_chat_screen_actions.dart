@@ -528,6 +528,24 @@ extension _ChatScreenActions on _ChatScreenState {
         .savePermissionMode(widget.sessionId, mode.toModeString());
   }
 
+  void _onCodexFastModeChanged(bool enabled) {
+    if (_session?.metadata?.flavor != 'codex' || !_usageProfileResolved) {
+      return;
+    }
+    ref
+        .read(chatActionNotifierProvider.notifier)
+        .saveCodexFastMode(
+          widget.sessionId,
+          enabled,
+          profileId: _selectedProfile?.id,
+          modelMode: _effectiveModelModeString ?? 'default',
+        );
+    _composerRevision.value++;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.l10n.codexSpeedApplyHint)));
+  }
+
   void _onModelModeChanged(ChatModelMode model) {
     // Models configured on the selected profile (e.g. 'GLM-5') parse as
     // unknown/provider strings, so without the allowlist normalization
@@ -701,11 +719,11 @@ extension _ChatScreenActions on _ChatScreenState {
     final profileDefaultModelMode = profileSupportsCurrentModel
         ? currentModelMode
         : (favoriteModelForProvider(
-              ref.read(settingsNotifierProvider).favoriteModelsByProfile,
-              profile,
-              _session?.metadata?.flavor,
-            ) ??
-            profile?.inferredDefaultModelMode);
+                ref.read(settingsNotifierProvider).favoriteModelsByProfile,
+                profile,
+                _session?.metadata?.flavor,
+              ) ??
+              profile?.inferredDefaultModelMode);
     final rawModelString = profileDefaultModelMode != null
         ? ChatModelMode.normalizeRawForFlavor(
             profileDefaultModelMode,

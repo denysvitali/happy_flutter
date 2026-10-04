@@ -101,17 +101,34 @@ extension SyncSendTargetResolution on Sync {
               modelMode != 'default' &&
               previousModel != requestedModel);
 
+    final isCodexSession =
+        (session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId]) ==
+        'codex';
+    final savedCodexFastMode = CodexSpeedSelection().read(sessionId);
+    final pendingCodexSpeed = pendingSelection?.codexSpeed;
+    final requestedCodexFastMode = pendingCodexSpeed == 'fast'
+        ? true
+        : pendingCodexSpeed == 'standard'
+        ? false
+        : savedCodexFastMode ??
+              session.metadata?.codexFastMode ??
+              settingsSnapshot.codexFastMode;
+    final runningCodexFastMode =
+        session.metadata?.codexFastMode ??
+        savedCodexFastMode ??
+        settingsSnapshot.codexFastMode;
+    final codexSpeedChanged =
+        isCodexSession && requestedCodexFastMode != runningCodexFastMode;
+
     checkRuntime();
     final configurationChanged =
-        profileChanged || modelChanged || pendingSelection != null;
+        profileChanged ||
+        modelChanged ||
+        codexSpeedChanged ||
+        pendingSelection != null;
     // Persist detected changes too, so a failed switch remains retryable
     // after navigation or app restart without trusting volatile spawn maps.
-    final requestedSelection = configurationChanged
-        ? (
-            profileId: effectiveProfileIdForChange ?? 'default',
-            modelMode: requestedModel,
-          )
-        : null;
+    SessionConfigurationSelection? requestedSelection = pendingSelection;
 
     // Serialize replacement preparation, including different model picks.
     // A shared failed restore must never hand another sender the old process.
@@ -129,11 +146,14 @@ extension SyncSendTargetResolution on Sync {
         localId: localId,
       );
     }
-    if (requestedSelection != null && pendingSelection == null) {
-      configurations.save(
+    if (configurationChanged && requestedSelection == null) {
+      requestedSelection = configurations.save(
         sessionId,
-        profileId: requestedSelection.profileId,
-        modelMode: requestedSelection.modelMode,
+        profileId: effectiveProfileIdForChange ?? 'default',
+        modelMode: requestedModel,
+        codexSpeed: codexSpeedChanged
+            ? (requestedCodexFastMode ? 'fast' : 'standard')
+            : null,
       );
     }
 
@@ -308,6 +328,7 @@ extension SyncSendTargetResolution on Sync {
       final spawnResult = await _getSpawnEnvVarsForSession(
         sessionId,
         profileIdOverride: profileId,
+        codexFastModeOverride: isCodexSession ? requestedCodexFastMode : null,
       );
       checkRuntime();
       final sessionAgent =
@@ -335,7 +356,11 @@ extension SyncSendTargetResolution on Sync {
               profile: spawnProfileResolution.profile,
               modelMode: effectiveModelMode,
             )
-          : <String, String>{};
+          : <String, String>{
+              'HAPPY_CODEX_FAST_MODE':
+                  spawnResult.envVars['HAPPY_CODEX_FAST_MODE'] ??
+                  (requestedCodexFastMode ? '1' : '0'),
+            };
       final req = SpawnSessionRequest(
         type: 'spawn-in-directory',
         directory: path,
@@ -365,7 +390,7 @@ extension SyncSendTargetResolution on Sync {
         final errorMsg = result.errorMessage ?? '';
         if (configurationChanged) {
           throw StateError(
-            'Could not apply selected provider/model: $errorMsg. '
+            'Could not apply selected session settings: $errorMsg. '
             'Your message has not been sent. Retry to apply the change.',
           );
         }
@@ -548,6 +573,7 @@ extension SyncSendTargetResolution on Sync {
       }
       if (restoredSessionEncryption == null) {
         await sessionsSync.invalidateAndAwait();
+        checkRuntime();
         restoredSessionEncryption = encryption.getSessionEncryption(
           restoredSessionId,
         );
@@ -559,6 +585,16 @@ extension SyncSendTargetResolution on Sync {
         throw StateError('Session encryption not found: $restoredSessionId');
       }
 
+      if (isCodexSession &&
+          (configurationChanged || pendingCodexSpeed != null)) {
+        final updatedMetadata =
+            (restoredSession.metadata ?? const Metadata(host: '')).copyWith(
+              codexFastMode: requestedCodexFastMode,
+            );
+        restoredSession = restoredSession.copyWith(metadata: updatedMetadata);
+        _sessions[restoredSessionId] = restoredSession;
+      }
+
       final restored = (
         sessionId: restoredSessionId,
         session: restoredSession,
@@ -567,6 +603,10 @@ extension SyncSendTargetResolution on Sync {
       checkRuntime();
       if (requestedSelection != null) {
         configurations.clearIfCurrent(sessionId, requestedSelection);
+      }
+      if (restoredSessionId != sessionId) {
+        CodexSpeedSelection().move(sessionId, restoredSessionId);
+        configurations.moveCurrent(sessionId, restoredSessionId);
       }
       completer.complete(restored);
       return restored;
@@ -578,11 +618,11 @@ extension SyncSendTargetResolution on Sync {
       restoreClearedSpawnTracking();
       if (configurationChanged) {
         final failure = StateError(
-          'Could not apply selected provider/model. '
+          'Could not apply selected session settings. '
           'Your message has not been sent. Retry to apply the change. $error',
         );
         logger.warning(
-          '[sendMessage] provider/model replacement failed '
+          '[sendMessage] session settings replacement failed '
           'session=$sessionId',
           error,
           stack,

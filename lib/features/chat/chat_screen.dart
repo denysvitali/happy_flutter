@@ -22,6 +22,7 @@ import '../../core/models/session.dart';
 import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/services/chat_switch_metrics.dart';
+import '../../core/services/codex_speed_selection.dart';
 import '../../core/services/draft_storage.dart';
 import '../../core/services/logger_service.dart' show LogLevel, logger;
 import '../../core/services/main_isolate_stall_tracker.dart';
@@ -2019,6 +2020,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ? _refreshModelPickerCatalog
                 : null,
             sessionFlavor: _session?.metadata?.flavor,
+            codexFastMode:
+                CodexSpeedSelection().read(widget.sessionId) ??
+                _session?.metadata?.codexFastMode,
+            onCodexFastModeChanged: _usageProfileResolved
+                ? _onCodexFastModeChanged
+                : null,
             availableSlashCommands:
                 _session?.metadata?.slashCommands ?? const [],
             onFileSuggestionsRequested: _loadFileSuggestions,

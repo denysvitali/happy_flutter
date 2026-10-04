@@ -173,6 +173,7 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiIntNullable) int? hostPid,
     @JsonKey(fromJson: _asApiStringNullable) String? flavor,
     @JsonKey(fromJson: _asApiStringNullable) String? model,
+    @JsonKey(fromJson: _asApiBoolNullable) bool? codexFastMode,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleStateError,
     @JsonKey(fromJson: _asApiIntNullable) int? lifecycleStateSince,

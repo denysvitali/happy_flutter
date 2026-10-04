@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart';
@@ -13,8 +14,10 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/providers/chat_action_notifier.dart';
 import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
+import 'package:happy_flutter/core/services/codex_speed_selection.dart';
 import 'package:happy_flutter/core/services/pending_session_configuration.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
@@ -129,11 +132,243 @@ void main() {
       );
       await sync.lastCompleteSendFuture;
       expect(spawns, hasLength(1));
-      expect(spawns.single['environmentVariables'], isEmpty);
+      expect(spawns.single['environmentVariables'], {
+        'HAPPY_CODEX_FAST_MODE': '0',
+      });
       expect(spawns.single['model'], 'default');
       expect(selections.read(sessionId), isNull);
       expect(http.capturedLocalIds, ['first', 'second']);
       expect(sync.testSessionMessages(sessionId), hasLength(2));
+    },
+  );
+
+  test(
+    'Codex speed applies on retry and accepted choices do not respawn',
+    () async {
+      sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
+        metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+          flavor: 'codex',
+          codexFastMode: false,
+        ),
+      );
+      CodexSpeedSelection().save(sessionId, true);
+      selections.save(
+        sessionId,
+        profileId: 'default',
+        modelMode: 'default',
+        codexSpeed: 'fast',
+      );
+      sync.testMachineRPCOverride = (_, method, params) async {
+        spawns.add(params);
+        return {'type': 'error', 'errorMessage': 'temporary failure'};
+      };
+
+      await expectLater(
+        sync.sendMessage(sessionId, 'continue', clientLocalId: 'speed-retry'),
+        throwsStateError,
+      );
+      expect(http.capturedLocalIds, isEmpty);
+      expect(selections.read(sessionId)?.codexSpeed, 'fast');
+
+      sync.testMachineRPCOverride = (_, method, params) async {
+        spawns.add(params);
+        return {'type': 'success', 'sessionId': sessionId};
+      };
+      messageOutbox.testStorage = MMKVStorage();
+      final retry = await sync.retryFailedMessage(sessionId, 'speed-retry');
+      expect(retry.isQueued, isTrue);
+      expect(messageOutbox.entries.single.localId, 'speed-retry');
+      expect(spawns.last['environmentVariables'], {
+        'HAPPY_CODEX_FAST_MODE': '1',
+      });
+      expect(selections.read(sessionId), isNull);
+
+      CodexSpeedSelection().save(sessionId, false);
+      selections.save(
+        sessionId,
+        profileId: 'default',
+        modelMode: 'default',
+        codexSpeed: 'standard',
+      );
+      await sync.sendMessage(sessionId, 'continue', clientLocalId: 'standard');
+      await sync.lastCompleteSendFuture;
+      expect(spawns.last['environmentVariables'], {
+        'HAPPY_CODEX_FAST_MODE': '0',
+      });
+      final acceptedSpawnCount = spawns.length;
+
+      await sync.sendMessage(sessionId, 'continue', clientLocalId: 'again');
+      await sync.lastCompleteSendFuture;
+      expect(spawns, hasLength(acceptedSpawnCount));
+    },
+  );
+
+  test(
+    'newer speed pick survives same-ID and redirected replacements',
+    () async {
+      final seed = sync.testSessions[sessionId]!;
+      final fakeEncryption = sync.encryption as _FakeEncryption;
+      final raceCases = <(String sourceId, String restoredId)>[
+        (sessionId, sessionId),
+        ('redirected-speed-source', 'redirected-speed-result'),
+      ];
+
+      for (final (sourceId, restoredId) in raceCases) {
+        final sourceSession = seed.copyWith(
+          id: sourceId,
+          metadata: seed.metadata!.copyWith(
+            flavor: 'codex',
+            codexFastMode: false,
+          ),
+        );
+        sync.testSessions[sourceId] = sourceSession;
+        sync.testSetSessionMessages(sourceId, []);
+        sync.testSetLastEphemeralAt(
+          sourceId,
+          DateTime.now().millisecondsSinceEpoch,
+        );
+        sync.testClearSessionSpawnedAt();
+        CodexSpeedSelection().save(sourceId, true);
+        selections.save(
+          sourceId,
+          profileId: 'default',
+          modelMode: 'default',
+          codexSpeed: 'fast',
+        );
+        if (restoredId != sourceId) {
+          fakeEncryption.missingSessionIds.add(restoredId);
+          sync.sessionsSync = InvalidateSync(() async {
+            fakeEncryption.missingSessionIds.remove(restoredId);
+          });
+        }
+
+        final spawnStarted = Completer<void>();
+        final spawnResponse = Completer<Map<String, dynamic>>();
+        sync.testMachineRPCOverride = (_, method, params) {
+          spawns.add(params);
+          if (!spawnStarted.isCompleted) spawnStarted.complete();
+          return spawnResponse.future;
+        };
+        final localId = 'speed-race-$sourceId';
+        final sending = sync.sendMessage(
+          sourceId,
+          'continue',
+          clientLocalId: localId,
+        );
+        await spawnStarted.future;
+        CodexSpeedSelection().save(sourceId, false);
+        final newer = selections.save(
+          sourceId,
+          profileId: 'default',
+          modelMode: 'default',
+          codexSpeed: 'standard',
+        );
+        spawnResponse.complete({'type': 'success', 'sessionId': restoredId});
+        await sending;
+        await sync.lastCompleteSendFuture;
+
+        expect(spawns.last['environmentVariables'], {
+          'HAPPY_CODEX_FAST_MODE': '1',
+        });
+        expect(http.capturedLocalIds.last, localId);
+        if (restoredId == sourceId) {
+          expect(selections.read(sourceId), newer);
+        } else {
+          expect(selections.read(sourceId), isNull);
+          expect(selections.read(restoredId)?.codexSpeed, 'standard');
+          expect(CodexSpeedSelection().read(restoredId), isFalse);
+        }
+      }
+    },
+  );
+
+  test(
+    'notifier applies explicit Fast when legacy metadata omits its mode',
+    () async {
+      sync.testSettingsSnapshot = Settings()..codexFastMode = true;
+      sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
+        metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+          flavor: 'codex',
+          codexFastMode: null,
+        ),
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container
+          .read(chatActionNotifierProvider.notifier)
+          .saveCodexFastMode(
+            sessionId,
+            true,
+            profileId: null,
+            modelMode: 'default',
+          );
+      expect(selections.read(sessionId)?.codexSpeed, 'fast');
+
+      await sync.sendMessage(
+        sessionId,
+        'continue',
+        clientLocalId: 'legacy-speed',
+      );
+      await sync.lastCompleteSendFuture;
+
+      expect(spawns, hasLength(1));
+      expect(spawns.single['environmentVariables'], {
+        'HAPPY_CODEX_FAST_MODE': '1',
+      });
+      expect(sync.testSessions[sessionId]?.metadata?.codexFastMode, isTrue);
+    },
+  );
+
+  test(
+    'runtime reset during encryption sync blocks stale speed metadata',
+    () async {
+      const restoredId = 'runtime-reset-speed-restore';
+      sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
+        metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+          flavor: 'codex',
+          codexFastMode: false,
+        ),
+      );
+      CodexSpeedSelection().save(sessionId, true);
+      selections.save(
+        sessionId,
+        profileId: 'default',
+        modelMode: 'default',
+        codexSpeed: 'fast',
+      );
+      final fakeEncryption = sync.encryption as _FakeEncryption;
+      fakeEncryption.missingSessionIds.add(restoredId);
+      final syncStarted = Completer<void>();
+      final releaseSync = Completer<void>();
+      sync.sessionsSync = InvalidateSync(() async {
+        if (!syncStarted.isCompleted) syncStarted.complete();
+        await releaseSync.future;
+        sync.testAdvanceRuntimeGeneration();
+        fakeEncryption.missingSessionIds.remove(restoredId);
+      });
+      sync.testMachineRPCOverride = (_, method, params) async => {
+        'type': 'success',
+        'sessionId': restoredId,
+      };
+
+      final sending = expectLater(
+        sync.sendMessage(sessionId, 'continue', clientLocalId: 'runtime-speed'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('cancelled by runtime reset'),
+          ),
+        ),
+      );
+      await syncStarted.future;
+      releaseSync.complete();
+      await sending;
+
+      expect(sync.testSessions[restoredId]?.metadata?.codexFastMode, isNull);
+      expect(selections.read(sessionId)?.codexSpeed, 'fast');
+      expect(selections.read(restoredId), isNull);
+      expect(CodexSpeedSelection().read(restoredId), isNull);
     },
   );
 
@@ -491,9 +726,11 @@ class _TrackingInterceptor extends Interceptor {
 
 class _FakeEncryption implements Encryption {
   final Map<String, _FakeSessionEncryption> _sessions = {};
+  final Set<String> missingSessionIds = {};
 
   @override
   SessionEncryption? getSessionEncryption(String sessionId) {
+    if (missingSessionIds.contains(sessionId)) return null;
     return _sessions.putIfAbsent(
       sessionId,
       () => _FakeSessionEncryption(sessionId: sessionId),

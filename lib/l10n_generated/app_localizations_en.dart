@@ -3513,11 +3513,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get featuresCompactModeDesc => 'Reduce spacing in chat messages';
 
   @override
+  String get codexSpeedUnknown => 'Speed';
+
+  @override
+  String get codexSpeedTitle => 'Codex speed';
+
+  @override
+  String get codexSpeedStandard => 'Standard';
+
+  @override
+  String get codexSpeedStandardDescription => 'Normal speed and usage';
+
+  @override
+  String get codexSpeedFast => 'Fast';
+
+  @override
+  String get codexSpeedFastDescription =>
+      'Faster responses with increased usage';
+
+  @override
+  String get codexSpeedUltraFast => 'Ultra fast';
+
+  @override
+  String get codexSpeedUltraFastUnavailable =>
+      'Not yet supported by Happy\'s Codex launcher';
+
+  @override
+  String get codexSpeedApplyHint =>
+      'Applies to this session on the next message. The session restarts to change speed.';
+
+  @override
   String get featuresCodexFastMode => 'Codex Fast Mode';
 
   @override
   String get featuresCodexFastModeDesc =>
-      'Use faster Codex inference with increased usage';
+      'Default to faster Codex inference with increased usage for new sessions. Change speed per chat in the composer.';
 
   @override
   String get featuresHideInactiveSessions => 'Hide Inactive Sessions';

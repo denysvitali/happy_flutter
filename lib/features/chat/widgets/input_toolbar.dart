@@ -7,6 +7,7 @@ import '../../../core/models/settings.dart';
 import '../../../core/theme/app_tokens.dart';
 import '../../../core/widgets/app_linear_progress_indicator.dart';
 import '../model_selection_resolver.dart';
+import 'codex_speed_selector.dart';
 import 'composer_selector_chip.dart';
 import 'model_mode.dart';
 import 'permission_mode_selector.dart' as perm;
@@ -138,10 +139,7 @@ class ContextSizeIndicator extends StatelessWidget {
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
-        Text(
-          label,
-          style: AppText.secondary(theme, indicatorColor),
-        ),
+        Text(label, style: AppText.secondary(theme, indicatorColor)),
       ],
     );
   }
@@ -167,6 +165,8 @@ class InputToolbar extends StatelessWidget {
     this.maxContext,
     this.compact = false,
     this.resolvedModelLabel,
+    this.codexFastMode,
+    this.onCodexFastModeChanged,
   });
 
   final perm.PermissionMode? permissionMode;
@@ -189,6 +189,8 @@ class InputToolbar extends StatelessWidget {
   final int? maxContext;
   final bool compact;
   final String? resolvedModelLabel;
+  final bool? codexFastMode;
+  final ValueChanged<bool>? onCodexFastModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -222,6 +224,13 @@ class InputToolbar extends StatelessWidget {
             enabled: availableModels.length > 1 || canRefreshModels,
             onTap: onShowModelPicker,
           ),
+          if (sessionFlavor == 'codex') ...[
+            const SizedBox(width: AppSpacing.xs),
+            CodexSpeedSelector(
+              fastMode: codexFastMode,
+              onChanged: onCodexFastModeChanged,
+            ),
+          ],
           if (compact)
             ComposerIconChip(
               key: const ValueKey('composer-options-button'),

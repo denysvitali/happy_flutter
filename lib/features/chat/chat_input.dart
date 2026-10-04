@@ -81,6 +81,8 @@ class ChatInput extends ConsumerStatefulWidget {
     this.lastDeliveryStatus,
     this.onQueueNextTurn,
     this.sessionFlavor,
+    this.codexFastMode,
+    this.onCodexFastModeChanged,
   });
 
   /// Stable identifier for the current session
@@ -126,6 +128,9 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Agent flavor for the session (`claude`, `codex`, and so on).
   final String? sessionFlavor;
+
+  final bool? codexFastMode;
+  final ValueChanged<bool>? onCodexFastModeChanged;
 
   /// Slash commands advertised by the current session's agent.
   final List<String> availableSlashCommands;
@@ -913,6 +918,10 @@ class _ChatInputState extends ConsumerState<ChatInput>
       onShowProfilePicker: () => _showProfilePicker(context),
       contextSize: widget.contextSize,
       sessionFlavor: widget.sessionFlavor,
+      codexFastMode: widget.codexFastMode,
+      onCodexFastModeChanged: widget.isSending
+          ? null
+          : widget.onCodexFastModeChanged,
       maxContext: widget.maxContext,
     );
   }

@@ -125,14 +125,19 @@ extension SyncSpawnProfileResolution on Sync {
   }
 
   /// Build daemon spawn environment variables with safe defaults.
-  Map<String, String> _spawnEnvironmentVariables(Map<String, String>? base) {
+  Map<String, String> _spawnEnvironmentVariables(
+    Map<String, String>? base, {
+    bool? codexFastModeOverride,
+  }) {
+    final codexFastMode =
+        codexFastModeOverride ?? settingsSnapshot.codexFastMode;
     return <String, String>{
       ...?base,
       // Keep the Codex speed choice explicit in every spawn/restore request.
       // The Go launcher maps 1 to Fast/Priority and 0 to Standard. The
       // setting defaults to false so Codex never inherits its account-level
       // Fast default through a Happy invocation.
-      'HAPPY_CODEX_FAST_MODE': settingsSnapshot.codexFastMode ? '1' : '0',
+      'HAPPY_CODEX_FAST_MODE': codexFastMode ? '1' : '0',
     };
   }
 
@@ -627,9 +632,15 @@ extension SyncSpawnProfileResolution on Sync {
   _getSpawnEnvVarsForSession(
     String sessionId, {
     String? profileIdOverride,
+    bool? codexFastModeOverride,
   }) async {
     final override = testGetSpawnEnvVarsOverride;
     if (override != null) return override(sessionId);
+    final codexFastMode =
+        codexFastModeOverride ??
+        CodexSpeedSelection().read(sessionId) ??
+        _sessions[sessionId]?.metadata?.codexFastMode ??
+        settingsSnapshot.codexFastMode;
     // Prefer the in-memory override (from sendMessage) over MMKV,
     // which may not have flushed a recent debounced write yet.
     final profileId =
@@ -641,6 +652,7 @@ extension SyncSpawnProfileResolution on Sync {
         return (
           envVars: _spawnEnvironmentVariables(
             _profileEnvironmentVariables(hydrated),
+            codexFastModeOverride: codexFastMode,
           ),
           profile: hydrated,
         );
@@ -655,7 +667,13 @@ extension SyncSpawnProfileResolution on Sync {
     // No profile saved for this session — return empty env vars rather
     // than falling back to lastUsedProfile which may have changed since
     // creation.
-    return (envVars: _spawnEnvironmentVariables(null), profile: null);
+    return (
+      envVars: _spawnEnvironmentVariables(
+        null,
+        codexFastModeOverride: codexFastMode,
+      ),
+      profile: null,
+    );
   }
 
   /// Send `spawn-happy-session`, tolerating daemons that predate the

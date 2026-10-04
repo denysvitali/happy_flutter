@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
@@ -17,6 +19,137 @@ void main() {
       home: Scaffold(body: child),
     );
   }
+
+  testWidgets(
+    'Codex speed selection is explicit and ultra fast is unavailable',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      addTearDown(semantics.dispose);
+      bool? selection;
+      await tester.pumpWidget(
+        wrap(
+          InputToolbar(
+            sessionFlavor: 'codex',
+            onShowModelPicker: () {},
+            onShowProfilePicker: () {},
+            onCodexFastModeChanged: (value) => selection = value,
+          ),
+        ),
+      );
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('Codex speed: Standard'))
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isTrue,
+      );
+      await tester.tap(find.byKey(const ValueKey('codex-speed-selector')));
+      await tester.pumpAndSettle();
+      final ultraFast = tester.widget<ListTile>(
+        find.widgetWithText(ListTile, 'Ultra fast'),
+      );
+      expect(ultraFast.enabled, isFalse);
+      expect(ultraFast.onTap, isNull);
+      await tester.tap(find.widgetWithText(ListTile, 'Fast'));
+      await tester.pumpAndSettle();
+      expect(selection, isTrue);
+      expect(find.text('Codex speed'), findsNothing);
+
+      selection = null;
+      await tester.pumpWidget(
+        wrap(
+          InputToolbar(
+            sessionFlavor: 'codex',
+            codexFastMode: true,
+            onShowModelPicker: () {},
+            onShowProfilePicker: () {},
+            onCodexFastModeChanged: (value) => selection = value,
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('codex-speed-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ListTile, 'Standard'));
+      await tester.pumpAndSettle();
+      expect(selection, isFalse);
+    },
+  );
+
+  testWidgets('unknown Codex speed requires an explicit choice', (
+    tester,
+  ) async {
+    bool? selection;
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          sessionFlavor: 'codex',
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+          onCodexFastModeChanged: (value) => selection = value,
+        ),
+      ),
+    );
+    expect(find.text('Speed'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('codex-speed-selector')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<ListTile>(find.widgetWithText(ListTile, 'Standard'))
+          .selected,
+      isFalse,
+    );
+    expect(
+      tester.widget<ListTile>(find.widgetWithText(ListTile, 'Fast')).selected,
+      isFalse,
+    );
+    await tester.tap(find.widgetWithText(ListTile, 'Standard'));
+    await tester.pumpAndSettle();
+    expect(selection, isFalse);
+  });
+
+  testWidgets('dismissing speed picker preserves the selection', (
+    tester,
+  ) async {
+    var changes = 0;
+    await tester.pumpWidget(
+      wrap(
+        InputToolbar(
+          sessionFlavor: 'codex',
+          codexFastMode: true,
+          onShowModelPicker: () {},
+          onShowProfilePicker: () {},
+          onCodexFastModeChanged: (_) => changes++,
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('codex-speed-selector')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Fast'));
+    await tester.pumpAndSettle();
+    expect(changes, 0, reason: 'selecting the current speed is a no-op');
+    await tester.tap(find.byKey(const ValueKey('codex-speed-selector')));
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('Codex speed'))).pop();
+    await tester.pumpAndSettle();
+    expect(changes, 0);
+    expect(find.text('Fast'), findsOneWidget);
+  });
+
+  testWidgets('other agents do not show Codex speed controls', (tester) async {
+    for (final flavor in ['claude', 'gemini', 'agy']) {
+      await tester.pumpWidget(
+        wrap(
+          InputToolbar(
+            sessionFlavor: flavor,
+            onShowModelPicker: () {},
+            onShowProfilePicker: () {},
+            onCodexFastModeChanged: (_) {},
+          ),
+        ),
+      );
+      expect(find.byKey(const ValueKey('codex-speed-selector')), findsNothing);
+    }
+  });
 
   testWidgets('provider-owned model labels remain visible and readable', (
     tester,

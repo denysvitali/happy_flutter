@@ -6,6 +6,7 @@ import '../models/outgoing_image.dart';
 import '../repositories/messages_repository.dart';
 import '../rpc/rpc_types.dart' show CodexModelsResponse;
 import '../services/draft_storage.dart';
+import '../services/codex_speed_selection.dart';
 import '../services/pending_session_configuration.dart';
 import '../services/sync_service.dart';
 import 'settings_notifier.dart';
@@ -202,6 +203,32 @@ class ChatActionNotifier extends Notifier<void> {
     if (permissionMode != null) {
       savePermissionMode(sessionId, permissionMode);
     }
+  }
+
+  /// Persist a per-session Codex speed choice and queue a replacement when
+  /// it differs from the running process configuration.
+  void saveCodexFastMode(
+    String sessionId,
+    bool enabled, {
+    required String? profileId,
+    required String modelMode,
+  }) {
+    final speed = enabled ? 'fast' : 'standard';
+    final session = sync.sessions[sessionId];
+    final pending = PendingSessionConfiguration().read(sessionId);
+    final previousOverride = CodexSpeedSelection().read(sessionId);
+    final knownSpeed = session?.metadata?.codexFastMode ?? previousOverride;
+    CodexSpeedSelection().save(sessionId, enabled);
+
+    // A speed choice must not overwrite a provider/model change that is
+    // already waiting for a replacement spawn.
+    if (pending == null && knownSpeed == enabled) return;
+    PendingSessionConfiguration().save(
+      sessionId,
+      profileId: pending?.profileId ?? profileId ?? 'default',
+      modelMode: pending?.modelMode ?? modelMode,
+      codexSpeed: speed,
+    );
   }
 }
 

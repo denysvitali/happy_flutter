@@ -53,6 +53,7 @@ import '../sync/sync_progress.dart';
 import '../services/failure_telemetry.dart';
 import '../services/frame_metrics_service.dart';
 import '../services/loop_storage.dart';
+import '../services/codex_speed_selection.dart';
 import '../services/main_isolate_stall_tracker.dart';
 import '../services/message_cache_service.dart';
 import '../services/message_outbox.dart';

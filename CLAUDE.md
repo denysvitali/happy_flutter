@@ -63,6 +63,10 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   when reducing page size; failed pages never advance the cursor. Machine RPC
   discovery, encryption, ACK and decode share one timeout; only explicitly
   idempotent mutations may automatically retry routing failures.
+- **Codex speed is session-scoped** — composer Standard/Fast changes apply
+  through the pending configuration restart on the next message. Keep speed
+  independent of reasoning effort; the global Fast setting is a launch default.
+  Ultra fast remains unavailable until the launcher supports its service tier.
 - **Provider/model switches must succeed before delivery** — persist picker
   intent until the replacement spawn succeeds, including explicit Default.
   Failed switches preserve a failed row and its `localId`; Retry must apply

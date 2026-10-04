@@ -6527,6 +6527,60 @@ abstract class AppLocalizations {
   /// **'Reduce spacing in chat messages'**
   String get featuresCompactModeDesc;
 
+  /// No description provided for @codexSpeedUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get codexSpeedUnknown;
+
+  /// No description provided for @codexSpeedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Codex speed'**
+  String get codexSpeedTitle;
+
+  /// No description provided for @codexSpeedStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get codexSpeedStandard;
+
+  /// No description provided for @codexSpeedStandardDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal speed and usage'**
+  String get codexSpeedStandardDescription;
+
+  /// No description provided for @codexSpeedFast.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast'**
+  String get codexSpeedFast;
+
+  /// No description provided for @codexSpeedFastDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Faster responses with increased usage'**
+  String get codexSpeedFastDescription;
+
+  /// No description provided for @codexSpeedUltraFast.
+  ///
+  /// In en, this message translates to:
+  /// **'Ultra fast'**
+  String get codexSpeedUltraFast;
+
+  /// No description provided for @codexSpeedUltraFastUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet supported by Happy\'s Codex launcher'**
+  String get codexSpeedUltraFastUnavailable;
+
+  /// No description provided for @codexSpeedApplyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to this session on the next message. The session restarts to change speed.'**
+  String get codexSpeedApplyHint;
+
   /// No description provided for @featuresCodexFastMode.
   ///
   /// In en, this message translates to:
@@ -6536,7 +6590,7 @@ abstract class AppLocalizations {
   /// No description provided for @featuresCodexFastModeDesc.
   ///
   /// In en, this message translates to:
-  /// **'Use faster Codex inference with increased usage'**
+  /// **'Default to faster Codex inference with increased usage for new sessions. Change speed per chat in the composer.'**
   String get featuresCodexFastModeDesc;
 
   /// No description provided for @featuresHideInactiveSessions.
