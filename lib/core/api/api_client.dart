@@ -62,6 +62,13 @@ class ApiClient {
 
   /// Cancel optional reads while backgrounded; resume sync schedules refreshes.
   void setSuspended(bool suspended) {
+    if (_suspended && !suspended) {
+      // Native pools can outlive OS backgrounding even when connectivity
+      // reports the same link on wake. Retire before allowing resumed reads
+      // or outbox writes to dispatch; existing writes keep their lease until
+      // their responses drain. Repeated foreground resumes do not rotate.
+      renewTransport();
+    }
     _suspended = suspended;
     _retryInterceptor?.setSuspended(suspended);
   }

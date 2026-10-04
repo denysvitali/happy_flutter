@@ -156,14 +156,26 @@ catalog.
 
 See `docs/SYNC_PATTERNS.md` for subscription template and details.
 
-HTTP pools renew on native link handoffs, DNS/connection failures and
-pre-header deadlines. Retired pools drain active writes; failures from an old
-pool cannot retire its replacement. Older-history body timeouts halve large
+HTTP pools renew on actual suspended-to-active transitions before dispatch
+resumes, native link handoffs, DNS/connection failures and pre-header deadlines.
+Repeated foreground resume calls retain the current pool. Retired pools drain
+active writes; failures from an old pool cannot retire its replacement. Older-history body timeouts halve large
 pages against the same end cursor under one 40s deadline. Partial-body byte
 counts remain transport diagnostics, not complete response sizes. Machine RPC
-capability discovery, encryption, ACK and decode share one caller deadline.
-Startup-resume settings opt into one bounded idempotent routing retry; usage
-reads coalesce, and only unsupported methods fall back to Bash.
+capability discovery, encryption, ACK and decode share one caller deadline;
+spawn readiness uses that same budget. Readiness retries only the idempotent ping; an ambiguous
+spawn ACK or disconnect never triggers automatic spawn replay. Confirmed
+mutation results survive backgrounding; runtime changes still fence results.
+Startup-resume settings and Codex usage reads opt into one bounded idempotent
+routing retry; usage reads coalesce, and only unsupported methods fall back
+to Bash.
+
+Message-cache ciphertext repair snapshots live only while native worker writes
+are in flight. Newer synchronous writes, including unchanged payloads, fence
+older worker commits without retaining every session payload for process life.
+Native decrypted-message processing also uses a worker for large payloads even
+when the batch has fewer than 20 rows; bounded sizing avoids JSON encoding on
+the UI isolate. Small inline batches and the web fallback remain supported.
 
 HTTP suspension cancellations carry `HttpCancellationReason.appSuspended`.
 They remain failed refresh attempts with cached state preserved, but do not

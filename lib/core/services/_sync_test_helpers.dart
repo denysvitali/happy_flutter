@@ -1,6 +1,10 @@
 part of 'sync_service.dart';
 
 extension SyncTestHelpers on Sync {
+  /// Invalidates pending work without unrelated shutdown side effects.
+  @visibleForTesting
+  void testAdvanceRuntimeGeneration() => _runtimeGeneration++;
+
   /// Clears the read-only Codex catalog cache between singleton-backed tests.
   @visibleForTesting
   void testClearCodexModelsCache() {

@@ -703,7 +703,7 @@ PY
     }
 
     try {
-      final response = await _typedMachineRPC(
+      final response = await _retryIdempotentMachineRPC(
         machineId,
         'get-codex-usage',
         <String, dynamic>{},

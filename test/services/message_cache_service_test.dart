@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -254,6 +255,127 @@ void main() {
     List<Map<String, dynamic>> window(String marker) => [
       <String, dynamic>{'id': 'm-1', 'seq': 1, 'content': marker},
     ];
+
+    test(
+      'completed saves release ciphertext without losing cached rows',
+      () async {
+        final storage = _InMemoryMMKVStorage();
+        final cache = MessageCacheService()..debugSetStorage = storage;
+        addTearDown(cache.debugResetStorage);
+        final ids = [for (var i = 0; i < 12; i++) 'marker-release-$i'];
+        addTearDown(() => ids.forEach(cache.clearMessages));
+
+        for (var i = 0; i < ids.length; i++) {
+          final rows = <Map<String, dynamic>>[
+            {
+              'id': 'local-$i',
+              'localId': 'local-$i',
+              'seq': 1,
+              'content': 'continue',
+            },
+          ];
+          if (i.isEven) {
+            cache.saveMessages(ids[i], rows);
+          } else {
+            await cache.saveMessagesAsync(ids[i], rows);
+          }
+          expect(cache.debugRetainedRepairMarkerBytes, 0);
+          expect(cache.getMessages(ids[i]).single['localId'], 'local-$i');
+        }
+      },
+    );
+
+    test(
+      'native worker race repairs the synchronous save then releases it',
+      () async {
+        final storage = _InMemoryMMKVStorage();
+        final cache = MessageCacheService()..debugSetStorage = storage;
+        addTearDown(cache.debugResetStorage);
+        addTearDown(() => cache.clearMessages('native-repair'));
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        MessageCacheService.debugNativeWorkerWrite = (sessionId, marker) async {
+          entered.complete();
+          await release.future;
+          storage.saveSessionMessagesEncoded(sessionId, marker);
+          return true;
+        };
+        addTearDown(() => MessageCacheService.debugNativeWorkerWrite = null);
+
+        final pending = cache.saveMessagesAsync('native-repair', window('old'));
+        await entered.future;
+        cache.saveMessages('native-repair', [
+          {'id': 'stable', 'localId': 'stable', 'seq': 2, 'content': 'new'},
+        ]);
+        expect(cache.debugRetainedRepairMarkerBytes, greaterThan(0));
+        release.complete();
+        await pending;
+
+        expect(storage.rawStored('native-repair').single['localId'], 'stable');
+        expect(storage.rawStored('native-repair').single['content'], 'new');
+        expect(cache.debugRetainedRepairMarkerBytes, 0);
+      },
+    );
+
+    test('native worker cannot resurrect a deleted cache', () async {
+      final storage = _InMemoryMMKVStorage();
+      final cache = MessageCacheService()..debugSetStorage = storage;
+      addTearDown(cache.debugResetStorage);
+      addTearDown(() => cache.clearMessages('native-delete'));
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      MessageCacheService.debugNativeWorkerWrite = (sessionId, marker) async {
+        entered.complete();
+        await release.future;
+        storage.saveSessionMessagesEncoded(sessionId, marker);
+        return true;
+      };
+      addTearDown(() => MessageCacheService.debugNativeWorkerWrite = null);
+
+      final pending = cache.saveMessagesAsync('native-delete', window('old'));
+      await entered.future;
+      cache.clearMessages('native-delete');
+      release.complete();
+      await pending;
+
+      expect(storage.rawStored('native-delete'), isEmpty);
+      expect(cache.debugRetainedRepairMarkerBytes, 0);
+    });
+
+    test(
+      'unchanged synchronous save fences a different native worker write',
+      () async {
+        final storage = _InMemoryMMKVStorage();
+        final cache = MessageCacheService()..debugSetStorage = storage;
+        addTearDown(cache.debugResetStorage);
+        addTearDown(() => cache.clearMessages('native-unchanged'));
+        cache.saveMessages('native-unchanged', window('committed'));
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        MessageCacheService.debugNativeWorkerWrite = (sessionId, marker) async {
+          entered.complete();
+          await release.future;
+          storage.saveSessionMessagesEncoded(sessionId, marker);
+          return true;
+        };
+        addTearDown(() => MessageCacheService.debugNativeWorkerWrite = null);
+
+        final pending = cache.saveMessagesAsync(
+          'native-unchanged',
+          window('stale'),
+        );
+        await entered.future;
+        cache.saveMessages('native-unchanged', window('committed'));
+        release.complete();
+        await pending;
+
+        expect(
+          storage.rawStored('native-unchanged').single['content'],
+          'committed',
+        );
+        expect(cache.debugRetainedRepairMarkerBytes, 0);
+      },
+    );
 
     test('rapid async saves for one session collapse to a single write', () {
       final storage = _InMemoryMMKVStorage();

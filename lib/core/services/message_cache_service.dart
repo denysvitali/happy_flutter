@@ -341,6 +341,11 @@ class MessageCacheService {
   static void Function(String sessionId, int messageCount)?
   debugWorkerInputSink;
 
+  /// Simulates an asynchronous native MMKV write, including its fence race.
+  @visibleForTesting
+  static Future<bool> Function(String sessionId, String marker)?
+  debugNativeWorkerWrite;
+
   /// Storage backend.  Defaults to the singleton MMKVStorage.  Tests can
   /// override this via [debugSetStorage] to inject a stateful fake so
   /// round-trip behavior (e.g. cleaned-cache rewrites) can be observed
@@ -451,10 +456,17 @@ class MessageCacheService {
   /// Last Sync message revision durably represented by the cache.
   final Map<String, int> _committedRevision = {};
 
-  /// Last encoded blob committed per session. This is retained only to repair
-  /// the rare race where a synchronous suspend/delete fence lands while a
-  /// native worker is already inside MMKV.
+  /// Synchronous writes that may need repair after an older native worker
+  /// finishes. Retain only while that session has an in-flight save: keeping
+  /// every completed ciphertext here duplicates the disk cache indefinitely,
+  /// outside the resident transcript and encryption-cache byte budgets.
   final Map<String, String> _committedMarker = {};
+
+  @visibleForTesting
+  int get debugRetainedRepairMarkerBytes => _committedMarker.values.fold(
+    0,
+    (total, marker) => total + marker.length * 2,
+  );
 
   /// Get cached messages for a session synchronously.
   ///
@@ -783,7 +795,11 @@ class MessageCacheService {
     _pendingSaves.remove(sessionId)?.complete();
     final seq = ++_saveSeq;
     final prepared = _prepareMessageCacheWindow(messages);
-    if (_lastSavedHash[sessionId] == prepared.hash) {
+    // A worker may already be writing different content. Even an unchanged
+    // synchronous snapshot must establish its own repair marker in that race;
+    // reading storage instead could read the worker's stale value.
+    if (_lastSavedHash[sessionId] == prepared.hash &&
+        !_inFlightSaves.containsKey(sessionId)) {
       _committedSeq[sessionId] = seq;
       if (revision != null) _committedRevision[sessionId] = revision;
       return;
@@ -999,17 +1015,21 @@ class MessageCacheService {
       }
       var writeMs = 0;
       var nativeWorkerWriteSucceeded = false;
+      final workerWriteOverride = debugNativeWorkerWrite;
       final useNativeWorkerStorage =
-          !kIsWeb &&
-          identical(_storage, MMKVStorage()) &&
-          _storage.nativeWorkerRootDir != null &&
-          !_workerStorageUnavailable;
+          workerWriteOverride != null ||
+          (!kIsWeb &&
+              identical(_storage, MMKVStorage()) &&
+              _storage.nativeWorkerRootDir != null &&
+              !_workerStorageUnavailable);
       if (useNativeWorkerStorage) {
-        final writeSucceeded = await compute(_writeMessageCacheJson, {
-          'sessionId': sessionId,
-          'encodedMarker': marker,
-          'rootDir': _storage.nativeWorkerRootDir!,
-        });
+        final writeSucceeded = workerWriteOverride != null
+            ? await workerWriteOverride(sessionId, marker)
+            : await compute(_writeMessageCacheJson, {
+                'sessionId': sessionId,
+                'encodedMarker': marker,
+                'rootDir': _storage.nativeWorkerRootDir!,
+              });
         nativeWorkerWriteSucceeded = writeSucceeded;
         writeMs = writeWatch.elapsedMilliseconds;
         if (!writeSucceeded) {
@@ -1054,7 +1074,6 @@ class MessageCacheService {
         );
         writeMs = writeWatch.elapsedMilliseconds;
       }
-      _committedMarker[sessionId] = marker;
       _commitWrite(
         sessionId,
         hash: hash,
@@ -1076,6 +1095,9 @@ class MessageCacheService {
     } catch (e) {
       _recordWriteFailure(sessionId, e, workerWatch.elapsedMilliseconds);
     } finally {
+      // The native write and any fence repair have finished. No later worker
+      // can use this marker, so release it before waking save waiters.
+      _committedMarker.remove(sessionId);
       save.complete();
     }
   }
@@ -1328,7 +1350,9 @@ class MessageCacheService {
       return false;
     }
     _storage.saveSessionMessagesEncoded(sessionId, marker);
-    _committedMarker[sessionId] = marker;
+    if (_inFlightSaves.containsKey(sessionId)) {
+      _committedMarker[sessionId] = marker;
+    }
     return true;
   }
 

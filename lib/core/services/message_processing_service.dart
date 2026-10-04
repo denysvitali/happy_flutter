@@ -1,7 +1,8 @@
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 
+import '../encryption/json_text.dart';
 import '../encryption/message_processor.dart';
 import 'failure_telemetry.dart';
 
@@ -14,6 +15,47 @@ import 'failure_telemetry.dart';
 /// page cannot hold the frame hostage.
 const int _inlineChunkSize = 8;
 
+/// Prefer a worker before parsing/scanning large bodies, even for one row.
+/// Counting rows alone sends giant tool outputs through the inline parser;
+/// yielding between eight rows cannot interrupt that single synchronous row.
+const int _inlinePayloadCharBudget = 64 * 1024;
+const int _inlinePayloadNodeBudget = 2048;
+
+@visibleForTesting
+void Function(bool usesIsolate)? debugMessageProcessingDispatch;
+
+/// Cheap admission check: inspect lengths without encoding or scanning text.
+/// Limit both node visits and recursion so sizing a large/deep JSON tree does
+/// not become another unbounded UI-isolate traversal.
+bool _hasLargeProcessingPayload(List<dynamic> bodies) {
+  var chars = 0;
+  var nodes = 0;
+  bool exceedsBudget(Object? node, int depth) {
+    if (++nodes > _inlinePayloadNodeBudget || depth >= 32) return true;
+    if (node is String || node is JsonText) {
+      chars += node is String ? node.length : (node as JsonText).length;
+      return chars >= _inlinePayloadCharBudget;
+    }
+    if (node is List) {
+      if (node.length > _inlinePayloadNodeBudget - nodes) return true;
+      for (final child in node) {
+        if (exceedsBudget(child, depth + 1)) return true;
+      }
+    } else if (node is Map) {
+      if (node.length > _inlinePayloadNodeBudget - nodes) return true;
+      for (final entry in node.entries) {
+        if (exceedsBudget(entry.key, depth + 1) ||
+            exceedsBudget(entry.value, depth + 1)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  return exceedsBudget(bodies, 0);
+}
+
 Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
   required List<dynamic> decryptedJsonList,
   required List<Map<String, dynamic>> wireMessages,
@@ -21,9 +63,14 @@ Future<ProcessedMessages> processDecryptedMessagesWithIsolation({
   required List<bool> wasEncrypted,
   required bool useIsolate,
 }) async {
+  // Only decrypted JSON-shaped values cross this boundary. Crypto handles
+  // stay in SessionEncryption, so large legacy bodies are equally sendable.
+  final dispatchToWorker =
+      !kIsWeb && (useIsolate || _hasLargeProcessingPayload(decryptedJsonList));
+  debugMessageProcessingDispatch?.call(dispatchToWorker);
   // Isolates are not supported on web — use main-thread processing,
   // chunked so the UI can render between chunks.
-  if (!useIsolate || kIsWeb) {
+  if (!dispatchToWorker) {
     return _counted(
       await _processInlineChunked(
         decryptedJsonList: decryptedJsonList,

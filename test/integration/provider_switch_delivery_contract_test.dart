@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/api_client.dart';
+import 'package:happy_flutter/core/api/socket_io_client.dart';
 import 'package:happy_flutter/core/encryption/encryption_cache.dart';
 import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
@@ -16,6 +17,7 @@ import 'package:happy_flutter/core/services/message_outbox.dart';
 import 'package:happy_flutter/core/services/mmkv_storage.dart';
 import 'package:happy_flutter/core/services/pending_session_configuration.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 import '../helpers/test_helpers.dart';
 
@@ -27,6 +29,7 @@ void main() {
   final selections = PendingSessionConfiguration();
 
   setUp(() async {
+    InvalidateSync.isBackgrounded = false;
     Sync.testRecentlySpawnedWaitMsOverride = 100;
     Sync.testSpawnHydrateRetryDelaysOverride = const [Duration.zero];
     await MMKVStorage.initialize();
@@ -94,9 +97,11 @@ void main() {
 
   tearDown(() async {
     await sync.lastCompleteSendFuture;
+    InvalidateSync.isBackgrounded = false;
     messageOutbox.dispose();
     Sync.testResetTimingOverrides();
     sync.testMachineRPCOverride = null;
+    sync.testEnsureMachineReachableMachineRPCOverride = null;
     sync.testSocketConnectedOverride = null;
     sync.testSocketSendOverride = null;
     sync.testFetchMessagesOverride = null;
@@ -132,12 +137,92 @@ void main() {
     },
   );
 
-  for (final failure in ['response', 'exception', 'terminal']) {
+  test('pending switch waits for handler readiness before dispatch', () async {
+    selections.save(sessionId, profileId: 'default', modelMode: 'default');
+    final events = <String>[];
+    sync.testEnsureMachineReachableMachineRPCOverride = (_, __, ___) async {
+      events.add('ping');
+      if (events.length == 1) {
+        throw const RpcException(
+          code: RpcErrorCode.handlerOffline,
+          message: 'reconnecting',
+          retryable: true,
+        );
+      }
+      return {'ok': true, 'result': ''};
+    };
+    sync.testMachineRPCOverride = (_, method, params) async {
+      events.add(method);
+      spawns.add(params);
+      return {'type': 'success', 'sessionId': sessionId};
+    };
+    await sync.sendMessage(
+      sessionId,
+      'continue',
+      clientLocalId: 'readiness-id',
+    );
+    await sync.lastCompleteSendFuture;
+    expect(events, ['ping', 'ping', 'spawn-happy-session']);
+    expect(spawns, hasLength(1));
+    expect(http.capturedLocalIds, ['readiness-id']);
+    expect(
+      sync.testSessionMessages(sessionId)!.single['localId'],
+      'readiness-id',
+    );
+    expect(selections.read(sessionId), isNull);
+  });
+
+  test('confirmed spawn survives backgrounding after dispatch', () async {
+    sync.testMachineRPCOverride = (_, method, params) async {
+      expect(method, 'spawn-happy-session');
+      spawns.add(params);
+      InvalidateSync.isBackgrounded = true;
+      return {'type': 'success', 'sessionId': sessionId};
+    };
+    final created = await sync.createSession(
+      agent: 'claude',
+      machineId: 'machine-1',
+      path: '/repo',
+    );
+    expect(created, sessionId);
+    expect(spawns, hasLength(1));
+    expect(sync.testSessionSpawnedAt, contains(sessionId));
+  });
+
+  for (final error in [
+    const SocketAckTimeoutException('rpc-call'),
+    const SocketNotConnectedException('rpc-call'),
+  ]) {
+    test(
+      'createSession never replays uncertain ${error.runtimeType}',
+      () async {
+        sync.testMachineRPCOverride = (_, method, params) async {
+          expect(method, 'spawn-happy-session');
+          spawns.add(params);
+          throw error;
+        };
+        await expectLater(
+          sync.createSession(
+            agent: 'claude',
+            machineId: 'machine-1',
+            path: '/repo',
+          ),
+          throwsA(same(error)),
+        );
+        expect(spawns, hasLength(1));
+      },
+    );
+  }
+
+  for (final failure in ['response', 'exception', 'ack', 'terminal']) {
     test('failed $failure replacement never delivers to MiniMax', () async {
       sync.testSetSessionSpawnedProfile(sessionId, 'minimax');
       sync.testMachineRPCOverride = (_, method, params) async {
         if (method == 'spawn-happy-session') {
           spawns.add(params);
+          if (failure == 'ack') {
+            throw const SocketAckTimeoutException('rpc-call');
+          }
           if (failure == 'exception') {
             throw const RpcException(
               code: RpcErrorCode.handlerOffline,

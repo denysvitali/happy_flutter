@@ -1,12 +1,31 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/rpc/rpc_exception.dart';
+import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 void main() {
   final sync = Sync();
 
   tearDown(() {
     sync.testMachineRPCOverride = null;
+    InvalidateSync.isBackgrounded = false;
+  });
+
+  test('confirmed startup-resume write survives backgrounding', () async {
+    var calls = 0;
+    sync.testMachineRPCOverride = (_, method, __) async {
+      expect(method, 'session-startup-resume-set');
+      calls++;
+      InvalidateSync.isBackgrounded = true;
+      return {'ok': true};
+    };
+    await sync.machineSetSessionStartupResume(
+      machineId: 'machine-1',
+      sessionId: 'session-1',
+      enabled: true,
+      message: 'continue',
+    );
+    expect(calls, 1);
   });
 
   test(

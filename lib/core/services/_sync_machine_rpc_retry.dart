@@ -16,19 +16,35 @@ extension SyncMachineRpcRetry on Sync {
       if (generation != _runtimeGeneration) {
         throw StateError('Machine RPC runtime changed');
       }
+      if (InvalidateSync.isBackgrounded) {
+        throw const SocketNotConnectedException('rpc-call');
+      }
       final remaining = timeout - clock.elapsed;
       if (remaining <= Duration.zero) {
         throw const SocketAckTimeoutException('rpc-call');
       }
       try {
-        return await _typedMachineRPC(
+        final result = await _typedMachineRPC(
           machineId,
           method,
           params,
           decode,
           timeout: remaining,
         );
+        if (generation != _runtimeGeneration) {
+          throw StateError('Machine RPC runtime changed');
+        }
+        return result;
       } on RpcException catch (error) {
+        // Late failures must not authorize a retry or a legacy Bash fallback
+        // in a different runtime or after suspension. Confirmed results above
+        // remain accepted, including successful idempotent settings writes.
+        if (generation != _runtimeGeneration) {
+          throw StateError('Machine RPC runtime changed');
+        }
+        if (InvalidateSync.isBackgrounded) {
+          throw const SocketNotConnectedException('rpc-call');
+        }
         if (attempt >= 1 ||
             !error.retryable ||
             (error.code != RpcErrorCode.handlerOffline &&

@@ -1,12 +1,5 @@
 part of 'sync_service.dart';
 
-/// Thrown when the server itself reports that an RPC handler is not
-/// registered on any replica. This must not be confused with a daemon-level
-/// application error (e.g. "Method not found"), which proves liveness.
-class _ServerRPCNoHandlerError extends StateError {
-  _ServerRPCNoHandlerError(super.message);
-}
-
 extension SyncMessagingRpc on Sync {
   /// Expected socket transport failures, rather than application failures.
   bool isExpectedSocketTransportError(Object error) =>
@@ -71,6 +64,9 @@ extension SyncMessagingRpc on Sync {
           onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
         );
     final ackTimeout = remaining();
+    if (method == 'spawn-happy-session' && InvalidateSync.isBackgrounded) {
+      throw StateError('Machine RPC suspended');
+    }
     rpcMetrics.recordDuration(
       'app.machine_rpc.stage',
       Duration(milliseconds: stopwatch.elapsedMilliseconds - stageStartedMs),
@@ -315,41 +311,13 @@ extension SyncMessagingRpc on Sync {
           '(value: $raw)',
         );
       }
-      final error = raw['error'];
-      if (error != null) {
-        if (raw['ok'] == false &&
-            error.toString().contains(
-              'not registered on any reachable server replica',
-            )) {
-          throw _ServerRPCNoHandlerError('Machine is unreachable');
-        }
-        throw StateError('Machine RPC $method failed: $error');
+      if (raw['error'] != null) {
+        throw RpcException.fromWire(raw, fallbackMethod: method);
       }
-      if (raw['ok'] == true) {
-        return raw['result'];
-      }
+      if (raw['ok'] == true) return raw['result'];
       throw StateError('Machine RPC $method failed: $raw');
     }
-
-    try {
-      raw = await machineRPC(machineId, method, params, timeout: timeout);
-    } on StateError catch (e) {
-      // If the server returned an explicit "not registered" error, the
-      // machine/socket is gone on all replicas. Promote it to a server-level
-      // failure so ensureMachineReachable does not treat it as daemon liveness.
-      if (e.message.contains(
-        'not registered on any reachable server replica',
-      )) {
-        throw _ServerRPCNoHandlerError('Machine is unreachable');
-      }
-      rethrow;
-    }
-
-    if (raw is Map<String, dynamic> && raw['ok'] == false) {
-      final error = raw['error']?.toString() ?? 'unknown server error';
-      throw _ServerRPCNoHandlerError('Machine is unreachable: $error');
-    }
-    return raw;
+    return machineRPC(machineId, method, params, timeout: timeout);
   }
 
   /// Cheap pre-flight liveness probe before long-running spawn RPCs.
@@ -362,66 +330,109 @@ extension SyncMessagingRpc on Sync {
   /// that predate the `ping` handler — proves the machine is reachable
   /// within seconds.
   ///
-  /// Throws [StateError] (`Machine is unreachable`) when both pings
-  /// ACK-timeout. Socket connection errors propagate as-is.
-  ///
-  /// HAPPY_FLUTTER-3DF: 8s was too aggressive for slow daemons
-  /// (production user `cbd5a4df` hit the 8s ceiling 35× in two
-  /// days, every occurrence blocking a session spawn). 12s gives
-  /// a real daemon a fair window; the single retry absorbs the
-  /// common "first ACK lost to dispatcher variance" race that the
-  /// killSession fix (4394b339) already proved real.
-  Future<void> ensureMachineReachable(String machineId) async {
+  /// Pings are idempotent: retry one transient routing failure or ACK
+  /// timeout, with both attempts sharing a bounded caller deadline. A server
+  /// handler miss is never proof of daemon liveness. A legacy daemon's
+  /// unsupported ping response does prove that its handler received the call.
+  Future<void> ensureMachineReachable(
+    String machineId, {
+    Duration timeout = const Duration(milliseconds: 24300),
+  }) async {
+    final generation = _runtimeGeneration;
+    final clock = Stopwatch()..start();
+    void checkRuntime() {
+      if (generation != _runtimeGeneration) {
+        throw StateError('Machine RPC runtime changed');
+      }
+      if (InvalidateSync.isBackgrounded) {
+        throw StateError('Machine RPC suspended');
+      }
+    }
+
+    StateError unreachable([Object? cause]) {
+      unawaited(
+        Sentry.addBreadcrumb(
+          Breadcrumb(
+            message: 'ensureMachineReachable: readiness exhausted',
+            category: 'sync.machines',
+            level: SentryLevel.warning,
+            data: {
+              'machineId': machineId,
+              'reason': cause?.runtimeType.toString() ?? 'deadline',
+            },
+          ),
+        ),
+      );
+      return StateError('Machine is unreachable');
+    }
+
+    checkRuntime();
     final override = testEnsureMachineReachableOverride;
     if (override != null) {
-      return override(machineId);
+      await override(machineId).timeout(timeout);
+      checkRuntime();
+      return;
     }
-    // Generic createSession tests stub the typed RPC layer and do not
-    // expect a pre-flight ping. Keep the probe a no-op there unless the
-    // test explicitly opts in via [testEnsureMachineReachableMachineRPCOverride].
+    // Generic spawn fixtures opt in to ping behavior explicitly.
     if (testMachineRPCOverride != null &&
         testEnsureMachineReachableMachineRPCOverride == null) {
       return;
     }
-    for (var attempt = 1; attempt <= 2; attempt++) {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      checkRuntime();
+      final remaining = timeout - clock.elapsed;
+      if (remaining <= Duration.zero) {
+        throw unreachable();
+      }
+      final probeTimeout = remaining < const Duration(seconds: 12)
+          ? remaining
+          : const Duration(seconds: 12);
       try {
         await _probeMachineRPC(
           machineId,
           'ping',
           const {},
-          timeout: const Duration(seconds: 12),
+          timeout: probeTimeout,
+        ).timeout(
+          probeTimeout,
+          onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
         );
+        checkRuntime();
         return;
-      } on SocketAckTimeoutException {
-        if (attempt == 2) {
-          unawaited(
-            Sentry.addBreadcrumb(
-              Breadcrumb(
-                message: 'ensureMachineReachable: 2 consecutive ping timeouts',
-                category: 'sync.machines',
-                level: SentryLevel.warning,
-                data: {'machineId': machineId},
-              ),
-            ),
-          );
-          throw StateError('Machine is unreachable');
+      } on RpcException catch (error) {
+        checkRuntime();
+        if (error.code == RpcErrorCode.methodUnsupported) return;
+        if (!error.retryable ||
+            (error.code != RpcErrorCode.handlerOffline &&
+                error.code != RpcErrorCode.forwardingFailed)) {
+          rethrow;
         }
-        // First attempt timed out — try once more. The first ACK
-        // is the most likely to lose the race because the daemon
-        // is still warming up the RPC handler; a second attempt
-        // a few hundred ms later usually succeeds.
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-      } on _ServerRPCNoHandlerError {
-        // The server explicitly reported that no replica has a handler for
-        // this machine. Propagate as an unreachable machine instead of
-        // treating it as daemon liveness.
+        if (attempt == 1) {
+          throw unreachable(error);
+        }
+      } on SocketAckTimeoutException {
+        checkRuntime();
+        if (attempt == 1) throw unreachable();
+      } on SocketNotConnectedException catch (error) {
+        checkRuntime();
+        if (attempt == 1) throw unreachable(error);
+      } on StateError catch (error) {
+        checkRuntime();
+        final message = error.message.toLowerCase();
+        if (message.contains('method not found') ||
+            message.contains('unknown method') ||
+            message.contains('method not available')) {
+          return;
+        }
         rethrow;
-      } on StateError {
-        // The daemon replied with an application-level error (older
-        // daemons have no `ping` handler and answer `Method not found`).
-        // Any reply proves liveness — that is all this probe checks.
-        return;
       }
+      checkRuntime();
+      const delay = Duration(milliseconds: 300);
+      if (clock.elapsed + delay >= timeout) {
+        throw unreachable();
+      }
+      await Future<void>.delayed(delay);
+      checkRuntime();
     }
   }
 
@@ -508,15 +519,35 @@ extension SyncMessagingRpc on Sync {
     final override = testMachineRPCOverride;
     final generation = _runtimeGeneration;
     final clock = Stopwatch()..start();
+    void checkRuntime({bool checkSuspension = true}) {
+      if (generation != _runtimeGeneration) {
+        throw StateError('Machine RPC runtime changed');
+      }
+      if (checkSuspension &&
+          method == 'spawn-happy-session' &&
+          InvalidateSync.isBackgrounded) {
+        throw StateError('Machine RPC suspended');
+      }
+    }
+
+    checkRuntime();
+    if (method == 'spawn-happy-session') {
+      // Readiness is safe to retry; the spawn itself is never replayed after
+      // an ambiguous response. Include readiness in the original RPC budget.
+      await ensureMachineReachable(machineId, timeout: timeout);
+    }
+    checkRuntime();
+    final capabilityTimeout = timeout - clock.elapsed;
+    if (capabilityTimeout <= Duration.zero) {
+      throw const SocketAckTimeoutException('rpc-call');
+    }
     if (override == null) {
       await ensureMachineRPCSupported(machineId, method).timeout(
-        timeout,
+        capabilityTimeout,
         onTimeout: () => throw const SocketAckTimeoutException('rpc-call'),
       );
     }
-    if (generation != _runtimeGeneration) {
-      throw StateError('Machine RPC runtime changed');
-    }
+    checkRuntime();
     final remaining = timeout - clock.elapsed;
     if (remaining <= Duration.zero) {
       throw const SocketAckTimeoutException('rpc-call');
@@ -524,9 +555,9 @@ extension SyncMessagingRpc on Sync {
     final raw = override != null
         ? await override(machineId, method, params).timeout(remaining)
         : await machineRPC(machineId, method, params, timeout: remaining);
-    if (generation != _runtimeGeneration) {
-      throw StateError('Machine RPC runtime changed');
-    }
+    // Once dispatched, a confirmed spawn must survive backgrounding. The
+    // account generation still fences the result across logout/replacement.
+    checkRuntime(checkSuspension: false);
     // machineRPC now throws on null — this check is only needed for the
     // test override path which may return null.
     if (raw == null) {
