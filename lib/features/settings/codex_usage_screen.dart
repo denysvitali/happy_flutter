@@ -62,6 +62,7 @@ class CodexUsageScreen extends StatelessWidget {
                 title: l10n.codexUsageEmail,
                 value: report.email ?? '-',
                 iconColor: AppColors.info,
+                flexValue: true,
               ),
               UsageStatRow(
                 icon: Icons.workspace_premium_outlined,
