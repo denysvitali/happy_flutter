@@ -1194,6 +1194,27 @@ void main() {
       expect(items.map((i) => i.content), isNot(contains('Task #4')));
     });
 
+    testWidgets(
+      'todo_update headline names a task whose create never mounted',
+      (tester) async {
+        final container = await pumpHost(tester);
+        TaskToolView.pushToolToGlobalState(ctx, {
+          'name': 'mcp__happy__todo_update',
+          'toolUseId': 'call-mcp-10',
+          'createdAt': 2000,
+          'input': {'id': '5', 'status': 'in_progress'},
+          'result': 'Updated #5 [in_progress] Sort photos',
+        }, 's1');
+
+        final items = container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!;
+        expect(items, hasLength(1));
+        expect(items.single.content, 'Sort photos');
+        expect(items.single.status, TodoState.inProgress);
+      },
+    );
+
     testWidgets('todo_add snapshot collapses a placeholder from a replay', (
       tester,
     ) async {

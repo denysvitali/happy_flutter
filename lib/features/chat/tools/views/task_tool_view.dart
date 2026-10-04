@@ -194,8 +194,13 @@ class TaskToolView extends ConsumerStatefulWidget {
           }
           return existing.where((e) => e.id != explicitId).toList();
         }
+        // The update input names the task by id only, but the Happy MCP
+        // result echoes `Updated #<id> [<status>] <subject>`; use it so a
+        // row whose create call never mounted is not left as "Task #<id>".
         final newSubject =
-            input['subject'] as String? ?? input['content'] as String?;
+            input['subject'] as String? ??
+            input['content'] as String? ??
+            _subjectFromHeadline(tool, explicitId);
         final idx = existing.indexWhere((e) => e.id == explicitId);
         if (idx == -1) {
           // Reverse-order replay can deliver the update before its create.
@@ -356,6 +361,20 @@ class TaskToolView extends ConsumerStatefulWidget {
   /// Subject shown for an item whose TaskUpdate was processed before its
   /// TaskCreate (reverse-order replay). The create call replaces it.
   static String _placeholderContent(String id) => 'Task #$id';
+
+  /// Subject from a Happy MCP headline (`Added|Updated #<id> [<status>]
+  /// <subject>`) for [id], or null when the result has another shape.
+  static String? _subjectFromHeadline(Map<String, dynamic> tool, String id) {
+    final text = _resultText(tool['result']);
+    if (text == null) return null;
+    final m = RegExp(
+      r'^(?:Added|Updated)\s+#([A-Za-z0-9_-]+)\s+\[[^\]]+\]\s+(.+)$',
+      multiLine: true,
+    ).firstMatch(text);
+    if (m == null || m.group(1) != id) return null;
+    final subject = m.group(2)!.trim();
+    return subject.isEmpty ? null : subject;
+  }
 
   /// Extracts the harness-assigned task id from a TaskCreate result.
   ///
