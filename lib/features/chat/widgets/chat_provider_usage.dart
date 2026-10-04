@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/components/app_inline_row.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/claude_usage_limits.dart';
 import '../../../core/models/settings.dart';
@@ -208,63 +209,41 @@ class _ChatProviderUsageState extends State<ChatProviderUsage>
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 880),
-        child: InkWell(
+        child: AppInlineRow(
           onTap: widget.onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.xs,
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                final columns =
-                    width >= 260 &&
-                        MediaQuery.textScalerOf(context).scale(12) <= 16
-                    ? 2
-                    : 1;
-                final itemWidth =
-                    (width - AppSpacing.md * (columns - 1)) / columns;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 36),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(title, style: AppText.secondary(theme)),
-                          ),
-                          if (_failed)
-                            Flexible(
-                              child: Text(
-                                _windows.isEmpty
-                                    ? (widget.flavor == 'codex'
-                                          ? l10n.codexUsageNotAvailable
-                                          : l10n.claudeLimitsNotAvailable)
-                                    : l10n.providersUsageStale,
-                                style: AppText.secondary(theme),
-                              ),
-                            ),
-                          const Icon(Icons.chevron_right, size: AppIconSize.sm),
-                        ],
-                      ),
-                    ),
-                    if (_windows.isNotEmpty)
-                      Wrap(
-                        spacing: AppSpacing.md,
-                        runSpacing: AppSpacing.sm,
-                        children: [
-                          for (final window in _windows)
-                            SizedBox(
-                              width: itemWidth,
-                              child: _window(context, window),
-                            ),
-                        ],
-                      ),
-                  ],
-                );
-              },
+          leading: Tooltip(
+            message: title,
+            child: const Icon(Icons.speed, size: AppIconSize.md),
+          ),
+          trailing: const Icon(Icons.chevron_right, size: AppIconSize.sm),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_windows.isEmpty)
+                  Text(
+                    _failed
+                        ? (widget.flavor == 'codex'
+                              ? l10n.codexUsageNotAvailable
+                              : l10n.claudeLimitsNotAvailable)
+                        : title,
+                    style: AppText.secondary(theme),
+                    maxLines: 1,
+                  ),
+                if (_failed && _windows.isNotEmpty) ...[
+                  Text(
+                    l10n.providersUsageStale,
+                    style: AppText.secondary(theme),
+                    maxLines: 1,
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                ],
+                for (var i = 0; i < _windows.length; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.md),
+                  _window(context, _windows[i]),
+                ],
+              ],
             ),
           ),
         ),
@@ -293,26 +272,31 @@ class _ChatProviderUsageState extends State<ChatProviderUsage>
           );
     return Tooltip(
       message: tooltip,
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Expanded(child: Text(label, style: AppText.secondary(theme))),
-              Text(
-                '${percent.toStringAsFixed(0)}%',
-                style: AppText.secondary(theme),
-              ),
-            ],
+          Text(label, style: AppText.secondary(theme), maxLines: 1),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            '${percent.toStringAsFixed(0)}%',
+            style: AppText.badge(
+              theme,
+              percent >= 90 ? theme.colorScheme.error : null,
+            ),
+            maxLines: 1,
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          AppLinearProgressIndicator(
-            value: percent / 100,
-            minHeight: 3,
-            color: percent >= 90
-                ? theme.colorScheme.error
-                : theme.colorScheme.primary,
-            backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            semanticsLabel: label,
+          const SizedBox(width: AppSpacing.xs),
+          SizedBox(
+            width: AppSpacing.xl,
+            child: AppLinearProgressIndicator(
+              value: percent / 100,
+              minHeight: 3,
+              color: percent >= 90
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.primary,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              semanticsLabel: label,
+            ),
           ),
         ],
       ),

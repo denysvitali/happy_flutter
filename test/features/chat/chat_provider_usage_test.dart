@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/built_in_profiles.dart';
 import 'package:happy_flutter/core/models/settings.dart';
+import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/widgets/app_linear_progress_indicator.dart';
 import 'package:happy_flutter/features/chat/widgets/chat_provider_usage.dart';
 
@@ -27,11 +28,16 @@ Widget _app(
   home: Scaffold(
     body: TickerMode(
       enabled: visible,
-      child: ChatProviderUsage(
-        machineId: machineId,
-        flavor: flavor,
-        fetch: fetch,
-        onTap: onTap ?? () {},
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ChatProviderUsage(
+            machineId: machineId,
+            flavor: flavor,
+            fetch: fetch,
+            onTap: onTap ?? () {},
+          ),
+        ],
       ),
     ),
   ),
@@ -111,9 +117,39 @@ void main() {
     expect(semantics.value, '24');
     expect(semantics.label, isNotEmpty);
     expect(find.byType(AppLinearProgressIndicator), findsNWidgets(2));
+    final meters = find.byType(AppLinearProgressIndicator);
+    expect(tester.getCenter(meters.first).dy, tester.getCenter(meters.last).dy);
+    expect(
+      tester.getSize(find.byType(ChatProviderUsage)).height,
+      AppRowHeight.compact,
+    );
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('24%'));
     expect(tapped, isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a weekly-only report occupies a single compact line', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      _app((machine, flavor) async => const [ChatUsageWindow('7-Day', 17)]),
+    );
+    await tester.pump();
+    expect(find.text('17%'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(ChatProviderUsage)).height,
+      AppRowHeight.compact,
+    );
+    expect(
+      tester.getCenter(find.text('17%')).dy,
+      tester.getCenter(find.byType(AppLinearProgressIndicator)).dy,
+    );
+    expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -252,6 +288,20 @@ void main() {
         )
         .toList();
     expect(bars.map((bar) => bar.value), [1.0, 0.0]);
+    expect(
+      tester.getSize(find.byType(ChatProviderUsage)).height,
+      AppRowHeight.compact,
+    );
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scrollable.position.axis, Axis.horizontal);
+    expect(scrollable.position.maxScrollExtent, greaterThan(0));
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(-600, 0),
+    );
+    await tester.pumpAndSettle();
+    final viewport = tester.getRect(find.byType(SingleChildScrollView));
+    expect(viewport.contains(tester.getCenter(find.text('0%'))), isTrue);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
