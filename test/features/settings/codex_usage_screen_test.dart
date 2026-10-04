@@ -12,6 +12,7 @@ import 'package:happy_flutter/core/providers/machines_notifier.dart';
 import 'package:happy_flutter/core/services/opentelemetry_service.dart';
 import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/features/settings/codex_usage_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 class _StubMachinesNotifier extends MachinesNotifier {
@@ -178,84 +179,103 @@ void main() {
       });
     });
 
-    testWidgets('renders the expiry of every available reset credit', (
-      tester,
-    ) async {
-      final firstExpiry = DateTime.now().toUtc().add(const Duration(days: 18));
-      final secondExpiry = DateTime.now().toUtc().add(const Duration(days: 31));
-      final machines = {
-        'm-codex': _onlineMachine(id: 'm-codex', displayName: 'Codex Box'),
-      };
-
-      sync.testMachineRPCOverride = (machineId, method, params) async {
-        if (method == 'get-codex-usage') {
-          return <String, dynamic>{
-            'success': true,
-            'data': <String, dynamic>{
-              'email': 'codex@example.com',
-              'rate_limit': <String, dynamic>{
-                'allowed': true,
-                'limit_reached': false,
-              },
-              'rate_limit_reset_credits': <String, dynamic>{
-                'available_count': 2,
-              },
-            },
-          };
-        }
-        if (method == 'bash') {
-          return <String, dynamic>{
-            'success': true,
-            'stdout': jsonEncode({
-              'available_count': 2,
-              'credits': [
-                {
-                  'status': 'available',
-                  'title': 'Full reset one',
-                  'expires_at': firstExpiry.toIso8601String(),
-                },
-                {
-                  'status': 'available',
-                  'title': 'Full reset two',
-                  'expires_at': secondExpiry.toIso8601String(),
-                },
-              ],
-            }),
-            'exitCode': 0,
-          };
-        }
-        return <String, dynamic>{
-          'success': false,
-          'error': 'Unexpected method: $method',
+    for (final formattingLocale in ['en_US', 'en_GB']) {
+      testWidgets('renders exact reset expiry in $formattingLocale at 320px', (
+        tester,
+      ) async {
+        await initializeDateFormatting(formattingLocale);
+        final originalLocale = Intl.defaultLocale;
+        Intl.defaultLocale = formattingLocale;
+        addTearDown(() => Intl.defaultLocale = originalLocale);
+        await tester.binding.setSurfaceSize(const Size(320, 1000));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final firstExpiry = DateTime.now().toUtc().add(
+          const Duration(days: 18),
+        );
+        final secondExpiry = DateTime.now().toUtc().add(
+          const Duration(days: 31),
+        );
+        final machines = {
+          'm-codex': _onlineMachine(id: 'm-codex', displayName: 'Codex Box'),
         };
-      };
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            machinesNotifierProvider.overrideWith(
-              () => _StubMachinesNotifier(machines),
+        sync.testMachineRPCOverride = (machineId, method, params) async {
+          if (method == 'get-codex-usage') {
+            return <String, dynamic>{
+              'success': true,
+              'data': <String, dynamic>{
+                'email': 'codex@example.com',
+                'rate_limit': <String, dynamic>{
+                  'allowed': true,
+                  'limit_reached': false,
+                },
+                'rate_limit_reset_credits': <String, dynamic>{
+                  'available_count': 3,
+                },
+              },
+            };
+          }
+          if (method == 'bash') {
+            return <String, dynamic>{
+              'success': true,
+              'stdout': jsonEncode({
+                'available_count': 3,
+                'credits': [
+                  {
+                    'status': 'available',
+                    'title': 'Full reset one',
+                    'expires_at': firstExpiry.toIso8601String(),
+                  },
+                  {
+                    'status': 'available',
+                    'title': 'Full reset two',
+                    'expires_at': secondExpiry.toIso8601String(),
+                  },
+                  {'status': 'available', 'title': 'Permanent reset'},
+                ],
+              }),
+              'exitCode': 0,
+            };
+          }
+          return <String, dynamic>{
+            'success': false,
+            'error': 'Unexpected method: $method',
+          };
+        };
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              machinesNotifierProvider.overrideWith(
+                () => _StubMachinesNotifier(machines),
+              ),
+            ],
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: const CodexUsageScreen(),
             ),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: const CodexUsageScreen(),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Available resets'), findsOneWidget);
-      expect(find.text('2'), findsOneWidget);
-      expect(find.text('Full reset one'), findsOneWidget);
-      expect(find.text('Full reset two'), findsOneWidget);
-      final firstDate = DateFormat.MMMd('en').format(firstExpiry.toLocal());
-      final secondDate = DateFormat.MMMd('en').format(secondExpiry.toLocal());
-      expect(find.text('18 days left · $firstDate'), findsOneWidget);
-      expect(find.text('31 days left · $secondDate'), findsOneWidget);
-    });
+        expect(find.text('Available resets'), findsOneWidget);
+        expect(find.text('3'), findsOneWidget);
+        expect(find.text('Full reset one'), findsOneWidget);
+        expect(find.text('Full reset two'), findsOneWidget);
+        final firstDate = DateFormat.yMMMd(
+          formattingLocale,
+        ).add_jms().format(firstExpiry.toLocal());
+        final secondDate = DateFormat.yMMMd(
+          formattingLocale,
+        ).add_jms().format(secondExpiry.toLocal());
+        expect(find.text('18 days left · $firstDate'), findsOneWidget);
+        expect(find.text('31 days left · $secondDate'), findsOneWidget);
+        expect(find.text('Does not expire'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   group('CodexUsageScreen rate limits', () {

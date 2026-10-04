@@ -332,6 +332,7 @@ class _CodexResetCreditsSection extends StatelessWidget {
                 : l10n.codexUsageLimitReset,
             value: _formatResetCreditExpiry(context, credit.expiresAt),
             iconColor: AppColors.warning,
+            flexValue: true,
           ),
       ],
     );
@@ -342,12 +343,13 @@ class _CodexResetCreditsSection extends StatelessWidget {
     if (expiresAt == null) return l10n.codexUsageDoesNotExpire;
     final localExpiry = expiresAt.toLocal();
     final remaining = localExpiry.difference(DateTime.now());
-    final locale = Localizations.localeOf(context).toLanguageTag();
-    final shortDate = DateFormat.MMMd(locale).format(localExpiry);
+    final locale =
+        Intl.defaultLocale ?? Localizations.localeOf(context).toLanguageTag();
+    final expiryTime = DateFormat.yMMMd(locale).add_jms().format(localExpiry);
     final days = remaining.isNegative
         ? 0
         : (remaining.inMinutes / Duration.minutesPerDay).ceil();
-    return l10n.codexUsageExpiresInDays(days, shortDate);
+    return l10n.codexUsageExpiresInDays(days, expiryTime);
   }
 }
 
