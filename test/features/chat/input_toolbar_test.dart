@@ -24,26 +24,29 @@ void main() {
     'Codex speed selection is explicit and ultra fast is unavailable',
     (tester) async {
       final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
       bool? selection;
-      await tester.pumpWidget(
-        wrap(
-          InputToolbar(
-            sessionFlavor: 'codex',
-            codexFastMode: false,
-            onShowModelPicker: () {},
-            onShowProfilePicker: () {},
-            onCodexFastModeChanged: (value) => selection = value,
+      try {
+        await tester.pumpWidget(
+          wrap(
+            InputToolbar(
+              sessionFlavor: 'codex',
+              codexFastMode: false,
+              onShowModelPicker: () {},
+              onShowProfilePicker: () {},
+              onCodexFastModeChanged: (value) => selection = value,
+            ),
           ),
-        ),
-      );
-      expect(
-        tester
-            .getSemantics(find.bySemanticsLabel('Codex speed: Standard'))
-            .getSemanticsData()
-            .hasAction(SemanticsAction.tap),
-        isTrue,
-      );
+        );
+        expect(
+          tester
+              .getSemantics(find.bySemanticsLabel('Codex speed: Standard'))
+              .getSemanticsData()
+              .hasAction(SemanticsAction.tap),
+          isTrue,
+        );
+      } finally {
+        semantics.dispose();
+      }
       await tester.tap(find.byKey(const ValueKey('codex-speed-selector')));
       await tester.pumpAndSettle();
       final ultraFast = tester.widget<ListTile>(
