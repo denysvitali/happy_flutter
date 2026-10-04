@@ -10,8 +10,11 @@ Three log streams share one Loki. Correlate by `trace_id` (per-trace) or `app_la
 | Service label | What |
 |---------------|------|
 | `service_name="happy-flutter"` | Flutter app (note the **dash**, not underscore) |
-| `service_name="happy-server"` | Go server |
+| `service_name="happy"` | Go server |
 | `service_name="happy-daemon"` | happy-cli daemon |
+
+The Go server currently exports `service_name="happy"` (verified 2026-10-04).
+Discover live labels before assuming the older `happy-server` selector.
 
 ## Standard queries
 
@@ -31,7 +34,7 @@ Three log streams share one Loki. Correlate by `trace_id` (per-trace) or `app_la
 
 ## Cross-check pattern
 
-Many "client" errors (`CryptoSecretBox.decrypt failed`, `fetchMessages dropped`, `machine offline`) originate server-side. For the same time window as the client error, query `happy-server` and `happy-daemon` with the same `trace_id` (or just the window if the ID isn't propagated).
+Many "client" errors (`CryptoSecretBox.decrypt failed`, `fetchMessages dropped`, `machine offline`) originate server-side. For the same time window as the client error, query `happy` and `happy-daemon` with the same `trace_id` (or just the window if the ID isn't propagated).
 
 ## Tool caveats
 

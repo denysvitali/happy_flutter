@@ -47,7 +47,7 @@ Every event carries `trace_id` / `app_launch_id`. Correlate:
 ```
 
 Also check server-side for the same window — many "client" errors originate server-side:
-- `{service_name="happy-server"}` (Go server)
+- `{service_name="happy"}` (Go server)
 - `{service_name="happy-daemon"}` (Rust/Go daemon)
 
 See the `loki-trace` skill for query caveats (token cap, chunked results).

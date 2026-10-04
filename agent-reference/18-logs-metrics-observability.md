@@ -73,7 +73,7 @@ Use for **fatal** bugs and issue triage — see the *Production Issues / GlitchT
 
 The Rust daemon and Go server are also indexed in Loki:
 
-- `service_name="happy-server"` — Go server
+- `service_name="happy"` — Go server
 - `service_name="happy-daemon"` — happy-cli daemon
 
 When chasing a Flutter-visible bug (e.g. `CryptoSecretBox.decrypt failed`, `fetchMessages dropped`, `machine offline`), cross-check the Flutter trace_id against the server-side logs for the same window — many "client" errors originate server-side.
