@@ -30,6 +30,7 @@ void main() {
         wrap(
           InputToolbar(
             sessionFlavor: 'codex',
+            codexFastMode: false,
             onShowModelPicker: () {},
             onShowProfilePicker: () {},
             onCodexFastModeChanged: (value) => selection = value,
