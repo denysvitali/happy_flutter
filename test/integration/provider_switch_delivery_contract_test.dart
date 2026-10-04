@@ -270,10 +270,14 @@ void main() {
         expect(spawns.last['environmentVariables'], {
           'HAPPY_CODEX_FAST_MODE': '1',
         });
-        expect(http.capturedLocalIds.last, localId);
         if (restoredId == sourceId) {
+          expect(http.capturedLocalIds.last, localId);
           expect(selections.read(sourceId), newer);
         } else {
+          expect(
+            messageOutbox.entries.map((entry) => entry.localId),
+            contains(localId),
+          );
           expect(selections.read(sourceId), isNull);
           expect(selections.read(restoredId)?.codexSpeed, 'standard');
           expect(CodexSpeedSelection().read(restoredId), isFalse);
@@ -346,6 +350,7 @@ void main() {
         sync.testAdvanceRuntimeGeneration();
         fakeEncryption.missingSessionIds.remove(restoredId);
       });
+      addTearDown(sync.testClearSpawnGuardState);
       sync.testMachineRPCOverride = (_, method, params) async => {
         'type': 'success',
         'sessionId': restoredId,
