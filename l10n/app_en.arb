@@ -1074,7 +1074,7 @@
   "profilesModelRemove": "Remove",
   "profilesModelsEmpty": "No models configured",
   "profilesContextWindowTitle": "Context window",
-  "profilesContextWindowHint": "Fallback token limit for models without their own. 1M requests Claude Code's extended window; smaller sizes are tracked locally.",
+  "profilesContextWindowHint": "Fallback token limit for models without their own. Passed to Claude Code as its context window; 1M also requests the extended window.",
   "profilesContextWindowDefault": "Provider default",
   "profilesContextWindow1M": "1M tokens",
   "profilesModelContextWindowLabel": "Context",

@@ -2,11 +2,10 @@ import '../models/settings.dart';
 
 /// Token budgets a profile can request for one model.
 ///
-/// The only budget the Claude Code CLI actually honors is
-/// [extendedContextWindowTokens]: it is the `[1m]` model suffix. Every other
-/// choice is the provider's own default and is sent without a suffix. The
-/// smaller sizes exist so the usage indicator matches the window the model
-/// really has, and so a future wire override has a stored value to send.
+/// [extendedContextWindowTokens] is also the Claude Code `[1m]` model suffix.
+/// Every positive choice, including the smaller sizes, is passed to the
+/// spawned process as [claudeCodeMaxContextTokensEnv]. The usage indicator
+/// reads the same stored value.
 const List<int> selectableContextWindows = <int>[
   32000,
   128000,
@@ -14,6 +13,13 @@ const List<int> selectableContextWindows = <int>[
   256000,
   extendedContextWindowTokens,
 ];
+
+/// Claude Code env var that overrides the context window the CLI assumes for
+/// the active model. Required when a profile routes through
+/// `ANTHROPIC_BASE_URL` to a model whose window is not the size Claude Code
+/// built in for that name. The value is a plain integer (`200000`, not
+/// `200k`).
+const String claudeCodeMaxContextTokensEnv = 'CLAUDE_CODE_MAX_CONTEXT_TOKENS';
 
 /// A model id with the context window its profile requests, or null to use
 /// the model's own default.
@@ -150,4 +156,47 @@ int? effectiveContextWindow({
   final chosen = contextWindowForModel(profile: profile, model: model);
   if (chosen != null && chosen > 0) return chosen;
   return defaultContextWindowForModel(model);
+}
+
+/// The window a Claude spawn should tell the process about.
+///
+/// Only an explicit profile choice is sent. A known model default (Grok's
+/// 500k, Gemini's 1M) sizes the usage indicator and must not invent an
+/// override the user never stored. [model] may be a picker id, a `:effort`
+/// selection, or null when the session launches on the profile default.
+int? contextWindowOverrideForSpawn({
+  required AIBackendProfile? profile,
+  required String? model,
+}) {
+  if (profile == null) return null;
+  final selected = contextWindowForModel(profile: profile, model: model);
+  if (selected != null) return selected > 0 ? selected : null;
+  // `default` and the daemon aliases are not ids in the model list, so the
+  // profile-wide window above already applies. A concrete id that the list
+  // names without `@tokens` is an opt-out and stays null.
+  if (model == null || model.trim().isEmpty || model.trim() == 'default') {
+    final fallback = profile.contextWindow;
+    if (fallback != null && fallback > 0) return fallback;
+  }
+  return null;
+}
+
+/// Writes [claudeCodeMaxContextTokensEnv] when [profile] explicitly requests a
+/// window for [model].
+///
+/// No choice leaves the map untouched, so a variable the profile stored itself
+/// survives and an unconfigured model does not inherit a guessed window.
+/// Codex and other non-Claude agents do not read this knob.
+Map<String, String> applyContextWindowToSpawnEnv(
+  Map<String, String> envVars, {
+  required String? agent,
+  required AIBackendProfile? profile,
+  required String? model,
+}) {
+  if (agent != null && agent != 'claude') return envVars;
+  final window = contextWindowOverrideForSpawn(profile: profile, model: model);
+  if (window == null) return envVars;
+  final encoded = window.toString();
+  if (envVars[claudeCodeMaxContextTokensEnv] == encoded) return envVars;
+  return <String, String>{...envVars, claudeCodeMaxContextTokensEnv: encoded};
 }

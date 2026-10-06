@@ -16,23 +16,31 @@ extension SyncSpawnModelEnv on Sync {
   /// knobs re-pointed. Custom OpenAI-compatible Codex profiles need
   /// `OPENAI_MODEL` (and its reasoning-effort knob) synchronized because a
   /// profile snapshot otherwise keeps launching its originally configured
-  /// model.
+  /// model. A Claude profile's explicit context window is written as
+  /// [claudeCodeMaxContextTokensEnv] even when the picker stays on `default`,
+  /// because that window belongs to the profile rather than the model id.
   Map<String, String> _spawnEnvForModel(
     Map<String, String> envVars, {
     required String? agent,
     required AIBackendProfile? profile,
     required String? modelMode,
   }) {
-    if (profile == null || modelMode == null) return envVars;
-    if (modelMode.isEmpty || modelMode == 'default') return envVars;
     final effectiveAgent = agent ?? 'claude';
+    final withWindow = applyContextWindowToSpawnEnv(
+      envVars,
+      agent: effectiveAgent,
+      profile: profile,
+      model: modelMode,
+    );
+    if (profile == null || modelMode == null) return withWindow;
+    if (modelMode.isEmpty || modelMode == 'default') return withWindow;
     if (effectiveAgent == 'claude') {
-      return _bindClaudeModelEnv(envVars, profile, modelMode);
+      return _bindClaudeModelEnv(withWindow, profile, modelMode);
     }
     if (effectiveAgent == 'codex' && _isCustomCodexProfile(profile)) {
-      return _bindCodexModelEnv(envVars, modelMode);
+      return _bindCodexModelEnv(withWindow, modelMode);
     }
-    return envVars;
+    return withWindow;
   }
 
   Map<String, String> _bindClaudeModelEnv(

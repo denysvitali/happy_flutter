@@ -682,9 +682,9 @@ class GlobalWarnings {
 }
 
 /// Extended (1M-token) context window. A profile or a single model entry
-/// requests it to append the Claude Code `[1m]` model suffix — the only
-/// wire-supported override today. Smaller per-model windows are stored the
-/// same way but sent without a suffix.
+/// requests it to append the Claude Code `[1m]` model suffix. Every positive
+/// window, including this one, is also passed to the process as
+/// `CLAUDE_CODE_MAX_CONTEXT_TOKENS`.
 const int extendedContextWindowTokens = 1000000;
 
 /// AI backend profile for environment configuration
@@ -743,9 +743,10 @@ class AIBackendProfile {
   final String? defaultModelMode;
 
   /// Context window in tokens requested for every model that does not name
-  /// its own, or null to use each model's default. The only wire-supported
-  /// override today is [extendedContextWindowTokens] (1M), mapped to the
-  /// Claude Code `[1m]` model suffix at send time.
+  /// its own, or null to use each model's default. A positive value is passed
+  /// to Claude as `CLAUDE_CODE_MAX_CONTEXT_TOKENS`.
+  /// [extendedContextWindowTokens] (1M) also appends the Claude Code `[1m]`
+  /// model suffix at send time.
   ///
   /// A model entry in [models] may carry its own window as `id@tokens`
   /// (see `parseModelContextChoice`). That per-model value wins over this

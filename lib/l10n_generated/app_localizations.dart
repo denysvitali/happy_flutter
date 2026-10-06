@@ -4832,7 +4832,7 @@ abstract class AppLocalizations {
   /// No description provided for @profilesContextWindowHint.
   ///
   /// In en, this message translates to:
-  /// **'Fallback token limit for models without their own. 1M requests Claude Code\'s extended window; smaller sizes are tracked locally.'**
+  /// **'Fallback token limit for models without their own. Passed to Claude Code as its context window; 1M also requests the extended window.'**
   String get profilesContextWindowHint;
 
   /// No description provided for @profilesContextWindowDefault.

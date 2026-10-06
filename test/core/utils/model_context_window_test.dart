@@ -164,6 +164,103 @@ void main() {
     });
   });
 
+  group('context window passed to the process', () {
+    test('a per-model 200k is the override, not the grok 500k guess', () {
+      final profile = _profile(models: const ['grok/grok-4.7@200000']);
+      expect(
+        contextWindowOverrideForSpawn(
+          profile: profile,
+          model: 'grok/grok-4.7:high',
+        ),
+        200000,
+      );
+      expect(
+        defaultContextWindowForModel('grok/grok-4.7'),
+        isNot(200000),
+      );
+    });
+
+    test('default still carries a profile-wide window', () {
+      final profile = _profile(contextWindow: 200000);
+      expect(
+        contextWindowOverrideForSpawn(profile: profile, model: 'default'),
+        200000,
+      );
+      expect(
+        contextWindowOverrideForSpawn(profile: profile, model: null),
+        200000,
+      );
+    });
+
+    test('a bare list entry opts that model out', () {
+      final profile = _profile(
+        contextWindow: 200000,
+        models: const ['grok/grok-4.7'],
+      );
+      expect(
+        contextWindowOverrideForSpawn(
+          profile: profile,
+          model: 'grok/grok-4.7',
+        ),
+        isNull,
+      );
+    });
+
+    test('an unconfigured grok id does not invent 500k', () {
+      expect(
+        contextWindowOverrideForSpawn(
+          profile: _profile(),
+          model: 'grok/grok-4.7',
+        ),
+        isNull,
+      );
+    });
+
+    test('writes the plain integer and leaves other agents alone', () {
+      final profile = _profile(models: const ['grok/grok-4.7@200000']);
+      final claude = applyContextWindowToSpawnEnv(
+        const {'ANTHROPIC_BASE_URL': 'https://proxy.example'},
+        agent: 'claude',
+        profile: profile,
+        model: 'grok/grok-4.7',
+      );
+      expect(claude[claudeCodeMaxContextTokensEnv], '200000');
+      expect(claude['ANTHROPIC_BASE_URL'], 'https://proxy.example');
+
+      final codex = applyContextWindowToSpawnEnv(
+        const {},
+        agent: 'codex',
+        profile: profile,
+        model: 'grok/grok-4.7',
+      );
+      expect(codex.containsKey(claudeCodeMaxContextTokensEnv), isFalse);
+    });
+
+    test('no choice does not clobber a hand-written env var', () {
+      final untouched = applyContextWindowToSpawnEnv(
+        const {claudeCodeMaxContextTokensEnv: '128000'},
+        agent: 'claude',
+        profile: _profile(),
+        model: 'grok/grok-4.7',
+      );
+      expect(untouched[claudeCodeMaxContextTokensEnv], '128000');
+    });
+
+    test('an explicit choice replaces a stale env value', () {
+      final profile = _profile(
+        contextWindow: 200000,
+        models: const [],
+      );
+      final bound = applyContextWindowToSpawnEnv(
+        const {claudeCodeMaxContextTokensEnv: '1000000'},
+        agent: null,
+        profile: profile,
+        model: 'default',
+      );
+      expect(bound[claudeCodeMaxContextTokensEnv], '200000');
+    });
+  });
+
   group('picker allowlist', () {
     test('matches a stored id@window entry by its bare id', () {
       const stored = ['grok/grok-4.7@500000'];

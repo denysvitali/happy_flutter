@@ -2579,7 +2579,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profilesContextWindowHint =>
-      'Fallback token limit for models without their own. 1M requests Claude Code\'s extended window; smaller sizes are tracked locally.';
+      'Fallback token limit for models without their own. Passed to Claude Code as its context window; 1M also requests the extended window.';
 
   @override
   String get profilesContextWindowDefault => 'Provider default';
