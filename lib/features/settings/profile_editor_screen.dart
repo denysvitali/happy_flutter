@@ -7,6 +7,7 @@ import '../../core/models/settings.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/utils/env_secrets.dart';
+import '../../core/utils/model_context_window.dart';
 import '../../core/utils/shell_script_parser.dart';
 import '../../core/utils/snack.dart';
 import 'profile_setup_catalog.dart';
@@ -79,7 +80,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _envRows = (p?.environmentVariables ?? [])
         .map((e) => EnvRow(name: e.name, value: e.value))
         .toList();
-    _modelRows = (p?.models ?? []).map((m) => ModelRow(model: m)).toList();
+    _modelRows = (p?.models ?? []).map(ModelRow.fromStored).toList();
     _codexProviderRows = (p?.codexProviders ?? [])
         .map(
           (provider) => CodexProviderRow(
@@ -299,8 +300,15 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         .toList();
 
     final models = _modelRows
-        .map((r) => r.modelCtrl.text.trim())
-        .where((m) => m.isNotEmpty)
+        .where((r) => r.modelCtrl.text.trim().isNotEmpty)
+        .map(
+          (r) => encodeModelContextChoice(
+            ModelContextChoice(
+              model: r.modelCtrl.text.trim(),
+              contextWindow: r.contextWindow,
+            ),
+          ),
+        )
         .toList();
 
     final codexProviders = _codexProviderRows

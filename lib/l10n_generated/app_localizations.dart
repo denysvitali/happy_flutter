@@ -4832,7 +4832,7 @@ abstract class AppLocalizations {
   /// No description provided for @profilesContextWindowHint.
   ///
   /// In en, this message translates to:
-  /// **'Token limit for this profile\'s Claude-compatible models. 1M requires Claude Code\'s extended window.'**
+  /// **'Fallback token limit for models without their own. 1M requests Claude Code\'s extended window; smaller sizes are tracked locally.'**
   String get profilesContextWindowHint;
 
   /// No description provided for @profilesContextWindowDefault.
@@ -4846,6 +4846,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'1M tokens'**
   String get profilesContextWindow1M;
+
+  /// No description provided for @profilesModelContextWindowLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Context'**
+  String get profilesModelContextWindowLabel;
+
+  /// No description provided for @profilesModelContextWindowDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Model default'**
+  String get profilesModelContextWindowDefault;
+
+  /// No description provided for @profilesModelContextWindowSuggested.
+  ///
+  /// In en, this message translates to:
+  /// **'Default ({size})'**
+  String profilesModelContextWindowSuggested(String size);
 
   /// No description provided for @profilesAtLeastOneAgent.
   ///

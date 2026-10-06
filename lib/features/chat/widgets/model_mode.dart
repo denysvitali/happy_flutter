@@ -1,6 +1,8 @@
 import '../../../core/models/built_in_profiles.dart';
-import '../../../core/models/settings.dart' show extendedContextWindowTokens;
+import '../../../core/models/settings.dart'
+    show AIBackendProfile, extendedContextWindowTokens;
 import '../../../core/rpc/rpc_types.dart';
+import '../../../core/utils/model_context_window.dart';
 import '../../../core/utils/model_selection.dart';
 
 /// Model mode options exposed by the shared chat composer.
@@ -303,14 +305,12 @@ class ChatModelMode {
     // installation, so consulting it first hides provider-specific entries
     // configured by the user.
     if (profileModels != null && profileModels.isNotEmpty) {
+      final ids = _profileModelIds(profileModels);
       return [
         defaultModel,
         ...(flavor == 'codex'
-            ? _expandProfileCodexModelFamilies(
-                profileModels,
-                codexModels: codexModels,
-              )
-            : _expandProfileModelFamilies(profileModels)),
+            ? _expandProfileCodexModelFamilies(ids, codexModels: codexModels)
+            : _expandProfileModelFamilies(ids)),
       ];
     }
     if (flavor == 'codex') {
@@ -397,6 +397,14 @@ class ChatModelMode {
 
   /// Expands a profile's configured model list into effort families,
   /// deduping slugs that differ only by an effort suffix.
+  /// Bare model ids from a profile list. Entries may be `id@tokens`; the
+  /// window is a profile setting, not part of the id the picker matches.
+  static List<String> _profileModelIds(List<String> models) => [
+    for (final raw in models)
+      if (parseModelContextChoice(raw).model.trim().isNotEmpty)
+        parseModelContextChoice(raw).model,
+  ];
+
   static List<ChatModelMode> _expandProfileModelFamilies(List<String> models) {
     final families = <ChatModelMode>[];
     final seenSlugs = <String>{};
@@ -514,7 +522,8 @@ class ChatModelMode {
     final needle = modeString.trim();
     if (needle.isEmpty) return false;
     for (final entry in allowedRawModels) {
-      if (entry.trim() == needle) return true;
+      final stored = parseModelContextChoice(entry).model.trim();
+      if (stored == needle || entry.trim() == needle) return true;
     }
     return false;
   }
@@ -657,22 +666,30 @@ class ChatModelMode {
   }
 }
 
-/// Apply the profile's context-window setting to a model mode string.
+/// Apply a profile's context-window setting to a model mode string.
 ///
 /// The `[1m]` marker is a Claude Code model-mode feature. It is meaningful
 /// only for concrete provider-owned model IDs; aliases such as `default` and
 /// `sonnet` are resolved by the daemon before the provider is selected.
+///
+/// Pass [profile] so a per-model `id@tokens` entry wins over the profile-wide
+/// window. [contextWindow] remains for callers that already resolved one.
 String applyProfileContextWindowSuffix({
   required String raw,
-  required int? contextWindow,
   required String? flavor,
+  int? contextWindow,
+  AIBackendProfile? profile,
 }) {
   if (flavor != null && flavor != 'claude') return raw;
 
   final base = ChatModelMode.stripOneMillionSuffix(raw).trim();
   if (base.isEmpty || !_canCarryContextWindowSuffix(base)) return raw;
 
-  final wants1M = contextWindow == extendedContextWindowTokens;
+  // A known model default (Grok 500k, Gemini 1M) only sizes the usage
+  // indicator. It must not invent a `[1m]` suffix the user never chose.
+  final window =
+      contextWindow ?? contextWindowForModel(profile: profile, model: base);
+  final wants1M = window == extendedContextWindowTokens;
   return wants1M ? ChatModelMode.withOneMillionSuffix(base) : base;
 }
 

@@ -2579,13 +2579,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profilesContextWindowHint =>
-      'Token limit for this profile\'s Claude-compatible models. 1M requires Claude Code\'s extended window.';
+      'Fallback token limit for models without their own. 1M requests Claude Code\'s extended window; smaller sizes are tracked locally.';
 
   @override
   String get profilesContextWindowDefault => 'Provider default';
 
   @override
   String get profilesContextWindow1M => '1M tokens';
+
+  @override
+  String get profilesModelContextWindowLabel => 'Context';
+
+  @override
+  String get profilesModelContextWindowDefault => 'Model default';
+
+  @override
+  String profilesModelContextWindowSuggested(String size) {
+    return 'Default ($size)';
+  }
 
   @override
   String get profilesAtLeastOneAgent => 'Select at least one agent';

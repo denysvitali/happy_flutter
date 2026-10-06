@@ -681,9 +681,10 @@ class GlobalWarnings {
   Map<String, dynamic> toJson() => _$GlobalWarningsToJson(this);
 }
 
-/// Extended (1M-token) context window. Profiles set
-/// [AIBackendProfile.contextWindow] to this to request the Claude Code
-/// `[1m]` model suffix — the only wire-supported override today.
+/// Extended (1M-token) context window. A profile or a single model entry
+/// requests it to append the Claude Code `[1m]` model suffix — the only
+/// wire-supported override today. Smaller per-model windows are stored the
+/// same way but sent without a suffix.
 const int extendedContextWindowTokens = 1000000;
 
 /// AI backend profile for environment configuration
@@ -741,11 +742,19 @@ class AIBackendProfile {
   final String? defaultPermissionMode;
   final String? defaultModelMode;
 
-  /// Context window in tokens the profile requests for its models, or null
-  /// to use each model's default. The only wire-supported override today is
-  /// [extendedContextWindowTokens] (1M), mapped to the Claude Code `[1m]`
-  /// model suffix at send time.
+  /// Context window in tokens requested for every model that does not name
+  /// its own, or null to use each model's default. The only wire-supported
+  /// override today is [extendedContextWindowTokens] (1M), mapped to the
+  /// Claude Code `[1m]` model suffix at send time.
+  ///
+  /// A model entry in [models] may carry its own window as `id@tokens`
+  /// (see `parseModelContextChoice`). That per-model value wins over this
+  /// profile-wide fallback.
   final int? contextWindow;
+
+  /// Model ids offered when this profile is selected. An entry is either a
+  /// bare id or `id@tokens`, where `tokens` is the context window requested
+  /// for that model alone.
   final List<String> models;
   final ProfileCompatibility compatibility;
   final bool isBuiltIn;

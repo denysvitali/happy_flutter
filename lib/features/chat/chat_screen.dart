@@ -36,6 +36,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_tokens.dart';
 import '../../core/ui/scroll_edge_fade.dart';
 import '../../core/utils/clipboard_utils.dart';
+import '../../core/utils/model_context_window.dart';
 import '../../core/utils/network_errors.dart';
 import '../../core/widgets/app_circular_progress_indicator.dart';
 import '../../core/widgets/desktop_update_banner.dart';
@@ -238,17 +239,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (raw == null) return null;
     return applyProfileContextWindowSuffix(
       raw: raw,
-      contextWindow: _selectedProfile?.contextWindow,
+      profile: _selectedProfile,
       flavor: _session?.metadata?.flavor,
     );
   }
 
-  /// The context window the usage indicator measures against, from the
-  /// selected profile (null → the indicator's default budget).
-  int? get _profileMaxContext {
-    final window = _selectedProfile?.contextWindow;
-    return (window != null && window > 0) ? window : null;
-  }
+  /// The context window the usage indicator measures against. A per-model
+  /// choice wins over the profile-wide window, then a known model default;
+  /// null keeps the indicator's own conservative budget.
+  int? get _profileMaxContext => effectiveContextWindow(
+    profile: _selectedProfile,
+    model: _effectiveModelModeString,
+  );
 
   /// Raw model mode string from storage, used for provider-owned modes.
   /// For Claude profiles, this matches _modelMode.modeString.

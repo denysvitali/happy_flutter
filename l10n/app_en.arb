@@ -1074,9 +1074,17 @@
   "profilesModelRemove": "Remove",
   "profilesModelsEmpty": "No models configured",
   "profilesContextWindowTitle": "Context window",
-  "profilesContextWindowHint": "Token limit for this profile's Claude-compatible models. 1M requires Claude Code's extended window.",
+  "profilesContextWindowHint": "Fallback token limit for models without their own. 1M requests Claude Code's extended window; smaller sizes are tracked locally.",
   "profilesContextWindowDefault": "Provider default",
   "profilesContextWindow1M": "1M tokens",
+  "profilesModelContextWindowLabel": "Context",
+  "profilesModelContextWindowDefault": "Model default",
+  "profilesModelContextWindowSuggested": "Default ({size})",
+  "@profilesModelContextWindowSuggested": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
   "profilesAtLeastOneAgent": "Select at least one agent",
   "profilesWizardTitle": "New AI Profile",
   "profilesWizardStep1": "Choose Provider",

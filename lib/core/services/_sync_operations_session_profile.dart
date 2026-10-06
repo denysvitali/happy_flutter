@@ -351,7 +351,7 @@ extension SyncSpawnProfileResolution on Sync {
         ? modelMode.substring(0, modelMode.length - '[1m]'.length)
         : modelMode;
     final configuredModels = <String>{
-      ...profile.models,
+      for (final entry in profile.models) parseModelContextChoice(entry).model,
       profile.defaultModelMode ?? '',
       profile.anthropicConfig?.model ?? '',
       profile.openaiConfig?.model ?? '',

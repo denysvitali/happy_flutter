@@ -715,7 +715,12 @@ extension _ChatScreenActions on _ChatScreenState {
     // model env vars from reaching the respawned Claude process.
     final currentModelMode = _profileModelOverride ?? _modelMode.modeString;
     final profileSupportsCurrentModel =
-        profile != null && profile.models.contains(currentModelMode);
+        profile != null &&
+        profile.models.any(
+          (entry) =>
+              parseModelContextChoice(entry).model.trim() ==
+              currentModelMode.trim(),
+        );
     final profileDefaultModelMode = profileSupportsCurrentModel
         ? currentModelMode
         : (favoriteModelForProvider(

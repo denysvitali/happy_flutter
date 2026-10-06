@@ -665,7 +665,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       if (modelMode != null) {
         modelMode = applyProfileContextWindowSuffix(
           raw: modelMode,
-          contextWindow: selectedProfile?.contextWindow,
+          profile: selectedProfile,
           flavor: _selectedAgent,
         );
       }
