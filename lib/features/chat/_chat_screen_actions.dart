@@ -550,7 +550,10 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   void _onModelModeChanged(ChatModelMode model) {
-    if (_session?.metadata?.flavor == 'har') return;
+    if (_session?.metadata?.flavor == 'har') {
+      unawaited(_switchHarModel(model));
+      return;
+    }
     // Models configured on the selected profile (e.g. 'GLM-5') parse as
     // unknown/provider strings, so without the allowlist normalization
     // would silently rewrite the pick to 'default' and the model would
@@ -808,6 +811,31 @@ extension _ChatScreenActions on _ChatScreenState {
       'file edit, the new_string was NOT written to the '
       'file). STOP what you are doing and wait for the '
       'user to tell you how to proceed.';
+
+  /// Applies a har model change optimistically and reverts it if the driver or
+  /// har refuses, for example while a turn is still running.
+  Future<void> _switchHarModel(ChatModelMode model) async {
+    final previous = _modelMode;
+    setState(() {
+      _userOverrodeModelOrProfile = true;
+      _modelMode = model;
+    });
+    try {
+      await ref
+          .read(chatActionNotifierProvider.notifier)
+          .setSessionModel(widget.sessionId, model.modeString);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _modelMode = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Model could not be changed. Wait for the current turn to finish.',
+          ),
+        ),
+      );
+    }
+  }
 
   Future<void> _abortSession() async {
     if (_isAborting) return;

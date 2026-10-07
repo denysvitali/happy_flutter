@@ -24,6 +24,7 @@ abstract interface class MessagesRepository {
   });
 
   Future<void> abortSession(String sessionId, {String reason = ''});
+  Future<void> setSessionModel(String sessionId, String model);
 
   Future<void> stopSessionProcess(String sessionId);
 
@@ -69,6 +70,11 @@ class SyncMessagesRepository implements MessagesRepository {
   @override
   Future<void> abortSession(String sessionId, {String reason = ''}) =>
       _sync.abortSession(sessionId, reason: reason);
+
+  @override
+  Future<void> setSessionModel(String sessionId, String model) async {
+    await _sync.setSessionModel(sessionId, model);
+  }
 
   @override
   Future<void> stopSessionProcess(String sessionId) async {

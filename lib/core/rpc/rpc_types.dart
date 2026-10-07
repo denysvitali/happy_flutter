@@ -552,6 +552,18 @@ class AbortResponse {
 }
 
 // ---------------------------------------------------------------------------
+// set_model
+// ---------------------------------------------------------------------------
+
+class SetModelResponse {
+  const SetModelResponse({required this.model});
+
+  factory SetModelResponse.fromJson(Map<String, dynamic> json) =>
+      SetModelResponse(model: json['model'] as String? ?? '');
+  final String model;
+}
+
+// ---------------------------------------------------------------------------
 // readFile
 // ---------------------------------------------------------------------------
 

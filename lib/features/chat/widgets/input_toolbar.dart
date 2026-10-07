@@ -212,16 +212,7 @@ class InputToolbar extends StatelessWidget {
             ModelChip(
               model: modelMode ?? ChatModelMode.harModels.first,
               resolvedLabel: resolvedModelLabel,
-              enabled: false,
               onTap: onShowModelPicker,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              'Model fixed for this conversation',
-              style: AppText.secondary(
-                Theme.of(context),
-                Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
             ),
           ],
         ),

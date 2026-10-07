@@ -461,9 +461,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Host execution · approvals disabled. Model fixed for '
-                  'this conversation. Requires an installed har binary '
-                  'and a local daemon with Boxy explicitly disabled.',
+                  'Host execution · approvals disabled. The model can be '
+                  'changed during the conversation. Requires an installed '
+                  'har binary and a local daemon with Boxy explicitly '
+                  'disabled.',
                   style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
                 if (isKubernetes)

@@ -62,6 +62,14 @@ class ChatActionNotifier extends Notifier<void> {
     await _messages.abortSession(sessionId, reason: reason);
   }
 
+  /// Switch an idle har session's model. Rejected while a turn is running.
+  Future<void> setSessionModel(String sessionId, String model) async {
+    if (!_messages.isReady) {
+      throw StateError('Sync is not initialized');
+    }
+    await _messages.setSessionModel(sessionId, model);
+  }
+
   /// Stop the daemon-owned process or pod, distinct from aborting one turn.
   Future<void> stopSessionProcess(String sessionId) async {
     if (!_messages.isReady) {

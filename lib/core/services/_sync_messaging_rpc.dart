@@ -1017,6 +1017,17 @@ extension SyncMessagingRpc on Sync {
     }, AbortResponse.fromJson);
   }
 
+  /// Switch a har session's model while it is idle. The driver validates the
+  /// model, asks har to switch, and persists the new model in session metadata.
+  Future<SetModelResponse> setSessionModel(
+    String sessionId,
+    String model,
+  ) async {
+    return _typedSessionRPC(sessionId, 'set_model', {
+      'model': model,
+    }, SetModelResponse.fromJson);
+  }
+
   /// Refresh purchases data
   Future<void> refreshPurchases() async {
     await settingsManager?.refreshPurchases();

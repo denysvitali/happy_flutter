@@ -61,11 +61,11 @@ void main() {
       ),
     );
     expect(find.text('Host · approvals disabled'), findsOneWidget);
-    expect(find.text('Model fixed for this conversation'), findsOneWidget);
-    expect(tester.widget<ModelChip>(find.byType(ModelChip)).enabled, isFalse);
+    expect(find.text('Model fixed for this conversation'), findsNothing);
+    expect(tester.widget<ModelChip>(find.byType(ModelChip)).enabled, isTrue);
     expect(find.byType(ProfileChip), findsNothing);
     expect(find.byType(PermissionModeSelector), findsNothing);
     await tester.tap(find.byType(ModelChip));
-    expect(picks, 0);
+    expect(picks, 1);
   });
 }
