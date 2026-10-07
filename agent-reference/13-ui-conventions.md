@@ -1,5 +1,10 @@
 ## UI Conventions
 
+Generic chat Agent/Task rows show the reported child nickname and role using
+the same metadata resolution as agent details. Missing names retain the tool
+label; missing roles retain the supplied subagent type. Step counts and run
+status remain visible as metadata arrives.
+
 Official Codex (no profile) and Claude (default/Anthropic) chats show live
 account usage windows in one compact row below the header, fetched from the
 session's machine. Labels, percentages, and mini meters stay inline; longer

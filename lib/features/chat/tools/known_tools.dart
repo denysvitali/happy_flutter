@@ -4,6 +4,7 @@ import 'package:happy_flutter/core/utils/path_utils.dart';
 import 'package:happy_flutter/core/utils/tool_input_extractor.dart';
 import 'package:happy_flutter/core/wire/send_message_arguments.dart';
 import 'package:happy_flutter/core/wire/wire_parsers.dart';
+import 'package:happy_flutter/features/chat/agent_presentation.dart';
 import 'package:happy_flutter/features/chat/agent_steps.dart';
 
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
@@ -222,12 +223,14 @@ class KnownTools {
     ),
     'Task': ToolDefinition(
       icon: taskIcon,
-      title: 'Task',
+      title: (Map<String, dynamic> tool, Map<String, dynamic>? _) =>
+          AgentPresentation.fromMessage(tool).nickname ?? 'Task',
       isMutable: true,
       minimal: false,
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['subagent_type'] as String?;
+        return AgentPresentation.fromMessage(tool).role ??
+            input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
         // Count the rows the detail screen will actually render, not the
@@ -240,12 +243,14 @@ class KnownTools {
     ),
     'Agent': ToolDefinition(
       icon: taskIcon,
-      title: 'Agent',
+      title: (Map<String, dynamic> tool, Map<String, dynamic>? _) =>
+          AgentPresentation.fromMessage(tool).nickname ?? 'Agent',
       isMutable: true,
       minimal: false,
       extractSubtitle: (tool, _) {
         final input = WireParsers.asMap(tool['input']);
-        return input?['subagent_type'] as String?;
+        return AgentPresentation.fromMessage(tool).role ??
+            input?['subagent_type'] as String?;
       },
       extractStatus: (tool, _) {
         // Count the rows the detail screen will actually render, not the

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/agent_presentation.dart';
+import 'package:happy_flutter/features/chat/tools/known_tools.dart';
+import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/widgets/agent_conversation_info.dart';
 import 'package:happy_flutter/features/chat/widgets/agents_list_sheet.dart';
 
@@ -18,6 +21,97 @@ Map<String, dynamic> _native({
 };
 
 void main() {
+  for (final name in ['Agent', 'Task']) {
+    testWidgets('$name chat row updates name and type at 320px', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      Future<void> render(Map<String, dynamic> message) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: Scaffold(body: ToolView(tool: message)),
+            ),
+          ),
+        );
+        await tester.pump();
+      }
+
+      final initial = {
+        ..._native(),
+        'id': 'native-row',
+        'name': name,
+        'state': 'running',
+      };
+      await render(initial);
+      expect(
+        find.textContaining('$name  codex', findRichText: true),
+        findsOneWidget,
+      );
+
+      await render({
+        ...initial,
+        'children': [
+          {
+            'kind': 'text',
+            'content': 'Inspecting widgets',
+            'agentMetadata': {'nickname': 'Maxwell', 'role': 'explorer'},
+          },
+        ],
+      });
+      expect(
+        find.textContaining('Maxwell 1 steps  explorer', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.textContaining('codex', findRichText: true), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await render({
+        ...initial,
+        'agentMetadata': {
+          'nickname': 'A very long agent nickname for narrow chat screens',
+          'role': 'explorer-with-a-long-custom-role',
+        },
+      });
+      expect(
+        find.textContaining(
+          'explorer-with-a-long-custom-role',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    test('$name header keeps legacy type and ignores nested agent names', () {
+      final tool = {
+        ..._native(metadata: {'nickname': 'Maxwell', 'role': 'explorer'}),
+        'name': name,
+        'children': [
+          {
+            'name': 'Agent',
+            'agentMetadata': {'nickname': 'Grandchild', 'role': 'worker'},
+          },
+        ],
+      };
+      expect(KnownTools.titleFor(name, tool, null), 'Maxwell');
+      expect(KnownTools.get(name)!.extractSubtitle!(tool, null), 'explorer');
+      final legacy = {
+        'name': name,
+        'input': {'subagent_type': 'Explore'},
+      };
+      expect(KnownTools.titleFor(name, legacy, null), name);
+      expect(KnownTools.get(name)!.extractSubtitle!(legacy, null), 'Explore');
+    });
+  }
+
   for (final model in <String?>['gpt-6-luna', null]) {
     testWidgets('native list shows reported child model $model at 320px', (
       tester,
