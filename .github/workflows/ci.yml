@@ -911,11 +911,26 @@ jobs:
 
       - name: Check dependencies in the runtime and launch the app
         run: |
+          # Install a unique host CA before Flatpak starts its p11-kit proxy.
+          # Its presence in the export proves we used host trust, not just
+          # the GNOME runtime's public root bundle.
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj /CN=happy-flatpak-host-trust-test \
+            -addext extendedKeyUsage=serverAuth \
+            -keyout /tmp/happy-host-ca.key -out /tmp/happy-host-ca.crt
+          sudo install -m644 /tmp/happy-host-ca.crt \
+            /usr/local/share/ca-certificates/happy-host-ca.crt
+          sudo update-ca-certificates
           flatpak install --user --noninteractive \
             happy-flutter-linux-${{ matrix.architecture }}.flatpak
           dbus-run-session -- flatpak run --command=sh \
             io.github.denysvitali.happy_flutter -c '
               set -eu
+              . /app/lib/happy_flutter/load-host-certificates.sh
+              test -n "$HAPPY_HOST_CA_BUNDLE"
+              test -s "$HAPPY_HOST_CA_BUNDLE"
+              cat "$HAPPY_HOST_CA_BUNDLE" > /dev/stdout
+              rm "$HAPPY_HOST_CA_BUNDLE"
               export LD_LIBRARY_PATH=/app/lib/happy_flutter/lib:/app/jre/lib/server
               for tool in ffmpeg parecord pactl; do command -v "$tool"; done
               for elf in /app/lib/happy_flutter/happy_flutter \
@@ -924,7 +939,16 @@ jobs:
                 cat /tmp/ldd-output
                 if grep -q "not found" /tmp/ldd-output; then exit 1; fi
               done
-            '
+            ' > flatpak-runtime-check.log
+          cat flatpak-runtime-check.log
+          python3 - <<'PY'
+          import pathlib
+          import re
+          host = pathlib.Path('/tmp/happy-host-ca.crt').read_text().strip()
+          exported = pathlib.Path('flatpak-runtime-check.log').read_text()
+          normalize = lambda text: re.sub(r'\s+', '', text)
+          assert normalize(host) in normalize(exported), 'Host CA missing'
+          PY
           # A live headless window must survive the startup interval. This
           # catches loader/Sentry crashes without an account or host keyring.
           set +e
