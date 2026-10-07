@@ -222,6 +222,9 @@ launching use desktop portals; install your desktop's `xdg-desktop-portal`
 backend and ensure a Secret Service keyring is running. Flatpak keeps app
 data separate from tarball installs; linking the account again may be needed.
 The in-app tarball updater is disabled, even with `HAPPY_FORCE_UPDATER=1`.
+At launch, the app imports the host's server CA certificates through Flatpak's
+p11-kit trust bridge, including locally installed CAs. Restart the app after
+changing the host trust store; certificate verification remains enabled.
 Update the runtime with `flatpak update`; to update Happy Flutter, download
 and install the newer `.flatpak` release. These bundles have no hosted app
 update remote yet, so `flatpak update` alone does not fetch new app releases.
