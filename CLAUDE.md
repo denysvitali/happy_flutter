@@ -44,6 +44,18 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   fields, so `HAR_API_KEY` is not forwarded. Images, provider switching,
   reasoning/speed/context controls and startup resume are unavailable.
 
+- **ACP tool details show the real call** — ACP tool inputs gain
+  Claude-compatible path aliases (`file_path`, `target_directory`) for the tool
+  views. The arguments as sent stay in `wireInput`; Tool Details renders that,
+  never the aliased copy. Har delegation arrives as an `Agent` call whose child
+  tool calls and results are sidechain rows linked by `parentToolUseId`.
+
+- **ACP tool details show the real call** — ACP tool inputs gain
+  Claude-compatible path aliases (`file_path`, `target_directory`) for the tool
+  views. The arguments as sent stay in `wireInput`; Tool Details renders that,
+  never the aliased copy. Har delegation arrives as an `Agent` call whose child
+  tool calls and results are sidechain rows linked by `parentToolUseId`.
+
 - **Archive overrides survive catalog refreshes** — inactivity, archive
   confirmation, and omission from a fetch must not clear explicit session
   hiding; only unarchive or runtime reset clears it.

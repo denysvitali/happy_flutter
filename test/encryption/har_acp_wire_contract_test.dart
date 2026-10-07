@@ -83,4 +83,81 @@ void main() {
     expect(result.toolResults.single['isError'], isTrue);
     expect(result.toolResults.single['result'].toString(), contains('unknown'));
   });
+
+  test('Har delegation is an Agent with real nested tool calls', () {
+    const child = {
+      'isSidechain': true,
+      'parentToolUseId': 'call_1',
+      'agentId': 'call_1',
+    };
+    final bodies = <Map<String, dynamic>>[
+      {
+        'type': 'tool-call',
+        'callId': 'call_1',
+        'name': 'Agent',
+        'status': 'in_progress',
+        'input': {
+          'role': 'explorer',
+          'task': 'inspect',
+          'prompt': 'inspect',
+          'description': 'inspect',
+          'subagent_type': 'explorer',
+        },
+      },
+      {
+        ...child,
+        'type': 'tool-call',
+        'callId': 'call_1:c1',
+        'name': 'list_files',
+        'status': 'in_progress',
+        'input': {'path': '.'},
+      },
+      {
+        ...child,
+        'type': 'tool-result',
+        'callId': 'call_1:c1',
+        'status': 'completed',
+        'isError': false,
+        'result': '{"entries":["go.mod"]}',
+      },
+    ];
+    final result = processDecryptedMessages(
+      decryptedJsonList: [
+        for (final body in bodies)
+          {
+            'role': 'agent',
+            'content': {'type': 'acp', 'data': body},
+          },
+      ],
+      wireMessages: [
+        for (var i = 0; i < bodies.length; i++)
+          {'id': 'har-$i', 'seq': i + 1, 'createdAt': 1000 + i},
+      ],
+      sessionId: 'har-session',
+    );
+    final agent = result.messages.singleWhere(
+      (m) => m['toolUseId'] == 'call_1',
+    );
+    expect(agent['name'], 'Agent');
+    expect(agent['isSidechain'], isNot(true));
+    expect(agent.containsKey('wireInput'), isFalse);
+
+    final call = result.messages.singleWhere(
+      (m) => m['toolUseId'] == 'call_1:c1',
+    );
+    expect(call['name'], 'list_files');
+    expect(call['isSidechain'], isTrue);
+    expect(call['parentToolUseId'], 'call_1');
+    expect(call['agentId'], 'call_1');
+    // Tool views read the aliased copy; the detail screen shows the call.
+    expect(call['input'], containsPair('target_directory', '.'));
+    expect(call['wireInput'], {'path': '.'});
+
+    final output = result.toolResults.single;
+    expect(output['toolUseId'], 'call_1:c1');
+    expect(output['isSidechain'], isTrue);
+    expect(output['parentToolUseId'], 'call_1');
+    expect(output['isError'], isFalse);
+    expect(output['result'], '{"entries":["go.mod"]}');
+  });
 }

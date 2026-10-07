@@ -96,6 +96,10 @@ void _processAcpContent({
     final normalized = normalizeGrokToolCall(rawName, rawInput);
     final name = normalized.name;
     final input = normalized.input;
+    // Normalization adds Claude-compatible aliases (`file_path`,
+    // `target_directory`) for the tool views. Keep what the tool was really
+    // called with so the detail screen does not present aliases as arguments.
+    final wireInput = unwrapGrokMcpDispatch(rawName, rawInput).input;
     final status = (toolCall['status'] ?? data['status'])?.toString();
     final state = _toolCallStateFromStatus(status);
     final toolUseId =
@@ -113,6 +117,7 @@ void _processAcpContent({
       'kind': 'tool-call',
       'name': name,
       'input': input,
+      if (wireInput.length != input.length) 'wireInput': wireInput,
       'toolUseId': toolUseId,
       'state': state,
       'kindHint': toolCall['kind'] ?? data['kind'],

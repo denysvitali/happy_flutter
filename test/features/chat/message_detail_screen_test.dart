@@ -174,6 +174,36 @@ void main() {
       expect(renderedText, isNot(contains('"command"')));
     });
 
+    testWidgets('shows the arguments a tool was called with, not aliases', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm1',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'list_files',
+              'state': 'completed',
+              'input': <String, dynamic>{
+                'path': '.',
+                'file_path': '.',
+                'target_directory': '.',
+              },
+              'wireInput': <String, dynamic>{'path': '.'},
+              'result': 'go.mod',
+            },
+          ),
+        ),
+      );
+
+      final renderedText = _renderedText(tester);
+      expect(renderedText, contains('path'));
+      expect(renderedText, isNot(contains('file_path')));
+      expect(renderedText, isNot(contains('target_directory')));
+    });
+
     testWidgets('renders ANSI in command result details', (tester) async {
       const output =
           '\x1B[36mINFO\x1B[0m[0000] conditions\r\n'

@@ -140,9 +140,12 @@ class _ToolDetailView extends StatelessWidget {
     final theme = Theme.of(context);
     final toolName = data['name'] as String? ?? 'Unknown';
     final toolState = data['state'] as String? ?? 'pending';
+    // ACP tool calls keep the arguments as sent in `wireInput`; `input` also
+    // carries view-only path aliases that are not part of the call.
     final input = SendMessageArguments.isToolName(toolName)
         ? SendMessageArguments.from(data['input']).input
-        : WireParsers.asMap(data['input']);
+        : WireParsers.asMap(data['wireInput']) ??
+              WireParsers.asMap(data['input']);
     final result = data['result'];
     final isSendMessage = SendMessageArguments.isToolName(toolName);
     final permission = WireParsers.asMap(data['permission']);
@@ -844,7 +847,9 @@ class _ToolDetailBottomSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final toolName = tool['name'] as String? ?? 'Unknown';
     final state = tool['state'] as String? ?? 'pending';
-    final input = WireParsers.asMap(tool['input']);
+    final input =
+        WireParsers.asMap(tool['wireInput']) ??
+        WireParsers.asMap(tool['input']);
     final result = tool['result'];
     final inputText = _commandInputText(toolName, input);
     final resultText = _commandResultText(toolName, result);
