@@ -69,7 +69,9 @@ extension _ChatScreenActions on _ChatScreenState {
       savedPermissionMode: savedPermMode,
       savedModelMode: savedModelMode,
       savedProfileId: savedProfileId,
-      sessionModelMode: session?.modelMode,
+      sessionModelMode: flavor == 'har'
+          ? session?.metadata?.model ?? session?.modelMode
+          : session?.modelMode,
       sessionPermissionMode: session?.permissionMode,
       syncedSessionPermissionMode: settings.permissionModesBySession[sessionId],
       lastUsedPermissionMode: settings.lastUsedPermissionMode,
@@ -519,6 +521,7 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   void _onPermissionModeChanged(PermissionMode mode) {
+    if (_session?.metadata?.flavor == 'har') return;
     setState(() {
       _userOverrodeModelOrProfile = true;
       _permissionMode = mode;
@@ -547,6 +550,7 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   void _onModelModeChanged(ChatModelMode model) {
+    if (_session?.metadata?.flavor == 'har') return;
     // Models configured on the selected profile (e.g. 'GLM-5') parse as
     // unknown/provider strings, so without the allowlist normalization
     // would silently rewrite the pick to 'default' and the model would
@@ -709,6 +713,7 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   void _onProfileChanged(AIBackendProfile? profile) {
+    if (_session?.metadata?.flavor == 'har') return;
     // Preserve the current model when the destination profile advertises it.
     // Legacy custom profiles often have only `models` (no defaultModelMode),
     // so replacing the selection with `default` here also prevented their

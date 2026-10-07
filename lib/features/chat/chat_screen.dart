@@ -1551,6 +1551,23 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   _SessionSendIssue? get _sessionSendIssue {
     final session = _session;
+    if (session?.metadata?.flavor == 'har' &&
+        (session!.hasLifecycleError ||
+            const {
+              'exited',
+              'stopped',
+              'failed',
+              'error',
+            }.contains(session.effectiveLifecycleState))) {
+      return const _SessionSendIssue(
+        title: 'Har conversation stopped',
+        message:
+            'Har cannot resume a stopped conversation. '
+            'Start a new Har session.',
+        snackBarText: 'Start a new Har session to continue.',
+        blocksSend: true,
+      );
+    }
     if (session == null || !session.hasLifecycleError) return null;
     final canRestore = session.canAttemptLifecycleRestore;
     final rawError = session.metadata?.lifecycleStateError?.trim();
@@ -1995,7 +2012,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           builder: (context, revision, child) => ChatInput(
             sessionId: widget.sessionId,
             controller: _controller,
-            attachmentController: _attachmentController,
+            attachmentController: _session?.metadata?.flavor == 'har'
+                ? null
+                : _attachmentController,
             onSend: hasActiveCodexTurn
                 ? () => _sendMessage(codexDeliveryMode: 'active-turn')
                 : _sendMessage,

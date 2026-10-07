@@ -268,12 +268,29 @@ class ChatModelMode {
     ),
   ];
 
+  /// Har's process-scoped model contract has no reasoning or speed variants.
+  static const harModels = <ChatModelMode>[
+    ChatModelMode._(
+      label: 'GPT-6 Luna',
+      modeString: 'codex/gpt-6-luna',
+      modelSlug: 'codex/gpt-6-luna',
+      flavor: 'har',
+    ),
+    ChatModelMode._(
+      label: 'GPT-6.1 Sol',
+      modeString: 'codex/gpt-6.1-sol',
+      modelSlug: 'codex/gpt-6.1-sol',
+      flavor: 'har',
+    ),
+  ];
+
   /// Returns the model options available for a session flavor.
   static List<ChatModelMode> availableForFlavor(String? flavor) {
     return switch (flavor) {
       // null means the server hasn't set a flavor yet; default is 'claude'.
       'claude' || null => claudeModels,
       'grok' || 'grok-build' => grokModels,
+      'har' => harModels,
       _ => const [defaultModel],
     };
   }
@@ -300,6 +317,7 @@ class ChatModelMode {
     String? providerOwnedCodexModel,
     List<String>? profileModels,
   }) {
+    if (flavor == 'har') return harModels;
     // An explicit profile model list is authoritative for every flavor.
     // Codex's live catalog only contains models known to the local Codex
     // installation, so consulting it first hides provider-specific entries
@@ -540,6 +558,12 @@ class ChatModelMode {
     List<String>? allowedRawModels,
     bool preserveProviderOwned = false,
   }) {
+    if (flavor == 'har') {
+      return harModels
+              .where((m) => m.modeString == model.modeString)
+              .firstOrNull ??
+          harModels.first;
+    }
     final available = availableForFlavor(flavor);
     if (available.contains(model) || (flavor == 'codex' && model.isCodex)) {
       return model;
@@ -584,6 +608,13 @@ class ChatModelMode {
     List<String>? allowedRawModels,
   }) {
     final trimmed = value.trim();
+    if (flavor == 'har') {
+      return harModels
+              .where((m) => m.modeString == trimmed)
+              .firstOrNull
+              ?.modeString ??
+          harModels.first.modeString;
+    }
     if (isAllowedRawSelection(trimmed, allowedRawModels, flavor: flavor)) {
       return trimmed;
     }

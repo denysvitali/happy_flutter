@@ -34,6 +34,16 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 
 ## Core Invariants
 
+- **Har is process-scoped** — flavor `har` uses ACP text/tool events and
+  cancellation. Launch only `codex/gpt-6-luna` (default) or explicit
+  `codex/gpt-6.1-sol`, with host execution and approvals disabled. Require the
+  installed binary and explicitly disabled Boxy on the local daemon. Lock
+  model/provider/permission controls after launch; never auto-restore a stopped
+  conversation. Flutter profiles forward only explicit `HAR_PROXY_URL` and
+  `HAPPY_HAR_BINARY`; profile environment credentials are not secure-storage
+  fields, so `HAR_API_KEY` is not forwarded. Images, provider switching,
+  reasoning/speed/context controls and startup resume are unavailable.
+
 - **Archive overrides survive catalog refreshes** — inactivity, archive
   confirmation, and omission from a fetch must not clear explicit session
   hiding; only unarchive or runtime reset clears it.

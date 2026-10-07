@@ -136,6 +136,12 @@ extension SyncSessionOperations on Sync {
     String? repoRef,
     String? repoCommit,
   }) async {
+    if (agent == 'har' && spawnBackend == 'kubernetes') {
+      throw StateError(
+        'Har requires an installed har binary on a local '
+        'daemon with HAPPY_BOXY_ENABLED=false.',
+      );
+    }
     final createStopwatch = Stopwatch()..start();
     if (!isInitialized) {
       throw StateError('Sync is not initialized');
@@ -239,18 +245,32 @@ extension SyncSessionOperations on Sync {
     final hydratedProfile = spawnProfileResolution.profile != null
         ? await _hydrateProfileForSpawn(spawnProfileResolution.profile!)
         : null;
-    final profileEnvVars = hydratedProfile != null
+    final profileEnvVars = agent == 'har'
+        ? <String, String>{
+            for (final entry
+                in hydratedProfile?.environmentVariables ??
+                    const <EnvironmentVariable>[])
+              if (const {
+                'HAR_PROXY_URL',
+                'HAPPY_HAR_BINARY',
+              }.contains(entry.name))
+                entry.name: entry.value,
+          }
+        : hydratedProfile != null
         ? _profileEnvironmentVariables(hydratedProfile)
         : null;
-    final permMode =
-        spawnProfileResolution.profile?.defaultPermissionMode ??
-        settingsSnapshot.lastUsedPermissionMode;
-    final envVars = _spawnEnvForModel(
-      _spawnEnvironmentVariables(profileEnvVars),
-      agent: agent,
-      profile: spawnProfileResolution.profile,
-      modelMode: effectiveModelMode,
-    );
+    final permMode = agent == 'har'
+        ? 'bypassPermissions'
+        : spawnProfileResolution.profile?.defaultPermissionMode ??
+              settingsSnapshot.lastUsedPermissionMode;
+    final envVars = agent == 'har'
+        ? profileEnvVars!
+        : _spawnEnvForModel(
+            _spawnEnvironmentVariables(profileEnvVars),
+            agent: agent,
+            profile: spawnProfileResolution.profile,
+            modelMode: effectiveModelMode,
+          );
     if (message != null && message.isNotEmpty) {
       envVars['HAPPY_INITIAL_PROMPT'] = message;
     }

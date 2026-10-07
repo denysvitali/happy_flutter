@@ -489,6 +489,10 @@ extension SyncMessagingSend on Sync {
     );
 
     checkRuntime();
+    _rejectUnsupportedHarContent(
+      flavor: session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId],
+      content: _buildOutboundUserContent(text, images: images),
+    );
     final resolvedOptions = await _measureSendPreparation<_ResolvedSendOptions>(
       otelService: otelService,
       parentSpan: sendSpan,
@@ -2021,6 +2025,13 @@ extension SyncMessagingSend on Sync {
       return const MessageRetryResult(MessageRetryOutcome.rawDataUnavailable);
     }
 
+    _rejectUnsupportedHarContent(
+      flavor:
+          _sessions[sessionId]?.metadata?.flavor ??
+          _sessionSpawnedAgent[sessionId],
+      content: raw['content'],
+    );
+
     // A message whose image bytes were stripped by the offline cache
     // cannot be retried — the raw record no longer carries the pixels,
     // and sending a hollow base64 block would deliver a broken image to
@@ -2370,6 +2381,28 @@ extension SyncMessagingSend on Sync {
     return kind == 'tool-call' ||
         kind == 'task-event' ||
         message['isThinking'] == true;
+  }
+
+  /// Reject unsupported blocks before target resolution or retry queueing.
+  /// The preparation boundary preserves the original localId and raw content
+  /// so a rejected mixed message cannot become a partial text-only delivery.
+  void _rejectUnsupportedHarContent({
+    required String? flavor,
+    required Object? content,
+  }) {
+    if (flavor != 'har') return;
+    final textOnly = content is Map
+        ? content['type'] == 'text'
+        : content is List &&
+              content.every(
+                (Object? block) => block is Map && block['type'] == 'text',
+              );
+    if (!textOnly) {
+      throw StateError(
+        'Har supports text only. Remove images or other '
+        'attachments and send a new message; this message has not been sent.',
+      );
+    }
   }
 
   static final RegExp _markdownImageRegExp = RegExp(

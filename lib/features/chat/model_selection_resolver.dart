@@ -72,6 +72,26 @@ ModelSelectionResolution resolveModelSelection({
   String? syncedSessionPermissionMode,
   String? lastUsedPermissionMode,
 }) {
+  if (flavor == 'har') {
+    // The launched process owns its model; stale picker intent must never
+    // restart a conversation that cannot be durably resumed.
+    final model = ChatModelMode.normalizeForFlavor(
+      ChatModelMode.fromString(sessionModelMode ?? savedModelMode),
+      'har',
+    );
+    final profile = settingsProfiles
+        .where((p) => p.id == savedProfileId)
+        .firstOrNull;
+    return ModelSelectionResolution(
+      resolvedPermissionMode: PermissionMode.bypassPermissions,
+      shouldPersistPermissionMode: savedPermissionMode != 'bypassPermissions',
+      resolvedModelMode: model,
+      resolvedRawModelString: model.modeString,
+      resolvedProfile: profile,
+      availableProfiles: const [],
+      hadGhostProfileReference: false,
+    );
+  }
   var permissionMode = PermissionMode.defaultMode;
   var shouldPersistPermissionMode = false;
   if (savedPermissionMode != null) {

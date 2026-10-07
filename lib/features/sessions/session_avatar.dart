@@ -194,24 +194,32 @@ class SessionAvatar extends StatelessWidget {
             ],
           ),
           child: Center(
-            child: Image.asset(
-              iconPath,
-              width: iconSize.toDouble(),
-              height: iconSize.toDouble(),
-              cacheWidth: (iconSize * MediaQuery.devicePixelRatioOf(context))
-                  .round(),
-              cacheHeight: (iconSize * MediaQuery.devicePixelRatioOf(context))
-                  .round(),
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                // Fallback to icon if image fails
-                return Icon(
-                  _getFlavorIcon(flavorName),
-                  size: iconSize.toDouble() * 0.7,
-                  color: theme.colorScheme.onSurface,
-                );
-              },
-            ),
+            child: flavorName == 'har'
+                ? Icon(
+                    Icons.hub_outlined,
+                    size: iconSize.toDouble(),
+                    color: theme.colorScheme.onSurface,
+                  )
+                : Image.asset(
+                    iconPath,
+                    width: iconSize.toDouble(),
+                    height: iconSize.toDouble(),
+                    cacheWidth:
+                        (iconSize * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                    cacheHeight:
+                        (iconSize * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fallback to icon if image fails
+                      return Icon(
+                        _getFlavorIcon(flavorName),
+                        size: iconSize.toDouble() * 0.7,
+                        color: theme.colorScheme.onSurface,
+                      );
+                    },
+                  ),
           ),
         );
       },
@@ -235,6 +243,7 @@ class SessionAvatar extends StatelessWidget {
     return switch (flavorName) {
       'claude' => Icons.auto_awesome,
       'codex' => Icons.code,
+      'har' => Icons.hub_outlined,
       'agy' || 'gemini' => Icons.auto_awesome,
       'pi' => Icons.psychology_alt_outlined,
       'opencode' => Icons.smart_toy_outlined,

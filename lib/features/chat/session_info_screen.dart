@@ -135,6 +135,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
   }
 
   Future<void> _saveStartupResume() async {
+    if (widget.session.metadata?.flavor == 'har') return;
     final metadata = widget.session.metadata;
     final machineId = metadata?.machineId;
     if (machineId == null || machineId.isEmpty) return;
@@ -507,12 +508,18 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                         children: [
                           Text(
                             l10n.sessionInfoCliOutdated,
-                            style: AppText.title(theme, theme.colorScheme.onTertiaryContainer),
+                            style: AppText.title(
+                              theme,
+                              theme.colorScheme.onTertiaryContainer,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             'Run: npm install -g happy-coder@latest',
-                            style: AppText.secondary(theme, theme.colorScheme.onTertiaryContainer),
+                            style: AppText.secondary(
+                              theme,
+                              theme.colorScheme.onTertiaryContainer,
+                            ),
                           ),
                         ],
                       ),
@@ -530,9 +537,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           const SizedBox(height: AppSpacing.lg),
         ],
 
-        AppSectionHeader(
-          title: l10n.sessionInfoSectionDetails,
-        ),
+        AppSectionHeader(title: l10n.sessionInfoSectionDetails),
         const SizedBox(height: AppSpacing.sm),
         AppCard(
           padding: EdgeInsets.zero,
@@ -573,11 +578,10 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
           ),
         ),
 
-        if (meta?.machineId?.isNotEmpty ?? false) ...[
+        if (meta?.flavor != 'har' &&
+            (meta?.machineId?.isNotEmpty ?? false)) ...[
           const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(
-            title: l10n.sessionStartupResumeSection,
-          ),
+          AppSectionHeader(title: l10n.sessionStartupResumeSection),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
             padding: EdgeInsets.zero,
@@ -631,9 +635,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         ],
 
         const SizedBox(height: AppSpacing.lg),
-        AppSectionHeader(
-          title: l10n.sessionInfoSectionQuickActions,
-        ),
+        AppSectionHeader(title: l10n.sessionInfoSectionQuickActions),
         const SizedBox(height: AppSpacing.sm),
         AppCard(
           padding: EdgeInsets.zero,
@@ -684,9 +686,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         if (meta != null) ...[
           const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(
-            title: l10n.sessionInfoSectionMetadata,
-          ),
+          AppSectionHeader(title: l10n.sessionInfoSectionMetadata),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
             padding: EdgeInsets.zero,
@@ -801,9 +801,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         if (session.agentState != null) ...[
           const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(
-            title: l10n.sessionInfoSectionAgentState,
-          ),
+          AppSectionHeader(title: l10n.sessionInfoSectionAgentState),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
             padding: EdgeInsets.zero,
@@ -835,9 +833,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
         ],
 
         const SizedBox(height: AppSpacing.lg),
-        AppSectionHeader(
-          title: l10n.sessionInfoSectionActivity,
-        ),
+        AppSectionHeader(title: l10n.sessionInfoSectionActivity),
         const SizedBox(height: AppSpacing.sm),
         AppCard(
           padding: EdgeInsets.zero,
@@ -870,9 +866,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
 
         if (meta?.tools != null && meta!.tools!.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
-          AppSectionHeader(
-            title: l10n.sessionInfoSectionTools,
-          ),
+          AppSectionHeader(title: l10n.sessionInfoSectionTools),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
             padding: EdgeInsets.zero,
@@ -887,10 +881,7 @@ class _SessionInfoBodyState extends ConsumerState<_SessionInfoBody> {
                 runSpacing: AppSpacing.sm,
                 children: meta.tools!.map((tool) {
                   return Chip(
-                    label: Text(
-                      tool,
-                      style: AppText.secondary(theme),
-                    ),
+                    label: Text(tool, style: AppText.secondary(theme)),
                     backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     padding: EdgeInsets.zero,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -994,7 +985,10 @@ class _SessionPodCard extends StatelessWidget {
                 true)
               Text(
                 currentPod?.namespace ?? session.metadata!.namespace!,
-                style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                style: AppText.secondary(
+                  theme,
+                  theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             if (currentPod?.reason.isNotEmpty == true ||
                 currentPod?.message.isNotEmpty == true) ...[
@@ -1053,7 +1047,9 @@ class _SessionPodCard extends StatelessWidget {
                     logs!.content.isEmpty
                         ? l10n.sessionPodLogsEmpty
                         : logs!.content,
-                    style: AppText.secondary(theme).copyWith(fontFamily: 'monospace'),
+                    style: AppText.secondary(
+                      theme,
+                    ).copyWith(fontFamily: 'monospace'),
                   ),
                 ),
               ),

@@ -1,3 +1,12 @@
+<!-- Har integration acceptance -->
+Har client slice: `har` picker, Luna/Sol launch choices, fixed host/disabled
+approvals display, no model/provider restart or stopped-session restore, and
+ACP text/delegation contracts are implemented in source. Local placement only;
+the daemon needs an installed Har binary and Boxy explicitly disabled. Profiles
+forward URL/binary configuration only; secure API-key provisioning remains an
+external acceptance gate. Flutter tests remain CI-only; device/inference and
+host-policy acceptance have not been verified.
+
 # Roadmap
 
 This roadmap tracks upcoming features and improvements for **happy_flutter**.

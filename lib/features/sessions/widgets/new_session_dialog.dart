@@ -27,6 +27,7 @@ enum NewSessionCreateBlocker {
   offlineMachine,
   missingPath,
   kubernetesUnavailable,
+  harLocalBackend,
   missingRepository,
   missingRepositoryRef,
   creating,
@@ -34,7 +35,7 @@ enum NewSessionCreateBlocker {
   syncNotReady,
 }
 
-const _agentIds = ['claude', 'codex', 'agy', 'pi', 'opencode', 'grok'];
+const _agentIds = ['claude', 'codex', 'agy', 'pi', 'opencode', 'grok', 'har'];
 
 NewSessionCreateBlocker? newSessionCreateBlocker({
   required Machine? machine,
@@ -47,6 +48,7 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
   String? path,
   bool repositoryRequired = false,
   bool enforceKubernetes = false,
+  bool harLocalBackendRequired = false,
 }) {
   if (machine == null) return NewSessionCreateBlocker.missingMachine;
   if (!machineOnline) return NewSessionCreateBlocker.offlineMachine;
@@ -63,6 +65,7 @@ NewSessionCreateBlocker? newSessionCreateBlocker({
   if (enforceKubernetes && repositoryRef.trim().isEmpty) {
     return NewSessionCreateBlocker.missingRepositoryRef;
   }
+  if (harLocalBackendRequired) return NewSessionCreateBlocker.harLocalBackend;
   if (isCreating) return NewSessionCreateBlocker.creating;
   if (connectionStatus != ConnectionStatus.connected) {
     return NewSessionCreateBlocker.disconnected;
@@ -152,6 +155,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
   String? _createError;
   String _selectedAgent = 'claude';
   String _sessionType = 'simple';
+  String _harModel = 'codex/gpt-6-luna';
   String? _selectedSpawnBackend;
   bool _spawnBackendTouched = false;
 
@@ -232,6 +236,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       machine: selectedMachineObj,
       machineOnline: selectedMachineObj != null && !selectedMachineOffline,
       isCreating: _isCreating,
+      harLocalBackendRequired: _selectedAgent == 'har' && isKubernetes,
       connectionStatus: connectionStatus,
       syncInitialized: sync.isInitialized,
       repositoryUrl: _selectedRepoUrl ?? '',
@@ -321,7 +326,10 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                                 ),
                                 child: Text(
                                   l10n.machineOffline,
-                                  style: AppText.secondary(theme, cs.onSurfaceVariant),
+                                  style: AppText.secondary(
+                                    theme,
+                                    cs.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             ],
@@ -435,6 +443,36 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
                 selectedAgent: _selectedAgent,
                 onSelected: (agent) => setState(() => _selectedAgent = agent),
               ),
+              if (_selectedAgent == 'har') ...[
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<String>(
+                  initialValue: _harModel,
+                  decoration: const InputDecoration(labelText: 'Har model'),
+                  items: [
+                    for (final model in ChatModelMode.harModels)
+                      DropdownMenuItem(
+                        value: model.modeString,
+                        child: Text(model.label),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _harModel = value);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Host execution · approvals disabled. Model fixed for '
+                  'this conversation. Requires an installed har binary '
+                  'and a local daemon with Boxy explicitly disabled.',
+                  style: AppText.secondary(theme, cs.onSurfaceVariant),
+                ),
+                if (isKubernetes)
+                  Text(
+                    'Har is available on the local backend. Select Local '
+                    'to start it.',
+                    style: AppText.secondary(theme, cs.error),
+                  ),
+              ],
               if (createBlocker != null) ...[
                 const SizedBox(height: AppSpacing.md),
                 _DialogRequirementStatus(
@@ -661,6 +699,7 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
       modelMode ??= normalizeProfileCandidate(
         updatedSettings.lastUsedModelMode,
       );
+      if (_selectedAgent == 'har') modelMode = _harModel;
       if (!_canUseRef) return;
       if (modelMode != null) {
         modelMode = applyProfileContextWindowSuffix(
@@ -1257,6 +1296,7 @@ String _agentLabel(AppLocalizations l10n, String agent) {
     'pi' => l10n.sessionsPi,
     'opencode' => l10n.sessionsOpencode,
     'grok' => l10n.sessionsGrok,
+    'har' => 'Har',
     _ => l10n.sessionsClaude,
   };
 }
@@ -1268,6 +1308,7 @@ IconData _agentIcon(String agent) {
     'pi' => Icons.memory_rounded,
     'opencode' => Icons.code_rounded,
     'grok' => Icons.rocket_launch_rounded,
+    'har' => Icons.hub_outlined,
     _ => Icons.psychology_alt_rounded,
   };
 }
@@ -1316,6 +1357,8 @@ String _dialogRequirementText(
       return l10n.newSessionRepositoryRequired;
     case NewSessionCreateBlocker.missingRepositoryRef:
       return l10n.newSessionGitRefRequired;
+    case NewSessionCreateBlocker.harLocalBackend:
+      return 'Select the local backend for Har.';
     case NewSessionCreateBlocker.creating:
       return l10n.commonCreate;
     case NewSessionCreateBlocker.disconnected:

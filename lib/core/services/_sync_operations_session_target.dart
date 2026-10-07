@@ -126,6 +126,44 @@ extension SyncSendTargetResolution on Sync {
         modelChanged ||
         codexSpeedChanged ||
         pendingSelection != null;
+    final isHarSession =
+        (session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId]) == 'har';
+    if (isHarSession) {
+      final harProfileChanged = spawnedProfileKnown
+          ? profileChanged
+          : hasExplicitProfileSelection && explicitProfileId != mmkvProfileId;
+      final harModelChanged =
+          modelMode != null &&
+          modelMode != 'default' &&
+          previousModel != modelMode;
+      if (harProfileChanged || harModelChanged || pendingSelection != null) {
+        throw StateError(
+          'Har model and provider are fixed for this '
+          'conversation. Start a new Har session to change them; '
+          'your message has not been sent.',
+        );
+      }
+      if (session.archived ||
+          session.hasLifecycleError ||
+          const {
+            'exited',
+            'stopped',
+            'failed',
+            'error',
+            'archived',
+          }.contains(session.effectiveLifecycleState) ||
+          !(health.looksReady || recentlySpawned)) {
+        throw StateError(
+          'Har cannot resume a stopped conversation. '
+          'Start a new Har session; your message has not been sent.',
+        );
+      }
+      return (
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+      );
+    }
     // Persist detected changes too, so a failed switch remains retryable
     // after navigation or app restart without trusting volatile spawn maps.
     SessionConfigurationSelection? requestedSelection = pendingSelection;

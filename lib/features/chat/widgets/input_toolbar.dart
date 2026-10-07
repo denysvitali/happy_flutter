@@ -194,6 +194,39 @@ class InputToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (sessionFlavor == 'har') {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, size: AppIconSize.sm),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'Host · approvals disabled',
+              style: AppText.secondary(
+                Theme.of(context),
+                Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            ModelChip(
+              model: modelMode ?? ChatModelMode.harModels.first,
+              resolvedLabel: resolvedModelLabel,
+              enabled: false,
+              onTap: onShowModelPicker,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'Model fixed for this conversation',
+              style: AppText.secondary(
+                Theme.of(context),
+                Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     final model = modelMode ?? ChatModelMode.defaultModel;
 
     // Long provider and model names must not split composer controls across

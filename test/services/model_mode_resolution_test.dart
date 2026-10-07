@@ -7,6 +7,19 @@ import '../helpers/test_helpers.dart';
 
 void main() {
   gatewayClaudePickTests();
+  test('Har spawn model is bounded and explicit', () {
+    final sync = createTestSync();
+    expect(sync.testGetModelOverride(agent: 'har'), 'codex/gpt-6-luna');
+    expect(
+      sync.testGetModelOverride(agent: 'har', modelMode: 'codex/gpt-6.1-sol'),
+      'codex/gpt-6.1-sol',
+    );
+    expect(
+      () => sync.testGetModelOverride(agent: 'har', modelMode: 'opus:max'),
+      throwsStateError,
+    );
+  });
+
   late Sync sync;
 
   setUp(() {

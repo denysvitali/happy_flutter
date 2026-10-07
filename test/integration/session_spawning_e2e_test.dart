@@ -81,6 +81,76 @@ void main() {
       LoggerService().clear();
     });
 
+    test(
+      'Har launch fixes model/policy and omits unrelated profile secrets',
+      () async {
+        Map<String, dynamic>? captured;
+        sync.testSettingsSnapshot = Settings()
+          ..lastUsedPermissionMode = 'plan'
+          ..profiles = [
+            AIBackendProfile(
+              id: 'har-config',
+              name: 'Har config',
+              defaultModelMode: 'opus:max',
+              environmentVariables: [
+                EnvironmentVariable(
+                  name: 'HAR_PROXY_URL',
+                  value: 'https://proxy',
+                ),
+                EnvironmentVariable(
+                  name: 'HAPPY_HAR_BINARY',
+                  value: '/opt/har',
+                ),
+                EnvironmentVariable(name: 'HAR_API_KEY', value: 'test-secret'),
+                EnvironmentVariable(
+                  name: 'ANTHROPIC_API_KEY',
+                  value: 'test-secret',
+                ),
+              ],
+            ),
+          ];
+        sync.testMachineRPCOverride = (_, method, params) async {
+          captured = params;
+          return {'type': 'success', 'sessionId': params['sessionId']};
+        };
+        await sync.createSession(
+          agent: 'har',
+          machineId: 'machine-1',
+          path: '/repo',
+          profileId: 'har-config',
+        );
+        expect(captured!['model'], 'codex/gpt-6-luna');
+        expect(captured!['permissionMode'], 'bypassPermissions');
+        expect(captured!['environmentVariables'], {
+          'HAR_PROXY_URL': 'https://proxy',
+          'HAPPY_HAR_BINARY': '/opt/har',
+        });
+      },
+    );
+
+    for (final model in ['opus:max', 'gpt-6-luna', 'codex/unadvertised']) {
+      test(
+        'Har rejects explicit unsupported model $model before spawn',
+        () async {
+          var spawned = false;
+          sync.testMachineRPCOverride = (_, method, params) async {
+            spawned = true;
+            return {'type': 'success', 'sessionId': params['sessionId']};
+          };
+          await expectLater(
+            sync.createSession(
+              agent: 'har',
+              machineId: 'machine-1',
+              path: '/repo',
+              modelMode: model,
+            ),
+            throwsStateError,
+          );
+          expect(spawned, isFalse);
+        },
+      );
+    }
+
     test('successful spawn registers session in _sessionSpawnedAt', () async {
       final sessionId = 'spawn-1';
       sync.testMachineRPCOverride = (machineId, method, params) async {
@@ -977,6 +1047,137 @@ void main() {
       sync.testFetchSingleSessionOverride = null;
       sync.testGetSpawnEnvVarsOverride = null;
     });
+
+    for (final text in [
+      'Inspect this ![diagram](https://example.test/diagram.png)',
+      '![diagram](https://example.test/diagram.png)',
+    ]) {
+      test('Har rejects image Markdown and retry without partial delivery: '
+          '$text', () async {
+        const id = 'har-image-refusal';
+        const localId = 'har-image-message';
+        sync.testSessions[id] = _makeSession(id, presence: 'online').copyWith(
+          metadata: const Metadata(
+            host: '',
+            machineId: 'machine-1',
+            path: '/repo',
+            flavor: 'har',
+            model: 'codex/gpt-6-luna',
+            lifecycleState: 'running',
+          ),
+        );
+        final capture = _CapturingApiInterceptor()..respondWith(id);
+        ApiClient().testDio!.interceptors.insert(0, capture);
+        var socketSends = 0;
+        sync.testSocketSendOverride = (_, __) => socketSends++;
+        final unsupported = throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('Har supports text only'),
+          ),
+        );
+        await expectLater(
+          sync.sendMessage(
+            id,
+            text,
+            clientLocalId: localId,
+            modelMode: 'codex/gpt-6-luna',
+            profileId: 'default',
+          ),
+          unsupported,
+        );
+        await sync.lastCompleteSendFuture;
+        final rows = sync.testSessionMessages(id)!;
+        expect(rows, hasLength(1));
+        expect(rows.single['localId'], localId);
+        expect(rows.single['sendStatus'], 'failed');
+        final raw = rows.single['raw'] as Map<String, dynamic>;
+        expect(
+          (raw['content'] as List).where(
+            (dynamic block) => (block as Map)['type'] == 'image',
+          ),
+          hasLength(1),
+        );
+        await expectLater(sync.retryFailedMessage(id, localId), unsupported);
+        expect(sync.testSessionMessages(id), hasLength(1));
+        expect(sync.testSessionMessages(id)!.single['localId'], localId);
+        expect(sync.testSessionMessages(id)!.single['sendStatus'], 'failed');
+        expect(capture.requests, isEmpty);
+        expect(socketSends, 0);
+        expect(
+          messageOutbox.entries.where((e) => e.localId == localId),
+          isEmpty,
+        );
+      });
+    }
+
+    for (final scenario in ['model', 'profile', 'offline']) {
+      test(
+        'Har $scenario refusal preserves repeated-send and retry identity',
+        () async {
+          final id = 'har-$scenario';
+          sync.testSessions[id] =
+              _makeSession(
+                id,
+                presence: scenario == 'offline' ? 'offline' : 'online',
+              ).copyWith(
+                metadata: Metadata(
+                  host: '',
+                  machineId: 'machine-1',
+                  path: '/repo',
+                  flavor: 'har',
+                  model: 'codex/gpt-6-luna',
+                  lifecycleState: scenario == 'offline' ? 'exited' : 'running',
+                ),
+              );
+          if (scenario == 'offline') {
+            sync.testSetSessionSpawnedAt(
+              id,
+              DateTime.now().millisecondsSinceEpoch,
+            );
+          }
+          var spawnCalls = 0;
+          sync.testMachineRPCOverride = (_, method, params) async {
+            if (method == 'spawn-happy-session') spawnCalls++;
+            return <String, dynamic>{'ok': true};
+          };
+          Future<void> attempt(String localId) async {
+            await expectLater(
+              sync.sendMessage(
+                id,
+                'continue',
+                clientLocalId: localId,
+                modelMode: scenario == 'model'
+                    ? 'codex/gpt-6.1-sol'
+                    : 'codex/gpt-6-luna',
+                profileId: scenario == 'profile' ? 'different' : 'default',
+              ),
+              throwsA(
+                isA<StateError>().having(
+                  (e) => e.message,
+                  'message',
+                  contains('Har'),
+                ),
+              ),
+            );
+          }
+
+          await attempt('har-first');
+          await attempt('har-first');
+          await attempt('har-second');
+          final rows = sync.testSessionMessages(id)!;
+          expect(rows, hasLength(2));
+          expect(rows.map((r) => r['localId']).toSet(), {
+            'har-first',
+            'har-second',
+          });
+          expect(rows.every((r) => r['sendStatus'] == 'failed'), isTrue);
+          expect(spawnCalls, 0);
+          expect(sync.testSessions[id]!.metadata!.model, 'codex/gpt-6-luna');
+        },
+      );
+    }
 
     test('online session is considered ready — no auto-restore', () async {
       final sessionId = 'ready-online';
