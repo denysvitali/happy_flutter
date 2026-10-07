@@ -35,7 +35,9 @@ done < <(find "$bundle" -type f \( -name '*.so*' -o -name happy_flutter \) -prin
 
 install -d /app/lib/happy_flutter /app/bin
 cp -a "$bundle/." /app/lib/happy_flutter/
-ln -s /app/lib/happy_flutter/happy_flutter /app/bin/happy_flutter
+install -Dm755 packaging/flatpak/happy_flutter.sh /app/bin/happy_flutter
+install -Dm644 packaging/flatpak/load-host-certificates.sh \
+  /app/lib/happy_flutter/load-host-certificates.sh
 install -Dm644 "packaging/flatpak/$FLATPAK_ID.desktop" \
   "/app/share/applications/$FLATPAK_ID.desktop"
 install -Dm644 "packaging/flatpak/$FLATPAK_ID.metainfo.xml" \

@@ -42,6 +42,8 @@ import 'core/widgets/app_focus_ticker_mode.dart';
 import 'core/widgets/app_focus_traversal.dart';
 import 'core/widgets/error_boundary.dart';
 import 'features/command_palette/command_palette.dart';
+import 'flatpak_certificates_io.dart'
+    if (dart.library.js_interop) 'flatpak_certificates_stub.dart';
 import 'platform_io.dart' if (dart.library.js_interop) 'platform_stub.dart';
 import 'security_context_io.dart'
     if (dart.library.js_interop) 'security_context_stub.dart';
@@ -135,6 +137,13 @@ Future<void> main() async {
   // Bootstrap the Flutter binding first so everything else can proceed
   // in parallel — Sentry, storage, network, deep link, and Firebase.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Flatpak's host CA bridge must precede Sentry and every HTTP/socket client.
+  try {
+    loadFlatpakHostCertificates();
+  } catch (e) {
+    logger.warning('Failed to load Flatpak host CA certificates: $e');
+  }
 
   await _initFormattingLocale();
 
