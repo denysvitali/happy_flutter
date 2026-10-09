@@ -66,6 +66,11 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   Persisted Codex `streamId` completes its preview; delayed snapshots cannot
   resurrect it. Leaving the chat, backgrounding, or resetting the runtime
   clears previews and their timers.
+- **Stacked chats hand visibility back** — every mounted `ChatScreen` claims
+  its session (`claimSessionVisibility`) and releases it in
+  `onSessionInvisible`. Closing the top chat returns the visible slot to the
+  chat underneath and probes its messages; a covered chat must never be left
+  on screen without the slot, or resume and reconnect skip it.
 - **One tap, one logical message**
 - **One canonical `localId` across UI, sync, HTTP, socket, retry, and merge**
 - **Repeated text like `continue` is never identity**

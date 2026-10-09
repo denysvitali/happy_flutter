@@ -552,6 +552,12 @@ what you have, you must use the options mode.
   /// [onSessionVisible].  Used by [fetchMessages] to bail out
   /// early when the user navigates away mid-fetch.
   String? _visibleSessionId;
+
+  /// One entry per mounted chat surface, oldest first. Chats can stack (a
+  /// notification tap or the sidebar pushes one over another), and only the
+  /// top one owns [_visibleSessionId]; this is how the slot finds its way
+  /// back to the chat underneath when the top one closes.
+  final List<String> _sessionVisibilityClaims = [];
   final _messageStreams = <String, MessageStreamStore>{};
   Timer? _messageStreamExpiry;
   int _messageStreamGeneration = 0;

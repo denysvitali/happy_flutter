@@ -460,6 +460,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.initState();
     ChatSwitchMetrics().ensureStarted(widget.sessionId);
     _seedFromInMemorySync();
+    // Released by onSessionInvisible in dispose.
+    sync.claimSessionVisibility(widget.sessionId);
     if (sync.isInitialized) {
       sync.prepareSessionVisibility(widget.sessionId);
     }

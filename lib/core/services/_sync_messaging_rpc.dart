@@ -1065,6 +1065,13 @@ extension SyncMessagingRpc on Sync {
     return credentials;
   }
 
+  /// Records that a chat surface for [sessionId] is mounted. Paired with
+  /// [onSessionInvisible], which releases it. Only widgets claim: a claim
+  /// nobody releases would keep handing visibility to a chat that is gone.
+  void claimSessionVisibility(String sessionId) {
+    _sessionVisibilityClaims.add(sessionId);
+  }
+
   /// Synchronously transfers routing ownership to [sessionId] and creates its
   /// message queue. ChatScreen calls this during initState, then waits for its
   /// first frame before starting [onSessionVisible]'s heavier cache/regroup/
@@ -1383,12 +1390,30 @@ extension SyncMessagingRpc on Sync {
     // may have already run before the old screen's dispose reaches here
     // (Flutter calls initState before dispose), so _visibleSessionId
     // may already be the new session.
-    if (_visibleSessionId == sessionId) {
+    final claimIndex = _sessionVisibilityClaims.lastIndexOf(sessionId);
+    if (claimIndex >= 0) _sessionVisibilityClaims.removeAt(claimIndex);
+    // Another surface still shows this session; it keeps the slot and queue.
+    if (_sessionVisibilityClaims.contains(sessionId)) return;
+
+    final wasVisible = _visibleSessionId == sessionId;
+    if (wasVisible) {
       _clearMessageStreams();
       _visibleSessionId = null;
     }
     messagesSync[sessionId]?.dispose();
     messagesSync.remove(sessionId);
+
+    // The chat underneath is on screen again. Its queue was torn down when it
+    // was covered, so nothing has been fetching for it, and without the slot
+    // neither resume nor reconnect would refresh it: it sat stale until the
+    // user sent a message. Probe rather than trust the catalog's lastSeq,
+    // which only moves when the sessions list is refetched.
+    if (!wasVisible || !isInitialized || _sessionVisibilityClaims.isEmpty) {
+      return;
+    }
+    final uncovered = _sessionVisibilityClaims.last;
+    _requestMessageFetchProbe(uncovered);
+    unawaited(onSessionVisible(uncovered));
   }
 
   void _requestTailRefresh(String sessionId) {
