@@ -118,8 +118,15 @@ extension SyncTestHelpers on Sync {
   int? get testLastInvalidateAllSyncsAtMs => _lastInvalidateAllSyncsAtMs;
 
   @visibleForTesting
-  set testLastInvalidateAllSyncsAtMs(int? value) =>
-      _lastInvalidateAllSyncsAtMs = value;
+  set testLastInvalidateAllSyncsAtMs(int? value) {
+    _lastInvalidateAllSyncsAtMs = value;
+    // The phase clocks belong to the same cooldown family; clearing the
+    // global clock between tests must clear them too (Sync is a singleton).
+    if (value == null) {
+      _lastDeferredPhaseAtMs = null;
+      _lastBackgroundPhaseAtMs = null;
+    }
+  }
 
   @visibleForTesting
   bool get testDeferredSocketDisconnectTimerActive =>
