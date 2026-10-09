@@ -93,13 +93,21 @@ void _processAcpContent({
         <String, dynamic>{};
     // Unwrap Grok use_tool / CallMcpTool meta-dispatch so UI shows real MCP
     // tool (mcp__server__tool) instead of the dispatcher wrapper.
-    final normalized = normalizeGrokToolCall(rawName, rawInput);
+    // har names its tools and arguments differently from the tool views;
+    // `_meta.har` identifies its calls, including a delegate's child rows.
+    final harName = harToolName(toolCall);
+    final harCall = harName == null
+        ? null
+        : normalizeHarToolCall(harName, rawInput);
+    final normalized = harCall ?? normalizeGrokToolCall(rawName, rawInput);
     final name = normalized.name;
     final input = normalized.input;
     // Normalization adds Claude-compatible aliases (`file_path`,
     // `target_directory`) for the tool views. Keep what the tool was really
     // called with so the detail screen does not present aliases as arguments.
-    final wireInput = unwrapGrokMcpDispatch(rawName, rawInput).input;
+    final wireInput = harCall != null
+        ? rawInput
+        : unwrapGrokMcpDispatch(rawName, rawInput).input;
     final status = (toolCall['status'] ?? data['status'])?.toString();
     final state = _toolCallStateFromStatus(status);
     final toolUseId =
@@ -139,7 +147,10 @@ void _processAcpContent({
         data['output'] ??
         data['content'] ??
         data['rawOutput'];
-    normalized['result'] = normalizeGrokToolResult(rawResult);
+    final harName = harToolName(data);
+    normalized['result'] =
+        (harName == null ? null : normalizeHarToolResult(harName, rawResult)) ??
+        normalizeGrokToolResult(rawResult);
     // Grok emits status: completed|failed; map onto isError when absent.
     if (normalized['isError'] != true && normalized['is_error'] != true) {
       final status = (data['status'] ?? data['state'])
