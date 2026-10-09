@@ -117,6 +117,18 @@ void main() {
       'session_recent_screen.dart',
       'session_info_widgets.dart',
       'permission_mode_selector.dart',
+      // Pre-existing overrides that the old wrapped formatting
+      // (`Theme.of(context)\n.textTheme\n.bodySmall\n?.copyWith(`) hid from
+      // this line-based scan. `dart format` joins them onto one line, so they
+      // surfaced. Migrate to AppText roles, then drop these entries.
+      'auth_landing_widgets.dart',
+      'auth_scan_failed_card.dart',
+      'profile_editor_widgets.dart',
+      'voice_language_settings_screen.dart',
+      'device_analytics_card.dart',
+      'sftp_log_entry_card.dart',
+      'connection_event_card.dart',
+      'sftp_log_stats_tab.dart',
     },
   );
 }
