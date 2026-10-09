@@ -15,6 +15,11 @@ void main() {
   });
 
   test('imports a host CA and still rejects untrusted TLS', () async {
+    // The test binding installs a mock HttpClient that never performs a TLS
+    // handshake; this test needs the real one.
+    final previousOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    addTearDown(() => HttpOverrides.global = previousOverrides);
     final directory = Directory.systemTemp.createTempSync('happy-ca-test-');
     addTearDown(() => directory.deleteSync(recursive: true));
     final certificate = '${directory.path}/certificate.pem';
