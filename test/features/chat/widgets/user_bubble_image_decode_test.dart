@@ -43,12 +43,15 @@ void main() {
         StatefulBuilder(
           builder: (context, setState) => Column(
             children: [
-              UserBubble(text: '', imageBlocks: [
-                {
-                  'type': 'image',
-                  'source': {'type': 'base64', 'data': data},
-                },
-              ]),
+              UserBubble(
+                text: '',
+                imageBlocks: [
+                  {
+                    'type': 'image',
+                    'source': {'type': 'base64', 'data': data},
+                  },
+                ],
+              ),
               Text('tick $rebuildTick'),
               TextButton(
                 onPressed: () => setState(() => rebuildTick++),
@@ -90,10 +93,7 @@ void main() {
           imageBlocks: [
             {
               'type': 'image',
-              'source': {
-                'type': 'base64',
-                'data': '!!! not base64 !!!',
-              },
+              'source': {'type': 'base64', 'data': '!!! not base64 !!!'},
             },
           ],
         ),

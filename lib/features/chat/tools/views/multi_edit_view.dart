@@ -22,9 +22,8 @@ class MultiEditView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final input = WireParsers.asMap(tool['input']) ?? {};
-    final filePath = input['path'] as String? ??
-        input['file_path'] as String? ??
-        '';
+    final filePath =
+        input['path'] as String? ?? input['file_path'] as String? ?? '';
     final edits = input['edits'] as List?;
 
     if (edits == null || edits.isEmpty) {
@@ -52,10 +51,7 @@ class MultiEditView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _MultiEditHeader(
-            editCount: parsedEdits.length,
-            filePath: filePath,
-          ),
+          _MultiEditHeader(editCount: parsedEdits.length, filePath: filePath),
           const SizedBox(height: 8),
           ...parsedEdits.asMap().entries.map((entry) {
             final index = entry.key;
@@ -65,12 +61,8 @@ class MultiEditView extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: AppSpacing.xsm),
               child: FileDiffCard(
                 number: index + 1,
-                oldText: _trimIndent(
-                  edit['old_string'] as String? ?? '',
-                ),
-                newText: _trimIndent(
-                  edit['new_string'] as String? ?? '',
-                ),
+                oldText: _trimIndent(edit['old_string'] as String? ?? ''),
+                newText: _trimIndent(edit['new_string'] as String? ?? ''),
                 replaceAll: edit['replace_all'] as bool? ?? false,
               ),
             );
@@ -90,21 +82,18 @@ class MultiEditView extends StatelessWidget {
         .map((line) => line.length - line.trimLeft().length)
         .reduce((a, b) => a < b ? a : b);
 
-    return lines.map((line) {
-      if (line.trim().isEmpty) return line;
-      return line.length > minIndent
-          ? line.substring(minIndent)
-          : line;
-    }).join('\n');
+    return lines
+        .map((line) {
+          if (line.trim().isEmpty) return line;
+          return line.length > minIndent ? line.substring(minIndent) : line;
+        })
+        .join('\n');
   }
 }
 
 /// Summary header showing the total edit count and the target file.
 class _MultiEditHeader extends StatelessWidget {
-  const _MultiEditHeader({
-    required this.editCount,
-    required this.filePath,
-  });
+  const _MultiEditHeader({required this.editCount, required this.filePath});
 
   final int editCount;
   final String filePath;
@@ -115,8 +104,7 @@ class _MultiEditHeader extends StatelessWidget {
     final cs = theme.colorScheme;
 
     final lastSlash = filePath.lastIndexOf('/');
-    final dir =
-        lastSlash >= 0 ? filePath.substring(0, lastSlash + 1) : '';
+    final dir = lastSlash >= 0 ? filePath.substring(0, lastSlash + 1) : '';
     final filename = lastSlash >= 0
         ? filePath.substring(lastSlash + 1)
         : filePath;
@@ -125,10 +113,7 @@ class _MultiEditHeader extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 4,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             color: cs.primaryContainer,
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -146,17 +131,11 @@ class _MultiEditHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Flexible(
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(AppRadius.xsm),
-                border: Border.all(
-                  color: cs.outlineVariant,
-                  width: 0.5,
-                ),
+                border: Border.all(color: cs.outlineVariant, width: 0.5),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -175,8 +154,7 @@ class _MultiEditHeader extends StatelessWidget {
                           if (dir.isNotEmpty)
                             TextSpan(
                               text: dir,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(
+                              style: theme.textTheme.bodySmall?.copyWith(
                                 color: cs.onSurfaceVariant,
                                 fontFamily: 'monospace',
                                 fontSize: AppFontSize.sm,
@@ -184,8 +162,7 @@ class _MultiEditHeader extends StatelessWidget {
                             ),
                           TextSpan(
                             text: filename,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurface,
                               fontFamily: 'monospace',
                               fontSize: AppFontSize.sm,

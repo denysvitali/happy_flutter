@@ -9,8 +9,7 @@ class HttpCacheEntry {
   final Response response;
   final int expiresAt;
 
-  bool get isExpired =>
-      DateTime.now().millisecondsSinceEpoch > expiresAt;
+  bool get isExpired => DateTime.now().millisecondsSinceEpoch > expiresAt;
 }
 
 /// In-memory HTTP response cache for GET requests
@@ -32,9 +31,9 @@ class HttpResponseCache {
       );
       buffer
         ..write('?')
-        ..write(sortedParams.entries
-            .map((e) => '${e.key}=${e.value}')
-            .join('&'));
+        ..write(
+          sortedParams.entries.map((e) => '${e.key}=${e.value}').join('&'),
+        );
     }
     return buffer.toString();
   }
@@ -67,21 +66,17 @@ class HttpResponseCache {
     if (maxAge == 0) return; // no-store
 
     final key = generateKey(options);
-    final expiresAt =
-        DateTime.now().millisecondsSinceEpoch + maxAge;
+    final expiresAt = DateTime.now().millisecondsSinceEpoch + maxAge;
     _cache[key] = HttpCacheEntry(response, expiresAt);
 
-    logger.debug(
-      'HTTP cache stored: $key (expires in $maxAge ms)',
-    );
+    logger.debug('HTTP cache stored: $key (expires in $maxAge ms)');
     _evictOldest();
   }
 
   /// Invalidate cache entries matching a pattern
   void invalidate(String pathPattern) {
     final keysToRemove = _cache.keys
-        .where((key) =>
-            key.contains('GET:') && key.contains(pathPattern))
+        .where((key) => key.contains('GET:') && key.contains(pathPattern))
         .toList();
     for (final key in keysToRemove) {
       _cache.remove(key);
@@ -97,8 +92,7 @@ class HttpResponseCache {
 
   /// Get cache statistics for debugging
   Map<String, int> getStats() {
-    final expiredCount =
-        _cache.values.where((entry) => entry.isExpired).length;
+    final expiredCount = _cache.values.where((entry) => entry.isExpired).length;
     return {
       'totalEntries': _cache.length,
       'activeEntries': _cache.length - expiredCount,
@@ -108,16 +102,14 @@ class HttpResponseCache {
 
   /// Parse Cache-Control header to get max-age directive
   int _parseMaxAge(Headers headers) {
-    final cacheControl =
-        headers.value('cache-control')?.toLowerCase();
+    final cacheControl = headers.value('cache-control')?.toLowerCase();
     if (cacheControl == null) return defaultMaxAge;
 
     // Check for no-store directive
     if (cacheControl.contains('no-store')) return 0;
 
     // Extract max-age value
-    final maxAgeMatch =
-        RegExp(r'max-age\s*=\s*(\d+)').firstMatch(cacheControl);
+    final maxAgeMatch = RegExp(r'max-age\s*=\s*(\d+)').firstMatch(cacheControl);
     if (maxAgeMatch != null) {
       final seconds = int.tryParse(maxAgeMatch.group(1) ?? '');
       if (seconds != null) return seconds * 1000;
@@ -131,9 +123,7 @@ class HttpResponseCache {
     if (_cache.length <= maxEntries) return;
 
     final entries = _cache.entries.toList()
-      ..sort(
-        (a, b) => a.value.expiresAt.compareTo(b.value.expiresAt),
-      );
+      ..sort((a, b) => a.value.expiresAt.compareTo(b.value.expiresAt));
 
     final toRemove = entries.length - maxEntries;
     for (var i = 0; i < toRemove; i++) {

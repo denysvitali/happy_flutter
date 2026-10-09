@@ -69,7 +69,9 @@ void main() {
       expect(find.text('9+'), findsNothing);
     });
 
-    testWidgets('caps badge label at "9+" when count exceeds 9', (tester) async {
+    testWidgets('caps badge label at "9+" when count exceeds 9', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           activeTab: AppTab.sessions,
@@ -81,8 +83,9 @@ void main() {
       expect(find.text('42'), findsNothing);
     });
 
-    testWidgets('shows the exact count when count is between 1 and 9',
-        (tester) async {
+    testWidgets('shows the exact count when count is between 1 and 9', (
+      tester,
+    ) async {
       for (final count in [1, 5, 7, 9]) {
         await tester.pumpWidget(
           _wrap(
@@ -100,8 +103,9 @@ void main() {
       }
     });
 
-    testWidgets('only paints the Loops badge — Sessions tab stays clean',
-        (tester) async {
+    testWidgets('only paints the Loops badge — Sessions tab stays clean', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           activeTab: AppTab.sessions,
@@ -120,25 +124,32 @@ void main() {
       expect(find.text('9+'), findsNothing);
     });
 
-    testWidgets('tab order matches enum: sessions, loops, providers, settings',
-        (tester) async {
-      await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
-      // Find the four _TabItem widgets and confirm their labels in
-      // left-to-right order.
-      final labels = find.byType(Text).evaluate().map((e) {
-        final w = e.widget as Text;
-        return w.data ?? '';
-      }).where((s) => s.isNotEmpty).toList();
-      // Expect the four canonical tab labels to appear in order:
-      // "Sessions", "Loops", "Providers", "Settings" (the actual
-      // localized text is used, but the test bundle always returns the
-      // English string for unsupported locales too — see
-      // AppLocalizations.localizationsDelegates).
-      expect(labels, contains('Sessions'));
-      expect(labels, contains('Loops'));
-      expect(labels, contains('Providers'));
-      expect(labels, contains('Settings'));
-    });
+    testWidgets(
+      'tab order matches enum: sessions, loops, providers, settings',
+      (tester) async {
+        await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
+        // Find the four _TabItem widgets and confirm their labels in
+        // left-to-right order.
+        final labels = find
+            .byType(Text)
+            .evaluate()
+            .map((e) {
+              final w = e.widget as Text;
+              return w.data ?? '';
+            })
+            .where((s) => s.isNotEmpty)
+            .toList();
+        // Expect the four canonical tab labels to appear in order:
+        // "Sessions", "Loops", "Providers", "Settings" (the actual
+        // localized text is used, but the test bundle always returns the
+        // English string for unsupported locales too — see
+        // AppLocalizations.localizationsDelegates).
+        expect(labels, contains('Sessions'));
+        expect(labels, contains('Loops'));
+        expect(labels, contains('Providers'));
+        expect(labels, contains('Settings'));
+      },
+    );
   });
 
   group('TabBar badge styling', () {
@@ -149,11 +160,13 @@ void main() {
         // text, which was wrong if the error color ever becomes light.
         // Now it follows colorScheme.onError, so a regression to white
         // would surface as the two colors differing.
-        await tester.pumpWidget(_wrap(
-          activeTab: AppTab.sessions,
-          badgeCounts: const <AppTab, int>{AppTab.loops: 3},
-          brightness: Brightness.dark,
-        ));
+        await tester.pumpWidget(
+          _wrap(
+            activeTab: AppTab.sessions,
+            badgeCounts: const <AppTab, int>{AppTab.loops: 3},
+            brightness: Brightness.dark,
+          ),
+        );
         final BuildContext ctx = tester.element(find.text('3'));
         final onError = Theme.of(ctx).colorScheme.onError;
         // Sanity: the dark theme's onError is not Colors.white.
@@ -165,20 +178,23 @@ void main() {
         final container = tester
             .widgetList<Container>(find.byType(Container))
             .firstWhere((c) {
-          final d = c.decoration;
-          return d is BoxDecoration && d.color == AppColors.error;
-        });
+              final d = c.decoration;
+              return d is BoxDecoration && d.color == AppColors.error;
+            });
         expect(container.decoration, isA<BoxDecoration>());
       },
     );
 
-    testWidgets('badge builds under a light theme without throwing',
-        (tester) async {
-      await tester.pumpWidget(_wrap(
-        activeTab: AppTab.sessions,
-        badgeCounts: const <AppTab, int>{AppTab.loops: 1},
-        brightness: Brightness.light,
-      ));
+    testWidgets('badge builds under a light theme without throwing', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          activeTab: AppTab.sessions,
+          badgeCounts: const <AppTab, int>{AppTab.loops: 1},
+          brightness: Brightness.light,
+        ),
+      );
       expect(find.text('1'), findsOneWidget);
     });
   });
@@ -200,47 +216,53 @@ void main() {
             .toList();
         expect(icons, isNotEmpty);
         for (final icon in icons) {
-          expect(icon.size, equals(24),
-              reason: 'icon size regressed to ${icon.size}; '
-                  'expected 24 dp (Material 3 / iOS HIG nav bar baseline)');
+          expect(
+            icon.size,
+            equals(24),
+            reason:
+                'icon size regressed to ${icon.size}; '
+                'expected 24 dp (Material 3 / iOS HIG nav bar baseline)',
+          );
         }
       },
     );
 
-    testWidgets(
-      'bar default height is 72 dp (not the old 60 dp)',
-      (tester) async {
-        await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
-        // Find the SizedBox that wraps the Stack children — its height
-        // is the visible bar content height.
-        final sizedBoxes = tester
-            .widgetList<SizedBox>(find.byType(SizedBox))
-            .where((b) => b.height != null && b.height! >= 60)
-            .toList();
-        expect(sizedBoxes, isNotEmpty);
-        // At least one SizedBox must declare the new default height.
-        expect(
-          sizedBoxes.any((b) => b.height == 72),
-          isTrue,
-          reason: 'expected a 72 dp SizedBox; bar default height regressed',
-        );
-      },
-    );
+    testWidgets('bar default height is 72 dp (not the old 60 dp)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
+      // Find the SizedBox that wraps the Stack children — its height
+      // is the visible bar content height.
+      final sizedBoxes = tester
+          .widgetList<SizedBox>(find.byType(SizedBox))
+          .where((b) => b.height != null && b.height! >= 60)
+          .toList();
+      expect(sizedBoxes, isNotEmpty);
+      // At least one SizedBox must declare the new default height.
+      expect(
+        sizedBoxes.any((b) => b.height == 72),
+        isTrue,
+        reason: 'expected a 72 dp SizedBox; bar default height regressed',
+      );
+    });
 
-    testWidgets(
-      'pill indicator is 48 dp tall (AppTouchTarget.comfortable)',
-      (tester) async {
-        await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
-        // The pill is a Container with a BoxDecoration and an explicit
-        // BoxConstraints.tightFor(height: 48). Find it.
-        final containers = tester
-            .widgetList<Container>(find.byType(Container))
-            .where((c) => c.constraints?.maxHeight == 48)
-            .toList();
-        expect(containers, isNotEmpty,
-            reason: 'pill indicator should declare '
-                'BoxConstraints(maxHeight: 48)');
-      },
-    );
+    testWidgets('pill indicator is 48 dp tall (AppTouchTarget.comfortable)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(activeTab: AppTab.sessions));
+      // The pill is a Container with a BoxDecoration and an explicit
+      // BoxConstraints.tightFor(height: 48). Find it.
+      final containers = tester
+          .widgetList<Container>(find.byType(Container))
+          .where((c) => c.constraints?.maxHeight == 48)
+          .toList();
+      expect(
+        containers,
+        isNotEmpty,
+        reason:
+            'pill indicator should declare '
+            'BoxConstraints(maxHeight: 48)',
+      );
+    });
   });
 }

@@ -56,8 +56,7 @@ class _GrepViewState extends State<GrepView> {
 
   @override
   Widget build(BuildContext context) {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
 
     final pattern = input['pattern'] as String? ?? '';
@@ -106,10 +105,7 @@ class _GrepViewState extends State<GrepView> {
           if (isContentMode && matches.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.smd),
-              child: MatchCountBadge(
-                count: matches.length,
-                colorScheme: cs,
-              ),
+              child: MatchCountBadge(count: matches.length, colorScheme: cs),
             ),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -120,8 +116,7 @@ class _GrepViewState extends State<GrepView> {
                 totalMatches: matches.length,
                 initialLimit: _initialLimit,
                 showAll: _showAll,
-                onToggleShowAll: () =>
-                    setState(() => _showAll = !_showAll),
+                onToggleShowAll: () => setState(() => _showAll = !_showAll),
               ),
             ),
           ],
@@ -152,15 +147,11 @@ class _GrepViewState extends State<GrepView> {
           .map((item) {
             if (item is Map<String, dynamic>) {
               return GrepMatch(
-                file: item['path'] as String? ??
-                    item['file'] as String? ??
-                    '',
-                lineNumber: item['lineNumber'] as int? ??
-                    item['line'] as int? ??
-                    0,
-                content: item['content'] as String? ??
-                    item['line'] as String? ??
-                    '',
+                file: item['path'] as String? ?? item['file'] as String? ?? '',
+                lineNumber:
+                    item['lineNumber'] as int? ?? item['line'] as int? ?? 0,
+                content:
+                    item['content'] as String? ?? item['line'] as String? ?? '',
                 startIndex: item['startIndex'] as int?,
                 endIndex: item['endIndex'] as int?,
               );
@@ -258,9 +249,7 @@ class _GrepViewState extends State<GrepView> {
         const SizedBox(height: AppSpacing.sm),
         Container(
           decoration: BoxDecoration(
-            border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
-            ),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: ClipRRect(

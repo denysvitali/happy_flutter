@@ -27,9 +27,7 @@ class SessionListShimmer extends StatelessWidget {
           width: width,
           decoration: BoxDecoration(
             color: base,
-            borderRadius: BorderRadius.circular(
-              AppRadius.xs,
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.xs),
           ),
         ),
       );

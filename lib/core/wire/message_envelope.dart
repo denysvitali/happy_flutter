@@ -109,13 +109,13 @@ class MessageEnvelope {
   /// Legacy shim — emits the same JSON shape used by the existing
   /// Socket.IO path. Kept so callers can flip a flag and compare.
   Map<String, Object?> encodeJsonShim() => {
-        'id': serverId,
-        'localId': localId,
-        'seq': seq,
-        'role': role,
-        'content': {'t': role, 'c': content},
-        'createdAt': createdAt,
-      };
+    'id': serverId,
+    'localId': localId,
+    'seq': seq,
+    'role': role,
+    'content': {'t': role, 'c': content},
+    'createdAt': createdAt,
+  };
 }
 
 void _writeVarint(BytesBuilder buf, int field, int value) {

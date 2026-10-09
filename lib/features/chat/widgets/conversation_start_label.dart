@@ -16,9 +16,7 @@ class ConversationStartLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final ruleColor = cs.onSurfaceVariant.withValues(
-      alpha: AppOpacity.soft,
-    );
+    final ruleColor = cs.onSurfaceVariant.withValues(alpha: AppOpacity.soft);
 
     return Padding(
       key: const ValueKey('header-beginning'),
@@ -33,7 +31,10 @@ class ConversationStartLabel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Text(
               context.l10n.chatBeginningOfConversation.toUpperCase(),
-              style: AppText.label(Theme.of(context), cs.onSurfaceVariant.withValues(alpha: AppOpacity.half)),
+              style: AppText.label(
+                Theme.of(context),
+                cs.onSurfaceVariant.withValues(alpha: AppOpacity.half),
+              ),
             ),
           ),
           Expanded(child: _HairlineRule(color: ruleColor)),
@@ -56,11 +57,7 @@ class _HairlineRule extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Colors.transparent,
-              color,
-              Colors.transparent,
-            ],
+            colors: [Colors.transparent, color, Colors.transparent],
           ),
         ),
       ),

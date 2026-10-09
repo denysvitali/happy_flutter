@@ -328,10 +328,7 @@ class _CreateGoalLoopSheetState extends ConsumerState<CreateGoalLoopSheet> {
 
             if (_error != null) ...[
               const SizedBox(height: AppSpacing.md),
-              Text(
-                _error!,
-                style: AppText.secondary(theme, cs.error),
-              ),
+              Text(_error!, style: AppText.secondary(theme, cs.error)),
             ],
             const SizedBox(height: AppSpacing.lg),
             Row(

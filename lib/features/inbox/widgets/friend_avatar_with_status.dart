@@ -41,8 +41,10 @@ class FriendAvatarWithStatus extends StatelessWidget {
       // Online never pulses — see the class docs for the policy.
       FriendPresence.online => (AppColors.success, false),
       FriendPresence.away => (AppColors.warning, false),
-      FriendPresence.offline => (cs.onSurfaceVariant.withValues(alpha: 0.35),
-          false),
+      FriendPresence.offline => (
+        cs.onSurfaceVariant.withValues(alpha: 0.35),
+        false,
+      ),
     };
 
     final semanticLabel = switch (friend.presence) {
@@ -57,11 +59,7 @@ class FriendAvatarWithStatus extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Avatar(
-            id: friend.id,
-            size: size,
-            imageUrl: friend.avatarUrl,
-          ),
+          Avatar(id: friend.id, size: size, imageUrl: friend.avatarUrl),
           Positioned(
             right: -ringWidth,
             bottom: -ringWidth,

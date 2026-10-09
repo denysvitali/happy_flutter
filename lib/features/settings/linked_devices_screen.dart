@@ -24,8 +24,7 @@ class LinkedDevicesScreen extends ConsumerStatefulWidget {
       _LinkedDevicesScreenState();
 }
 
-class _LinkedDevicesScreenState
-    extends ConsumerState<LinkedDevicesScreen> {
+class _LinkedDevicesScreenState extends ConsumerState<LinkedDevicesScreen> {
   List<DeviceInfo> _devices = [];
   bool _isLoading = true;
 
@@ -106,10 +105,7 @@ class _LinkedDevicesScreenState
       body: _isLoading
           ? const Center(child: AppCircularProgressIndicator())
           : _devices.isEmpty
-          ? const AppEmptyState(
-              icon: Icons.devices,
-              title: 'No linked devices',
-            )
+          ? const AppEmptyState(icon: Icons.devices, title: 'No linked devices')
           : ListView.builder(
               padding: AppScreenPadding.settings,
               itemCount: _devices.length,
@@ -127,11 +123,7 @@ class _LinkedDevicesScreenState
 
 /// Device tile widget
 class DeviceTile extends StatelessWidget {
-  const DeviceTile({
-    required this.device,
-    required this.onUnlink,
-    super.key,
-  });
+  const DeviceTile({required this.device, required this.onUnlink, super.key});
 
   final DeviceInfo device;
   final VoidCallback onUnlink;
@@ -168,10 +160,7 @@ class DeviceTile extends StatelessWidget {
           ],
         ),
         subtitle: Text(
-          l10n.accountLastActive(
-            device.platform,
-            _formatLastActive(),
-          ),
+          l10n.accountLastActive(device.platform, _formatLastActive()),
         ),
         trailing: device.isCurrentDevice
             ? null

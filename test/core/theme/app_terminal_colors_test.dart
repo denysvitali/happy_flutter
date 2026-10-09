@@ -20,8 +20,7 @@ void main() {
       expect(palette.cursor, isA<Color>());
     });
 
-    test('copyWith returns an equal palette when no overrides are given',
-        () {
+    test('copyWith returns an equal palette when no overrides are given', () {
       const original = AppTerminalColors.dark;
       final copy = original.copyWith();
       // copyWith with no args is a no-op; the copy is reference-different

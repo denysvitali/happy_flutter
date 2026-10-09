@@ -7,17 +7,16 @@ void main() {
     testWidgets('renders nothing when children are empty', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: WorkflowInlineView(children: []),
-          ),
+          home: Scaffold(body: WorkflowInlineView(children: [])),
         ),
       );
       expect(find.byType(SizedBox), findsOneWidget);
       expect(find.text('Read'), findsNothing);
     });
 
-    testWidgets('renders phases and agents from latest progress snapshot',
-        (tester) async {
+    testWidgets('renders phases and agents from latest progress snapshot', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -26,16 +25,8 @@ void main() {
                 {
                   'kind': 'agent-event',
                   'workflowProgress': [
-                    {
-                      'type': 'workflow_phase',
-                      'index': 1,
-                      'title': 'Read',
-                    },
-                    {
-                      'type': 'workflow_phase',
-                      'index': 2,
-                      'title': 'Report',
-                    },
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Read'},
+                    {'type': 'workflow_phase', 'index': 2, 'title': 'Report'},
                     {
                       'type': 'workflow_agent',
                       'agentId': 'a1',
@@ -59,8 +50,9 @@ void main() {
       expect(find.text('claude-sonnet-4-6'), findsOneWidget);
     });
 
-    testWidgets(
-        'uses the most recent workflowProgress snapshot', (tester) async {
+    testWidgets('uses the most recent workflowProgress snapshot', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -69,21 +61,13 @@ void main() {
                 {
                   'kind': 'agent-event',
                   'workflowProgress': [
-                    {
-                      'type': 'workflow_phase',
-                      'index': 1,
-                      'title': 'Stale',
-                    },
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Stale'},
                   ],
                 },
                 {
                   'kind': 'agent-event',
                   'workflowProgress': [
-                    {
-                      'type': 'workflow_phase',
-                      'index': 1,
-                      'title': 'Current',
-                    },
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Current'},
                   ],
                 },
               ],
@@ -96,8 +80,9 @@ void main() {
       expect(find.text('Current'), findsOneWidget);
     });
 
-    testWidgets(
-        'renders log preview when workflow_log present', (tester) async {
+    testWidgets('renders log preview when workflow_log present', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -106,14 +91,8 @@ void main() {
                 {
                   'kind': 'agent-event',
                   'workflowProgress': [
-                    {
-                      'type': 'workflow_log',
-                      'message': 'Starting phase Read',
-                    },
-                    {
-                      'type': 'workflow_log',
-                      'message': 'Finished phase Read',
-                    },
+                    {'type': 'workflow_log', 'message': 'Starting phase Read'},
+                    {'type': 'workflow_log', 'message': 'Finished phase Read'},
                   ],
                 },
               ],
@@ -129,26 +108,22 @@ void main() {
     testWidgets('renders nothing when children is null', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: WorkflowInlineView(children: null),
-          ),
+          home: Scaffold(body: WorkflowInlineView(children: null)),
         ),
       );
       expect(find.byType(SizedBox), findsOneWidget);
     });
 
-    testWidgets('skips malformed children and progress entries',
-        (tester) async {
+    testWidgets('skips malformed children and progress entries', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: WorkflowInlineView(
               children: [
                 'not-a-map',
-                {
-                  'kind': 'agent-event',
-                  'workflowProgress': 'not-a-list',
-                },
+                {'kind': 'agent-event', 'workflowProgress': 'not-a-list'},
                 {
                   'kind': 'agent-event',
                   'workflowProgress': [

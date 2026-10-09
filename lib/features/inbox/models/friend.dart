@@ -41,7 +41,8 @@ class Friend {
   factory Friend.fromJson(Map<String, dynamic> json) {
     return Friend(
       id: (json['id'] as String?) ?? '',
-      displayName: (json['displayName'] as String?) ??
+      displayName:
+          (json['displayName'] as String?) ??
           (json['username'] as String?) ??
           '',
       avatarUrl: json['avatarUrl'] as String?,

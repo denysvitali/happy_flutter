@@ -435,7 +435,10 @@ class _Row extends StatelessWidget {
                 children: [
                   Text(
                     item.content,
-                    style: AppText.secondary(theme, textColor).copyWith(decoration: decoration, decorationColor: textColor),
+                    style: AppText.secondary(theme, textColor).copyWith(
+                      decoration: decoration,
+                      decorationColor: textColor,
+                    ),
                   ),
                   if (assignedAgent case final agentId? when agentId.isNotEmpty)
                     Padding(
@@ -453,7 +456,10 @@ class _Row extends StatelessWidget {
                         _abbreviated(description),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.75)),
+                        style: AppText.secondary(
+                          theme,
+                          cs.onSurfaceVariant.withValues(alpha: 0.75),
+                        ),
                       ),
                     ),
                 ],

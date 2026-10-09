@@ -565,44 +565,46 @@ void main() {
       );
     });
 
-    test('refreshAllLoops deadline bounds a slow successful response',
-        () async {
-      // Regression: refresh could wait for a slow loop-list response
-      // instead of respecting the total refresh deadline. The
-      // test-only deadline keeps this fast while exercising the same
-      // timeout path as the production 10 s budget.
-      sync.testSessions['s1'] = _session(id: 's1');
-      sync.testSessions['s2'] = _session(id: 's2');
-      sync.testSocketConnectedOverride = true;
-      sync.testRefreshAllLoopsDeadline = const Duration(milliseconds: 100);
-      sync.testSessionRPCOverride = (sid, method, params) async {
-        if (sid == 's1') {
-          // Exceed the refresh deadline, simulating a
-          // wedged RPC that the underlying emitWithAck timer
-          // hasn't caught yet.
-          await Future<void>.delayed(const Duration(milliseconds: 150));
+    test(
+      'refreshAllLoops deadline bounds a slow successful response',
+      () async {
+        // Regression: refresh could wait for a slow loop-list response
+        // instead of respecting the total refresh deadline. The
+        // test-only deadline keeps this fast while exercising the same
+        // timeout path as the production 10 s budget.
+        sync.testSessions['s1'] = _session(id: 's1');
+        sync.testSessions['s2'] = _session(id: 's2');
+        sync.testSocketConnectedOverride = true;
+        sync.testRefreshAllLoopsDeadline = const Duration(milliseconds: 100);
+        sync.testSessionRPCOverride = (sid, method, params) async {
+          if (sid == 's1') {
+            // Exceed the refresh deadline, simulating a
+            // wedged RPC that the underlying emitWithAck timer
+            // hasn't caught yet.
+            await Future<void>.delayed(const Duration(milliseconds: 150));
+            return {'ok': true, 'result': null};
+          }
           return {'ok': true, 'result': null};
-        }
-        return {'ok': true, 'result': null};
-      };
+        };
 
-      container = ProviderContainer();
-      final notifier = container.read(loopsNotifierProvider.notifier);
-      // Must not throw — and must not exceed the deadline by more
-      // than the per-call buffer.
-      final stopwatch = Stopwatch()..start();
-      await notifier.refreshFromSync();
-      stopwatch.stop();
-      // The test-only deadline keeps this coverage out of the
-      // multi-second path while still proving the timeout is bounded.
-      expect(
-        stopwatch.elapsed,
-        lessThan(const Duration(seconds: 2)),
-        reason:
-            'refreshFromSync must stop at the refresh deadline, '
-            'not wait for the slow response',
-      );
-    });
+        container = ProviderContainer();
+        final notifier = container.read(loopsNotifierProvider.notifier);
+        // Must not throw — and must not exceed the deadline by more
+        // than the per-call buffer.
+        final stopwatch = Stopwatch()..start();
+        await notifier.refreshFromSync();
+        stopwatch.stop();
+        // The test-only deadline keeps this coverage out of the
+        // multi-second path while still proving the timeout is bounded.
+        expect(
+          stopwatch.elapsed,
+          lessThan(const Duration(seconds: 2)),
+          reason:
+              'refreshFromSync must stop at the refresh deadline, '
+              'not wait for the slow response',
+        );
+      },
+    );
 
     test('hydrateAllFromCache hydrates all sessions present in _sessions '
         'and bumps the domain counter', () async {

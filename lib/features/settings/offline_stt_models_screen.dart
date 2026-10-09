@@ -44,8 +44,8 @@ class _OfflineSttModelsScreenState
           status == OfflineSttStatus.downloading) {
         return;
       }
-      final model = OfflineSttCatalog.byId(selectedId) ??
-          OfflineSttCatalog.defaultModel;
+      final model =
+          OfflineSttCatalog.byId(selectedId) ?? OfflineSttCatalog.defaultModel;
       final messenger = ScaffoldMessenger.maybeOf(context);
       messenger?.showSnackBar(
         SnackBar(
@@ -138,9 +138,7 @@ class _OfflineSttModelsScreenState
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 
@@ -157,8 +155,7 @@ class _OfflineSttModelsScreenState
     final selectedId = ref.watch(
       settingsNotifierProvider.select((s) => s.sttModelId),
     );
-    final activeId =
-        selectedId ?? OfflineSttCatalog.defaultModel.id;
+    final activeId = selectedId ?? OfflineSttCatalog.defaultModel.id;
 
     // Group by tier so the picker reads Fast / Balanced / Quality.
     final grouped = <String, List<OfflineSttModel>>{};
@@ -177,7 +174,8 @@ class _OfflineSttModelsScreenState
         valueListenable: _service.statuses,
         builder: (context, statuses, _) {
           return ValueListenableBuilder<
-              Map<String, OfflineSttDownloadProgress>>(
+            Map<String, OfflineSttDownloadProgress>
+          >(
             valueListenable: _service.progress,
             builder: (context, progress, _) {
               return ListView(
@@ -203,7 +201,8 @@ class _OfflineSttModelsScreenState
                         for (final model in grouped[tier]!)
                           _ModelRow(
                             model: model,
-                            status: statuses[model.id] ??
+                            status:
+                                statuses[model.id] ??
                                 OfflineSttStatus.notDownloaded,
                             progress: progress[model.id],
                             lastError: _service.errorFor(model.id),
@@ -285,21 +284,23 @@ class _ModelRow extends StatelessWidget {
       subtitle.write(' · ${model.sizeLabel}');
     }
     final l10n = AppLocalizations.of(context);
-    subtitle.write(downloadStatusSuffix(
-      ready: isReady,
-      downloading: isDownloading,
-      failed: isFailed,
-      strings: DownloadStatusStrings(
-        ready: l10n.voiceDownloadStatusReady,
-        downloading: l10n.voiceDownloadStatusDownloading,
-        failed: l10n.voiceDownloadStatusFailed,
-        notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
-        failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
-        notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+    subtitle.write(
+      downloadStatusSuffix(
+        ready: isReady,
+        downloading: isDownloading,
+        failed: isFailed,
+        strings: DownloadStatusStrings(
+          ready: l10n.voiceDownloadStatusReady,
+          downloading: l10n.voiceDownloadStatusDownloading,
+          failed: l10n.voiceDownloadStatusFailed,
+          notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
+          failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
+          notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+        ),
+        failureDetail: _shortErrorDetail(lastError),
+        downloadingLabel: progress?.label,
       ),
-      failureDetail: _shortErrorDetail(lastError),
-      downloadingLabel: progress?.label,
-    ));
+    );
 
     final IconData leadingIcon;
     final Color? leadingColor;

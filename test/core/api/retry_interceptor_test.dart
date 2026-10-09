@@ -76,21 +76,26 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   _outageTests();
 
-  test('request-specific budget admits retries past the generic deadline',
-      () async {
-    final adapter = _ScriptedAdapter([503, 200]);
-    final dio = _buildDio(adapter);
-    addTearDown(dio.close);
-    final response = await dio.get<dynamic>('/messages', options: Options(
-      extra: {
-        RetryInterceptor.requestBudgetMsKey: 40000,
-        RetryInterceptor.retryStartKey:
-            DateTime.now().millisecondsSinceEpoch - 21000,
-      },
-    ));
-    expect(response.statusCode, 200);
-    expect(adapter.calls, 2);
-  });
+  test(
+    'request-specific budget admits retries past the generic deadline',
+    () async {
+      final adapter = _ScriptedAdapter([503, 200]);
+      final dio = _buildDio(adapter);
+      addTearDown(dio.close);
+      final response = await dio.get<dynamic>(
+        '/messages',
+        options: Options(
+          extra: {
+            RetryInterceptor.requestBudgetMsKey: 40000,
+            RetryInterceptor.retryStartKey:
+                DateTime.now().millisecondsSinceEpoch - 21000,
+          },
+        ),
+      );
+      expect(response.statusCode, 200);
+      expect(adapter.calls, 2);
+    },
+  );
 
   group('HTTP failure causes', () {
     final options = RequestOptions(path: '/v2/sessions');
@@ -101,11 +106,13 @@ void main() {
         "SocketException: Failed host lookup: 'example.invalid'",
       ]) {
         expect(
-          classifyHttpFailure(DioException(
-            requestOptions: options,
-            type: DioExceptionType.unknown,
-            error: detail,
-          )),
+          classifyHttpFailure(
+            DioException(
+              requestOptions: options,
+              type: DioExceptionType.unknown,
+              error: detail,
+            ),
+          ),
           'dns',
         );
       }
@@ -113,59 +120,72 @@ void main() {
 
     test('separates lifecycle cancellation from deadline and timeout', () {
       expect(
-        classifyHttpFailure(DioException(
-          requestOptions: options,
-          type: DioExceptionType.cancel,
-          error: HttpCancellationReason.appSuspended,
-        )),
+        classifyHttpFailure(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.cancel,
+            error: HttpCancellationReason.appSuspended,
+          ),
+        ),
         'app_suspended',
       );
       expect(
-        classifyHttpFailure(DioException(
-          requestOptions: options,
-          type: DioExceptionType.cancel,
-          error: 'HTTP request deadline exceeded',
-        )),
+        classifyHttpFailure(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.cancel,
+            error: 'HTTP request deadline exceeded',
+          ),
+        ),
         'deadline',
       );
       expect(
-        classifyHttpFailure(DioException(
-          requestOptions: options,
-          type: DioExceptionType.receiveTimeout,
-        )),
+        classifyHttpFailure(
+          DioException(
+            requestOptions: options,
+            type: DioExceptionType.receiveTimeout,
+          ),
+        ),
         'timeout',
       );
     });
   });
 
   group('RetryInterceptor status classification', () {
-    test('retries a 503 response even though validateStatus keeps status '
-        'failures out of onError (regression: the 5xx branch only ever ran '
-        'from onError, so no server error ever produced a client retry)',
-        () async {
-      final adapter = _ScriptedAdapter([503, 200]);
-      final dio = _buildDio(adapter);
+    test(
+      'retries a 503 response even though validateStatus keeps status '
+      'failures out of onError (regression: the 5xx branch only ever ran '
+      'from onError, so no server error ever produced a client retry)',
+      () async {
+        final adapter = _ScriptedAdapter([503, 200]);
+        final dio = _buildDio(adapter);
 
-      final response = await dio.post<dynamic>(
-        '/v1/push/send-all',
-        data: {'title': 'hi'},
-      );
+        final response = await dio.post<dynamic>(
+          '/v1/push/send-all',
+          data: {'title': 'hi'},
+        );
 
-      expect(adapter.calls, 2, reason: 'the 503 must be retried once');
-      expect(response.statusCode, 200);
-      expect(response.requestOptions.extra[RetryInterceptor.retryCountKey], 1);
-    });
+        expect(adapter.calls, 2, reason: 'the 503 must be retried once');
+        expect(response.statusCode, 200);
+        expect(
+          response.requestOptions.extra[RetryInterceptor.retryCountKey],
+          1,
+        );
+      },
+    );
 
-    test('gives up after maxRetries and returns the last failing response',
-        () async {
-      final adapter = _ScriptedAdapter([503]);
-      final dio = _buildDio(adapter, maxRetries: 2);
+    test(
+      'gives up after maxRetries and returns the last failing response',
+      () async {
+        final adapter = _ScriptedAdapter([503]);
+        final dio = _buildDio(adapter, maxRetries: 2);
 
-      final response = await dio.get<dynamic>('/v1/machines');
+        final response = await dio.get<dynamic>('/v1/machines');
 
-      expect(adapter.calls, 3, reason: '1 initial attempt + 2 retries');
-      expect(response.statusCode, 503);
-    });
+        expect(adapter.calls, 3, reason: '1 initial attempt + 2 retries');
+        expect(response.statusCode, 503);
+      },
+    );
 
     test('retries 429 rate limits', () async {
       final adapter = _ScriptedAdapter([429, 200]);
@@ -252,18 +272,20 @@ void main() {
         ..reset();
     });
 
-    test('surfaces a 401 as re-authentication required without retrying '
-        '(the server has no refresh endpoint and its tokens never expire)',
-        () async {
-      final adapter = _ScriptedAdapter([401]);
-      final dio = _buildDio(adapter);
+    test(
+      'surfaces a 401 as re-authentication required without retrying '
+      '(the server has no refresh endpoint and its tokens never expire)',
+      () async {
+        final adapter = _ScriptedAdapter([401]);
+        final dio = _buildDio(adapter);
 
-      final response = await dio.get<dynamic>('/v1/machines');
+        final response = await dio.get<dynamic>('/v1/machines');
 
-      expect(adapter.calls, 1, reason: 'a 401 is never retried');
-      expect(response.statusCode, 401);
-      expect(notifications, hasLength(1));
-    });
+        expect(adapter.calls, 1, reason: 'a 401 is never retried');
+        expect(response.statusCode, 401);
+        expect(notifications, hasLength(1));
+      },
+    );
 
     test('a burst of 401s notifies re-authentication only once', () async {
       final adapter = _ScriptedAdapter([401]);
@@ -311,7 +333,8 @@ void main() {
           throw DioException(
             requestOptions: RequestOptions(path: '/v1/machines'),
             type: DioExceptionType.unknown,
-            error: 'Cronet exception: net::ERR_HTTP2_PING_FAILED, '
+            error:
+                'Cronet exception: net::ERR_HTTP2_PING_FAILED, '
                 'Retryable=true',
           );
         }
@@ -384,10 +407,14 @@ void main() {
 
       await expectLater(
         dio.get<dynamic>('/v1/machines'),
-        throwsA(isA<DioException>().having(
-          (e) => e.type, 'type', DioExceptionType.cancel,
-        )),
-     );
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.type,
+            'type',
+            DioExceptionType.cancel,
+          ),
+        ),
+      );
 
       expect(
         adapter.calls,
@@ -396,93 +423,95 @@ void main() {
             'the first attempt already blew the budget, so no retry may '
             'be admitted',
       );
-
     });
   });
 
   group('RetryInterceptor retry failures', () {
-    test('supports a request-specific deadline for large message pages', () async {
-      final adapter = _SlowAdapter(
-        delay: const Duration(milliseconds: 150),
-        statusCode: 200,
-      );
-      late final Dio dio;
-      dio = Dio(
-        BaseOptions(
-          baseUrl: 'https://test.example.com',
-          validateStatus: (_) => true,
-        ),
-      );
-      dio.interceptors.add(
-        RetryInterceptor(dioGetter: () => dio, maxTotalElapsedMs: 50),
-      );
-      dio.httpClientAdapter = adapter;
-
-      final response = await dio.get<dynamic>(
-        '/v3/sessions/abc/messages',
-        options: Options(
-          extra: {RetryInterceptor.requestBudgetMsKey: 300},
-        ),
-      );
-
-      expect(response.statusCode, 200);
-      expect(adapter.calls, 1);
-      dio.close(force: true);
-    });
-
-    test('a failed retry still runs the following error interceptors',
-        () async {
-      // The retried fetch fails before any interceptor chain runs (e.g. the
-      // captured Dio was closed by ApiClient.initialize mid-backoff). The
-      // error must still reach the tracing / tracker interceptors, or the
-      // span opened for the attempt is never ended.
-      final failingDio = Dio(
-        BaseOptions(baseUrl: 'https://test.example.com'),
-      );
-      failingDio.httpClientAdapter = _ThrowingAdapter(() {
-        throw DioException(
-          requestOptions: RequestOptions(path: '/v1/machines'),
-          type: DioExceptionType.connectionError,
-          message: 'closed',
+    test(
+      'supports a request-specific deadline for large message pages',
+      () async {
+        final adapter = _SlowAdapter(
+          delay: const Duration(milliseconds: 150),
+          statusCode: 200,
         );
-      });
+        late final Dio dio;
+        dio = Dio(
+          BaseOptions(
+            baseUrl: 'https://test.example.com',
+            validateStatus: (_) => true,
+          ),
+        );
+        dio.interceptors.add(
+          RetryInterceptor(dioGetter: () => dio, maxTotalElapsedMs: 50),
+        );
+        dio.httpClientAdapter = adapter;
 
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: 'https://test.example.com',
-          validateStatus: (_) => true,
-        ),
-      );
-      dio.interceptors.add(
-        RetryInterceptor(
-          dioGetter: () => failingDio,
-          baseDelayMs: 1,
-          maxDelayMs: 2,
-        ),
-      );
-      var observedErrors = 0;
-      dio.interceptors.add(
-        InterceptorsWrapper(
-          onError: (error, handler) {
-            observedErrors++;
-            handler.next(error);
-          },
-        ),
-      );
-      dio.httpClientAdapter = _ScriptedAdapter([503]);
+        final response = await dio.get<dynamic>(
+          '/v3/sessions/abc/messages',
+          options: Options(extra: {RetryInterceptor.requestBudgetMsKey: 300}),
+        );
 
-      await expectLater(
-        dio.get<dynamic>('/v1/machines'),
-        throwsA(isA<DioException>()),
-      );
-      expect(
-        observedErrors,
-        1,
-        reason:
-            'handler.reject must keep the error chain running so spans and '
-            'tracker entries are closed',
-      );
-    });
+        expect(response.statusCode, 200);
+        expect(adapter.calls, 1);
+        dio.close(force: true);
+      },
+    );
+
+    test(
+      'a failed retry still runs the following error interceptors',
+      () async {
+        // The retried fetch fails before any interceptor chain runs (e.g. the
+        // captured Dio was closed by ApiClient.initialize mid-backoff). The
+        // error must still reach the tracing / tracker interceptors, or the
+        // span opened for the attempt is never ended.
+        final failingDio = Dio(
+          BaseOptions(baseUrl: 'https://test.example.com'),
+        );
+        failingDio.httpClientAdapter = _ThrowingAdapter(() {
+          throw DioException(
+            requestOptions: RequestOptions(path: '/v1/machines'),
+            type: DioExceptionType.connectionError,
+            message: 'closed',
+          );
+        });
+
+        final dio = Dio(
+          BaseOptions(
+            baseUrl: 'https://test.example.com',
+            validateStatus: (_) => true,
+          ),
+        );
+        dio.interceptors.add(
+          RetryInterceptor(
+            dioGetter: () => failingDio,
+            baseDelayMs: 1,
+            maxDelayMs: 2,
+          ),
+        );
+        var observedErrors = 0;
+        dio.interceptors.add(
+          InterceptorsWrapper(
+            onError: (error, handler) {
+              observedErrors++;
+              handler.next(error);
+            },
+          ),
+        );
+        dio.httpClientAdapter = _ScriptedAdapter([503]);
+
+        await expectLater(
+          dio.get<dynamic>('/v1/machines'),
+          throwsA(isA<DioException>()),
+        );
+        expect(
+          observedErrors,
+          1,
+          reason:
+              'handler.reject must keep the error chain running so spans and '
+              'tracker entries are closed',
+        );
+      },
+    );
   });
 }
 
@@ -514,7 +543,6 @@ class _SlowAdapter implements HttpClientAdapter {
   @override
   void close({bool force = false}) {}
 }
-
 
 // 2026-09-26: an offline device (DNS ERR_NAME_NOT_RESOLVED) exhausted
 // retries on every endpoint at once and opened one warning-level GlitchTip

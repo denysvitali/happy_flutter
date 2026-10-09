@@ -31,7 +31,8 @@ class AsyncLock {
     _permits += 1;
     if (_permits > 1 && _promiseResolverQueue.isNotEmpty) {
       throw StateError(
-          'this.permits should never be > 0 when there is someone waiting.');
+        'this.permits should never be > 0 when there is someone waiting.',
+      );
     } else if (_permits == 1 && _promiseResolverQueue.isNotEmpty) {
       // If there is someone else waiting, immediately consume the permit that
       // was released at the beginning of this function and let it resume.

@@ -54,10 +54,7 @@ void main() {
       expect(find.text('approval'), findsOneWidget);
 
       // Working directory row.
-      expect(
-        find.text('/home/workspace/git/happy_flutter'),
-        findsOneWidget,
-      );
+      expect(find.text('/home/workspace/git/happy_flutter'), findsOneWidget);
 
       // Full prompt — head and tail both visible, not truncated.
       expect(find.text('PROMPT'), findsOneWidget);
@@ -176,31 +173,24 @@ void main() {
         expect(definition!.minimal, isFalse, reason: name);
       }
 
-      final subtitle = KnownTools.get('mcp__codex__codex')!.extractSubtitle!(
-        {
-          'input': {'prompt': '\nFirst line of task.\nSecond line.'},
-        },
-        null,
-      );
+      final subtitle = KnownTools.get('mcp__codex__codex')!.extractSubtitle!({
+        'input': {'prompt': '\nFirst line of task.\nSecond line.'},
+      }, null);
       expect(subtitle, 'First line of task.');
     });
 
     test('subtitle truncates long first lines', () {
       final longLine = 'x' * 120;
-      final subtitle = KnownTools.get('mcp__codex__codex')!.extractSubtitle!(
-        {
-          'input': {'prompt': longLine},
-        },
-        null,
-      );
+      final subtitle = KnownTools.get('mcp__codex__codex')!.extractSubtitle!({
+        'input': {'prompt': longLine},
+      }, null);
       expect(subtitle, '${'x' * 80}…');
     });
 
     test('subtitle is null without a prompt', () {
-      final subtitle = KnownTools.get('mcp__codex__codex')!.extractSubtitle!(
-        {'input': {}},
-        null,
-      );
+      final subtitle = KnownTools.get('mcp__codex__codex')!.extractSubtitle!({
+        'input': {},
+      }, null);
       expect(subtitle, isNull);
     });
 

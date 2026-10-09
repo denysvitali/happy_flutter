@@ -37,7 +37,6 @@ int _avatarHashCode(String str) {
 /// referenced 420+ PNG asset files that were never bundled on disk,
 /// causing every render to silently fall through to an error path.
 class AvatarBrutalist extends StatelessWidget {
-
   const AvatarBrutalist({
     required this.id,
     this.size = 48,
@@ -63,7 +62,6 @@ class AvatarBrutalist extends StatelessWidget {
 /// referenced 100 PNG asset files that were never bundled on disk,
 /// causing every render to silently fall through to an error path.
 class AvatarGradient extends StatelessWidget {
-
   const AvatarGradient({
     required this.id,
     this.size = 48,
@@ -84,7 +82,6 @@ class AvatarGradient extends StatelessWidget {
 
 /// AvatarSkia - 8x8 pixel grid with generative colors
 class AvatarSkia extends StatelessWidget {
-
   const AvatarSkia({
     required this.id,
     this.size = 48,
@@ -138,7 +135,6 @@ class AvatarSkia extends StatelessWidget {
 }
 
 class _PixelGridPainter extends CustomPainter {
-
   _PixelGridPainter({
     required this.id,
     required this.hash,
@@ -224,7 +220,6 @@ class _PixelGridPainter extends CustomPainter {
 /// flavor names.  This widget focuses on avatar generation and image
 /// display without flavor overlay concerns.
 class Avatar extends StatelessWidget {
-
   const Avatar({
     required this.id,
     this.size = 48,
@@ -251,23 +246,23 @@ class Avatar extends StatelessWidget {
 
     return switch (style) {
       AvatarStyle.brutalist => AvatarBrutalist(
-          id: id,
-          size: size,
-          square: square,
-          monochrome: monochrome,
-        ),
+        id: id,
+        size: size,
+        square: square,
+        monochrome: monochrome,
+      ),
       AvatarStyle.gradient => AvatarGradient(
-          id: id,
-          size: size,
-          square: square,
-          monochrome: monochrome,
-        ),
+        id: id,
+        size: size,
+        square: square,
+        monochrome: monochrome,
+      ),
       AvatarStyle.pixelated => AvatarSkia(
-          id: id,
-          size: size,
-          square: square,
-          monochrome: monochrome,
-        ),
+        id: id,
+        size: size,
+        square: square,
+        monochrome: monochrome,
+      ),
       AvatarStyle.geometric => AvatarGeometric(id: id, size: size),
       AvatarStyle.rings => AvatarRings(id: id, size: size),
       AvatarStyle.constellation => AvatarConstellation(id: id, size: size),

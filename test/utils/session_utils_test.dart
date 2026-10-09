@@ -99,7 +99,8 @@ void main() {
       final session = _session(
         active: false,
         presence: 'online',
-        activeAt: DateTime.now().millisecondsSinceEpoch -
+        activeAt:
+            DateTime.now().millisecondsSinceEpoch -
             (sessionIdleAfterMs + 60 * 1000),
       );
       expect(isSessionActive(session), isFalse);
@@ -109,7 +110,8 @@ void main() {
       final session = _session(
         active: true,
         presence: 'offline',
-        activeAt: DateTime.now().millisecondsSinceEpoch -
+        activeAt:
+            DateTime.now().millisecondsSinceEpoch -
             (sessionIdleAfterMs + 60 * 1000),
       );
       expect(isSessionActive(session), isFalse);
@@ -119,7 +121,8 @@ void main() {
       final session = _session(
         active: false,
         presence: 'online',
-        activeAt: DateTime.now().millisecondsSinceEpoch -
+        activeAt:
+            DateTime.now().millisecondsSinceEpoch -
             (sessionIdleAfterMs - 60 * 1000),
       );
       expect(isSessionActive(session), isTrue);
@@ -131,22 +134,18 @@ void main() {
         final session = _session(
           active: false,
           presence: 'offline',
-          activeAt: DateTime.now().millisecondsSinceEpoch -
+          activeAt:
+              DateTime.now().millisecondsSinceEpoch -
               (sessionIdleAfterMs + 60 * 1000),
           lifecycleState: 'running',
-          lifecycleStateSince:
-              DateTime.now().millisecondsSinceEpoch - 5 * 1000,
+          lifecycleStateSince: DateTime.now().millisecondsSinceEpoch - 5 * 1000,
         );
         expect(isSessionActive(session), isTrue);
       },
     );
 
     test('activeAt of 0 is treated as no signal, not idle', () {
-      final session = _session(
-        active: true,
-        presence: 'online',
-        activeAt: 0,
-      );
+      final session = _session(active: true, presence: 'online', activeAt: 0);
       expect(isSessionActive(session), isTrue);
     });
   });

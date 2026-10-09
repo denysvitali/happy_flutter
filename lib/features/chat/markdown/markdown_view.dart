@@ -385,9 +385,7 @@ class _OversizedMarkdownPreview extends StatelessWidget {
     final theme = Theme.of(context);
     // Grapheme-safe cut: an oversized document can end mid-emoji, and a
     // code-unit slice of the preview head would split it (GlitchTip 8777).
-    final preview = content.characters
-        .take(_markdownPreviewChars)
-        .toString();
+    final preview = content.characters.take(_markdownPreviewChars).toString();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

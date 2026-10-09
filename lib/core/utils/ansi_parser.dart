@@ -19,9 +19,7 @@ import 'package:flutter/material.dart';
 class AnsiParser {
   AnsiParser._();
 
-  static final RegExp _ansiRegex = RegExp(
-    r'\x1b\[([0-9;]*)m',
-  );
+  static final RegExp _ansiRegex = RegExp(r'\x1b\[([0-9;]*)m');
 
   /// Standard ANSI foreground colors (30-37).
   static const List<Color> _fgColors = [
@@ -228,12 +226,7 @@ class AnsiParser {
 
     // Add remaining text after the last escape sequence.
     if (lastIndex < text.length) {
-      spans.add(
-        TextSpan(
-          text: text.substring(lastIndex),
-          style: currentStyle,
-        ),
-      );
+      spans.add(TextSpan(text: text.substring(lastIndex), style: currentStyle));
     }
 
     // If no ANSI sequences were found, return the original text.

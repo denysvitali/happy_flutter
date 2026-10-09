@@ -71,14 +71,14 @@ void main() {
       String? clipboardText;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, (
-        MethodCall call,
-      ) async {
-        if (call.method == 'Clipboard.setData') {
-          final args = call.arguments as Map<Object?, Object?>;
-          clipboardText = args['text']! as String;
-        }
-        return null;
-      });
+            MethodCall call,
+          ) async {
+            if (call.method == 'Clipboard.setData') {
+              final args = call.arguments as Map<Object?, Object?>;
+              clipboardText = args['text']! as String;
+            }
+            return null;
+          });
 
       const path = '/Users/me/.claude/projects/foo/transcripts/x.jsonl';
       await tester.pumpWidget(

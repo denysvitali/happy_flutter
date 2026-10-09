@@ -22,13 +22,9 @@ class ConnectionEvent {
     this.bytesTransferred,
   });
 
-  factory ConnectionEvent.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory ConnectionEvent.fromJson(Map<String, dynamic> json) {
     return ConnectionEvent(
-      timestamp: DateTime.parse(
-        json['timestamp'] as String,
-      ),
+      timestamp: DateTime.parse(json['timestamp'] as String),
       deviceId: json['deviceId'] as String,
       deviceName: json['deviceName'] as String,
       eventType: ConnectionEventType.values.firstWhere(
@@ -41,8 +37,7 @@ class ConnectionEvent {
           ? Duration(seconds: json['duration'] as int)
           : null,
       reason: json['reason'] as String?,
-      bytesTransferred:
-          json['bytesTransferred'] as int?,
+      bytesTransferred: json['bytesTransferred'] as int?,
     );
   }
 
@@ -64,11 +59,9 @@ class ConnectionEvent {
       'eventType': eventType.name,
       'username': username,
       if (ipAddress != null) 'ipAddress': ipAddress,
-      if (duration != null)
-        'duration': duration!.inSeconds,
+      if (duration != null) 'duration': duration!.inSeconds,
       if (reason != null) 'reason': reason,
-      if (bytesTransferred != null)
-        'bytesTransferred': bytesTransferred,
+      if (bytesTransferred != null) 'bytesTransferred': bytesTransferred,
     };
   }
 }

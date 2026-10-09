@@ -17,8 +17,11 @@ void main() {
         'comment',
         'default',
       ]) {
-        expect(theme.colorFor(key), isA<Color>(),
-            reason: 'light theme must define $key');
+        expect(
+          theme.colorFor(key),
+          isA<Color>(),
+          reason: 'light theme must define $key',
+        );
       }
     });
 
@@ -33,27 +36,28 @@ void main() {
         'comment',
         'default',
       ]) {
-        expect(theme.colorFor(key), isA<Color>(),
-            reason: 'dark theme must define $key');
+        expect(
+          theme.colorFor(key),
+          isA<Color>(),
+          reason: 'dark theme must define $key',
+        );
       }
     });
 
     test('colorFor falls back to defaultText for unknown keys', () {
       const theme = SyntaxTheme.dark;
-      expect(
-        theme.colorFor('this-key-does-not-exist'),
-        theme.defaultText,
-      );
+      expect(theme.colorFor('this-key-does-not-exist'), theme.defaultText);
     });
 
     test('bracketFor cycles through the 5 rainbow levels', () {
       const theme = SyntaxTheme.dark;
       // The 5 levels should all be distinct colours.
-      final levels = <Color>{
-        for (var i = 1; i <= 5; i++) theme.bracketFor(i),
-      };
-      expect(levels.length, 5,
-          reason: 'expected 5 distinct rainbow-bracket colours');
+      final levels = <Color>{for (var i = 1; i <= 5; i++) theme.bracketFor(i)};
+      expect(
+        levels.length,
+        5,
+        reason: 'expected 5 distinct rainbow-bracket colours',
+      );
     });
 
     test('copyWith preserves the original tokens map when no override', () {

@@ -12,8 +12,8 @@ void main() {
 
   Widget wrap(Widget child) {
     return MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: SingleChildScrollView(child: child)),
     );
   }
@@ -22,43 +22,30 @@ void main() {
 
   group('RoundButton', () {
     testWidgets('renders title text', (tester) async {
-      await tester.pumpWidget(
-        wrap(const RoundButton(title: 'Click Me')),
-      );
+      await tester.pumpWidget(wrap(const RoundButton(title: 'Click Me')));
 
       expect(find.text('Click Me'), findsOneWidget);
     });
 
     testWidgets('renders icon when provided', (tester) async {
       await tester.pumpWidget(
-        wrap(
-          const RoundButton(
-            title: 'With Icon',
-            icon: Icons.add,
-          ),
-        ),
+        wrap(const RoundButton(title: 'With Icon', icon: Icons.add)),
       );
 
       expect(find.byIcon(Icons.add), findsOneWidget);
     });
 
     testWidgets('does not render icon when null', (tester) async {
-      await tester.pumpWidget(
-        wrap(const RoundButton(title: 'No Icon')),
-      );
+      await tester.pumpWidget(wrap(const RoundButton(title: 'No Icon')));
 
       expect(find.byType(Icon), findsNothing);
     });
 
-    testWidgets('shows loading indicator when isLoading is true',
-        (tester) async {
+    testWidgets('shows loading indicator when isLoading is true', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        wrap(
-          const RoundButton(
-            title: 'Loading',
-            isLoading: true,
-          ),
-        ),
+        wrap(const RoundButton(title: 'Loading', isLoading: true)),
       );
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -67,12 +54,7 @@ void main() {
 
     testWidgets('shows text when not loading', (tester) async {
       await tester.pumpWidget(
-        wrap(
-          const RoundButton(
-            title: 'Not Loading',
-            isLoading: false,
-          ),
-        ),
+        wrap(const RoundButton(title: 'Not Loading', isLoading: false)),
       );
 
       expect(find.text('Not Loading'), findsOneWidget);
@@ -81,12 +63,7 @@ void main() {
     testWidgets('calls onPressed when tapped', (tester) async {
       var pressed = false;
       await tester.pumpWidget(
-        wrap(
-          RoundButton(
-            title: 'Tap Me',
-            onPressed: () => pressed = true,
-          ),
-        ),
+        wrap(RoundButton(title: 'Tap Me', onPressed: () => pressed = true)),
       );
 
       await tester.tap(find.text('Tap Me'));
@@ -95,16 +72,10 @@ void main() {
       expect(pressed, isTrue);
     });
 
-    testWidgets('does not call onPressed when disabled',
-        (tester) async {
+    testWidgets('does not call onPressed when disabled', (tester) async {
       var pressed = false;
       await tester.pumpWidget(
-        wrap(
-          RoundButton(
-            title: 'Disabled',
-            onPressed: null,
-          ),
-        ),
+        wrap(RoundButton(title: 'Disabled', onPressed: null)),
       );
 
       await tester.tap(find.text('Disabled'));
@@ -113,8 +84,7 @@ void main() {
       expect(pressed, isFalse);
     });
 
-    testWidgets('does not call onPressed when loading',
-        (tester) async {
+    testWidgets('does not call onPressed when loading', (tester) async {
       var pressed = false;
       await tester.pumpWidget(
         wrap(
@@ -132,9 +102,7 @@ void main() {
     });
 
     testWidgets('renders primary style by default', (tester) async {
-      await tester.pumpWidget(
-        wrap(const RoundButton(title: 'Primary')),
-      );
+      await tester.pumpWidget(wrap(const RoundButton(title: 'Primary')));
 
       // Primary button uses gradient decoration (Container with
       // BoxDecoration)
@@ -142,15 +110,11 @@ void main() {
       expect(containers, findsWidgets);
     });
 
-    testWidgets('renders secondary style when isPrimary is false',
-        (tester) async {
+    testWidgets('renders secondary style when isPrimary is false', (
+      tester,
+    ) async {
       await tester.pumpWidget(
-        wrap(
-          const RoundButton(
-            title: 'Secondary',
-            isPrimary: false,
-          ),
-        ),
+        wrap(const RoundButton(title: 'Secondary', isPrimary: false)),
       );
 
       expect(find.text('Secondary'), findsOneWidget);
@@ -158,12 +122,7 @@ void main() {
 
     testWidgets('respects custom height', (tester) async {
       await tester.pumpWidget(
-        wrap(
-          const RoundButton(
-            title: 'Custom Height',
-            height: 60,
-          ),
-        ),
+        wrap(const RoundButton(title: 'Custom Height', height: 60)),
       );
 
       expect(find.text('Custom Height'), findsOneWidget);
@@ -185,9 +144,7 @@ void main() {
       };
       addTearDown(() => FlutterError.onError = origOnError);
 
-      await tester.pumpWidget(
-        wrap(const QRCodeDisplay(data: 'test-data')),
-      );
+      await tester.pumpWidget(wrap(const QRCodeDisplay(data: 'test-data')));
 
       await tester.pump();
 
@@ -195,8 +152,7 @@ void main() {
       expect(find.byType(CustomPaint), findsWidgets);
     });
 
-    testWidgets('renders end-to-end encrypted label',
-        (tester) async {
+    testWidgets('renders end-to-end encrypted label', (tester) async {
       final origOnError = FlutterError.onError;
       FlutterError.onError = (details) {
         if (details.toString().contains('overflowed')) return;
@@ -204,9 +160,7 @@ void main() {
       };
       addTearDown(() => FlutterError.onError = origOnError);
 
-      await tester.pumpWidget(
-        wrap(const QRCodeDisplay(data: 'test-data')),
-      );
+      await tester.pumpWidget(wrap(const QRCodeDisplay(data: 'test-data')));
 
       await tester.pump();
 
@@ -221,9 +175,7 @@ void main() {
       };
       addTearDown(() => FlutterError.onError = origOnError);
 
-      await tester.pumpWidget(
-        wrap(const QRCodeDisplay(data: 'test-data')),
-      );
+      await tester.pumpWidget(wrap(const QRCodeDisplay(data: 'test-data')));
 
       await tester.pump();
 
@@ -239,9 +191,7 @@ void main() {
       addTearDown(() => FlutterError.onError = origOnError);
 
       await tester.pumpWidget(
-        wrap(
-          const QRCodeDisplay(data: 'test-data', size: 100),
-        ),
+        wrap(const QRCodeDisplay(data: 'test-data', size: 100)),
       );
 
       await tester.pump();
@@ -292,10 +242,7 @@ void main() {
     });
 
     test('stores data and size correctly', () {
-      final painter = QRCodePainter(
-        data: 'my-qr-data',
-        size: 200,
-      );
+      final painter = QRCodePainter(data: 'my-qr-data', size: 200);
 
       expect(painter.data, 'my-qr-data');
       expect(painter.size, 200);

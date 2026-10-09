@@ -33,8 +33,8 @@ class SessionFoldersStorage extends CachedStorage<Map<String, String>> {
 
   /// Sets the folder for [sessionId]. Pass null [folder] to unfiled.
   Future<void> setFolder(String sessionId, String? folder) async => mutate(
-        (m) => folder == null ? m.remove(sessionId) : m[sessionId] = folder,
-      );
+    (m) => folder == null ? m.remove(sessionId) : m[sessionId] = folder,
+  );
 
   /// Removes a session from folder tracking.
   Future<void> removeSession(String sessionId) async =>

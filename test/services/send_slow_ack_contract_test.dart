@@ -82,67 +82,66 @@ void main() {
       queuedAt: 1700000000000,
     );
 
-    test(
-      'a deadline-timed-out send confirmed by the retry becomes '
-      'sent-slow on the same localId',
-      () async {
-        const localId = 'local-slow-1';
-        seedOptimisticRow(localId);
-        instance.testRegisterSendDeadline(localId);
-
-        final delivered = await instance.testDeliverOutboxEntry(
-          entryFor(localId),
-        );
-
-        expect(delivered, isTrue);
-        final msgs = instance.testSessionMessages(_sessionId);
-        expect(msgs, isNotNull);
-        expect(
-          msgs!,
-          hasLength(1),
-          reason: 'a slow ack replaces the placeholder, never appends',
-        );
-        final row = msgs.single;
-        expect(
-          row['localId'],
-          localId,
-          reason: 'the canonical localId must survive the retry',
-        );
-        expect(
-          row['sendStatus'],
-          'sent',
-          reason: 'slow is still delivered — the send state is terminal',
-        );
-        expect(
-          row['sendSlow'],
-          isTrue,
-          reason: 'the row must be reportable as "Delivered - slow"',
-        );
-        expect(
-          interceptor.capturedLocalIds,
-          [localId],
-          reason: 'the retry POST reuses the canonical localId',
-        );
-      },
-    );
-
-    test('the slow marker is consumed once, not re-applied on later acks',
-        () async {
-      const localId = 'local-slow-2';
+    test('a deadline-timed-out send confirmed by the retry becomes '
+        'sent-slow on the same localId', () async {
+      const localId = 'local-slow-1';
       seedOptimisticRow(localId);
       instance.testRegisterSendDeadline(localId);
 
-      await instance.testDeliverOutboxEntry(entryFor(localId));
-      expect(instance.testHasPendingSendDeadline(localId), isFalse);
+      final delivered = await instance.testDeliverOutboxEntry(
+        entryFor(localId),
+      );
 
-      // A duplicate delivery (server re-broadcast / manual retry) must not
-      // create a second row or a second logical message.
-      await instance.testDeliverOutboxEntry(entryFor(localId));
+      expect(delivered, isTrue);
       final msgs = instance.testSessionMessages(_sessionId);
-      expect(msgs, hasLength(1));
-      expect(msgs!.single['localId'], localId);
-      expect(msgs.single['sendStatus'], 'sent');
+      expect(msgs, isNotNull);
+      expect(
+        msgs!,
+        hasLength(1),
+        reason: 'a slow ack replaces the placeholder, never appends',
+      );
+      final row = msgs.single;
+      expect(
+        row['localId'],
+        localId,
+        reason: 'the canonical localId must survive the retry',
+      );
+      expect(
+        row['sendStatus'],
+        'sent',
+        reason: 'slow is still delivered — the send state is terminal',
+      );
+      expect(
+        row['sendSlow'],
+        isTrue,
+        reason: 'the row must be reportable as "Delivered - slow"',
+      );
+      expect(
+        interceptor.capturedLocalIds,
+        [localId],
+        reason: 'the retry POST reuses the canonical localId',
+      );
     });
+
+    test(
+      'the slow marker is consumed once, not re-applied on later acks',
+      () async {
+        const localId = 'local-slow-2';
+        seedOptimisticRow(localId);
+        instance.testRegisterSendDeadline(localId);
+
+        await instance.testDeliverOutboxEntry(entryFor(localId));
+        expect(instance.testHasPendingSendDeadline(localId), isFalse);
+
+        // A duplicate delivery (server re-broadcast / manual retry) must not
+        // create a second row or a second logical message.
+        await instance.testDeliverOutboxEntry(entryFor(localId));
+        final msgs = instance.testSessionMessages(_sessionId);
+        expect(msgs, hasLength(1));
+        expect(msgs!.single['localId'], localId);
+        expect(msgs.single['sendStatus'], 'sent');
+      },
+    );
 
     test('an ordinary outbox delivery is never marked slow', () async {
       const localId = 'local-normal';
@@ -196,7 +195,8 @@ void main() {
         expect(
           first['sendSlow'],
           isNot(isTrue),
-          reason: 'identical text is never identity — only the acked '
+          reason:
+              'identical text is never identity — only the acked '
               'localId may be upgraded',
         );
         expect(first['sendStatus'], 'pending');

@@ -94,12 +94,11 @@ void main() {
       // The store itself is platform-dependent; the contract under test is
       // that this call reports an outcome instead of throwing out of the
       // worker (which is what the catch in the body exists to guarantee).
-      final result = MMKVStorage.debugCompactDefaultMMKVIfNeeded(
-        <String, Object>{
-          'rootDir': '${Directory.systemTemp.path}/happy-compact-test',
-          'minFileBytes': 64 * 1024 * 1024,
-        },
-      );
+      final result =
+          MMKVStorage.debugCompactDefaultMMKVIfNeeded(<String, Object>{
+            'rootDir': '${Directory.systemTemp.path}/happy-compact-test',
+            'minFileBytes': 64 * 1024 * 1024,
+          });
 
       expect(result.containsKey('trimmed'), isTrue);
       expect(result['rootDir'], isNotNull);

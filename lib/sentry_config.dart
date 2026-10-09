@@ -68,6 +68,7 @@ double get sentryTracesSampleRate {
   if (override != null && override >= 0 && override <= 1) return override;
   return kReleaseMode ? 0.02 : 0.10;
 }
+
 const sentryProfilesSampleRate = 0.0;
 const sentryReplaySessionSampleRate = 0.0;
 const sentryReplayOnErrorSampleRate = 0.0;

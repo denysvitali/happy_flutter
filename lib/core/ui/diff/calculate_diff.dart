@@ -28,16 +28,20 @@ DiffResult calculateUnifiedDiff(
 
     for (final line in lines) {
       if (change.removed) {
-        pendingRemovals.add(_PendingRemoval(
-          line: line,
-          lineNum: oldLineNum,
-          index: allLines.length,
-        ));
-        allLines.add(DiffLine(
-          type: DiffLineType.remove,
-          content: line,
-          oldLineNumber: oldLineNum++,
-        ));
+        pendingRemovals.add(
+          _PendingRemoval(
+            line: line,
+            lineNum: oldLineNum,
+            index: allLines.length,
+          ),
+        );
+        allLines.add(
+          DiffLine(
+            type: DiffLineType.remove,
+            content: line,
+            oldLineNumber: oldLineNum++,
+          ),
+        );
         deletions++;
       } else if (change.added) {
         var paired = false;
@@ -45,8 +49,8 @@ DiffResult calculateUnifiedDiff(
         if (pendingRemovals.isNotEmpty) {
           // Find best matching removal
           final removalIndex = _findBestMatch(
-              line,
-              pendingRemovals.map((r) => r.line).toList(),
+            line,
+            pendingRemovals.map((r) => r.line).toList(),
           );
           if (removalIndex != -1) {
             final removal = pendingRemovals[removalIndex];
@@ -64,33 +68,39 @@ DiffResult calculateUnifiedDiff(
             );
 
             // Add the addition line with tokens (added parts)
-            allLines.add(DiffLine(
-              type: DiffLineType.add,
-              content: line,
-              newLineNumber: newLineNum++,
-              tokens: tokens.where((t) => !t.removed).toList(),
-            ));
+            allLines.add(
+              DiffLine(
+                type: DiffLineType.add,
+                content: line,
+                newLineNumber: newLineNum++,
+                tokens: tokens.where((t) => !t.removed).toList(),
+              ),
+            );
 
             paired = true;
           }
         }
 
         if (!paired) {
-          allLines.add(DiffLine(
-            type: DiffLineType.add,
-            content: line,
-            newLineNumber: newLineNum++,
-          ));
+          allLines.add(
+            DiffLine(
+              type: DiffLineType.add,
+              content: line,
+              newLineNumber: newLineNum++,
+            ),
+          );
         }
         additions++;
       } else {
         // Context line
-        allLines.add(DiffLine(
-          type: DiffLineType.normal,
-          content: line,
-          oldLineNumber: oldLineNum++,
-          newLineNumber: newLineNum++,
-        ));
+        allLines.add(
+          DiffLine(
+            type: DiffLineType.normal,
+            content: line,
+            oldLineNumber: oldLineNum++,
+            newLineNumber: newLineNum++,
+          ),
+        );
       }
     }
   }
@@ -106,7 +116,6 @@ DiffResult calculateUnifiedDiff(
 
 /// Internal class to track pending removals
 class _PendingRemoval {
-
   _PendingRemoval({
     required this.line,
     required this.lineNum,
@@ -119,7 +128,6 @@ class _PendingRemoval {
 
 /// Simple line-level diff result
 class _LineChange {
-
   _LineChange({
     required this.lines,
     required this.added,
@@ -139,31 +147,25 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
   while (i < oldLines.length || j < newLines.length) {
     if (i >= oldLines.length) {
       // Remaining lines are additions
-      changes.add(_LineChange(
-        lines: newLines.sublist(j),
-        added: true,
-        removed: false,
-      ));
+      changes.add(
+        _LineChange(lines: newLines.sublist(j), added: true, removed: false),
+      );
       break;
     }
 
     if (j >= newLines.length) {
       // Remaining lines are removals
-      changes.add(_LineChange(
-        lines: oldLines.sublist(i),
-        added: false,
-        removed: true,
-      ));
+      changes.add(
+        _LineChange(lines: oldLines.sublist(i), added: false, removed: true),
+      );
       break;
     }
 
     if (oldLines[i] == newLines[j]) {
       // Unchanged line
-      changes.add(_LineChange(
-        lines: [oldLines[i]],
-        added: false,
-        removed: false,
-      ));
+      changes.add(
+        _LineChange(lines: [oldLines[i]], added: false, removed: false),
+      );
       i++;
       j++;
     } else {
@@ -173,36 +175,31 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
 
       if (matchForward != -1 &&
           matchForward > j &&
-          (matchBackward == -1 ||
-              matchForward - j <= matchBackward - i)) {
+          (matchBackward == -1 || matchForward - j <= matchBackward - i)) {
         // Lines were added before the match
-        changes.add(_LineChange(
-          lines: newLines.sublist(j, matchForward),
-          added: true,
-          removed: false,
-        ));
+        changes.add(
+          _LineChange(
+            lines: newLines.sublist(j, matchForward),
+            added: true,
+            removed: false,
+          ),
+        );
         j = matchForward;
       } else if (matchBackward != -1 && matchBackward > i) {
         // Lines were removed before the match
-        changes.add(_LineChange(
-          lines: oldLines.sublist(i, matchBackward),
-          added: false,
-          removed: true,
-        ));
+        changes.add(
+          _LineChange(
+            lines: oldLines.sublist(i, matchBackward),
+            added: false,
+            removed: true,
+          ),
+        );
         i = matchBackward;
       } else {
         // Modified line
         changes
-          ..add(_LineChange(
-            lines: [oldLines[i]],
-            added: false,
-            removed: true,
-          ))
-          ..add(_LineChange(
-            lines: [newLines[j]],
-            added: true,
-            removed: false,
-          ));
+          ..add(_LineChange(lines: [oldLines[i]], added: false, removed: true))
+          ..add(_LineChange(lines: [newLines[j]], added: true, removed: false));
         i++;
         j++;
       }
@@ -213,11 +210,7 @@ List<_LineChange> _diffLines(List<String> oldLines, List<String> newLines) {
 }
 
 /// Find best matching line forward in newLines
-int _findBestMatchForward(
-  List<String> newLines,
-  int start,
-  String target,
-) {
+int _findBestMatchForward(List<String> newLines, int start, String target) {
   for (var i = start; i < newLines.length; i++) {
     if (_calculateSimilarity(target, newLines[i]) > 0.3) {
       return i;
@@ -227,11 +220,7 @@ int _findBestMatchForward(
 }
 
 /// Find best matching line backward in oldLines
-int _findBestMatchBackward(
-  List<String> oldLines,
-  int start,
-  String target,
-) {
+int _findBestMatchBackward(List<String> oldLines, int start, String target) {
   for (var i = start; i < oldLines.length; i++) {
     if (_calculateSimilarity(target, oldLines[i]) > 0.3) {
       return i;
@@ -306,15 +295,17 @@ void _diffWords(
       var foundJ = -1;
 
       for (var k = 1; k < 5; k++) {
-        if (foundI == -1 && i + k < oldWords.length &&
+        if (foundI == -1 &&
+            i + k < oldWords.length &&
             newWords.any(
-                (w) => _calculateSimilarity(oldWords[i + k], w) > 0.5,
+              (w) => _calculateSimilarity(oldWords[i + k], w) > 0.5,
             )) {
           foundI = i + k;
         }
-        if (foundJ == -1 && j + k < newWords.length &&
+        if (foundJ == -1 &&
+            j + k < newWords.length &&
             oldWords.any(
-                (w) => _calculateSimilarity(newWords[j + k], w) > 0.5,
+              (w) => _calculateSimilarity(newWords[j + k], w) > 0.5,
             )) {
           foundJ = j + k;
         }
@@ -391,9 +382,11 @@ List<String> _findCommonSubstrings(String str1, String str2) {
   final minLength = 3;
   final substrings = <String>[];
 
-  for (var len = str1.length < str2.length ? str1.length : str2.length;
-      len >= minLength;
-      len--) {
+  for (
+    var len = str1.length < str2.length ? str1.length : str2.length;
+    len >= minLength;
+    len--
+  ) {
     for (var i = 0; i <= str1.length - len; i++) {
       final sub = str1.substring(i, i + len);
       if (str2.contains(sub) && !substrings.any((s) => s.contains(sub))) {
@@ -412,22 +405,21 @@ List<DiffHunk> _createHunks(List<DiffLine> lines, int contextLines) {
       .asMap()
       .entries
       .where((e) => e.value.type != DiffLineType.normal)
-      .map((e) => DiffLineWithIndex(
-            line: e.value,
-            index: e.key,
-          ))
+      .map((e) => DiffLineWithIndex(line: e.value, index: e.key))
       .toList();
 
   if (changes.isEmpty) {
     // No changes, return single hunk with all lines if they exist
     if (lines.isNotEmpty) {
-      hunks.add(DiffHunk(
-        oldStart: 1,
-        oldLines: lines.where((l) => l.oldLineNumber != null).length,
-        newStart: 1,
-        newLines: lines.where((l) => l.newLineNumber != null).length,
-        lines: lines,
-      ));
+      hunks.add(
+        DiffHunk(
+          oldStart: 1,
+          oldLines: lines.where((l) => l.oldLineNumber != null).length,
+          newStart: 1,
+          newLines: lines.where((l) => l.newLineNumber != null).length,
+          lines: lines,
+        ),
+      );
     }
     return hunks;
   }
@@ -438,10 +430,11 @@ List<DiffHunk> _createHunks(List<DiffLine> lines, int contextLines) {
 
   for (var i = 0; i < changes.length; i++) {
     final change = changes[i];
-    final startContext =
-        (change.index - contextLines).clamp(0, lines.length - 1);
-    final endContext =
-        (change.index + contextLines).clamp(0, lines.length - 1);
+    final startContext = (change.index - contextLines).clamp(
+      0,
+      lines.length - 1,
+    );
+    final endContext = (change.index + contextLines).clamp(0, lines.length - 1);
 
     // Add lines from last included index to current hunk. Ensure we never
     // walk backwards (duplicating lines) when the next change's context
@@ -477,11 +470,7 @@ List<DiffHunk> _createHunks(List<DiffLine> lines, int contextLines) {
 
 /// Diff line with index
 class DiffLineWithIndex {
-
-  DiffLineWithIndex({
-    required this.line,
-    required this.index,
-  });
+  DiffLineWithIndex({required this.line, required this.index});
   final DiffLine line;
   final int index;
 }

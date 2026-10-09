@@ -52,18 +52,16 @@ void main() {
     );
   }
 
-  Map<String, dynamic> workflowTool({
-    String? workflowRunId,
-    dynamic result,
-  }) => {
-    'id': 'm1',
-    'kind': 'tool-call',
-    'name': 'Workflow',
-    'state': 'completed',
-    'input': {'name': 'inspect-go-mod'},
-    if (workflowRunId != null) 'workflowRunId': workflowRunId,
-    if (result != null) 'result': result,
-  };
+  Map<String, dynamic> workflowTool({String? workflowRunId, dynamic result}) =>
+      {
+        'id': 'm1',
+        'kind': 'tool-call',
+        'name': 'Workflow',
+        'state': 'completed',
+        'input': {'name': 'inspect-go-mod'},
+        if (workflowRunId != null) 'workflowRunId': workflowRunId,
+        if (result != null) 'result': result,
+      };
 
   // Bounded pumps instead of pumpAndSettle: the tool row hosts repeating
   // animations (live-state shimmer/spinner) that never settle.

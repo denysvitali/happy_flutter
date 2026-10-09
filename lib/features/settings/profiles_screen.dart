@@ -528,7 +528,9 @@ class _ProfilesScreenState extends ConsumerState<ProfilesScreen> {
               child: Text(l10n.commonCancel),
             ),
             FilledButton(
-              style: AppButtonStyle.destructiveFilled(Theme.of(context).colorScheme),
+              style: AppButtonStyle.destructiveFilled(
+                Theme.of(context).colorScheme,
+              ),
               onPressed: () {
                 final settings = ref.read(settingsNotifierProvider);
                 final notifier = ref.read(settingsNotifierProvider.notifier);

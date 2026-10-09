@@ -56,10 +56,7 @@ void main() {
         sessionGitStatusNotifierProvider.notifier,
       );
 
-      notifier.setGitStatus(
-        'session-1',
-        createTestGitStatus(branch: 'main'),
-      );
+      notifier.setGitStatus('session-1', createTestGitStatus(branch: 'main'));
       notifier.setGitStatus(
         'session-2',
         createTestGitStatus(branch: 'develop', isDirty: true),
@@ -77,10 +74,7 @@ void main() {
         sessionGitStatusNotifierProvider.notifier,
       );
 
-      notifier.setGitStatus(
-        'session-1',
-        createTestGitStatus(isDirty: false),
-      );
+      notifier.setGitStatus('session-1', createTestGitStatus(isDirty: false));
       notifier.setGitStatus(
         'session-1',
         createTestGitStatus(isDirty: true, modifiedCount: 3),
@@ -122,10 +116,7 @@ void main() {
       notifier.setGitStatus('session-1', createTestGitStatus());
       notifier.setGitStatus('session-2', createTestGitStatus());
 
-      expect(
-        container.read(sessionGitStatusNotifierProvider),
-        hasLength(2),
-      );
+      expect(container.read(sessionGitStatusNotifierProvider), hasLength(2));
 
       notifier.clearGitStatus('session-1');
 
@@ -179,10 +170,7 @@ void main() {
 
       notifier.setGitStatus('session-1', createTestGitStatus());
       notifier.setGitStatus('session-2', createTestGitStatus());
-      expect(
-        container.read(sessionGitStatusNotifierProvider),
-        hasLength(2),
-      );
+      expect(container.read(sessionGitStatusNotifierProvider), hasLength(2));
 
       notifier.clear();
 

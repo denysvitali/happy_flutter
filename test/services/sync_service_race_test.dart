@@ -6,17 +6,17 @@ import 'package:happy_flutter/core/services/sync_service.dart';
 import 'package:happy_flutter/core/sync/invalidate_sync.dart';
 
 Session _makeTestSession(String id) => Session(
-      id: id,
-      seq: 1,
-      createdAt: 1700000000000,
-      updatedAt: 1700000000000,
-      active: true,
-      activeAt: 1700000000000,
-      metadataVersion: 1,
-      agentStateVersion: 1,
-      thinking: false,
-      presence: 'offline',
-    );
+  id: id,
+  seq: 1,
+  createdAt: 1700000000000,
+  updatedAt: 1700000000000,
+  active: true,
+  activeAt: 1700000000000,
+  metadataVersion: 1,
+  agentStateVersion: 1,
+  thinking: false,
+  presence: 'offline',
+);
 
 void _stubAllSyncs(Sync instance, {Future<void> Function()? sessionsFn}) {
   // Dispose old sessionsSync to cancel any pending retry timers before
@@ -28,8 +28,7 @@ void _stubAllSyncs(Sync instance, {Future<void> Function()? sessionsFn}) {
   } on Error {
     // Not initialized yet, safe to ignore
   }
-  instance.sessionsSync =
-      InvalidateSync(sessionsFn ?? () async {});
+  instance.sessionsSync = InvalidateSync(sessionsFn ?? () async {});
   instance.settingsSync = InvalidateSync(() async {});
   instance.profileSync = InvalidateSync(() async {});
   instance.purchasesSync = InvalidateSync(() async {});
@@ -49,47 +48,53 @@ void main() {
       _stubAllSyncs(instance);
     });
 
-    test('delta fetch misses session when _lastSessionsFetchedAt > session.updatedAt', () {
-      // Simulate the race: _lastSessionsFetchedAt has been advanced past the
-      // session's updatedAt by a concurrent fetch.
-      instance.testLastSessionsFetchedAt = 1700000001000; // 1s after session
-      instance.testForceFullFetchNext = false;
+    test(
+      'delta fetch misses session when _lastSessionsFetchedAt > session.updatedAt',
+      () {
+        // Simulate the race: _lastSessionsFetchedAt has been advanced past the
+        // session's updatedAt by a concurrent fetch.
+        instance.testLastSessionsFetchedAt = 1700000001000; // 1s after session
+        instance.testForceFullFetchNext = false;
 
-      final session = _makeTestSession('sess-1');
+        final session = _makeTestSession('sess-1');
 
-      // Install a sessionsSync that only adds the session when doing a full
-      // fetch (i.e. when _forceFullFetchNext was set).
-      bool lastFetchWasForced = false;
-      _stubAllSyncs(instance, sessionsFn: () async {
-        final forced = instance.testForceFullFetchNext;
-        if (forced) {
-          instance.testForceFullFetchNext = false;
-          lastFetchWasForced = true;
-          instance.testSessions['sess-1'] = session;
-        } else {
-          lastFetchWasForced = false;
-          // Delta fetch: server returns nothing (changedSince > updatedAt).
-        }
-      });
+        // Install a sessionsSync that only adds the session when doing a full
+        // fetch (i.e. when _forceFullFetchNext was set).
+        bool lastFetchWasForced = false;
+        _stubAllSyncs(
+          instance,
+          sessionsFn: () async {
+            final forced = instance.testForceFullFetchNext;
+            if (forced) {
+              instance.testForceFullFetchNext = false;
+              lastFetchWasForced = true;
+              instance.testSessions['sess-1'] = session;
+            } else {
+              lastFetchWasForced = false;
+              // Delta fetch: server returns nothing (changedSince > updatedAt).
+            }
+          },
+        );
 
-      // Delta fetch: session is absent.
-      instance.sessionsSync.invalidate();
-      // Wait for the fetch to complete.
-      expect(instance.sessions.containsKey('sess-1'), false);
+        // Delta fetch: session is absent.
+        instance.sessionsSync.invalidate();
+        // Wait for the fetch to complete.
+        expect(instance.sessions.containsKey('sess-1'), false);
 
-      // Force full fetch recovery.
-      instance.testForceFullFetchNext = true;
-      instance.sessionsSync.invalidate();
+        // Force full fetch recovery.
+        instance.testForceFullFetchNext = true;
+        instance.sessionsSync.invalidate();
 
-      // After queue drains, session should be present.
-      expectLater(
-        instance.sessionsSync.awaitQueue().then((_) {
-          expect(instance.sessions['sess-1']?.id, 'sess-1');
-          expect(lastFetchWasForced, true);
-        }),
-        completes,
-      );
-    });
+        // After queue drains, session should be present.
+        expectLater(
+          instance.sessionsSync.awaitQueue().then((_) {
+            expect(instance.sessions['sess-1']?.id, 'sess-1');
+            expect(lastFetchWasForced, true);
+          }),
+          completes,
+        );
+      },
+    );
 
     test('sendMessage sets _forceFullFetchNext when session is missing', () async {
       // Pre-populate: encryption would be needed for a real sendMessage, but
@@ -107,13 +112,16 @@ void main() {
       instance.testForceFullFetchNext = false;
       instance.testSessions.clear();
 
-      _stubAllSyncs(instance, sessionsFn: () async {
-        // On forced fetch, add the session.
-        if (instance.testForceFullFetchNext) {
-          instance.testForceFullFetchNext = false;
-          instance.testSessions['sess-1'] = _makeTestSession('sess-1');
-        }
-      });
+      _stubAllSyncs(
+        instance,
+        sessionsFn: () async {
+          // On forced fetch, add the session.
+          if (instance.testForceFullFetchNext) {
+            instance.testForceFullFetchNext = false;
+            instance.testSessions['sess-1'] = _makeTestSession('sess-1');
+          }
+        },
+      );
 
       // Drain any pending invalidations from the previous InvalidateSync
       // instance before checking the sessions map state.
@@ -141,48 +149,60 @@ void main() {
       }
     });
 
-    test('_forceFullFetchNext flag survives InvalidateSync coalescing',
-        () async {
-      // This test verifies that if _forceFullFetchNext is set while a fetch is
-      // in progress, the NEXT run of fetchSessions sees it as true.
-      final firstFetchStarted = Completer<void>();
-      final firstFetchGate = Completer<void>();
-      final flagValues = <bool>[];
-      var fetchCount = 0;
+    test(
+      '_forceFullFetchNext flag survives InvalidateSync coalescing',
+      () async {
+        // This test verifies that if _forceFullFetchNext is set while a fetch is
+        // in progress, the NEXT run of fetchSessions sees it as true.
+        final firstFetchStarted = Completer<void>();
+        final firstFetchGate = Completer<void>();
+        final flagValues = <bool>[];
+        var fetchCount = 0;
 
-      _stubAllSyncs(instance, sessionsFn: () async {
-        fetchCount++;
-        final sawForced = instance.testForceFullFetchNext;
-        flagValues.add(sawForced);
-        if (sawForced) instance.testForceFullFetchNext = false;
+        _stubAllSyncs(
+          instance,
+          sessionsFn: () async {
+            fetchCount++;
+            final sawForced = instance.testForceFullFetchNext;
+            flagValues.add(sawForced);
+            if (sawForced) instance.testForceFullFetchNext = false;
 
-        if (fetchCount == 1) {
-          firstFetchStarted.complete();
-          await firstFetchGate.future; // Block first fetch.
-        }
-      });
+            if (fetchCount == 1) {
+              firstFetchStarted.complete();
+              await firstFetchGate.future; // Block first fetch.
+            }
+          },
+        );
 
-      // Trigger first fetch (flag is false).
-      instance.sessionsSync.invalidate();
-      await firstFetchStarted.future;
+        // Trigger first fetch (flag is false).
+        instance.sessionsSync.invalidate();
+        await firstFetchStarted.future;
 
-      // While first fetch is blocked, set the flag and queue another run.
-      instance.testForceFullFetchNext = true;
-      instance.sessionsSync.invalidate();
+        // While first fetch is blocked, set the flag and queue another run.
+        instance.testForceFullFetchNext = true;
+        instance.sessionsSync.invalidate();
 
-      // Unblock the first fetch.
-      firstFetchGate.complete();
+        // Unblock the first fetch.
+        firstFetchGate.complete();
 
-      // Wait for both runs to complete.
-      await instance.sessionsSync.awaitQueue();
+        // Wait for both runs to complete.
+        await instance.sessionsSync.awaitQueue();
 
-      expect(flagValues.length, greaterThanOrEqualTo(2));
-      expect(flagValues[0], false, reason: 'First fetch should not see forced flag');
-      expect(flagValues[1], true, reason: 'Second fetch should see forced flag');
-    });
+        expect(flagValues.length, greaterThanOrEqualTo(2));
+        expect(
+          flagValues[0],
+          false,
+          reason: 'First fetch should not see forced flag',
+        );
+        expect(
+          flagValues[1],
+          true,
+          reason: 'Second fetch should see forced flag',
+        );
+      },
+    );
 
-    test('fetchSessions omits changedSince when _forceFullFetchNext is true',
-        () {
+    test('fetchSessions omits changedSince when _forceFullFetchNext is true', () {
       // This is a logical/property test: verify the flag clears atomically.
       instance.testForceFullFetchNext = true;
       instance.testLastSessionsFetchedAt = 1700000000000;
@@ -190,14 +210,21 @@ void main() {
       // Read + clear the flag (mimicking what fetchSessions does at line 873-874).
       final forceFullFetch = instance.testForceFullFetchNext;
       if (forceFullFetch) instance.testForceFullFetchNext = false;
-      final changedSince =
-          forceFullFetch ? null : instance.testLastSessionsFetchedAt;
+      final changedSince = forceFullFetch
+          ? null
+          : instance.testLastSessionsFetchedAt;
 
       expect(forceFullFetch, true);
-      expect(changedSince, isNull,
-          reason: 'changedSince must be null when _forceFullFetchNext is true');
-      expect(instance.testForceFullFetchNext, false,
-          reason: 'Flag must be cleared after reading');
+      expect(
+        changedSince,
+        isNull,
+        reason: 'changedSince must be null when _forceFullFetchNext is true',
+      );
+      expect(
+        instance.testForceFullFetchNext,
+        false,
+        reason: 'Flag must be cleared after reading',
+      );
     });
 
     test('fetchSessions sends changedSince in normal delta mode', () {
@@ -206,12 +233,16 @@ void main() {
 
       final forceFullFetch = instance.testForceFullFetchNext;
       if (forceFullFetch) instance.testForceFullFetchNext = false;
-      final changedSince =
-          forceFullFetch ? null : instance.testLastSessionsFetchedAt;
+      final changedSince = forceFullFetch
+          ? null
+          : instance.testLastSessionsFetchedAt;
 
       expect(forceFullFetch, false);
-      expect(changedSince, 1700000000000,
-          reason: 'changedSince must be set in normal delta mode');
+      expect(
+        changedSince,
+        1700000000000,
+        reason: 'changedSince must be set in normal delta mode',
+      );
     });
   });
 
@@ -223,22 +254,24 @@ void main() {
       _stubAllSyncs(instance);
     });
 
-    test(
-        'createSession adds placeholder when fetchSessions '
+    test('createSession adds placeholder when fetchSessions '
         'does not return the new session', () async {
       // Simulate the root cause: the server's /v2/sessions REST endpoint
       // has not yet propagated the session created via machine RPC.
       // fetchSessions returns existing sessions but NOT the new one.
       final existingSession = _makeTestSession('existing-1');
 
-      _stubAllSyncs(instance, sessionsFn: () async {
-        // Full fetch returns only the existing session, never the new one.
-        if (instance.testForceFullFetchNext) {
-          instance.testForceFullFetchNext = false;
-        }
-        instance.testSessions['existing-1'] = existingSession;
-        // Deliberately do NOT add 'new-sess' — simulates propagation delay.
-      });
+      _stubAllSyncs(
+        instance,
+        sessionsFn: () async {
+          // Full fetch returns only the existing session, never the new one.
+          if (instance.testForceFullFetchNext) {
+            instance.testForceFullFetchNext = false;
+          }
+          instance.testSessions['existing-1'] = existingSession;
+          // Deliberately do NOT add 'new-sess' — simulates propagation delay.
+        },
+      );
 
       // Pre-populate so sync looks initialized.
       instance.testSessions['existing-1'] = existingSession;
@@ -256,7 +289,8 @@ void main() {
       expect(
         instance.testSessions.containsKey('new-sess'),
         false,
-        reason: 'fetchSessions should NOT have added the new session '
+        reason:
+            'fetchSessions should NOT have added the new session '
             '(simulating server propagation delay)',
       );
 
@@ -288,8 +322,7 @@ void main() {
       expect(instance.sessions['new-sess']?.presence, 'online');
     });
 
-    test(
-        'sendMessage creates placeholder session instead of throwing '
+    test('sendMessage creates placeholder session instead of throwing '
         'when server has propagation delay', () async {
       // This test proves the bug: without the fix, sendMessage throws
       // StateError('Session X not loaded'). With the fix, it creates
@@ -303,12 +336,15 @@ void main() {
       instance.testForceFullFetchNext = false;
 
       // fetchSessions never adds the session (propagation delay).
-      _stubAllSyncs(instance, sessionsFn: () async {
-        if (instance.testForceFullFetchNext) {
-          instance.testForceFullFetchNext = false;
-        }
-        // Server never returns the new session.
-      });
+      _stubAllSyncs(
+        instance,
+        sessionsFn: () async {
+          if (instance.testForceFullFetchNext) {
+            instance.testForceFullFetchNext = false;
+          }
+          // Server never returns the new session.
+        },
+      );
 
       await instance.sessionsSync.awaitQueue();
 
@@ -333,8 +369,7 @@ void main() {
       }
     });
 
-    test(
-        'placeholder session is replaced by real data on next '
+    test('placeholder session is replaced by real data on next '
         'successful fetch', () async {
       // Verify that the placeholder doesn't permanently override real data.
       final now = DateTime.now().millisecondsSinceEpoch;
@@ -356,9 +391,12 @@ void main() {
 
       // Now simulate a successful fetch that returns the real session.
       final realSession = _makeTestSession('sess-1');
-      _stubAllSyncs(instance, sessionsFn: () async {
-        instance.testSessions['sess-1'] = realSession;
-      });
+      _stubAllSyncs(
+        instance,
+        sessionsFn: () async {
+          instance.testSessions['sess-1'] = realSession;
+        },
+      );
 
       instance.sessionsSync.invalidate();
       await instance.sessionsSync.awaitQueue();
@@ -377,32 +415,42 @@ void main() {
       _stubAllSyncs(instance);
     });
 
-    test('createSession sets _forceFullFetchNext before refreshSessions',
-        () async {
-      // This test simulates what createSession does: it sets
-      // _forceFullFetchNext = true before calling refreshSessions() to ensure
-      // the newly created session is included in the fetch results, avoiding
-      // a race condition where server clock skew causes the session to be
-      // excluded from delta fetches.
+    test(
+      'createSession sets _forceFullFetchNext before refreshSessions',
+      () async {
+        // This test simulates what createSession does: it sets
+        // _forceFullFetchNext = true before calling refreshSessions() to ensure
+        // the newly created session is included in the fetch results, avoiding
+        // a race condition where server clock skew causes the session to be
+        // excluded from delta fetches.
 
-      bool fetchWasForced = false;
-      instance.sessionsSync = InvalidateSync(() async {
-        if (instance.testForceFullFetchNext) {
-          fetchWasForced = true;
-          instance.testForceFullFetchNext = false;
-          instance.testSessions['new-session'] = _makeTestSession('new-session');
-        }
-      });
+        bool fetchWasForced = false;
+        instance.sessionsSync = InvalidateSync(() async {
+          if (instance.testForceFullFetchNext) {
+            fetchWasForced = true;
+            instance.testForceFullFetchNext = false;
+            instance.testSessions['new-session'] = _makeTestSession(
+              'new-session',
+            );
+          }
+        });
 
-      // Simulate what createSession does: set flag then invalidate
-      instance.testForceFullFetchNext = true;
-      await instance.sessionsSync.invalidateAndAwait();
+        // Simulate what createSession does: set flag then invalidate
+        instance.testForceFullFetchNext = true;
+        await instance.sessionsSync.invalidateAndAwait();
 
-      expect(fetchWasForced, true,
-          reason: 'Fetch should have been forced (full fetch)');
-      expect(instance.sessions.containsKey('new-session'), true,
-          reason: 'New session should be present after forced full fetch');
-    });
+        expect(
+          fetchWasForced,
+          true,
+          reason: 'Fetch should have been forced (full fetch)',
+        );
+        expect(
+          instance.sessions.containsKey('new-session'),
+          true,
+          reason: 'New session should be present after forced full fetch',
+        );
+      },
+    );
 
     test('createSession prevents delta fetch race with clock skew', () async {
       // Simulate server clock skew: server returns sessions with updatedAt
@@ -412,25 +460,28 @@ void main() {
 
       instance.testLastSessionsFetchedAt = 1700000001000; // 1s "ahead"
 
-      _stubAllSyncs(instance, sessionsFn: () async {
-        if (instance.testForceFullFetchNext) {
-          instance.testForceFullFetchNext = false;
-          // Full fetch: always include session regardless of timestamp
-          instance.testSessions['new-session'] = Session(
-            id: 'new-session',
-            seq: 1,
-            createdAt: 1700000000000, // Server thinks it's 1s earlier
-            updatedAt: 1700000000000,
-            active: true,
-            activeAt: 1700000000000,
-            metadataVersion: 1,
-            agentStateVersion: 1,
-            thinking: false,
-            presence: 'offline',
-          );
-        }
-        // Delta fetch: would return nothing (skipped here)
-      });
+      _stubAllSyncs(
+        instance,
+        sessionsFn: () async {
+          if (instance.testForceFullFetchNext) {
+            instance.testForceFullFetchNext = false;
+            // Full fetch: always include session regardless of timestamp
+            instance.testSessions['new-session'] = Session(
+              id: 'new-session',
+              seq: 1,
+              createdAt: 1700000000000, // Server thinks it's 1s earlier
+              updatedAt: 1700000000000,
+              active: true,
+              activeAt: 1700000000000,
+              metadataVersion: 1,
+              agentStateVersion: 1,
+              thinking: false,
+              presence: 'offline',
+            );
+          }
+          // Delta fetch: would return nothing (skipped here)
+        },
+      );
 
       // Set flag (as createSession does) and trigger fetch
       instance.testForceFullFetchNext = true;

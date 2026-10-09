@@ -7,12 +7,14 @@ LoggerService get _svc => LoggerService();
 
 /// Add a log entry to the singleton service without Sentry side-effects.
 void _addEntry(String message, LogLevel level, {dynamic error}) {
-  _svc.insertEntry(LogEntry(
-    timestamp: DateTime(2026, 1, 1),
-    level: level,
-    message: message,
-    error: error,
-  ));
+  _svc.insertEntry(
+    LogEntry(
+      timestamp: DateTime(2026, 1, 1),
+      level: level,
+      message: message,
+      error: error,
+    ),
+  );
 }
 
 LoggerState _makeState({int? filterLevel, String searchQuery = ''}) =>
@@ -95,8 +97,11 @@ void main() {
     });
 
     test('filteredLogs should filter by search in error', () {
-      _addEntry('something failed', LogLevel.error,
-          error: 'Connection refused');
+      _addEntry(
+        'something failed',
+        LogLevel.error,
+        error: 'Connection refused',
+      );
       _addEntry('another failure', LogLevel.error, error: 'Timeout');
       final state = _makeState(searchQuery: 'connection');
       expect(state.filteredLogs, hasLength(1));
@@ -198,9 +203,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       final state = container.read(loggerNotifierProvider);
-      final entry = state.filteredLogs.firstWhere(
-        (e) => e.message == 'failed',
-      );
+      final entry = state.filteredLogs.firstWhere((e) => e.message == 'failed');
       expect(entry.error, 'SomeException');
       expect(entry.stackTrace, StackTrace.empty);
     });
@@ -218,10 +221,7 @@ void main() {
       final notifier = container.read(loggerNotifierProvider.notifier);
 
       notifier.setFilterLevel(3);
-      expect(
-        container.read(loggerNotifierProvider).filterLevel,
-        3,
-      );
+      expect(container.read(loggerNotifierProvider).filterLevel, 3);
 
       notifier.setFilterLevel(null);
 
@@ -243,10 +243,7 @@ void main() {
 
       notifier.info('message 1');
       notifier.info('message 2');
-      expect(
-        container.read(loggerNotifierProvider).filteredLogs,
-        isNotEmpty,
-      );
+      expect(container.read(loggerNotifierProvider).filteredLogs, isNotEmpty);
 
       notifier.clear();
 
@@ -271,8 +268,7 @@ void main() {
       notifier.error('third');
 
       final state = container.read(loggerNotifierProvider);
-      final messages =
-          state.filteredLogs.map((e) => e.message).toList();
+      final messages = state.filteredLogs.map((e) => e.message).toList();
       expect(messages, contains('first'));
       expect(messages, contains('second'));
       expect(messages, contains('third'));
@@ -288,31 +284,19 @@ void main() {
 
       final state = container.read(loggerNotifierProvider);
       expect(
-        state.filteredLogs
-            .where((e) => e.message == 'debug msg')
-            .first
-            .level,
+        state.filteredLogs.where((e) => e.message == 'debug msg').first.level,
         LogLevel.debug,
       );
       expect(
-        state.filteredLogs
-            .where((e) => e.message == 'info msg')
-            .first
-            .level,
+        state.filteredLogs.where((e) => e.message == 'info msg').first.level,
         LogLevel.info,
       );
       expect(
-        state.filteredLogs
-            .where((e) => e.message == 'warn msg')
-            .first
-            .level,
+        state.filteredLogs.where((e) => e.message == 'warn msg').first.level,
         LogLevel.warning,
       );
       expect(
-        state.filteredLogs
-            .where((e) => e.message == 'error msg')
-            .first
-            .level,
+        state.filteredLogs.where((e) => e.message == 'error msg').first.level,
         LogLevel.error,
       );
     });

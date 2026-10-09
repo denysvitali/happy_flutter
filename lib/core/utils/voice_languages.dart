@@ -42,7 +42,8 @@ class ElevenLabsLanguageCode {
 }
 
 /// Voice language metadata interface
-class VoiceLanguage { // ElevenLabs language code mapping
+class VoiceLanguage {
+  // ElevenLabs language code mapping
 
   const VoiceLanguage({
     required this.code,
@@ -85,11 +86,7 @@ class VoiceLanguage { // ElevenLabs language code mapping
 /// First entry is always auto-detect (null code)
 const List<VoiceLanguage> voiceLanguages = [
   // Auto-detect option
-  VoiceLanguage(
-    code: '',
-    name: 'Auto-detect',
-    nativeName: 'Auto-detect',
-  ),
+  VoiceLanguage(code: '', name: 'Auto-detect', nativeName: 'Auto-detect'),
   // English variants
   VoiceLanguage(
     code: 'en-US',
@@ -293,17 +290,9 @@ const List<VoiceLanguage> voiceLanguages = [
     elevenLabsCode: ElevenLabsLanguageCode.turkish,
   ),
   // Hebrew (not supported by ElevenLabs)
-  VoiceLanguage(
-    code: 'he-IL',
-    name: 'Hebrew',
-    nativeName: 'עברית',
-  ),
+  VoiceLanguage(code: 'he-IL', name: 'Hebrew', nativeName: 'עברית'),
   // Thai (not supported by ElevenLabs)
-  VoiceLanguage(
-    code: 'th-TH',
-    name: 'Thai',
-    nativeName: 'ไทย',
-  ),
+  VoiceLanguage(code: 'th-TH', name: 'Thai', nativeName: 'ไทย'),
   // Vietnamese
   VoiceLanguage(
     code: 'vi-VN',
@@ -382,29 +371,13 @@ const List<VoiceLanguage> voiceLanguages = [
     elevenLabsCode: ElevenLabsLanguageCode.slovak,
   ),
   // Slovenian (not supported by ElevenLabs)
-  VoiceLanguage(
-    code: 'sl-SI',
-    name: 'Slovenian',
-    nativeName: 'Slovenščina',
-  ),
+  VoiceLanguage(code: 'sl-SI', name: 'Slovenian', nativeName: 'Slovenščina'),
   // Estonian (not supported by ElevenLabs)
-  VoiceLanguage(
-    code: 'et-EE',
-    name: 'Estonian',
-    nativeName: 'Eesti',
-  ),
+  VoiceLanguage(code: 'et-EE', name: 'Estonian', nativeName: 'Eesti'),
   // Latvian (not supported by ElevenLabs)
-  VoiceLanguage(
-    code: 'lv-LV',
-    name: 'Latvian',
-    nativeName: 'Latviešu',
-  ),
+  VoiceLanguage(code: 'lv-LV', name: 'Latvian', nativeName: 'Latviešu'),
   // Lithuanian (not supported by ElevenLabs)
-  VoiceLanguage(
-    code: 'lt-LT',
-    name: 'Lithuanian',
-    nativeName: 'Lietuvių',
-  ),
+  VoiceLanguage(code: 'lt-LT', name: 'Lithuanian', nativeName: 'Lietuvių'),
 ];
 
 /// Filter languages based on search query

@@ -35,8 +35,7 @@ class MessagingModel {
 
   int tap(String text) {
     final id = _nextLocalId++;
-    _messages[id] =
-        _Msg(text: text, state: MsgState.sending, retryOf: null);
+    _messages[id] = _Msg(text: text, state: MsgState.sending, retryOf: null);
     _optimistic.add(id);
     _taps++;
     return id;
@@ -72,8 +71,11 @@ class MessagingModel {
     if (p == null) return -1;
     if (p.state != MsgState.failed && p.state != MsgState.merged) return -1;
     final id = _nextLocalId++;
-    _messages[id] =
-        _Msg(text: p.text, state: MsgState.sending, retryOf: parent);
+    _messages[id] = _Msg(
+      text: p.text,
+      state: MsgState.sending,
+      retryOf: parent,
+    );
     _optimistic.add(id);
     _taps++;
     return id;
@@ -82,25 +84,34 @@ class MessagingModel {
   /// I1 — identity. Every entry is uniquely keyed by localId.
   void checkIdentity() {
     final ids = _messages.keys.toSet();
-    expect(ids.length, _messages.length,
-        reason: 'localId keys are not unique');
+    expect(ids.length, _messages.length, reason: 'localId keys are not unique');
   }
 
   /// I2 — no two taps collapse. taps == |messages|.
   void checkNoDup() {
-    expect(_messages.length, _taps,
-        reason: 'distinct taps must produce distinct logical messages '
-            '(taps=$_taps, messages=${_messages.length})');
+    expect(
+      _messages.length,
+      _taps,
+      reason:
+          'distinct taps must produce distinct logical messages '
+          '(taps=$_taps, messages=${_messages.length})',
+    );
   }
 
   /// I3 — optimistic and acked sets never overlap; acked is always merged.
   void checkReplacement() {
     final overlap = _optimistic.intersection(_acked);
-    expect(overlap, isEmpty,
-        reason: 'optimistic row was acked without removing it');
+    expect(
+      overlap,
+      isEmpty,
+      reason: 'optimistic row was acked without removing it',
+    );
     for (final id in _acked) {
-      expect(_messages[id]?.state, MsgState.merged,
-          reason: 'acked id $id is not merged');
+      expect(
+        _messages[id]?.state,
+        MsgState.merged,
+        reason: 'acked id $id is not merged',
+      );
     }
   }
 
@@ -110,10 +121,16 @@ class MessagingModel {
     for (final entry in _messages.entries) {
       final retryOf = entry.value.retryOf;
       if (retryOf == null) continue;
-      expect(retryOf < entry.key, isTrue,
-          reason: 'resend child ${entry.key} has parent $retryOf >= self');
-      expect(_messages.containsKey(retryOf), isTrue,
-          reason: 'resend parent $retryOf is missing from model');
+      expect(
+        retryOf < entry.key,
+        isTrue,
+        reason: 'resend child ${entry.key} has parent $retryOf >= self',
+      );
+      expect(
+        _messages.containsKey(retryOf),
+        isTrue,
+        reason: 'resend parent $retryOf is missing from model',
+      );
     }
   }
 
@@ -157,12 +174,13 @@ void main() {
             _Action.tap,
             if (m.optimistic.isNotEmpty) _Action.ack,
             if (m.optimistic.isNotEmpty) _Action.fail,
-            if (ids.any(
-                (id) => m.messages[id]!.state == MsgState.failed))
+            if (ids.any((id) => m.messages[id]!.state == MsgState.failed))
               _Action.retry,
-            if (ids.any((id) =>
-                m.messages[id]!.state == MsgState.failed ||
-                m.messages[id]!.state == MsgState.merged))
+            if (ids.any(
+              (id) =>
+                  m.messages[id]!.state == MsgState.failed ||
+                  m.messages[id]!.state == MsgState.merged,
+            ))
               _Action.resend,
           ];
           final action = actions[rng.nextInt(actions.length)];
@@ -177,17 +195,18 @@ void main() {
               m.fail(pool[rng.nextInt(pool.length)]);
             case _Action.retry:
               final pool = ids
-                  .where(
-                      (id) => m.messages[id]!.state == MsgState.failed)
+                  .where((id) => m.messages[id]!.state == MsgState.failed)
                   .toList();
               if (pool.isNotEmpty) {
                 m.retry(pool[rng.nextInt(pool.length)]);
               }
             case _Action.resend:
               final pool = ids
-                  .where((id) =>
-                      m.messages[id]!.state == MsgState.failed ||
-                      m.messages[id]!.state == MsgState.merged)
+                  .where(
+                    (id) =>
+                        m.messages[id]!.state == MsgState.failed ||
+                        m.messages[id]!.state == MsgState.merged,
+                  )
                   .toList();
               if (pool.isNotEmpty) {
                 m.resend(pool[rng.nextInt(pool.length)]);

@@ -12,12 +12,12 @@ import 'app_status_dot.dart';
 ///
 /// Matches the React Native VoiceAssistantStatusBar.tsx behavior.
 class VoiceAssistantStatusBar extends ConsumerWidget {
-
   const VoiceAssistantStatusBar({
     super.key,
     this.variant = 'sidebar',
     this.backgroundColor,
   });
+
   /// Variant of the status bar - 'full' for mobile, 'sidebar' for tablet
   final String variant;
 
@@ -109,11 +109,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
                     size: 8,
                   ),
                   const SizedBox(width: 6),
-                  Icon(
-                    Icons.mic,
-                    size: 16,
-                    color: statusInfo.textColor,
-                  ),
+                  Icon(Icons.mic, size: 16, color: statusInfo.textColor),
                   const SizedBox(width: 6),
                   Text(
                     statusInfo.text,
@@ -158,11 +154,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
             size: 8,
           ),
           const SizedBox(width: 6),
-          Icon(
-            Icons.mic,
-            size: 16,
-            color: statusInfo.textColor,
-          ),
+          Icon(Icons.mic, size: 16, color: statusInfo.textColor),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
@@ -175,11 +167,7 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Icon(
-            Icons.close,
-            size: 14,
-            color: statusInfo.textColor,
-          ),
+          Icon(Icons.close, size: 14, color: statusInfo.textColor),
           const SizedBox(width: AppSpacing.md),
         ],
       ),
@@ -188,7 +176,6 @@ class VoiceAssistantStatusBar extends ConsumerWidget {
 }
 
 class _StatusInfo {
-
   _StatusInfo({
     required this.color,
     required this.backgroundColor,

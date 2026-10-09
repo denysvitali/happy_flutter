@@ -365,10 +365,7 @@ class _StopButton extends StatelessWidget {
             child: Container(
               width: AppTouchTarget.comfortable,
               height: AppTouchTarget.comfortable,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               child: Icon(
                 Icons.stop_rounded,
                 color: Theme.of(context).colorScheme.onPrimary,

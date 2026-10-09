@@ -93,8 +93,7 @@ void main() {
   });
 
   test('folder grouping across 8 workspaces, 200 sessions', () {
-    final sessions =
-        _buildSessions(200).values.toList(growable: false);
+    final sessions = _buildSessions(200).values.toList(growable: false);
 
     var items = 0;
     reporter.measureSync(

@@ -33,12 +33,12 @@ class _AlwaysFailsDecryptor implements Encryptor {
 }
 
 Map<String, dynamic> _encryptedWire(int seq) => <String, dynamic>{
-      'id': 'msg-$seq',
-      'seq': seq,
-      'localId': 'local-$seq',
-      'createdAt': 1700000000000,
-      'content': <String, dynamic>{'t': 'encrypted', 'c': 'AAAA'},
-    };
+  'id': 'msg-$seq',
+  'seq': seq,
+  'localId': 'local-$seq',
+  'createdAt': 1700000000000,
+  'content': <String, dynamic>{'t': 'encrypted', 'c': 'AAAA'},
+};
 
 void main() {
   late List<_Count> counts;
@@ -58,11 +58,11 @@ void main() {
       counts.where((c) => c.name == name).toList();
 
   SessionEncryption makeSession(EncryptionCache cache) => SessionEncryption(
-        sessionId: 'sess-abc123',
-        encryptor: _AlwaysFailsDecryptor(),
-        decryptor: _AlwaysFailsDecryptor(),
-        cache: cache,
-      );
+    sessionId: 'sess-abc123',
+    encryptor: _AlwaysFailsDecryptor(),
+    decryptor: _AlwaysFailsDecryptor(),
+    cache: cache,
+  );
 
   group('app.crypto.decrypt_failures', () {
     test('is emitted once per batch with the batch failure count', () async {
@@ -76,14 +76,18 @@ void main() {
       expect(results.length, 25);
       expect(results.every((r) => r != null && r.content == null), isTrue);
 
-      final fresh = named(kDecryptFailuresMetric)
-          .where((c) => c.attributes['from_cache'] == false)
-          .toList();
+      final fresh = named(
+        kDecryptFailuresMetric,
+      ).where((c) => c.attributes['from_cache'] == false).toList();
 
       // THE POINT OF THIS TEST: exactly one counter add for 25 failures,
       // not 25. Removing the recordDecryptFailure call from
       // SessionEncryption.decryptMessages makes this fail with length 0.
-      expect(fresh.length, 1, reason: 'expected one batch-level add, got $counts');
+      expect(
+        fresh.length,
+        1,
+        reason: 'expected one batch-level add, got $counts',
+      );
       expect(fresh.single.value, 25);
       expect(fresh.single.attributes['stage'], kStageMessages);
       expect(fresh.single.attributes['envelope'], kEnvelopeNacl);

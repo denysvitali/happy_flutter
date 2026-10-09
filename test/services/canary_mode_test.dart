@@ -25,10 +25,7 @@ void main() {
     });
 
     test('ackMatchedOptimistic is a no-op when kCanary is false', () {
-      CanaryAssert.ackMatchedOptimistic(
-        localId: 'x',
-        optimisticFound: false,
-      );
+      CanaryAssert.ackMatchedOptimistic(localId: 'x', optimisticFound: false);
       expect(CanaryAssert.violationCount, 0);
     });
 

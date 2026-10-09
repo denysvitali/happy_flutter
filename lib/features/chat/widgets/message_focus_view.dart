@@ -210,9 +210,9 @@ class _MessageFocusOverlayState extends State<MessageFocusOverlay> {
                   child: AnimatedBuilder(
                     animation: widget.animation,
                     builder: (context, _) => ColoredBox(
-                      color: _scrimBase(context).withValues(
-                        alpha: _kFocusScrimAlpha * _progress,
-                      ),
+                      color: _scrimBase(
+                        context,
+                      ).withValues(alpha: _kFocusScrimAlpha * _progress),
                     ),
                   ),
                 ),
@@ -483,10 +483,7 @@ class _MetaChip extends StatelessWidget {
           children: [
             Icon(icon, size: AppIconSize.sm, color: cs.onSurfaceVariant),
             const SizedBox(width: AppSpacing.xxs + 2),
-            Text(
-              label,
-              style: AppText.label(theme, cs.onSurfaceVariant),
-            ),
+            Text(label, style: AppText.label(theme, cs.onSurfaceVariant)),
           ],
         ),
       ),
@@ -521,9 +518,7 @@ class _FocusAction extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            minHeight: AppTouchTarget.min,
-          ),
+          constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
             child: Column(

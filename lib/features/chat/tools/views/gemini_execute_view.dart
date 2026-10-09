@@ -90,11 +90,7 @@ class GeminiExecuteView extends StatelessWidget {
               isError: true,
             ),
           if (error != null)
-            TerminalOutputSection(
-              label: 'error',
-              output: error,
-              isError: true,
-            ),
+            TerminalOutputSection(label: 'error', output: error, isError: true),
           if (exitCode != null) ExitCodeBadge(exitCode: exitCode),
         ],
       ),

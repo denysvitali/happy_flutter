@@ -35,7 +35,10 @@ class RecentSettingsPanel extends StatelessWidget {
       children: [
         Text(
           'Quick access',
-          style: AppText.label(theme, cs.onSurfaceVariant.withValues(alpha: AppOpacity.high)),
+          style: AppText.label(
+            theme,
+            cs.onSurfaceVariant.withValues(alpha: AppOpacity.high),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Wrap(
@@ -88,12 +91,8 @@ class _QuickChip extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: dark
-              ? cs.surfaceContainerHighest.withValues(
-                  alpha: AppOpacity.medium,
-                )
-              : cs.surfaceContainerHighest.withValues(
-                  alpha: AppOpacity.soft,
-                ),
+              ? cs.surfaceContainerHighest.withValues(alpha: AppOpacity.medium)
+              : cs.surfaceContainerHighest.withValues(alpha: AppOpacity.soft),
           borderRadius: BorderRadius.circular(AppRadius.pill),
           // cs.outlineVariant follows the M3 theme (subtle in light,
           // subtle in dark) at AppOpacity.faint (0.08). The previous
@@ -107,16 +106,9 @@ class _QuickChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              chip.icon,
-              size: AppFontSize.sm,
-              color: cs.primary,
-            ),
+            Icon(chip.icon, size: AppFontSize.sm, color: cs.primary),
             const SizedBox(width: AppSpacing.xs),
-            Text(
-              chip.label,
-              style: AppText.label(theme, cs.onSurface),
-            ),
+            Text(chip.label, style: AppText.label(theme, cs.onSurface)),
           ],
         ),
       ),

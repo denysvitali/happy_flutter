@@ -32,8 +32,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const UsageScreen(),
           ),
@@ -55,13 +54,11 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: Navigator(
-              onGenerateRoute: (settings) => MaterialPageRoute(
-                builder: (_) => const UsageScreen(),
-              ),
+              onGenerateRoute: (settings) =>
+                  MaterialPageRoute(builder: (_) => const UsageScreen()),
             ),
           ),
         ),
@@ -81,8 +78,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const UsageScreen(),
           ),
@@ -104,8 +100,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const UsageScreen(),
           ),
@@ -127,8 +122,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const UsageScreen(),
           ),
@@ -141,8 +135,7 @@ void main() {
       expect(find.byIcon(Icons.refresh), findsOneWidget);
     });
 
-    testWidgets('error state shows failed to load text',
-        (tester) async {
+    testWidgets('error state shows failed to load text', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -151,8 +144,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const UsageScreen(),
           ),
@@ -164,8 +156,7 @@ void main() {
       expect(find.text('Failed to load usage data'), findsOneWidget);
     });
 
-    testWidgets('tap retry triggers another load attempt',
-        (tester) async {
+    testWidgets('tap retry triggers another load attempt', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -174,8 +165,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            localizationsDelegates:
-                AppLocalizations.localizationsDelegates,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
             home: const UsageScreen(),
           ),

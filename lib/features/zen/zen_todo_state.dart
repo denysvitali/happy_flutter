@@ -5,7 +5,4 @@
 // non-zen features (e.g. the chat tool view) can consume it through
 // the standard app_providers barrel.
 export '../../core/providers/todo_state_notifier.dart'
-    show
-        TodoListState,
-        TodoStateNotifier,
-        todoStateNotifierProvider;
+    show TodoListState, TodoStateNotifier, todoStateNotifierProvider;

@@ -265,11 +265,7 @@ void main() {
       final machine2 = createTestMachine(id: 'm2', host: 'host-2');
       final machine3 = createTestMachine(id: 'm3', host: 'host-3');
 
-      notifier.state = {
-        'm1': machine1,
-        'm2': machine2,
-        'm3': machine3,
-      };
+      notifier.state = {'m1': machine1, 'm2': machine2, 'm3': machine3};
 
       notifier.remove('m2');
 
@@ -311,9 +307,7 @@ void main() {
     test('state is a Map that supports containsKey', () {
       final notifier = container.read(machinesNotifierProvider.notifier);
 
-      notifier.state = {
-        'key-1': createTestMachine(id: 'key-1', host: 'host'),
-      };
+      notifier.state = {'key-1': createTestMachine(id: 'key-1', host: 'host')};
 
       final state = container.read(machinesNotifierProvider);
       expect(state.containsKey('key-1'), isTrue);
@@ -331,10 +325,7 @@ void main() {
       final state = container.read(machinesNotifierProvider);
       final values = state.values.toList();
       expect(values.length, 2);
-      expect(
-        values.map((m) => m.id).toSet(),
-        containsAll(['v1', 'v2']),
-      );
+      expect(values.map((m) => m.id).toSet(), containsAll(['v1', 'v2']));
     });
 
     test('remove on empty state is a no-op', () {
@@ -358,9 +349,7 @@ void main() {
 
     test('provider state is independent across reads', () {
       final notifier = container.read(machinesNotifierProvider.notifier);
-      notifier.state = {
-        'ind-1': createTestMachine(id: 'ind-1', host: 'host'),
-      };
+      notifier.state = {'ind-1': createTestMachine(id: 'ind-1', host: 'host')};
 
       final read1 = container.read(machinesNotifierProvider);
       final read2 = container.read(machinesNotifierProvider);

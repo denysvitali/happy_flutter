@@ -71,7 +71,10 @@ class EmbeddedPaneHeader extends StatelessWidget {
                 if (subtitleText != null)
                   Text(
                     subtitleText,
-                    style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                    style: AppText.secondary(
+                      theme,
+                      theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
               ],
             ),
@@ -95,7 +98,10 @@ class EmbeddedPaneHeader extends StatelessWidget {
               // TODO(i18n): close tooltip not yet localized
               tooltip: 'Close',
               onPressed: onClose,
-              constraints: const BoxConstraints(minWidth: AppControlSize.lg, minHeight: AppControlSize.lg),
+              constraints: const BoxConstraints(
+                minWidth: AppControlSize.lg,
+                minHeight: AppControlSize.lg,
+              ),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
             ),
@@ -168,7 +174,10 @@ class EmbeddedPaneShell extends StatelessWidget {
                     ),
                     Text(
                       subtitleText,
-                      style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                      style: AppText.secondary(
+                        theme,
+                        theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),

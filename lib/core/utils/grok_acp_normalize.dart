@@ -62,7 +62,10 @@ GrokToolDispatch unwrapGrokMcpDispatch(
       ? <String, dynamic>{}
       : Map<String, dynamic>.from(input);
   if (!grokMcpDispatchers.contains(name)) {
-    return GrokToolDispatch(name: name.isEmpty ? 'tool' : name, input: rawInput);
+    return GrokToolDispatch(
+      name: name.isEmpty ? 'tool' : name,
+      input: rawInput,
+    );
   }
   final innerName = _firstNonEmptyString(rawInput, const [
     'tool_name',
@@ -207,8 +210,8 @@ dynamic normalizeGrokToolResult(dynamic result) {
   }
 
   // ListDir: {type: ListDir, Content: {content: "...", absolute_root_path}}
-  final listDirBody = WireParsers.asMap(map['Content']) ??
-      WireParsers.asMap(map['content']);
+  final listDirBody =
+      WireParsers.asMap(map['Content']) ?? WireParsers.asMap(map['content']);
   final listType = map['type']?.toString();
   if (listType == 'ListDir' ||
       (listDirBody != null && listDirBody.containsKey('absolute_root_path'))) {
@@ -230,9 +233,11 @@ dynamic normalizeGrokToolResult(dynamic result) {
   if (listType == 'FileContent' ||
       listType == 'ReadFile' ||
       map.containsKey('FileContent')) {
-    final fileBody = WireParsers.asMap(map['FileContent']) ??
+    final fileBody =
+        WireParsers.asMap(map['FileContent']) ??
         WireParsers.asMap(map['Content']);
-    final text = fileBody?['content']?.toString() ??
+    final text =
+        fileBody?['content']?.toString() ??
         fileBody?['raw_output']?.toString() ??
         fileBody?['text']?.toString() ??
         map['text']?.toString();
@@ -320,7 +325,8 @@ Map<String, dynamic> _normalizeShellResult(
   Map<String, dynamic> map, {
   String? stdoutOverride,
 }) {
-  final stdout = stdoutOverride ??
+  final stdout =
+      stdoutOverride ??
       map['stdout']?.toString() ??
       map['output']?.toString() ??
       map['output_for_prompt']?.toString();
@@ -394,11 +400,7 @@ List<Map<String, dynamic>> _parseListDirTree(String tree) {
     // Prefer basename for nested indentation entries.
     final base = clean.contains('/') ? clean.split('/').last : clean;
     if (base.isEmpty) continue;
-    entries.add({
-      'name': base,
-      'isDirectory': isDir,
-      'isFile': !isDir,
-    });
+    entries.add({'name': base, 'isDirectory': isDir, 'isFile': !isDir});
   }
   return entries;
 }

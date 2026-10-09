@@ -193,7 +193,14 @@ class _ServerSettingsScreenState extends ConsumerState<ServerSettingsScreen> {
                         if (_statusMessage != null)
                           Text(
                             _statusMessage!,
-                            style: AppText.secondary(theme, _isConnected ?? false ? cs.primary : _isConnected == false ? cs.error : cs.onSurfaceVariant),
+                            style: AppText.secondary(
+                              theme,
+                              _isConnected ?? false
+                                  ? cs.primary
+                                  : _isConnected == false
+                                  ? cs.error
+                                  : cs.onSurfaceVariant,
+                            ),
                           ),
                       ],
                     ),

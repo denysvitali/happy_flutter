@@ -1,9 +1,6 @@
 part of '../sync_service.dart';
 
-enum MessagePipelineSource {
-  socket,
-  http,
-}
+enum MessagePipelineSource { socket, http }
 
 enum MessagePipelineStage {
   raw,

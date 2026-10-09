@@ -33,10 +33,8 @@ void main() {
 
   test('failure stays hidden while its retry cycle is pending', () async {
     final gate = Completer<void>();
-    final manager = InvalidateSync(
-      () => gate.future,
-      maxRetries: 0,
-    )..invalidate();
+    final manager = InvalidateSync(() => gate.future, maxRetries: 0)
+      ..invalidate();
 
     expect(manager.isPending, isTrue);
     expect(hasUnrecoveredSyncFailure(manager), isFalse);

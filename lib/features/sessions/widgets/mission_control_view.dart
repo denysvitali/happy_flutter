@@ -815,7 +815,9 @@ class _DisclosureButton extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+                      style: AppText.label(theme, cs.onSurfaceVariant).copyWith(
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     AnimatedRotation(

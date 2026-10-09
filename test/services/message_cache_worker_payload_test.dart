@@ -19,11 +19,7 @@ void main() {
       'content': [
         {
           'type': 'image',
-          'source': {
-            'type': 'base64',
-            'media_type': 'image/png',
-            'data': data,
-          },
+          'source': {'type': 'base64', 'media_type': 'image/png', 'data': data},
         },
       ],
     },
@@ -53,9 +49,9 @@ void main() {
     );
     final source =
         ((window.single['raw'] as Map<String, dynamic>)['content']
-                as List<dynamic>)
-            .single
-        as Map<String, dynamic>;
+                    as List<dynamic>)
+                .single
+            as Map<String, dynamic>;
     expect((source['source'] as Map<String, dynamic>)['omitted'], isTrue);
   });
 
@@ -115,9 +111,7 @@ void main() {
     };
 
     test('ordinary sessions keep the full row window', () {
-      final messages = [
-        for (var i = 0; i < 200; i++) textMessage('m-$i', 200),
-      ];
+      final messages = [for (var i = 0; i < 200; i++) textMessage('m-$i', 200)];
 
       final window = MessageCacheService.debugRawCacheWindow(messages);
 

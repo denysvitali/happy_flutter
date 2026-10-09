@@ -32,14 +32,15 @@ void main() {
           ],
         };
 
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final params = UsageQueryParams(
           sessionId: 'session-123',
@@ -55,75 +56,85 @@ void main() {
         expect(result.usage.first.cost['gpt-4'], 0.02);
         expect(result.usage.first.reportCount, 5);
 
-        verify(mockClient.post(
-          '/v1/usage/query',
-          data: {
-            'sessionId': 'session-123',
-            'startTime': 1640995200,
-            'endTime': 1641081600,
-            'groupBy': 'day',
-          },
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/usage/query',
+            data: {
+              'sessionId': 'session-123',
+              'startTime': 1640995200,
+              'endTime': 1641081600,
+              'groupBy': 'day',
+            },
+          ),
+        ).called(1);
       });
 
       test('throws exception when session not found (404)', () async {
-        when(mockClient.post(
-          any,
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'error': 'Session not found'},
-          statusCode: 404,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
+          (_) async => Response(
+            data: {'error': 'Session not found'},
+            statusCode: 404,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final params = UsageQueryParams(sessionId: 'non-existent');
 
         expect(
           () => usageApi.queryUsage(params),
-          throwsA(isA<UsageApiException>()
-              .having((e) => e.statusCode, 'statusCode', 404)
-              .having((e) => e.message, 'message', 'Session not found')),
+          throwsA(
+            isA<UsageApiException>()
+                .having((e) => e.statusCode, 'statusCode', 404)
+                .having((e) => e.message, 'message', 'Session not found'),
+          ),
         );
       });
 
       test('throws exception on non-200 response', () async {
-        when(mockClient.post(
-          any,
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 500,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final params = UsageQueryParams();
 
         expect(
           () => usageApi.queryUsage(params),
-          throwsA(isA<UsageApiException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.message, 'message',
-                  contains('Failed to query usage'))),
+          throwsA(
+            isA<UsageApiException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to query usage'),
+                ),
+          ),
         );
       });
 
       test('throws exception on invalid response data', () async {
-        when(mockClient.post(
-          any,
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'invalid': 'data'},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
+          (_) async => Response(
+            data: {'invalid': 'data'},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final params = UsageQueryParams();
 
         expect(
           () => usageApi.queryUsage(params),
-          throwsA(isA<UsageApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to parse usage response'))),
+          throwsA(
+            isA<UsageApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to parse usage response'),
+            ),
+          ),
         );
       });
     });
@@ -134,93 +145,117 @@ void main() {
         final today = DateTime(now.year, now.month, now.day);
         final startTime = today.millisecondsSinceEpoch ~/ 1000;
 
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getUsageForPeriod(UsagePeriod.today);
 
-        final captured = verify(mockClient.post(
-          '/v1/usage/query',
-          data: captureAnyNamed('data'),
-        )).captured.single as Map<String, dynamic>;
+        final captured =
+            verify(
+                  mockClient.post(
+                    '/v1/usage/query',
+                    data: captureAnyNamed('data'),
+                  ),
+                ).captured.single
+                as Map<String, dynamic>;
 
         expect(captured['groupBy'], 'hour');
         expect(captured['startTime'], greaterThanOrEqualTo(startTime));
       });
 
       test('gets usage for 7 days with daily grouping', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getUsageForPeriod(UsagePeriod.sevenDays);
 
-        final captured = verify(mockClient.post(
-          '/v1/usage/query',
-          data: captureAnyNamed('data'),
-        )).captured.single as Map<String, dynamic>;
+        final captured =
+            verify(
+                  mockClient.post(
+                    '/v1/usage/query',
+                    data: captureAnyNamed('data'),
+                  ),
+                ).captured.single
+                as Map<String, dynamic>;
 
         expect(captured['groupBy'], 'day');
-        final sevenDaysAgo = DateTime.now().millisecondsSinceEpoch ~/ 1000 -
-            (7 * 24 * 60 * 60);
-        expect(captured['startTime'],
-            greaterThanOrEqualTo(sevenDaysAgo - 10)); // 10s tolerance
+        final sevenDaysAgo =
+            DateTime.now().millisecondsSinceEpoch ~/ 1000 - (7 * 24 * 60 * 60);
+        expect(
+          captured['startTime'],
+          greaterThanOrEqualTo(sevenDaysAgo - 10),
+        ); // 10s tolerance
       });
 
       test('gets usage for 30 days with daily grouping', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getUsageForPeriod(UsagePeriod.thirtyDays);
 
-        final captured = verify(mockClient.post(
-          '/v1/usage/query',
-          data: captureAnyNamed('data'),
-        )).captured.single as Map<String, dynamic>;
+        final captured =
+            verify(
+                  mockClient.post(
+                    '/v1/usage/query',
+                    data: captureAnyNamed('data'),
+                  ),
+                ).captured.single
+                as Map<String, dynamic>;
 
         expect(captured['groupBy'], 'day');
-        final thirtyDaysAgo = DateTime.now().millisecondsSinceEpoch ~/ 1000 -
-            (30 * 24 * 60 * 60);
-        expect(captured['startTime'],
-            greaterThanOrEqualTo(thirtyDaysAgo - 10)); // 10s tolerance
+        final thirtyDaysAgo =
+            DateTime.now().millisecondsSinceEpoch ~/ 1000 - (30 * 24 * 60 * 60);
+        expect(
+          captured['startTime'],
+          greaterThanOrEqualTo(thirtyDaysAgo - 10),
+        ); // 10s tolerance
       });
 
       test('includes session ID when provided', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getUsageForPeriod(
           UsagePeriod.today,
           sessionId: 'session-123',
         );
 
-        final captured = verify(mockClient.post(
-          '/v1/usage/query',
-          data: captureAnyNamed('data'),
-        )).captured.single as Map<String, dynamic>;
+        final captured =
+            verify(
+                  mockClient.post(
+                    '/v1/usage/query',
+                    data: captureAnyNamed('data'),
+                  ),
+                ).captured.single
+                as Map<String, dynamic>;
 
         expect(captured['sessionId'], 'session-123');
       });
@@ -228,90 +263,102 @@ void main() {
 
     group('Convenience methods', () {
       test('getTodayUsage calls getUsageForPeriod with today', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getTodayUsage();
 
-        verify(mockClient.post(
-          '/v1/usage/query',
-          data: argThat(
-            allOf([
-              containsPair('groupBy', 'hour'),
-              // Start of today
-            ]),
-            named: 'data'),
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/usage/query',
+            data: argThat(
+              allOf([
+                containsPair('groupBy', 'hour'),
+                // Start of today
+              ]),
+              named: 'data',
+            ),
+          ),
+        ).called(1);
       });
 
       test('getSevenDayUsage calls getUsageForPeriod with 7 days', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getSevenDayUsage();
 
-        verify(mockClient.post(
-          '/v1/usage/query',
-          data: argThat(
-            allOf([
-              containsPair('groupBy', 'day'),
-            ]),
-            named: 'data'),
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/usage/query',
+            data: argThat(
+              allOf([containsPair('groupBy', 'day')]),
+              named: 'data',
+            ),
+          ),
+        ).called(1);
       });
 
       test('getThirtyDayUsage calls getUsageForPeriod with 30 days', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getThirtyDayUsage();
 
-        verify(mockClient.post(
-          '/v1/usage/query',
-          data: argThat(
-            allOf([
-              containsPair('groupBy', 'day'),
-            ]),
-            named: 'data'),
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/usage/query',
+            data: argThat(
+              allOf([containsPair('groupBy', 'day')]),
+              named: 'data',
+            ),
+          ),
+        ).called(1);
       });
 
       test('getSessionUsage calls getUsageForPeriod with session ID', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getSessionUsage('session-123');
 
-        verify(mockClient.post(
-          '/v1/usage/query',
-          data: argThat(
-            containsPair('sessionId', 'session-123'),
-            named: 'data'),
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/usage/query',
+            data: argThat(
+              containsPair('sessionId', 'session-123'),
+              named: 'data',
+            ),
+          ),
+        ).called(1);
       });
     });
 
@@ -371,14 +418,15 @@ void main() {
           ],
         };
 
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final summary = await usageApi.getUsageSummary(UsagePeriod.today);
 
@@ -389,24 +437,29 @@ void main() {
       });
 
       test('includes session ID when provided', () async {
-        when(mockClient.post(
-          '/v1/usage/query',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'usage': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post('/v1/usage/query', data: anyNamed('data')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'usage': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await usageApi.getUsageSummary(
           UsagePeriod.today,
           sessionId: 'session-123',
         );
 
-        final captured = verify(mockClient.post(
-          '/v1/usage/query',
-          data: captureAnyNamed('data'),
-        )).captured.single as Map<String, dynamic>;
+        final captured =
+            verify(
+                  mockClient.post(
+                    '/v1/usage/query',
+                    data: captureAnyNamed('data'),
+                  ),
+                ).captured.single
+                as Map<String, dynamic>;
 
         expect(captured['sessionId'], 'session-123');
       });

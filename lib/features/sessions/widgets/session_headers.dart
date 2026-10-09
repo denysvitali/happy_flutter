@@ -10,10 +10,7 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 enum ArchivedGrouping { date, folder }
 
 /// Builds the localized active/archived breakdown shown for a session folder.
-String folderBreakdownLabel(
-  BuildContext context,
-  SessionFolderHeader header,
-) {
+String folderBreakdownLabel(BuildContext context, SessionFolderHeader header) {
   final l10n = AppLocalizations.of(context);
   final parts = <String>[];
   if (header.activeSessionCount > 0) {
@@ -107,8 +104,7 @@ class ProjectHeader extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            if (activeCount > 0)
-              _ActiveBadge(count: activeCount),
+            if (activeCount > 0) _ActiveBadge(count: activeCount),
             const SizedBox(width: AppSpacing.xs),
             _CollapseChevron(isCollapsed: isCollapsed),
           ],
@@ -175,7 +171,10 @@ class PathHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 path.split('/').last,
-                style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
+                style: AppText.label(
+                  theme,
+                  cs.onSurfaceVariant,
+                ).copyWith(fontFamily: 'monospace'),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -204,9 +203,7 @@ class _HeaderCountPill extends StatelessWidget {
       foregroundColor: cs.onSurfaceVariant,
       backgroundColor: cs.surfaceContainerHighest,
       borderColor: cs.outlineVariant.withValues(alpha: 0.5),
-      labelStyle: const TextStyle(
-        fontFeatures: [FontFeature.tabularFigures()],
-      ),
+      labelStyle: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
     );
   }
 }
@@ -292,8 +289,11 @@ class CollapsibleFolderHeader extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.folder_outlined, size: AppIconSize.md,
-                color: cs.onSurfaceVariant),
+            Icon(
+              Icons.folder_outlined,
+              size: AppIconSize.md,
+              color: cs.onSurfaceVariant,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
@@ -301,18 +301,27 @@ class CollapsibleFolderHeader extends StatelessWidget {
                 children: [
                   Text(
                     header.displayPath,
-                    style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
+                    style: AppText.label(
+                      theme,
+                      cs.onSurfaceVariant,
+                    ).copyWith(fontFamily: 'monospace'),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
                   Text(
                     header.machineName,
-                    style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.6)),
+                    style: AppText.secondary(
+                      theme,
+                      cs.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
                   ),
                   if (hasBreakdown)
                     Text(
                       folderBreakdownLabel(context, header),
-                      style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.72)),
+                      style: AppText.secondary(
+                        theme,
+                        cs.onSurfaceVariant.withValues(alpha: 0.72),
+                      ),
                     ),
                 ],
               ),
@@ -328,7 +337,10 @@ class CollapsibleFolderHeader extends StatelessWidget {
             ],
             Text(
               '${header.sessionCount}',
-              style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.6)),
+              style: AppText.secondary(
+                theme,
+                cs.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
             ),
             const SizedBox(width: 2),
             _CollapseChevron(isCollapsed: isCollapsed),
@@ -362,14 +374,14 @@ class FolderSectionHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(
-            title,
-            style: AppText.label(theme, cs.onSurfaceVariant),
-          ),
+          Text(title, style: AppText.label(theme, cs.onSurfaceVariant)),
           const SizedBox(width: AppSpacing.xs),
           Text(
             '$count',
-            style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
+            style: AppText.secondary(
+              theme,
+              cs.onSurfaceVariant.withValues(alpha: 0.7),
+            ),
           ),
         ],
       ),

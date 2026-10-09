@@ -34,7 +34,9 @@ void main() {
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
       expect(
-        tokens.any((t) => t.type == SyntaxTokenType.string && t.text == '"hello world"'),
+        tokens.any(
+          (t) => t.type == SyntaxTokenType.string && t.text == '"hello world"',
+        ),
         isTrue,
         reason: 'Should tokenize string literals',
       );
@@ -66,7 +68,9 @@ const x = 5;
         reason: 'Should tokenize single-line comments',
       );
       expect(
-        tokens.any((t) => t.type == SyntaxTokenType.comment && t.text.contains('/*')),
+        tokens.any(
+          (t) => t.type == SyntaxTokenType.comment && t.text.contains('/*'),
+        ),
         isTrue,
         reason: 'Should tokenize multi-line comments',
       );
@@ -77,11 +81,15 @@ const x = 5;
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
       expect(
-        tokens.any((t) => t.type == SyntaxTokenType.controlFlow && t.text == 'if'),
+        tokens.any(
+          (t) => t.type == SyntaxTokenType.controlFlow && t.text == 'if',
+        ),
         isTrue,
       );
       expect(
-        tokens.any((t) => t.type == SyntaxTokenType.controlFlow && t.text == 'return'),
+        tokens.any(
+          (t) => t.type == SyntaxTokenType.controlFlow && t.text == 'return',
+        ),
         isTrue,
       );
     });
@@ -115,8 +123,7 @@ const x = 5;
       const code = 'line1\nline2\nline3';
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
-      final newlineCount =
-          tokens.where((t) => t.text == '\n').length;
+      final newlineCount = tokens.where((t) => t.text == '\n').length;
       expect(newlineCount, 2, reason: 'Should preserve line breaks');
     });
   });
@@ -126,20 +133,27 @@ const x = 5;
       const code = 'function test({ a: [1, 2] }) { return (x); }';
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
-      final brackets = tokens.where((t) => t.type == SyntaxTokenType.bracket).toList();
+      final brackets = tokens
+          .where((t) => t.type == SyntaxTokenType.bracket)
+          .toList();
 
       expect(brackets, isNotEmpty);
       // Brackets should have different nesting levels
       final levels = brackets.map((b) => b.nestLevel).toSet();
-      expect(levels.length, greaterThan(1),
-          reason: 'Should have multiple nesting levels');
+      expect(
+        levels.length,
+        greaterThan(1),
+        reason: 'Should have multiple nesting levels',
+      );
     });
 
     test('handles nested brackets correctly', () {
       const code = '({[]})';
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
-      final brackets = tokens.where((t) => t.type == SyntaxTokenType.bracket).toList();
+      final brackets = tokens
+          .where((t) => t.type == SyntaxTokenType.bracket)
+          .toList();
 
       expect(brackets, hasLength(6));
       // Nesting levels should be: 1, 2, 3, 3, 2, 1
@@ -208,21 +222,13 @@ const x = 5;
 
   group('SyntaxColors', () {
     test('returns light theme colors', () {
-      final color = SyntaxColors.getColor(
-        SyntaxTokenType.keyword,
-        1,
-        false,
-      );
+      final color = SyntaxColors.getColor(SyntaxTokenType.keyword, 1, false);
 
       expect(color, const Color(0xFF1d4ed8));
     });
 
     test('returns dark theme colors', () {
-      final color = SyntaxColors.getColor(
-        SyntaxTokenType.keyword,
-        1,
-        true,
-      );
+      final color = SyntaxColors.getColor(SyntaxTokenType.keyword, 1, true);
 
       expect(color, const Color(0xFF569CD6));
     });
@@ -239,14 +245,21 @@ const x = 5;
         false,
       );
 
-      expect(lightColor1, isNot(equals(lightColor2)),
-          reason: 'Different nesting levels should have different colors');
+      expect(
+        lightColor1,
+        isNot(equals(lightColor2)),
+        reason: 'Different nesting levels should have different colors',
+      );
     });
 
     test('cycles through 5 bracket colors', () {
       final levels = [1, 2, 3, 4, 5, 6];
-      final colors = levels.map((level) =>
-          SyntaxColors.getColor(SyntaxTokenType.bracket, level, false)).toSet();
+      final colors = levels
+          .map(
+            (level) =>
+                SyntaxColors.getColor(SyntaxTokenType.bracket, level, false),
+          )
+          .toSet();
 
       // Should have 5 unique colors (levels 1-5)
       expect(colors.length, 5);
@@ -254,15 +267,16 @@ const x = 5;
   });
 
   group('SyntaxHighlighter Widget', () {
-    testWidgets('renders code with syntax highlighting',
-        (WidgetTester tester) async {
+    testWidgets('renders code with syntax highlighting', (
+      WidgetTester tester,
+    ) async {
       const code = 'const x = 5;';
       const language = 'javascript';
 
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Material(
             child: SyntaxHighlighter(
               code: code,
@@ -279,9 +293,7 @@ const x = 5;
       // tokens.
       expect(find.byType(RichText), findsWidgets);
       final richTexts = tester.widgetList<RichText>(find.byType(RichText));
-      final fullText = richTexts
-          .map((w) => w.text.toPlainText())
-          .join();
+      final fullText = richTexts.map((w) => w.text.toPlainText()).join();
       expect(fullText.contains('const'), isTrue);
       expect(fullText.contains('x'), isTrue);
       expect(fullText.contains('='), isTrue);
@@ -293,8 +305,8 @@ const x = 5;
 
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Material(
             child: SyntaxHighlighter(
               code: code,
@@ -313,8 +325,8 @@ const x = 5;
 
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Material(
             child: SyntaxHighlighter(
               code: code,
@@ -366,18 +378,9 @@ const x = 5;
     });
 
     test('SyntaxTokenType.fromString handles all cases', () {
-      expect(
-        SyntaxTokenType.fromString('keyword'),
-        SyntaxTokenType.keyword,
-      );
-      expect(
-        SyntaxTokenType.fromString('bracket'),
-        SyntaxTokenType.bracket,
-      );
-      expect(
-        SyntaxTokenType.fromString('unknown'),
-        SyntaxTokenType.default_,
-      );
+      expect(SyntaxTokenType.fromString('keyword'), SyntaxTokenType.keyword);
+      expect(SyntaxTokenType.fromString('bracket'), SyntaxTokenType.bracket);
+      expect(SyntaxTokenType.fromString('unknown'), SyntaxTokenType.default_);
     });
   });
 
@@ -392,18 +395,9 @@ def hello_world():
 ''';
       final tokens = SyntaxTokenizer.tokenize(code, 'python');
 
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.function),
-        isTrue,
-      );
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.docstring),
-        isTrue,
-      );
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.controlFlow),
-        isTrue,
-      );
+      expect(tokens.any((t) => t.type == SyntaxTokenType.function), isTrue);
+      expect(tokens.any((t) => t.type == SyntaxTokenType.docstring), isTrue);
+      expect(tokens.any((t) => t.type == SyntaxTokenType.controlFlow), isTrue);
     });
 
     test('tokenizes TypeScript code', () {
@@ -419,24 +413,15 @@ async function getUser(id: string): Promise<User> {
 ''';
       final tokens = SyntaxTokenizer.tokenize(code, 'typescript');
 
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.keyword),
-        isTrue,
-      );
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.type),
-        isTrue,
-      );
+      expect(tokens.any((t) => t.type == SyntaxTokenType.keyword), isTrue);
+      expect(tokens.any((t) => t.type == SyntaxTokenType.type), isTrue);
     });
 
     test('tokenizes code with hex and binary numbers', () {
       const code = 'const hex = 0xFF; const bin = 0b1010;';
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.number),
-        isTrue,
-      );
+      expect(tokens.any((t) => t.type == SyntaxTokenType.number), isTrue);
     });
 
     test('tokenizes decorators', () {
@@ -448,20 +433,14 @@ class MyComponent {
 ''';
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.decorator),
-        isTrue,
-      );
+      expect(tokens.any((t) => t.type == SyntaxTokenType.decorator), isTrue);
     });
 
     test('tokenizes regex patterns', () {
       const code = 'const pattern = /[a-z]+/g;';
       final tokens = SyntaxTokenizer.tokenize(code, 'javascript');
 
-      expect(
-        tokens.any((t) => t.type == SyntaxTokenType.regex),
-        isTrue,
-      );
+      expect(tokens.any((t) => t.type == SyntaxTokenType.regex), isTrue);
     });
   });
 

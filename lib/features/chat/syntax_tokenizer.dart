@@ -58,17 +58,18 @@ class SyntaxTokenizer {
           final spanText = code.substring(span.start, span.end);
           tokens.add(SyntaxToken(text: spanText, type: span.type));
           // Mark covered range relative to line start.
-          coveredRanges.add(_Range(
-            span.start - globalOffset,
-            // Clamp to end of this line; rest is on following lines.
-            (span.end - globalOffset).clamp(0, line.length),
-          ));
+          coveredRanges.add(
+            _Range(
+              span.start - globalOffset,
+              // Clamp to end of this line; rest is on following lines.
+              (span.end - globalOffset).clamp(0, line.length),
+            ),
+          );
         } else if (span.start < globalOffset && span.end > globalOffset) {
           // Span started on a previous line and continues through this one.
-          coveredRanges.add(_Range(
-            0,
-            (span.end - globalOffset).clamp(0, line.length),
-          ));
+          coveredRanges.add(
+            _Range(0, (span.end - globalOffset).clamp(0, line.length)),
+          );
         }
       }
 
@@ -89,12 +90,14 @@ class SyntaxTokenizer {
           // Skip if this position is already covered by a block span.
           if (_isCovered(tokenStart, coveredRanges)) continue;
 
-          lineTokens.add(_LineToken(
-            start: tokenStart,
-            end: tokenEnd,
-            type: pattern.type,
-            text: tokenText,
-          ));
+          lineTokens.add(
+            _LineToken(
+              start: tokenStart,
+              end: tokenEnd,
+              type: pattern.type,
+              text: tokenText,
+            ),
+          );
         }
       }
 
@@ -129,10 +132,9 @@ class SyntaxTokenizer {
         if (event.start > currentIndex) {
           final beforeText = line.substring(currentIndex, event.start);
           if (beforeText.isNotEmpty) {
-            tokens.add(SyntaxToken(
-              text: beforeText,
-              type: SyntaxTokenType.default_,
-            ));
+            tokens.add(
+              SyntaxToken(text: beforeText, type: SyntaxTokenType.default_),
+            );
           }
         }
 
@@ -141,11 +143,13 @@ class SyntaxTokenizer {
           if (token.type == SyntaxTokenType.bracket) {
             final globalPos = globalOffset + token.start;
             final nestLevel = nestingMap[globalPos] ?? 1;
-            tokens.add(SyntaxToken(
-              text: token.text,
-              type: token.type,
-              nestLevel: nestLevel,
-            ));
+            tokens.add(
+              SyntaxToken(
+                text: token.text,
+                type: token.type,
+                nestLevel: nestLevel,
+              ),
+            );
           } else {
             tokens.add(SyntaxToken(text: token.text, type: token.type));
           }
@@ -158,10 +162,9 @@ class SyntaxTokenizer {
       if (currentIndex < line.length) {
         final remainingText = line.substring(currentIndex);
         if (remainingText.isNotEmpty) {
-          tokens.add(SyntaxToken(
-            text: remainingText,
-            type: SyntaxTokenType.default_,
-          ));
+          tokens.add(
+            SyntaxToken(text: remainingText, type: SyntaxTokenType.default_),
+          );
         }
       }
 
@@ -178,12 +181,18 @@ class SyntaxTokenizer {
     return false;
   }
 
-  static final RegExp _blockCommentRe =
-      RegExp(r'/\*[\s\S]*?\*/', multiLine: true);
-  static final RegExp _docstringDoubleRe =
-      RegExp(r'"""[\s\S]*?"""', multiLine: true);
-  static final RegExp _docstringSingleRe =
-      RegExp(r"'''[\s\S]*?'''", multiLine: true);
+  static final RegExp _blockCommentRe = RegExp(
+    r'/\*[\s\S]*?\*/',
+    multiLine: true,
+  );
+  static final RegExp _docstringDoubleRe = RegExp(
+    r'"""[\s\S]*?"""',
+    multiLine: true,
+  );
+  static final RegExp _docstringSingleRe = RegExp(
+    r"'''[\s\S]*?'''",
+    multiLine: true,
+  );
 
   /// Returns a list of [_BlockSpan]s covering block comments and docstrings
   /// in [code]. Spans are sorted by start position and non-overlapping.
@@ -214,27 +223,86 @@ class SyntaxTokenizer {
   static Map<String, List<String>> _getKeywordSets(String lang) {
     return {
       'controlFlow': [
-        'if', 'else', 'elif', 'for', 'while', 'do', 'switch', 'case',
-        'break', 'continue', 'return', 'yield', 'try', 'catch', 'finally',
-        'throw', 'with',
+        'if',
+        'else',
+        'elif',
+        'for',
+        'while',
+        'do',
+        'switch',
+        'case',
+        'break',
+        'continue',
+        'return',
+        'yield',
+        'try',
+        'catch',
+        'finally',
+        'throw',
+        'with',
       ],
       'keywords': [
-        'function', 'const', 'let', 'var', 'def', 'class', 'interface',
-        'enum', 'struct', 'union', 'namespace', 'module',
+        'function',
+        'const',
+        'let',
+        'var',
+        'def',
+        'class',
+        'interface',
+        'enum',
+        'struct',
+        'union',
+        'namespace',
+        'module',
       ],
       'types': [
-        'int', 'string', 'bool', 'float', 'double', 'char', 'void', 'any',
-        'unknown', 'never', 'object', 'array', 'number', 'boolean',
+        'int',
+        'string',
+        'bool',
+        'float',
+        'double',
+        'char',
+        'void',
+        'any',
+        'unknown',
+        'never',
+        'object',
+        'array',
+        'number',
+        'boolean',
       ],
       'modifiers': [
-        'public', 'private', 'protected', 'static', 'final', 'abstract',
-        'virtual', 'override', 'async', 'await', 'export', 'default',
+        'public',
+        'private',
+        'protected',
+        'static',
+        'final',
+        'abstract',
+        'virtual',
+        'override',
+        'async',
+        'await',
+        'export',
+        'default',
       ],
       'boolean': [
-        'true', 'false', 'null', 'undefined', 'None', 'True', 'False', 'nil',
+        'true',
+        'false',
+        'null',
+        'undefined',
+        'None',
+        'True',
+        'False',
+        'nil',
       ],
       'imports': [
-        'import', 'from', 'export', 'require', 'include', 'using', 'package',
+        'import',
+        'from',
+        'export',
+        'require',
+        'include',
+        'using',
+        'package',
       ],
     };
   }
@@ -265,16 +333,8 @@ class SyntaxTokenizer {
 
     return [
       // Single-line comments (block comments handled via _findBlockSpans)
-      _TokenPattern(
-        RegExp(r'//.*$'),
-        SyntaxTokenType.comment,
-        multiline: true,
-      ),
-      _TokenPattern(
-        RegExp(r'#.*$'),
-        SyntaxTokenType.comment,
-        multiline: true,
-      ),
+      _TokenPattern(RegExp(r'//.*$'), SyntaxTokenType.comment, multiline: true),
+      _TokenPattern(RegExp(r'#.*$'), SyntaxTokenType.comment, multiline: true),
 
       // Strings
       _TokenPattern(
@@ -304,10 +364,7 @@ class SyntaxTokenizer {
       // Keywords by category — must come before function-call patterns so
       // that keywords like 'import', 'return', 'if' are not mis-classified
       // as function calls when followed by '('.
-      _TokenPattern(
-        RegExp('\\b($importsPattern)\\b'),
-        SyntaxTokenType.import,
-      ),
+      _TokenPattern(RegExp('\\b($importsPattern)\\b'), SyntaxTokenType.import),
       _TokenPattern(
         RegExp('\\b($controlFlowPattern)\\b'),
         SyntaxTokenType.controlFlow,
@@ -316,24 +373,16 @@ class SyntaxTokenizer {
         RegExp('\\b($keywordsPattern)\\b'),
         SyntaxTokenType.keyword,
       ),
-      _TokenPattern(
-        RegExp('\\b($typesPattern)\\b'),
-        SyntaxTokenType.type,
-      ),
+      _TokenPattern(RegExp('\\b($typesPattern)\\b'), SyntaxTokenType.type),
       _TokenPattern(
         RegExp('\\b($modifiersPattern)\\b'),
         SyntaxTokenType.modifier,
       ),
-      _TokenPattern(
-        RegExp('\\b($booleanPattern)\\b'),
-        SyntaxTokenType.boolean,
-      ),
+      _TokenPattern(RegExp('\\b($booleanPattern)\\b'), SyntaxTokenType.boolean),
 
       // Function definitions
       _TokenPattern(
-        RegExp(
-          r'(function|def|async function)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)',
-        ),
+        RegExp(r'(function|def|async function)\s+([a-zA-Z_$][a-zA-Z0-9_$]*)'),
         SyntaxTokenType.function,
         captureGroup: 2,
       ),
@@ -365,10 +414,7 @@ class SyntaxTokenizer {
         RegExp(r'(=|\+=|-=|\*=|/=|%=|\|=|&=|\^=)'),
         SyntaxTokenType.assignment,
       ),
-      _TokenPattern(
-        RegExp(r'(\+|-|\*|/|%|\*\*)'),
-        SyntaxTokenType.operator,
-      ),
+      _TokenPattern(RegExp(r'(\+|-|\*|/|%|\*\*)'), SyntaxTokenType.operator),
       _TokenPattern(RegExp(r'(\?|:)'), SyntaxTokenType.operator),
 
       // Brackets and punctuation

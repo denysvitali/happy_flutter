@@ -68,13 +68,12 @@ int timestampNow() => DateTime.now().millisecondsSinceEpoch;
 /// `initializeDateFormatting` has run, and as a `LocaleDataException` before
 /// it has. Both are caught here — an unusable locale degrades to `en_US` and
 /// finally to a manual `M/d/yyyy` rather than crashing a widget build.
-String formatShortDate(DateTime date, {String? locale}) =>
-    _formatWithFallback(
-      date,
-      locale,
-      DateFormat.yMd,
-      (d) => '${d.month}/${d.day}/${d.year}',
-    );
+String formatShortDate(DateTime date, {String? locale}) => _formatWithFallback(
+  date,
+  locale,
+  DateFormat.yMd,
+  (d) => '${d.month}/${d.day}/${d.year}',
+);
 
 /// Format a date as day + month only, in the order [locale] uses.
 ///

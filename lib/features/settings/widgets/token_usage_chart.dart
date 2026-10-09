@@ -57,12 +57,15 @@ class _TokenUsageChartState extends State<TokenUsageChart> {
     final points = _points;
     if (points.isEmpty) return;
 
-    final chartWidth = constraints.maxWidth - _TokenUsagePainter._marginLeft -
+    final chartWidth =
+        constraints.maxWidth -
+        _TokenUsagePainter._marginLeft -
         _TokenUsagePainter._marginRight;
     final x = details.localPosition.dx - _TokenUsagePainter._marginLeft;
-    final index = ((x / chartWidth) * points.length)
-        .round()
-        .clamp(0, points.length - 1);
+    final index = ((x / chartWidth) * points.length).round().clamp(
+      0,
+      points.length - 1,
+    );
 
     if (_selectedIndex != index) {
       setState(() => _selectedIndex = index);
@@ -100,10 +103,7 @@ class _TokenUsageChartState extends State<TokenUsageChart> {
 /// Metrics row showing messages, sessions, and tool calls.
 class TokenUsageMetrics extends StatelessWidget {
   /// Creates a metrics row.
-  const TokenUsageMetrics({
-    required this.usage,
-    super.key,
-  });
+  const TokenUsageMetrics({required this.usage, super.key});
 
   /// The aggregated local usage.
   final ClaudeLocalUsage usage;
@@ -183,10 +183,7 @@ class _MetricCard extends StatelessWidget {
         children: [
           Icon(icon, size: 18, color: color),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            value,
-            style: AppText.title(theme, cs.onSurface),
-          ),
+          Text(value, style: AppText.title(theme, cs.onSurface)),
           const SizedBox(height: AppSpacing.xxs),
           Text(
             label,
@@ -275,10 +272,7 @@ class _TokenUsagePainter extends CustomPainter {
         ..addText(ClaudeLocalUsage.formatTokenCount(value));
       final paragraph = builder.build()
         ..layout(ui.ParagraphConstraints(width: _marginLeft - 8));
-      canvas.drawParagraph(
-        paragraph,
-        Offset(0, y - paragraph.height / 2),
-      );
+      canvas.drawParagraph(paragraph, Offset(0, y - paragraph.height / 2));
     }
   }
 
@@ -303,12 +297,7 @@ class _TokenUsagePainter extends CustomPainter {
       );
 
       final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          x,
-          top,
-          fillWidth,
-          math.max(0, barHeight),
-        ),
+        Rect.fromLTWH(x, top, fillWidth, math.max(0, barHeight)),
         const Radius.circular(AppRadius.xs),
       );
       canvas.drawRRect(rect, basePaint);
@@ -323,8 +312,9 @@ class _TokenUsagePainter extends CustomPainter {
     final barWidth = chartRect.width / points.length;
 
     for (var i = 0; i < smoothed.length; i++) {
-      final x = chartRect.left + (i + (points.length - smoothed.length) / 2) *
-          barWidth +
+      final x =
+          chartRect.left +
+          (i + (points.length - smoothed.length) / 2) * barWidth +
           barWidth / 2;
       final y = chartRect.bottom - (smoothed[i] / yMax) * chartRect.height;
       final point = Offset(x, y);
@@ -332,11 +322,12 @@ class _TokenUsagePainter extends CustomPainter {
       if (i == 0) {
         path.moveTo(point.dx, point.dy);
       } else {
-        final prevX = chartRect.left +
+        final prevX =
+            chartRect.left +
             (i - 1 + (points.length - smoothed.length) / 2) * barWidth +
             barWidth / 2;
-        final prevY = chartRect.bottom -
-            (smoothed[i - 1] / yMax) * chartRect.height;
+        final prevY =
+            chartRect.bottom - (smoothed[i - 1] / yMax) * chartRect.height;
         final prev = Offset(prevX, prevY);
         final cp = Offset((prev.dx + point.dx) / 2, (prev.dy + point.dy) / 2);
         path
@@ -379,11 +370,8 @@ class _TokenUsagePainter extends CustomPainter {
       fontSize: AppFontSize.sm * textScale,
     );
 
-    final indices = <int>{
-      0,
-      points.length ~/ 2,
-      points.length - 1,
-    }.toList()..sort();
+    final indices = <int>{0, points.length ~/ 2, points.length - 1}.toList()
+      ..sort();
 
     final barWidth = chartRect.width / points.length;
 
@@ -440,7 +428,8 @@ class _TokenUsagePainter extends CustomPainter {
     canvas.drawRRect(rect, highlightPaint);
 
     // Tooltip text.
-    final tooltipText = '${_formatDate(point.date)} · '
+    final tooltipText =
+        '${_formatDate(point.date)} · '
         '${ClaudeLocalUsage.formatTokenCount(point.tokens)}';
     final paragraphStyle = ui.ParagraphStyle(
       textAlign: ui.TextAlign.center,

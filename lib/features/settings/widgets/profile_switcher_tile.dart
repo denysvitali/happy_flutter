@@ -46,7 +46,9 @@ class ProfileSwitcherTile extends StatelessWidget {
       },
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: AppTouchTarget.comfortable),
+        constraints: const BoxConstraints(
+          minHeight: AppTouchTarget.comfortable,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.lg,
@@ -55,10 +57,7 @@ class ProfileSwitcherTile extends StatelessWidget {
           child: Row(
             children: [
               // Leading icon container — mirrors SettingsIconContainer style
-              AppIconTile(
-                icon: Icons.account_tree,
-                size: AppControlSize.lg,
-              ),
+              AppIconTile(icon: Icons.account_tree, size: AppControlSize.lg),
               const SizedBox(width: AppSpacing.md),
               // Title column
               Expanded(
@@ -138,9 +137,7 @@ class _ProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final color = profile.isBuiltIn
-        ? colorForProfile(profile.id)
-        : cs.primary;
+    final color = profile.isBuiltIn ? colorForProfile(profile.id) : cs.primary;
     final initial = profile.name.isNotEmpty
         ? sanitizeUtf16(profile.name).characters.first.toUpperCase()
         : '?';
@@ -153,9 +150,7 @@ class _ProfileAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         color: color.withValues(alpha: 0.18),
         border: Border.all(
-          color: isSelected
-              ? color
-              : color.withValues(alpha: 0.5),
+          color: isSelected ? color : color.withValues(alpha: 0.5),
           width: isSelected ? 1.5 : 1.0,
         ),
       ),
@@ -193,9 +188,7 @@ class _OverflowBadge extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: colorScheme.surfaceContainerHighest,
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Center(
         child: Text(

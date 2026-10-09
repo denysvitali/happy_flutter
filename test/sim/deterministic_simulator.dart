@@ -51,11 +51,7 @@ class VirtualClock {
   /// Schedule [action] to run at time `now + delay`.
   void schedule(Duration delay, FutureOr<void> Function() action) {
     _queue.add(
-      _Task(
-        dueAt: _now + delay.inMilliseconds,
-        action: action,
-        id: _nextId++,
-      ),
+      _Task(dueAt: _now + delay.inMilliseconds, action: action, id: _nextId++),
     );
   }
 
@@ -100,14 +96,18 @@ class VirtualClock {
 /// can either succeed, fail, or be "suspended" until manually
 /// released by the test.  Latency is configurable per request.
 class FakeRest {
-  FakeRest({required this.clock, this.defaultLatency = const Duration(milliseconds: 50)});
+  FakeRest({
+    required this.clock,
+    this.defaultLatency = const Duration(milliseconds: 50),
+  });
 
   final VirtualClock clock;
   final Duration defaultLatency;
 
   /// Routes are matched by exact path.  Each handler returns a
   /// [FakeRestResponse].
-  final Map<String, FakeRestResponse Function(Map<String, dynamic>)> _routes = {};
+  final Map<String, FakeRestResponse Function(Map<String, dynamic>)> _routes =
+      {};
 
   /// Pending in-flight calls — used by tests to assert race
   /// conditions where dispose() is called mid-flight.
@@ -155,8 +155,7 @@ class FakeRestResponse {
   factory FakeRestResponse.ok([Map<String, dynamic> body = const {}]) =>
       FakeRestResponse(statusCode: 200, body: body);
 
-  factory FakeRestResponse.serverError() =>
-      FakeRestResponse(statusCode: 500);
+  factory FakeRestResponse.serverError() => FakeRestResponse(statusCode: 500);
 
   final int statusCode;
   final Map<String, dynamic> body;
@@ -171,7 +170,8 @@ class FakeSocket {
   FakeSocket({required this.clock});
 
   final VirtualClock clock;
-  final StreamController<Map<String, dynamic>> _events = StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _events =
+      StreamController.broadcast();
   bool _connected = true;
 
   Stream<Map<String, dynamic>> get events => _events.stream;
@@ -199,8 +199,8 @@ class FakeSocket {
 /// fake socket with a seeded [Random].
 class DeterministicSimulator {
   DeterministicSimulator({int seed = 0xCAFEBABE})
-      : rng = Random(seed),
-        clock = VirtualClock() {
+    : rng = Random(seed),
+      clock = VirtualClock() {
     rest = FakeRest(clock: clock);
     socket = FakeSocket(clock: clock);
   }

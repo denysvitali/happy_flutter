@@ -56,48 +56,38 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'new-message for non-visible session processes inline',
-      () async {
-        const sessionId = 'sess-A';
+    test('new-message for non-visible session processes inline', () async {
+      const sessionId = 'sess-A';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
-        sync.testSetSessionMessages(sessionId, []);
-        sync.testVisibleSessionId = null;
+      sync.testSessions[sessionId] = _makeSession(sessionId);
+      sync.testSetSessionMessages(sessionId, []);
+      sync.testVisibleSessionId = null;
 
-        sync.handleUpdate({
-          't': 'new-message',
-          'sid': sessionId,
-          'message': _makeEncryptedMessage(
-            'msg-1',
-            seq: 2,
-            content: 'hello',
-          ),
-        });
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': _makeEncryptedMessage('msg-1', seq: 2, content: 'hello'),
+      });
 
-        // Embedded messages are now processed inline for
-        // non-visible sessions so they are immediately available.
-        // The pending updates flag (for session list UI) is set.
-        await _waitUntil(() => sync.testHasPendingUpdate(sessionId));
-        expect(
-          sync.testHasPendingUpdate(sessionId),
-          isTrue,
-          reason:
-              'Non-visible session should have pending updates '
-              'flag for session list refresh',
-        );
-      },
-    );
+      // Embedded messages are now processed inline for
+      // non-visible sessions so they are immediately available.
+      // The pending updates flag (for session list UI) is set.
+      await _waitUntil(() => sync.testHasPendingUpdate(sessionId));
+      expect(
+        sync.testHasPendingUpdate(sessionId),
+        isTrue,
+        reason:
+            'Non-visible session should have pending updates '
+            'flag for session list refresh',
+      );
+    });
 
     test(
       'new-message for visible session triggers inline processing',
       () async {
         const sessionId = 'sess-visible';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 1,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 1);
         sync.testSetSessionMessages(sessionId, []);
         sync.testVisibleSessionId = sessionId;
         // Use the fetch override so the fallback path never calls ApiClient.
@@ -139,32 +129,29 @@ void main() {
       },
     );
 
-    test(
-      'new-message without embedded message still marks pending',
-      () async {
-        const sessionId = 'sess-no-msg';
+    test('new-message without embedded message still marks pending', () async {
+      const sessionId = 'sess-no-msg';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
-        sync.testSetSessionMessages(sessionId, []);
-        sync.testVisibleSessionId = null;
+      sync.testSessions[sessionId] = _makeSession(sessionId);
+      sync.testSetSessionMessages(sessionId, []);
+      sync.testVisibleSessionId = null;
 
-        sync.handleUpdate({
-          't': 'new-message',
-          'sid': sessionId,
-          // No 'message' field
-        });
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        // No 'message' field
+      });
 
-        await _waitUntil(() => sync.testHasPendingSocketMessage(sessionId));
+      await _waitUntil(() => sync.testHasPendingSocketMessage(sessionId));
 
-        expect(
-          sync.testHasPendingSocketMessage(sessionId),
-          isTrue,
-          reason:
-              'New-message without embedded payload should still '
-              'mark session as pending',
-        );
-      },
-    );
+      expect(
+        sync.testHasPendingSocketMessage(sessionId),
+        isTrue,
+        reason:
+            'New-message without embedded payload should still '
+            'mark session as pending',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -194,65 +181,53 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'session-update enqueues sessionId in pending update set',
-      () async {
-        const sessionId = 'sess-upd-1';
+    test('session-update enqueues sessionId in pending update set', () async {
+      const sessionId = 'sess-upd-1';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
+      sync.testSessions[sessionId] = _makeSession(sessionId);
 
-        // The pending IDs set is cleared after the debounce timer fires
-        // (2s), so we check before it drains.
-        sync.handleUpdate({
-          't': 'update-session',
-          'id': sessionId,
-        });
+      // The pending IDs set is cleared after the debounce timer fires
+      // (2s), so we check before it drains.
+      sync.handleUpdate({'t': 'update-session', 'id': sessionId});
 
-        // The session id is added synchronously before the timer fires.
-        expect(
-          sync.testPendingUpdateSessionIdsEmpty(),
-          isFalse,
-          reason:
-              'update-session should add the session id to the '
-              'pending update set before the debounce timer drains',
-        );
-      },
-    );
+      // The session id is added synchronously before the timer fires.
+      expect(
+        sync.testPendingUpdateSessionIdsEmpty(),
+        isFalse,
+        reason:
+            'update-session should add the session id to the '
+            'pending update set before the debounce timer drains',
+      );
+    });
 
-    test(
-      'session-update drains pending session IDs after debounce',
-      () async {
-        const sessionId = 'sess-upd-2';
+    test('session-update drains pending session IDs after debounce', () async {
+      const sessionId = 'sess-upd-2';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
+      sync.testSessions[sessionId] = _makeSession(sessionId);
 
-        sync.handleUpdate({
-          't': 'update-session',
-          'id': sessionId,
-        });
+      sync.handleUpdate({'t': 'update-session', 'id': sessionId});
 
-        // Pending set is populated synchronously…
-        expect(
-          sync.testPendingUpdateSessionIdsEmpty(),
-          isFalse,
-          reason:
-              'Session id should be in the pending set immediately '
-              'after the update-session event is dispatched',
-        );
+      // Pending set is populated synchronously…
+      expect(
+        sync.testPendingUpdateSessionIdsEmpty(),
+        isFalse,
+        reason:
+            'Session id should be in the pending set immediately '
+            'after the update-session event is dispatched',
+      );
 
-        // …then drained once the debounce timer fires (2 s in
-        // production, shrunk via testSessionsRefreshDebounceOverride).
-        await _waitUntil(() => sync.testPendingUpdateSessionIdsEmpty());
+      // …then drained once the debounce timer fires (2 s in
+      // production, shrunk via testSessionsRefreshDebounceOverride).
+      await _waitUntil(() => sync.testPendingUpdateSessionIdsEmpty());
 
-        expect(
-          sync.testPendingUpdateSessionIdsEmpty(),
-          isTrue,
-          reason:
-              'Pending session IDs should be cleared after the '
-              'debounced sessions-refresh flush runs',
-        );
-      },
-    );
+      expect(
+        sync.testPendingUpdateSessionIdsEmpty(),
+        isTrue,
+        reason:
+            'Pending session IDs should be cleared after the '
+            'debounced sessions-refresh flush runs',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -282,103 +257,83 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'delete-session removes session from _sessions',
-      () async {
-        const sessionId = 'sess-del-1';
+    test('delete-session removes session from _sessions', () async {
+      const sessionId = 'sess-del-1';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
-        expect(
-          sync.testSessions.containsKey(sessionId),
-          isTrue,
-          reason: 'Session should be present before delete',
-        );
+      sync.testSessions[sessionId] = _makeSession(sessionId);
+      expect(
+        sync.testSessions.containsKey(sessionId),
+        isTrue,
+        reason: 'Session should be present before delete',
+      );
 
-        sync.handleUpdate({
-          't': 'delete-session',
-          'sid': sessionId,
-        });
+      sync.handleUpdate({'t': 'delete-session', 'sid': sessionId});
 
-        await _waitUntil(() => !sync.testSessions.containsKey(sessionId));
+      await _waitUntil(() => !sync.testSessions.containsKey(sessionId));
 
-        expect(
-          sync.testSessions.containsKey(sessionId),
-          isFalse,
-          reason:
-              'Session should be removed from _sessions after '
-              'delete-session event',
-        );
-      },
-    );
+      expect(
+        sync.testSessions.containsKey(sessionId),
+        isFalse,
+        reason:
+            'Session should be removed from _sessions after '
+            'delete-session event',
+      );
+    });
 
-    test(
-      'delete-session cleans up _sessionSpawnedAt entry',
-      () async {
-        const sessionId = 'sess-del-spawn';
+    test('delete-session cleans up _sessionSpawnedAt entry', () async {
+      const sessionId = 'sess-del-spawn';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
-        sync.testSetSessionSpawnedAt(
-          sessionId,
-          DateTime.now().millisecondsSinceEpoch,
-        );
+      sync.testSessions[sessionId] = _makeSession(sessionId);
+      sync.testSetSessionSpawnedAt(
+        sessionId,
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
-        expect(
-          sync.testSessionSpawnedAt.containsKey(sessionId),
-          isTrue,
-          reason: 'Spawn timestamp should exist before delete',
-        );
+      expect(
+        sync.testSessionSpawnedAt.containsKey(sessionId),
+        isTrue,
+        reason: 'Spawn timestamp should exist before delete',
+      );
 
-        sync.handleUpdate({
-          't': 'delete-session',
-          'sid': sessionId,
-        });
+      sync.handleUpdate({'t': 'delete-session', 'sid': sessionId});
 
-        await _waitUntil(
-          () => !sync.testSessionSpawnedAt.containsKey(sessionId),
-        );
+      await _waitUntil(() => !sync.testSessionSpawnedAt.containsKey(sessionId));
 
-        expect(
-          sync.testSessionSpawnedAt.containsKey(sessionId),
-          isFalse,
-          reason:
-              'delete-session should remove the session spawn '
-              'timestamp from _sessionSpawnedAt',
-        );
-      },
-    );
+      expect(
+        sync.testSessionSpawnedAt.containsKey(sessionId),
+        isFalse,
+        reason:
+            'delete-session should remove the session spawn '
+            'timestamp from _sessionSpawnedAt',
+      );
+    });
 
-    test(
-      'delete-session removes messagesSync entry',
-      () async {
-        const sessionId = 'sess-del-msgsync';
+    test('delete-session removes messagesSync entry', () async {
+      const sessionId = 'sess-del-msgsync';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
-        );
+      sync.testSessions[sessionId] = _makeSession(sessionId);
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
 
-        expect(
-          sync.messagesSync.containsKey(sessionId),
-          isTrue,
-          reason: 'messagesSync entry should exist before delete',
-        );
+      expect(
+        sync.messagesSync.containsKey(sessionId),
+        isTrue,
+        reason: 'messagesSync entry should exist before delete',
+      );
 
-        sync.handleUpdate({
-          't': 'delete-session',
-          'sid': sessionId,
-        });
+      sync.handleUpdate({'t': 'delete-session', 'sid': sessionId});
 
-        await _waitUntil(() => !sync.messagesSync.containsKey(sessionId));
+      await _waitUntil(() => !sync.messagesSync.containsKey(sessionId));
 
-        expect(
-          sync.messagesSync.containsKey(sessionId),
-          isFalse,
-          reason:
-              'delete-session should dispose and remove the '
-              'messagesSync entry for the deleted session',
-        );
-      },
-    );
+      expect(
+        sync.messagesSync.containsKey(sessionId),
+        isFalse,
+        reason:
+            'delete-session should dispose and remove the '
+            'messagesSync entry for the deleted session',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -426,9 +381,7 @@ void main() {
           'active': true,
         });
 
-        await _waitUntil(
-          () => sync.testSessions[sessionId]?.thinking ?? false,
-        );
+        await _waitUntil(() => sync.testSessions[sessionId]?.thinking ?? false);
 
         final session = sync.testSessions[sessionId];
         expect(
@@ -446,42 +399,39 @@ void main() {
       },
     );
 
-    test(
-      'activity event fires onDomainChanged(sessions)',
-      () async {
-        const sessionId = 'sess-think-notify';
+    test('activity event fires onDomainChanged(sessions)', () async {
+      const sessionId = 'sess-think-notify';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          thinking: false,
-          presence: 'offline',
-        );
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        thinking: false,
+        presence: 'offline',
+      );
 
-        var notified = false;
-        final sub = sync.onDomainChanged
-            .where((d) => d == SyncDomain.sessions)
-            .listen((_) => notified = true);
+      var notified = false;
+      final sub = sync.onDomainChanged
+          .where((d) => d == SyncDomain.sessions)
+          .listen((_) => notified = true);
 
-        sync.handleEphemeralUpdate({
-          't': 'activity',
-          'id': sessionId,
-          'thinking': true,
-          'active': true,
-        });
+      sync.handleEphemeralUpdate({
+        't': 'activity',
+        'id': sessionId,
+        'thinking': true,
+        'active': true,
+      });
 
-        await _waitUntil(() => notified);
+      await _waitUntil(() => notified);
 
-        await sub.cancel();
+      await sub.cancel();
 
-        expect(
-          notified,
-          isTrue,
-          reason:
-              'onDomainChanged(sessions) should fire after an activity '
-              'ephemeral event updates session state',
-        );
-      },
-    );
+      expect(
+        notified,
+        isTrue,
+        reason:
+            'onDomainChanged(sessions) should fire after an activity '
+            'ephemeral event updates session state',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -511,42 +461,39 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'activity with active=true transitions presence to online',
-      () async {
-        const sessionId = 'sess-pres-online';
+    test('activity with active=true transitions presence to online', () async {
+      const sessionId = 'sess-pres-online';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          presence: 'offline',
-        );
+      sync.testSessions[sessionId] = _makeSession(
+        sessionId,
+        presence: 'offline',
+      );
 
-        sync.handleEphemeralUpdate({
-          't': 'activity',
-          'id': sessionId,
-          'thinking': false,
-          'active': true,
-        });
+      sync.handleEphemeralUpdate({
+        't': 'activity',
+        'id': sessionId,
+        'thinking': false,
+        'active': true,
+      });
 
-        await _waitUntil(
-          () => sync.testSessions[sessionId]?.presence == 'online',
-        );
+      await _waitUntil(
+        () => sync.testSessions[sessionId]?.presence == 'online',
+      );
 
-        final session = sync.testSessions[sessionId];
-        expect(
-          session,
-          isNotNull,
-          reason: 'Session should still exist after presence update',
-        );
-        expect(
-          session!.presence,
-          equals('online'),
-          reason:
-              'Presence should be online after activity event '
-              'with active=true',
-        );
-      },
-    );
+      final session = sync.testSessions[sessionId];
+      expect(
+        session,
+        isNotNull,
+        reason: 'Session should still exist after presence update',
+      );
+      expect(
+        session!.presence,
+        equals('online'),
+        reason:
+            'Presence should be online after activity event '
+            'with active=true',
+      );
+    });
 
     test(
       'activity with active=false transitions presence to offline',
@@ -613,60 +560,54 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'ephemeral update does not modify persistent session state',
-      () async {
-        const sessionId = 'sess-eph-1';
-        const otherSessionId = 'sess-eph-2';
+    test('ephemeral update does not modify persistent session state', () async {
+      const sessionId = 'sess-eph-1';
+      const otherSessionId = 'sess-eph-2';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId);
-        sync.testSessions[otherSessionId] = _makeSession(otherSessionId);
+      sync.testSessions[sessionId] = _makeSession(sessionId);
+      sync.testSessions[otherSessionId] = _makeSession(otherSessionId);
 
-        final sessionsBefore =
-            Map<String, Session>.from(sync.testSessions);
+      final sessionsBefore = Map<String, Session>.from(sync.testSessions);
 
-        // Inject an ephemeral event for a session that has no entry in
-        // _sessions (unknown session) — should not create a new entry.
-        sync.handleEphemeralUpdate({
-          't': 'unknown-ephemeral-type',
-          'id': 'non-existent-session',
-        });
+      // Inject an ephemeral event for a session that has no entry in
+      // _sessions (unknown session) — should not create a new entry.
+      sync.handleEphemeralUpdate({
+        't': 'unknown-ephemeral-type',
+        'id': 'non-existent-session',
+      });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
-        );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        // Sessions map should be unchanged.
+      // Sessions map should be unchanged.
+      expect(
+        sync.testSessions.keys.toSet(),
+        equals(sessionsBefore.keys.toSet()),
+        reason:
+            'Ephemeral events for unknown sessions should not '
+            'add entries to the persistent sessions map',
+      );
+
+      // Existing sessions should not be modified.
+      for (final id in sessionsBefore.keys) {
+        final before = sessionsBefore[id]!;
+        final after = sync.testSessions[id];
         expect(
-          sync.testSessions.keys.toSet(),
-          equals(sessionsBefore.keys.toSet()),
-          reason:
-              'Ephemeral events for unknown sessions should not '
-              'add entries to the persistent sessions map',
+          after,
+          isNotNull,
+          reason: 'Existing session $id should still be present',
         );
-
-        // Existing sessions should not be modified.
-        for (final id in sessionsBefore.keys) {
-          final before = sessionsBefore[id]!;
-          final after = sync.testSessions[id];
-          expect(
-            after,
-            isNotNull,
-            reason: 'Existing session $id should still be present',
-          );
-          expect(
-            after!.id,
-            equals(before.id),
-            reason: 'Session $id id should be unchanged',
-          );
-          expect(
-            after.seq,
-            equals(before.seq),
-            reason: 'Session $id seq should be unchanged',
-          );
-        }
-      },
-    );
+        expect(
+          after!.id,
+          equals(before.id),
+          reason: 'Session $id id should be unchanged',
+        );
+        expect(
+          after.seq,
+          equals(before.seq),
+          reason: 'Session $id seq should be unchanged',
+        );
+      }
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -862,10 +803,7 @@ Map<String, dynamic> _makeEncryptedMessage(
     'role': 'agent',
     'content': {
       'type': 'output',
-      'data': {
-        'type': 'assistant',
-        'message': content,
-      },
+      'data': {'type': 'assistant', 'message': content},
     },
   };
   final jsonStr = jsonEncode(innerContent);
@@ -930,8 +868,7 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
   void removeSessionEncryption(String sessionId) {
@@ -939,18 +876,17 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

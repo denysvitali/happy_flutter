@@ -34,10 +34,7 @@ class SentryTracingService {
     final transaction = Sentry.getSpan();
     if (transaction == null) return null;
 
-    final span = transaction.startChild(
-      operation,
-      description: description,
-    );
+    final span = transaction.startChild(operation, description: description);
 
     if (data != null) {
       for (final entry in data.entries) {
@@ -81,15 +78,14 @@ class SentryTracingService {
     Map<String, dynamic>? data,
     SentryLevel level = SentryLevel.info,
   }) {
-    Sentry.addBreadcrumb(Breadcrumb(
-      message: message,
-      category: category,
-      level: level,
-      data: {
-        'elapsedMs': elapsedMs,
-        ...?data,
-      },
-    ));
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: message,
+        category: category,
+        level: level,
+        data: {'elapsedMs': elapsedMs, ...?data},
+      ),
+    );
   }
 
   /// Adds a breadcrumb for state changes.
@@ -100,14 +96,13 @@ class SentryTracingService {
     required Map<String, dynamic> after,
     SentryLevel level = SentryLevel.info,
   }) {
-    Sentry.addBreadcrumb(Breadcrumb(
-      message: message,
-      category: category,
-      level: level,
-      data: {
-        'before': before,
-        'after': after,
-      },
-    ));
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        message: message,
+        category: category,
+        level: level,
+        data: {'before': before, 'after': after},
+      ),
+    );
   }
 }

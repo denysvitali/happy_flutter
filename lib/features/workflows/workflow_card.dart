@@ -92,8 +92,7 @@ class WorkflowCard extends StatelessWidget {
     final subtitle = _subtitle;
     final groups = WorkflowRun.phaseGroups(run);
     final hasSummary = run.summary != null && run.summary!.isNotEmpty;
-    final hasDetails =
-        hasSummary || groups.isNotEmpty || subtitle.isNotEmpty;
+    final hasDetails = hasSummary || groups.isNotEmpty || subtitle.isNotEmpty;
     final hasSteps = stepCount != null && stepCount! > 0;
 
     return Card(
@@ -205,7 +204,10 @@ class WorkflowCard extends StatelessWidget {
                       stepPreview!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontStyle: FontStyle.italic),
+                      style: AppText.secondary(
+                        theme,
+                        cs.onSurfaceVariant,
+                      ).copyWith(fontStyle: FontStyle.italic),
                     ),
                   ],
                 ] else if (WorkflowStatus.isStarting(run.status))
@@ -234,7 +236,10 @@ class WorkflowCard extends StatelessWidget {
                 else
                   Text(
                     'No progress details',
-                    style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontStyle: FontStyle.italic),
+                    style: AppText.secondary(
+                      theme,
+                      cs.onSurfaceVariant,
+                    ).copyWith(fontStyle: FontStyle.italic),
                   ),
               ],
             ],

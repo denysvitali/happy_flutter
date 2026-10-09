@@ -33,7 +33,4 @@ class HexUtils {
   }
 }
 
-enum HexFormat {
-  normal,
-  mac,
-}
+enum HexFormat { normal, mac }

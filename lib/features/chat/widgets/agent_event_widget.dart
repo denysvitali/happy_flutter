@@ -145,10 +145,7 @@ class AgentEventWidget extends StatelessWidget {
               child: KnownTools.iconFor(subAgentTool, 12, color),
             ),
             const SizedBox(width: AppSpacing.xs),
-            Text(
-              subAgentTool,
-              style: AppText.label(theme, color),
-            ),
+            Text(subAgentTool, style: AppText.label(theme, color)),
           ];
     if (_isTaskEvent) {
       // Same aurora-chip family as TaskEventSummaryCard so a task's
@@ -205,16 +202,10 @@ class AgentEventWidget extends StatelessWidget {
                     ),
                   ),
                   SizedBox(width: AppSpacing.xs),
-                  Text(
-                    _taskPhaseLabel,
-                    style: AppText.badge(theme, color),
-                  ),
+                  Text(_taskPhaseLabel, style: AppText.badge(theme, color)),
                   if (toolChip.isNotEmpty) ...[
                     SizedBox(width: AppSpacing.xs),
-                    Text(
-                      '·',
-                      style: AppText.secondary(theme, color),
-                    ),
+                    Text('·', style: AppText.secondary(theme, color)),
                     SizedBox(width: AppSpacing.xs),
                     ...toolChip,
                   ],

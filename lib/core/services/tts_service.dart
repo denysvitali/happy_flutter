@@ -470,8 +470,8 @@ class TtsService {
       // on a sherpa probe (or, worse, racing past it). The next tap
       // — by which time `initialize()` has resolved — will use the
       // offline engine as configured.
-      final initInFlight = !OfflineTtsService().isReady &&
-          _offlineVoiceNotReady(offlineVoiceId);
+      final initInFlight =
+          !OfflineTtsService().isReady && _offlineVoiceNotReady(offlineVoiceId);
 
       if (probeBroken) {
         _logFallbackOnce(
@@ -495,7 +495,9 @@ class TtsService {
         if (_initialized && _tts != null) {
           try {
             await _tts!.stop();
-          } catch (_) {/* ignore */}
+          } catch (_) {
+            /* ignore */
+          }
         }
         _activeBackend = _Backend.offline;
         _setCurrentToken(token);
@@ -578,7 +580,9 @@ class TtsService {
     // audio playing after a session change.
     try {
       await OfflineTtsService().stop();
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
     if (kIsWeb || _tts == null) return;
     try {
       await _tts!.stop();
@@ -595,7 +599,9 @@ class TtsService {
     _currentText.value = null;
     try {
       await OfflineTtsService().dispose();
-    } catch (_) {/* ignore */}
+    } catch (_) {
+      /* ignore */
+    }
     if (_tts != null) {
       try {
         await _tts!.stop();

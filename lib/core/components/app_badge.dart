@@ -99,10 +99,11 @@ class AppBadge extends StatelessWidget {
     ).merge(labelStyle);
 
     return Container(
-      constraints: minWidth == null ? null : BoxConstraints(minWidth: minWidth!),
+      constraints: minWidth == null
+          ? null
+          : BoxConstraints(minWidth: minWidth!),
       alignment: minWidth == null ? null : Alignment.center,
-      padding:
-          padding ?? defaultPadding,
+      padding: padding ?? defaultPadding,
       decoration: BoxDecoration(
         color: backgroundColor ?? visuals.background,
         borderRadius: BorderRadius.circular(AppRadius.pill),

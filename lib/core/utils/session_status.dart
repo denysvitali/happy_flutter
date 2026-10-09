@@ -21,7 +21,6 @@ enum SessionState {
 
 /// Status information for session display.
 class SessionStatus {
-
   const SessionStatus({
     required this.state,
     required this.isConnected,
@@ -31,6 +30,7 @@ class SessionStatus {
     required this.statusDotColor,
     this.isPulsing = false,
   });
+
   /// The current state of the session.
   final SessionState state;
 

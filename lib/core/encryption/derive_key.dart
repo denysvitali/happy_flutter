@@ -4,7 +4,6 @@ import 'text.dart';
 
 /// Key tree state for hierarchical key derivation
 class KeyTreeState {
-
   KeyTreeState(this.key, this.chainCode);
   final Uint8List key;
   final Uint8List chainCode;
@@ -17,10 +16,7 @@ class DeriveKey {
     final usageBytes = TextUtils.encodeUtf8('$usage Master Seed');
     final I = await HmacSha512.compute(usageBytes, seed);
 
-    return KeyTreeState(
-      I.sublist(0, 32),
-      I.sublist(32),
-    );
+    return KeyTreeState(I.sublist(0, 32), I.sublist(32));
   }
 
   /// Derive child key from chain code
@@ -36,10 +32,7 @@ class DeriveKey {
     // Derive key
     final I = await HmacSha512.compute(chainCode, data);
 
-    return KeyTreeState(
-      I.sublist(0, 32),
-      I.sublist(32),
-    );
+    return KeyTreeState(I.sublist(0, 32), I.sublist(32));
   }
 
   /// Derive key from master with usage and path

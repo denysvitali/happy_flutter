@@ -149,10 +149,7 @@ class _FileDiffCardState extends State<FileDiffCard> {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(
-          color: cs.outlineVariant,
-          width: 0.5,
-        ),
+        border: Border.all(color: cs.outlineVariant, width: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       clipBehavior: Clip.antiAlias,
@@ -164,10 +161,7 @@ class _FileDiffCardState extends State<FileDiffCard> {
             onTap: () => setState(() => _collapsed = !_collapsed),
             child: Container(
               color: cs.surfaceContainerHighest,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 7,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               child: Row(
                 children: [
                   Container(
@@ -217,9 +211,7 @@ class _FileDiffCardState extends State<FileDiffCard> {
                   ],
                   const Spacer(),
                   Icon(
-                    _collapsed
-                        ? Icons.expand_more
-                        : Icons.expand_less,
+                    _collapsed ? Icons.expand_more : Icons.expand_less,
                     size: 16,
                     color: cs.onSurfaceVariant,
                   ),
@@ -390,9 +382,7 @@ class _FileDiffExpandToggle extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              expanded
-                  ? 'Hide diff'
-                  : 'Show diff ($totalLines lines)',
+              expanded ? 'Hide diff' : 'Show diff ($totalLines lines)',
               style: TextStyle(
                 fontSize: AppFontSize.sm,
                 color: cs.primary,

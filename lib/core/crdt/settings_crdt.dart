@@ -26,13 +26,11 @@ library;
 import 'lww_register.dart';
 
 class SettingsCrdt {
-  SettingsCrdt({
-    required String replicaId,
-    int Function()? clock,
-  }) : _map = LwwMap<Object?>(
-          replicaId: replicaId,
-          clock: clock ?? _defaultClock,
-        );
+  SettingsCrdt({required String replicaId, int Function()? clock})
+    : _map = LwwMap<Object?>(
+        replicaId: replicaId,
+        clock: clock ?? _defaultClock,
+      );
 
   SettingsCrdt._fromMap(this._map);
 

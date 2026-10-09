@@ -23,13 +23,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Opus 4.5', findRichText: true),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Sonnet 5', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Opus 4.5', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Sonnet 5', findRichText: true), findsOneWidget);
   });
 }

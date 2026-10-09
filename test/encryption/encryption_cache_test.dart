@@ -295,7 +295,8 @@ void main() {
         expect(
           cache.getStats()['retainedBytes'],
           lessThanOrEqualTo(EncryptionCache.messageByteBudget * 11 ~/ 10),
-          reason: 'residency stays at the ceiling (small overshoot allowed '
+          reason:
+              'residency stays at the ceiling (small overshoot allowed '
               'for a single oversized newest entry)',
         );
       });

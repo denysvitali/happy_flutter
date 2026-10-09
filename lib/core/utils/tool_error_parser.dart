@@ -87,11 +87,11 @@ class ToolErrorParser {
 </tool_use_error>''';
   static final _toolUseErrorRegex = RegExp(_toolUseErrorRegExp, dotAll: true);
 
-  static final _errorNameRegExp = r'^(?:<error_name>(.*?)</error_name>\s*)?(.*)';
+  static final _errorNameRegExp =
+      r'^(?:<error_name>(.*?)</error_name>\s*)?(.*)';
   static final _errorNameRegex = RegExp(_errorNameRegExp, dotAll: true);
 
-  static final _suggestionRegExp =
-      r'<suggestion>(.*?)</suggestion>';
+  static final _suggestionRegExp = r'<suggestion>(.*?)</suggestion>';
   static final _suggestionRegex = RegExp(_suggestionRegExp, dotAll: true);
 
   static final _contextRegExp = r'<context>(.*?)</context>';
@@ -100,7 +100,6 @@ class ToolErrorParser {
 
 /// Parsed tool error information
 class ParsedToolError {
-
   ParsedToolError({
     required this.rawMessage,
     required this.errorType,
@@ -109,6 +108,7 @@ class ParsedToolError {
     this.suggestion,
     this.context,
   });
+
   /// The original raw error message
   final String rawMessage;
 

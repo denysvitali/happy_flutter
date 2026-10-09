@@ -56,36 +56,32 @@ void main() {
       expect(instance.messagesRevision('sess-rev-c'), 0);
     });
 
-    test(
-      'revision has already advanced when onSessionMessagesChanged fires '
-      '— a UI refresh can never observe a stale revision',
-      () async {
-        const id = 'sess-rev-emit';
-        final revisionsAtEmit = <int>[];
-        final sub = instance.onSessionMessagesChanged
-            .where((s) => s == id)
-            .listen(
-              (_) => revisionsAtEmit.add(instance.messagesRevision(id)),
-            );
+    test('revision has already advanced when onSessionMessagesChanged fires '
+        '— a UI refresh can never observe a stale revision', () async {
+      const id = 'sess-rev-emit';
+      final revisionsAtEmit = <int>[];
+      final sub = instance.onSessionMessagesChanged
+          .where((s) => s == id)
+          .listen((_) => revisionsAtEmit.add(instance.messagesRevision(id)));
 
-        instance.testNotifySessionMessagesChanged(id);
-        // Broadcast streams deliver on microtasks; let the queue drain.
-        await Future<void>.delayed(const Duration(milliseconds: 5));
+      instance.testNotifySessionMessagesChanged(id);
+      // Broadcast streams deliver on microtasks; let the queue drain.
+      await Future<void>.delayed(const Duration(milliseconds: 5));
 
-        expect(
-          revisionsAtEmit,
-          isNotEmpty,
-          reason: 'a real change must wake onSessionMessagesChanged',
-        );
-        expect(
-          revisionsAtEmit.first,
-          greaterThanOrEqualTo(1),
-          reason: 'the revision must move before/with the emit, otherwise '
-              '_refreshFromSync early-returns and the change disappears',
-        );
+      expect(
+        revisionsAtEmit,
+        isNotEmpty,
+        reason: 'a real change must wake onSessionMessagesChanged',
+      );
+      expect(
+        revisionsAtEmit.first,
+        greaterThanOrEqualTo(1),
+        reason:
+            'the revision must move before/with the emit, otherwise '
+            '_refreshFromSync early-returns and the change disappears',
+      );
 
-        await sub.cancel();
-      },
-    );
+      await sub.cancel();
+    });
   });
 }

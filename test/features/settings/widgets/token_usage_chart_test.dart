@@ -36,9 +36,7 @@ void main() {
             body: SingleChildScrollView(
               child: Column(
                 children: [
-                  TokenUsageChart(
-                    dailyModelTokens: usage.dailyModelTokens,
-                  ),
+                  TokenUsageChart(dailyModelTokens: usage.dailyModelTokens),
                   TokenUsageMetrics(usage: usage),
                 ],
               ),
@@ -66,9 +64,7 @@ void main() {
         MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const Scaffold(
-            body: TokenUsageChart(dailyModelTokens: []),
-          ),
+          home: const Scaffold(body: TokenUsageChart(dailyModelTokens: [])),
         ),
       );
       await tester.pumpAndSettle();

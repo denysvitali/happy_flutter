@@ -309,11 +309,7 @@ class _CodexCommandView extends StatelessWidget {
             isError: true,
           ),
         if (error != null)
-          TerminalOutputSection(
-            label: 'error',
-            output: error!,
-            isError: true,
-          ),
+          TerminalOutputSection(label: 'error', output: error!, isError: true),
         if (exitCode != null) ExitCodeBadge(exitCode: exitCode!),
         // Raw JSON output is reachable via long-press → details; no inline
         // toggle here.
@@ -321,4 +317,3 @@ class _CodexCommandView extends StatelessWidget {
     );
   }
 }
-

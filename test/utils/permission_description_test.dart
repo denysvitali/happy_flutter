@@ -4,10 +4,7 @@ import 'package:happy_flutter/core/utils/permission_description.dart';
 void main() {
   group('describePermissionAction', () {
     test('returns generic run when toolInput is null', () {
-      expect(
-        describePermissionAction('Bash', null),
-        'run Bash',
-      );
+      expect(describePermissionAction('Bash', null), 'run Bash');
     });
 
     test('describes Edit with path', () {
@@ -33,30 +30,21 @@ void main() {
 
     test('describes MultiEdit with path', () {
       expect(
-        describePermissionAction(
-          'MultiEdit',
-          {'path': 'lib/foo.dart'},
-        ),
+        describePermissionAction('MultiEdit', {'path': 'lib/foo.dart'}),
         'edit lib/foo.dart',
       );
     });
 
     test('describes NotebookEdit with path', () {
       expect(
-        describePermissionAction(
-          'NotebookEdit',
-          {'path': 'notebook.ipynb'},
-        ),
+        describePermissionAction('NotebookEdit', {'path': 'notebook.ipynb'}),
         'edit notebook.ipynb',
       );
     });
 
     test('describes Write with path', () {
       expect(
-        describePermissionAction(
-          'Write',
-          {'path': 'new_file.dart'},
-        ),
+        describePermissionAction('Write', {'path': 'new_file.dart'}),
         'write new_file.dart',
       );
     });
@@ -70,20 +58,14 @@ void main() {
 
     test('describes Bash with command', () {
       expect(
-        describePermissionAction(
-          'Bash',
-          {'command': 'git status'},
-        ),
+        describePermissionAction('Bash', {'command': 'git status'}),
         'run: git status',
       );
     });
 
     test('truncates long Bash commands', () {
       final longCmd = 'a' * 60;
-      final result = describePermissionAction(
-        'Bash',
-        {'command': longCmd},
-      );
+      final result = describePermissionAction('Bash', {'command': longCmd});
       expect(result, startsWith('run: '));
       // 42 chars + ellipsis
       expect(result, contains('\u2026'));
@@ -98,30 +80,21 @@ void main() {
 
     test('describes ExitPlanMode', () {
       expect(
-        describePermissionAction(
-          'ExitPlanMode',
-          <String, dynamic>{},
-        ),
+        describePermissionAction('ExitPlanMode', <String, dynamic>{}),
         'accept plan and continue',
       );
     });
 
     test('describes exit_plan_mode (snake_case variant)', () {
       expect(
-        describePermissionAction(
-          'exit_plan_mode',
-          <String, dynamic>{},
-        ),
+        describePermissionAction('exit_plan_mode', <String, dynamic>{}),
         'accept plan and continue',
       );
     });
 
     test('describes unknown tool', () {
       expect(
-        describePermissionAction(
-          'CustomTool',
-          {'key': 'value'},
-        ),
+        describePermissionAction('CustomTool', {'key': 'value'}),
         'run CustomTool',
       );
     });

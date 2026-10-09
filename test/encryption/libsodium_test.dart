@@ -11,48 +11,71 @@ void main() {
   group('CryptoBox - libsodium compatibility', () {
     test('Constants match libsodium values', () {
       // Verify constants match libsodium
-      expect(CryptoBoxConstants.publicKeyBytes, equals(32),
-          reason: 'crypto_box_PUBLICKEYBYTES should be 32');
-      expect(CryptoBoxConstants.secretKeyBytes, equals(32),
-          reason: 'crypto_box_SECRETKEYBYTES should be 32');
-      expect(CryptoBoxConstants.nonceBytes, equals(24),
-          reason: 'crypto_box_NONCEBYTES should be 24');
-      expect(CryptoBoxConstants.seedBytes, equals(32),
-          reason: 'crypto_box_SEEDBYTES should be 32');
+      expect(
+        CryptoBoxConstants.publicKeyBytes,
+        equals(32),
+        reason: 'crypto_box_PUBLICKEYBYTES should be 32',
+      );
+      expect(
+        CryptoBoxConstants.secretKeyBytes,
+        equals(32),
+        reason: 'crypto_box_SECRETKEYBYTES should be 32',
+      );
+      expect(
+        CryptoBoxConstants.nonceBytes,
+        equals(24),
+        reason: 'crypto_box_NONCEBYTES should be 24',
+      );
+      expect(
+        CryptoBoxConstants.seedBytes,
+        equals(32),
+        reason: 'crypto_box_SEEDBYTES should be 32',
+      );
     });
 
     test('Generate random nonce is 24 bytes', () async {
       final nonce = await CryptoBox.randomNonce();
-      expect(nonce.length, equals(24),
-          reason: 'Nonce should be 24 bytes for libsodium compatibility');
+      expect(
+        nonce.length,
+        equals(24),
+        reason: 'Nonce should be 24 bytes for libsodium compatibility',
+      );
     });
 
     test('Generated nonces are unique', () async {
       final nonce1 = await CryptoBox.randomNonce();
       final nonce2 = await CryptoBox.randomNonce();
-      expect(nonce1, isNot(equals(nonce2)),
-          reason: 'Random nonces should be unique');
+      expect(
+        nonce1,
+        isNot(equals(nonce2)),
+        reason: 'Random nonces should be unique',
+      );
     });
 
     test('Generate keypair from seed produces valid keys', () async {
-      final seed = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final seed = Uint8List.fromList(List.generate(32, (i) => i));
 
       final keypair = await CryptoBox.keypairFromSeed(seed);
 
-      expect(keypair.publicKey.length, equals(32),
-          reason: 'Public key should be 32 bytes');
-      expect(keypair.privateKey.length, equals(32),
-          reason: 'Private key should be 32 bytes');
-      expect(keypair.secretKey.length, equals(32),
-          reason: 'Secret key should be 32 bytes');
+      expect(
+        keypair.publicKey.length,
+        equals(32),
+        reason: 'Public key should be 32 bytes',
+      );
+      expect(
+        keypair.privateKey.length,
+        equals(32),
+        reason: 'Private key should be 32 bytes',
+      );
+      expect(
+        keypair.secretKey.length,
+        equals(32),
+        reason: 'Secret key should be 32 bytes',
+      );
     });
 
     test('Same seed produces same keypair', () async {
-      final seed = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final seed = Uint8List.fromList(List.generate(32, (i) => i));
 
       final keypair1 = await CryptoBox.keypairFromSeed(seed);
       final keypair2 = await CryptoBox.keypairFromSeed(seed);
@@ -124,8 +147,11 @@ void main() {
 
       // Extract nonce
       final nonce = encrypted.sublist(32, 32 + 24);
-      expect(nonce.length, equals(24),
-          reason: 'Nonce should be 24 bytes for libsodium compatibility');
+      expect(
+        nonce.length,
+        equals(24),
+        reason: 'Nonce should be 24 bytes for libsodium compatibility',
+      );
     });
 
     test('Wrong key fails to decrypt', () async {
@@ -145,8 +171,11 @@ void main() {
         wrongKeypair.privateKey,
       );
 
-      expect(decrypted, isNull,
-          reason: 'Decryption with wrong key should fail');
+      expect(
+        decrypted,
+        isNull,
+        reason: 'Decryption with wrong key should fail',
+      );
     });
   });
 
@@ -172,14 +201,9 @@ void main() {
     });
 
     test('Encrypt and decrypt roundtrip', () async {
-      final secretKey = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final secretKey = Uint8List.fromList(List.generate(32, (i) => i));
 
-      final plaintext = {
-        'message': 'Hello, secret box!',
-        'number': 42,
-      };
+      final plaintext = {'message': 'Hello, secret box!', 'number': 42};
 
       final encrypted = await CryptoSecretBox.encrypt(plaintext, secretKey);
       final decrypted = await CryptoSecretBox.decrypt(encrypted, secretKey);
@@ -189,9 +213,7 @@ void main() {
     });
 
     test('Encrypted bundle format is correct', () async {
-      final secretKey = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final secretKey = Uint8List.fromList(List.generate(32, (i) => i));
 
       final plaintext = {'data': 'test'};
 
@@ -205,31 +227,31 @@ void main() {
       );
 
       final nonce = encrypted.sublist(0, 24);
-      expect(nonce.length, equals(24),
-          reason: 'Nonce should be 24 bytes for libsodium compatibility');
+      expect(
+        nonce.length,
+        equals(24),
+        reason: 'Nonce should be 24 bytes for libsodium compatibility',
+      );
     });
 
     test('Wrong key fails to decrypt', () async {
-      final secretKey = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
-      final wrongKey = Uint8List.fromList(
-        List.generate(32, (i) => i + 1),
-      );
+      final secretKey = Uint8List.fromList(List.generate(32, (i) => i));
+      final wrongKey = Uint8List.fromList(List.generate(32, (i) => i + 1));
 
       final plaintext = {'secret': 'data'};
 
       final encrypted = await CryptoSecretBox.encrypt(plaintext, secretKey);
       final decrypted = await CryptoSecretBox.decrypt(encrypted, wrongKey);
 
-      expect(decrypted, isNull,
-          reason: 'Decryption with wrong key should fail');
+      expect(
+        decrypted,
+        isNull,
+        reason: 'Decryption with wrong key should fail',
+      );
     });
 
     test('Truncated key is handled correctly', () async {
-      final longKey = Uint8List.fromList(
-        List.generate(64, (i) => i),
-      );
+      final longKey = Uint8List.fromList(List.generate(64, (i) => i));
 
       final plaintext = {'test': 'data'};
 
@@ -282,9 +304,7 @@ void main() {
       // result.set(nonce);
       // result.set(encrypted, nonce.length);
 
-      final secretKey = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final secretKey = Uint8List.fromList(List.generate(32, (i) => i));
 
       final plaintext = {'cross': 'platform'};
 
@@ -306,45 +326,39 @@ void main() {
 
   group('Key derivation compatibility', () {
     test('DeriveKey produces consistent results', () async {
-      final masterSecret = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final masterSecret = Uint8List.fromList(List.generate(32, (i) => i));
 
-      final key1 = await DeriveKey.derive(
-        masterSecret,
-        'Happy EnCoder',
-        ['content'],
-      );
+      final key1 = await DeriveKey.derive(masterSecret, 'Happy EnCoder', [
+        'content',
+      ]);
 
-      final key2 = await DeriveKey.derive(
-        masterSecret,
-        'Happy EnCoder',
-        ['content'],
-      );
+      final key2 = await DeriveKey.derive(masterSecret, 'Happy EnCoder', [
+        'content',
+      ]);
 
-      expect(key1, equals(key2),
-          reason: 'Same inputs should produce same derived key');
+      expect(
+        key1,
+        equals(key2),
+        reason: 'Same inputs should produce same derived key',
+      );
     });
 
     test('Different paths produce different keys', () async {
-      final masterSecret = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final masterSecret = Uint8List.fromList(List.generate(32, (i) => i));
 
-      final key1 = await DeriveKey.derive(
-        masterSecret,
-        'Happy EnCoder',
-        ['content'],
-      );
+      final key1 = await DeriveKey.derive(masterSecret, 'Happy EnCoder', [
+        'content',
+      ]);
 
-      final key2 = await DeriveKey.derive(
-        masterSecret,
-        'Happy EnCoder',
-        ['session'],
-      );
+      final key2 = await DeriveKey.derive(masterSecret, 'Happy EnCoder', [
+        'session',
+      ]);
 
-      expect(key1, isNot(equals(key2)),
-          reason: 'Different paths should produce different keys');
+      expect(
+        key1,
+        isNot(equals(key2)),
+        reason: 'Different paths should produce different keys',
+      );
     });
   });
 
@@ -403,8 +417,11 @@ void main() {
         recipientKeypair.privateKey,
       );
 
-      expect(decrypted, isNull,
-          reason: 'Decryption of corrupted data should return null');
+      expect(
+        decrypted,
+        isNull,
+        reason: 'Decryption of corrupted data should return null',
+      );
     });
 
     test('Short bundle returns null', () async {
@@ -417,8 +434,11 @@ void main() {
         recipientKeypair.privateKey,
       );
 
-      expect(decrypted, isNull,
-          reason: 'Decryption of short bundle should return null');
+      expect(
+        decrypted,
+        isNull,
+        reason: 'Decryption of short bundle should return null',
+      );
     });
   });
 }

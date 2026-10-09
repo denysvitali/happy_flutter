@@ -147,7 +147,10 @@ class _LoopsScreenState extends ConsumerState<LoopsScreen>
                       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                       child: Text(
                         l10n.loopsCount(loops.length),
-                        style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: AppText.secondary(
+                          Theme.of(context),
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     );
                   }

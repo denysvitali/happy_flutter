@@ -27,8 +27,8 @@ abstract final class AppInlineText {
   }
 
   /// [chrome] for the one emphasized word in a row (its title or action).
-  static TextStyle chromeStrong(BuildContext context) => chrome(context)
-      .copyWith(
+  static TextStyle chromeStrong(BuildContext context) =>
+      chrome(context).copyWith(
         fontWeight: FontWeight.w600,
         color: Theme.of(context).colorScheme.onSurface,
       );

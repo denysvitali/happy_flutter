@@ -131,9 +131,7 @@ void main() {
       expect(find.text('Deny'), findsOneWidget);
       expect(
         tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Allow'),
-            )
+            .widget<FilledButton>(find.widgetWithText(FilledButton, 'Allow'))
             .onPressed,
         isNull,
       );

@@ -84,7 +84,10 @@ class GrokUsageScreen extends StatelessWidget {
                 dense: false,
                 footer: Text(
                   '$usedLabel / $limitLabel · $remainingLabel left',
-                  style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: AppText.secondary(
+                    Theme.of(context),
+                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               UsageStatRow(

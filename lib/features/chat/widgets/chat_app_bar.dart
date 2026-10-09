@@ -430,10 +430,7 @@ class _VitalPill extends StatelessWidget {
         children: [
           Icon(icon, size: AppIconSize.sm, color: color),
           const SizedBox(width: AppSpacing.xxs),
-          Text(
-            label,
-            style: AppText.label(theme, cs.onSurfaceVariant),
-          ),
+          Text(label, style: AppText.label(theme, cs.onSurfaceVariant)),
           const SizedBox(width: AppSpacing.xxs),
           Expanded(
             child: ClipRRect(
@@ -449,7 +446,10 @@ class _VitalPill extends StatelessWidget {
           const SizedBox(width: AppSpacing.xxs),
           Text(
             '${value.toStringAsFixed(0)}%',
-            style: AppText.label(theme, cs.onSurface).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+            style: AppText.label(
+              theme,
+              cs.onSurface,
+            ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ],
       ),
@@ -514,7 +514,11 @@ class _StatusRow extends StatelessWidget {
                                   pulse: chip.pulse,
                                   size: 6,
                                 )
-                              : Icon(chip.icon, size: AppIconSize.xs, color: chip.color),
+                              : Icon(
+                                  chip.icon,
+                                  size: AppIconSize.xs,
+                                  color: chip.color,
+                                ),
                           textColor: chip.color,
                           backgroundColor: chip.color.withValues(alpha: 0.08),
                           borderColor: chip.color.withValues(alpha: 0.16),
@@ -527,7 +531,6 @@ class _StatusRow extends StatelessWidget {
             ),
     );
   }
-
 }
 
 /// Fades out the trailing edge of a horizontally scrollable strip so a chip

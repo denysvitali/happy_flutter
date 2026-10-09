@@ -14,8 +14,7 @@ class FriendSearchScreen extends ConsumerStatefulWidget {
   ConsumerState<FriendSearchScreen> createState() => _FriendSearchScreenState();
 }
 
-class _FriendSearchScreenState
-    extends ConsumerState<FriendSearchScreen> {
+class _FriendSearchScreenState extends ConsumerState<FriendSearchScreen> {
   final _controller = TextEditingController();
 
   @override
@@ -29,9 +28,7 @@ class _FriendSearchScreenState
     final l10n = context.l10n;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.friendsFindFriends),
-      ),
+      appBar: AppBar(title: Text(l10n.friendsFindFriends)),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

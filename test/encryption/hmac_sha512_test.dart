@@ -81,12 +81,8 @@ void main() {
     });
 
     test('produces deterministic output', () async {
-      final key = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
-      final data = Uint8List.fromList(
-        List.generate(64, (i) => i + 100),
-      );
+      final key = Uint8List.fromList(List.generate(32, (i) => i));
+      final data = Uint8List.fromList(List.generate(64, (i) => i + 100));
 
       final results = <Uint8List>[];
       for (var i = 0; i < 10; i++) {

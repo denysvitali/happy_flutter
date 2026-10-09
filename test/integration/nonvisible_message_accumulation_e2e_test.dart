@@ -43,30 +43,33 @@ void main() {
       'socket events for non-visible session are processed inline',
       () async {
         const sessionId = 'sess-bg-1';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 10,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
 
         // Inject three new-message events while session is not visible.
-        sync.handleUpdate(_makeNewMessageUpdate(
-          sessionId,
-          messageId: 'msg-11',
-          seq: 11,
-          content: 'First',
-        ));
-        sync.handleUpdate(_makeNewMessageUpdate(
-          sessionId,
-          messageId: 'msg-12',
-          seq: 12,
-          content: 'Second',
-        ));
-        sync.handleUpdate(_makeNewMessageUpdate(
-          sessionId,
-          messageId: 'msg-13',
-          seq: 13,
-          content: 'Third',
-        ));
+        sync.handleUpdate(
+          _makeNewMessageUpdate(
+            sessionId,
+            messageId: 'msg-11',
+            seq: 11,
+            content: 'First',
+          ),
+        );
+        sync.handleUpdate(
+          _makeNewMessageUpdate(
+            sessionId,
+            messageId: 'msg-12',
+            seq: 12,
+            content: 'Second',
+          ),
+        );
+        sync.handleUpdate(
+          _makeNewMessageUpdate(
+            sessionId,
+            messageId: 'msg-13',
+            seq: 13,
+            content: 'Third',
+          ),
+        );
 
         await Future<void>.delayed(const Duration(milliseconds: 500));
 
@@ -98,18 +101,17 @@ void main() {
       'non-visible session decrypts and stores embedded messages inline',
       () async {
         const sessionId = 'sess-bg-2';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 5,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 5);
 
         // Inject a new-message event with embedded content.
-        sync.handleUpdate(_makeNewMessageUpdate(
-          sessionId,
-          messageId: 'msg-6',
-          seq: 6,
-          content: 'Background message',
-        ));
+        sync.handleUpdate(
+          _makeNewMessageUpdate(
+            sessionId,
+            messageId: 'msg-6',
+            seq: 6,
+            content: 'Background message',
+          ),
+        );
 
         await Future<void>.delayed(const Duration(milliseconds: 500));
 
@@ -126,68 +128,68 @@ void main() {
         expect(
           sync.testHasPendingSocketMessage(sessionId),
           isFalse,
-          reason:
-              'Embedded messages processed inline — no pending flag',
+          reason: 'Embedded messages processed inline — no pending flag',
         );
       },
     );
 
-    test(
-      'pending updates flag is per-session',
-      () async {
-        const sessA = 'sess-A';
-        const sessB = 'sess-B';
-        sync.testSessions[sessA] = _makeSession(sessA, lastSeq: 10);
-        sync.testSessions[sessB] = _makeSession(sessB, lastSeq: 20);
+    test('pending updates flag is per-session', () async {
+      const sessA = 'sess-A';
+      const sessB = 'sess-B';
+      sync.testSessions[sessA] = _makeSession(sessA, lastSeq: 10);
+      sync.testSessions[sessB] = _makeSession(sessB, lastSeq: 20);
 
-        // Events for sess-A only.
-        sync.handleUpdate(_makeNewMessageUpdate(
+      // Events for sess-A only.
+      sync.handleUpdate(
+        _makeNewMessageUpdate(
           sessA,
           messageId: 'msg-A-11',
           seq: 11,
           content: 'For A',
-        ));
+        ),
+      );
 
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
 
-        // Embedded messages are processed inline so the pending
-        // socket flag is NOT set.  But the pending *updates* flag
-        // (used for session list UI refresh) should be set.
-        expect(
-          sync.testHasPendingUpdate(sessA),
-          isTrue,
-          reason:
-              'sess-A should have pending updates flag after its '
-              'event',
-        );
-        expect(
-          sync.testHasPendingUpdate(sessB),
-          isFalse,
-          reason: 'sess-B should NOT have pending updates flag',
-        );
+      // Embedded messages are processed inline so the pending
+      // socket flag is NOT set.  But the pending *updates* flag
+      // (used for session list UI refresh) should be set.
+      expect(
+        sync.testHasPendingUpdate(sessA),
+        isTrue,
+        reason:
+            'sess-A should have pending updates flag after its '
+            'event',
+      );
+      expect(
+        sync.testHasPendingUpdate(sessB),
+        isFalse,
+        reason: 'sess-B should NOT have pending updates flag',
+      );
 
-        // Now inject an event for sess-B.
-        sync.handleUpdate(_makeNewMessageUpdate(
+      // Now inject an event for sess-B.
+      sync.handleUpdate(
+        _makeNewMessageUpdate(
           sessB,
           messageId: 'msg-B-21',
           seq: 21,
           content: 'For B',
-        ));
+        ),
+      );
 
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
 
-        expect(
-          sync.testHasPendingUpdate(sessA),
-          isTrue,
-          reason: 'sess-A flag should still be set',
-        );
-        expect(
-          sync.testHasPendingUpdate(sessB),
-          isTrue,
-          reason: 'sess-B should now have its own pending updates flag',
-        );
-      },
-    );
+      expect(
+        sync.testHasPendingUpdate(sessA),
+        isTrue,
+        reason: 'sess-A flag should still be set',
+      );
+      expect(
+        sync.testHasPendingUpdate(sessB),
+        isTrue,
+        reason: 'sess-B should now have its own pending updates flag',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -217,17 +219,13 @@ void main() {
       'navigating to session with pending messages triggers fetch',
       () async {
         const sessionId = 'sess-nav-1';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 15,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
         // Mark the session as having received socket messages
         // while non-visible.
         sync.testSetPendingSocketMessages({sessionId});
 
         final fetchCalled = <String>[];
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
           fetchCalled.add(sid);
           return _buildMessagesResponse([
             _makeEncryptedMessage('msg-11', seq: 11, content: 'Hi'),
@@ -249,123 +247,93 @@ void main() {
       },
     );
 
-    test(
-      'fetch after visibility correctly merges new messages '
-      'with existing',
-      () async {
-        const sessionId = 'sess-merge-1';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 12,
-        );
+    test('fetch after visibility correctly merges new messages '
+        'with existing', () async {
+      const sessionId = 'sess-merge-1';
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 12);
 
-        // Pre-load two messages already in memory with cursor at 10.
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': 'msg-1',
-            'seq': 5,
-            'role': 'user',
-            'text': 'Hello',
-            'createdAt': 1700000005000,
-          },
-          {
-            'id': 'msg-2',
-            'seq': 10,
-            'role': 'agent',
-            'text': 'Hi there',
-            'createdAt': 1700000010000,
-          },
+      // Pre-load two messages already in memory with cursor at 10.
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': 'msg-1',
+          'seq': 5,
+          'role': 'user',
+          'text': 'Hello',
+          'createdAt': 1700000005000,
+        },
+        {
+          'id': 'msg-2',
+          'seq': 10,
+          'role': 'agent',
+          'text': 'Hi there',
+          'createdAt': 1700000010000,
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 10);
+
+      // Mark pending so onSessionVisible triggers a fetch.
+      sync.testSetPendingSocketMessages({sessionId});
+
+      // HTTP mock returns two new messages (seq 11, 12).
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        return _buildMessagesResponse([
+          _makeEncryptedMessage('msg-11', seq: 11, content: 'New reply 1'),
+          _makeEncryptedMessage('msg-12', seq: 12, content: 'New reply 2'),
         ]);
-        sync.testSetSessionLastSeq(sessionId, 10);
+      };
 
-        // Mark pending so onSessionVisible triggers a fetch.
-        sync.testSetPendingSocketMessages({sessionId});
+      await sync.onSessionVisible(sessionId);
 
-        // HTTP mock returns two new messages (seq 11, 12).
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
-          return _buildMessagesResponse([
-            _makeEncryptedMessage(
-              'msg-11',
-              seq: 11,
-              content: 'New reply 1',
-            ),
-            _makeEncryptedMessage(
-              'msg-12',
-              seq: 12,
-              content: 'New reply 2',
-            ),
-          ]);
-        };
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        await sync.onSessionVisible(sessionId);
+      final messages = sync.testSessionMessages(sessionId);
+      expect(messages, isNotNull, reason: 'Messages map must be populated');
+      // After merge we expect at least the original 2 plus the
+      // 2 new ones.
+      expect(
+        messages!.length,
+        greaterThanOrEqualTo(2),
+        reason:
+            'Merged messages must include both existing and '
+            'newly fetched entries',
+      );
+    });
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+    test('pending flag is cleared after successful fetch', () async {
+      const sessionId = 'sess-clear-1';
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 12);
+      sync.testSetPendingSocketMessages({sessionId});
 
-        final messages = sync.testSessionMessages(sessionId);
-        expect(
-          messages,
-          isNotNull,
-          reason: 'Messages map must be populated',
-        );
-        // After merge we expect at least the original 2 plus the
-        // 2 new ones.
-        expect(
-          messages!.length,
-          greaterThanOrEqualTo(2),
-          reason:
-              'Merged messages must include both existing and '
-              'newly fetched entries',
-        );
-      },
-    );
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        return _buildMessagesResponse([
+          _makeEncryptedMessage('msg-11', seq: 11, content: 'A'),
+        ]);
+      };
 
-    test(
-      'pending flag is cleared after successful fetch',
-      () async {
-        const sessionId = 'sess-clear-1';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 12,
-        );
-        sync.testSetPendingSocketMessages({sessionId});
+      // Pending flag should be set before navigation.
+      expect(sync.testHasPendingSocketMessage(sessionId), isTrue);
 
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
-          return _buildMessagesResponse([
-            _makeEncryptedMessage('msg-11', seq: 11, content: 'A'),
-          ]);
-        };
+      await sync.onSessionVisible(sessionId);
 
-        // Pending flag should be set before navigation.
-        expect(
-          sync.testHasPendingSocketMessage(sessionId),
-          isTrue,
-        );
+      // onSessionVisible removes the flag synchronously before
+      // kicking off the async fetch, so we can check immediately.
+      expect(
+        sync.testHasPendingSocketMessage(sessionId),
+        isFalse,
+        reason:
+            'Pending flag must be cleared when session becomes '
+            'visible (onSessionVisible removes it synchronously)',
+      );
 
-        await sync.onSessionVisible(sessionId);
+      // Let the fetch settle.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        // onSessionVisible removes the flag synchronously before
-        // kicking off the async fetch, so we can check immediately.
-        expect(
-          sync.testHasPendingSocketMessage(sessionId),
-          isFalse,
-          reason:
-              'Pending flag must be cleared when session becomes '
-              'visible (onSessionVisible removes it synchronously)',
-        );
-
-        // Let the fetch settle.
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-
-        expect(
-          sync.testHasPendingSocketMessage(sessionId),
-          isFalse,
-          reason:
-              'Pending flag must remain cleared after fetch completes',
-        );
-      },
-    );
+      expect(
+        sync.testHasPendingSocketMessage(sessionId),
+        isFalse,
+        reason: 'Pending flag must remain cleared after fetch completes',
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -395,32 +363,32 @@ void main() {
       'cursor advances for non-visible sessions when inline processing',
       () async {
         const sessionId = 'sess-cursor-1';
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 10,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
         // Set cursor to 10 — simulates the user having previously
         // read messages up to seq 10.
         sync.testSetSessionLastSeq(sessionId, 10);
 
         // Inject socket events for this non-visible session.
-        sync.handleUpdate(_makeNewMessageUpdate(
-          sessionId,
-          messageId: 'msg-11',
-          seq: 11,
-          content: 'Background 1',
-        ));
-        sync.handleUpdate(_makeNewMessageUpdate(
-          sessionId,
-          messageId: 'msg-12',
-          seq: 12,
-          content: 'Background 2',
-        ));
+        sync.handleUpdate(
+          _makeNewMessageUpdate(
+            sessionId,
+            messageId: 'msg-11',
+            seq: 11,
+            content: 'Background 1',
+          ),
+        );
+        sync.handleUpdate(
+          _makeNewMessageUpdate(
+            sessionId,
+            messageId: 'msg-12',
+            seq: 12,
+            content: 'Background 2',
+          ),
+        );
 
         await Future<void>.delayed(const Duration(milliseconds: 500));
 
-        final cursor =
-            sync.sessionMessageCursors[sessionId] ?? 0;
+        final cursor = sync.sessionMessageCursors[sessionId] ?? 0;
         // Cursor now advances for non-visible sessions because
         // messages are processed inline (decrypted and stored).
         expect(
@@ -433,68 +401,60 @@ void main() {
       },
     );
 
-    test(
-      'cursor advances normally after session becomes visible '
-      'and fetches',
-      () async {
-        const sessionId = 'sess-cursor-2';
-        // Server has 15 messages, cursor at 10.
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 15,
-        );
-        sync.testSetSessionLastSeq(sessionId, 10);
-        // Pre-load existing messages so it's not a first-load.
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': 'msg-1',
-            'seq': 5,
-            'role': 'user',
-            'text': 'Earlier',
-            'createdAt': 1700000005000,
-          },
-          {
-            'id': 'msg-2',
-            'seq': 10,
-            'role': 'agent',
-            'text': 'Earlier reply',
-            'createdAt': 1700000010000,
-          },
-        ]);
+    test('cursor advances normally after session becomes visible '
+        'and fetches', () async {
+      const sessionId = 'sess-cursor-2';
+      // Server has 15 messages, cursor at 10.
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 15);
+      sync.testSetSessionLastSeq(sessionId, 10);
+      // Pre-load existing messages so it's not a first-load.
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': 'msg-1',
+          'seq': 5,
+          'role': 'user',
+          'text': 'Earlier',
+          'createdAt': 1700000005000,
+        },
+        {
+          'id': 'msg-2',
+          'seq': 10,
+          'role': 'agent',
+          'text': 'Earlier reply',
+          'createdAt': 1700000010000,
+        },
+      ]);
 
-        // Mark as having pending socket messages so fetch is forced.
-        sync.testSetPendingSocketMessages({sessionId});
+      // Mark as having pending socket messages so fetch is forced.
+      sync.testSetPendingSocketMessages({sessionId});
 
-        final newMessages = [
-          _makeEncryptedMessage('msg-11', seq: 11, content: 'X'),
-          _makeEncryptedMessage('msg-12', seq: 12, content: 'Y'),
-          _makeEncryptedMessage('msg-13', seq: 13, content: 'Z'),
-          _makeEncryptedMessage('msg-14', seq: 14, content: 'W'),
-          _makeEncryptedMessage('msg-15', seq: 15, content: 'V'),
-        ];
+      final newMessages = [
+        _makeEncryptedMessage('msg-11', seq: 11, content: 'X'),
+        _makeEncryptedMessage('msg-12', seq: 12, content: 'Y'),
+        _makeEncryptedMessage('msg-13', seq: 13, content: 'Z'),
+        _makeEncryptedMessage('msg-14', seq: 14, content: 'W'),
+        _makeEncryptedMessage('msg-15', seq: 15, content: 'V'),
+      ];
 
-        sync.testFetchMessagesOverride =
-            (sid, afterSeq, limit) async {
-          return _buildMessagesResponse(newMessages);
-        };
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        return _buildMessagesResponse(newMessages);
+      };
 
-        await sync.onSessionVisible(sessionId);
+      await sync.onSessionVisible(sessionId);
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        final cursor =
-            sync.sessionMessageCursors[sessionId] ?? 0;
-        // After a successful fetch the cursor should be at or
-        // beyond the max seq returned (15).
-        expect(
-          cursor,
-          greaterThanOrEqualTo(15),
-          reason:
-              'Cursor must advance to at least seq=15 after a '
-              'successful fetch of the new messages',
-        );
-      },
-    );
+      final cursor = sync.sessionMessageCursors[sessionId] ?? 0;
+      // After a successful fetch the cursor should be at or
+      // beyond the max seq returned (15).
+      expect(
+        cursor,
+        greaterThanOrEqualTo(15),
+        reason:
+            'Cursor must advance to at least seq=15 after a '
+            'successful fetch of the new messages',
+      );
+    });
   });
 }
 
@@ -565,10 +525,7 @@ Map<String, dynamic> _makeEncryptedMessage(
     'role': 'agent',
     'content': {
       'type': 'output',
-      'data': {
-        'type': 'message',
-        'message': content,
-      },
+      'data': {'type': 'message', 'message': content},
     },
   };
   final json = jsonEncode(innerContent);
@@ -609,22 +566,20 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

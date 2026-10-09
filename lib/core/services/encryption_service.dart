@@ -37,9 +37,7 @@ class EncryptionService {
 
   /// Legacy method for backward compatibility
   Future<Uint8List?> decryptSecretBox(Uint8List encryptedData) async {
-    final result = _encryption?.decryptRaw(
-      base64Encode(encryptedData),
-    );
+    final result = _encryption?.decryptRaw(base64Encode(encryptedData));
     if (result == null) return null;
     return base64Decode(result as String);
   }

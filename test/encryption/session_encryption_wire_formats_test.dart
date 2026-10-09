@@ -28,9 +28,7 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 
 Uint8List _generateKey() {
   final random = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(32, (_) => random.nextInt(256)),
-  );
+  return Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
 }
 
 /// Encrypts [payload] with [enc] and returns the raw base64 ciphertext string
@@ -218,19 +216,11 @@ void main() {
       expect(results.length, equals(4));
 
       for (var i = 0; i < 4; i++) {
-        expect(
-          results[i],
-          isNotNull,
-          reason: 'message at index $i was null',
-        );
+        expect(results[i], isNotNull, reason: 'message at index $i was null');
         expect(results[i]!.id, equals('mix-$i'));
 
         final content = results[i]!.content as Map<String, dynamic>?;
-        expect(
-          content,
-          isNotNull,
-          reason: 'content at index $i was null',
-        );
+        expect(content, isNotNull, reason: 'content at index $i was null');
         expect(
           content!['format'],
           equals(payloads[i]['format']),
@@ -243,57 +233,51 @@ void main() {
       }
     });
 
-    test(
-      'non-encrypted content passes through wire content',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final se = _makeSessionEncryption(enc);
+    test('non-encrypted content passes through wire content', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
 
-        // Content has a different type tag — not 'encrypted'.
-        final message = <String, dynamic>{
-          'id': 'msg-plaintext',
-          'seq': 10,
-          'createdAt': 1700000000000,
-          'content': {'t': 'plaintext', 'data': 'hello'},
-        };
+      // Content has a different type tag — not 'encrypted'.
+      final message = <String, dynamic>{
+        'id': 'msg-plaintext',
+        'seq': 10,
+        'createdAt': 1700000000000,
+        'content': {'t': 'plaintext', 'data': 'hello'},
+      };
 
-        final result = await se.decryptMessage(message);
+      final result = await se.decryptMessage(message);
 
-        expect(result, isNotNull);
-        expect(result!.id, equals('msg-plaintext'));
-        expect(result.seq, equals(10));
-        // Non-encrypted content is passed through so that
-        // processDecryptedMessages can handle it instead of
-        // silently dropping it.
-        expect(result.content, isA<Map<String, dynamic>>());
-        final content = result.content as Map<String, dynamic>;
-        expect(content['t'], equals('plaintext'));
-        expect(content['data'], equals('hello'));
-      },
-    );
+      expect(result, isNotNull);
+      expect(result!.id, equals('msg-plaintext'));
+      expect(result.seq, equals(10));
+      // Non-encrypted content is passed through so that
+      // processDecryptedMessages can handle it instead of
+      // silently dropping it.
+      expect(result.content, isA<Map<String, dynamic>>());
+      final content = result.content as Map<String, dynamic>;
+      expect(content['t'], equals('plaintext'));
+      expect(content['data'], equals('hello'));
+    });
 
-    test(
-      'null content returns DecryptedMessage with null content',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final se = _makeSessionEncryption(enc);
+    test('null content returns DecryptedMessage with null content', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
 
-        // No 'content' key at all — defaults to null.
-        final message = <String, dynamic>{
-          'id': 'msg-no-content',
-          'seq': 11,
-          'createdAt': 1700000000000,
-        };
+      // No 'content' key at all — defaults to null.
+      final message = <String, dynamic>{
+        'id': 'msg-no-content',
+        'seq': 11,
+        'createdAt': 1700000000000,
+      };
 
-        final result = await se.decryptMessage(message);
+      final result = await se.decryptMessage(message);
 
-        expect(result, isNotNull);
-        expect(result!.id, equals('msg-no-content'));
-        expect(result.seq, equals(11));
-        expect(result.content, isNull);
-      },
-    );
+      expect(result, isNotNull);
+      expect(result!.id, equals('msg-no-content'));
+      expect(result.seq, equals(11));
+      expect(result.content, isNull);
+    });
   });
 }

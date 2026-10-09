@@ -76,11 +76,7 @@ Map<String, dynamic> stripInlineImageData(Map<String, dynamic> message) {
     touched = true;
     return <String, dynamic>{
       ...block,
-      'source': <String, dynamic>{
-        ...source,
-        'data': '',
-        'omitted': true,
-      },
+      'source': <String, dynamic>{...source, 'data': '', 'omitted': true},
     };
   }).toList();
 

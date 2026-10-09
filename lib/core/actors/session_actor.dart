@@ -45,8 +45,7 @@ class StartActor extends SessionInbound {
   const StartActor({required this.sessionId});
   final String sessionId;
   @override
-  Map<String, Object?> toJson() =>
-      {'kind': 'start', 'sessionId': sessionId};
+  Map<String, Object?> toJson() => {'kind': 'start', 'sessionId': sessionId};
 }
 
 class SendUserMessage extends SessionInbound {
@@ -60,11 +59,11 @@ class SendUserMessage extends SessionInbound {
   final String text;
   @override
   Map<String, Object?> toJson() => {
-        'kind': 'send',
-        'sessionId': sessionId,
-        'localId': localId,
-        'text': text,
-      };
+    'kind': 'send',
+    'sessionId': sessionId,
+    'localId': localId,
+    'text': text,
+  };
 }
 
 class IngestServerMessage extends SessionInbound {
@@ -80,20 +79,19 @@ class IngestServerMessage extends SessionInbound {
   final int seq;
   @override
   Map<String, Object?> toJson() => {
-        'kind': 'ingest',
-        'sessionId': sessionId,
-        'localId': localId,
-        'serverId': serverId,
-        'seq': seq,
-      };
+    'kind': 'ingest',
+    'sessionId': sessionId,
+    'localId': localId,
+    'serverId': serverId,
+    'seq': seq,
+  };
 }
 
 class StopActor extends SessionInbound {
   const StopActor({required this.sessionId});
   final String sessionId;
   @override
-  Map<String, Object?> toJson() =>
-      {'kind': 'stop', 'sessionId': sessionId};
+  Map<String, Object?> toJson() => {'kind': 'stop', 'sessionId': sessionId};
 }
 
 /// Outbound messages — what the actor tells the host.
@@ -147,18 +145,22 @@ class InProcessSessionActor implements SessionActor {
         _outbound.add(ActorReady(sessionId: sessionId));
       case SendUserMessage(:final sessionId, :final localId):
         _projected[localId] = 'sending';
-        _outbound.add(MessageProjected(
-          sessionId: sessionId,
-          localId: localId,
-          state: 'sending',
-        ));
+        _outbound.add(
+          MessageProjected(
+            sessionId: sessionId,
+            localId: localId,
+            state: 'sending',
+          ),
+        );
       case IngestServerMessage(:final sessionId, :final localId):
         _projected[localId] = 'merged';
-        _outbound.add(MessageProjected(
-          sessionId: sessionId,
-          localId: localId,
-          state: 'merged',
-        ));
+        _outbound.add(
+          MessageProjected(
+            sessionId: sessionId,
+            localId: localId,
+            state: 'merged',
+          ),
+        );
       case StopActor(:final sessionId):
         _outbound.add(ActorStopped(sessionId: sessionId));
     }

@@ -149,11 +149,7 @@ void main() {
 
     Page<dynamic> buildPage(BuildContext context, String location) {
       final matchList = configuration.findMatch(Uri.parse(location));
-      expect(
-        matchList.isError,
-        isFalse,
-        reason: 'no route matched $location',
-      );
+      expect(matchList.isError, isFalse, reason: 'no route matched $location');
       final match = matchList.matches.last;
       final route = match.route as GoRoute;
       final state = match.buildState(configuration, matchList);
@@ -176,10 +172,7 @@ void main() {
       for (final entry in parameterized) {
         final pageA = buildPage(context, entry.locationWith());
         for (final parameter in entry.parameters) {
-          final pageB = buildPage(
-            context,
-            entry.locationWith(vary: parameter),
-          );
+          final pageB = buildPage(context, entry.locationWith(vary: parameter));
           expect(
             pageB.key,
             isNot(pageA.key),

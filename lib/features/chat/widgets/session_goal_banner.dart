@@ -106,7 +106,10 @@ class _GoalBannerBody extends StatelessWidget {
                               goal.objective,
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
-                              style: AppText.secondary(theme, cs.onSurfaceVariant),
+                              style: AppText.secondary(
+                                theme,
+                                cs.onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -159,10 +162,7 @@ class _StatusPill extends StatelessWidget {
           width: AppBorder.hairline,
         ),
       ),
-      child: Text(
-        normalized,
-        style: AppText.badge(theme, color),
-      ),
+      child: Text(normalized, style: AppText.badge(theme, color)),
     );
   }
 }

@@ -30,11 +30,7 @@ void main() {
     });
 
     test('encodeJsonShim mirrors legacy JSON wire shape', () {
-      const e = MessageEnvelope(
-        localId: 'L1',
-        role: 'user',
-        content: 'hi',
-      );
+      const e = MessageEnvelope(localId: 'L1', role: 'user', content: 'hi');
       final json = e.encodeJsonShim();
       expect(json['localId'], 'L1');
       expect(json['role'], 'user');
@@ -42,10 +38,7 @@ void main() {
     });
 
     test('large seq + content survive varint encoding', () {
-      final e = MessageEnvelope(
-        seq: 123456789,
-        content: 'a' * 300,
-      );
+      final e = MessageEnvelope(seq: 123456789, content: 'a' * 300);
       final back = MessageEnvelope.decode(e.encode());
       expect(back.seq, 123456789);
       expect(back.content.length, 300);

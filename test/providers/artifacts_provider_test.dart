@@ -248,20 +248,24 @@ void main() {
     test('should clear all artifacts', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'a1',
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-      ));
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'a2',
-        headerVersion: 1,
-        seq: 2,
-        createdAt: 2000,
-        updatedAt: 2000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'a1',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+        ),
+      );
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'a2',
+          headerVersion: 1,
+          seq: 2,
+          createdAt: 2000,
+          updatedAt: 2000,
+        ),
+      );
 
       expect(container.read(artifactsNotifierProvider), hasLength(2));
 
@@ -273,16 +277,21 @@ void main() {
     test('updateArtifact does nothing for non-existent id', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'existing',
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'existing',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+        ),
+      );
 
       // Should not throw and should not modify state.
-      notifier.updateArtifactInState('non-existent', (a) => a.copyWith(title: 'X'));
+      notifier.updateArtifactInState(
+        'non-existent',
+        (a) => a.copyWith(title: 'X'),
+      );
 
       final artifacts = container.read(artifactsNotifierProvider);
       expect(artifacts, hasLength(1));
@@ -292,23 +301,27 @@ void main() {
     test('adding artifact with same id overwrites previous', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'dup',
-        title: 'First',
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'dup',
+          title: 'First',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+        ),
+      );
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'dup',
-        title: 'Second',
-        headerVersion: 2,
-        seq: 2,
-        createdAt: 2000,
-        updatedAt: 2000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'dup',
+          title: 'Second',
+          headerVersion: 2,
+          seq: 2,
+          createdAt: 2000,
+          updatedAt: 2000,
+        ),
+      );
 
       final artifacts = container.read(artifactsNotifierProvider);
       expect(artifacts, hasLength(1));
@@ -319,13 +332,15 @@ void main() {
     test('setArtifacts replaces all existing artifacts', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'old-1',
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'old-1',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+        ),
+      );
 
       notifier.setArtifacts([
         DecryptedArtifact(
@@ -346,13 +361,15 @@ void main() {
     test('setArtifacts with empty list clears all', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'a',
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'a',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+        ),
+      );
 
       notifier.setArtifacts([]);
 
@@ -362,13 +379,15 @@ void main() {
     test('removeArtifact on non-existent id is a no-op', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'keep',
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'keep',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+        ),
+      );
 
       // Should not throw.
       notifier.removeArtifact('non-existent');
@@ -401,25 +420,29 @@ void main() {
     test('state preserves draft flag', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'draft-1',
-        title: 'Draft Artifact',
-        draft: true,
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'draft-1',
+          title: 'Draft Artifact',
+          draft: true,
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+        ),
+      );
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'published-1',
-        title: 'Published Artifact',
-        draft: false,
-        headerVersion: 1,
-        seq: 2,
-        createdAt: 2000,
-        updatedAt: 2000,
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'published-1',
+          title: 'Published Artifact',
+          draft: false,
+          headerVersion: 1,
+          seq: 2,
+          createdAt: 2000,
+          updatedAt: 2000,
+        ),
+      );
 
       final artifacts = container.read(artifactsNotifierProvider);
       expect(artifacts['draft-1']?.draft, isTrue);
@@ -429,14 +452,16 @@ void main() {
     test('state preserves sessions list', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'with-sessions',
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-        sessions: ['sess-1', 'sess-2'],
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'with-sessions',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+          sessions: ['sess-1', 'sess-2'],
+        ),
+      );
 
       final artifacts = container.read(artifactsNotifierProvider);
       expect(artifacts['with-sessions']?.sessions, ['sess-1', 'sess-2']);
@@ -445,19 +470,24 @@ void main() {
     test('updateArtifact preserves unchanged fields', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
 
-      notifier.addArtifact(DecryptedArtifact(
-        id: 'upd-1',
-        title: 'Original',
-        body: 'Body text',
-        draft: true,
-        headerVersion: 1,
-        seq: 1,
-        createdAt: 1000,
-        updatedAt: 1000,
-        sessions: ['s1'],
-      ));
+      notifier.addArtifact(
+        DecryptedArtifact(
+          id: 'upd-1',
+          title: 'Original',
+          body: 'Body text',
+          draft: true,
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 1000,
+          updatedAt: 1000,
+          sessions: ['s1'],
+        ),
+      );
 
-      notifier.updateArtifactInState('upd-1', (a) => a.copyWith(title: 'Changed'));
+      notifier.updateArtifactInState(
+        'upd-1',
+        (a) => a.copyWith(title: 'Changed'),
+      );
 
       final artifact = container.read(artifactsNotifierProvider)['upd-1'];
       expect(artifact?.title, 'Changed');

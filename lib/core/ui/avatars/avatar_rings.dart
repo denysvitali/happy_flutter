@@ -9,11 +9,7 @@ import 'avatar_palette.dart';
 /// Ring-style avatar with concentric colored rings,
 /// like a cross-section of a tree trunk or a topographic map.
 class AvatarRings extends BaseAvatar {
-  const AvatarRings({
-    required super.id,
-    super.key,
-    super.size = 48,
-  });
+  const AvatarRings({required super.id, super.key, super.size = 48});
 
   @override
   Widget build(BuildContext context) {
@@ -21,12 +17,7 @@ class AvatarRings extends BaseAvatar {
     // Base plate takes the session's palette hue so the ring art reads as
     // the same identity colour used by the solid avatar styles.
     final bgHue = avatarHue(id);
-    final bgColor = HSLColor.fromAHSL(
-      1.0,
-      bgHue,
-      0.25,
-      0.12,
-    ).toColor();
+    final bgColor = HSLColor.fromAHSL(1.0, bgHue, 0.25, 0.12).toColor();
 
     return Container(
       width: size,
@@ -137,18 +128,9 @@ class _RingsPainter extends CustomPainter {
 
     // Center dot — bright accent derived from base hue.
     final accentHue = (baseHue + 60) % 360;
-    final accentColor = HSLColor.fromAHSL(
-      1.0,
-      accentHue,
-      0.90,
-      0.70,
-    ).toColor();
+    final accentColor = HSLColor.fromAHSL(1.0, accentHue, 0.90, 0.70).toColor();
     final dotR = (1.8 * scale).clamp(1.0, 5.0);
-    canvas.drawCircle(
-      Offset(cx, cy),
-      dotR,
-      Paint()..color = accentColor,
-    );
+    canvas.drawCircle(Offset(cx, cy), dotR, Paint()..color = accentColor);
   }
 
   /// Draws a circle as a series of short arcs (dashed appearance).
@@ -180,6 +162,5 @@ class _RingsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_RingsPainter old) =>
-      old.id != id || old.hash != hash;
+  bool shouldRepaint(_RingsPainter old) => old.id != id || old.hash != hash;
 }

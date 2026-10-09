@@ -114,9 +114,7 @@ class _PendingPermissionBarState extends ConsumerState<PendingPermissionBar> {
                 width: AppControlSize.md,
                 height: AppControlSize.md,
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(
-                    alpha: AppOpacity.subtle,
-                  ),
+                  color: AppColors.warning.withValues(alpha: AppOpacity.subtle),
                   borderRadius: BorderRadius.circular(AppRadius.smd),
                 ),
                 child: Icon(

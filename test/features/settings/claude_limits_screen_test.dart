@@ -49,11 +49,11 @@ void main() {
         };
 
         final sync = Sync();
-        sync.testMachineRPCOverride =
-            (machineId, method, params) async => <String, dynamic>{
-                  'success': false,
-                  'error': 'no Claude credentials on this machine',
-                };
+        sync.testMachineRPCOverride = (machineId, method, params) async =>
+            <String, dynamic>{
+              'success': false,
+              'error': 'no Claude credentials on this machine',
+            };
 
         await tester.pumpWidget(
           ProviderScope(
@@ -74,10 +74,7 @@ void main() {
 
         // Before the fix the error body rendered only a Retry button and
         // no picker — pinning the user onto a machine that has no Claude.
-        expect(
-          find.byType(DropdownButtonFormField<String>),
-          findsOneWidget,
-        );
+        expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
         // Retry is still offered (the error state is the real deal), but
         // crucially the picker sits above it so the user can escape.
         expect(find.byType(FilledButton), findsOneWidget);

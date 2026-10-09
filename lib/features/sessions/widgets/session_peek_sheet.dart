@@ -38,10 +38,8 @@ Future<void> showSessionPeek(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (sheetContext) => SessionPeekSheet(
-      session: session,
-      onOpen: onOpen,
-    ),
+    builder: (sheetContext) =>
+        SessionPeekSheet(session: session, onOpen: onOpen),
   );
 }
 
@@ -164,7 +162,10 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                               Flexible(
                                 child: Text(
                                   missionShortPath(path),
-                                  style: AppText.secondary(theme, cs.onSurfaceVariant),
+                                  style: AppText.secondary(
+                                    theme,
+                                    cs.onSurfaceVariant,
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -195,9 +196,7 @@ class _SessionPeekSheetState extends ConsumerState<SessionPeekSheet> {
                       ),
                     );
                   }
-                  final bubbles = extractPeekBubbles(
-                    snapshot.data ?? const [],
-                  );
+                  final bubbles = extractPeekBubbles(snapshot.data ?? const []);
                   if (bubbles.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.all(AppSpacing.xl),
@@ -291,8 +290,7 @@ List<PeekItem> extractPeekBubbles(List<Map<String, dynamic>> messages) {
       continue;
     }
     final errorText = msg['errorMessage'] as String?;
-    final bodyText =
-        errorText ?? ((msg['content'] ?? msg['text']) as String?);
+    final bodyText = errorText ?? ((msg['content'] ?? msg['text']) as String?);
     if (bodyText == null || bodyText.trim().isEmpty) continue;
     items.add(
       PeekItem(
@@ -444,7 +442,10 @@ class _PeekBubble extends StatelessWidget {
           children: [
             Text(
               roleLabel,
-              style: AppText.badge(theme, isUser ? cs.primary : cs.onSurfaceVariant),
+              style: AppText.badge(
+                theme,
+                isUser ? cs.primary : cs.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.xxxs),
             if (item.isTool)
@@ -466,10 +467,7 @@ class _PeekBubble extends StatelessWidget {
                 ],
               )
             else
-              Text(
-                item.text,
-                style: AppText.secondary(theme, fg),
-              ),
+              Text(item.text, style: AppText.secondary(theme, fg)),
           ],
         ),
       ),

@@ -124,15 +124,15 @@ class CodeViewerTheme extends ThemeExtension<CodeViewerTheme> {
   }
 
   @override
-  CodeViewerTheme lerp(
-    ThemeExtension<CodeViewerTheme>? other,
-    double t,
-  ) {
+  CodeViewerTheme lerp(ThemeExtension<CodeViewerTheme>? other, double t) {
     if (other is! CodeViewerTheme) return this;
     return CodeViewerTheme(
       background: Color.lerp(background, other.background, t)!,
-      headerBackground:
-          Color.lerp(headerBackground, other.headerBackground, t)!,
+      headerBackground: Color.lerp(
+        headerBackground,
+        other.headerBackground,
+        t,
+      )!,
       headerHover: Color.lerp(headerHover, other.headerHover, t)!,
       headerLabel: Color.lerp(headerLabel, other.headerLabel, t)!,
       divider: Color.lerp(divider, other.divider, t)!,
@@ -141,8 +141,7 @@ class CodeViewerTheme extends ThemeExtension<CodeViewerTheme> {
       muted: Color.lerp(muted, other.muted, t)!,
       successAccent: Color.lerp(successAccent, other.successAccent, t)!,
       idleAccent: Color.lerp(idleAccent, other.idleAccent, t)!,
-      lineNumberText:
-          Color.lerp(lineNumberText, other.lineNumberText, t)!,
+      lineNumberText: Color.lerp(lineNumberText, other.lineNumberText, t)!,
     );
   }
 }
@@ -152,6 +151,5 @@ extension CodeViewerThemeContext on BuildContext {
   /// The [CodeViewerTheme] for the ambient [ThemeData], or
   /// [CodeViewerTheme.dark] when no extension is registered.
   CodeViewerTheme get codeViewerTheme =>
-      Theme.of(this).extension<CodeViewerTheme>() ??
-      CodeViewerTheme.dark;
+      Theme.of(this).extension<CodeViewerTheme>() ?? CodeViewerTheme.dark;
 }

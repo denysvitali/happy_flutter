@@ -44,12 +44,7 @@ void main() {
 
     testWidgets('does not render description when absent', (tester) async {
       await tester.pumpWidget(
-        wrap(
-          ZenTodoItem(
-            item: item(),
-            onToggleComplete: () {},
-          ),
-        ),
+        wrap(ZenTodoItem(item: item(), onToggleComplete: () {})),
       );
       await tester.pumpAndSettle();
 
@@ -57,7 +52,9 @@ void main() {
       expect(find.textContaining('A'), findsNothing);
     });
 
-    testWidgets('tap opens detail dialog with full description', (tester) async {
+    testWidgets('tap opens detail dialog with full description', (
+      tester,
+    ) async {
       // Use a long description so the row abbreviates it; the full text
       // only appears inside the dialog.
       final longDesc = 'A'.padLeft(120, 'A');
@@ -93,11 +90,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Fling left-to-right far enough to trigger the Dismissible.
-      await tester.fling(
-        find.text('Task title'),
-        const Offset(500, 0),
-        1000,
-      );
+      await tester.fling(find.text('Task title'), const Offset(500, 0), 1000);
       await tester.pumpAndSettle();
 
       expect(toggled, isTrue);

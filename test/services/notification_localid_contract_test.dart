@@ -98,90 +98,87 @@ void main() {
     },
   );
 
-  test(
-    'each localId survives intact through optimistic insert and merge',
-    () {
-      // Simulates the canonical pipeline for a single notification tap:
-      //   1. createLocalMessageId() mints a canonical id
-      //   2. optimistic placeholder is inserted with that id
-      //   3. server ack arrives carrying the same localId and the
-      //      authoritative server id
-      //   4. merge replaces the placeholder, never the localId
-      //
-      // The contract: each user tap's localId must be observable in the
-      // final post-merge state (on the server record's `localId` field).
-      const sessionId = 'notif-pipeline-1';
-      const taps = 5;
+  test('each localId survives intact through optimistic insert and merge', () {
+    // Simulates the canonical pipeline for a single notification tap:
+    //   1. createLocalMessageId() mints a canonical id
+    //   2. optimistic placeholder is inserted with that id
+    //   3. server ack arrives carrying the same localId and the
+    //      authoritative server id
+    //   4. merge replaces the placeholder, never the localId
+    //
+    // The contract: each user tap's localId must be observable in the
+    // final post-merge state (on the server record's `localId` field).
+    const sessionId = 'notif-pipeline-1';
+    const taps = 5;
 
-      sync.testSetSessionMessages(sessionId, []);
+    sync.testSetSessionMessages(sessionId, []);
 
-      final mintedIds = <String>[];
-      for (var i = 0; i < taps; i++) {
-        final localId = sync.createLocalMessageId();
-        mintedIds.add(localId);
+    final mintedIds = <String>[];
+    for (var i = 0; i < taps; i++) {
+      final localId = sync.createLocalMessageId();
+      mintedIds.add(localId);
 
-        // Optimistic insert (mirrors `_sync_messaging_send.dart`).
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': localId,
-            'localId': localId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'content': 'continue',
-            'createdAt': 1700000000000 + i,
-            'sendStatus': 'sending',
-          },
-        ]);
+      // Optimistic insert (mirrors `_sync_messaging_send.dart`).
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': localId,
+          'localId': localId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'content': 'continue',
+          'createdAt': 1700000000000 + i,
+          'sendStatus': 'sending',
+        },
+      ]);
 
-        // Server ack — same localId, new authoritative server id.
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': 'srv-$i',
-            'localId': localId,
-            'seq': 100 + i,
-            'role': 'user',
-            'kind': 'text',
-            'content': 'continue',
-            'createdAt': 1700000000000 + i,
-            'sendStatus': 'sent',
-          },
-        ]);
-      }
+      // Server ack — same localId, new authoritative server id.
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': 'srv-$i',
+          'localId': localId,
+          'seq': 100 + i,
+          'role': 'user',
+          'kind': 'text',
+          'content': 'continue',
+          'createdAt': 1700000000000 + i,
+          'sendStatus': 'sent',
+        },
+      ]);
+    }
 
-      // Distinct localIds — no collapse.
+    // Distinct localIds — no collapse.
+    expect(
+      mintedIds.toSet().length,
+      taps,
+      reason: '$taps taps must mint $taps distinct localIds',
+    );
+
+    final msgs = sync.testSessionMessages(sessionId);
+    expect(msgs, isNotNull);
+    final observedLocalIds = msgs!
+        .map((m) => m['localId'] as String?)
+        .whereType<String>()
+        .toSet();
+    // Every minted id must be visible post-merge — none was lost,
+    // none was rewritten by the merge layer.
+    for (final id in mintedIds) {
       expect(
-        mintedIds.toSet().length,
-        taps,
-        reason: '$taps taps must mint $taps distinct localIds',
+        observedLocalIds.contains(id),
+        isTrue,
+        reason:
+            'localId "$id" minted at notification tap must survive '
+            'through optimistic insert and server-ack merge',
       );
-
-      final msgs = sync.testSessionMessages(sessionId);
-      expect(msgs, isNotNull);
-      final observedLocalIds = msgs!
-          .map((m) => m['localId'] as String?)
-          .whereType<String>()
-          .toSet();
-      // Every minted id must be visible post-merge — none was lost,
-      // none was rewritten by the merge layer.
-      for (final id in mintedIds) {
-        expect(
-          observedLocalIds.contains(id),
-          isTrue,
-          reason:
-              'localId "$id" minted at notification tap must survive '
-              'through optimistic insert and server-ack merge',
-        );
-      }
-      // And no orphan optimistic rows should remain.
-      final stillSending = msgs
-          .where((m) => m['sendStatus'] == 'sending')
-          .toList();
-      expect(
-        stillSending,
-        isEmpty,
-        reason: 'All optimistic placeholders must be replaced by acks',
-      );
-    },
-  );
+    }
+    // And no orphan optimistic rows should remain.
+    final stillSending = msgs
+        .where((m) => m['sendStatus'] == 'sending')
+        .toList();
+    expect(
+      stillSending,
+      isEmpty,
+      reason: 'All optimistic placeholders must be replaced by acks',
+    );
+  });
 }

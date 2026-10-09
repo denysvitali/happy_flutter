@@ -37,10 +37,7 @@ void main() {
     });
 
     test('prefers user_id over userId when sub missing', () {
-      final token = _buildJwt({
-        'user_id': 'preferred',
-        'userId': 'fallback',
-      });
+      final token = _buildJwt({'user_id': 'preferred', 'userId': 'fallback'});
       expect(parseToken(token), 'preferred');
     });
 

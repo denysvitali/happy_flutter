@@ -87,10 +87,7 @@ class CommandPaletteController {
           category: l10n.commandCategoryRecentSessions,
           isPinned: true,
           action: () {
-            ChatSwitchMetrics().begin(
-              session.id,
-              source: 'command_palette',
-            );
+            ChatSwitchMetrics().begin(session.id, source: 'command_palette');
             router.go('/chat/${session.id}');
           },
         ),
@@ -181,10 +178,7 @@ class CommandPaletteController {
           isPinned: session.pinned,
           searchOnly: i >= 5,
           action: () {
-            ChatSwitchMetrics().begin(
-              session.id,
-              source: 'command_palette',
-            );
+            ChatSwitchMetrics().begin(session.id, source: 'command_palette');
             router.go('/chat/${session.id}');
           },
         ),

@@ -70,7 +70,10 @@ void main() {
     test('should update draft when session is set', () {
       final notifier = container.read(currentSessionNotifierProvider.notifier);
 
-      final session = createTestSession(id: 'session-1', draft: 'Initial draft');
+      final session = createTestSession(
+        id: 'session-1',
+        draft: 'Initial draft',
+      );
       notifier.setSession(session);
 
       notifier.updateDraft('Updated draft message');
@@ -97,7 +100,10 @@ void main() {
         permissionMode: 'read',
       );
       notifier.setSession(session);
-      expect(container.read(currentSessionNotifierProvider)?.permissionMode, 'read');
+      expect(
+        container.read(currentSessionNotifierProvider)?.permissionMode,
+        'read',
+      );
 
       notifier.updatePermissionMode('write');
 
@@ -113,7 +119,10 @@ void main() {
         permissionMode: 'admin',
       );
       notifier.setSession(session);
-      expect(container.read(currentSessionNotifierProvider)?.permissionMode, 'admin');
+      expect(
+        container.read(currentSessionNotifierProvider)?.permissionMode,
+        'admin',
+      );
 
       notifier.updatePermissionMode(null);
 
@@ -134,10 +143,7 @@ void main() {
     test('should update model mode when session is set', () {
       final notifier = container.read(currentSessionNotifierProvider.notifier);
 
-      final session = createTestSession(
-        id: 'session-1',
-        modelMode: 'fast',
-      );
+      final session = createTestSession(id: 'session-1', modelMode: 'fast');
       notifier.setSession(session);
       expect(container.read(currentSessionNotifierProvider)?.modelMode, 'fast');
 
@@ -150,12 +156,12 @@ void main() {
     test('should clear model mode when null is passed', () {
       final notifier = container.read(currentSessionNotifierProvider.notifier);
 
-      final session = createTestSession(
-        id: 'session-1',
-        modelMode: 'balanced',
-      );
+      final session = createTestSession(id: 'session-1', modelMode: 'balanced');
       notifier.setSession(session);
-      expect(container.read(currentSessionNotifierProvider)?.modelMode, 'balanced');
+      expect(
+        container.read(currentSessionNotifierProvider)?.modelMode,
+        'balanced',
+      );
 
       notifier.updateModelMode(null);
 

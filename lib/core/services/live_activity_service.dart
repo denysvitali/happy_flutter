@@ -38,8 +38,7 @@ class LiveActivityService {
 
   String? _activeSessionId;
 
-  bool get _enabled =>
-      kEnableIosLiveActivities && !kIsWeb && isIOS;
+  bool get _enabled => kEnableIosLiveActivities && !kIsWeb && isIOS;
 
   /// Whether a Live Activity is currently believed to be running.
   bool get isActive => _activeSessionId != null;

@@ -38,20 +38,23 @@ void main() {
     expect(NativeCore.instance.isAvailable, isFalse);
   });
 
-  test('an empty batch short-circuits without touching the native core', () async {
-    NativeCore.instance.debugSetAvailable(available: true);
+  test(
+    'an empty batch short-circuits without touching the native core',
+    () async {
+      NativeCore.instance.debugSetAvailable(available: true);
 
-    final result = await NativeCore.instance.decryptAesGcmBase64Batch(
-      key: List<int>.filled(32, 0),
-      envelopesBase64: const [],
-    );
+      final result = await NativeCore.instance.decryptAesGcmBase64Batch(
+        key: List<int>.filled(32, 0),
+        envelopesBase64: const [],
+      );
 
-    expect(
-      result,
-      isEmpty,
-      reason: 'no crossing should happen for an empty batch',
-    );
-  });
+      expect(
+        result,
+        isEmpty,
+        reason: 'no crossing should happen for an empty batch',
+      );
+    },
+  );
 
   test('ensureInitialized resolves quietly whether or not the library '
       'is present', () async {
@@ -76,7 +79,12 @@ void main() {
     final dart = AES256Encryption(key);
     final payloads = <dynamic>[
       {'hello': 'world', 'n': 42},
-      {'nested': {'a': [1, 2, 3]}, 'unicode': 'caffè ☕'},
+      {
+        'nested': {
+          'a': [1, 2, 3],
+        },
+        'unicode': 'caffè ☕',
+      },
       {'empty': {}},
     ];
     final envelopes = await dart.encrypt(payloads);
@@ -97,30 +105,32 @@ void main() {
     }
   });
 
-  test('a corrupt row yields null in place without failing its neighbours',
-      () async {
-    NativeCore.instance.debugReset();
-    await NativeCore.instance.ensureInitialized();
-    if (!NativeCore.instance.isAvailable) return;
+  test(
+    'a corrupt row yields null in place without failing its neighbours',
+    () async {
+      NativeCore.instance.debugReset();
+      await NativeCore.instance.ensureInitialized();
+      if (!NativeCore.instance.isAvailable) return;
 
-    final key = Uint8List.fromList(List<int>.filled(32, 3));
-    final dart = AES256Encryption(key);
-    final good = (await dart.encrypt([
-      {'ok': true},
-    ])).single;
+      final key = Uint8List.fromList(List<int>.filled(32, 3));
+      final dart = AES256Encryption(key);
+      final good = (await dart.encrypt([
+        {'ok': true},
+      ])).single;
 
-    final native = await NativeCore.instance.decryptAesGcmBase64Batch(
-      key: key,
-      envelopesBase64: [
-        base64.encode(good),
-        'not-base64!!',
-        base64.encode(good),
-      ],
-    );
+      final native = await NativeCore.instance.decryptAesGcmBase64Batch(
+        key: key,
+        envelopesBase64: [
+          base64.encode(good),
+          'not-base64!!',
+          base64.encode(good),
+        ],
+      );
 
-    expect(native, isNotNull);
-    expect(jsonDecode(native![0]!), {'ok': true});
-    expect(native[1], isNull, reason: 'index alignment must be preserved');
-    expect(jsonDecode(native[2]!), {'ok': true});
-  });
+      expect(native, isNotNull);
+      expect(jsonDecode(native![0]!), {'ok': true});
+      expect(native[1], isNull, reason: 'index alignment must be preserved');
+      expect(jsonDecode(native[2]!), {'ok': true});
+    },
+  );
 }

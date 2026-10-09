@@ -68,7 +68,6 @@ class VideoCallService {
 
 /// Represents an active video call session
 class VideoCallSession {
-
   VideoCallSession({
     required this.roomId,
     required this.participantId,
@@ -84,7 +83,6 @@ class VideoCallSession {
 
 /// Represents a participant in a video call
 class VideoCallParticipant {
-
   VideoCallParticipant({
     required this.id,
     required this.name,
@@ -104,12 +102,7 @@ class VideoCallParticipant {
 }
 
 /// Video quality levels
-enum VideoQuality {
-  low,
-  medium,
-  high,
-  hd,
-}
+enum VideoQuality { low, medium, high, hd }
 
 /// Connection states for video calls
 enum VideoCallConnectionState {

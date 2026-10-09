@@ -8,8 +8,8 @@ import '../tool_section_view.dart';
 
 /// View for displaying WebFetch tool results.
 class WebFetchView extends StatefulWidget {
-
   const WebFetchView({required this.tool, super.key, this.metadata});
+
   /// The tool data map containing input, result, and state.
   final Map<String, dynamic> tool;
 
@@ -38,7 +38,10 @@ class _WebFetchViewState extends State<WebFetchView> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 0,
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                0,
               ),
               child: Row(
                 children: [
@@ -83,8 +86,7 @@ class _WebFetchViewState extends State<WebFetchView> {
 
   @override
   Widget build(BuildContext context) {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
     final state = widget.tool['state'] as String? ?? '';
 
@@ -102,16 +104,14 @@ class _WebFetchViewState extends State<WebFetchView> {
           _UrlChip(url: url, state: state),
 
           // Prompt if available
-          if (prompt != null && prompt.isNotEmpty)
-            _PromptBadge(prompt: prompt),
+          if (prompt != null && prompt.isNotEmpty) _PromptBadge(prompt: prompt),
 
           // Result section
           if (result != null)
             _ResultSection(
               state: state,
               result: result,
-              onViewFull: (content) =>
-                  _showFullContent(context, content),
+              onViewFull: (content) => _showFullContent(context, content),
             ),
 
           // Loading indicator
@@ -147,7 +147,6 @@ class _WebFetchViewState extends State<WebFetchView> {
 
 /// Styled chip showing the URL and a globe icon.
 class _UrlChip extends StatelessWidget {
-
   const _UrlChip({required this.url, required this.state});
   final String url;
   final String state;
@@ -204,11 +203,7 @@ class _UrlChip extends StatelessWidget {
               color: stateColor.withValues(alpha: 26 / 255.0),
               borderRadius: BorderRadius.circular(AppRadius.xsm),
             ),
-            child: Icon(
-              _stateIcon(),
-              size: AppIconSize.sm,
-              color: stateColor,
-            ),
+            child: Icon(_stateIcon(), size: AppIconSize.sm, color: stateColor),
           ),
           const SizedBox(width: AppSpacing.sm),
           // URL text
@@ -219,8 +214,9 @@ class _UrlChip extends StatelessWidget {
                 fontSize: AppFontSize.sm,
                 color: theme.colorScheme.primary,
                 decoration: TextDecoration.underline,
-                decorationColor: theme.colorScheme.primary
-                    .withValues(alpha: 128 / 255.0),
+                decorationColor: theme.colorScheme.primary.withValues(
+                  alpha: 128 / 255.0,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
               maxLines: 1,
@@ -231,8 +227,9 @@ class _UrlChip extends StatelessWidget {
           Icon(
             Icons.open_in_new,
             size: 12,
-            color: theme.colorScheme.onSurfaceVariant
-                .withValues(alpha: 153 / 255.0),
+            color: theme.colorScheme.onSurfaceVariant.withValues(
+              alpha: 153 / 255.0,
+            ),
           ),
         ],
       ),
@@ -242,7 +239,6 @@ class _UrlChip extends StatelessWidget {
 
 /// Displays the optional user prompt.
 class _PromptBadge extends StatelessWidget {
-
   const _PromptBadge({required this.prompt});
   final String prompt;
 
@@ -254,8 +250,9 @@ class _PromptBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: theme.colorScheme.secondaryContainer
-              .withValues(alpha: 128 / 255.0),
+          color: theme.colorScheme.secondaryContainer.withValues(
+            alpha: 128 / 255.0,
+          ),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.outlineVariant,
@@ -290,7 +287,6 @@ class _PromptBadge extends StatelessWidget {
 
 /// Displays the fetched content with a preview and "View full" button.
 class _ResultSection extends StatelessWidget {
-
   const _ResultSection({
     required this.state,
     required this.result,
@@ -346,10 +342,7 @@ class _ResultSection extends StatelessWidget {
           children: [
             // Header bar
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: AppColors.success.withValues(alpha: 20 / 255.0),
                 borderRadius: const BorderRadius.vertical(
@@ -378,8 +371,9 @@ class _ResultSection extends StatelessWidget {
                     '${content.length} chars',
                     style: TextStyle(
                       fontSize: AppFontSize.sm,
-                      color: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 153 / 255.0),
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 153 / 255.0,
+                      ),
                     ),
                   ),
                 ],
@@ -412,9 +406,7 @@ class _ResultSection extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       textStyle: const TextStyle(fontSize: AppFontSize.sm),
-                      side: BorderSide(
-                        color: theme.colorScheme.outlineVariant,
-                      ),
+                      side: BorderSide(color: theme.colorScheme.outlineVariant),
                     ),
                   ),
                 ),
@@ -428,7 +420,6 @@ class _ResultSection extends StatelessWidget {
 
 /// Error state banner.
 class _ErrorBanner extends StatelessWidget {
-
   const _ErrorBanner({required this.message});
   final String message;
 
@@ -440,8 +431,9 @@ class _ErrorBanner extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.smd),
         decoration: BoxDecoration(
-          color: theme.colorScheme.errorContainer
-              .withValues(alpha: 128 / 255.0),
+          color: theme.colorScheme.errorContainer.withValues(
+            alpha: 128 / 255.0,
+          ),
           borderRadius: BorderRadius.circular(AppRadius.sm),
           border: Border.all(
             color: theme.colorScheme.error.withValues(alpha: 77 / 255.0),
@@ -451,11 +443,7 @@ class _ErrorBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 14,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 14, color: theme.colorScheme.error),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

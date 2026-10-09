@@ -41,7 +41,11 @@ void main() {
   }
 
   testWidgets('same key maps to the same color', (tester) async {
-    final a = await capture(tester, '/home/dev/happy_flutter', Brightness.light);
+    final a = await capture(
+      tester,
+      '/home/dev/happy_flutter',
+      Brightness.light,
+    );
     final b = await capture(
       tester,
       '/home/dev/happy_flutter',

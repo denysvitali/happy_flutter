@@ -106,9 +106,9 @@ class ArtifactBusyTextButton extends StatelessWidget {
               )
             : Text(
                 label,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
               ),
       ),
     );

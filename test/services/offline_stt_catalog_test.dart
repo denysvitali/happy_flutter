@@ -4,18 +4,12 @@ import 'package:happy_flutter/core/services/offline_dictation_service.dart';
 void main() {
   group('OfflineSttCatalog', () {
     test('defaultModel is Parakeet TDT 0.6B v3', () {
-      expect(
-        OfflineSttCatalog.defaultModel.id,
-        'parakeet-tdt-0.6b-v3-int8-v1',
-      );
+      expect(OfflineSttCatalog.defaultModel.id, 'parakeet-tdt-0.6b-v3-int8-v1');
       expect(
         OfflineSttCatalog.defaultModel.family,
         OfflineSttFamily.transducer,
       );
-      expect(
-        OfflineSttCatalog.defaultModel.modelType,
-        'nemo_transducer',
-      );
+      expect(OfflineSttCatalog.defaultModel.modelType, 'nemo_transducer');
     });
 
     test('byId resolves every Core 6 entry and rejects unknown', () {
@@ -52,10 +46,7 @@ void main() {
         desc['uncachedDecoder'],
         '/cache/moonshine/uncached_decode.int8.onnx',
       );
-      expect(
-        desc['cachedDecoder'],
-        '/cache/moonshine/cached_decode.int8.onnx',
-      );
+      expect(desc['cachedDecoder'], '/cache/moonshine/cached_decode.int8.onnx');
       expect(desc['tokens'], '/cache/moonshine/tokens.txt');
     });
 
@@ -89,8 +80,7 @@ void main() {
     });
 
     test('builds senseVoice paths', () {
-      final model =
-          OfflineSttCatalog.byId('sense-voice-int8-2024-07-17-v1')!;
+      final model = OfflineSttCatalog.byId('sense-voice-int8-2024-07-17-v1')!;
       final files = resolveOfflineSttFiles(model, '/cache/sense');
       final desc = files.toConfigDescriptor();
       expect(desc['family'], 'senseVoice');

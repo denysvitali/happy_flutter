@@ -89,9 +89,7 @@ class _OfflineVoicesScreenState extends ConsumerState<OfflineVoicesScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 
@@ -116,19 +114,17 @@ class _OfflineVoicesScreenState extends ConsumerState<OfflineVoicesScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text('Preview failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Preview failed: $e')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final voices = TtsService().offlineVoices;
-    final selectedId =
-        ref.watch(settingsNotifierProvider.select((s) => s.ttsVoiceId));
-    final activeId = selectedId ??
-        (voices.isNotEmpty ? voices.first.id : '');
+    final selectedId = ref.watch(
+      settingsNotifierProvider.select((s) => s.ttsVoiceId),
+    );
+    final activeId = selectedId ?? (voices.isNotEmpty ? voices.first.id : '');
 
     // Group by locale so the picker reads "all the English ones,
     // then German, then …".
@@ -165,7 +161,8 @@ class _OfflineVoicesScreenState extends ConsumerState<OfflineVoicesScreen> {
                     for (final voice in grouped[locale]!)
                       _VoiceRow(
                         voice: voice,
-                        status: statuses[voice.id] ??
+                        status:
+                            statuses[voice.id] ??
                             OfflineTtsStatus.notDownloaded,
                         isSelected: voice.id == activeId,
                         onSelect: () => _select(voice),
@@ -242,11 +239,13 @@ class _VoiceRow extends StatelessWidget {
     final isFailed = status == OfflineTtsStatus.failed;
 
     final subtitle = StringBuffer()
-      ..write(voice.gender == 'F'
-          ? 'Female'
-          : voice.gender == 'M'
-              ? 'Male'
-              : 'Voice');
+      ..write(
+        voice.gender == 'F'
+            ? 'Female'
+            : voice.gender == 'M'
+            ? 'Male'
+            : 'Voice',
+      );
     if (voice.quality.isNotEmpty) {
       subtitle.write(' · ${voice.quality}');
     }
@@ -254,19 +253,21 @@ class _VoiceRow extends StatelessWidget {
       subtitle.write(' · ${voice.sizeLabel}');
     }
     final l10n = AppLocalizations.of(context);
-    subtitle.write(downloadStatusSuffix(
-      ready: isReady,
-      downloading: isDownloading,
-      failed: isFailed,
-      strings: DownloadStatusStrings(
-        ready: l10n.voiceDownloadStatusReady,
-        downloading: l10n.voiceDownloadStatusDownloading,
-        failed: l10n.voiceDownloadStatusFailed,
-        notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
-        failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
-        notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+    subtitle.write(
+      downloadStatusSuffix(
+        ready: isReady,
+        downloading: isDownloading,
+        failed: isFailed,
+        strings: DownloadStatusStrings(
+          ready: l10n.voiceDownloadStatusReady,
+          downloading: l10n.voiceDownloadStatusDownloading,
+          failed: l10n.voiceDownloadStatusFailed,
+          notDownloaded: l10n.voiceDownloadStatusNotDownloaded,
+          failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
+          notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
+        ),
       ),
-    ));
+    );
 
     final IconData leadingIcon;
     final Color? leadingColor;

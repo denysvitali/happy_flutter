@@ -130,9 +130,9 @@ void main() {
       socketIoClient.disconnect(reason: DisconnectReason.appShutdown);
 
       expect(
-        LoggerService()
-            .getLogs()
-            .where((e) => e.message.startsWith('Socket.IO disconnected')),
+        LoggerService().getLogs().where(
+          (e) => e.message.startsWith('Socket.IO disconnected'),
+        ),
         isEmpty,
       );
     });

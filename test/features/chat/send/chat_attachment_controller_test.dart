@@ -27,9 +27,10 @@ void main() {
       controller.addListener(() => notifications++);
 
       expect(controller.add(_img('overflow')), isFalse);
-      expect(controller.images, hasLength(
-        ChatAttachmentController.maxAttachments,
-      ));
+      expect(
+        controller.images,
+        hasLength(ChatAttachmentController.maxAttachments),
+      );
       expect(notifications, 0);
     });
 

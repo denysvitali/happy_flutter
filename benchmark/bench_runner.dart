@@ -64,11 +64,13 @@ class BenchReporter {
     for (var i = 0; i < iterations; i++) {
       samples[i] = await body();
     }
-    _results.add(_BenchResult(
-      name: name,
-      samplesMs: samples,
-      opsPerIteration: opsPerIteration,
-    ));
+    _results.add(
+      _BenchResult(
+        name: name,
+        samplesMs: samples,
+        opsPerIteration: opsPerIteration,
+      ),
+    );
   }
 
   /// Synchronous variant of [measure] for CPU-bound bodies.
@@ -92,11 +94,13 @@ class BenchReporter {
       watch.stop();
       samples[i] = watch.elapsedMicroseconds / 1000.0;
     }
-    _results.add(_BenchResult(
-      name: name,
-      samplesMs: samples,
-      opsPerIteration: opsPerIteration,
-    ));
+    _results.add(
+      _BenchResult(
+        name: name,
+        samplesMs: samples,
+        opsPerIteration: opsPerIteration,
+      ),
+    );
   }
 
   /// Emits one machine line per result plus a human-readable table.
@@ -151,10 +155,7 @@ class _BenchResult {
 
   double percentile(double p) {
     final sorted = List<double>.of(samplesMs)..sort();
-    final idx = math.min(
-      sorted.length - 1,
-      (p * (sorted.length - 1)).round(),
-    );
+    final idx = math.min(sorted.length - 1, (p * (sorted.length - 1)).round());
     return sorted[idx];
   }
 

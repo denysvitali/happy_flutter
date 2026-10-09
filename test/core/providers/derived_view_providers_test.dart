@@ -16,21 +16,36 @@ import 'package:happy_flutter/core/providers/sessions_notifier.dart';
 void main() {
   test('every per-id derived family is autoDispose', () {
     // Per-argument instances carry the flag, not just the family object.
-    expect(sessionByIdProvider('probe').isAutoDispose, isTrue,
-        reason: 'sessionById must not pin one element per id forever');
-    expect(machineByIdProvider('probe').isAutoDispose, isTrue,
-        reason: 'machineById must not pin one element per id forever');
-    expect(recentPathsForMachineProvider('probe').isAutoDispose, isTrue,
-        reason: 'recentPathsForMachine must not pin one element per id '
-            'forever');
-    expect(sessionUiEntryProvider('probe').isAutoDispose, isTrue,
-        reason: 'sessionUiEntry must not pin one element per id forever');
+    expect(
+      sessionByIdProvider('probe').isAutoDispose,
+      isTrue,
+      reason: 'sessionById must not pin one element per id forever',
+    );
+    expect(
+      machineByIdProvider('probe').isAutoDispose,
+      isTrue,
+      reason: 'machineById must not pin one element per id forever',
+    );
+    expect(
+      recentPathsForMachineProvider('probe').isAutoDispose,
+      isTrue,
+      reason:
+          'recentPathsForMachine must not pin one element per id '
+          'forever',
+    );
+    expect(
+      sessionUiEntryProvider('probe').isAutoDispose,
+      isTrue,
+      reason: 'sessionUiEntry must not pin one element per id forever',
+    );
   });
 
   test('values still resolve correctly through the autoDispose families', () {
-    final container = ProviderContainer(overrides: [
-      sessionsNotifierProvider.overrideWith(() => _FixedSessionsNotifier()),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        sessionsNotifierProvider.overrideWith(() => _FixedSessionsNotifier()),
+      ],
+    );
     addTearDown(container.dispose);
 
     expect(container.read(sessionByIdProvider('a'))!.id, 'a');

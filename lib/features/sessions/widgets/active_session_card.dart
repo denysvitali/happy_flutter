@@ -86,10 +86,7 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
 
     return PressableCard(
       onTap: widget.onTap,
-      semanticLabel: _sessionSemanticLabel(
-        _d,
-        unreadCount: widget.unreadCount,
-      ),
+      semanticLabel: _sessionSemanticLabel(_d, unreadCount: widget.unreadCount),
       child: Container(
         margin: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
@@ -105,89 +102,93 @@ class _ActiveSessionCardState extends State<ActiveSessionCard> {
           borderRadius: BorderRadius.circular(AppRadius.md),
           clipBehavior: Clip.hardEdge,
           child: Stack(
-              fit: StackFit.passthrough,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
-                  ),
-                  child: Row(
-                    children: [
-                      buildSessionAvatar(
-                        sessionId: session.id,
-                        avatarId: _d.avatarId,
-                        sessionFlavor: sessionFlavor,
-                        size: AppAvatarSize.large,
-                        showFlavorIcon: true,
-                        hasDraft: hasDraft,
-                        avatarStyle: widget.avatarStyle,
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            buildNameRow(
-                              name: _d.name,
-                              sessionStatus: _d.status,
-                              style: AppText.title(theme),
-                              pulseDot: hasUnread,
-                            ),
-                            const SizedBox(height: AppSpacing.xxs),
-                            if (activityLine == null)
-                              Text(
-                                _d.subtitle,
-                                style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1,
-                              )
-                            else ...[
-                              const SizedBox(height: AppSpacing.xxs),
-                              activityLine,
-                            ],
-                            if (statusWidget != null) ...[
-                              const SizedBox(height: AppSpacing.xxs),
-                              statusWidget,
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      buildTimestampBadges(
-                        timestamp: widget.lastMessageTimestamp ??
-                            session.lastMessageAt ??
-                            session.updatedAt,
-                        theme: theme,
-                        cs: cs,
-                        unreadCount: widget.unreadCount,
-                        todoProgress: todoProgress,
-                        badgeGap: AppSpacing.xxs,
-                      ),
-                    ],
-                  ),
+            fit: StackFit.passthrough,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
                 ),
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: AppBorder.accent,
-                    decoration: BoxDecoration(
-                      color: accentColor,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(AppRadius.md),
-                        bottomLeft: Radius.circular(AppRadius.md),
+                child: Row(
+                  children: [
+                    buildSessionAvatar(
+                      sessionId: session.id,
+                      avatarId: _d.avatarId,
+                      sessionFlavor: sessionFlavor,
+                      size: AppAvatarSize.large,
+                      showFlavorIcon: true,
+                      hasDraft: hasDraft,
+                      avatarStyle: widget.avatarStyle,
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          buildNameRow(
+                            name: _d.name,
+                            sessionStatus: _d.status,
+                            style: AppText.title(theme),
+                            pulseDot: hasUnread,
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          if (activityLine == null)
+                            Text(
+                              _d.subtitle,
+                              style: AppText.secondary(
+                                theme,
+                                cs.onSurfaceVariant,
+                              ).copyWith(fontFamily: 'monospace'),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            )
+                          else ...[
+                            const SizedBox(height: AppSpacing.xxs),
+                            activityLine,
+                          ],
+                          if (statusWidget != null) ...[
+                            const SizedBox(height: AppSpacing.xxs),
+                            statusWidget,
+                          ],
+                        ],
                       ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    buildTimestampBadges(
+                      timestamp:
+                          widget.lastMessageTimestamp ??
+                          session.lastMessageAt ??
+                          session.updatedAt,
+                      theme: theme,
+                      cs: cs,
+                      unreadCount: widget.unreadCount,
+                      todoProgress: todoProgress,
+                      badgeGap: AppSpacing.xxs,
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: AppBorder.accent,
+                  decoration: BoxDecoration(
+                    color: accentColor,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(AppRadius.md),
+                      bottomLeft: Radius.circular(AppRadius.md),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
   }
 }
 

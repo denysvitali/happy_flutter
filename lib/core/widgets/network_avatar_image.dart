@@ -25,7 +25,8 @@ class NetworkAvatarImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final cacheSize = (size * MediaQuery.devicePixelRatioOf(context)).round();
     final radius = square ? 0.0 : size / 2;
-    final loading = placeholder ??
+    final loading =
+        placeholder ??
         ColoredBox(
           color: Theme.of(context).colorScheme.surfaceContainerHighest,
         );

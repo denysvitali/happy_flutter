@@ -124,18 +124,15 @@ void main() {
       _textRow('c', 'needle second'),
     ];
 
-    expect(
-      searchChatMessages(messages, 'needle').map((m) => m.key),
-      ['a', 'c'],
-    );
+    expect(searchChatMessages(messages, 'needle').map((m) => m.key), [
+      'a',
+      'c',
+    ]);
   });
 
   test('snippets collapse whitespace and mark truncation', () {
     final messages = [
-      _textRow(
-        'a',
-        '${'x' * 200}\n\n  the needle\tis here  \n${'y' * 200}',
-      ),
+      _textRow('a', '${'x' * 200}\n\n  the needle\tis here  \n${'y' * 200}'),
     ];
 
     final snippet = searchChatMessages(messages, 'needle').single.snippet;

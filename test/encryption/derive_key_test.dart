@@ -138,24 +138,25 @@ void main() {
       test('matches expected use case: Happy EnCoder content', () async {
         final master = Uint8List.fromList(List.generate(32, (i) => i));
 
-        final contentKey =
-            await DeriveKey.derive(master, 'Happy EnCoder', ['content']);
+        final contentKey = await DeriveKey.derive(master, 'Happy EnCoder', [
+          'content',
+        ]);
 
         expect(contentKey.length, 32);
         // Should be deterministic
-        final contentKey2 =
-            await DeriveKey.derive(master, 'Happy EnCoder', ['content']);
+        final contentKey2 = await DeriveKey.derive(master, 'Happy EnCoder', [
+          'content',
+        ]);
         expect(contentKey, contentKey2);
       });
 
       test('matches expected use case: Happy Coder analytics id', () async {
         final master = Uint8List.fromList(List.generate(32, (i) => i));
 
-        final anonId = await DeriveKey.derive(
-          master,
-          'Happy Coder',
-          ['analytics', 'id'],
-        );
+        final anonId = await DeriveKey.derive(master, 'Happy Coder', [
+          'analytics',
+          'id',
+        ]);
 
         expect(anonId.length, 32);
       });

@@ -13,11 +13,7 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 /// default to [FriendPresence.offline] until a live-presence
 /// subscription is implemented.
 class FriendCard extends StatefulWidget {
-  const FriendCard({
-    required this.friend,
-    super.key,
-    this.onTap,
-  });
+  const FriendCard({required this.friend, super.key, this.onTap});
 
   /// The friend to display.
   final Friend friend;
@@ -91,10 +87,7 @@ class _FriendCardState extends State<FriendCard> {
               ),
               child: Row(
                 children: [
-                  FriendAvatarWithStatus(
-                    friend: widget.friend,
-                    size: 44,
-                  ),
+                  FriendAvatarWithStatus(friend: widget.friend, size: 44),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Column(

@@ -60,9 +60,7 @@ void main() {
   };
 
   List<Map<String, dynamic>> childrenOf(String taskId) {
-    final row = sync
-        .messagesForSession(s)
-        .firstWhere((m) => m['id'] == taskId);
+    final row = sync.messagesForSession(s).firstWhere((m) => m['id'] == taskId);
     return (row['children'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>();
   }

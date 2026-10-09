@@ -80,8 +80,11 @@ class _TerminalCommandBarState extends State<TerminalCommandBar> {
             decoration: toolCardHeaderDecoration(cs),
             child: Row(
               children: [
-                Icon(Icons.terminal,
-                    size: AppIconSize.sm, color: cs.onSurfaceVariant),
+                Icon(
+                  Icons.terminal,
+                  size: AppIconSize.sm,
+                  color: cs.onSurfaceVariant,
+                ),
                 const SizedBox(width: AppSpacing.xsm),
                 Text(
                   label,
@@ -169,8 +172,11 @@ class _TerminalCommandBarState extends State<TerminalCommandBar> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline,
-                      size: AppIconSize.xs, color: cs.primary),
+                  Icon(
+                    Icons.info_outline,
+                    size: AppIconSize.xs,
+                    color: cs.primary,
+                  ),
                   const SizedBox(width: AppSpacing.xsm),
                   Expanded(
                     child: Text(

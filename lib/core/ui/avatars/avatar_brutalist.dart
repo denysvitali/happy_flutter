@@ -4,10 +4,7 @@ import 'avatar_palette.dart';
 
 /// Brutalist-style avatar with bold borders and high contrast
 class AvatarBrutalist extends BaseAvatar {
-  const AvatarBrutalist({
-    required super.id, super.key,
-    super.size = 48,
-  });
+  const AvatarBrutalist({required super.id, super.key, super.size = 48});
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +19,7 @@ class AvatarBrutalist extends BaseAvatar {
       height: size,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        border: Border.all(
-          color: color,
-          width: 3,
-        ),
+        border: Border.all(color: color, width: 3),
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(

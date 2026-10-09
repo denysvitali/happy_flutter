@@ -95,23 +95,32 @@ void main() {
       final received = <Map<String, dynamic>>[];
       sim.socket.events.listen(received.add);
 
-      sim.socket.emit({'type': 'before-disconnect'},
-          delay: const Duration(milliseconds: 10));
-      sim.clock.schedule(const Duration(milliseconds: 20), sim.socket.disconnect);
-      sim.socket.emit({'type': 'after-disconnect'},
-          delay: const Duration(milliseconds: 30));
-      sim.clock.schedule(const Duration(milliseconds: 40), sim.socket.reconnect);
-      sim.socket.emit({'type': 'after-reconnect'},
-          delay: const Duration(milliseconds: 50));
+      sim.socket.emit({
+        'type': 'before-disconnect',
+      }, delay: const Duration(milliseconds: 10));
+      sim.clock.schedule(
+        const Duration(milliseconds: 20),
+        sim.socket.disconnect,
+      );
+      sim.socket.emit({
+        'type': 'after-disconnect',
+      }, delay: const Duration(milliseconds: 30));
+      sim.clock.schedule(
+        const Duration(milliseconds: 40),
+        sim.socket.reconnect,
+      );
+      sim.socket.emit({
+        'type': 'after-reconnect',
+      }, delay: const Duration(milliseconds: 50));
 
       await sim.clock.drain();
       // Allow the broadcast stream to flush its microtasks.
       await Future<void>.delayed(Duration.zero);
 
-      expect(
-        received.map((e) => e['type']).toList(),
-        ['before-disconnect', 'after-reconnect'],
-      );
+      expect(received.map((e) => e['type']).toList(), [
+        'before-disconnect',
+        'after-reconnect',
+      ]);
       await sim.close();
     });
 
@@ -147,7 +156,10 @@ void main() {
               caughtNaive = true;
             }
             try {
-              await hardened.process(1, delay: const Duration(milliseconds: 50));
+              await hardened.process(
+                1,
+                delay: const Duration(milliseconds: 50),
+              );
             } on StateError {
               caughtHardened = true;
             }
@@ -182,8 +194,7 @@ void main() {
               'naive variant, or the hardened variant should never fail. '
               'naiveFailed=$naiveFailed hardenedFailed=$hardenedFailed',
         );
-        expect(hardenedFailed, 0,
-            reason: 'hardened resource must never throw');
+        expect(hardenedFailed, 0, reason: 'hardened resource must never throw');
       },
     );
   });

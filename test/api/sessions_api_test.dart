@@ -86,10 +86,7 @@ void main() {
         ),
       ).thenAnswer((_) async => _response({}, 500));
 
-      expect(
-        () => api.fetchSessions(),
-        throwsA(isA<SessionsApiException>()),
-      );
+      expect(() => api.fetchSessions(), throwsA(isA<SessionsApiException>()));
       verifyNever(mockClient.get('/v1/sessions'));
     });
 
@@ -126,9 +123,7 @@ void main() {
     test('sends POST with archived: true', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 200),
-      );
+      ).thenAnswer((_) async => _response({}, 200));
 
       await api.setSessionArchived('sess-1', true);
 
@@ -143,9 +138,7 @@ void main() {
     test('sends POST with archived: false', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 200),
-      );
+      ).thenAnswer((_) async => _response({}, 200));
 
       await api.setSessionArchived('sess-1', false);
 
@@ -160,9 +153,7 @@ void main() {
     test('throws on 500 status', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 500),
-      );
+      ).thenAnswer((_) async => _response({}, 500));
 
       expect(
         () => api.setSessionArchived('sess-1', true),
@@ -176,13 +167,10 @@ void main() {
       );
     });
 
-    test('error message includes archive for true',
-        () async {
+    test('error message includes archive for true', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 400),
-      );
+      ).thenAnswer((_) async => _response({}, 400));
 
       expect(
         () => api.setSessionArchived('sess-1', true),
@@ -196,13 +184,10 @@ void main() {
       );
     });
 
-    test('error message includes unarchive for false',
-        () async {
+    test('error message includes unarchive for false', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 400),
-      );
+      ).thenAnswer((_) async => _response({}, 400));
 
       expect(
         () => api.setSessionArchived('sess-1', false),
@@ -227,31 +212,21 @@ void main() {
     });
 
     test('sends DELETE to correct path', () async {
-      when(mockClient.delete(any)).thenAnswer(
-        (_) async => _response({}, 200),
-      );
+      when(mockClient.delete(any)).thenAnswer((_) async => _response({}, 200));
 
       await api.deleteSession('sess-42');
 
-      verify(
-        mockClient.delete('/v1/sessions/sess-42'),
-      ).called(1);
+      verify(mockClient.delete('/v1/sessions/sess-42')).called(1);
     });
 
     test('throws on 404 status', () async {
-      when(mockClient.delete(any)).thenAnswer(
-        (_) async => _response({}, 404),
-      );
+      when(mockClient.delete(any)).thenAnswer((_) async => _response({}, 404));
 
       expect(
         () => api.deleteSession('sess-gone'),
         throwsA(
           isA<SessionsApiException>()
-              .having(
-                (e) => e.statusCode,
-                'statusCode',
-                404,
-              )
+              .having((e) => e.statusCode, 'statusCode', 404)
               .having(
                 (e) => e.message,
                 'message',
@@ -262,9 +237,7 @@ void main() {
     });
 
     test('throws on 500 status', () async {
-      when(mockClient.delete(any)).thenAnswer(
-        (_) async => _response({}, 500),
-      );
+      when(mockClient.delete(any)).thenAnswer((_) async => _response({}, 500));
 
       expect(
         () => api.deleteSession('sess-1'),
@@ -291,9 +264,7 @@ void main() {
     test('sends POST with correct body', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 200),
-      );
+      ).thenAnswer((_) async => _response({}, 200));
 
       await api.updateSessionMetadata(
         'sess-1',
@@ -304,10 +275,7 @@ void main() {
       verify(
         mockClient.post(
           '/v1/sessions/sess-1/metadata',
-          data: {
-            'metadata': 'enc-meta-blob',
-            'expectedVersion': 3,
-          },
+          data: {'metadata': 'enc-meta-blob', 'expectedVersion': 3},
         ),
       ).called(1);
     });
@@ -315,9 +283,7 @@ void main() {
     test('throws on 500 status', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 500),
-      );
+      ).thenAnswer((_) async => _response({}, 500));
 
       expect(
         () => api.updateSessionMetadata(
@@ -327,17 +293,11 @@ void main() {
         ),
         throwsA(
           isA<SessionsApiException>()
-              .having(
-                (e) => e.statusCode,
-                'statusCode',
-                500,
-              )
+              .having((e) => e.statusCode, 'statusCode', 500)
               .having(
                 (e) => e.message,
                 'message',
-                contains(
-                  'Failed to update session metadata',
-                ),
+                contains('Failed to update session metadata'),
               ),
         ),
       );
@@ -346,10 +306,7 @@ void main() {
     test('throws on 409 conflict', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async =>
-            _response({'error': 'version conflict'}, 409),
-      );
+      ).thenAnswer((_) async => _response({'error': 'version conflict'}, 409));
 
       expect(
         () => api.updateSessionMetadata(
@@ -380,9 +337,7 @@ void main() {
     test('sends POST with name in body', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 200),
-      );
+      ).thenAnswer((_) async => _response({}, 200));
 
       await api.renameSession('sess-1', 'New Name');
 
@@ -397,19 +352,13 @@ void main() {
     test('throws on 400 status', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 400),
-      );
+      ).thenAnswer((_) async => _response({}, 400));
 
       expect(
         () => api.renameSession('sess-1', ''),
         throwsA(
           isA<SessionsApiException>()
-              .having(
-                (e) => e.statusCode,
-                'statusCode',
-                400,
-              )
+              .having((e) => e.statusCode, 'statusCode', 400)
               .having(
                 (e) => e.message,
                 'message',
@@ -422,9 +371,7 @@ void main() {
     test('throws on 500 status', () async {
       when(
         mockClient.post(any, data: anyNamed('data')),
-      ).thenAnswer(
-        (_) async => _response({}, 500),
-      );
+      ).thenAnswer((_) async => _response({}, 500));
 
       expect(
         () => api.renameSession('sess-1', 'Name'),
@@ -457,23 +404,17 @@ void main() {
 
       await api.fetchSessionById('sess-1');
 
-      verify(
-        mockClient.get('/v1/sessions/sess-1'),
-      ).called(1);
+      verify(mockClient.get('/v1/sessions/sess-1')).called(1);
     });
 
     test('returns session data on 200', () async {
       when(mockClient.get(any)).thenAnswer(
         (_) async => _response({
-          'session': {
-            'id': 'sess-1',
-            'name': 'My Session',
-          },
+          'session': {'id': 'sess-1', 'name': 'My Session'},
         }, 200),
       );
 
-      final result =
-          await api.fetchSessionById('sess-1');
+      final result = await api.fetchSessionById('sess-1');
 
       expect(result, isNotNull);
       expect(result!['id'], 'sess-1');
@@ -481,34 +422,25 @@ void main() {
     });
 
     test('returns null on 404', () async {
-      when(mockClient.get(any)).thenAnswer(
-        (_) async => _response({}, 404),
-      );
+      when(mockClient.get(any)).thenAnswer((_) async => _response({}, 404));
 
-      final result =
-          await api.fetchSessionById('sess-gone');
+      final result = await api.fetchSessionById('sess-gone');
 
       expect(result, isNull);
     });
 
     test('returns null on 500', () async {
-      when(mockClient.get(any)).thenAnswer(
-        (_) async => _response({}, 500),
-      );
+      when(mockClient.get(any)).thenAnswer((_) async => _response({}, 500));
 
-      final result =
-          await api.fetchSessionById('sess-broken');
+      final result = await api.fetchSessionById('sess-broken');
 
       expect(result, isNull);
     });
 
     test('returns null when get throws', () async {
-      when(mockClient.get(any)).thenThrow(
-        Exception('network error'),
-      );
+      when(mockClient.get(any)).thenThrow(Exception('network error'));
 
-      final result =
-          await api.fetchSessionById('sess-err');
+      final result = await api.fetchSessionById('sess-err');
 
       expect(result, isNull);
     });

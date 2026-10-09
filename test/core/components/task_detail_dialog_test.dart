@@ -57,7 +57,9 @@ void main() {
       expect(find.text('In Progress'), findsOneWidget);
     });
 
-    testWidgets('shows placeholder when description is missing', (tester) async {
+    testWidgets('shows placeholder when description is missing', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         wrap(
           Builder(

@@ -83,9 +83,7 @@ class TaskEventSummaryCard extends StatelessWidget {
         : _isCompleted
         ? AppColors.success
         : ext.info;
-    final borderColor = statusColor.withValues(
-      alpha: _isFailed ? 0.30 : 0.22,
-    );
+    final borderColor = statusColor.withValues(alpha: _isFailed ? 0.30 : 0.22);
     final showSummary =
         summary.isNotEmpty &&
         summary != _statusLabel() &&
@@ -103,10 +101,7 @@ class TaskEventSummaryCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.md),
               color: statusColor.withValues(alpha: AppOpacity.faint),
-              border: Border.all(
-                color: borderColor,
-                width: AppBorder.hairline,
-              ),
+              border: Border.all(color: borderColor, width: AppBorder.hairline),
             ),
             padding: EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
@@ -130,10 +125,7 @@ class TaskEventSummaryCard extends StatelessWidget {
                   child: Icon(_statusIcon(), size: 12, color: statusColor),
                 ),
                 SizedBox(width: AppSpacing.xs),
-                Text(
-                  _statusLabel(),
-                  style: AppText.badge(theme, muted),
-                ),
+                Text(_statusLabel(), style: AppText.badge(theme, muted)),
               ],
             ),
           ),
@@ -206,7 +198,10 @@ class TaskEventSummaryCard extends StatelessWidget {
             ),
             child: Text(
               'run: $runId',
-              style: AppText.badge(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
+              style: AppText.badge(
+                theme,
+                cs.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
             ),
           ),
       ],

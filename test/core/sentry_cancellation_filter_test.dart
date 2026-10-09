@@ -56,14 +56,19 @@ void main() {
     });
 
     test('does not treat an unrelated ClientException as expected', () {
-      final error = http.ClientException('Connection closed before full header');
+      final error = http.ClientException(
+        'Connection closed before full header',
+      );
       expect(isExpectedHttpCancellation(error), isFalse);
     });
 
     test('does not treat unrelated throwables as expected', () {
       expect(isExpectedHttpCancellation(StateError('boom')), isFalse);
       expect(isExpectedHttpCancellation(null), isFalse);
-      expect(isExpectedHttpCancellation('HTTP request deadline exceeded'), isFalse);
+      expect(
+        isExpectedHttpCancellation('HTTP request deadline exceeded'),
+        isFalse,
+      );
     });
   });
 }

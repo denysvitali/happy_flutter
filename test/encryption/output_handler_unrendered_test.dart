@@ -13,44 +13,42 @@ void main() {
     required String id,
     required int seq,
     int createdAt = 1000,
-  }) =>
-      {'id': id, 'seq': seq, 'createdAt': createdAt};
+  }) => {'id': id, 'seq': seq, 'createdAt': createdAt};
 
   Map<String, dynamic> agentOutput(Map<String, dynamic> data) {
     return {
       'role': 'agent',
-      'content': {
-        'type': 'output',
-        'data': data,
-      },
+      'content': {'type': 'output', 'data': data},
     };
   }
 
   group('output handler — unrendered fallback', () {
-    test('unknown data type emits an "unrendered" event instead of dropping',
-        () {
-      final result = processDecryptedMessages(
-        decryptedJsonList: [
-          agentOutput({
-            'type': 'some_future_event_type',
-            'payload': {'foo': 'bar'},
-          }),
-        ],
-        wireMessages: [wire(id: 'm1', seq: 1)],
-        sessionId: 's1',
-      );
+    test(
+      'unknown data type emits an "unrendered" event instead of dropping',
+      () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            agentOutput({
+              'type': 'some_future_event_type',
+              'payload': {'foo': 'bar'},
+            }),
+          ],
+          wireMessages: [wire(id: 'm1', seq: 1)],
+          sessionId: 's1',
+        );
 
-      expect(result.messages, hasLength(1));
-      expect(result.messages.first['kind'], 'agent-event');
-      final event = result.messages.first['event'] as Map<String, dynamic>;
-      expect(event['type'], 'unrendered');
-      expect(event['message'], contains('some_future_event_type'));
-      expect(
-        result.droppedReasons.any((r) => r.contains('output data type')),
-        isTrue,
-        reason: 'telemetry must still fire for Sentry grouping',
-      );
-    });
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'agent-event');
+        final event = result.messages.first['event'] as Map<String, dynamic>;
+        expect(event['type'], 'unrendered');
+        expect(event['message'], contains('some_future_event_type'));
+        expect(
+          result.droppedReasons.any((r) => r.contains('output data type')),
+          isTrue,
+          reason: 'telemetry must still fire for Sentry grouping',
+        );
+      },
+    );
 
     test('null data still surfaces an unrendered event', () {
       final result = processDecryptedMessages(
@@ -85,10 +83,7 @@ void main() {
 
       expect(result.messages, hasLength(1));
       expect(result.messages.first['kind'], 'agent-event');
-      expect(
-        (result.messages.first['event'] as Map)['type'],
-        'unrendered',
-      );
+      expect((result.messages.first['event'] as Map)['type'], 'unrendered');
     });
 
     test('assistant.content of unexpected type emits unrendered event', () {
@@ -106,40 +101,39 @@ void main() {
 
       expect(result.messages, hasLength(1));
       expect(result.messages.first['kind'], 'agent-event');
-      expect(
-        (result.messages.first['event'] as Map)['type'],
-        'unrendered',
-      );
+      expect((result.messages.first['event'] as Map)['type'], 'unrendered');
     });
 
-    test('unknown content block inside assistant emits one unrendered event',
-        () {
-      final result = processDecryptedMessages(
-        decryptedJsonList: [
-          agentOutput({
-            'type': 'assistant',
-            'uuid': 'u1',
-            'message': {
-              'content': [
-                {'type': 'text', 'text': 'Visible part.'},
-                {'type': 'future_block_kind', 'payload': 'opaque'},
-              ],
-            },
-          }),
-        ],
-        wireMessages: [wire(id: 'm1', seq: 1)],
-        sessionId: 's1',
-      );
+    test(
+      'unknown content block inside assistant emits one unrendered event',
+      () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            agentOutput({
+              'type': 'assistant',
+              'uuid': 'u1',
+              'message': {
+                'content': [
+                  {'type': 'text', 'text': 'Visible part.'},
+                  {'type': 'future_block_kind', 'payload': 'opaque'},
+                ],
+              },
+            }),
+          ],
+          wireMessages: [wire(id: 'm1', seq: 1)],
+          sessionId: 's1',
+        );
 
-      // One real text message + one unrendered event for the unknown block.
-      expect(result.messages, hasLength(2));
-      expect(result.messages[0]['kind'], 'text');
-      expect(result.messages[0]['content'], 'Visible part.');
-      expect(result.messages[1]['kind'], 'agent-event');
-      final event = result.messages[1]['event'] as Map<String, dynamic>;
-      expect(event['type'], 'unrendered');
-      expect(event['message'], contains('future_block_kind'));
-    });
+        // One real text message + one unrendered event for the unknown block.
+        expect(result.messages, hasLength(2));
+        expect(result.messages[0]['kind'], 'text');
+        expect(result.messages[0]['content'], 'Visible part.');
+        expect(result.messages[1]['kind'], 'agent-event');
+        final event = result.messages[1]['event'] as Map<String, dynamic>;
+        expect(event['type'], 'unrendered');
+        expect(event['message'], contains('future_block_kind'));
+      },
+    );
 
     test('empty assistant content list stays a silent no-op', () {
       // Empty list carries no information to surface — keep it silent so
@@ -183,10 +177,7 @@ void main() {
 
       expect(result.messages, hasLength(1));
       expect(result.messages.first['kind'], 'agent-event');
-      expect(
-        (result.messages.first['event'] as Map)['type'],
-        'unrendered',
-      );
+      expect((result.messages.first['event'] as Map)['type'], 'unrendered');
       expect(
         (result.messages.first['event'] as Map)['message'],
         contains('audio_blob'),

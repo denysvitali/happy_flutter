@@ -13,14 +13,14 @@ void main() {
     clipboardText = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (
-      MethodCall call,
-    ) async {
-      if (call.method == 'Clipboard.setData') {
-        final args = call.arguments as Map<Object?, Object?>;
-        clipboardText = args['text']! as String;
-      }
-      return null;
-    });
+          MethodCall call,
+        ) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<Object?, Object?>;
+            clipboardText = args['text']! as String;
+          }
+          return null;
+        });
   });
 
   tearDown(() {
@@ -40,10 +40,7 @@ void main() {
     });
 
     test('truncates to the configured byte limit', () async {
-      final result = await setClipboardTextSafely(
-        'abcdef',
-        maxBytes: 4,
-      );
+      final result = await setClipboardTextSafely('abcdef', maxBytes: 4);
 
       expect(result.success, isTrue);
       expect(result.truncated, isTrue);
@@ -54,10 +51,7 @@ void main() {
     });
 
     test('does not split multi-byte code points', () async {
-      final result = await setClipboardTextSafely(
-        'ab🙂cd',
-        maxBytes: 5,
-      );
+      final result = await setClipboardTextSafely('ab🙂cd', maxBytes: 5);
 
       expect(result.success, isTrue);
       expect(result.truncated, isTrue);

@@ -19,25 +19,20 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 
 Uint8List _generateKey() {
   final random = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(32, (_) => random.nextInt(256)),
-  );
+  return Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
 }
 
 void main() {
   group('CryptoSecretBox.decrypt — failure softening', () {
-    test(
-      'returns null without throwing when ciphertext is below the '
-      'nonce+mac minimum',
-      () async {
-        final key = _generateKey();
-        final tooShort = Uint8List(8); // less than 24 (nonce) + 16 (mac)
+    test('returns null without throwing when ciphertext is below the '
+        'nonce+mac minimum', () async {
+      final key = _generateKey();
+      final tooShort = Uint8List(8); // less than 24 (nonce) + 16 (mac)
 
-        final result = await CryptoSecretBox.decrypt(tooShort, key);
+      final result = await CryptoSecretBox.decrypt(tooShort, key);
 
-        expect(result, isNull);
-      },
-    );
+      expect(result, isNull);
+    });
 
     test('returns null without throwing when ciphertext is corrupt', () async {
       final key = _generateKey();
@@ -153,37 +148,34 @@ void main() {
   });
 
   group('SessionEncryption.decryptMessages — corrupt single message', () {
-    test(
-      'corrupt ciphertext in one slot does not throw or poison '
-      'the batch result',
-      () async {
-        final key = _generateKey();
-        final aes = AES256Encryption(key);
-        final session = SessionEncryption(
-          sessionId: 'session-mixed',
-          encryptor: aes,
-          decryptor: aes,
-          cache: EncryptionCache(),
-        );
+    test('corrupt ciphertext in one slot does not throw or poison '
+        'the batch result', () async {
+      final key = _generateKey();
+      final aes = AES256Encryption(key);
+      final session = SessionEncryption(
+        sessionId: 'session-mixed',
+        encryptor: aes,
+        decryptor: aes,
+        cache: EncryptionCache(),
+      );
 
-        // Build one message with garbage base64 content. The expected
-        // behaviour is a non-null DecryptedMessage with null content,
-        // never an exception.
-        final messages = <Map<String, dynamic>>[
-          {
-            'id': 'msg-corrupt',
-            'seq': 1,
-            'content': {'t': 'encrypted', 'c': 'this is not base64 !!!'},
-            'createdAt': 1700000000000,
-          },
-        ];
+      // Build one message with garbage base64 content. The expected
+      // behaviour is a non-null DecryptedMessage with null content,
+      // never an exception.
+      final messages = <Map<String, dynamic>>[
+        {
+          'id': 'msg-corrupt',
+          'seq': 1,
+          'content': {'t': 'encrypted', 'c': 'this is not base64 !!!'},
+          'createdAt': 1700000000000,
+        },
+      ];
 
-        final decrypted = await session.decryptMessages(messages);
+      final decrypted = await session.decryptMessages(messages);
 
-        expect(decrypted, hasLength(1));
-        expect(decrypted[0], isNotNull);
-        expect(decrypted[0]!.content, isNull);
-      },
-    );
+      expect(decrypted, hasLength(1));
+      expect(decrypted[0], isNotNull);
+      expect(decrypted[0]!.content, isNull);
+    });
   });
 }

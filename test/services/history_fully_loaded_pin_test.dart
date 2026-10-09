@@ -268,7 +268,8 @@ void main() {
     expect(
       sync.hasOlderMessages(sessionId),
       isTrue,
-      reason: 'seq 1 is gone — older messages must stay loadable instead of '
+      reason:
+          'seq 1 is gone — older messages must stay loadable instead of '
           'a dead "beginning of conversation"',
     );
     expect(sync.testHistoryFullyLoaded(sessionId), isFalse);

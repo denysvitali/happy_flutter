@@ -205,7 +205,10 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                             children: [
                               Text(
                                 context.l10n.machineCompatibilityTitle,
-                                style: AppText.title(theme, cs.onTertiaryContainer),
+                                style: AppText.title(
+                                  theme,
+                                  cs.onTertiaryContainer,
+                                ),
                               ),
                               const SizedBox(height: AppSpacing.xxs),
                               Text(
@@ -213,12 +216,18 @@ class _MachineDetailScreenState extends ConsumerState<MachineDetailScreen>
                                   cliVersion,
                                   minimumCliVersion,
                                 ),
-                                style: AppText.secondary(theme, cs.onTertiaryContainer),
+                                style: AppText.secondary(
+                                  theme,
+                                  cs.onTertiaryContainer,
+                                ),
                               ),
                               const SizedBox(height: AppSpacing.xs),
                               Text(
                                 context.l10n.machineCompatibilityAction,
-                                style: AppText.badge(theme, cs.onTertiaryContainer),
+                                style: AppText.badge(
+                                  theme,
+                                  cs.onTertiaryContainer,
+                                ),
                               ),
                             ],
                           ),
@@ -840,7 +849,10 @@ class _ResourceRow extends StatelessWidget {
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       subtitle!,
-                      style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
+                      style: AppText.secondary(
+                        theme,
+                        cs.onSurfaceVariant,
+                      ).copyWith(fontFamily: 'monospace'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

@@ -16,11 +16,7 @@ Future<void> forEachBatched<T>(
   Future<void> Function(T item) action,
 ) async {
   if (concurrency < 1) {
-    throw ArgumentError.value(
-      concurrency,
-      'concurrency',
-      'must be at least 1',
-    );
+    throw ArgumentError.value(concurrency, 'concurrency', 'must be at least 1');
   }
   var pending = <Future<void>>[];
   for (final item in items) {

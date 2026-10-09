@@ -201,10 +201,7 @@ void main() {
       }
 
       expect(testLogger.count, equals(5000));
-      expect(
-        testLogger.getLogs().first.message,
-        equals('Message 1'),
-      );
+      expect(testLogger.getLogs().first.message, equals('Message 1'));
     });
 
     test('onChange listener is notified on new log', () {
@@ -544,18 +541,21 @@ void main() {
       expect(sampled.first.message, '[pipeline] frame 144');
     });
 
-    test('the local ring buffer keeps full fidelity while export is capped', () {
-      for (var i = 0; i < 900; i++) {
-        testLogger.debug('[pipeline] frame $i');
-      }
+    test(
+      'the local ring buffer keeps full fidelity while export is capped',
+      () {
+        for (var i = 0; i < 900; i++) {
+          testLogger.debug('[pipeline] frame $i');
+        }
 
-      // DevLogsScreen reads the ring buffer; only the OTel export is bounded.
-      expect(testLogger.getLogsByLevel(LogLevel.debug).length, 900);
-      expect(
-        exported().where((entry) => entry.level == LogLevel.debug).length,
-        lessThan(200),
-      );
-    });
+        // DevLogsScreen reads the ring buffer; only the OTel export is bounded.
+        expect(testLogger.getLogsByLevel(LogLevel.debug).length, 900);
+        expect(
+          exported().where((entry) => entry.level == LogLevel.debug).length,
+          lessThan(200),
+        );
+      },
+    );
 
     test('drops are reported, never silent', () {
       for (var i = 0; i < 900; i++) {

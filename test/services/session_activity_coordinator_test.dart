@@ -56,31 +56,21 @@ void main() {
       expect(d.sessionId, 's1');
       expect(d.toolName, 'Bash');
       expect(d.startedAt, isNotNull);
-      expect(
-        d.startedAt!.millisecondsSinceEpoch,
-        1_700_000_001_000,
-      );
+      expect(d.startedAt!.millisecondsSinceEpoch, 1_700_000_001_000);
       // Falls back to last segment of path when summary is absent.
       expect(d.sessionName, 'proj');
     });
 
-    test(
-      'thinking session with no in-flight tool reports a placeholder',
-      () {
-        final c = SessionActivityCoordinator();
-        final d = c.computeDecision(
-          _makeSession(id: 's1', thinking: true),
-        );
-        expect(d.isShow, isTrue);
-        expect(d.toolName, 'Thinking…');
-      },
-    );
+    test('thinking session with no in-flight tool reports a placeholder', () {
+      final c = SessionActivityCoordinator();
+      final d = c.computeDecision(_makeSession(id: 's1', thinking: true));
+      expect(d.isShow, isTrue);
+      expect(d.toolName, 'Thinking…');
+    });
 
     test('visibleSessionId suppresses the activity decision', () {
       final c = SessionActivityCoordinator()..visibleSessionId = 's1';
-      final d = c.computeDecision(
-        _makeSession(id: 's1', thinking: true),
-      );
+      final d = c.computeDecision(_makeSession(id: 's1', thinking: true));
       // Not actively tracked yet, and we shouldn't start one for it.
       expect(d.isNoop, isTrue);
     });
@@ -100,28 +90,28 @@ void main() {
         );
         expect(c.debugTrackedSessions, contains('s1'));
 
-        final d = c.computeDecision(
-          _makeSession(id: 's1', thinking: false),
-        );
+        final d = c.computeDecision(_makeSession(id: 's1', thinking: false));
         expect(d.isEnd, isTrue);
       },
     );
 
-    test('setVisibleSession ends an active activity for that session',
-        () async {
-      final c = SessionActivityCoordinator();
-      await c.applyDecision(
-        ActivityDecision.show(
-          sessionId: 's1',
-          toolName: 'Bash',
-          startedAt: DateTime.now(),
-        ),
-      );
-      expect(c.debugTrackedSessions, contains('s1'));
-      await c.setVisibleSession('s1');
-      expect(c.debugTrackedSessions, isNot(contains('s1')));
-      expect(c.visibleSessionId, 's1');
-    });
+    test(
+      'setVisibleSession ends an active activity for that session',
+      () async {
+        final c = SessionActivityCoordinator();
+        await c.applyDecision(
+          ActivityDecision.show(
+            sessionId: 's1',
+            toolName: 'Bash',
+            startedAt: DateTime.now(),
+          ),
+        );
+        expect(c.debugTrackedSessions, contains('s1'));
+        await c.setVisibleSession('s1');
+        expect(c.debugTrackedSessions, isNot(contains('s1')));
+        expect(c.visibleSessionId, 's1');
+      },
+    );
   });
 
   // Regression coverage for the Phase 1 safety net: ensures detach() (called
@@ -240,57 +230,59 @@ void main() {
       await c.detach();
     });
 
-    test('a tool change within the same turn re-posts the notification',
-        () async {
-      AgentState agentWith(String tool) => AgentState(
-            requests: {
-              'p1': RequestInfo(tool: tool, arguments: const {}),
-            },
-          );
-      final sync = createTestSync();
-      sync.testSessions['s1'] = _makeSession(
-        id: 's1',
-        thinking: true,
-        agentState: agentWith('Bash'),
-      );
-      final c = SessionActivityCoordinator(
-        refreshInterval: const Duration(hours: 1),
-        eventReconcileCooldown: const Duration(milliseconds: 40),
-      )..attach(sync);
-      sync.testEmitDomainChanged(SyncDomain.sessions);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(c.debugNotificationPosts, 1);
+    test(
+      'a tool change within the same turn re-posts the notification',
+      () async {
+        AgentState agentWith(String tool) => AgentState(
+          requests: {'p1': RequestInfo(tool: tool, arguments: const {})},
+        );
+        final sync = createTestSync();
+        sync.testSessions['s1'] = _makeSession(
+          id: 's1',
+          thinking: true,
+          agentState: agentWith('Bash'),
+        );
+        final c = SessionActivityCoordinator(
+          refreshInterval: const Duration(hours: 1),
+          eventReconcileCooldown: const Duration(milliseconds: 40),
+        )..attach(sync);
+        sync.testEmitDomainChanged(SyncDomain.sessions);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(c.debugNotificationPosts, 1);
 
-      sync.testSessions['s1'] = _makeSession(
-        id: 's1',
-        thinking: true,
-        agentState: agentWith('Edit'),
-      );
-      sync.testEmitDomainChanged(SyncDomain.sessions);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+        sync.testSessions['s1'] = _makeSession(
+          id: 's1',
+          thinking: true,
+          agentState: agentWith('Edit'),
+        );
+        sync.testEmitDomainChanged(SyncDomain.sessions);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
 
-      expect(c.debugNotificationPosts, 2);
-      await c.detach();
-    });
+        expect(c.debugNotificationPosts, 2);
+        await c.detach();
+      },
+    );
 
-    test('deleting a tracked session ends its activity on the next wave',
-        () async {
-      final sync = createTestSync();
-      sync.testSessions['s1'] = _makeSession(id: 's1', thinking: true);
-      final c = SessionActivityCoordinator(
-        refreshInterval: const Duration(hours: 1),
-        eventReconcileCooldown: const Duration(milliseconds: 40),
-      )..attach(sync);
-      sync.testEmitDomainChanged(SyncDomain.sessions);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(c.debugTrackedSessions, contains('s1'));
+    test(
+      'deleting a tracked session ends its activity on the next wave',
+      () async {
+        final sync = createTestSync();
+        sync.testSessions['s1'] = _makeSession(id: 's1', thinking: true);
+        final c = SessionActivityCoordinator(
+          refreshInterval: const Duration(hours: 1),
+          eventReconcileCooldown: const Duration(milliseconds: 40),
+        )..attach(sync);
+        sync.testEmitDomainChanged(SyncDomain.sessions);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        expect(c.debugTrackedSessions, contains('s1'));
 
-      sync.testSessions.remove('s1');
-      sync.testEmitDomainChanged(SyncDomain.sessions);
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+        sync.testSessions.remove('s1');
+        sync.testEmitDomainChanged(SyncDomain.sessions);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
 
-      expect(c.debugTrackedSessions, isNot(contains('s1')));
-      await c.detach();
-    });
+        expect(c.debugTrackedSessions, isNot(contains('s1')));
+        await c.detach();
+      },
+    );
   });
 }

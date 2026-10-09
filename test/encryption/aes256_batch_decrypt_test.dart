@@ -103,114 +103,105 @@ void main() {
       );
 
       for (var i = 0; i < results.length; i++) {
-        expect(
-          results[i],
-          isNotNull,
-          reason: 'item $i must not be null',
-        );
+        expect(results[i], isNotNull, reason: 'item $i must not be null');
         expect(results[i], equals(inputs[i]));
       }
     });
 
-    test(
-      'encrypt then decrypt roundtrip preserves all data types',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
+    test('encrypt then decrypt roundtrip preserves all data types', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
 
-        // A single batch containing diverse data types.
-        final inputs = <dynamic>[
-          'a plain string',
-          42,
-          3.14,
-          true,
-          false,
-          [1, 'two', 3.0],
-          {'nested': 'map', 'count': 7},
-          {
-            'deep': {
-              'level': 2,
-              'items': ['x', 'y'],
-            },
+      // A single batch containing diverse data types.
+      final inputs = <dynamic>[
+        'a plain string',
+        42,
+        3.14,
+        true,
+        false,
+        [1, 'two', 3.0],
+        {'nested': 'map', 'count': 7},
+        {
+          'deep': {
+            'level': 2,
+            'items': ['x', 'y'],
           },
-        ];
+        },
+      ];
 
-        final ciphertexts = await enc.encrypt(inputs);
-        final results = await enc.decrypt(ciphertexts);
+      final ciphertexts = await enc.encrypt(inputs);
+      final results = await enc.decrypt(ciphertexts);
 
-        expect(results.length, inputs.length);
+      expect(results.length, inputs.length);
 
-        for (var i = 0; i < results.length; i++) {
+      for (var i = 0; i < results.length; i++) {
+        expect(
+          results[i],
+          isNotNull,
+          reason: 'item $i (${inputs[i].runtimeType}) must survive roundtrip',
+        );
+        expect(
+          results[i],
+          equals(inputs[i]),
+          reason: 'item $i must equal original after roundtrip',
+        );
+      }
+    });
+
+    test('batch decrypt with one corrupted item returns null for that '
+        'item only, all others succeed', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+
+      final inputs = List<Map<String, dynamic>>.generate(
+        5,
+        (i) => {'id': i, 'name': 'entry_$i'},
+      );
+
+      final ciphertexts = await enc.encrypt(inputs);
+      expect(ciphertexts.length, 5);
+
+      // Corrupt item at index 2 by flipping the last byte of its ciphertext.
+      // The version byte (index 0) is 0x00; the AES-GCM auth tag is at the
+      // tail, so flipping the last byte breaks authentication.
+      const corruptedIndex = 2;
+      final corrupted = Uint8List.fromList(ciphertexts[corruptedIndex]);
+      corrupted[corrupted.length - 1] ^= 0xFF;
+      ciphertexts[corruptedIndex] = corrupted;
+
+      final results = await enc.decrypt(ciphertexts);
+
+      expect(
+        results.length,
+        5,
+        reason:
+            'result list must still contain 5 entries even with '
+            'one corrupted item',
+      );
+
+      for (var i = 0; i < results.length; i++) {
+        if (i == corruptedIndex) {
+          expect(
+            results[i],
+            isNull,
+            reason: 'corrupted item at index $i must return null',
+          );
+        } else {
           expect(
             results[i],
             isNotNull,
-            reason: 'item $i (${inputs[i].runtimeType}) must survive roundtrip',
+            reason:
+                'valid item at index $i must not be null because one '
+                'other item was corrupted',
           );
           expect(
             results[i],
             equals(inputs[i]),
-            reason: 'item $i must equal original after roundtrip',
+            reason: 'valid item at index $i must match original',
           );
         }
-      },
-    );
-
-    test(
-      'batch decrypt with one corrupted item returns null for that '
-      'item only, all others succeed',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-
-        final inputs = List<Map<String, dynamic>>.generate(
-          5,
-          (i) => {'id': i, 'name': 'entry_$i'},
-        );
-
-        final ciphertexts = await enc.encrypt(inputs);
-        expect(ciphertexts.length, 5);
-
-        // Corrupt item at index 2 by flipping the last byte of its ciphertext.
-        // The version byte (index 0) is 0x00; the AES-GCM auth tag is at the
-        // tail, so flipping the last byte breaks authentication.
-        const corruptedIndex = 2;
-        final corrupted = Uint8List.fromList(ciphertexts[corruptedIndex]);
-        corrupted[corrupted.length - 1] ^= 0xFF;
-        ciphertexts[corruptedIndex] = corrupted;
-
-        final results = await enc.decrypt(ciphertexts);
-
-        expect(
-          results.length,
-          5,
-          reason: 'result list must still contain 5 entries even with '
-              'one corrupted item',
-        );
-
-        for (var i = 0; i < results.length; i++) {
-          if (i == corruptedIndex) {
-            expect(
-              results[i],
-              isNull,
-              reason: 'corrupted item at index $i must return null',
-            );
-          } else {
-            expect(
-              results[i],
-              isNotNull,
-              reason:
-                  'valid item at index $i must not be null because one '
-                  'other item was corrupted',
-            );
-            expect(
-              results[i],
-              equals(inputs[i]),
-              reason: 'valid item at index $i must match original',
-            );
-          }
-        }
-      },
-    );
+      }
+    });
 
     // Regression for GlitchTip HAPPY_FLUTTER-3C5 (2026-05-10):
     // "Illegal argument in isolate message: object is unsendable —
@@ -263,7 +254,5 @@ void main() {
 /// Generates a cryptographically random 32-byte AES-256 key.
 Uint8List _generateKey() {
   final random = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(32, (_) => random.nextInt(256)),
-  );
+  return Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
 }

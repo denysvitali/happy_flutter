@@ -414,7 +414,8 @@ Map<String, OutboxEntry> debugFoldEvents(List<Map<String, dynamic>> rawEvents) {
           localId: m['local_id'] as String,
           sessionId: m['session_id'] as String? ?? '',
           kind: m['kind'] as String,
-          payload: WireParsers.asMap(m['payload']) ??
+          payload:
+              WireParsers.asMap(m['payload']) ??
               ((m['payload'] is String)
                   ? jsonDecode(m['payload'] as String) as Map<String, dynamic>
                   : null),

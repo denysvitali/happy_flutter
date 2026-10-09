@@ -53,9 +53,7 @@ Widget _harness(List<ChatAppBarStatusChip> chips) {
 /// Every chip label must render in full — no per-chip ellipsis.
 void _expectNoTruncatedChip(WidgetTester tester, List<String> labels) {
   for (final label in labels) {
-    final paragraph = tester.renderObject<RenderParagraph>(
-      find.text(label),
-    );
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(label));
     expect(
       paragraph.didExceedMaxLines,
       isFalse,
@@ -118,11 +116,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // No chip is mangled and the Row never overflows — the strip scrolls.
-      _expectNoTruncatedChip(tester, [
-        'Online',
-        'Thinking',
-        'Approval needed',
-      ]);
+      _expectNoTruncatedChip(tester, ['Online', 'Thinking', 'Approval needed']);
       expect(tester.takeException(), isNull);
       expect(
         find.descendant(

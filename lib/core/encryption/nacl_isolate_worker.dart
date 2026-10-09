@@ -66,9 +66,7 @@ class _NaClBatchRequest {
 /// IMPORTANT: This is a TOP-LEVEL function. Do not move it into a
 /// class instance — `Isolate.run` would then capture the receiver and
 /// pull non-sendable Futures into the isolate message.
-Future<List<dynamic>> _naclDecryptBatchWorker(
-  _NaClBatchRequest req,
-) async {
+Future<List<dynamic>> _naclDecryptBatchWorker(_NaClBatchRequest req) async {
   final sodium = await loadSodium();
   final secureKey = SecureKey.fromList(sodium, req.secretKey);
   try {

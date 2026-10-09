@@ -32,8 +32,7 @@ String describePermissionAction(
     case 'Bash':
       final cmd = toolInput['command'] as String?;
       if (cmd != null) {
-        final short =
-            cmd.length > 42 ? '${cmd.substring(0, 42)}\u2026' : cmd;
+        final short = cmd.length > 42 ? '${cmd.substring(0, 42)}\u2026' : cmd;
         return 'run: $short';
       }
       return 'run bash command';

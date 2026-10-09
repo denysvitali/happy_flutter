@@ -83,7 +83,10 @@ class SyncProgressBar extends ConsumerWidget {
                                 status.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppText.badge(theme, status.foregroundColor(cs)),
+                                style: AppText.badge(
+                                  theme,
+                                  status.foregroundColor(cs),
+                                ),
                               ),
                             ),
                             const SizedBox(width: AppSpacing.sm),
@@ -92,7 +95,12 @@ class SyncProgressBar extends ConsumerWidget {
                                 status.detail,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: AppText.label(theme, status .foregroundColor(cs) .withValues(alpha: 0.82)),
+                                style: AppText.label(
+                                  theme,
+                                  status
+                                      .foregroundColor(cs)
+                                      .withValues(alpha: 0.82),
+                                ),
                               ),
                             ),
                           ],

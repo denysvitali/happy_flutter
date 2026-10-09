@@ -87,15 +87,10 @@ class WireParsers {
   /// (or a JSON string of that) on `input`. Reading `input.content`
   /// directly then yields an empty Create/Update Task card.
   static Map<String, dynamic> toolInput(Map<String, dynamic> tool) {
-    for (final candidate in [
-      tool['input'],
-      tool['arguments'],
-      tool['args'],
-    ]) {
+    for (final candidate in [tool['input'], tool['arguments'], tool['args']]) {
       final map = asMapOrJson(candidate);
       if (map == null) continue;
-      final nested = asMapOrJson(map['arguments']) ??
-          asMapOrJson(map['args']);
+      final nested = asMapOrJson(map['arguments']) ?? asMapOrJson(map['args']);
       if (nested != null) return nested;
       if (map.isNotEmpty) return map;
     }

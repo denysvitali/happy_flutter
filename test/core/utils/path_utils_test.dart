@@ -33,10 +33,7 @@ void main() {
         '/home/user/project/a.dart',
       );
       expect(
-        resolveRemoteFetchPath(
-          r'C:\repo\a.dart',
-          sessionPath: r'C:\repo',
-        ),
+        resolveRemoteFetchPath(r'C:\repo\a.dart', sessionPath: r'C:\repo'),
         r'C:\repo\a.dart',
       );
     });
@@ -53,20 +50,14 @@ void main() {
 
     test('strips a trailing separator from the session root', () {
       expect(
-        resolveRemoteFetchPath(
-          'a.dart',
-          sessionPath: '/home/user/project/',
-        ),
+        resolveRemoteFetchPath('a.dart', sessionPath: '/home/user/project/'),
         '/home/user/project/a.dart',
       );
     });
 
     test('joins windows session roots with backslashes', () {
       expect(
-        resolveRemoteFetchPath(
-          r'test\a_test.dart',
-          sessionPath: r'C:\repo',
-        ),
+        resolveRemoteFetchPath(r'test\a_test.dart', sessionPath: r'C:\repo'),
         r'C:\repo\test\a_test.dart',
       );
     });
@@ -95,10 +86,7 @@ void main() {
     });
 
     test('returns empty paths unchanged', () {
-      expect(
-        resolveRemoteFetchPath('', sessionPath: '/home/user/project'),
-        '',
-      );
+      expect(resolveRemoteFetchPath('', sessionPath: '/home/user/project'), '');
     });
   });
 }

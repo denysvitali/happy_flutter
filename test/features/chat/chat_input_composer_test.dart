@@ -377,9 +377,7 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('active-turn actions do not grow the composer', (
-    tester,
-  ) async {
+  testWidgets('active-turn actions do not grow the composer', (tester) async {
     final controller = TextEditingController(text: 'A compact follow-up');
     final composerCard = find.byKey(
       const ValueKey<String>('chat-composer-card'),

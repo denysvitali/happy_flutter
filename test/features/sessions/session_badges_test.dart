@@ -9,12 +9,11 @@ void main() {
   // ─── SelectionCheckbox ───────────────────────────────────
 
   group('SelectionCheckbox', () {
-    testWidgets('shows check icon when selected',
-        (tester) async {
+    testWidgets('shows check icon when selected', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
@@ -31,12 +30,11 @@ void main() {
       expect(find.byIcon(Icons.check), findsOneWidget);
     });
 
-    testWidgets('hides check icon when not selected',
-        (tester) async {
+    testWidgets('hides check icon when not selected', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
@@ -53,12 +51,11 @@ void main() {
       expect(find.byIcon(Icons.check), findsNothing);
     });
 
-    testWidgets('renders with correct width',
-        (tester) async {
+    testWidgets('renders with correct width', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
@@ -74,9 +71,7 @@ void main() {
 
       // The SelectionCheckbox container has width 36
       final containers = find.byType(Container);
-      final container = tester.widget<Container>(
-        containers.first,
-      );
+      final container = tester.widget<Container>(containers.first);
       expect(
         container.constraints?.maxWidth ?? container.constraints?.minWidth ?? 0,
         36,
@@ -90,44 +85,31 @@ void main() {
     testWidgets('renders draft icon', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: SizedBox(
               width: 100,
               height: 100,
-              child: Stack(
-                children: [
-                  const DraftBadge(),
-                ],
-              ),
+              child: Stack(children: [const DraftBadge()]),
             ),
           ),
         ),
       );
 
-      expect(
-        find.byIcon(Icons.drive_file_rename_outline),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.drive_file_rename_outline), findsOneWidget);
     });
   });
 
   // ─── TodoProgressBadge ───────────────────────────────────
 
   group('TodoProgressBadge', () {
-    testWidgets('displays completed/total text',
-        (tester) async {
+    testWidgets('displays completed/total text', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: TodoProgressBadge(
-              completed: 2,
-              total: 5,
-            ),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: TodoProgressBadge(completed: 2, total: 5)),
         ),
       );
 
@@ -137,14 +119,9 @@ void main() {
     testWidgets('displays zero progress', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: TodoProgressBadge(
-              completed: 0,
-              total: 3,
-            ),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: TodoProgressBadge(completed: 0, total: 3)),
         ),
       );
 
@@ -154,21 +131,13 @@ void main() {
     testWidgets('renders lightbulb icon', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: TodoProgressBadge(
-              completed: 1,
-              total: 2,
-            ),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: TodoProgressBadge(completed: 1, total: 2)),
         ),
       );
 
-      expect(
-        find.byIcon(Icons.lightbulb_outline),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.lightbulb_outline), findsOneWidget);
     });
   });
 }

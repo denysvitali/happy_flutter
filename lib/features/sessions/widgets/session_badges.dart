@@ -55,10 +55,7 @@ class SessionStatusIndicator extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-              color: effectiveColor,
-              width: AppBorder.thin,
-            ),
+            border: Border.all(color: effectiveColor, width: AppBorder.thin),
           ),
         ),
       );
@@ -121,9 +118,7 @@ class SelectionCheckbox extends StatelessWidget {
           shape: BoxShape.circle,
           color: isSelected ? cs.primary : cs.surface,
           border: Border.all(
-            color: isSelected
-                ? cs.primary
-                : cs.outline.withValues(alpha: 0.5),
+            color: isSelected ? cs.primary : cs.outline.withValues(alpha: 0.5),
             width: 2,
           ),
         ),
@@ -186,10 +181,7 @@ class TodoProgressBadge extends StatelessWidget {
 
 /// Unread message count badge shown on the trailing edge.
 class UnreadBadge extends StatelessWidget {
-  const UnreadBadge({
-    required this.count,
-    super.key,
-  });
+  const UnreadBadge({required this.count, super.key});
 
   final int count;
 

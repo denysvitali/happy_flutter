@@ -114,10 +114,7 @@ class StuckAgentSentinel {
     final effectiveInterval = kIsWeb
         ? const Duration(minutes: 5)
         : _checkInterval;
-    _checkTimer = Timer.periodic(
-      effectiveInterval,
-      (_) => _reconcileCatalog(),
-    );
+    _checkTimer = Timer.periodic(effectiveInterval, (_) => _reconcileCatalog());
   }
 
   /// Coalesce sessions-domain events into at most one full-catalog walk per
@@ -142,14 +139,11 @@ class StuckAgentSentinel {
       _reconcileCatalog();
       return;
     }
-    _pendingEventReconcile ??= Timer(
-      _eventReconcileCooldown - elapsed,
-      () {
-        _pendingEventReconcile = null;
-        _lastEventReconcileAt = _now();
-        _reconcileCatalog();
-      },
-    );
+    _pendingEventReconcile ??= Timer(_eventReconcileCooldown - elapsed, () {
+      _pendingEventReconcile = null;
+      _lastEventReconcileAt = _now();
+      _reconcileCatalog();
+    });
   }
 
   void _reconcileCatalog() {

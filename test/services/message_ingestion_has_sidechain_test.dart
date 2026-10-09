@@ -55,8 +55,7 @@ void main() {
       expect(sync.hasSidechainMessage(messages), isTrue);
     });
 
-    test('returns true when any message is a sidechain-link (new trigger)',
-        () {
+    test('returns true when any message is a sidechain-link (new trigger)', () {
       final messages = <Map<String, dynamic>>[
         {'id': 'a', 'kind': 'user'},
         {'id': 'b', 'kind': 'sidechain-link'},
@@ -65,16 +64,14 @@ void main() {
       expect(sync.hasSidechainMessage(messages), isTrue);
     });
 
-    test('returns true when any message carries taskEvent (new trigger)',
-        () {
+    test('returns true when any message carries taskEvent (new trigger)', () {
       final messages = <Map<String, dynamic>>[
         {'id': 'a', 'taskEvent': true},
       ];
       expect(sync.hasSidechainMessage(messages), isTrue);
     });
 
-    test(
-        'returns true when any message carries a non-empty parentToolUseId '
+    test('returns true when any message carries a non-empty parentToolUseId '
         '(new trigger)', () {
       final messages = <Map<String, dynamic>>[
         {'id': 'a', 'parentToolUseId': 'toolu_01abc'},
@@ -82,18 +79,19 @@ void main() {
       expect(sync.hasSidechainMessage(messages), isTrue);
     });
 
-    test('returns false when parentToolUseId is empty (no groupable child)',
-        () {
-      final messages = <Map<String, dynamic>>[
-        {'id': 'a', 'parentToolUseId': ''},
-      ];
-      // Empty string is intentionally NOT groupable — same as pre-fix
-      // behavior. Pinning this so the predicate doesn't drift.
-      expect(sync.hasSidechainMessage(messages), isFalse);
-    });
-
     test(
-        'returns false when parentToolUseId is missing entirely (no field '
+      'returns false when parentToolUseId is empty (no groupable child)',
+      () {
+        final messages = <Map<String, dynamic>>[
+          {'id': 'a', 'parentToolUseId': ''},
+        ];
+        // Empty string is intentionally NOT groupable — same as pre-fix
+        // behavior. Pinning this so the predicate doesn't drift.
+        expect(sync.hasSidechainMessage(messages), isFalse);
+      },
+    );
+
+    test('returns false when parentToolUseId is missing entirely (no field '
         'at all)', () {
       final messages = <Map<String, dynamic>>[
         {'id': 'a', 'text': 'plain assistant turn'},
@@ -101,8 +99,7 @@ void main() {
       expect(sync.hasSidechainMessage(messages), isFalse);
     });
 
-    test(
-        'does not throw when parentToolUseId is the wrong runtime type '
+    test('does not throw when parentToolUseId is the wrong runtime type '
         '(e.g. int)', () {
       // Defensive coercion — the predicate must tolerate a `num` or other
       // non-String type without throwing on `as String?`.
@@ -113,8 +110,7 @@ void main() {
       expect(sync.hasSidechainMessage(messages), isFalse);
     });
 
-    test(
-        'fires on the later message when the trigger appears in the second '
+    test('fires on the later message when the trigger appears in the second '
         'slot (not the first)', () {
       final messages = <Map<String, dynamic>>[
         {'id': 'a', 'kind': 'user'},

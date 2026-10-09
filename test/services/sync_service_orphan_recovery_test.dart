@@ -852,7 +852,8 @@ void main() {
         expect(
           fetchOlderCount,
           orphanAggressiveAttempts + 1,
-          reason: 'a disjoint new parent group must grant a fresh budget '
+          reason:
+              'a disjoint new parent group must grant a fresh budget '
               'even while the older orphan is still present',
         );
       });
@@ -865,45 +866,53 @@ void main() {
       // request-size concern that motivated it is handled by the 30 s receive
       // budget and the fetch retry layer instead.
 
-      test('a session at the visible message cap skips the walk-back', () async {
-        // _upsertSessionMessages trims a visible session back to the newest
-        // Sync.maxVisibleSessionMessagesForTesting rows, so a fetched older
-        // page — and the parent Task inside it — is discarded before the
-        // grouper can see it. Every page is then guaranteed to make zero
-        // progress, so the walk-back must not run at all.
-        final atCap = <Map<String, dynamic>>[
-          for (var i = 0; i < Sync.maxVisibleSessionMessagesForTesting; i++)
-            <String, dynamic>{
-              'id': 'm-$i',
-              'role': 'agent',
-              'kind': 'text',
-              'seq': 1000 + i,
-              'createdAt': 1700000000000 + i,
-            },
-        ]..add(<String, dynamic>{
-          'id': 'orph-1',
-          'isSidechain': true,
-          'uuid': 'u1',
-          'parentUuid': 'task-A',
-          'parentToolUseId': 'toolu_A',
-          'role': 'agent',
-          'kind': 'text',
-          'seq': 102,
-        });
-        syncWithEnc.testSetSessionMessages('s2', atCap);
-        syncWithEnc.testSetSessionFirstLoadedSeq('s2', 5000);
+      test(
+        'a session at the visible message cap skips the walk-back',
+        () async {
+          // _upsertSessionMessages trims a visible session back to the newest
+          // Sync.maxVisibleSessionMessagesForTesting rows, so a fetched older
+          // page — and the parent Task inside it — is discarded before the
+          // grouper can see it. Every page is then guaranteed to make zero
+          // progress, so the walk-back must not run at all.
+          final atCap =
+              <Map<String, dynamic>>[
+                for (
+                  var i = 0;
+                  i < Sync.maxVisibleSessionMessagesForTesting;
+                  i++
+                )
+                  <String, dynamic>{
+                    'id': 'm-$i',
+                    'role': 'agent',
+                    'kind': 'text',
+                    'seq': 1000 + i,
+                    'createdAt': 1700000000000 + i,
+                  },
+              ]..add(<String, dynamic>{
+                'id': 'orph-1',
+                'isSidechain': true,
+                'uuid': 'u1',
+                'parentUuid': 'task-A',
+                'parentToolUseId': 'toolu_A',
+                'role': 'agent',
+                'kind': 'text',
+                'seq': 102,
+              });
+          syncWithEnc.testSetSessionMessages('s2', atCap);
+          syncWithEnc.testSetSessionFirstLoadedSeq('s2', 5000);
 
-        syncWithEnc.testRunDeferredRegroupSweep('s2');
-        await _drainAsyncWork();
+          syncWithEnc.testRunDeferredRegroupSweep('s2');
+          await _drainAsyncWork();
 
-        expect(
-          fetchOlderCount,
-          0,
-          reason:
-              'a session at the visible cap trims away every fetched page, '
-              'so the walk-back can never make progress',
-        );
-      });
+          expect(
+            fetchOlderCount,
+            0,
+            reason:
+                'a session at the visible cap trims away every fetched page, '
+                'so the walk-back can never make progress',
+          );
+        },
+      );
 
       test('background sessions never walk back — recovery is deferred '
           'until the session becomes visible', () async {

@@ -102,10 +102,7 @@ void main() {
     });
 
     test('tolerates malformed limits payloads', () {
-      expect(
-        ClaudeUsageLimits.fromJson({'limits': 'garbage'}).limits,
-        isEmpty,
-      );
+      expect(ClaudeUsageLimits.fromJson({'limits': 'garbage'}).limits, isEmpty);
       expect(
         ClaudeUsageLimits.fromJson({
           'limits': [

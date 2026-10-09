@@ -20,14 +20,14 @@ import 'lww_register.dart';
 /// sufficient.
 class ProfilesCrdt {
   ProfilesCrdt({required String replicaId})
-      : _map = LwwMap<Map<String, Object?>?>(
-          replicaId: replicaId,
-          clock: () => DateTime.now().microsecondsSinceEpoch,
-        );
+    : _map = LwwMap<Map<String, Object?>?>(
+        replicaId: replicaId,
+        clock: () => DateTime.now().microsecondsSinceEpoch,
+      );
   final LwwMap<Map<String, Object?>?> _map;
   Map<String, Map<String, Object?>?> snapshot() => {
-        for (final e in _map.cells.entries) e.key: e.value.value,
-      };
+    for (final e in _map.cells.entries) e.key: e.value.value,
+  };
   Map<String, Object?> upsert(String profileId, Map<String, Object?> body) {
     _map.set(profileId, body);
     return {profileId: _map.cells[profileId]!.toJson()};
@@ -37,7 +37,8 @@ class ProfilesCrdt {
     for (final e in patch.entries) {
       if (e.value is! Map) continue;
       final cell = LwwCell.fromJson<Map<String, Object?>?>(
-          (e.value! as Map).cast<String, Object?>());
+        (e.value! as Map).cast<String, Object?>(),
+      );
       _map.mergeCell(e.key, cell);
     }
   }
@@ -49,14 +50,14 @@ class ProfilesCrdt {
 /// tombstones is the follow-up.
 class TodosCrdt {
   TodosCrdt({required String replicaId})
-      : _items = LwwMap<Map<String, Object?>?>(
-          replicaId: replicaId,
-          clock: () => DateTime.now().microsecondsSinceEpoch,
-        );
+    : _items = LwwMap<Map<String, Object?>?>(
+        replicaId: replicaId,
+        clock: () => DateTime.now().microsecondsSinceEpoch,
+      );
   final LwwMap<Map<String, Object?>?> _items;
   Map<String, Map<String, Object?>?> snapshot() => {
-        for (final e in _items.cells.entries) e.key: e.value.value,
-      };
+    for (final e in _items.cells.entries) e.key: e.value.value,
+  };
   Map<String, Object?> upsert(String id, Map<String, Object?> body) {
     _items.set(id, body);
     return {id: _items.cells[id]!.toJson()};
@@ -71,7 +72,8 @@ class TodosCrdt {
     for (final e in patch.entries) {
       if (e.value is! Map) continue;
       final cell = LwwCell.fromJson<Map<String, Object?>?>(
-          (e.value! as Map).cast<String, Object?>());
+        (e.value! as Map).cast<String, Object?>(),
+      );
       _items.mergeCell(e.key, cell);
     }
   }
@@ -80,14 +82,14 @@ class TodosCrdt {
 /// Artifacts — same skeleton as todos.
 class ArtifactsCrdt {
   ArtifactsCrdt({required String replicaId})
-      : _items = LwwMap<Map<String, Object?>?>(
-          replicaId: replicaId,
-          clock: () => DateTime.now().microsecondsSinceEpoch,
-        );
+    : _items = LwwMap<Map<String, Object?>?>(
+        replicaId: replicaId,
+        clock: () => DateTime.now().microsecondsSinceEpoch,
+      );
   final LwwMap<Map<String, Object?>?> _items;
   Map<String, Map<String, Object?>?> snapshot() => {
-        for (final e in _items.cells.entries) e.key: e.value.value,
-      };
+    for (final e in _items.cells.entries) e.key: e.value.value,
+  };
   Map<String, Object?> upsert(String id, Map<String, Object?> body) {
     _items.set(id, body);
     return {id: _items.cells[id]!.toJson()};
@@ -97,7 +99,8 @@ class ArtifactsCrdt {
     for (final e in patch.entries) {
       if (e.value is! Map) continue;
       final cell = LwwCell.fromJson<Map<String, Object?>?>(
-          (e.value! as Map).cast<String, Object?>());
+        (e.value! as Map).cast<String, Object?>(),
+      );
       _items.mergeCell(e.key, cell);
     }
   }

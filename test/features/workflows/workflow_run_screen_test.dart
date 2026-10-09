@@ -286,10 +286,7 @@ void main() {
   testWidgets('expands a long agent prompt past the collapsed cap', (
     tester,
   ) async {
-    final prompt = List<String>.generate(
-      12,
-      (i) => 'Focus line $i',
-    ).join('\n');
+    final prompt = List<String>.generate(12, (i) => 'Focus line $i').join('\n');
     Sync().testSetSessionMessages(_sessionId, <Map<String, dynamic>>[
       _progressOwner(<Map<String, dynamic>>[
         _phase(1, 'Scout'),

@@ -4,11 +4,7 @@ import 'package:happy_flutter/core/utils/bounded_concurrency.dart';
 void main() {
   test('runs every item', () async {
     final seen = <int>[];
-    await forEachBatched(
-      [1, 2, 3, 4, 5],
-      2,
-      (item) async => seen.add(item),
-    );
+    await forEachBatched([1, 2, 3, 4, 5], 2, (item) async => seen.add(item));
     expect(seen, [1, 2, 3, 4, 5]);
   });
 
@@ -48,35 +44,24 @@ void main() {
 
   test('concurrency of 1 runs strictly in order', () async {
     final seen = <int>[];
-    await forEachBatched(
-      [1, 2, 3],
-      1,
-      (item) async {
-        await Future<void>.delayed(const Duration(milliseconds: 1));
-        seen.add(item);
-      },
-    );
+    await forEachBatched([1, 2, 3], 1, (item) async {
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+      seen.add(item);
+    });
     expect(seen, [1, 2, 3]);
   });
 
   test('rejects a non-positive concurrency', () {
-    expect(
-      () => forEachBatched([1], 0, (item) async {}),
-      throwsArgumentError,
-    );
+    expect(() => forEachBatched([1], 0, (item) async {}), throwsArgumentError);
   });
 
   test('surfaces the first error and stops scheduling', () async {
     final started = <int>[];
     await expectLater(
-      forEachBatched(
-        List<int>.generate(20, (i) => i),
-        2,
-        (item) async {
-          started.add(item);
-          if (item == 1) throw StateError('boom');
-        },
-      ),
+      forEachBatched(List<int>.generate(20, (i) => i), 2, (item) async {
+        started.add(item);
+        if (item == 1) throw StateError('boom');
+      }),
       throwsStateError,
     );
     // The failing batch rejects; later items are never scheduled.

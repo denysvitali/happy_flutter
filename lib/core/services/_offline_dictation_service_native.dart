@@ -15,12 +15,7 @@ import 'logger_service.dart' show logger;
 /// Offline ASR model family. Drives how
 /// [OfflineSttResolvedFiles] map onto sherpa-onnx's
 /// [sherpa.OfflineModelConfig].
-enum OfflineSttFamily {
-  moonshine,
-  transducer,
-  whisper,
-  senseVoice,
-}
+enum OfflineSttFamily { moonshine, transducer, whisper, senseVoice }
 
 /// Catalog entry for a downloadable offline speech model.
 ///
@@ -152,13 +147,13 @@ class OfflineSttCatalog {
       displayName: 'SenseVoice (zh/en/ja/ko/yue)',
       languages: 'zh/en/ja/ko/yue',
       tier: 'balanced',
-      archiveUrl: '$_baseUrl/'
+      archiveUrl:
+          '$_baseUrl/'
           'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2',
       archiveSha256:
           '7d1efa2138a65b0b488df37f8b89e3d91a60676e416f515b952358d83dfd347e',
       approximateBytes: 155 * 1024 * 1024,
-      archiveRoot:
-          'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17',
+      archiveRoot: 'sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17',
       requiredFiles: {'model.int8.onnx', 'tokens.txt'},
       family: OfflineSttFamily.senseVoice,
       tokensRelPath: 'tokens.txt',
@@ -246,12 +241,7 @@ class OfflineSttCatalog {
   }
 }
 
-enum OfflineSttStatus {
-  notDownloaded,
-  downloading,
-  ready,
-  failed,
-}
+enum OfflineSttStatus { notDownloaded, downloading, ready, failed }
 
 /// Live download/extract progress for one model.
 ///
@@ -451,7 +441,8 @@ class OfflineDictationService {
 
   /// In-memory selection only. Persist via Settings.sttModelId.
   void selectModel(String? modelId) {
-    final resolved = OfflineSttCatalog.byId(modelId)?.id ??
+    final resolved =
+        OfflineSttCatalog.byId(modelId)?.id ??
         OfflineSttCatalog.defaultModel.id;
     _selectedModelId = resolved;
   }
@@ -809,10 +800,7 @@ class OfflineDictationService {
       );
       _setProgressFor(
         model.id,
-        OfflineSttDownloadProgress(
-          modelId: model.id,
-          phase: 'extracting',
-        ),
+        OfflineSttDownloadProgress(modelId: model.id, phase: 'extracting'),
       );
       // Hoist plain strings so the isolate closure never captures `this`.
       final archivePath = archiveFile.path;
@@ -961,9 +949,8 @@ class OfflineDictationService {
 
   void _clearProgressFor(String modelId) {
     if (!_progress.value.containsKey(modelId)) return;
-    final next = Map<String, OfflineSttDownloadProgress>.from(
-      _progress.value,
-    )..remove(modelId);
+    final next = Map<String, OfflineSttDownloadProgress>.from(_progress.value)
+      ..remove(modelId);
     _progress.value = next;
   }
 }

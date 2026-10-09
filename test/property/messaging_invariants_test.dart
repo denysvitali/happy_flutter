@@ -169,11 +169,7 @@ void _invariantReplacementByLocalId(
       // for taps already inserted into the model.
       final row = model.rows.firstWhere(
         (r) => r.tapId == cmd.tapId,
-        orElse: () => ModelRow(
-          tapId: -1,
-          localId: const LocalId(''),
-          text: '',
-        ),
+        orElse: () => ModelRow(tapId: -1, localId: const LocalId(''), text: ''),
       );
       if (row.tapId != -1) {
         firstSeen.putIfAbsent(cmd.tapId, () => row.localId);
@@ -251,8 +247,11 @@ void main() {
       final tap1 = model.rows.firstWhere((r) => r.tapId == 1);
       final tap2 = model.rows.firstWhere((r) => r.tapId == 2);
       expect(tap1.localId, isNot(tap2.localId));
-      expect(tap1.state, isA<MessageSending>(),
-          reason: 'retry resets state to sending without changing id');
+      expect(
+        tap1.state,
+        isA<MessageSending>(),
+        reason: 'retry resets state to sending without changing id',
+      );
     });
 
     test('socket echo replaces optimistic row by LocalId', () {

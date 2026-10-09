@@ -113,10 +113,7 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
               const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
-                  Text(
-                    'Payload',
-                    style: AppText.title(theme),
-                  ),
+                  Text('Payload', style: AppText.title(theme)),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: pretty == null && compact == null
@@ -159,7 +156,10 @@ class ProviderPayloadDebugSheet extends StatelessWidget {
                           child: Text(
                             'No payload captured for this account yet. '
                             'Pull-to-refresh to retry.',
-                            style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
+                            style: AppText.secondary(
+                              theme,
+                              colorScheme.onSurfaceVariant,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ),

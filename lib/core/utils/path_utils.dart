@@ -10,7 +10,6 @@ typedef MetadataPath = String;
 
 /// Metadata structure containing a root path for path resolution.
 class Metadata {
-
   const Metadata({required this.path});
   final String path;
 }
@@ -28,7 +27,7 @@ String resolvePath(String path, dynamic metadata) {
   if (metadata == null) {
     return path;
   }
-  
+
   String metadataPath;
   if (metadata is Metadata) {
     metadataPath = metadata.path;
@@ -37,13 +36,15 @@ String resolvePath(String path, dynamic metadata) {
   } else {
     return path;
   }
-  
+
   final normalizedRoot = metadataPath.toLowerCase();
   final pathLower = path.toLowerCase();
 
   if (pathLower.startsWith(normalizedRoot)) {
     final remainder = path.substring(metadataPath.length);
-    if (remainder.isEmpty || remainder.startsWith('/') || remainder.startsWith(r'\')) {
+    if (remainder.isEmpty ||
+        remainder.startsWith('/') ||
+        remainder.startsWith(r'\')) {
       var out = remainder;
       if (out.startsWith('/') || out.startsWith(r'\')) {
         out = out.substring(1);
@@ -88,8 +89,7 @@ String resolveAbsolutePath(String path, {String? homeDir}) {
   if (path.startsWith('~/')) {
     final relativePart = path.substring(2); // Remove '~/'
     // Detect path separator based on homeDir - prefer the last separator found
-    final hasBackslash =
-        homeDir.lastIndexOf(r'\') > homeDir.lastIndexOf('/');
+    final hasBackslash = homeDir.lastIndexOf(r'\') > homeDir.lastIndexOf('/');
     final separator = hasBackslash ? r'\' : '/';
     final normalizedHome = homeDir.endsWith('/') || homeDir.endsWith(r'\')
         ? homeDir.substring(0, homeDir.length - 1)
@@ -163,9 +163,7 @@ String resolveRemoteFetchPath(
     return filePath;
   }
 
-  final separator = root.lastIndexOf(r'\') > root.lastIndexOf('/')
-      ? r'\'
-      : '/';
+  final separator = root.lastIndexOf(r'\') > root.lastIndexOf('/') ? r'\' : '/';
   final normalizedRoot = root.endsWith('/') || root.endsWith(r'\')
       ? root.substring(0, root.length - 1)
       : root;

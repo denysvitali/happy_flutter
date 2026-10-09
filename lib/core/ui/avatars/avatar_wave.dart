@@ -42,11 +42,7 @@ const _kAuroraPalette = [
 
 /// Wave-style avatar with layered sine wave landscapes.
 class AvatarWave extends BaseAvatar {
-  const AvatarWave({
-    required super.id,
-    super.key,
-    super.size = 48,
-  });
+  const AvatarWave({required super.id, super.key, super.size = 48});
 
   @override
   Widget build(BuildContext context) {
@@ -134,8 +130,9 @@ class _WavePainter extends CustomPainter {
     final phase = (seed % 628) / 100.0; // 0–2π
 
     // Color: cycle through palette with offset per wave.
-    final color = palette[(seed % palette.length)]
-        .withValues(alpha: 0.55 + (index % 3) * 0.12);
+    final color = palette[(seed % palette.length)].withValues(
+      alpha: 0.55 + (index % 3) * 0.12,
+    );
 
     const steps = 24;
     final path = Path();
@@ -148,10 +145,7 @@ class _WavePainter extends CustomPainter {
       ..lineTo(0, _waveY(0, dx, freq, amp, phase, baseY, size));
 
     for (var s = 1; s <= steps; s++) {
-      path.lineTo(
-        s * dx,
-        _waveY(s, dx, freq, amp, phase, baseY, size),
-      );
+      path.lineTo(s * dx, _waveY(s, dx, freq, amp, phase, baseY, size));
     }
 
     // Close the path along the bottom.

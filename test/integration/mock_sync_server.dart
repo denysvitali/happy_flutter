@@ -65,9 +65,7 @@ class MockSyncServer {
   /// Set up the mock server. Must be called before using.
   Future<void> setUp() async {
     await ApiClient().initialize(serverUrl: 'http://localhost');
-    _interceptor = InterceptorsWrapper(
-      onRequest: _handleRequest,
-    );
+    _interceptor = InterceptorsWrapper(onRequest: _handleRequest);
     ApiClient().testDio!.interceptors.add(_interceptor!);
   }
 
@@ -141,50 +139,57 @@ class MockSyncServer {
     // /v2/sessions — session list
     if (path == '/v2/sessions' && options.method == 'GET') {
       if (_stubbedSessionsResponse != null) {
-        handler.resolve(Response<dynamic>(
-          requestOptions: options,
-          statusCode: 200,
-          data: _stubbedSessionsResponse,
-        ));
+        handler.resolve(
+          Response<dynamic>(
+            requestOptions: options,
+            statusCode: 200,
+            data: _stubbedSessionsResponse,
+          ),
+        );
         return;
       }
-      handler.resolve(Response<dynamic>(
-        requestOptions: options,
-        statusCode: 200,
-        data: {
-          'sessions': _stubbedSessionList
-              .map((s) => _sessionToJson(s))
-              .toList(),
-          'hasNext': false,
-        },
-      ));
+      handler.resolve(
+        Response<dynamic>(
+          requestOptions: options,
+          statusCode: 200,
+          data: {
+            'sessions': _stubbedSessionList
+                .map((s) => _sessionToJson(s))
+                .toList(),
+            'hasNext': false,
+          },
+        ),
+      );
       return;
     }
 
     // /v1/sessions/{id} — single session
-    final singleSessionMatch = RegExp(r'^/v1/sessions/([^/]+)$').firstMatch(path);
+    final singleSessionMatch = RegExp(
+      r'^/v1/sessions/([^/]+)$',
+    ).firstMatch(path);
     if (singleSessionMatch != null && options.method == 'GET') {
       final sessionId = singleSessionMatch.group(1)!;
       final session = _stubbedSessions[sessionId];
       if (session != null) {
-        handler.resolve(Response<dynamic>(
-          requestOptions: options,
-          statusCode: 200,
-          data: {'session': _sessionToJson(session)},
-        ));
+        handler.resolve(
+          Response<dynamic>(
+            requestOptions: options,
+            statusCode: 200,
+            data: {'session': _sessionToJson(session)},
+          ),
+        );
         return;
       }
-      handler.resolve(Response<dynamic>(
-        requestOptions: options,
-        statusCode: 404,
-        data: {},
-      ));
+      handler.resolve(
+        Response<dynamic>(requestOptions: options, statusCode: 404, data: {}),
+      );
       return;
     }
 
     // /v3/sessions/{id}/messages — message list
-    final messagesMatch =
-        RegExp(r'^/v3/sessions/([^/]+)/messages$').firstMatch(path);
+    final messagesMatch = RegExp(
+      r'^/v3/sessions/([^/]+)/messages$',
+    ).firstMatch(path);
     if (messagesMatch != null && options.method == 'GET') {
       final sessionId = messagesMatch.group(1)!;
       final messages = _stubbedMessages[sessionId] ?? [];
@@ -205,23 +210,24 @@ class MockSyncServer {
       final page = filtered.take(limit).toList();
       final hasMore = filtered.length > limit;
 
-      handler.resolve(Response<dynamic>(
-        requestOptions: options,
-        statusCode: 200,
-        data: {
-          'messages': page,
-          'hasMore': hasMore,
-        },
-      ));
+      handler.resolve(
+        Response<dynamic>(
+          requestOptions: options,
+          statusCode: 200,
+          data: {'messages': page, 'hasMore': hasMore},
+        ),
+      );
       return;
     }
 
     // Default: 404 for unhandled requests
-    handler.resolve(Response<dynamic>(
-      requestOptions: options,
-      statusCode: 404,
-      data: {'error': 'Not mocked: ${options.method} $path'},
-    ));
+    handler.resolve(
+      Response<dynamic>(
+        requestOptions: options,
+        statusCode: 404,
+        data: {'error': 'Not mocked: ${options.method} $path'},
+      ),
+    );
   }
 
   Map<String, dynamic> _sessionToJson(Session s) {

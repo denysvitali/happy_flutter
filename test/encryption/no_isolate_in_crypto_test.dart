@@ -37,9 +37,7 @@ void main() {
         }
       }
 
-      final syncService = File(
-        'lib/core/services/sync_service.dart',
-      );
+      final syncService = File('lib/core/services/sync_service.dart');
       if (syncService.existsSync()) {
         files.add(syncService);
       }
@@ -47,137 +45,123 @@ void main() {
       return files;
     }
 
-    test(
-      'CryptoSecretBox/CryptoBox are not imported alongside '
-      'dart:isolate in the same file',
-      () {
-        // Files that use dart:isolate must not also import NaCl
-        // primitives (CryptoSecretBox, CryptoBox) — those use FFI
-        // with non-sendable SecureKey objects.
-        //
-        // These files import both but keep NaCl on the main thread:
-        // - encryptor.dart: AES256Encryption.decryptInIsolate
-        //   sends only pure-Dart AES data; SecretBoxEncryption
-        //   (NaCl) delegates to CryptoSecretBox.decryptBatchInIsolate,
-        //   which in turn delegates to nacl_isolate_worker.dart.
-        // - sync_service.dart: isAes/else branch ensures NaCl
-        //   items stay on the main thread.
-        // - nacl_isolate_worker.dart: the *one* file that legitimately
-        //   uses NaCl + dart:isolate. It is the boundary — the worker
-        //   re-loads sodium inside the spawned isolate and only
-        //   receives sendable Uint8List PODs across `Isolate.run`.
-        //   No SecureKey or sodiumSingleton instance ever crosses
-        //   the boundary, dodging the "Illegal argument in isolate
-        //   message: object is unsendable" failure mode.
-        const allowedMixedFiles = <String>{
-          'encryptor.dart',
-          'nacl_isolate_worker.dart',
-          'sync_service.dart',
-        };
+    test('CryptoSecretBox/CryptoBox are not imported alongside '
+        'dart:isolate in the same file', () {
+      // Files that use dart:isolate must not also import NaCl
+      // primitives (CryptoSecretBox, CryptoBox) — those use FFI
+      // with non-sendable SecureKey objects.
+      //
+      // These files import both but keep NaCl on the main thread:
+      // - encryptor.dart: AES256Encryption.decryptInIsolate
+      //   sends only pure-Dart AES data; SecretBoxEncryption
+      //   (NaCl) delegates to CryptoSecretBox.decryptBatchInIsolate,
+      //   which in turn delegates to nacl_isolate_worker.dart.
+      // - sync_service.dart: isAes/else branch ensures NaCl
+      //   items stay on the main thread.
+      // - nacl_isolate_worker.dart: the *one* file that legitimately
+      //   uses NaCl + dart:isolate. It is the boundary — the worker
+      //   re-loads sodium inside the spawned isolate and only
+      //   receives sendable Uint8List PODs across `Isolate.run`.
+      //   No SecureKey or sodiumSingleton instance ever crosses
+      //   the boundary, dodging the "Illegal argument in isolate
+      //   message: object is unsendable" failure mode.
+      const allowedMixedFiles = <String>{
+        'encryptor.dart',
+        'nacl_isolate_worker.dart',
+        'sync_service.dart',
+      };
 
-        final violations = <String>[];
+      final violations = <String>[];
 
-        for (final file in _filesToAudit()) {
-          final name = file.uri.pathSegments.last;
-          if (allowedMixedFiles.contains(name)) continue;
+      for (final file in _filesToAudit()) {
+        final name = file.uri.pathSegments.last;
+        if (allowedMixedFiles.contains(name)) continue;
 
-          final codeLines = _codeLines(file);
-          final hasIsolateImport = codeLines.any(
-            (l) =>
-                l.contains("import 'dart:isolate'") ||
-                l.contains('import "dart:isolate"'),
-          );
-          if (!hasIsolateImport) continue;
-
-          final hasNaCl = codeLines.any(
-            (l) =>
-                l.contains('CryptoSecretBox') ||
-                l.contains('CryptoBox') ||
-                l.contains('sodiumSingleton'),
-          );
-          if (hasNaCl) {
-            violations.add(
-              '${file.path}: imports dart:isolate AND NaCl '
-              'primitives',
-            );
-          }
-        }
-
-        expect(
-          violations,
-          isEmpty,
-          reason:
-              'Files that import dart:isolate must not also use '
-              'NaCl/libsodium primitives (CryptoSecretBox, '
-              'CryptoBox, sodiumSingleton).\n'
-              'NaCl FFI objects (SecureKey) cannot cross isolate '
-              'boundaries.\n'
-              'AES-256-GCM (pure Dart) IS isolate-safe.\n'
-              'Violations:\n${violations.join('\n')}',
-        );
-      },
-    );
-
-    test(
-      'session_encryption.dart does not import dart:isolate '
-      'directly',
-      () {
-        // session_encryption.dart delegates to
-        // AES256Encryption.decryptInIsolate() rather than calling
-        // Isolate.run() directly, keeping the isolate boundary
-        // management in one place.
-        final file = File(
-          'lib/core/encryption/session_encryption.dart',
-        );
-        if (!file.existsSync()) return;
         final codeLines = _codeLines(file);
         final hasIsolateImport = codeLines.any(
           (l) =>
               l.contains("import 'dart:isolate'") ||
               l.contains('import "dart:isolate"'),
         );
-        expect(
-          hasIsolateImport,
-          isFalse,
-          reason:
-              'session_encryption.dart should delegate isolate '
-              'work to AES256Encryption.decryptInIsolate(), not '
-              'import dart:isolate directly.',
-        );
-      },
-    );
+        if (!hasIsolateImport) continue;
 
-    test(
-      'audit covers expected source files',
-      () {
-        final files = _filesToAudit();
-        final paths = files.map((f) => f.path).toList();
+        final hasNaCl = codeLines.any(
+          (l) =>
+              l.contains('CryptoSecretBox') ||
+              l.contains('CryptoBox') ||
+              l.contains('sodiumSingleton'),
+        );
+        if (hasNaCl) {
+          violations.add(
+            '${file.path}: imports dart:isolate AND NaCl '
+            'primitives',
+          );
+        }
+      }
 
-        expect(
-          paths,
-          contains('lib/core/encryption/session_encryption.dart'),
-          reason:
-              'session_encryption.dart must be in the audit list',
-        );
-        expect(
-          paths,
-          contains('lib/core/services/sync_service.dart'),
-          reason: 'sync_service.dart must be in the audit list',
-        );
+      expect(
+        violations,
+        isEmpty,
+        reason:
+            'Files that import dart:isolate must not also use '
+            'NaCl/libsodium primitives (CryptoSecretBox, '
+            'CryptoBox, sodiumSingleton).\n'
+            'NaCl FFI objects (SecureKey) cannot cross isolate '
+            'boundaries.\n'
+            'AES-256-GCM (pure Dart) IS isolate-safe.\n'
+            'Violations:\n${violations.join('\n')}',
+      );
+    });
 
-        final encryptionFiles = paths
-            .where(
-              (p) => p.startsWith('lib/core/encryption/'),
-            )
-            .toList();
-        expect(
-          encryptionFiles.length,
-          greaterThanOrEqualTo(5),
-          reason:
-              'Expected at least 5 encryption files to be '
-              'audited; got ${encryptionFiles.length}',
-        );
-      },
-    );
+    test('session_encryption.dart does not import dart:isolate '
+        'directly', () {
+      // session_encryption.dart delegates to
+      // AES256Encryption.decryptInIsolate() rather than calling
+      // Isolate.run() directly, keeping the isolate boundary
+      // management in one place.
+      final file = File('lib/core/encryption/session_encryption.dart');
+      if (!file.existsSync()) return;
+      final codeLines = _codeLines(file);
+      final hasIsolateImport = codeLines.any(
+        (l) =>
+            l.contains("import 'dart:isolate'") ||
+            l.contains('import "dart:isolate"'),
+      );
+      expect(
+        hasIsolateImport,
+        isFalse,
+        reason:
+            'session_encryption.dart should delegate isolate '
+            'work to AES256Encryption.decryptInIsolate(), not '
+            'import dart:isolate directly.',
+      );
+    });
+
+    test('audit covers expected source files', () {
+      final files = _filesToAudit();
+      final paths = files.map((f) => f.path).toList();
+
+      expect(
+        paths,
+        contains('lib/core/encryption/session_encryption.dart'),
+        reason: 'session_encryption.dart must be in the audit list',
+      );
+      expect(
+        paths,
+        contains('lib/core/services/sync_service.dart'),
+        reason: 'sync_service.dart must be in the audit list',
+      );
+
+      final encryptionFiles = paths
+          .where((p) => p.startsWith('lib/core/encryption/'))
+          .toList();
+      expect(
+        encryptionFiles.length,
+        greaterThanOrEqualTo(5),
+        reason:
+            'Expected at least 5 encryption files to be '
+            'audited; got ${encryptionFiles.length}',
+      );
+    });
   });
 }

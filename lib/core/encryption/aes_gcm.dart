@@ -248,20 +248,10 @@ class AesGcmEncryption {
           continue;
         }
         final nonce = item.sublist(0, nonceSize);
-        final ciphertext = item.sublist(
-          nonceSize,
-          item.length - authTagSize,
-        );
+        final ciphertext = item.sublist(nonceSize, item.length - authTagSize);
         final tag = item.sublist(item.length - authTagSize);
-        final box = SecretBox(
-          ciphertext,
-          nonce: nonce,
-          mac: Mac(tag),
-        );
-        final decrypted = await cipher.decrypt(
-          box,
-          secretKey: key,
-        );
+        final box = SecretBox(ciphertext, nonce: nonce, mac: Mac(tag));
+        final decrypted = await cipher.decrypt(box, secretKey: key);
         results.add(jsonDecode(utf8.decode(decrypted)));
       } catch (e) {
         // Running inside Isolate.run — logger singleton is unavailable.
@@ -292,23 +282,14 @@ class AesGcmEncryption {
         }
         final rawKey = keys[i];
         final cacheKey = base64.encode(rawKey);
-        final sk = keyCache[cacheKey] ??=
-            await cipher.newSecretKeyFromBytes(rawKey);
+        final sk = keyCache[cacheKey] ??= await cipher.newSecretKeyFromBytes(
+          rawKey,
+        );
         final nonce = item.sublist(0, nonceSize);
-        final ciphertext = item.sublist(
-          nonceSize,
-          item.length - authTagSize,
-        );
+        final ciphertext = item.sublist(nonceSize, item.length - authTagSize);
         final tag = item.sublist(item.length - authTagSize);
-        final box = SecretBox(
-          ciphertext,
-          nonce: nonce,
-          mac: Mac(tag),
-        );
-        final decrypted = await cipher.decrypt(
-          box,
-          secretKey: sk,
-        );
+        final box = SecretBox(ciphertext, nonce: nonce, mac: Mac(tag));
+        final decrypted = await cipher.decrypt(box, secretKey: sk);
         results.add(jsonDecode(utf8.decode(decrypted)));
       } catch (e) {
         // Running inside Isolate.run — logger singleton is unavailable.
@@ -368,11 +349,7 @@ class AesGcmEncryption {
           payload.length - authTagSize,
         );
         final tag = payload.sublist(payload.length - authTagSize);
-        final box = SecretBox(
-          ciphertext,
-          nonce: nonce,
-          mac: Mac(tag),
-        );
+        final box = SecretBox(ciphertext, nonce: nonce, mac: Mac(tag));
         final decrypted = await cipher.decrypt(box, secretKey: key);
         values[i] = jsonDecode(utf8.decode(decrypted));
       } catch (_) {
@@ -380,10 +357,7 @@ class AesGcmEncryption {
         continue;
       }
     }
-    return EncodedDecryptResult(
-      values: values,
-      decodeFailures: decodeFailures,
-    );
+    return EncodedDecryptResult(values: values, decodeFailures: decodeFailures);
   }
 
   /// Validate that data is AES-256-GCM encrypted (has correct format).
@@ -400,10 +374,7 @@ class AesGcmEncryption {
 ///
 /// Plain lists of sendable values — crosses isolate boundaries safely.
 class EncodedDecryptResult {
-  EncodedDecryptResult({
-    required this.values,
-    required this.decodeFailures,
-  });
+  EncodedDecryptResult({required this.values, required this.decodeFailures});
 
   /// Decoded JSON bodies aligned with the input strings; null wherever
   /// decryption did not produce a usable body.

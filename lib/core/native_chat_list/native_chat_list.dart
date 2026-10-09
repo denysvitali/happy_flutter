@@ -41,11 +41,12 @@ set kUseNativeChatListForTest(bool value) {
 /// Profiling hook called from the platform side once per scroll-end
 /// to record the average frame time. The Flutter side forwards to
 /// `logger.info`/Sentry breadcrumbs in the real impl.
-typedef FrameTimingSink = void Function({
-  required String sessionId,
-  required double avgFrameMs,
-  required int frameCount,
-});
+typedef FrameTimingSink =
+    void Function({
+      required String sessionId,
+      required double avgFrameMs,
+      required int frameCount,
+    });
 
 FrameTimingSink? _sink;
 FrameTimingSink? get frameTimingSink => _sink;
@@ -68,10 +69,7 @@ void logFrameTiming({
 /// renders without crashing — the real native bridge is intentionally
 /// not implemented here.
 class NativeChatListIsland extends StatelessWidget {
-  const NativeChatListIsland({
-    required this.fallback,
-    super.key,
-  });
+  const NativeChatListIsland({required this.fallback, super.key});
 
   final Widget fallback;
 

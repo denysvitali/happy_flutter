@@ -76,8 +76,7 @@ class _PrimaryButton extends StatefulWidget {
   final ThemeData theme;
 
   @override
-  State<_PrimaryButton> createState() =>
-      _PrimaryButtonState();
+  State<_PrimaryButton> createState() => _PrimaryButtonState();
 }
 
 class _PrimaryButtonState extends State<_PrimaryButton> {
@@ -89,17 +88,14 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
     final scale = _pressed ? 0.97 : 1.0;
 
     return GestureDetector(
-      onTapDown: widget.enabled
-          ? (_) => setState(() => _pressed = true)
-          : null,
+      onTapDown: widget.enabled ? (_) => setState(() => _pressed = true) : null,
       onTapUp: widget.enabled
           ? (_) {
               setState(() => _pressed = false);
               widget.onPressed?.call();
             }
           : null,
-      onTapCancel: () =>
-          setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: scale,
         duration: AppDuration.fast,
@@ -114,36 +110,22 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
               colors: widget.enabled
                   ? [
                       scheme.primary,
-                      Color.lerp(
-                        scheme.primary,
-                        scheme.tertiary,
-                        0.3,
-                      )!,
+                      Color.lerp(scheme.primary, scheme.tertiary, 0.3)!,
                     ]
                   : [
-                      scheme.primary.withValues(
-                        alpha: AppOpacity.half,
-                      ),
-                      scheme.primary.withValues(
-                        alpha: AppOpacity.medium,
-                      ),
+                      scheme.primary.withValues(alpha: AppOpacity.half),
+                      scheme.primary.withValues(alpha: AppOpacity.medium),
                     ],
             ),
-            borderRadius: BorderRadius.circular(
-              AppRadius.pill,
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
             boxShadow: widget.enabled
                 ? [
                     BoxShadow(
-                      color: scheme.primary
-                          .withValues(
+                      color: scheme.primary.withValues(
                         alpha: AppOpacity.medium,
                       ),
                       blurRadius: AppSpacing.lg,
-                      offset: const Offset(
-                        0,
-                        AppSpacing.xs,
-                      ),
+                      offset: const Offset(0, AppSpacing.xs),
                     ),
                   ]
                 : null,
@@ -159,14 +141,8 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (widget.icon != null) ...[
-                        Icon(
-                          widget.icon,
-                          size: 20,
-                          color: scheme.onPrimary,
-                        ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
+                        Icon(widget.icon, size: 20, color: scheme.onPrimary),
+                        const SizedBox(width: AppSpacing.sm),
                       ],
                       Text(
                         widget.title,
@@ -206,33 +182,27 @@ class _SecondaryButton extends StatefulWidget {
   final ThemeData theme;
 
   @override
-  State<_SecondaryButton> createState() =>
-      _SecondaryButtonState();
+  State<_SecondaryButton> createState() => _SecondaryButtonState();
 }
 
-class _SecondaryButtonState
-    extends State<_SecondaryButton> {
+class _SecondaryButtonState extends State<_SecondaryButton> {
   bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final scheme = widget.theme.colorScheme;
     final scale = _pressed ? 0.97 : 1.0;
-    final bgAlpha =
-        _pressed ? AppOpacity.faint : 0.0;
+    final bgAlpha = _pressed ? AppOpacity.faint : 0.0;
 
     return GestureDetector(
-      onTapDown: widget.enabled
-          ? (_) => setState(() => _pressed = true)
-          : null,
+      onTapDown: widget.enabled ? (_) => setState(() => _pressed = true) : null,
       onTapUp: widget.enabled
           ? (_) {
               setState(() => _pressed = false);
               widget.onPressed?.call();
             }
           : null,
-      onTapCancel: () =>
-          setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: scale,
         duration: AppDuration.fast,
@@ -241,20 +211,13 @@ class _SecondaryButtonState
           duration: AppDuration.fast,
           height: widget.height,
           decoration: BoxDecoration(
-            color: scheme.primary
-                .withValues(alpha: bgAlpha),
+            color: scheme.primary.withValues(alpha: bgAlpha),
             border: Border.all(
               color: widget.enabled
-                  ? scheme.outline.withValues(
-                      alpha: AppOpacity.half,
-                    )
-                  : scheme.outline.withValues(
-                      alpha: AppOpacity.medium,
-                    ),
+                  ? scheme.outline.withValues(alpha: AppOpacity.half)
+                  : scheme.outline.withValues(alpha: AppOpacity.medium),
             ),
-            borderRadius: BorderRadius.circular(
-              AppRadius.pill,
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.pill),
           ),
           child: Center(
             child: widget.isLoading
@@ -272,16 +235,11 @@ class _SecondaryButtonState
                           size: 18,
                           color: widget.enabled
                               ? scheme.onSurface
-                              : scheme.onSurface
-                                  .withValues(
-                                  alpha:
-                                      AppOpacity
-                                          .medium,
+                              : scheme.onSurface.withValues(
+                                  alpha: AppOpacity.medium,
                                 ),
                         ),
-                        const SizedBox(
-                          width: AppSpacing.sm,
-                        ),
+                        const SizedBox(width: AppSpacing.sm),
                       ],
                       Text(
                         widget.title,
@@ -290,11 +248,8 @@ class _SecondaryButtonState
                           fontWeight: FontWeight.w500,
                           color: widget.enabled
                               ? scheme.onSurface
-                              : scheme.onSurface
-                                  .withValues(
-                                  alpha:
-                                      AppOpacity
-                                          .medium,
+                              : scheme.onSurface.withValues(
+                                  alpha: AppOpacity.medium,
                                 ),
                         ),
                       ),

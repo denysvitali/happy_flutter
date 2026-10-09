@@ -43,12 +43,7 @@ class LoopsNotifier extends Notifier<Map<String, List<Loop>>> {
     final next = sync.loopsBySession;
     if (_mapsIdentical(state, next)) return;
     state = Map<String, List<Loop>>.from(
-      next.map(
-        (key, value) => MapEntry(
-          key,
-          List<Loop>.unmodifiable(value),
-        ),
-      ),
+      next.map((key, value) => MapEntry(key, List<Loop>.unmodifiable(value))),
     );
   }
 
@@ -106,10 +101,7 @@ class LoopsNotifier extends Notifier<Map<String, List<Loop>>> {
   }
 
   /// Delete a loop. Throws [StateError] when the daemon rejects.
-  Future<void> deleteLoop({
-    required String sessionId,
-    required String loopId,
-  }) {
+  Future<void> deleteLoop({required String sessionId, required String loopId}) {
     return sync.deleteLoop(sessionId: sessionId, loopId: loopId);
   }
 
@@ -119,19 +111,12 @@ class LoopsNotifier extends Notifier<Map<String, List<Loop>>> {
     required String loopId,
     required bool paused,
   }) {
-    return sync.pauseLoop(
-      sessionId: sessionId,
-      loopId: loopId,
-      paused: paused,
-    );
+    return sync.pauseLoop(sessionId: sessionId, loopId: loopId, paused: paused);
   }
 
   /// Per-session map identity check that ignores outer wrapper
   /// differences (e.g. `Map.unmodifiable`).
-  bool _mapsIdentical(
-    Map<String, List<Loop>> a,
-    Map<String, List<Loop>> b,
-  ) {
+  bool _mapsIdentical(Map<String, List<Loop>> a, Map<String, List<Loop>> b) {
     if (identical(a, b)) return true;
     if (a.length != b.length) return false;
     for (final entry in a.entries) {

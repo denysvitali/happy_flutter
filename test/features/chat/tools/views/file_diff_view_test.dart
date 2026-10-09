@@ -142,13 +142,7 @@ void main() {
   group('FileDiffCard', () {
     testWidgets('renders numbered header and diff body', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const FileDiffCard(
-            number: 3,
-            oldText: 'old',
-            newText: 'new',
-          ),
-        ),
+        _wrap(const FileDiffCard(number: 3, oldText: 'old', newText: 'new')),
       );
       await tester.pumpAndSettle();
 
@@ -160,13 +154,7 @@ void main() {
 
     testWidgets('toggle collapses and expands diff body', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          const FileDiffCard(
-            number: 1,
-            oldText: 'old',
-            newText: 'new',
-          ),
-        ),
+        _wrap(const FileDiffCard(number: 1, oldText: 'old', newText: 'new')),
       );
       await tester.pumpAndSettle();
 

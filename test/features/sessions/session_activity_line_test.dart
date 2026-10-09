@@ -102,9 +102,7 @@ void main() {
     );
   });
 
-  testWidgets('renders no activity line when nothing is known', (
-    tester,
-  ) async {
+  testWidgets('renders no activity line when nothing is known', (tester) async {
     final session = _session(id: 'act-5', path: '/home/quiet');
 
     await pumpCard(tester, session);

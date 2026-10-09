@@ -80,14 +80,8 @@ void main() {
     final now = DateTime(2026, 8, 10, 12);
 
     test('older than a week falls back to the locale date', () {
-      expect(
-        formatRelativeTime(date, now: now, locale: 'de'),
-        '31.7.2026',
-      );
-      expect(
-        formatRelativeTime(date, now: now, locale: 'en_US'),
-        '7/31/2026',
-      );
+      expect(formatRelativeTime(date, now: now, locale: 'de'), '31.7.2026');
+      expect(formatRelativeTime(date, now: now, locale: 'en_US'), '7/31/2026');
     });
 
     test('explicit absoluteFallback still wins', () {
@@ -152,20 +146,14 @@ void main() {
       // Not a locale contract — just proves the argument is optional for the
       // context-free call sites that cannot reach an AppLocalizations.
       expect(
-        formatRelativeTime(
-          now.subtract(const Duration(minutes: 5)),
-          now: now,
-        ),
+        formatRelativeTime(now.subtract(const Duration(minutes: 5)), now: now),
         isNotEmpty,
       );
     });
 
     test('small future skew still reads as just now', () {
       expect(
-        formatRelativeTime(
-          now.add(const Duration(seconds: 20)),
-          now: now,
-        ),
+        formatRelativeTime(now.add(const Duration(seconds: 20)), now: now),
         'Just now',
       );
     });

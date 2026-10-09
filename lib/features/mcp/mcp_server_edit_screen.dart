@@ -419,7 +419,10 @@ class _McpServerEditScreenState extends ConsumerState<McpServerEditScreen> {
                       Expanded(
                         child: Text(
                           _error!,
-                          style: AppText.secondary(theme, theme.colorScheme.error),
+                          style: AppText.secondary(
+                            theme,
+                            theme.colorScheme.error,
+                          ),
                         ),
                       ),
                     ],

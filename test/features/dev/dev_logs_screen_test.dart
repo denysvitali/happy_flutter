@@ -126,37 +126,33 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
 
       expect(find.text('Logs'), findsOneWidget);
-      expect(
-        find.textContaining('Logs are only available'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Logs are only available'), findsOneWidget);
     });
 
-    testWidgets('can show logs without developer mode when explicitly allowed',
-        (tester) async {
-      final logs = [_makeLogEntry(message: 'Startup failed')];
+    testWidgets(
+      'can show logs without developer mode when explicitly allowed',
+      (tester) async {
+        final logs = [_makeLogEntry(message: 'Startup failed')];
 
-      await tester.pumpWidget(
-        _buildApp(
-          settings: _makeSettings(developerModeEnabled: false),
-          loggerState: _stateWith(logs),
-          requireDeveloperMode: false,
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
+        await tester.pumpWidget(
+          _buildApp(
+            settings: _makeSettings(developerModeEnabled: false),
+            loggerState: _stateWith(logs),
+            requireDeveloperMode: false,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
 
-      expect(find.text('Startup failed'), findsOneWidget);
-      expect(find.textContaining('Logs are only available'), findsNothing);
-    });
+        expect(find.text('Startup failed'), findsOneWidget);
+        expect(find.textContaining('Logs are only available'), findsNothing);
+      },
+    );
 
     testWidgets('shows log list when developer mode is on', (tester) async {
       final logs = [
         _makeLogEntry(message: 'First log'),
-        _makeLogEntry(
-          level: LogLevel.error,
-          message: 'Error log',
-        ),
+        _makeLogEntry(level: LogLevel.error, message: 'Error log'),
       ];
 
       await tester.pumpWidget(
@@ -221,9 +217,7 @@ void main() {
       expect(find.text('Logs (1)'), findsWidgets);
     });
 
-    testWidgets('shows filtered count when filter is active', (
-      tester,
-    ) async {
+    testWidgets('shows filtered count when filter is active', (tester) async {
       final logs = [
         _makeLogEntry(level: LogLevel.info, message: 'Info log'),
         _makeLogEntry(level: LogLevel.error, message: 'Error log'),
@@ -232,10 +226,7 @@ void main() {
       await tester.pumpWidget(
         _buildApp(
           settings: _makeSettings(developerModeEnabled: true),
-          loggerState: _stateWith(
-            logs,
-            filterLevel: LogLevel.error.index,
-          ),
+          loggerState: _stateWith(logs, filterLevel: LogLevel.error.index),
         ),
       );
       await tester.pump();
@@ -311,9 +302,7 @@ void main() {
       expect(find.byIcon(Icons.error), findsOneWidget);
     });
 
-    testWidgets('LogListView shows entries in reverse order', (
-      tester,
-    ) async {
+    testWidgets('LogListView shows entries in reverse order', (tester) async {
       final logs = [
         _makeLogEntry(message: 'First'),
         _makeLogEntry(message: 'Second'),
@@ -336,9 +325,7 @@ void main() {
       expect(find.text('Third'), findsOneWidget);
     });
 
-    testWidgets('tapping log entry shows detail bottom sheet', (
-      tester,
-    ) async {
+    testWidgets('tapping log entry shows detail bottom sheet', (tester) async {
       final entry = _makeLogEntry(
         level: LogLevel.info,
         message: 'Detail test log',

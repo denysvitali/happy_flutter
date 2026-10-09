@@ -40,7 +40,8 @@ int? parseExitCode(dynamic result) {
 String? parseStdout(dynamic result) {
   if (result is String) return result;
   if (result is Map<String, dynamic>) {
-    final direct = result['stdout'] as String? ??
+    final direct =
+        result['stdout'] as String? ??
         result['output'] as String? ??
         result['output_for_prompt'] as String?;
     if (direct != null && direct.isNotEmpty) return direct;
@@ -133,7 +134,8 @@ List<Map<String, dynamic>> parseFileEntries(dynamic result) {
         .toList();
   }
   if (result is Map<String, dynamic>) {
-    final source = WireParsers.asList(result['entries']) ??
+    final source =
+        WireParsers.asList(result['entries']) ??
         WireParsers.asList(result['files']) ??
         WireParsers.asList(result['items']);
     if (source != null) {

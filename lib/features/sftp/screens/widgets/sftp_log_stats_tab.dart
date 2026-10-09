@@ -45,12 +45,10 @@ class SftpLogStatsTab extends StatelessWidget {
             infoCount++;
         }
         if (log.operation != null) {
-          opCounts[log.operation!] =
-              (opCounts[log.operation!] ?? 0) + 1;
+          opCounts[log.operation!] = (opCounts[log.operation!] ?? 0) + 1;
         }
         if (log.username != null) {
-          userCounts[log.username!] =
-              (userCounts[log.username!] ?? 0) + 1;
+          userCounts[log.username!] = (userCounts[log.username!] ?? 0) + 1;
         }
       }
     }
@@ -180,10 +178,7 @@ class SftpLogStatsTab extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         OutlinedButton.icon(
           onPressed: onRotateLogs,
-          icon: const Icon(
-            Icons.cleaning_services,
-            size: 18,
-          ),
+          icon: const Icon(Icons.cleaning_services, size: 18),
           label: const Text('Rotate old logs now'),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -197,17 +192,11 @@ class SftpLogStatsTab extends StatelessWidget {
     );
   }
 
-  Widget _getOperationIcon(
-    String operation,
-    BuildContext context,
-  ) {
+  Widget _getOperationIcon(String operation, BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     switch (operation.toLowerCase()) {
       case 'connect':
-        return SettingsIconContainer(
-          icon: Icons.login,
-          color: cs.primary,
-        );
+        return SettingsIconContainer(icon: Icons.login, color: cs.primary);
       case 'disconnect':
         return SettingsIconContainer(
           icon: Icons.logout,
@@ -232,10 +221,7 @@ class SftpLogStatsTab extends StatelessWidget {
         );
       case 'delete':
       case 'remove':
-        return SettingsIconContainer(
-          icon: Icons.delete,
-          color: cs.error,
-        );
+        return SettingsIconContainer(icon: Icons.delete, color: cs.error);
       case 'rename':
       case 'move':
         return SettingsIconContainer(
@@ -296,18 +282,12 @@ class StatCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               value,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
@@ -340,17 +320,13 @@ class StatsRow extends StatelessWidget {
           leading,
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            child: Text(title, style: Theme.of(context).textTheme.bodyMedium),
           ),
           Text(
             trailing,
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),

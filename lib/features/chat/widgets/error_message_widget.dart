@@ -54,7 +54,10 @@ class ErrorMessageWidget extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       errorMessage,
-                      style: AppText.secondary(theme, cs.onErrorContainer.withValues(alpha: 0.8)),
+                      style: AppText.secondary(
+                        theme,
+                        cs.onErrorContainer.withValues(alpha: 0.8),
+                      ),
                     ),
                   ],
                 ),
@@ -198,7 +201,10 @@ class ErrorMessageWidget extends StatelessWidget {
                       debugData != null
                           ? _jsonEncoder.convert(debugData)
                           : 'No debug data',
-                      style: AppText.secondary(theme, code.foreground).copyWith(fontFamily: 'monospace'),
+                      style: AppText.secondary(
+                        theme,
+                        code.foreground,
+                      ).copyWith(fontFamily: 'monospace'),
                     ),
                   ),
                 ],

@@ -300,10 +300,7 @@ class _GoalStatusChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: fg),
           const SizedBox(width: AppSpacing.xxs),
-          Text(
-            label,
-            style: AppText.label(theme, fg),
-          ),
+          Text(label, style: AppText.label(theme, fg)),
         ],
       ),
     );

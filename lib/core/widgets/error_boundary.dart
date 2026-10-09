@@ -441,7 +441,10 @@ class _DefaultErrorWidget extends StatelessWidget {
                     Expanded(
                       child: Text(
                         toolError!.suggestion!,
-                        style: AppText.secondary(theme, theme.colorScheme.onPrimaryContainer),
+                        style: AppText.secondary(
+                          theme,
+                          theme.colorScheme.onPrimaryContainer,
+                        ),
                       ),
                     ),
                   ],
@@ -465,7 +468,9 @@ class _DefaultErrorWidget extends StatelessWidget {
                     ),
                     child: SelectableText(
                       stackTrace.toString(),
-                      style: AppText.secondary(theme).copyWith(fontFamily: 'monospace'),
+                      style: AppText.secondary(
+                        theme,
+                      ).copyWith(fontFamily: 'monospace'),
                     ),
                   ),
                 ],
@@ -623,7 +628,10 @@ class ErrorSnackbarManager {
                             ),
                             child: Text(
                               'x$count',
-                              style: AppText.badge(theme, theme.colorScheme.onError),
+                              style: AppText.badge(
+                                theme,
+                                theme.colorScheme.onError,
+                              ),
                             ),
                           ),
                       ],

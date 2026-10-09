@@ -70,23 +70,14 @@ void main() {
         () => WireParsers.parseInt(double.negativeInfinity),
         throwsUnsupportedError,
       );
-      expect(
-        () => WireParsers.parseInt(double.nan),
-        throwsUnsupportedError,
-      );
+      expect(() => WireParsers.parseInt(double.nan), throwsUnsupportedError);
     });
 
     test('handles string representations of special doubles', () {
       // 'Infinity' and 'NaN' are parsed by double.tryParse, then
       // .toInt() throws UnsupportedError.
-      expect(
-        () => WireParsers.parseInt('Infinity'),
-        throwsUnsupportedError,
-      );
-      expect(
-        () => WireParsers.parseInt('NaN'),
-        throwsUnsupportedError,
-      );
+      expect(() => WireParsers.parseInt('Infinity'), throwsUnsupportedError);
+      expect(() => WireParsers.parseInt('NaN'), throwsUnsupportedError);
       // 'inf' is not parsed by double.tryParse, returns null.
       expect(WireParsers.parseInt('inf'), isNull);
     });
@@ -299,10 +290,7 @@ void main() {
     });
 
     test('anchor extractors return first non-empty value', () {
-      expect(
-        WireParsers.sidechainParentToolUseId({'tool_use_id': 'tu'}),
-        'tu',
-      );
+      expect(WireParsers.sidechainParentToolUseId({'tool_use_id': 'tu'}), 'tu');
       expect(WireParsers.sidechainParentToolUseId({'tool_use_id': ''}), isNull);
       expect(WireParsers.sidechainAgentId({'task_id': 't'}), 't');
       expect(WireParsers.sidechainAgentId(<String, dynamic>{}), isNull);
@@ -340,8 +328,7 @@ void main() {
     test('toolInput unwraps JSON-string arguments', () {
       expect(
         WireParsers.toolInput({
-          'input':
-              '{"arguments":{"content":"Fix the row","status":"pending"}}',
+          'input': '{"arguments":{"content":"Fix the row","status":"pending"}}',
         }),
         {'content': 'Fix the row', 'status': 'pending'},
       );

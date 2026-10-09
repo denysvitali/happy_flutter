@@ -23,8 +23,10 @@ void main(List<String> args) {
   final spec = _parse(File(inputPath).readAsStringSync());
   final dart = _emit(spec);
   File(outputPath).writeAsStringSync(dart);
-  stdout.writeln('Wrote ${spec.states.length} states + '
-      '${spec.transitions.length} transitions to $outputPath');
+  stdout.writeln(
+    'Wrote ${spec.states.length} states + '
+    '${spec.transitions.length} transitions to $outputPath',
+  );
 }
 
 class _State {
@@ -85,8 +87,7 @@ _Spec _parse(String yaml) {
 
     if (section == 'states') {
       if (unindented.startsWith('- name:')) {
-        currentState =
-            _State(_scalar(unindented.substring(7)), <_Field>[]);
+        currentState = _State(_scalar(unindented.substring(7)), <_Field>[]);
         states.add(currentState);
       } else if (unindented.startsWith('fields:')) {
         // marker, fields follow
@@ -171,9 +172,11 @@ String _emit(_Spec spec) {
   for (final state in spec.states) {
     buf.writeln('final class $base${state.name} extends $base {');
     final params = state.fields
-        .map((f) => f.defaultValue == null
-            ? 'required this.${f.name}'
-            : 'this.${f.name} = ${f.defaultValue}')
+        .map(
+          (f) => f.defaultValue == null
+              ? 'required this.${f.name}'
+              : 'this.${f.name} = ${f.defaultValue}',
+        )
         .join(', ');
     buf.writeln('  const $base${state.name}({$params});');
     for (final f in state.fields) {
@@ -261,8 +264,10 @@ String _emit(_Spec spec) {
         case 'localId':
           args.write('localId: from.localId');
         case 'serverId':
-          args.write('serverId: serverId ?? '
-              "(throw ArgumentError('serverId required for ${t.event}'))");
+          args.write(
+            'serverId: serverId ?? '
+            "(throw ArgumentError('serverId required for ${t.event}'))",
+          );
         case 'seq':
           args.write('seq: seq ?? 0');
         case 'text':

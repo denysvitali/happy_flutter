@@ -182,20 +182,12 @@ void main() {
     });
 
     test('unknown tool returns generic message', () {
-      final tool = ToolCall(
-        name: 'WebFetch',
-        state: 'completed',
-        createdAt: 0,
-      );
+      final tool = ToolCall(name: 'WebFetch', state: 'completed', createdAt: 0);
       expect(getToolSummary([tool]), 'Used WebFetch');
     });
 
     test('tool without input falls back to generic', () {
-      final tool = ToolCall(
-        name: 'Edit',
-        state: 'completed',
-        createdAt: 0,
-      );
+      final tool = ToolCall(name: 'Edit', state: 'completed', createdAt: 0);
       expect(getToolSummary([tool]), 'Used Edit');
     });
 
@@ -267,9 +259,7 @@ void main() {
         'type': 'output',
         'data': {
           'type': 'user',
-          'message': {
-            'content': 'user message text',
-          },
+          'message': {'content': 'user message text'},
         },
       };
       expect(extractClaudeTextContent(content), 'user message text');
@@ -331,10 +321,7 @@ void main() {
     test('returns summary message placeholder', () {
       final content = {
         'type': 'output',
-        'data': {
-          'type': 'summary',
-          'summary': 'some summary',
-        },
+        'data': {'type': 'summary', 'summary': 'some summary'},
       };
       expect(
         extractClaudeTextContent(content),

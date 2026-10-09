@@ -50,85 +50,79 @@ void main() {
     await mockServer.tearDown();
   });
 
-  test(
-    'multi-page fetch with prefetch requests each page exactly once '
-    'and merges every message exactly once',
-    () async {
-      const sessionId = 'sess-prefetch-1';
-      const lastSeq = 300;
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: lastSeq);
-      sync.testSetVisibleSessionId(sessionId);
+  test('multi-page fetch with prefetch requests each page exactly once '
+      'and merges every message exactly once', () async {
+    const sessionId = 'sess-prefetch-1';
+    const lastSeq = 300;
+    sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: lastSeq);
+    sync.testSetVisibleSessionId(sessionId);
 
-      // Server caps pages at 100 (smaller than the client limit), so the
-      // initial 200-message tail-load needs two pages and the prefetch
-      // branch fires for page 1 while page 0 decrypts.
-      mockServer.maxMessagePageSize = 100;
-      mockServer.stubMessages(sessionId, [
-        for (var seq = 1; seq <= lastSeq; seq++)
-          _makeEncryptedMessage('msg-$seq', seq: seq, content: 'Message $seq'),
-      ]);
+    // Server caps pages at 100 (smaller than the client limit), so the
+    // initial 200-message tail-load needs two pages and the prefetch
+    // branch fires for page 1 while page 0 decrypts.
+    mockServer.maxMessagePageSize = 100;
+    mockServer.stubMessages(sessionId, [
+      for (var seq = 1; seq <= lastSeq; seq++)
+        _makeEncryptedMessage('msg-$seq', seq: seq, content: 'Message $seq'),
+    ]);
 
-      await sync.fetchMessages(sessionId);
+    await sync.fetchMessages(sessionId);
 
-      // Tail-load window: afterSeq = lastSeq - initialLoad = 100, so the
-      // two pages start at after_seq 100 and 200. Exactly one request
-      // per page — the prefetched page must be consumed, not re-fetched.
-      expect(mockServer.messageRequestLog, [100, 200]);
+    // Tail-load window: afterSeq = lastSeq - initialLoad = 100, so the
+    // two pages start at after_seq 100 and 200. Exactly one request
+    // per page — the prefetched page must be consumed, not re-fetched.
+    expect(mockServer.messageRequestLog, [100, 200]);
 
-      final messages = sync.messagesForSession(sessionId);
-      final ids = messages.map((m) => m['id']).toList();
-      expect(
-        ids.toSet().length,
-        ids.length,
-        reason: 'No duplicate logical messages after pipelined merge',
+    final messages = sync.messagesForSession(sessionId);
+    final ids = messages.map((m) => m['id']).toList();
+    expect(
+      ids.toSet().length,
+      ids.length,
+      reason: 'No duplicate logical messages after pipelined merge',
+    );
+    final seqs = messages
+        .map((m) => m['seq'] as int? ?? 0)
+        .where((s) => s > 0)
+        .toList();
+    expect(seqs, List<int>.generate(200, (i) => 101 + i));
+  });
+
+  test('catch-up fetch across three pages keeps cursor continuity '
+      'with prefetch active', () async {
+    const sessionId = 'sess-prefetch-2';
+    sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 100);
+    sync.testSetVisibleSessionId(sessionId);
+
+    mockServer.maxMessagePageSize = 50;
+    mockServer.stubMessages(sessionId, [
+      for (var seq = 1; seq <= 100; seq++)
+        _makeEncryptedMessage('msg-$seq', seq: seq, content: 'Message $seq'),
+    ]);
+
+    // First load: seq 1..100 (window fits entirely; rounded to 0),
+    // paged as 0 → 50 → (no more).
+    await sync.fetchMessages(sessionId);
+    expect(sync.messagesForSession(sessionId), hasLength(100));
+    mockServer.messageRequestLog.clear();
+
+    // New messages arrive: seq 101..220. Catch-up crawl from the
+    // established cursor needs three pages (50 + 50 + 20).
+    sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 220);
+    for (var seq = 101; seq <= 220; seq++) {
+      mockServer.appendStubbedMessage(
+        sessionId,
+        _makeEncryptedMessage('msg-$seq', seq: seq, content: 'Message $seq'),
       );
-      final seqs = messages
-          .map((m) => m['seq'] as int? ?? 0)
-          .where((s) => s > 0)
-          .toList();
-      expect(seqs, List<int>.generate(200, (i) => 101 + i));
-    },
-  );
+    }
 
-  test(
-    'catch-up fetch across three pages keeps cursor continuity '
-    'with prefetch active',
-    () async {
-      const sessionId = 'sess-prefetch-2';
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 100);
-      sync.testSetVisibleSessionId(sessionId);
+    await sync.fetchMessages(sessionId);
 
-      mockServer.maxMessagePageSize = 50;
-      mockServer.stubMessages(sessionId, [
-        for (var seq = 1; seq <= 100; seq++)
-          _makeEncryptedMessage('msg-$seq', seq: seq, content: 'Message $seq'),
-      ]);
-
-      // First load: seq 1..100 (window fits entirely; rounded to 0),
-      // paged as 0 → 50 → (no more).
-      await sync.fetchMessages(sessionId);
-      expect(sync.messagesForSession(sessionId), hasLength(100));
-      mockServer.messageRequestLog.clear();
-
-      // New messages arrive: seq 101..220. Catch-up crawl from the
-      // established cursor needs three pages (50 + 50 + 20).
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 220);
-      for (var seq = 101; seq <= 220; seq++) {
-        mockServer.appendStubbedMessage(
-          sessionId,
-          _makeEncryptedMessage('msg-$seq', seq: seq, content: 'Message $seq'),
-        );
-      }
-
-      await sync.fetchMessages(sessionId);
-
-      expect(mockServer.messageRequestLog, [100, 150, 200]);
-      final messages = sync.messagesForSession(sessionId);
-      final ids = messages.map((m) => m['id']).toList();
-      expect(ids.toSet().length, ids.length);
-      expect(messages, hasLength(220));
-    },
-  );
+    expect(mockServer.messageRequestLog, [100, 150, 200]);
+    final messages = sync.messagesForSession(sessionId);
+    final ids = messages.map((m) => m['id']).toList();
+    expect(ids.toSet().length, ids.length);
+    expect(messages, hasLength(220));
+  });
   test(
     'sparse first load bounds automatic history backfill to one page',
     () async {
@@ -142,7 +136,8 @@ void main() {
 
       await sync.fetchMessages(sessionId);
       for (var i = 0; i < 100; i++) {
-        if (sync.messagesForSession(sessionId)
+        if (sync
+            .messagesForSession(sessionId)
             .any((message) => message['id'] == 'msg-250')) {
           break;
         }
@@ -151,7 +146,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(mockServer.messageRequestLog, [300, 200]);
-      final ids = sync.messagesForSession(sessionId)
+      final ids = sync
+          .messagesForSession(sessionId)
           .map((message) => message['id'])
           .toList();
       expect(ids.toSet(), hasLength(ids.length));
@@ -201,10 +197,7 @@ Map<String, dynamic> _makeEncryptedMessage(
     'role': 'agent',
     'content': {
       'type': 'output',
-      'data': {
-        'type': 'message',
-        'message': content,
-      },
+      'data': {'type': 'message', 'message': content},
     },
   };
   final json = jsonEncode(innerContent);

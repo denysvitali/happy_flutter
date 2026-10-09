@@ -9,7 +9,9 @@ void main() {
       // about section and any future surface all read from this.
       expect(
         AppConfig.githubUrl,
-        equals('https://github.com/${AppConfig.githubOrg}/${AppConfig.githubRepo}'),
+        equals(
+          'https://github.com/${AppConfig.githubOrg}/${AppConfig.githubRepo}',
+        ),
       );
     });
 

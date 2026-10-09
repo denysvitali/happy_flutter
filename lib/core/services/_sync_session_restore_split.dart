@@ -5,10 +5,7 @@ import 'package:happy_flutter/core/wire/wire_parsers.dart';
 /// start, and the [remaining] tail to be decoded by the deferred
 /// pass once the first frame has rendered.
 class CachedSessionRestoreSplit {
-  CachedSessionRestoreSplit({
-    required this.recent,
-    required this.remaining,
-  });
+  CachedSessionRestoreSplit({required this.recent, required this.remaining});
 
   final List<Map<String, dynamic>> recent;
   final List<Map<String, dynamic>> remaining;
@@ -38,8 +35,9 @@ CachedSessionRestoreSplit splitCachedSessionsForColdStart(
     return bUpdated.compareTo(aUpdated);
   });
 
-  final effectiveLimit =
-      ordered.length < syncLimit ? ordered.length : syncLimit;
+  final effectiveLimit = ordered.length < syncLimit
+      ? ordered.length
+      : syncLimit;
   return CachedSessionRestoreSplit(
     recent: ordered.sublist(0, effectiveLimit),
     remaining: effectiveLimit < ordered.length

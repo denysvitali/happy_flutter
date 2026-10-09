@@ -27,7 +27,6 @@ const List<String> _stopCharacters = [
 
 /// Represents the active word at the cursor position
 final class ActiveWord {
-
   const ActiveWord({
     required this.word,
     required this.activeWord,
@@ -36,6 +35,7 @@ final class ActiveWord {
     required this.activeLength,
     required this.endOffset,
   });
+
   /// The complete word from prefix to end (e.g., "@username")
   final String word;
 
@@ -57,7 +57,6 @@ final class ActiveWord {
 
 /// Result of applying a suggestion
 final class ApplySuggestionResult {
-
   const ApplySuggestionResult({
     required this.text,
     required this.cursorPosition,
@@ -128,11 +127,7 @@ int _findActiveWordStart(
 }
 
 /// Finds the ending position of the active word
-int _findActiveWordEnd(
-  String content,
-  int cursorPos,
-  int? wordStartPos,
-) {
+int _findActiveWordEnd(String content, int cursorPos, int? wordStartPos) {
   var endIndex = cursorPos;
 
   // Check if this is a file path (starts with @ and may contain /)
@@ -298,7 +293,6 @@ ApplySuggestionResult applySuggestion(
 /// This widget wraps the chat input and shows a suggestion
 /// @ followed by a file path query. It integrates with the
 class FileAutocomplete extends StatefulWidget {
-
   const FileAutocomplete({
     required this.controller,
     required this.focusNode,
@@ -309,6 +303,7 @@ class FileAutocomplete extends StatefulWidget {
     this.maxOverlayHeight = 240,
     this.itemHeight = 48,
   });
+
   /// The text editing controller for the input field
   final TextEditingController controller;
 
@@ -535,7 +530,10 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                               const SizedBox(width: 8),
                               Text(
                                 'Searching files...',
-                                style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                                style: AppText.secondary(
+                                  theme,
+                                  theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ),
@@ -551,8 +549,9 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
                               itemCount: _suggestions.length,
                               separatorBuilder: (context, index) => Divider(
                                 height: 1,
-                                color: theme.dividerColor
-                                    .withValues(alpha: 0.5),
+                                color: theme.dividerColor.withValues(
+                                  alpha: 0.5,
+                                ),
                               ),
                               itemBuilder: (context, index) {
                                 final suggestion = _suggestions[index];
@@ -580,7 +579,6 @@ class _FileAutocompleteState extends State<FileAutocomplete> {
 
 /// Represents a file or folder suggestion
 final class FileSuggestion {
-
   const FileSuggestion({
     required this.label,
     required this.path,
@@ -606,7 +604,6 @@ final class FileSuggestion {
 enum FileSuggestionType { file, folder }
 
 class _FileSuggestionItem extends StatelessWidget {
-
   const _FileSuggestionItem({
     required this.suggestion,
     required this.isSelected,
@@ -641,8 +638,9 @@ class _FileSuggestionItem extends StatelessWidget {
                     Text(
                       suggestion.label,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                         color: isSelected
                             ? theme.colorScheme.primary
                             : theme.colorScheme.onSurface,
@@ -653,7 +651,10 @@ class _FileSuggestionItem extends StatelessWidget {
                     if (suggestion.path.isNotEmpty)
                       Text(
                         suggestion.path,
-                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                        style: AppText.secondary(
+                          theme,
+                          theme.colorScheme.onSurfaceVariant,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

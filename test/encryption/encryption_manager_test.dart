@@ -10,9 +10,7 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 
 Uint8List _randomKey() {
   final random = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(32, (_) => random.nextInt(256)),
-  );
+  return Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
 }
 
 /// 32-byte master secret used to create [Encryption] instances.
@@ -25,114 +23,87 @@ final Uint8List _testMasterSecret = _randomKey();
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group(
-    'Encryption — session and machine management',
-    () {
-      late Encryption enc;
+  group('Encryption — session and machine management', () {
+    late Encryption enc;
 
-      setUp(() async {
-        enc = await Encryption.create(_testMasterSecret);
-      });
+    setUp(() async {
+      enc = await Encryption.create(_testMasterSecret);
+    });
 
-      // --------------------------------------------------------------------
-      // Session encryption
-      // --------------------------------------------------------------------
+    // --------------------------------------------------------------------
+    // Session encryption
+    // --------------------------------------------------------------------
 
-      test(
-        'getSessionEncryption returns null for uninitialized session',
-        () {
-          expect(enc.getSessionEncryption('x'), isNull);
-        },
+    test('getSessionEncryption returns null for uninitialized session', () {
+      expect(enc.getSessionEncryption('x'), isNull);
+    });
+
+    test('initializeSessions creates encryption for valid session', () async {
+      final key = _randomKey();
+      await enc.initializeSessions({'session-1': key});
+
+      expect(enc.getSessionEncryption('session-1'), isNotNull);
+    });
+
+    test('initializeSessions skips already-initialized session', () async {
+      final firstKey = _randomKey();
+      await enc.initializeSessions({'session-2': firstKey});
+
+      final firstEncryption = enc.getSessionEncryption('session-2');
+      expect(firstEncryption, isNotNull);
+
+      // Re-initialize with a different key — the first instance must
+      // be preserved because the guard fires.
+      final secondKey = _randomKey();
+      await enc.initializeSessions({'session-2': secondKey});
+
+      // Identical reference means the second call was a no-op.
+      expect(
+        identical(enc.getSessionEncryption('session-2'), firstEncryption),
+        isTrue,
       );
+    });
 
-      test(
-        'initializeSessions creates encryption for valid session',
-        () async {
-          final key = _randomKey();
-          await enc.initializeSessions({'session-1': key});
+    test('removeSessionEncryption removes encryption', () async {
+      final key = _randomKey();
+      await enc.initializeSessions({'session-3': key});
+      expect(enc.getSessionEncryption('session-3'), isNotNull);
 
-          expect(enc.getSessionEncryption('session-1'), isNotNull);
-        },
-      );
+      enc.removeSessionEncryption('session-3');
 
-      test(
-        'initializeSessions skips already-initialized session',
-        () async {
-          final firstKey = _randomKey();
-          await enc.initializeSessions({'session-2': firstKey});
+      expect(enc.getSessionEncryption('session-3'), isNull);
+    });
 
-          final firstEncryption = enc.getSessionEncryption('session-2');
-          expect(firstEncryption, isNotNull);
+    // --------------------------------------------------------------------
+    // Machine encryption
+    // --------------------------------------------------------------------
 
-          // Re-initialize with a different key — the first instance must
-          // be preserved because the guard fires.
-          final secondKey = _randomKey();
-          await enc.initializeSessions({'session-2': secondKey});
+    test('getMachineEncryption returns null for uninitialized machine', () {
+      expect(enc.getMachineEncryption('x'), isNull);
+    });
 
-          // Identical reference means the second call was a no-op.
-          expect(
-            identical(
-              enc.getSessionEncryption('session-2'),
-              firstEncryption,
-            ),
-            isTrue,
-          );
-        },
-      );
+    test('initializeMachines creates encryption for valid machine', () async {
+      final key = _randomKey();
+      await enc.initializeMachines({'machine-1': key});
 
-      test(
-        'removeSessionEncryption removes encryption',
-        () async {
-          final key = _randomKey();
-          await enc.initializeSessions({'session-3': key});
-          expect(enc.getSessionEncryption('session-3'), isNotNull);
+      expect(enc.getMachineEncryption('machine-1'), isNotNull);
+    });
 
-          enc.removeSessionEncryption('session-3');
+    test('clearAll removes all session and machine encryptions', () async {
+      final sessionKey = _randomKey();
+      final machineKey = _randomKey();
 
-          expect(enc.getSessionEncryption('session-3'), isNull);
-        },
-      );
+      await enc.initializeSessions({'session-a': sessionKey});
+      await enc.initializeMachines({'machine-a': machineKey});
 
-      // --------------------------------------------------------------------
-      // Machine encryption
-      // --------------------------------------------------------------------
+      expect(enc.getSessionEncryption('session-a'), isNotNull);
+      expect(enc.getMachineEncryption('machine-a'), isNotNull);
 
-      test(
-        'getMachineEncryption returns null for uninitialized machine',
-        () {
-          expect(enc.getMachineEncryption('x'), isNull);
-        },
-      );
+      enc.removeSessionEncryption('session-a');
+      enc.removeMachineEncryption('machine-a');
 
-      test(
-        'initializeMachines creates encryption for valid machine',
-        () async {
-          final key = _randomKey();
-          await enc.initializeMachines({'machine-1': key});
-
-          expect(enc.getMachineEncryption('machine-1'), isNotNull);
-        },
-      );
-
-      test(
-        'clearAll removes all session and machine encryptions',
-        () async {
-          final sessionKey = _randomKey();
-          final machineKey = _randomKey();
-
-          await enc.initializeSessions({'session-a': sessionKey});
-          await enc.initializeMachines({'machine-a': machineKey});
-
-          expect(enc.getSessionEncryption('session-a'), isNotNull);
-          expect(enc.getMachineEncryption('machine-a'), isNotNull);
-
-          enc.removeSessionEncryption('session-a');
-          enc.removeMachineEncryption('machine-a');
-
-          expect(enc.getSessionEncryption('session-a'), isNull);
-          expect(enc.getMachineEncryption('machine-a'), isNull);
-        },
-      );
-    },
-  );
+      expect(enc.getSessionEncryption('session-a'), isNull);
+      expect(enc.getMachineEncryption('machine-a'), isNull);
+    });
+  });
 }

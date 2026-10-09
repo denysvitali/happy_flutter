@@ -226,7 +226,10 @@ class _ArtifactDetailBody extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             context.l10n.artifactsSourceSessionsSubtitle,
-            style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
+            style: AppText.secondary(
+              Theme.of(context),
+              Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           AppCard(
@@ -428,7 +431,10 @@ class _ContentBlockState extends State<_ContentBlock> {
               children: [
                 Text(
                   'text',
-                  style: AppText.label(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
+                  style: AppText.label(
+                    theme,
+                    cs.onSurfaceVariant,
+                  ).copyWith(fontFamily: 'monospace'),
                 ),
                 const Spacer(),
                 if (hasBody)
@@ -495,7 +501,10 @@ class _CopyButton extends StatelessWidget {
             const SizedBox(width: AppSpacing.xs),
             Text(
               copied ? context.l10n.commonDone : context.l10n.commonCopy,
-              style: AppText.label(Theme.of(context), copied ? cs.primary : cs.onSurfaceVariant),
+              style: AppText.label(
+                Theme.of(context),
+                copied ? cs.primary : cs.onSurfaceVariant,
+              ),
             ),
           ],
         ),

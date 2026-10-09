@@ -22,10 +22,7 @@ void main() {
     });
 
     test('returns null on invalid JSON payload', () {
-      expect(
-        parseReplyAction(payload: '{not-json', input: 'hi'),
-        isNull,
-      );
+      expect(parseReplyAction(payload: '{not-json', input: 'hi'), isNull);
     });
 
     test('returns parsed data with trimmed text on a valid payload', () {
@@ -54,30 +51,27 @@ void main() {
       expect(result!.permissionId, 'perm-99');
     });
 
-    test(
-      'each invocation produces an independent InlineReplyData '
-      '— the only id created downstream comes from sync, not the parser',
-      () {
-        // The parser must NOT invent an id of its own; the canonical
-        // localId is created exactly once by Sync.sendMessage. This test
-        // pins that invariant: parseReplyAction never carries a localId
-        // field, even when called many times for the same payload.
-        final payload = json.encode({'sessionId': 's1'});
-        final a = parseReplyAction(payload: payload, input: 'hello');
-        final b = parseReplyAction(payload: payload, input: 'hello');
-        expect(a, isNotNull);
-        expect(b, isNotNull);
-        // Same content but distinct instances — neither owns an id.
-        expect(identical(a, b), isFalse);
-        expect(a!.sessionId, b!.sessionId);
-        expect(a.text, b.text);
-        // Sanity: the type has no public "localId" surface to leak.
-        expect(
-          a.toString().contains('localId'),
-          isFalse,
-          reason: 'parser must not invent an id',
-        );
-      },
-    );
+    test('each invocation produces an independent InlineReplyData '
+        '— the only id created downstream comes from sync, not the parser', () {
+      // The parser must NOT invent an id of its own; the canonical
+      // localId is created exactly once by Sync.sendMessage. This test
+      // pins that invariant: parseReplyAction never carries a localId
+      // field, even when called many times for the same payload.
+      final payload = json.encode({'sessionId': 's1'});
+      final a = parseReplyAction(payload: payload, input: 'hello');
+      final b = parseReplyAction(payload: payload, input: 'hello');
+      expect(a, isNotNull);
+      expect(b, isNotNull);
+      // Same content but distinct instances — neither owns an id.
+      expect(identical(a, b), isFalse);
+      expect(a!.sessionId, b!.sessionId);
+      expect(a.text, b.text);
+      // Sanity: the type has no public "localId" surface to leak.
+      expect(
+        a.toString().contains('localId'),
+        isFalse,
+        reason: 'parser must not invent an id',
+      );
+    });
   });
 }

@@ -22,9 +22,7 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 
 Uint8List _generateKey() {
   final random = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(32, (_) => random.nextInt(256)),
-  );
+  return Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
 }
 
 /// Builds a wire-format message map with AES-256-GCM–encrypted content.
@@ -86,137 +84,123 @@ void main() {
   });
 
   group('SessionEncryption.decryptMessages — completeness', () {
-    test(
-      'returns one result per input message (10 messages)',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final se = _makeSessionEncryption(enc);
+    test('returns one result per input message (10 messages)', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
 
-        final messages = await Future.wait([
-          for (var i = 0; i < 10; i++)
-            _encryptedWireMessage(
-              enc,
-              'msg-$i',
-              i,
-              {'text': 'hello from message $i', 'index': i},
-            ),
-        ]);
+      final messages = await Future.wait([
+        for (var i = 0; i < 10; i++)
+          _encryptedWireMessage(enc, 'msg-$i', i, {
+            'text': 'hello from message $i',
+            'index': i,
+          }),
+      ]);
 
-        final results = await se.decryptMessages(messages);
+      final results = await se.decryptMessages(messages);
 
-        // Length must match exactly — no silent drops.
-        expect(results.length, equals(10));
+      // Length must match exactly — no silent drops.
+      expect(results.length, equals(10));
 
-        for (var i = 0; i < 10; i++) {
-          expect(
-            results[i],
-            isNotNull,
-            reason: 'message at index $i was silently dropped',
-          );
-          expect(results[i]!.id, equals('msg-$i'));
-          expect(results[i]!.seq, equals(i));
-
-          // Content must be a map with the original fields.
-          final content = results[i]!.content as Map<String, dynamic>?;
-          expect(
-            content,
-            isNotNull,
-            reason: 'decrypted content at index $i is null',
-          );
-          expect(content!['text'], equals('hello from message $i'));
-          expect(content['index'], equals(i));
-        }
-      },
-    );
-
-    test(
-      'preserves message order across a batch',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final se = _makeSessionEncryption(enc);
-
-        // Give each message a unique, order-sensitive payload.
-        final payloads = [
-          {'role': 'user', 'text': 'first'},
-          {'role': 'assistant', 'text': 'second'},
-          {'role': 'user', 'text': 'third'},
-          {'role': 'assistant', 'text': 'fourth'},
-          {'role': 'user', 'text': 'fifth'},
-        ];
-
-        final messages = await Future.wait([
-          for (var i = 0; i < payloads.length; i++)
-            _encryptedWireMessage(enc, 'ord-$i', i, payloads[i]),
-        ]);
-
-        final results = await se.decryptMessages(messages);
-
-        expect(results.length, equals(payloads.length));
-
-        for (var i = 0; i < payloads.length; i++) {
-          final content = results[i]!.content as Map<String, dynamic>;
-          expect(
-            content['text'],
-            equals(payloads[i]['text']),
-            reason:
-                'order mismatch at position $i: '
-                'expected "${payloads[i]['text']}" '
-                'got "${content['text']}"',
-          );
-        }
-      },
-    );
-
-    test(
-      'handles batch of 20+ messages — all results non-null',
-      () async {
-        // 25 messages — this was the approximate threshold that previously
-        // triggered isolate offloading, causing silent data loss on Android.
-        const batchSize = 25;
-
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final se = _makeSessionEncryption(enc);
-
-        final messages = await Future.wait([
-          for (var i = 0; i < batchSize; i++)
-            _encryptedWireMessage(
-              enc,
-              'batch-$i',
-              i,
-              {'seq': i, 'payload': 'data-$i'},
-            ),
-        ]);
-
-        final results = await se.decryptMessages(messages);
-
+      for (var i = 0; i < 10; i++) {
         expect(
-          results.length,
-          equals(batchSize),
-          reason: 'result list length must equal input length',
+          results[i],
+          isNotNull,
+          reason: 'message at index $i was silently dropped',
+        );
+        expect(results[i]!.id, equals('msg-$i'));
+        expect(results[i]!.seq, equals(i));
+
+        // Content must be a map with the original fields.
+        final content = results[i]!.content as Map<String, dynamic>?;
+        expect(
+          content,
+          isNotNull,
+          reason: 'decrypted content at index $i is null',
+        );
+        expect(content!['text'], equals('hello from message $i'));
+        expect(content['index'], equals(i));
+      }
+    });
+
+    test('preserves message order across a batch', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
+
+      // Give each message a unique, order-sensitive payload.
+      final payloads = [
+        {'role': 'user', 'text': 'first'},
+        {'role': 'assistant', 'text': 'second'},
+        {'role': 'user', 'text': 'third'},
+        {'role': 'assistant', 'text': 'fourth'},
+        {'role': 'user', 'text': 'fifth'},
+      ];
+
+      final messages = await Future.wait([
+        for (var i = 0; i < payloads.length; i++)
+          _encryptedWireMessage(enc, 'ord-$i', i, payloads[i]),
+      ]);
+
+      final results = await se.decryptMessages(messages);
+
+      expect(results.length, equals(payloads.length));
+
+      for (var i = 0; i < payloads.length; i++) {
+        final content = results[i]!.content as Map<String, dynamic>;
+        expect(
+          content['text'],
+          equals(payloads[i]['text']),
+          reason:
+              'order mismatch at position $i: '
+              'expected "${payloads[i]['text']}" '
+              'got "${content['text']}"',
+        );
+      }
+    });
+
+    test('handles batch of 20+ messages — all results non-null', () async {
+      // 25 messages — this was the approximate threshold that previously
+      // triggered isolate offloading, causing silent data loss on Android.
+      const batchSize = 25;
+
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
+
+      final messages = await Future.wait([
+        for (var i = 0; i < batchSize; i++)
+          _encryptedWireMessage(enc, 'batch-$i', i, {
+            'seq': i,
+            'payload': 'data-$i',
+          }),
+      ]);
+
+      final results = await se.decryptMessages(messages);
+
+      expect(
+        results.length,
+        equals(batchSize),
+        reason: 'result list length must equal input length',
+      );
+
+      for (var i = 0; i < batchSize; i++) {
+        expect(
+          results[i],
+          isNotNull,
+          reason: 'message at index $i was silently dropped in 25-item batch',
         );
 
-        for (var i = 0; i < batchSize; i++) {
-          expect(
-            results[i],
-            isNotNull,
-            reason:
-                'message at index $i was silently dropped in 25-item batch',
-          );
-
-          final content = results[i]!.content as Map<String, dynamic>?;
-          expect(
-            content,
-            isNotNull,
-            reason: 'content at index $i is null in 25-item batch',
-          );
-          expect(content!['seq'], equals(i));
-          expect(content['payload'], equals('data-$i'));
-        }
-      },
-    );
+        final content = results[i]!.content as Map<String, dynamic>?;
+        expect(
+          content,
+          isNotNull,
+          reason: 'content at index $i is null in 25-item batch',
+        );
+        expect(content!['seq'], equals(i));
+        expect(content['payload'], equals('data-$i'));
+      }
+    });
 
     test(
       'decryptMessage (singular) decrypts a single message correctly',
@@ -225,12 +209,10 @@ void main() {
         final enc = AES256Encryption(key);
         final se = _makeSessionEncryption(enc);
 
-        final wire = await _encryptedWireMessage(
-          enc,
-          'single-1',
-          42,
-          {'type': 'text', 'body': 'singular test'},
-        );
+        final wire = await _encryptedWireMessage(enc, 'single-1', 42, {
+          'type': 'text',
+          'body': 'singular test',
+        });
 
         final result = await se.decryptMessage(wire);
 
@@ -245,29 +227,23 @@ void main() {
       },
     );
 
-    test(
-      'decryptMessage returns null for null input',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final se = _makeSessionEncryption(enc);
+    test('decryptMessage returns null for null input', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
 
-        final result = await se.decryptMessage(null);
-        expect(result, isNull);
-      },
-    );
+      final result = await se.decryptMessage(null);
+      expect(result, isNull);
+    });
 
-    test(
-      'decryptMessage returns null for empty map input',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final se = _makeSessionEncryption(enc);
+    test('decryptMessage returns null for empty map input', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final se = _makeSessionEncryption(enc);
 
-        final result = await se.decryptMessage({});
-        expect(result, isNull);
-      },
-    );
+      final result = await se.decryptMessage({});
+      expect(result, isNull);
+    });
 
     test(
       'decryptMessages result length equals input for mixed valid/empty batch',
@@ -276,12 +252,9 @@ void main() {
         final enc = AES256Encryption(key);
         final se = _makeSessionEncryption(enc);
 
-        final validWire = await _encryptedWireMessage(
-          enc,
-          'valid-1',
-          1,
-          {'text': 'valid'},
-        );
+        final validWire = await _encryptedWireMessage(enc, 'valid-1', 1, {
+          'text': 'valid',
+        });
 
         // Empty maps are allowed in the input; the contract is that the
         // result list length always equals the input list length.

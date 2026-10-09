@@ -345,7 +345,10 @@ void main() {
             .height;
       }
 
-      expect(await pumpHeader(state: ToolState.running, expanded: false), AppRowHeight.compact);
+      expect(
+        await pumpHeader(state: ToolState.running, expanded: false),
+        AppRowHeight.compact,
+      );
       expect(
         await pumpHeader(state: ToolState.completed, expanded: true),
         greaterThanOrEqualTo(AppRowHeight.compact),

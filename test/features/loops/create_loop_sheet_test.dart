@@ -16,9 +16,7 @@ Widget _wrap({StubLoopsNotifier? notifier, CreateLoopSheet? sheet}) {
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: sheet ?? const CreateLoopSheet(sessionId: 's1'),
-      ),
+      home: Scaffold(body: sheet ?? const CreateLoopSheet(sessionId: 's1')),
     ),
   );
 }
@@ -49,8 +47,9 @@ void main() {
       expect(find.text('Cron expression is required'), findsOneWidget);
     });
 
-    testWidgets('shows validation error when cron has wrong field count',
-        (tester) async {
+    testWidgets('shows validation error when cron has wrong field count', (
+      tester,
+    ) async {
       await tester.pumpWidget(_wrap());
       // Enter 4 fields — invalid (expected 5).
       await tester.enterText(find.byType(TextField).first, '* * * *');

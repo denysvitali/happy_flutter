@@ -22,11 +22,7 @@ import 'sodium_singleton.dart';
 ///
 /// `naclSecretBox` is the legacy libsodium `crypto_secretbox_easy`
 /// bundle (24-byte nonce + ciphertext + 16-byte MAC).
-enum DecryptEnvelope {
-  aesV0,
-  naclSecretBox,
-  unknown,
-}
+enum DecryptEnvelope { aesV0, naclSecretBox, unknown }
 
 extension DecryptEnvelopeWire on DecryptEnvelope {
   String get wire {
@@ -81,14 +77,14 @@ class DecryptFailureDiagnostic {
   final int count;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        if (scope != null) 'scope': scope,
-        'key_fp': keyFp,
-        'envelope': envelope.wire,
-        'stage': stage,
-        'reason': reason,
-        'cipher_len': cipherLen,
-        'count': count,
-      };
+    if (scope != null) 'scope': scope,
+    'key_fp': keyFp,
+    'envelope': envelope.wire,
+    'stage': stage,
+    'reason': reason,
+    'cipher_len': cipherLen,
+    'count': count,
+  };
 }
 
 /// CryptoSecretBox encryption using libsodium (crypto_secretbox_easy)
@@ -209,7 +205,7 @@ class CryptoSecretBox {
   /// suppressed a Sentry capture.
   @visibleForTesting
   static ({DecryptFailureDiagnostic diagnostic, bool wouldSentry})
-      simulateDecryptFailureForTest({
+  simulateDecryptFailureForTest({
     required Uint8List secretKey,
     required Uint8List cipher,
     required String stage,
@@ -409,7 +405,8 @@ class CryptoSecretBox {
     // Sodium auth failures during a key rotation are expected; demote
     // the suppressed-capture case to info so dev-logs/Sentry
     // breadcrumbs stay quiet while we still get one warning per batch.
-    final structured = 'CryptoSecretBox.decrypt failed '
+    final structured =
+        'CryptoSecretBox.decrypt failed '
         'scope=${scope ?? '-'} stage=$stage reason=$reason '
         'cipherLen=$cipherLen keyFp=$fingerprint '
         'envelope=${envelope.wire}'
@@ -437,9 +434,12 @@ class CryptoSecretBox {
           if (scope != null) {
             sentryScope.setTag('decrypt_scope', scope);
           }
-          sentryScope.setContexts('decrypt', diagnostic.toMap()
-            ..['nonce_size'] = _nonceSize
-            ..['critical'] = critical);
+          sentryScope.setContexts(
+            'decrypt',
+            diagnostic.toMap()
+              ..['nonce_size'] = _nonceSize
+              ..['critical'] = critical,
+          );
         },
       ),
     );
@@ -489,8 +489,8 @@ class CryptoSecretBox {
     if (data.isEmpty) return [];
 
     final override = batchIsolateOverrideForTesting;
-    final useIsolate = override ??
-        (!kIsWeb && data.length >= batchIsolateThreshold);
+    final useIsolate =
+        override ?? (!kIsWeb && data.length >= batchIsolateThreshold);
 
     if (useIsolate) {
       try {

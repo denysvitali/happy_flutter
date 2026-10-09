@@ -11,9 +11,7 @@ import 'base_api_exception.dart';
 /// Provides key-value storage operations
 /// Based on React Native's apiKv.ts
 class KvApi {
-
-  KvApi({ApiClient? client})
-      : _client = client ?? ApiClient();
+  KvApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;
 
   /// Get a single value by key
@@ -45,10 +43,7 @@ class KvApi {
   }
 
   /// List key-value pairs with optional prefix filter
-  Future<KvListResponse> list({
-    String? prefix,
-    int? limit,
-  }) async {
+  Future<KvListResponse> list({String? prefix, int? limit}) async {
     final queryParams = <String, dynamic>{};
     if (prefix != null) {
       queryParams['prefix'] = prefix;
@@ -84,15 +79,10 @@ class KvApi {
     }
 
     if (keys.length > 100) {
-      throw const KvApiException(
-        'Cannot bulk get more than 100 keys at once',
-      );
+      throw const KvApiException('Cannot bulk get more than 100 keys at once');
     }
 
-    final response = await _client.post(
-      '/v1/kv/bulk',
-      data: {'keys': keys},
-    );
+    final response = await _client.post('/v1/kv/bulk', data: {'keys': keys});
 
     if (response.statusCode != 200) {
       throw KvApiException(
@@ -118,9 +108,7 @@ class KvApi {
     }
 
     if (mutations.length > 100) {
-      throw const KvApiException(
-        'Cannot mutate more than 100 keys at once',
-      );
+      throw const KvApiException('Cannot mutate more than 100 keys at once');
     }
 
     final request = KvMutateRequest(mutations: mutations);
@@ -137,11 +125,7 @@ class KvApi {
           response.data as Map<String, dynamic>,
         );
       } catch (e, s) {
-        logger.warning(
-          'Failed to parse KV mutate error response: $e',
-          e,
-          s,
-        );
+        logger.warning('Failed to parse KV mutate error response: $e', e, s);
         throw KvApiException('Failed to parse mutate error response: $e');
       }
     }
@@ -166,11 +150,7 @@ class KvApi {
   /// Set a single key-value pair
   /// Creates new key if version is -1, updates existing if version matches
   /// Returns the new version of the key
-  Future<int> set(
-    String key,
-    String value, {
-    int version = -1,
-  }) async {
+  Future<int> set(String key, String value, {int version = -1}) async {
     final result = await mutate([
       KvMutation(key: key, value: value, version: version),
     ]);

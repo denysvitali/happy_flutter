@@ -43,11 +43,7 @@ void main() {
               'result': [
                 {'name': 'src', 'isDirectory': true, 'isFile': false},
                 {'name': 'lib', 'isDirectory': true, 'isFile': false},
-                {
-                  'name': 'main.dart',
-                  'isDirectory': false,
-                  'isFile': true,
-                },
+                {'name': 'main.dart', 'isDirectory': false, 'isFile': true},
               ],
             },
           ),
@@ -68,11 +64,7 @@ void main() {
               'state': 'completed',
               'result': [
                 {'name': 'src', 'isDirectory': true, 'isFile': false},
-                {
-                  'name': 'readme.md',
-                  'isDirectory': false,
-                  'isFile': true,
-                },
+                {'name': 'readme.md', 'isDirectory': false, 'isFile': true},
               ],
             },
           ),
@@ -112,16 +104,8 @@ void main() {
               'input': {'path': '/'},
               'state': 'completed',
               'result': [
-                {
-                  'name': 'app.dart',
-                  'isDirectory': false,
-                  'isFile': true,
-                },
-                {
-                  'name': 'data.json',
-                  'isDirectory': false,
-                  'isFile': true,
-                },
+                {'name': 'app.dart', 'isDirectory': false, 'isFile': true},
+                {'name': 'data.json', 'isDirectory': false, 'isFile': true},
               ],
             },
           ),
@@ -165,16 +149,8 @@ void main() {
               'input': {'path': '/'},
               'state': 'completed',
               'result': [
-                {
-                  'name': 'zebra.txt',
-                  'isDirectory': false,
-                  'isFile': true,
-                },
-                {
-                  'name': 'alpha_dir',
-                  'isDirectory': true,
-                  'isFile': false,
-                },
+                {'name': 'zebra.txt', 'isDirectory': false, 'isFile': true},
+                {'name': 'alpha_dir', 'isDirectory': true, 'isFile': false},
               ],
             },
           ),
@@ -206,15 +182,10 @@ void main() {
       expect(alphaIdx, lessThan(zebraIdx));
     });
 
-    testWidgets('shows "Show all" button for many entries',
-        (tester) async {
+    testWidgets('shows "Show all" button for many entries', (tester) async {
       final entries = List.generate(
         35,
-        (i) => {
-          'name': 'file$i.txt',
-          'isDirectory': false,
-          'isFile': true,
-        },
+        (i) => {'name': 'file$i.txt', 'isDirectory': false, 'isFile': true},
       );
 
       await tester.pumpWidget(
@@ -257,8 +228,7 @@ void main() {
       expect(find.text('rwxr-xr-x'), findsOneWidget);
     });
 
-    testWidgets('handles string entries with trailing slash',
-        (tester) async {
+    testWidgets('handles string entries with trailing slash', (tester) async {
       await tester.pumpWidget(
         _wrap(
           LSView(
@@ -279,38 +249,22 @@ void main() {
 
   group('LSEntry', () {
     test('extension returns lowercase extension', () {
-      final entry = LSEntry(
-        name: 'App.DART',
-        isDirectory: false,
-        isFile: true,
-      );
+      final entry = LSEntry(name: 'App.DART', isDirectory: false, isFile: true);
       expect(entry.extension, 'dart');
     });
 
     test('extension returns empty for directories', () {
-      final entry = LSEntry(
-        name: 'src.dart',
-        isDirectory: true,
-        isFile: false,
-      );
+      final entry = LSEntry(name: 'src.dart', isDirectory: true, isFile: false);
       expect(entry.extension, '');
     });
 
     test('isSymlink is true when not directory and not file', () {
-      final entry = LSEntry(
-        name: 'link',
-        isDirectory: false,
-        isFile: false,
-      );
+      final entry = LSEntry(name: 'link', isDirectory: false, isFile: false);
       expect(entry.isSymlink, true);
     });
 
     test('isSymlink is false for regular files', () {
-      final entry = LSEntry(
-        name: 'file.txt',
-        isDirectory: false,
-        isFile: true,
-      );
+      final entry = LSEntry(name: 'file.txt', isDirectory: false, isFile: true);
       expect(entry.isSymlink, false);
     });
   });

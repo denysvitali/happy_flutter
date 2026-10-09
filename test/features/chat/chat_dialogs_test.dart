@@ -32,9 +32,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          chatActionNotifierProvider.overrideWith(() => actions),
-        ],
+        overrides: [chatActionNotifierProvider.overrideWith(() => actions)],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
@@ -42,11 +40,8 @@ void main() {
             builder: (context) => Scaffold(
               body: Center(
                 child: TextButton(
-                  onPressed: () => showSessionMenu(
-                    context,
-                    sessionId: 's1',
-                    onAbort: () {},
-                  ),
+                  onPressed: () =>
+                      showSessionMenu(context, sessionId: 's1', onAbort: () {}),
                   child: const Text('open menu'),
                 ),
               ),
@@ -82,7 +77,8 @@ void main() {
     expect(
       actions.stopped,
       ['s1'],
-      reason: 'the notifier must be reached even though the sheet that '
+      reason:
+          'the notifier must be reached even though the sheet that '
           'hosted the tap is unmounted by the time the dialog resolves',
     );
   });

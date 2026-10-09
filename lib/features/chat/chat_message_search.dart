@@ -99,12 +99,7 @@ void _appendSearchText(
   }
 }
 
-void _appendValue(
-  dynamic value,
-  StringBuffer buffer,
-  int maxChars,
-  int depth,
-) {
+void _appendValue(dynamic value, StringBuffer buffer, int maxChars, int depth) {
   if (value is String) {
     _appendChunk(value, buffer, maxChars);
     return;

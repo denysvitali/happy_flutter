@@ -331,7 +331,9 @@ class _DeveloperScreenState extends ConsumerState<DeveloperScreen> {
               child: Text(l10nDialog.commonCancel),
             ),
             FilledButton(
-              style: AppButtonStyle.destructiveFilled(Theme.of(context).colorScheme),
+              style: AppButtonStyle.destructiveFilled(
+                Theme.of(context).colorScheme,
+              ),
               onPressed: () async {
                 Navigator.pop(context);
                 await SettingsStorage().clearSettings();

@@ -157,7 +157,10 @@ class InfoRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                    style: AppText.secondary(
+                      theme,
+                      theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(

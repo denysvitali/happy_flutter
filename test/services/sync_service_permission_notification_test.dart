@@ -44,9 +44,10 @@ void main() {
         id: 's1',
         agentState: AgentState(
           requests: {
-            'perm-1': RequestInfo(tool: 'Bash', arguments: {
-              'command': 'git status',
-            }),
+            'perm-1': RequestInfo(
+              tool: 'Bash',
+              arguments: {'command': 'git status'},
+            ),
           },
         ),
       );
@@ -59,11 +60,7 @@ void main() {
     test('does not duplicate notification for same permission ID', () {
       final session = _makeSession(
         id: 's1',
-        agentState: AgentState(
-          requests: {
-            'perm-1': RequestInfo(tool: 'Bash'),
-          },
-        ),
+        agentState: AgentState(requests: {'perm-1': RequestInfo(tool: 'Bash')}),
       );
 
       sync.testCheckForNewPermissionRequests([session]);
@@ -81,11 +78,7 @@ void main() {
 
       final session = _makeSession(
         id: 's1',
-        agentState: AgentState(
-          requests: {
-            'perm-1': RequestInfo(tool: 'Edit'),
-          },
-        ),
+        agentState: AgentState(requests: {'perm-1': RequestInfo(tool: 'Edit')}),
       );
 
       sync.testCheckForNewPermissionRequests([session]);
@@ -98,11 +91,7 @@ void main() {
 
       final session = _makeSession(
         id: 's1',
-        agentState: AgentState(
-          requests: {
-            'perm-1': RequestInfo(tool: 'Bash'),
-          },
-        ),
+        agentState: AgentState(requests: {'perm-1': RequestInfo(tool: 'Bash')}),
       );
 
       sync.testCheckForNewPermissionRequests([session]);
@@ -134,9 +123,7 @@ void main() {
         _makeSession(
           id: 's1',
           agentState: AgentState(
-            requests: {
-              'perm-1': RequestInfo(tool: 'Bash'),
-            },
+            requests: {'perm-1': RequestInfo(tool: 'Bash')},
           ),
         ),
         _makeSession(
@@ -164,10 +151,7 @@ void main() {
     });
 
     test('handles null requests in agentState', () {
-      final session = _makeSession(
-        id: 's1',
-        agentState: AgentState(),
-      );
+      final session = _makeSession(id: 's1', agentState: AgentState());
 
       sync.testCheckForNewPermissionRequests([session]);
 

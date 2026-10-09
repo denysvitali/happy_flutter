@@ -3,7 +3,6 @@ import '../../../core/theme/app_tokens.dart';
 
 /// Section container for displaying tool content with an optional title.
 class ToolSectionView extends StatelessWidget {
-
   const ToolSectionView({
     super.key,
     this.title,
@@ -12,6 +11,7 @@ class ToolSectionView extends StatelessWidget {
     this.child,
     this.trailing,
   });
+
   /// Optional title for the section.
   final String? title;
 
@@ -55,7 +55,6 @@ class ToolSectionView extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-
   const _SectionHeader({
     required this.title,
     required this.fullWidth,
@@ -68,8 +67,9 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final labelColor =
-        theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6);
+    final labelColor = theme.colorScheme.onSurfaceVariant.withValues(
+      alpha: 0.6,
+    );
 
     Widget titleWidget = Text(
       title.toUpperCase(),

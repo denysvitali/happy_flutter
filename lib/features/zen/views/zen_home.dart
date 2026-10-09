@@ -654,18 +654,29 @@ class _TodoRow extends StatelessWidget {
                         when parentId.isNotEmpty)
                       Text(
                         'Sub-item of #$parentId',
-                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                        style: AppText.secondary(
+                          theme,
+                          theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     if (sessionTodo.agentId case final agentId?
                         when agentId.isNotEmpty)
                       Text(
                         'Assigned to $agentId',
-                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                        style: AppText.secondary(
+                          theme,
+                          theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
                       sessionTodo.sessionTitle,
-                      style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant.withValues( alpha: 0.65, )),
+                      style: AppText.secondary(
+                        theme,
+                        theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.65,
+                        ),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

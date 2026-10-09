@@ -31,8 +31,7 @@ class SyntaxTheme extends ThemeExtension<SyntaxTheme> {
 
   /// Resolves the colour for [tokenType]. Returns [defaultText] when the
   /// token has no entry.
-  Color colorFor(String tokenType) =>
-      tokens[tokenType] ?? defaultText;
+  Color colorFor(String tokenType) => tokens[tokenType] ?? defaultText;
 
   /// Returns the rainbow-bracket colour for [level].
   ///

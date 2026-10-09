@@ -236,7 +236,11 @@ class _SubAgentBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: AppIconSize.xs, color: theme.colorScheme.onPrimaryContainer),
+          Icon(
+            icon,
+            size: AppIconSize.xs,
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
           const SizedBox(width: 3),
           Text(
             type,

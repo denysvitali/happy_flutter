@@ -58,10 +58,7 @@ void main() {
 
     Tooltip tooltipFor(IconData icon) {
       return tester.widget<Tooltip>(
-        find.ancestor(
-          of: find.byIcon(icon),
-          matching: find.byType(Tooltip),
-        ),
+        find.ancestor(of: find.byIcon(icon), matching: find.byType(Tooltip)),
       );
     }
 

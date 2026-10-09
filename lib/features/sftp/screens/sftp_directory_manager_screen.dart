@@ -211,9 +211,7 @@ class _SftpDirectoryManagerScreenState
       });
     } else {
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const SftpLogViewerScreen(),
-        ),
+        MaterialPageRoute<void>(builder: (_) => const SftpLogViewerScreen()),
       );
     }
   }
@@ -233,9 +231,9 @@ class _SftpDirectoryManagerScreenState
   }
 
   void _closeDetailPane() => setState(() {
-        _paneMode = _PaneMode.none;
-        _selectedEntry = null;
-      });
+    _paneMode = _PaneMode.none;
+    _selectedEntry = null;
+  });
 
   void _showSortOptions() {
     showModalBottomSheet(
@@ -251,10 +249,7 @@ class _SftpDirectoryManagerScreenState
                 right: AppSpacing.lg,
                 bottom: AppSpacing.sm,
               ),
-              child: Text(
-                'Sort by',
-                style: AppText.title(Theme.of(ctx)),
-              ),
+              child: Text('Sort by', style: AppText.title(Theme.of(ctx))),
             ),
             _SortOption(
               title: 'Name',
@@ -393,7 +388,9 @@ class _SftpDirectoryManagerScreenState
                   Expanded(
                     child: Text(
                       _currentPath,
-                      style: AppText.secondary(Theme.of(context)).copyWith(fontFamily: 'monospace'),
+                      style: AppText.secondary(
+                        Theme.of(context),
+                      ).copyWith(fontFamily: 'monospace'),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -406,10 +403,7 @@ class _SftpDirectoryManagerScreenState
                 children: [
                   _InfoChip(icon: Icons.numbers, label: 'Port ${_dir.port}'),
                   _InfoChip(icon: Icons.lock, label: _dir.authMethod.name),
-                  _InfoChip(
-                    icon: Icons.paste,
-                    label: _dir.clipboardMode.name,
-                  ),
+                  _InfoChip(icon: Icons.paste, label: _dir.clipboardMode.name),
                   if (directorySize != null)
                     _InfoChip(
                       icon: Icons.storage,
@@ -504,11 +498,12 @@ class _SftpDirectoryManagerScreenState
   Widget _buildDetailPane() {
     switch (_paneMode) {
       case _PaneMode.log:
-        return SftpLogViewerScreen(
-            embedded: true, onClose: _closeDetailPane);
+        return SftpLogViewerScreen(embedded: true, onClose: _closeDetailPane);
       case _PaneMode.history:
         return SftpConnectionHistoryScreen(
-            embedded: true, onClose: _closeDetailPane);
+          embedded: true,
+          onClose: _closeDetailPane,
+        );
       case _PaneMode.file:
         return TabletDetailEmpty(
           icon: Icons.insert_drive_file_outlined,
@@ -535,7 +530,6 @@ class _SftpDirectoryManagerScreenState
       return null;
     }
   }
-
 }
 
 /// A card for a single file or directory entry
@@ -619,7 +613,10 @@ class _FileEntityCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     subtitle,
-                    style: AppText.secondary(Theme.of(context), cs.onSurfaceVariant),
+                    style: AppText.secondary(
+                      Theme.of(context),
+                      cs.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ],
@@ -640,10 +637,7 @@ class _FileEntityCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: const BorderRadius.all(Radius.circular(AppRadius.lg)),
-        border: Border.all(
-          color: cs.primary,
-          width: AppBorder.thin,
-        ),
+        border: Border.all(color: cs.primary, width: AppBorder.thin),
       ),
       child: card,
     );
@@ -704,7 +698,6 @@ class _FileEntityCard extends StatelessWidget {
         return (Icons.insert_drive_file, cs.onSurfaceVariant);
     }
   }
-
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();

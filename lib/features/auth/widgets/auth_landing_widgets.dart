@@ -38,28 +38,17 @@ class AuthHeader extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [
                 scheme.primary,
-                Color.lerp(
-                  scheme.primary,
-                  scheme.tertiary,
-                  0.4,
-                )!,
+                Color.lerp(scheme.primary, scheme.tertiary, 0.4)!,
               ],
             ),
             boxShadow: [
               BoxShadow(
-                color: scheme.primary.withValues(
-                  alpha: AppOpacity.medium,
-                ),
+                color: scheme.primary.withValues(alpha: AppOpacity.medium),
                 blurRadius: AppSpacing.xxxl,
-                offset: const Offset(
-                  0,
-                  AppSpacing.sm,
-                ),
+                offset: const Offset(0, AppSpacing.sm),
               ),
               BoxShadow(
-                color: scheme.primary.withValues(
-                  alpha: AppOpacity.subtle,
-                ),
+                color: scheme.primary.withValues(alpha: AppOpacity.subtle),
                 blurRadius: AppSpacing.xxxl * 2,
                 spreadRadius: AppSpacing.sm,
               ),
@@ -75,8 +64,7 @@ class AuthHeader extends StatelessWidget {
 
         Text(
           context.l10n.appTitle,
-          style: theme.textTheme.headlineMedium
-              ?.copyWith(
+          style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w700,
             letterSpacing: -0.5,
           ),
@@ -84,13 +72,10 @@ class AuthHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.sm),
 
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           child: Text(
             context.l10n.appSubtitle,
-            style:
-                theme.textTheme.bodyLarge?.copyWith(
+            style: theme.textTheme.bodyLarge?.copyWith(
               color: scheme.onSurfaceVariant,
               height: AppLineHeight.relaxed,
             ),
@@ -121,28 +106,17 @@ class LandingLogoMark extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             scheme.primary,
-            Color.lerp(
-              scheme.primary,
-              scheme.tertiary,
-              0.4,
-            )!,
+            Color.lerp(scheme.primary, scheme.tertiary, 0.4)!,
           ],
         ),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary.withValues(
-              alpha: AppOpacity.medium,
-            ),
+            color: scheme.primary.withValues(alpha: AppOpacity.medium),
             blurRadius: AppSpacing.xxxl + AppSpacing.xxl,
-            offset: const Offset(
-              0,
-              AppSpacing.md,
-            ),
+            offset: const Offset(0, AppSpacing.md),
           ),
           BoxShadow(
-            color: scheme.primary.withValues(
-              alpha: AppOpacity.subtle,
-            ),
+            color: scheme.primary.withValues(alpha: AppOpacity.subtle),
             blurRadius: AppSpacing.xxxl * 2,
             spreadRadius: AppSpacing.md,
           ),
@@ -183,12 +157,10 @@ class AuthButtonGroup extends StatefulWidget {
   final AppLocalizations l10n;
 
   @override
-  State<AuthButtonGroup> createState() =>
-      _AuthButtonGroupState();
+  State<AuthButtonGroup> createState() => _AuthButtonGroupState();
 }
 
-class _AuthButtonGroupState
-    extends State<AuthButtonGroup>
+class _AuthButtonGroupState extends State<AuthButtonGroup>
     with SingleTickerProviderStateMixin {
   bool _showKeyHint = false;
   late final AnimationController _hintController;
@@ -202,19 +174,11 @@ class _AuthButtonGroupState
       vsync: this,
       duration: AppDuration.normal,
     );
-    _hintFade = CurvedAnimation(
-      parent: _hintController,
-      curve: Curves.easeOut,
-    );
+    _hintFade = CurvedAnimation(parent: _hintController, curve: Curves.easeOut);
     _hintSlide = Tween<Offset>(
       begin: const Offset(0, -0.15),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _hintController,
-        curve: Curves.easeOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _hintController, curve: Curves.easeOut));
   }
 
   @override
@@ -248,20 +212,15 @@ class _AuthButtonGroupState
         ),
         const SizedBox(height: AppSpacing.md),
         RoundButton(
-          title:
-              widget.l10n.welcomeLinkOrRestoreAccount,
-          onPressed: widget.isLoadingCreate
-              ? null
-              : widget.onLinkAccount,
+          title: widget.l10n.welcomeLinkOrRestoreAccount,
+          onPressed: widget.isLoadingCreate ? null : widget.onLinkAccount,
           isPrimary: false,
           icon: Icons.qr_code_rounded,
         ),
         const SizedBox(height: AppSpacing.sm),
         RoundButton(
           title: widget.l10n.authSignInWithSecretKey,
-          onPressed: widget.isLoadingCreate
-              ? null
-              : _handleKeyButtonTap,
+          onPressed: widget.isLoadingCreate ? null : _handleKeyButtonTap,
           isPrimary: false,
           icon: Icons.key_outlined,
         ),
@@ -278,9 +237,7 @@ class _AuthButtonGroupState
                 onDismiss: () {
                   _hintController.reverse().then((_) {
                     if (mounted) {
-                      setState(
-                        () => _showKeyHint = false,
-                      );
+                      setState(() => _showKeyHint = false);
                     }
                   });
                 },
@@ -314,13 +271,10 @@ class _KeyReassuranceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest
-            .withValues(alpha: 0.55),
-        borderRadius:
-            BorderRadius.circular(AppRadius.lg),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: scheme.outline
-              .withValues(alpha: AppOpacity.subtle),
+          color: scheme.outline.withValues(alpha: AppOpacity.subtle),
         ),
       ),
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -338,10 +292,7 @@ class _KeyReassuranceCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   l10n.authSecretKeyReassuranceTitle,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     color: scheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
@@ -367,10 +318,7 @@ class _KeyReassuranceCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             l10n.authSecretKeyReassurance,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
               height: AppLineHeight.normal,
             ),
@@ -381,19 +329,12 @@ class _KeyReassuranceCard extends StatelessWidget {
             child: FilledButton.tonal(
               onPressed: onProceed,
               style: FilledButton.styleFrom(
-                minimumSize: const Size(
-                  0,
-                  AppTouchTarget.min,
-                ),
+                minimumSize: const Size(0, AppTouchTarget.min),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.smd,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.smd),
                 ),
               ),
-              child: Text(
-                l10n.authContinueToKeyInput,
-              ),
+              child: Text(l10n.authContinueToKeyInput),
             ),
           ),
         ],
@@ -405,10 +346,7 @@ class _KeyReassuranceCard extends StatelessWidget {
 /// Numbered step list shown above / beside the QR code
 /// with styled step badges.
 class QRInstructions extends StatelessWidget {
-  const QRInstructions({
-    required this.theme,
-    super.key,
-  });
+  const QRInstructions({required this.theme, super.key});
 
   final ThemeData theme;
 
@@ -435,21 +373,15 @@ class QRInstructions extends StatelessWidget {
         ...List.generate(
           steps.length,
           (i) => Padding(
-            padding: const EdgeInsets.only(
-              bottom: AppSpacing.md,
-            ),
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
             child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   width: AppSpacing.xxl,
                   height: AppSpacing.xxl,
                   decoration: BoxDecoration(
-                    color: scheme.primary
-                        .withValues(
-                      alpha: AppOpacity.subtle,
-                    ),
+                    color: scheme.primary.withValues(alpha: AppOpacity.subtle),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -463,24 +395,15 @@ class QRInstructions extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  width: AppSpacing.md,
-                ),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Padding(
-                    padding:
-                        const EdgeInsets.only(
-                      top: AppSpacing.xxs,
-                    ),
+                    padding: const EdgeInsets.only(top: AppSpacing.xxs),
                     child: Text(
                       steps[i],
-                      style: theme
-                          .textTheme.bodyMedium
-                          ?.copyWith(
-                        color: scheme
-                            .onSurfaceVariant,
-                        height: AppLineHeight
-                            .normal,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: AppLineHeight.normal,
                       ),
                     ),
                   ),
@@ -538,28 +461,22 @@ class QRCodeSection extends StatelessWidget {
                     alignment: Alignment.center,
                     children: [
                       QRCodeDisplay(
-                        data: 'happy:///account?'
+                        data:
+                            'happy:///account?'
                             '${base64Url.encode(publicKey!).replaceAll('=', '')}',
                         size: 220,
                       ),
                       // 220 + AppSpacing.xxxl + AppSpacing.xl
-                      QRViewfinderOverlay(
-                        size: 272,
-                        isActive: true,
-                      ),
+                      QRViewfinderOverlay(size: 272, isActive: true),
                     ],
                   ),
                 )
               : isPolling
-                  ? QRLoadingPlaceholder(
-                      key: const ValueKey(
-                        'qr-loading',
-                      ),
-                      scheme: scheme,
-                    )
-                  : const SizedBox.shrink(
-                      key: ValueKey('qr-empty'),
-                    ),
+              ? QRLoadingPlaceholder(
+                  key: const ValueKey('qr-loading'),
+                  scheme: scheme,
+                )
+              : const SizedBox.shrink(key: ValueKey('qr-empty')),
         ),
       ],
     );
@@ -568,10 +485,7 @@ class QRCodeSection extends StatelessWidget {
 
 /// Loading placeholder shown while generating the QR code.
 class QRLoadingPlaceholder extends StatelessWidget {
-  const QRLoadingPlaceholder({
-    required this.scheme,
-    super.key,
-  });
+  const QRLoadingPlaceholder({required this.scheme, super.key});
 
   final ColorScheme scheme;
 
@@ -584,14 +498,9 @@ class QRLoadingPlaceholder extends StatelessWidget {
       height: placeholderSize,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          AppRadius.xl,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
-          color: scheme.outlineVariant
-              .withValues(
-            alpha: AppOpacity.medium,
-          ),
+          color: scheme.outlineVariant.withValues(alpha: AppOpacity.medium),
         ),
         boxShadow: AppShadow.floating,
       ),
@@ -609,10 +518,7 @@ class QRLoadingPlaceholder extends StatelessWidget {
             style: TextStyle(
               fontSize: AppFontSize.md,
               fontWeight: FontWeight.w500,
-              color: scheme.onSurfaceVariant
-                  .withValues(
-                alpha: AppOpacity.high,
-              ),
+              color: scheme.onSurfaceVariant.withValues(alpha: AppOpacity.high),
             ),
           ),
         ],
@@ -657,27 +563,18 @@ class PollingView extends StatelessWidget {
               vertical: AppSpacing.md,
             ),
             decoration: BoxDecoration(
-              color: scheme.primary.withValues(
-                alpha: AppOpacity.faint,
-              ),
-              borderRadius: BorderRadius.circular(
-                AppRadius.pill,
-              ),
+              color: scheme.primary.withValues(alpha: AppOpacity.faint),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 PulsingDot(color: scheme.primary),
-                const SizedBox(
-                  width: AppSpacing.sm,
-                ),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
-                  context.l10n
-                      .authWaitingForApproval,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(
+                  context.l10n.authWaitingForApproval,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: scheme.primary,
                     fontWeight: FontWeight.w500,
                   ),
@@ -688,10 +585,7 @@ class PollingView extends StatelessWidget {
           const SizedBox(height: AppSpacing.xl),
         ],
         if (hasError) ...[
-          ScanFailedCard(
-            theme: theme,
-            onTryAgain: onTryAgain,
-          ),
+          ScanFailedCard(theme: theme, onTryAgain: onTryAgain),
           const SizedBox(height: AppSpacing.sm),
         ] else ...[
           RoundButton(

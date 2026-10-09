@@ -14,14 +14,13 @@ import 'session_encryption.dart';
 
 /// Main encryption manager
 class Encryption {
-
   Encryption._({
     required this.anonId,
     required Uint8List masterSecret,
     required KeyPair contentKeyPair,
-  })  : _contentKeyPair = contentKeyPair,
-        _legacyEncryption = SecretBoxEncryption(masterSecret),
-        contentDataKey = contentKeyPair.publicKey;
+  }) : _contentKeyPair = contentKeyPair,
+       _legacyEncryption = SecretBoxEncryption(masterSecret),
+       contentDataKey = contentKeyPair.publicKey;
   static final Uuid _uuid = const Uuid();
 
   /// Create encryption instance from master secret
@@ -37,11 +36,10 @@ class Encryption {
     final contentKeyPair = await CryptoBox.keypairFromSeed(contentDataKey);
 
     // Derive anonymous ID
-    final anonIdBytes = await DeriveKey.derive(
-      masterSecret,
-      'Happy Coder',
-      ['analytics', 'id'],
-    );
+    final anonIdBytes = await DeriveKey.derive(masterSecret, 'Happy Coder', [
+      'analytics',
+      'id',
+    ]);
     final anonId = HexUtils.encode(anonIdBytes.sublist(0, 16)).toLowerCase();
 
     return Encryption._(
@@ -71,9 +69,7 @@ class Encryption {
   }
 
   /// Initialize sessions with their encryption keys
-  Future<void> initializeSessions(
-    Map<String, Uint8List?> sessions,
-  ) async {
+  Future<void> initializeSessions(Map<String, Uint8List?> sessions) async {
     for (final entry in sessions.entries) {
       final sessionId = entry.key;
       final dataKey = entry.value;
@@ -135,9 +131,7 @@ class Encryption {
   }
 
   /// Initialize machines with their encryption keys
-  Future<void> initializeMachines(
-    Map<String, Uint8List?> machines,
-  ) async {
+  Future<void> initializeMachines(Map<String, Uint8List?> machines) async {
     for (final entry in machines.entries) {
       final machineId = entry.key;
       final dataKey = entry.value;

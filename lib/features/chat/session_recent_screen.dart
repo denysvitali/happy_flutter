@@ -18,11 +18,7 @@ import '../sessions/widgets/session_cards.dart';
 /// "Today"/"Yesterday"/etc. Reuses SessionCard from sessions_screen.dart.
 class SessionRecentScreen extends ConsumerWidget {
   /// Creates a [SessionRecentScreen].
-  const SessionRecentScreen({
-    this.embedded = false,
-    this.onClose,
-    super.key,
-  });
+  const SessionRecentScreen({this.embedded = false, this.onClose, super.key});
 
   /// When true, render as a pane inside a tablet master-detail layout.
   /// Skips the outer [Scaffold]/[AppBar] and uses a thin in-pane header.

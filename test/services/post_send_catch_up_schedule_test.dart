@@ -79,7 +79,8 @@ void main() {
       expect(
         probes,
         inInclusiveRange(5, 8),
-        reason: 'a 90s budget at a widening cadence should cost roughly '
+        reason:
+            'a 90s budget at a widening cadence should cost roughly '
             'twice the probes of the old 30s/10s window, not six times',
       );
     });

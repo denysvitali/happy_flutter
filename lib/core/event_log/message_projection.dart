@@ -20,11 +20,7 @@ library;
 
 import 'event_log.dart';
 
-enum ProjectedState {
-  sending,
-  failed,
-  merged,
-}
+enum ProjectedState { sending, failed, merged }
 
 class ProjectedMessage {
   ProjectedMessage({
@@ -48,15 +44,15 @@ class ProjectedMessage {
   int lastLamport;
 
   ProjectedMessage copy() => ProjectedMessage(
-        localId: localId,
-        state: state,
-        serverId: serverId,
-        seq: seq,
-        role: role,
-        text: text,
-        createdAt: createdAt,
-        lastLamport: lastLamport,
-      );
+    localId: localId,
+    state: state,
+    serverId: serverId,
+    seq: seq,
+    role: role,
+    text: text,
+    createdAt: createdAt,
+    lastLamport: lastLamport,
+  );
 }
 
 class MessageProjection {
@@ -85,15 +81,12 @@ class MessageProjection {
         case MessageEventKind.serverAcked:
         case MessageEventKind.fetchedFromServer:
         case MessageEventKind.socketObserved:
-          final base = existing ??
-              ProjectedMessage(
-                localId: localId,
-                state: ProjectedState.sending,
-              );
+          final base =
+              existing ??
+              ProjectedMessage(localId: localId, state: ProjectedState.sending);
           base
             ..state = ProjectedState.merged
-            ..serverId =
-                (event.payload['serverId'] as String?) ?? base.serverId
+            ..serverId = (event.payload['serverId'] as String?) ?? base.serverId
             ..seq = (event.payload['seq'] as int?) ?? base.seq
             ..text = (event.payload['content'] as String?) ?? base.text
             ..lastLamport = event.lamport;

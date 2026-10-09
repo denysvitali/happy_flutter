@@ -62,7 +62,6 @@ bool isVersionSupported(
 
 /// Parsed version components.
 class ParsedVersion {
-
   const ParsedVersion({
     required this.major,
     required this.minor,

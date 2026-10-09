@@ -1,17 +1,8 @@
 /// SFTP authentication method
-enum SftpAuthMethod {
-  password,
-  publicKey,
-  anonymous,
-}
+enum SftpAuthMethod { password, publicKey, anonymous }
 
 /// Clipboard sync mode for shared directory
-enum SftpClipboardMode {
-  off,
-  bidirectional,
-  pushOnly,
-  pullOnly,
-}
+enum SftpClipboardMode { off, bidirectional, pushOnly, pullOnly }
 
 /// A shared SFTP directory
 class SftpDirectory {

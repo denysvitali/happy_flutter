@@ -34,14 +34,15 @@ void main() {
 
     test('returns path unchanged when not under root', () {
       const metadata = Metadata(path: '/root/dir');
-      expect(resolvePath('/other/path/file.txt', metadata),
-          '/other/path/file.txt');
+      expect(
+        resolvePath('/other/path/file.txt', metadata),
+        '/other/path/file.txt',
+      );
     });
 
     test('strips leading slash from remainder', () {
       const metadata = Metadata(path: '/root');
-      expect(resolvePath('/root/subdir/file.txt', metadata),
-          'subdir/file.txt');
+      expect(resolvePath('/root/subdir/file.txt', metadata), 'subdir/file.txt');
     });
 
     test('handles backslash separator', () {
@@ -128,10 +129,7 @@ void main() {
     });
 
     test('handles homeDir with mixed separators', () {
-      final result = resolveAbsolutePath(
-        '~/file.txt',
-        homeDir: '/home/user',
-      );
+      final result = resolveAbsolutePath('~/file.txt', homeDir: '/home/user');
       expect(result, '/home/user/file.txt');
     });
   });

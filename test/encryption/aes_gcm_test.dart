@@ -29,8 +29,10 @@ void main() {
         final secretKey = _generateKey();
         final originalData = {'message': 'Hello, World!', 'value': 42};
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
 
         expect(encrypted, isNot(equals(originalData)));
 
@@ -44,8 +46,10 @@ void main() {
         final secretKey = _generateKey();
         final originalData = 'Hello, World!';
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -55,8 +59,10 @@ void main() {
         final secretKey = _generateKey();
         final originalData = 12345;
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -64,10 +70,18 @@ void main() {
 
       test('encrypt and decrypt list roundtrip works', () async {
         final secretKey = _generateKey();
-        final originalData = [1, 2, 3, 'four', {'five': 5}];
+        final originalData = [
+          1,
+          2,
+          3,
+          'four',
+          {'five': 5},
+        ];
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -80,16 +94,15 @@ void main() {
             'name': 'John Doe',
             'age': 30,
             'roles': ['admin', 'editor'],
-            'settings': {
-              'theme': 'dark',
-              'notifications': true,
-            },
+            'settings': {'theme': 'dark', 'notifications': true},
           },
           'timestamp': 1234567890,
         };
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -106,10 +119,14 @@ void main() {
         expect(encrypted1, isNot(equals(encrypted2)));
 
         // But both should decrypt to the same value
-        final decrypted1 = await AesGcmEncryption.decrypt(encrypted1,
-            secretKey,);
-        final decrypted2 = await AesGcmEncryption.decrypt(encrypted2,
-            secretKey,);
+        final decrypted1 = await AesGcmEncryption.decrypt(
+          encrypted1,
+          secretKey,
+        );
+        final decrypted2 = await AesGcmEncryption.decrypt(
+          encrypted2,
+          secretKey,
+        );
 
         expect(decrypted1, equals(decrypted2));
         expect(decrypted1, equals(data));
@@ -131,8 +148,10 @@ void main() {
         final secretKey = _generateKey();
         final originalData = '';
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -142,8 +161,10 @@ void main() {
         final secretKey = _generateKey();
         final originalData = <String, dynamic>{};
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -153,8 +174,10 @@ void main() {
         final secretKey = _generateKey();
         final originalData = <dynamic>[];
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -167,8 +190,10 @@ void main() {
         final largeString = List.generate(1024, (i) => 'X').join();
         final originalData = {'data': largeString};
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -183,8 +208,10 @@ void main() {
           'russian': 'Привет мир',
         };
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -199,8 +226,10 @@ void main() {
           'mixed': '"Hello\nWorld"\tTest',
         };
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -212,14 +241,17 @@ void main() {
         final secretKey = _generateKey();
         final originalData = {'message': 'Hello, Base64!'};
 
-        final encryptedBase64 =
-            await AesGcmEncryption.encryptToBase64(originalData, secretKey);
+        final encryptedBase64 = await AesGcmEncryption.encryptToBase64(
+          originalData,
+          secretKey,
+        );
 
         expect(encryptedBase64, isA<String>());
 
-        final decrypted =
-            await AesGcmEncryption.decryptFromBase64(encryptedBase64,
-                secretKey,);
+        final decrypted = await AesGcmEncryption.decryptFromBase64(
+          encryptedBase64,
+          secretKey,
+        );
 
         expect(decrypted, equals(originalData));
       });
@@ -279,9 +311,7 @@ void main() {
         final nonce = encrypted.sublist(0, AesGcmEncryption.nonceSize);
         expect(nonce.length, AesGcmEncryption.nonceSize);
 
-        final ciphertextWithTag = encrypted.sublist(
-          AesGcmEncryption.nonceSize,
-        );
+        final ciphertextWithTag = encrypted.sublist(AesGcmEncryption.nonceSize);
         expect(
           ciphertextWithTag.length,
           greaterThanOrEqualTo(AesGcmEncryption.authTagSize),
@@ -406,8 +436,7 @@ void main() {
         expect(encrypted1, isNot(equals(encrypted2)));
       });
 
-      test(
-          'same data with same key but different nonce produces '
+      test('same data with same key but different nonce produces '
           'different output', () async {
         final secretKey = _generateKey();
         final data = 'Hello, World!';
@@ -421,21 +450,25 @@ void main() {
     });
 
     group('React Native Cross-Platform Compatibility', () {
-      test('encrypted output has correct [nonce][ciphertext][tag] layout',
-          () async {
-        final secretKey = _generateKey();
-        final data = 'test';
-        // "test" → JSON '"test"' → 6 UTF-8 bytes
-        const plaintextLen = 6;
+      test(
+        'encrypted output has correct [nonce][ciphertext][tag] layout',
+        () async {
+          final secretKey = _generateKey();
+          final data = 'test';
+          // "test" → JSON '"test"' → 6 UTF-8 bytes
+          const plaintextLen = 6;
 
-        final encrypted = await AesGcmEncryption.encrypt(data, secretKey);
+          final encrypted = await AesGcmEncryption.encrypt(data, secretKey);
 
-        // Total length must be nonce(12) + plaintext(6) + tag(16) = 34
-        expect(
-          encrypted.length,
-          AesGcmEncryption.nonceSize + plaintextLen + AesGcmEncryption.authTagSize,
-        );
-      });
+          // Total length must be nonce(12) + plaintext(6) + tag(16) = 34
+          expect(
+            encrypted.length,
+            AesGcmEncryption.nonceSize +
+                plaintextLen +
+                AesGcmEncryption.authTagSize,
+          );
+        },
+      );
 
       test('auth tag is verified: tampered tag returns null', () async {
         final secretKey = _generateKey();
@@ -471,8 +504,10 @@ void main() {
         final secretKey = _generateKey();
         final originalData = [255, 254, 253, 0, 1, 2];
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -480,13 +515,12 @@ void main() {
 
       test('encryption works with null values in object', () async {
         final secretKey = _generateKey();
-        final originalData = {
-          'value': null,
-          'other': 'test',
-        };
+        final originalData = {'value': null, 'other': 'test'};
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -500,8 +534,10 @@ void main() {
           'mixed': true,
         };
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -512,15 +548,15 @@ void main() {
         final originalData = {
           'level1': {
             'level2': {
-              'level3': {
-                'value': 'deep',
-              },
+              'level3': {'value': 'deep'},
             },
           },
         };
 
-        final encrypted = await AesGcmEncryption.encrypt(originalData,
-            secretKey,);
+        final encrypted = await AesGcmEncryption.encrypt(
+          originalData,
+          secretKey,
+        );
         final decrypted = await AesGcmEncryption.decrypt(encrypted, secretKey);
 
         expect(decrypted, equals(originalData));
@@ -528,8 +564,7 @@ void main() {
     });
 
     group('Isolate encryption path (send path off the UI isolate)', () {
-      test('encryptBatch output layout is consumed by decryptBatch',
-          () async {
+      test('encryptBatch output layout is consumed by decryptBatch', () async {
         final secretKey = _generateKey();
         final items = <dynamic>[
           {'message': 'one'},
@@ -538,16 +573,16 @@ void main() {
           ['four'],
         ];
 
-        final encrypted = await AesGcmEncryption.encryptBatch(
-          items,
-          secretKey,
-        );
+        final encrypted = await AesGcmEncryption.encryptBatch(items, secretKey);
         expect(encrypted.length, items.length);
         for (final blob in encrypted) {
           // [12-byte nonce][ciphertext][16-byte auth tag], no version byte.
-          expect(blob.length,
-              greaterThanOrEqualTo(AesGcmEncryption.nonceSize +
-                  AesGcmEncryption.authTagSize,),);
+          expect(
+            blob.length,
+            greaterThanOrEqualTo(
+              AesGcmEncryption.nonceSize + AesGcmEncryption.authTagSize,
+            ),
+          );
         }
 
         final decrypted = await AesGcmEncryption.decryptBatch(
@@ -575,7 +610,11 @@ void main() {
             'content': 'Hello from the send path',
             'meta': {'localId': 'abc123'},
           },
-          {'nested': {'list': [1, 2, 3]}},
+          {
+            'nested': {
+              'list': [1, 2, 3],
+            },
+          },
         ];
 
         final encrypted = await encryptor.encryptInIsolate(items);
@@ -621,31 +660,33 @@ void main() {
         expect(await encryptor.encryptInIsolate([]), isEmpty);
       });
 
-      test('encryptRawRecord stays wire-compatible across the isolate hop',
-          () async {
-        final key = _generateKey();
-        final sessionEncryption = SessionEncryption(
-          sessionId: 'test-session',
-          encryptor: AES256Encryption(key),
-          decryptor: AES256Encryption(key),
-          cache: EncryptionCache(),
-        );
-        final record = {
-          'type': 'user',
-          'text': 'one tap, one logical message',
-        };
+      test(
+        'encryptRawRecord stays wire-compatible across the isolate hop',
+        () async {
+          final key = _generateKey();
+          final sessionEncryption = SessionEncryption(
+            sessionId: 'test-session',
+            encryptor: AES256Encryption(key),
+            decryptor: AES256Encryption(key),
+            cache: EncryptionCache(),
+          );
+          final record = {
+            'type': 'user',
+            'text': 'one tap, one logical message',
+          };
 
-        // Production send path: base64(version-byte + nonce+ct+tag).
-        final encoded = await sessionEncryption.encryptRawRecord(record);
-        final blob = Base64Utils.decode(encoded, Encoding.base64);
-        expect(blob[0], 0);
+          // Production send path: base64(version-byte + nonce+ct+tag).
+          final encoded = await sessionEncryption.encryptRawRecord(record);
+          final blob = Base64Utils.decode(encoded, Encoding.base64);
+          expect(blob[0], 0);
 
-        final decrypted = await AesGcmEncryption.decrypt(
-          blob.sublist(1),
-          key,
-        );
-        expect(decrypted, equals(record));
-      });
+          final decrypted = await AesGcmEncryption.decrypt(
+            blob.sublist(1),
+            key,
+          );
+          expect(decrypted, equals(record));
+        },
+      );
     });
 
     group('Encoded batch decrypt path (base64 decode in the worker)', () {
@@ -653,8 +694,7 @@ void main() {
         expect(AES256Encryption.encodedBatchIsolateThreshold, 8);
       });
 
-      test('roundtrips a 500-row mixed batch including 20KB bodies',
-          () async {
+      test('roundtrips a 500-row mixed batch including 20KB bodies', () async {
         final key = _generateKey();
         final encryptor = AES256Encryption(key);
         final items = <dynamic>[];
@@ -681,80 +721,93 @@ void main() {
           } else {
             items.add(<String, dynamic>{
               'role': 'user',
-              'content': <String, dynamic>{
-                'type': 'text',
-                'text': 'short $i',
-              },
+              'content': <String, dynamic>{'type': 'text', 'text': 'short $i'},
             });
           }
         }
-        final encoded =
-            await _encryptToEncodedStrings(encryptor, items);
+        final encoded = await _encryptToEncodedStrings(encryptor, items);
 
         // Production wire shape: base64 payload starts with the 0x00
         // version byte, then [12-byte nonce][ciphertext][16-byte tag].
         for (final s in encoded) {
           final blob = base64Decode(s);
           expect(blob[0], 0);
-          expect(blob.length,
-              greaterThanOrEqualTo(AesGcmEncryption.nonceSize +
-                  AesGcmEncryption.authTagSize,),);
+          expect(
+            blob.length,
+            greaterThanOrEqualTo(
+              AesGcmEncryption.nonceSize + AesGcmEncryption.authTagSize,
+            ),
+          );
         }
 
-        final result = await AES256Encryption(key)
-            .decryptEncodedInIsolate(encoded);
+        final result = await AES256Encryption(
+          key,
+        ).decryptEncodedInIsolate(encoded);
         expect(result.decodeFailures, isEmpty);
         expect(result.values.length, items.length);
         for (var i = 0; i < items.length; i++) {
-          expect(result.values[i], equals(items[i]),
-              reason: 'row $i must roundtrip through the worker path',);
+          expect(
+            result.values[i],
+            equals(items[i]),
+            reason: 'row $i must roundtrip through the worker path',
+          );
         }
       });
 
-      test('old byte path and new encoded path produce identical results',
-          () async {
-        final key = _generateKey();
-        final encryptor = AES256Encryption(key);
-        final items = <dynamic>[
-          {'message': 'one'},
-          'two',
-          {'nested': {'list': [1, 2, 3]}},
-          _filler(2048),
-        ];
-        final blobs = await encryptor.encrypt(items);
+      test(
+        'old byte path and new encoded path produce identical results',
+        () async {
+          final key = _generateKey();
+          final encryptor = AES256Encryption(key);
+          final items = <dynamic>[
+            {'message': 'one'},
+            'two',
+            {
+              'nested': {
+                'list': [1, 2, 3],
+              },
+            },
+            _filler(2048),
+          ];
+          final blobs = await encryptor.encrypt(items);
 
-        final bytesResult =
-            await AES256Encryption(key).decryptInIsolate(blobs);
-        final encodedResult = await AES256Encryption(key)
-            .decryptEncodedInIsolate(
-                <String>[for (final b in blobs) base64Encode(b)],);
+          final bytesResult = await AES256Encryption(
+            key,
+          ).decryptInIsolate(blobs);
+          final encodedResult = await AES256Encryption(key)
+              .decryptEncodedInIsolate(<String>[
+                for (final b in blobs) base64Encode(b),
+              ]);
 
-        expect(encodedResult.decodeFailures, isEmpty);
-        expect(encodedResult.values, equals(bytesResult));
-      });
+          expect(encodedResult.decodeFailures, isEmpty);
+          expect(encodedResult.values, equals(bytesResult));
+        },
+      );
 
-      test('malformed base64 lands in decodeFailures, batch survives',
-          () async {
-        final key = _generateKey();
-        final encryptor = AES256Encryption(key);
-        final good = await encryptor.encrypt([
-          {'message': 'survivor'},
-        ]);
-        final encoded = <String>[
-          base64Encode(good.first),
-          'definitely not base64!!!',
-        ];
+      test(
+        'malformed base64 lands in decodeFailures, batch survives',
+        () async {
+          final key = _generateKey();
+          final encryptor = AES256Encryption(key);
+          final good = await encryptor.encrypt([
+            {'message': 'survivor'},
+          ]);
+          final encoded = <String>[
+            base64Encode(good.first),
+            'definitely not base64!!!',
+          ];
 
-        final result = await AES256Encryption(key)
-            .decryptEncodedInIsolate(encoded);
+          final result = await AES256Encryption(
+            key,
+          ).decryptEncodedInIsolate(encoded);
 
-        expect(result.decodeFailures, [1]);
-        expect(result.values[0], equals({'message': 'survivor'}));
-        expect(result.values[1], isNull);
-      });
+          expect(result.decodeFailures, [1]);
+          expect(result.values[0], equals({'message': 'survivor'}));
+          expect(result.values[1], isNull);
+        },
+      );
 
-      test('wrong version byte yields null outside decodeFailures',
-          () async {
+      test('wrong version byte yields null outside decodeFailures', () async {
         final key = _generateKey();
         final encryptor = AES256Encryption(key);
         final blobs = await encryptor.encrypt([
@@ -764,101 +817,106 @@ void main() {
         final tampered = Uint8List.fromList(blobs.first);
         tampered[0] = 7; // unknown version byte
 
-        final result = await AES256Encryption(key)
-            .decryptEncodedInIsolate(<String>[base64Encode(tampered)]);
+        final result = await AES256Encryption(
+          key,
+        ).decryptEncodedInIsolate(<String>[base64Encode(tampered)]);
 
         expect(result.decodeFailures, isEmpty);
         expect(result.values, [isNull]);
       });
 
-      test('tampered ciphertext and tag return null without throwing',
-          () async {
-        final key = _generateKey();
-        final encryptor = AES256Encryption(key);
-        final blobs = await encryptor.encrypt([
-          {'message': 'integrity'},
-        ]);
+      test(
+        'tampered ciphertext and tag return null without throwing',
+        () async {
+          final key = _generateKey();
+          final encryptor = AES256Encryption(key);
+          final blobs = await encryptor.encrypt([
+            {'message': 'integrity'},
+          ]);
 
-        Uint8List corruptAt(int index) {
-          final copy = Uint8List.fromList(blobs.first);
-          copy[index] ^= 0xFF;
-          return copy;
-        }
+          Uint8List corruptAt(int index) {
+            final copy = Uint8List.fromList(blobs.first);
+            copy[index] ^= 0xFF;
+            return copy;
+          }
 
-        final midCorrupt = corruptAt(blobs.first.length ~/ 2);
-        final tagCorrupt = corruptAt(blobs.first.length - 1);
+          final midCorrupt = corruptAt(blobs.first.length ~/ 2);
+          final tagCorrupt = corruptAt(blobs.first.length - 1);
 
-        final result = await AES256Encryption(key)
-            .decryptEncodedInIsolate(<String>[
-          base64Encode(midCorrupt),
-          base64Encode(tagCorrupt),
-        ]);
+          final result = await AES256Encryption(key).decryptEncodedInIsolate(
+            <String>[base64Encode(midCorrupt), base64Encode(tagCorrupt)],
+          );
 
-        expect(result.decodeFailures, isEmpty);
-        expect(result.values, [isNull, isNull]);
-      });
+          expect(result.decodeFailures, isEmpty);
+          expect(result.values, [isNull, isNull]);
+        },
+      );
 
       test('empty input returns empty result', () async {
-        final result = await AES256Encryption(_generateKey())
-            .decryptEncodedInIsolate(const <String>[]);
+        final result = await AES256Encryption(
+          _generateKey(),
+        ).decryptEncodedInIsolate(const <String>[]);
         expect(result.values, isEmpty);
         expect(result.decodeFailures, isEmpty);
       });
     });
 
     group('SessionEncryption uses the encoded worker path', () {
-      test('fresh page decrypts; warm cache returns identical instances',
-          () async {
-        final key = _generateKey();
-        final cache = EncryptionCache();
-        final sessionEncryption = SessionEncryption(
-          sessionId: 'encoded-path',
-          encryptor: AES256Encryption(key),
-          decryptor: AES256Encryption(key),
-          cache: cache,
-        );
-        final messages = <Map<String, dynamic>>[];
-        for (var i = 0; i < 5; i++) {
-          final plain = <String, dynamic>{
-            'role': 'user',
-            'content': <String, dynamic>{
-              'type': 'text',
-              'text': 'message $i',
-            },
-          };
-          // AES256Encryption.encrypt prepends the version byte — the
-          // exact wire row the encoded worker path consumes.
-          final encrypted = await AES256Encryption(key).encrypt([plain]);
-          final blob = encrypted.first;
-          messages.add(<String, dynamic>{
-            'id': 'm-$i',
-            'seq': i + 1,
-            'content': <String, dynamic>{
-              't': 'encrypted',
-              'c': base64Encode(blob),
-            },
-            'createdAt': 1700000000000 + i * 1000,
-          });
-        }
+      test(
+        'fresh page decrypts; warm cache returns identical instances',
+        () async {
+          final key = _generateKey();
+          final cache = EncryptionCache();
+          final sessionEncryption = SessionEncryption(
+            sessionId: 'encoded-path',
+            encryptor: AES256Encryption(key),
+            decryptor: AES256Encryption(key),
+            cache: cache,
+          );
+          final messages = <Map<String, dynamic>>[];
+          for (var i = 0; i < 5; i++) {
+            final plain = <String, dynamic>{
+              'role': 'user',
+              'content': <String, dynamic>{
+                'type': 'text',
+                'text': 'message $i',
+              },
+            };
+            // AES256Encryption.encrypt prepends the version byte — the
+            // exact wire row the encoded worker path consumes.
+            final encrypted = await AES256Encryption(key).encrypt([plain]);
+            final blob = encrypted.first;
+            messages.add(<String, dynamic>{
+              'id': 'm-$i',
+              'seq': i + 1,
+              'content': <String, dynamic>{
+                't': 'encrypted',
+                'c': base64Encode(blob),
+              },
+              'createdAt': 1700000000000 + i * 1000,
+            });
+          }
 
-        final first =
-            await sessionEncryption.decryptMessages(messages);
-        expect(first.length, 5);
-        for (final dm in first) {
-          expect(dm, isNotNull);
-          expect(dm!.content, isNotNull);
-        }
-        expect(cache.getStats()['messages'], 5);
+          final first = await sessionEncryption.decryptMessages(messages);
+          expect(first.length, 5);
+          for (final dm in first) {
+            expect(dm, isNotNull);
+            expect(dm!.content, isNotNull);
+          }
+          expect(cache.getStats()['messages'], 5);
 
-        // Second pass must be served entirely from cache: identical
-        // DecryptedMessage instances come back.
-        final second =
-            await sessionEncryption.decryptMessages(messages);
-        for (var i = 0; i < first.length; i++) {
-          expect(identical(first[i], second[i]), isTrue,
-              reason: 'row $i must be served from the message cache',);
-        }
-      });
+          // Second pass must be served entirely from cache: identical
+          // DecryptedMessage instances come back.
+          final second = await sessionEncryption.decryptMessages(messages);
+          for (var i = 0; i < first.length; i++) {
+            expect(
+              identical(first[i], second[i]),
+              isTrue,
+              reason: 'row $i must be served from the message cache',
+            );
+          }
+        },
+      );
     });
   });
 }
@@ -876,8 +934,18 @@ Uint8List _generateKey() {
 /// Deterministic ASCII filler of roughly [chars] characters.
 String _filler(int chars) {
   const words = [
-    'session', 'artifact', 'machine', 'profile', 'sync', 'message',
-    'cache', 'socket', 'retry', 'outbox', 'workspace', 'agent',
+    'session',
+    'artifact',
+    'machine',
+    'profile',
+    'sync',
+    'message',
+    'cache',
+    'socket',
+    'retry',
+    'outbox',
+    'workspace',
+    'agent',
   ];
   final buf = StringBuffer();
   var len = 0;

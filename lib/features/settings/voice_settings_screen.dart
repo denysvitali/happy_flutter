@@ -19,8 +19,7 @@ class VoiceSettingsScreen extends ConsumerStatefulWidget {
       _VoiceSettingsScreenState();
 }
 
-class _VoiceSettingsScreenState
-    extends ConsumerState<VoiceSettingsScreen> {
+class _VoiceSettingsScreenState extends ConsumerState<VoiceSettingsScreen> {
   List<Map<String, String>> _engines = [];
   bool _enginesLoaded = false;
 
@@ -57,8 +56,7 @@ class _VoiceSettingsScreenState
     );
     final cs = Theme.of(context).colorScheme;
     final selectedLanguageCode = voiceAssistantLanguage ?? '';
-    final selectedLanguage =
-        findVoiceLanguageByCode(selectedLanguageCode);
+    final selectedLanguage = findVoiceLanguageByCode(selectedLanguageCode);
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.voiceTitle)),
@@ -102,27 +100,24 @@ class _VoiceSettingsScreenState
                   await tts.speak(
                     l10n.voiceTestTtsPhrase,
                     useOffline: ttsUseOffline,
-                    offlineVoiceId:
-                        ref.read(settingsNotifierProvider).ttsVoiceId,
+                    offlineVoiceId: ref
+                        .read(settingsNotifierProvider)
+                        .ttsVoiceId,
                   );
                 },
               ),
             ],
           ),
-          if (_enginesLoaded &&
-              _engines.isNotEmpty) ...[
+          if (_enginesLoaded && _engines.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
             SettingsSection(
               title: l10n.voiceSelectEngineHint,
               children: [
                 SettingsRow(
                   icon: Icons.settings_voice,
-                  iconColor: ttsEngine == null
-                      ? cs.primary
-                      : null,
+                  iconColor: ttsEngine == null ? cs.primary : null,
                   title: l10n.voiceDefaultEngine,
-                  subtitle:
-                      l10n.voiceDefaultEngineSubtitle,
+                  subtitle: l10n.voiceDefaultEngineSubtitle,
                   trailing: ttsEngine == null
                       ? Icon(
                           Icons.check_circle_rounded,
@@ -132,27 +127,17 @@ class _VoiceSettingsScreenState
                       : null,
                   onTap: () {
                     ref
-                        .read(
-                          settingsNotifierProvider
-                              .notifier,
-                        )
-                        .updateSetting(
-                          'ttsEngine',
-                          null,
-                        );
+                        .read(settingsNotifierProvider.notifier)
+                        .updateSetting('ttsEngine', null);
                   },
                 ),
                 ..._engines.map((engine) {
-                  final engineName =
-                      engine['name'] ?? l10n.statusUnknown;
-                  final engineId =
-                      engine['identifier'] ?? '';
-                  final isSelected =
-                      ttsEngine == engineId;
+                  final engineName = engine['name'] ?? l10n.statusUnknown;
+                  final engineId = engine['identifier'] ?? '';
+                  final isSelected = ttsEngine == engineId;
                   return SettingsRow(
                     icon: Icons.settings_voice,
-                    iconColor:
-                        isSelected ? cs.primary : null,
+                    iconColor: isSelected ? cs.primary : null,
                     title: engineName,
                     subtitle: engineId,
                     trailing: isSelected
@@ -164,14 +149,8 @@ class _VoiceSettingsScreenState
                         : null,
                     onTap: () {
                       ref
-                          .read(
-                            settingsNotifierProvider
-                                .notifier,
-                          )
-                          .updateSetting(
-                            'ttsEngine',
-                            engineId,
-                          );
+                          .read(settingsNotifierProvider.notifier)
+                          .updateSetting('ttsEngine', engineId);
                     },
                   );
                 }),
@@ -184,12 +163,10 @@ class _VoiceSettingsScreenState
             children: [
               SettingsRow(
                 icon: Icons.record_voice_over,
-                iconColor: selectedLanguageCode.isEmpty
-                    ? cs.primary
-                    : null,
+                iconColor: selectedLanguageCode.isEmpty ? cs.primary : null,
                 title: voiceLanguages[0].name,
-                subtitle: voiceLanguages[0].region ??
-                    voiceLanguages[0].nativeName,
+                subtitle:
+                    voiceLanguages[0].region ?? voiceLanguages[0].nativeName,
                 trailing: selectedLanguageCode.isEmpty
                     ? Icon(
                         Icons.check_circle_rounded,
@@ -199,22 +176,15 @@ class _VoiceSettingsScreenState
                     : null,
                 onTap: () {
                   ref
-                      .read(
-                        settingsNotifierProvider.notifier,
-                      )
-                      .updateSetting(
-                        'voiceAssistantLanguage',
-                        null,
-                      );
+                      .read(settingsNotifierProvider.notifier)
+                      .updateSetting('voiceAssistantLanguage', null);
                 },
               ),
               SettingsNavRow(
                 icon: Icons.language,
                 title: l10n.voiceLanguageTitle,
-                subtitle: selectedLanguage?.displayName ??
-                    l10n.voiceAutoDetect,
-                onTap: () =>
-                    context.pushNamed('voice-language'),
+                subtitle: selectedLanguage?.displayName ?? l10n.voiceAutoDetect,
+                onTap: () => context.pushNamed('voice-language'),
               ),
             ],
           ),
@@ -235,8 +205,7 @@ class _OfflineVoicesNavRow extends ConsumerStatefulWidget {
       _OfflineVoicesNavRowState();
 }
 
-class _OfflineVoicesNavRowState
-    extends ConsumerState<_OfflineVoicesNavRow> {
+class _OfflineVoicesNavRowState extends ConsumerState<_OfflineVoicesNavRow> {
   @override
   void initState() {
     super.initState();
@@ -275,12 +244,14 @@ class _OfflineVoicesNavRowState
             .length;
         final subtitle = StringBuffer(active.displayName)
           ..write(' · ')
-          ..write(downloadStatusLabel(
-            ready: status == OfflineTtsStatus.ready,
-            downloading: status == OfflineTtsStatus.downloading,
-            failed: status == OfflineTtsStatus.failed,
-            strings: statusStrings,
-          ));
+          ..write(
+            downloadStatusLabel(
+              ready: status == OfflineTtsStatus.ready,
+              downloading: status == OfflineTtsStatus.downloading,
+              failed: status == OfflineTtsStatus.failed,
+              strings: statusStrings,
+            ),
+          );
         if (readyCount > 0) {
           subtitle.write(' · $readyCount ${l10n.voiceInstalledLabel}');
         }
@@ -323,8 +294,8 @@ class _OfflineSttModelsNavRowState
     final selectedId = ref.watch(
       settingsNotifierProvider.select((s) => s.sttModelId),
     );
-    final active = OfflineSttCatalog.byId(selectedId) ??
-        OfflineSttCatalog.defaultModel;
+    final active =
+        OfflineSttCatalog.byId(selectedId) ?? OfflineSttCatalog.defaultModel;
 
     return ValueListenableBuilder<Map<String, OfflineSttStatus>>(
       valueListenable: service.statuses,
@@ -338,19 +309,20 @@ class _OfflineSttModelsNavRowState
           failedRetrySuffix: l10n.voiceDownloadFailedRetrySuffix,
           notDownloadedSuffix: l10n.voiceDownloadNotDownloadedSuffix,
         );
-        final status =
-            statuses[active.id] ?? OfflineSttStatus.notDownloaded;
+        final status = statuses[active.id] ?? OfflineSttStatus.notDownloaded;
         final readyCount = statuses.values
             .where((s) => s == OfflineSttStatus.ready)
             .length;
         final subtitle = StringBuffer(active.displayName)
           ..write(' · ')
-          ..write(downloadStatusLabel(
-            ready: status == OfflineSttStatus.ready,
-            downloading: status == OfflineSttStatus.downloading,
-            failed: status == OfflineSttStatus.failed,
-            strings: statusStrings,
-          ));
+          ..write(
+            downloadStatusLabel(
+              ready: status == OfflineSttStatus.ready,
+              downloading: status == OfflineSttStatus.downloading,
+              failed: status == OfflineSttStatus.failed,
+              strings: statusStrings,
+            ),
+          );
         if (readyCount > 0) {
           subtitle.write(' · $readyCount ${l10n.voiceInstalledLabel}');
         }

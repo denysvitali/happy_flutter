@@ -4,15 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// Status bar style configuration
-enum StatusBarStyle {
-  light,
-  dark,
-  automatic,
-}
+enum StatusBarStyle { light, dark, automatic }
 
 /// Status bar configuration
 class StatusBarConfig {
-
   const StatusBarConfig({
     this.style = StatusBarStyle.automatic,
     this.animate = true,
@@ -37,7 +32,6 @@ class StatusBarConfig {
 
 /// Theme-aware status bar widget
 class StatusBarTheme extends StatefulWidget {
-
   const StatusBarTheme({
     required this.child,
     this.config = const StatusBarConfig(),
@@ -118,7 +112,6 @@ class _StatusBarThemeState extends State<StatusBarTheme> {
 
 /// Navigation bar theme configuration
 class NavigationBarTheme {
-
   const NavigationBarTheme({
     this.backgroundColor,
     this.itemColor,
@@ -157,7 +150,6 @@ class NavigationBarTheme {
 
 /// Widget to configure navigation bar
 class NavigationBarThemeWrapper extends StatefulWidget {
-
   const NavigationBarThemeWrapper({
     required this.child,
     this.theme = const NavigationBarTheme(),
@@ -173,8 +165,7 @@ class NavigationBarThemeWrapper extends StatefulWidget {
       _NavigationBarThemeWrapperState();
 }
 
-class _NavigationBarThemeWrapperState
-    extends State<NavigationBarThemeWrapper> {
+class _NavigationBarThemeWrapperState extends State<NavigationBarThemeWrapper> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -192,7 +183,8 @@ class _NavigationBarThemeWrapperState
   }
 
   void _applyOverlayStyle() {
-    final overlayStyle = widget.theme.systemNavigationBarOverlay ??
+    final overlayStyle =
+        widget.theme.systemNavigationBarOverlay ??
         (widget.darkMode
             ? SystemUiOverlayStyle.light
             : SystemUiOverlayStyle.dark);
@@ -207,7 +199,6 @@ class _NavigationBarThemeWrapperState
 
 /// Combined status and navigation bar theme wrapper
 class SystemBarsTheme extends StatelessWidget {
-
   const SystemBarsTheme({
     required this.child,
     this.statusBarConfig = const StatusBarConfig(),
@@ -236,7 +227,6 @@ class SystemBarsTheme extends StatelessWidget {
 
 /// Animated status bar color transition
 class AnimatedStatusBar extends StatefulWidget {
-
   const AnimatedStatusBar({
     required this.child,
     required this.targetStyle,

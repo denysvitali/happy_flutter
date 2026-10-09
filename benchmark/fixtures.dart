@@ -10,10 +10,26 @@ import 'package:happy_flutter/core/encryption/encryptor.dart';
 final math.Random _rng = math.Random(1337);
 
 const List<String> _words = <String>[
-  'session', 'artifact', 'machine', 'profile', 'sync', 'message',
-  'cache', 'socket', 'retry', 'outbox', 'workspace', 'agent',
-  'transcript', 'projection', 'cursor', 'envelope', 'decrypt',
-  'heartbeat', 'spawn', 'terminal',
+  'session',
+  'artifact',
+  'machine',
+  'profile',
+  'sync',
+  'message',
+  'cache',
+  'socket',
+  'retry',
+  'outbox',
+  'workspace',
+  'agent',
+  'transcript',
+  'projection',
+  'cursor',
+  'envelope',
+  'decrypt',
+  'heartbeat',
+  'spawn',
+  'terminal',
 ];
 
 String _text(int chars) {
@@ -59,12 +75,7 @@ class WirePair {
   final dynamic plain;
 }
 
-Map<String, dynamic> _envelope(
-  String id,
-  int seq,
-  String role,
-  dynamic plain,
-) {
+Map<String, dynamic> _envelope(String id, int seq, String role, dynamic plain) {
   final jsonStr = jsonEncode(plain);
   final bytes = utf8.encode(jsonStr);
   final output = Uint8List(bytes.length + 1);
@@ -151,10 +162,12 @@ List<WirePair> makeTranscriptPairs(int count) {
       };
       pendingCallId = '';
       roll = -1;
-      pairs.add(WirePair(
-        wire: _envelope('bench-r-$seq', seq, 'user', plain),
-        plain: plain,
-      ));
+      pairs.add(
+        WirePair(
+          wire: _envelope('bench-r-$seq', seq, 'user', plain),
+          plain: plain,
+        ),
+      );
       continue;
     }
     final plain = _bodyForRoll(roll);
@@ -168,10 +181,9 @@ List<WirePair> makeTranscriptPairs(int count) {
       'assistant' => 'assistant',
       _ => 'user',
     };
-    pairs.add(WirePair(
-      wire: _envelope('bench-m-$seq', seq, role, plain),
-      plain: plain,
-    ));
+    pairs.add(
+      WirePair(wire: _envelope('bench-m-$seq', seq, role, plain), plain: plain),
+    );
   }
   return pairs;
 }
@@ -188,8 +200,7 @@ Future<List<Map<String, dynamic>>> makeAesTranscript(
 ) async {
   final pairs = makeTranscriptPairs(count);
   final encryptor = AES256Encryption(key);
-  final ciphers =
-      await encryptor.encrypt(pairs.map((p) => p.plain).toList());
+  final ciphers = await encryptor.encrypt(pairs.map((p) => p.plain).toList());
   final rows = <Map<String, dynamic>>[];
   for (var i = 0; i < pairs.length; i++) {
     final w = Map<String, dynamic>.of(pairs[i].wire);
@@ -204,10 +215,7 @@ Future<List<Map<String, dynamic>>> makeAesTranscript(
 
 /// Wire-shape session rows spread across [workspaces] workspaces with
 /// varied presence/thinking/activity, for collection benchmarks.
-List<Map<String, dynamic>> makeSessionRows(
-  int count, {
-  int workspaces = 8,
-}) {
+List<Map<String, dynamic>> makeSessionRows(int count, {int workspaces = 8}) {
   final rows = <Map<String, dynamic>>[];
   for (var i = 0; i < count; i++) {
     final online = _rng.nextInt(10) == 0;

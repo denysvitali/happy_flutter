@@ -20,13 +20,10 @@ class ClearedDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final glass =
-        theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    final glass = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     // Cleared stays the quietest member of the family — it marks an
     // erasure, not an event worth hunting for.
-    final labelColor = cs.onSurfaceVariant.withValues(
-      alpha: AppOpacity.half,
-    );
+    final labelColor = cs.onSurfaceVariant.withValues(alpha: AppOpacity.half);
     return Padding(
       key: const ValueKey('cleared-divider'),
       padding: const EdgeInsets.symmetric(
@@ -37,9 +34,7 @@ class ClearedDivider extends StatelessWidget {
         children: [
           Expanded(child: _buildRule(glass)),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
             child: Text(
               context.l10n.chatConversationCleared,
               style: AppText.label(theme, labelColor),
@@ -57,11 +52,7 @@ class ClearedDivider extends StatelessWidget {
       height: AppBorder.hairline,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Colors.transparent,
-            glass.glassBorder,
-            Colors.transparent,
-          ],
+          colors: [Colors.transparent, glass.glassBorder, Colors.transparent],
         ),
       ),
     );

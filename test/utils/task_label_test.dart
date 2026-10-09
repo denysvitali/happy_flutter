@@ -9,10 +9,7 @@ void main() {
 
     test('collapses newlines and indentation to single spaces', () {
       const raw = 'cd /repo\npython3 - <<\'PY\'\n    specs = [\n    ]\nPY';
-      expect(
-        compactTaskLabel(raw),
-        "cd /repo python3 - <<'PY' specs = [ ] PY",
-      );
+      expect(compactTaskLabel(raw), "cd /repo python3 - <<'PY' specs = [ ] PY");
     });
 
     test('clamps long labels with an ellipsis', () {

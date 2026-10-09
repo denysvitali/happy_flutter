@@ -111,100 +111,98 @@ class _CompactActiveSessionCardState extends State<CompactActiveSessionCard> {
           borderRadius: BorderRadius.circular(AppRadius.md),
           clipBehavior: Clip.hardEdge,
           child: SizedBox(
-              height: hasActivity ? 72 : 56,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (widget.selectionMode)
-                    SelectionCheckbox(
-                      isSelected: widget.isSelected,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    )
-                  else
-                    Container(
-                      width: AppBorder.accent,
-                      decoration: BoxDecoration(
-                        color: accentColor,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(AppRadius.md),
-                          bottomLeft: Radius.circular(AppRadius.md),
-                        ),
-                      ),
-                    ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                      ),
-                      child: Row(
-                        children: [
-                          buildSessionAvatar(
-                            sessionId: session.id,
-                            avatarId: _d.avatarId,
-                            sessionFlavor: sessionFlavor,
-                            size: AppAvatarSize.small,
-                            showFlavorIcon: widget.showFlavorIcon,
-                            hasDraft: hasDraft,
-                            avatarStyle: widget.avatarStyle,
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                buildNameRow(
-                                  name: _d.name,
-                                  sessionStatus: _d.status,
-                                  style: AppText.title(theme, cs.onSurface),
-                                  pulseDot: needsAttention,
-                                  badge:
-                                      widget.archiveCountdownLabel == null
-                                      ? null
-                                      : ArchiveCountdownBadge(
-                                          label:
-                                              widget.archiveCountdownLabel!,
-                                        ),
-                                ),
-                                if (statusWidget != null) ...[
-                                  const SizedBox(height: AppSpacing.xxs),
-                                  statusWidget,
-                                ],
-                                if (hasActivity) ...[
-                                  const SizedBox(height: AppSpacing.sm),
-                                  activityLine,
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.sm),
-                          buildTimestampBadges(
-                            timestamp:
-                                widget.lastMessageTimestamp ??
-                                session.lastMessageAt ??
-                                session.updatedAt,
-                            theme: theme,
-                            cs: cs,
-                            unreadCount: widget.unreadCount,
-                            todoProgress: todoProgress,
-                          ),
-                          if (session.pinned) ...[
-                            const SizedBox(width: AppSpacing.sm),
-                            Icon(
-                              Icons.push_pin,
-                              size: AppIconSize.md,
-                              color: cs.primary,
-                            ),
-                          ],
-                        ],
+            height: hasActivity ? 72 : 56,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.selectionMode)
+                  SelectionCheckbox(
+                    isSelected: widget.isSelected,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  )
+                else
+                  Container(
+                    width: AppBorder.accent,
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(AppRadius.md),
+                        bottomLeft: Radius.circular(AppRadius.md),
                       ),
                     ),
                   ),
-                ],
-              ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
+                    child: Row(
+                      children: [
+                        buildSessionAvatar(
+                          sessionId: session.id,
+                          avatarId: _d.avatarId,
+                          sessionFlavor: sessionFlavor,
+                          size: AppAvatarSize.small,
+                          showFlavorIcon: widget.showFlavorIcon,
+                          hasDraft: hasDraft,
+                          avatarStyle: widget.avatarStyle,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              buildNameRow(
+                                name: _d.name,
+                                sessionStatus: _d.status,
+                                style: AppText.title(theme, cs.onSurface),
+                                pulseDot: needsAttention,
+                                badge: widget.archiveCountdownLabel == null
+                                    ? null
+                                    : ArchiveCountdownBadge(
+                                        label: widget.archiveCountdownLabel!,
+                                      ),
+                              ),
+                              if (statusWidget != null) ...[
+                                const SizedBox(height: AppSpacing.xxs),
+                                statusWidget,
+                              ],
+                              if (hasActivity) ...[
+                                const SizedBox(height: AppSpacing.sm),
+                                activityLine,
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        buildTimestampBadges(
+                          timestamp:
+                              widget.lastMessageTimestamp ??
+                              session.lastMessageAt ??
+                              session.updatedAt,
+                          theme: theme,
+                          cs: cs,
+                          unreadCount: widget.unreadCount,
+                          todoProgress: todoProgress,
+                        ),
+                        if (session.pinned) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Icon(
+                            Icons.push_pin,
+                            size: AppIconSize.md,
+                            color: cs.primary,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 }

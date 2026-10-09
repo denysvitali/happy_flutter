@@ -23,7 +23,8 @@ import 'dart:math';
 
 import 'messaging_commands.dart';
 
-typedef InvariantCheck = void Function(MessagingModel model, List<MessagingCommand> trace);
+typedef InvariantCheck =
+    void Function(MessagingModel model, List<MessagingCommand> trace);
 
 class PropertyResult {
   PropertyResult({

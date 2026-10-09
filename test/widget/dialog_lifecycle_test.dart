@@ -50,9 +50,7 @@ void main() {
 
         // Capture the navigator BEFORE tearing down the parent so we
         // can still pop the dialog afterwards.
-        final navigator = tester.state<NavigatorState>(
-          find.byType(Navigator),
-        );
+        final navigator = tester.state<NavigatorState>(find.byType(Navigator));
 
         // Tear down the parent (the dialog still has its own route on
         // the navigator stack, so the await is still pending).
@@ -74,59 +72,54 @@ void main() {
       },
     );
 
-    testWidgets(
-      'showModalBottomSheet awaited with mounted check — '
-      'no error when parent unmounts mid-sheet',
-      (tester) async {
-        var accessAfterClose = 0;
-        var isMountedAfterSheet = false;
+    testWidgets('showModalBottomSheet awaited with mounted check — '
+        'no error when parent unmounts mid-sheet', (tester) async {
+      var accessAfterClose = 0;
+      var isMountedAfterSheet = false;
 
-        late StateSetter outerSetState;
-        var showDemo = true;
+      late StateSetter outerSetState;
+      var showDemo = true;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: StatefulBuilder(
-              builder: (context, setState) {
-                outerSetState = setState;
-                if (!showDemo) return const SizedBox.shrink();
-                return _SheetDemo(
-                  onClosedSafely: () {
-                    accessAfterClose++;
-                    isMountedAfterSheet =
-                        _SheetDemo.lastContext?.mounted ?? false;
-                  },
-                );
-              },
-            ),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              outerSetState = setState;
+              if (!showDemo) return const SizedBox.shrink();
+              return _SheetDemo(
+                onClosedSafely: () {
+                  accessAfterClose++;
+                  isMountedAfterSheet =
+                      _SheetDemo.lastContext?.mounted ?? false;
+                },
+              );
+            },
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Open the bottom sheet.
-        await tester.tap(find.text('open sheet'));
-        await tester.pumpAndSettle();
-        expect(find.text('demo sheet'), findsOneWidget);
+      // Open the bottom sheet.
+      await tester.tap(find.text('open sheet'));
+      await tester.pumpAndSettle();
+      expect(find.text('demo sheet'), findsOneWidget);
 
-        // Capture the navigator BEFORE tearing down the parent.
-        final navigator = tester.state<NavigatorState>(
-          find.byType(Navigator),
-        );
+      // Capture the navigator BEFORE tearing down the parent.
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
 
-        // Tear down the parent (the sheet is still on the navigator).
-        outerSetState(() => showDemo = false);
-        await tester.pumpAndSettle();
-        expect(find.text('open sheet'), findsNothing);
+      // Tear down the parent (the sheet is still on the navigator).
+      outerSetState(() => showDemo = false);
+      await tester.pumpAndSettle();
+      expect(find.text('open sheet'), findsNothing);
 
-        // Dismiss the orphaned sheet.
-        navigator.pop();
-        await tester.pumpAndSettle();
+      // Dismiss the orphaned sheet.
+      navigator.pop();
+      await tester.pumpAndSettle();
 
-        expect(tester.takeException(), isNull);
-        expect(accessAfterClose, equals(1));
-        expect(isMountedAfterSheet, isFalse);
-      },
-    );
+      expect(tester.takeException(), isNull);
+      expect(accessAfterClose, equals(1));
+      expect(isMountedAfterSheet, isFalse);
+    });
   });
 }
 
@@ -151,9 +144,8 @@ class _DialogDemoState extends State<_DialogDemo> {
     _DialogDemo.lastContext = context;
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => const AlertDialog(
-        content: Text('demo dialog'),
-      ),
+      builder: (dialogContext) =>
+          const AlertDialog(content: Text('demo dialog')),
     );
     if (!mounted) {
       widget.onClosedSafely();
@@ -166,10 +158,7 @@ class _DialogDemoState extends State<_DialogDemo> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: TextButton(
-          onPressed: _openDialog,
-          child: const Text('open'),
-        ),
+        child: TextButton(onPressed: _openDialog, child: const Text('open')),
       ),
     );
   }
@@ -191,10 +180,8 @@ class _SheetDemoState extends State<_SheetDemo> {
     _SheetDemo.lastContext = context;
     await showModalBottomSheet<void>(
       context: context,
-      builder: (sheetContext) => const SizedBox(
-        height: 200,
-        child: Center(child: Text('demo sheet')),
-      ),
+      builder: (sheetContext) =>
+          const SizedBox(height: 200, child: Center(child: Text('demo sheet'))),
     );
     if (!mounted) {
       widget.onClosedSafely();

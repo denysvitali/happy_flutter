@@ -1606,24 +1606,26 @@ void main() {
       expect(children, isNull);
     });
 
-    test('sidechain-link bridge with null id stays inline and does not crash',
-        () {
-      final messages = [
-        _taskMsg(id: 'task-1', uuid: 'task-uuid'),
-        <String, dynamic>{
-          'id': null,
-          'kind': 'sidechain-link',
-          'uuid': 'link-uuid',
-          'parentUuid': 'task-uuid',
-        },
-      ];
+    test(
+      'sidechain-link bridge with null id stays inline and does not crash',
+      () {
+        final messages = [
+          _taskMsg(id: 'task-1', uuid: 'task-uuid'),
+          <String, dynamic>{
+            'id': null,
+            'kind': 'sidechain-link',
+            'uuid': 'link-uuid',
+            'parentUuid': 'task-uuid',
+          },
+        ];
 
-      expect(() => grouper.groupMessages(messages), returnsNormally);
-      final result = grouper.groupMessages(messages);
+        expect(() => grouper.groupMessages(messages), returnsNormally);
+        final result = grouper.groupMessages(messages);
 
-      // A link without an id cannot be removed from the flat list, but
-      // it is also not a visible orphan, so grouping returns null.
-      expect(result, isNull);
-    });
+        // A link without an id cannot be removed from the flat list, but
+        // it is also not a visible orphan, so grouping returns null.
+        expect(result, isNull);
+      },
+    );
   });
 }

@@ -64,9 +64,7 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
   String _buildCopyText() {
     final diagnostics = powerDiagnostics.snapshot();
     final failures = _entries
-        .where(
-          (entry) => entry.failed && entry.failureKind != 'app_suspended',
-        )
+        .where((entry) => entry.failed && entry.failureKind != 'app_suspended')
         .length;
     final requestBytes = HttpRequestEntry.formatBytes(
       httpRequestLogger.totalRequestBytes,
@@ -157,9 +155,7 @@ class _NetworkInspectorScreenState extends State<NetworkInspectorScreen> {
     final totalReqB = httpRequestLogger.totalRequestBytes;
     final totalResB = httpRequestLogger.totalResponseBytes;
     final failures = _entries
-        .where(
-          (entry) => entry.failed && entry.failureKind != 'app_suspended',
-        )
+        .where((entry) => entry.failed && entry.failureKind != 'app_suspended')
         .length;
     final dns = _entries.where((entry) => entry.failureKind == 'dns').length;
     final timeouts = _entries

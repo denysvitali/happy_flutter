@@ -22,9 +22,7 @@ void main() {
     // Stub flutter_tts platform channel so TtsService.init() doesn't
     // explode when running on the test host (no Android/iOS engine).
     const channel = MethodChannel('flutter_tts');
-    TestDefaultBinaryMessengerBinding
-        .instance
-        .defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async => 1);
     // Stop any leftover speech from a previous test.
     await TtsService().stop();
@@ -32,9 +30,7 @@ void main() {
 
   tearDown(() async {
     const channel = MethodChannel('flutter_tts');
-    TestDefaultBinaryMessengerBinding
-        .instance
-        .defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
     await TtsService().stop();
   });
@@ -87,37 +83,34 @@ void main() {
   });
 
   group('TtsService.speak before offline init resolves', () {
-    test('does not throw when useOffline is true and engine not ready',
-        () async {
-      // Simulate a fresh launch where the user taps "Speak this
-      // message" before initialize() has had time to resolve. The
-      // service must fall back to the system engine (or no-op on
-      // hosts without one) rather than letting the offline path
-      // raise "Please initialize sherpa-onnx first".
-      await expectLater(
-        TtsService().speak(
-          'Hello world',
-          token: 'msg-1',
-          useOffline: true,
-          offlineVoiceId: 'vits-piper-en_US-amy-low-v1',
-        ),
-        completes,
-      );
-    });
+    test(
+      'does not throw when useOffline is true and engine not ready',
+      () async {
+        // Simulate a fresh launch where the user taps "Speak this
+        // message" before initialize() has had time to resolve. The
+        // service must fall back to the system engine (or no-op on
+        // hosts without one) rather than letting the offline path
+        // raise "Please initialize sherpa-onnx first".
+        await expectLater(
+          TtsService().speak(
+            'Hello world',
+            token: 'msg-1',
+            useOffline: true,
+            offlineVoiceId: 'vits-piper-en_US-amy-low-v1',
+          ),
+          completes,
+        );
+      },
+    );
 
-    test('does not throw for repeated taps while init is in flight',
-        () async {
+    test('does not throw for repeated taps while init is in flight', () async {
       // Mirrors the user behaviour the regression report describes:
       // a fast double-tap on the speak row while the engine is
       // still booting. Both calls must complete without surfacing
       // the sherpa exception.
       await expectLater(
         Future.wait<void>([
-          TtsService().speak(
-            'First message',
-            token: 'msg-a',
-            useOffline: true,
-          ),
+          TtsService().speak('First message', token: 'msg-a', useOffline: true),
           TtsService().speak(
             'Second message',
             token: 'msg-b',

@@ -101,31 +101,36 @@ void main() {
         onRequest: (options, handler) {
           if (options.path == '/v3/sessions/fifo/messages') {
             final body = options.data as Map<String, dynamic>;
-            final message = (body['messages'] as List<dynamic>).single
-                as Map<String, dynamic>;
+            final message =
+                (body['messages'] as List<dynamic>).single
+                    as Map<String, dynamic>;
             final localId = message['localId'] as String;
             deliveryOrder.add(localId);
-            handler.resolve(Response<dynamic>(
-              requestOptions: options,
-              statusCode: 200,
-              data: <String, dynamic>{
-                'messages': <Map<String, dynamic>>[
-                  {
-                    'id': 'server-$localId',
-                    'localId': localId,
-                    'seq': deliveryOrder.length + 1,
-                    'createdAt': now,
-                  },
-                ],
-              },
-            ));
+            handler.resolve(
+              Response<dynamic>(
+                requestOptions: options,
+                statusCode: 200,
+                data: <String, dynamic>{
+                  'messages': <Map<String, dynamic>>[
+                    {
+                      'id': 'server-$localId',
+                      'localId': localId,
+                      'seq': deliveryOrder.length + 1,
+                      'createdAt': now,
+                    },
+                  ],
+                },
+              ),
+            );
             return;
           }
-          handler.resolve(Response<dynamic>(
-            requestOptions: options,
-            statusCode: 404,
-            data: <String, dynamic>{},
-          ));
+          handler.resolve(
+            Response<dynamic>(
+              requestOptions: options,
+              statusCode: 404,
+              data: <String, dynamic>{},
+            ),
+          );
         },
       ),
     );
@@ -145,11 +150,13 @@ void main() {
     final send = instance.sendMessage('fifo', 'continue');
     final rejected = expectLater(
       send,
-      throwsA(isA<StateError>().having(
-        (error) => error.message,
-        'message',
-        'Send cancelled by runtime reset',
-      )),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'Send cancelled by runtime reset',
+        ),
+      ),
     );
     await encryption.firstStarted.future;
     final delivery = instance.lastCompleteSendFuture!;
@@ -174,11 +181,13 @@ void main() {
     final first = instance.sendMessage('fifo', 'continue');
     final rejected = expectLater(
       first,
-      throwsA(isA<StateError>().having(
-        (error) => error.message,
-        'message',
-        'preparation failed',
-      )),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'preparation failed',
+        ),
+      ),
     );
     await encryption.firstStarted.future;
     final firstDelivery = instance.lastCompleteSendFuture!;
@@ -192,12 +201,7 @@ void main() {
       expect(deliveryOrder, isEmpty);
     } finally {
       encryption.releaseFirst.complete();
-      await Future.wait([
-        rejected,
-        firstDelivery,
-        secondDelivery,
-        sharedLane,
-      ]);
+      await Future.wait([rejected, firstDelivery, secondDelivery, sharedLane]);
     }
     expect(deliveryOrder, ['local-2', 'outbox-lane']);
     final rows = instance.testSessionMessages('fifo')!;
@@ -221,8 +225,11 @@ void main() {
       await second;
       await Future<void>.delayed(Duration.zero);
       expect(encryption.calls, 2);
-      expect(deliveryOrder, isEmpty,
-          reason: 'Preparation completion must not determine delivery order');
+      expect(
+        deliveryOrder,
+        isEmpty,
+        reason: 'Preparation completion must not determine delivery order',
+      );
     } finally {
       encryption.releaseFirst.complete();
       await Future.wait([first, firstDelivery, secondDelivery, sharedLane]);

@@ -60,9 +60,9 @@ class FakeEncryptor implements Encryptor {
 /// (cache, batch decrypt, processDecryptedMessages).
 class FakeSessionEncryption extends SessionEncryption {
   FakeSessionEncryption({required super.sessionId})
-      : super(
-          encryptor: FakeEncryptor(),
-          decryptor: FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        encryptor: FakeEncryptor(),
+        decryptor: FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }

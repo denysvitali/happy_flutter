@@ -2,7 +2,6 @@
 library;
 
 class DiffToken {
-
   const DiffToken({
     required this.value,
     this.added = false,
@@ -26,15 +25,10 @@ class DiffToken {
 }
 
 /// Diff line types
-enum DiffLineType {
-  add,
-  remove,
-  normal,
-}
+enum DiffLineType { add, remove, normal }
 
 /// Single line in a diff
 class DiffLine {
-
   const DiffLine({
     required this.type,
     required this.content,
@@ -65,18 +59,12 @@ class DiffLine {
   }
 
   @override
-  int get hashCode => Object.hash(
-    type,
-    content,
-    oldLineNumber,
-    newLineNumber,
-    tokens,
-  );
+  int get hashCode =>
+      Object.hash(type, content, oldLineNumber, newLineNumber, tokens);
 }
 
 /// Diff hunk containing related changes
 class DiffHunk {
-
   const DiffHunk({
     required this.oldStart,
     required this.oldLines,
@@ -112,11 +100,7 @@ class DiffHunk {
 
 /// Complete diff result
 class DiffResult {
-
-  const DiffResult({
-    required this.hunks,
-    required this.stats,
-  });
+  const DiffResult({required this.hunks, required this.stats});
   final List<DiffHunk> hunks;
   final DiffStats stats;
 
@@ -138,11 +122,7 @@ class DiffResult {
 
 /// Diff statistics
 class DiffStats {
-
-  const DiffStats({
-    required this.additions,
-    required this.deletions,
-  });
+  const DiffStats({required this.additions, required this.deletions});
   final int additions;
   final int deletions;
 

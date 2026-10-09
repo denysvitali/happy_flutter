@@ -66,18 +66,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(
-        find.text('Network Inspector (2)'),
-        findsOneWidget,
-      );
+      expect(find.text('Network Inspector (2)'), findsOneWidget);
     });
 
     testWidgets('shows summary bar with request stats', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        requestBytes: 100,
-        responseBytes: 200,
-      ));
+      httpRequestLogger.record(
+        _makeEntry(id: 1, requestBytes: 100, responseBytes: 200),
+      );
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -89,14 +84,10 @@ void main() {
       expect(find.text('\u2193 Received: '), findsOneWidget);
     });
 
-    testWidgets('renders request rows with method badge', (
-      tester,
-    ) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        method: 'POST',
-        path: '/api/create',
-      ));
+    testWidgets('renders request rows with method badge', (tester) async {
+      httpRequestLogger.record(
+        _makeEntry(id: 1, method: 'POST', path: '/api/create'),
+      );
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -107,10 +98,7 @@ void main() {
     });
 
     testWidgets('renders status code badge', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        statusCode: 201,
-      ));
+      httpRequestLogger.record(_makeEntry(id: 1, statusCode: 201));
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -120,10 +108,7 @@ void main() {
     });
 
     testWidgets('renders null status as ???', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        statusCode: null,
-      ));
+      httpRequestLogger.record(_makeEntry(id: 1, statusCode: null));
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -133,10 +118,7 @@ void main() {
     });
 
     testWidgets('renders duration in ms', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        durationMs: 150,
-      ));
+      httpRequestLogger.record(_makeEntry(id: 1, durationMs: 150));
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -146,10 +128,7 @@ void main() {
     });
 
     testWidgets('handles null duration gracefully', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        durationMs: null,
-      ));
+      httpRequestLogger.record(_makeEntry(id: 1, durationMs: null));
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -179,26 +158,28 @@ void main() {
       expect(find.byIcon(Icons.delete_sweep), findsOneWidget);
     });
 
-    testWidgets('copy and clear buttons disabled when empty', (
-      tester,
-    ) async {
+    testWidgets('copy and clear buttons disabled when empty', (tester) async {
       await tester.pumpWidget(_buildApp());
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
       final copyBtn = tester.widget<IconButton>(
-        find.ancestor(
-          of: find.byIcon(Icons.copy),
-          matching: find.byType(IconButton),
-        ).first,
+        find
+            .ancestor(
+              of: find.byIcon(Icons.copy),
+              matching: find.byType(IconButton),
+            )
+            .first,
       );
       expect(copyBtn.onPressed, isNull);
 
       final clearBtn = tester.widget<IconButton>(
-        find.ancestor(
-          of: find.byIcon(Icons.delete_sweep),
-          matching: find.byType(IconButton),
-        ).first,
+        find
+            .ancestor(
+              of: find.byIcon(Icons.delete_sweep),
+              matching: find.byType(IconButton),
+            )
+            .first,
       );
       expect(clearBtn.onPressed, isNull);
     });
@@ -240,10 +221,7 @@ void main() {
     });
 
     testWidgets('shows formatted byte sizes', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        responseBytes: 2048,
-      ));
+      httpRequestLogger.record(_makeEntry(id: 1, responseBytes: 2048));
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -254,11 +232,9 @@ void main() {
     });
 
     testWidgets('shows dashes for null byte values', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        requestBytes: null,
-        responseBytes: null,
-      ));
+      httpRequestLogger.record(
+        _makeEntry(id: 1, requestBytes: null, responseBytes: null),
+      );
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -268,16 +244,16 @@ void main() {
       expect(find.text('-'), findsWidgets);
     });
 
-    testWidgets('tapping entry shows detail bottom sheet', (
-      tester,
-    ) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        method: 'DELETE',
-        path: '/api/item/5',
-        statusCode: 204,
-        durationMs: 99,
-      ));
+    testWidgets('tapping entry shows detail bottom sheet', (tester) async {
+      httpRequestLogger.record(
+        _makeEntry(
+          id: 1,
+          method: 'DELETE',
+          path: '/api/item/5',
+          statusCode: 204,
+          durationMs: 99,
+        ),
+      );
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -296,15 +272,17 @@ void main() {
     });
 
     testWidgets('shows DNS failure cause and attempt timing', (tester) async {
-      httpRequestLogger.record(_makeEntry(
-        id: 1,
-        path: '/v2/sessions',
-        statusCode: null,
-        failureKind: 'dns',
-        networkCode: 'ERR_NAME_NOT_RESOLVED',
-        attempt: 2,
-        headersMs: 314.2,
-      ));
+      httpRequestLogger.record(
+        _makeEntry(
+          id: 1,
+          path: '/v2/sessions',
+          statusCode: null,
+          failureKind: 'dns',
+          networkCode: 'ERR_NAME_NOT_RESOLVED',
+          attempt: 2,
+          headersMs: 314.2,
+        ),
+      );
 
       await tester.pumpWidget(_buildApp());
       await tester.pump();
@@ -317,9 +295,7 @@ void main() {
       expect(find.text('2'), findsWidgets);
     });
 
-    testWidgets('renders older HTTP methods when scrolled', (
-      tester,
-    ) async {
+    testWidgets('renders older HTTP methods when scrolled', (tester) async {
       httpRequestLogger.record(_makeEntry(id: 1, method: 'GET'));
       httpRequestLogger.record(_makeEntry(id: 2, method: 'POST'));
       httpRequestLogger.record(_makeEntry(id: 3, method: 'PUT'));
@@ -351,10 +327,7 @@ void main() {
     });
 
     test('formats megabytes', () {
-      expect(
-        HttpRequestEntry.formatBytes(1024 * 1024 * 3),
-        '3.0MB',
-      );
+      expect(HttpRequestEntry.formatBytes(1024 * 1024 * 3), '3.0MB');
     });
   });
 

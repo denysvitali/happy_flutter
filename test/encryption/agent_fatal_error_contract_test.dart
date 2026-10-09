@@ -154,10 +154,7 @@ void main() {
         },
       ]);
 
-      expect(
-        result.messages.where((m) => m['kind'] == 'error'),
-        isEmpty,
-      );
+      expect(result.messages.where((m) => m['kind'] == 'error'), isEmpty);
     });
 
     test('flagged envelope without extractable text stays silent', () {

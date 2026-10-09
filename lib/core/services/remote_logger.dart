@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart' show kDebugMode, FlutterError, debugPrint, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kDebugMode, FlutterError, debugPrint, kIsWeb;
 import 'logger_service.dart';
 
 /// Remote logger that monkey-patches console methods for AI
@@ -96,22 +97,14 @@ class RemoteLogger {
     // FlutterError.onError handles framework errors
     final originalOnError = FlutterError.onError;
     FlutterError.onError = (details) {
-      logger.error(
-        'Flutter Framework Error',
-        details.exception,
-        details.stack,
-      );
+      logger.error('Flutter Framework Error', details.exception, details.stack);
       originalOnError?.call(details);
     };
 
     // PlatformDispatcher.onError handles native platform errors
     final originalPlatformError = PlatformDispatcher.instance.onError;
     PlatformDispatcher.instance.onError = (error, stack) {
-      logger.error(
-        'Platform Error: $error',
-        error,
-        stack,
-      );
+      logger.error('Platform Error: $error', error, stack);
       // Chain to the previous handler (e.g. Sentry) so errors are
       // still reported upstream before the app crashes.
       if (originalPlatformError != null) {
@@ -156,7 +149,6 @@ class RemoteLogger {
 
 /// Message sent between isolates for log capture
 class LogMessage {
-
   LogMessage({
     required this.message,
     this.level = LogLevel.info,
@@ -173,28 +165,25 @@ class LogMessage {
 
 /// Background isolate logger that sends logs to main isolate
 class BackgroundIsolateLogger {
-
   BackgroundIsolateLogger(this._sendPort);
   final SendPort _sendPort;
 
   /// Log a message from background isolate
   void log(String message, {LogLevel level = LogLevel.info}) {
-    _sendPort.send(LogMessage(
-      message: message,
-      level: level,
-      logLevel: level,
-    ));
+    _sendPort.send(LogMessage(message: message, level: level, logLevel: level));
   }
 
   /// Log an error from background isolate
   void error(String message, dynamic error, [StackTrace? stackTrace]) {
-    _sendPort.send(LogMessage(
-      message: message,
-      level: LogLevel.error,
-      logLevel: LogLevel.error,
-      error: error,
-      stackTrace: stackTrace,
-    ));
+    _sendPort.send(
+      LogMessage(
+        message: message,
+        level: LogLevel.error,
+        logLevel: LogLevel.error,
+        error: error,
+        stackTrace: stackTrace,
+      ),
+    );
   }
 
   /// Log a debug message from background isolate
@@ -228,9 +217,7 @@ extension RemoteLoggerIsolate on RemoteLogger {
   ) async {
     // Isolates are not supported on web.
     if (kIsWeb) {
-      throw UnsupportedError(
-        'runInIsolate is not supported on web',
-      );
+      throw UnsupportedError('runInIsolate is not supported on web');
     }
     final receivePort = ReceivePort();
     final completer = Completer<T>();
@@ -275,7 +262,6 @@ extension RemoteLoggerIsolate on RemoteLogger {
 }
 
 class _IsolateArgs<T> {
-
   _IsolateArgs({
     required this.sendPort,
     required this.function,

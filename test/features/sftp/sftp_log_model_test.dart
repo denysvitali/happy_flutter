@@ -208,15 +208,18 @@ void main() {
       test('getLogs returns unmodifiable list', () {
         final store = SftpLogStore();
         final logs = store.getLogs('device-1');
-        expect(() => logs.add(
-          SftpLogEntry(
-            timestamp: DateTime.now(),
-            deviceId: 'device-1',
-            deviceName: 'Test',
-            level: 'info',
-            message: 'Test',
+        expect(
+          () => logs.add(
+            SftpLogEntry(
+              timestamp: DateTime.now(),
+              deviceId: 'device-1',
+              deviceName: 'Test',
+              level: 'info',
+              message: 'Test',
+            ),
           ),
-        ), throwsUnsupportedError);
+          throwsUnsupportedError,
+        );
       });
 
       test('deviceIdsWithLogs returns unmodifiable list', () {

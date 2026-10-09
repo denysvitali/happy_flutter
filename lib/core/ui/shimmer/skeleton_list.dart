@@ -69,10 +69,7 @@ class SkeletonListTile extends StatelessWidget {
               Container(
                 width: avatarSize,
                 height: avatarSize,
-                decoration: BoxDecoration(
-                  color: base,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: base, shape: BoxShape.circle),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -201,8 +198,7 @@ class SkeletonChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final clampedCount = lineCount.clamp(1, 6);
-    final resolvedMaxFraction =
-        maxWidthFraction ?? (isUser ? 0.72 : 0.88);
+    final resolvedMaxFraction = maxWidthFraction ?? (isUser ? 0.72 : 0.88);
 
     return Shimmer(
       child: Align(
@@ -214,8 +210,7 @@ class SkeletonChatBubble extends StatelessWidget {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final maxWidth =
-                  constraints.maxWidth * resolvedMaxFraction;
+              final maxWidth = constraints.maxWidth * resolvedMaxFraction;
               return Column(
                 crossAxisAlignment: isUser
                     ? CrossAxisAlignment.end
@@ -225,24 +220,21 @@ class SkeletonChatBubble extends StatelessWidget {
                   for (int i = 0; i < clampedCount; i++)
                     Padding(
                       padding: EdgeInsets.only(
-                        bottom: i < clampedCount - 1
-                            ? AppSpacing.xxs
-                            : 0,
+                        bottom: i < clampedCount - 1 ? AppSpacing.xxs : 0,
                       ),
                       child: Container(
                         height: 14,
-                        width: maxWidth *
-                            (clampedCount > 1 &&
-                                    i == clampedCount - 1
+                        width:
+                            maxWidth *
+                            (clampedCount > 1 && i == clampedCount - 1
                                 ? 0.50
                                 : _lineWidthFractions[i.clamp(
                                     0,
-                                    _lineWidthFractions.length -
-                                        1)]),
+                                    _lineWidthFractions.length - 1,
+                                  )]),
                         decoration: BoxDecoration(
                           color: cs.onSurface.withValues(alpha: 0.08),
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.xs),
+                          borderRadius: BorderRadius.circular(AppRadius.xs),
                         ),
                       ),
                     ),
@@ -303,8 +295,8 @@ class SkeletonFormSection extends StatelessWidget {
             ...List.generate(fieldCount, (i) {
               return Padding(
                 padding: i > 0
-                  ? EdgeInsets.only(top: spacing)
-                  : EdgeInsets.zero,
+                    ? EdgeInsets.only(top: spacing)
+                    : EdgeInsets.zero,
                 child: FractionallySizedBox(
                   widthFactor: i == fieldCount - 1 ? 0.6 : 1.0,
                   alignment: Alignment.centerLeft,
@@ -394,12 +386,15 @@ class SkeletonAvatarList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ShimmerScope(
       child: Column(
-        children: List.generate(itemCount, (_) => SkeletonListTile(
-          avatarSize: avatarSize,
-          height: avatarSize + AppSpacing.md,
-          titleWidth: 0.5,
-          subtitleWidth: 0.35,
-        )),
+        children: List.generate(
+          itemCount,
+          (_) => SkeletonListTile(
+            avatarSize: avatarSize,
+            height: avatarSize + AppSpacing.md,
+            titleWidth: 0.5,
+            subtitleWidth: 0.35,
+          ),
+        ),
       ),
     );
   }

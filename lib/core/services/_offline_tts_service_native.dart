@@ -893,7 +893,7 @@ class OfflineTtsService {
           avAudioSessionCategory: AVAudioSessionCategory.playback,
           avAudioSessionCategoryOptions:
               AVAudioSessionCategoryOptions.duckOthers |
-                  AVAudioSessionCategoryOptions.mixWithOthers,
+              AVAudioSessionCategoryOptions.mixWithOthers,
           avAudioSessionMode: AVAudioSessionMode.spokenAudio,
           androidAudioAttributes: const AndroidAudioAttributes(
             contentType: AndroidAudioContentType.speech,
@@ -906,11 +906,7 @@ class OfflineTtsService {
       );
       logger.info('[OfflineTTS] audio session configured for ducking');
     } catch (e, st) {
-      logger.warning(
-        '[OfflineTTS] audio session configure failed: $e',
-        e,
-        st,
-      );
+      logger.warning('[OfflineTTS] audio session configure failed: $e', e, st);
     }
   }
 

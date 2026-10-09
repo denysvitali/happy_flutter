@@ -35,13 +35,15 @@ class LwwTag implements Comparable<LwwTag> {
   @override
   int get hashCode => Object.hash(timestamp, replicaId);
 
-  Map<String, Object?> toJson() =>
-      {'timestamp': timestamp, 'replicaId': replicaId};
+  Map<String, Object?> toJson() => {
+    'timestamp': timestamp,
+    'replicaId': replicaId,
+  };
 
   static LwwTag fromJson(Map<String, Object?> json) => LwwTag(
-        timestamp: json['timestamp']! as int,
-        replicaId: json['replicaId']! as String,
-      );
+    timestamp: json['timestamp']! as int,
+    replicaId: json['replicaId']! as String,
+  );
 }
 
 @immutable
@@ -50,30 +52,26 @@ class LwwCell<T> {
   final T? value;
   final LwwTag tag;
 
-  Map<String, Object?> toJson() => {
-        'value': value,
-        'tag': tag.toJson(),
-      };
+  Map<String, Object?> toJson() => {'value': value, 'tag': tag.toJson()};
 
   static LwwCell<T> fromJson<T>(Map<String, Object?> json) => LwwCell<T>(
-        value: json['value'] as T?,
-        tag: LwwTag.fromJson(
-            (json['tag']! as Map).cast<String, Object?>()),
-      );
+    value: json['value'] as T?,
+    tag: LwwTag.fromJson((json['tag']! as Map).cast<String, Object?>()),
+  );
 }
 
 /// A keyed LWW map. Merging two maps is a per-key max over [LwwTag]s.
 class LwwMap<T> {
   LwwMap({required this.replicaId, required int Function() clock})
-      : _clock = clock,
-        _cells = <String, LwwCell<T>>{};
+    : _clock = clock,
+      _cells = <String, LwwCell<T>>{};
 
   LwwMap._copy({
     required this.replicaId,
     required int Function() clock,
     required Map<String, LwwCell<T>> cells,
-  })  : _clock = clock,
-        _cells = Map.of(cells);
+  }) : _clock = clock,
+       _cells = Map.of(cells);
 
   final String replicaId;
   final int Function() _clock;
@@ -110,9 +108,8 @@ class LwwMap<T> {
   }
 
   Map<String, Object?> toJson() => {
-        for (final entry in _cells.entries)
-          entry.key: entry.value.toJson(),
-      };
+    for (final entry in _cells.entries) entry.key: entry.value.toJson(),
+  };
 
   /// Reconstitutes a map from a snapshot. Useful for restoring from
   /// MMKV. Caller supplies replicaId and clock anew.

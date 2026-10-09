@@ -13,9 +13,7 @@ part 'claude_usage_limits.g.dart';
 @freezed
 abstract class ClaudeUsageWindow with _$ClaudeUsageWindow {
   const factory ClaudeUsageWindow({
-    @JsonKey(fromJson: _utilizationFromJson)
-    @Default(0.0)
-    double utilization,
+    @JsonKey(fromJson: _utilizationFromJson) @Default(0.0) double utilization,
     @JsonKey(name: 'resets_at') String? resetsAt,
   }) = _ClaudeUsageWindow;
 

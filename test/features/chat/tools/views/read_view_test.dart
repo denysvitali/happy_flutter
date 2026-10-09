@@ -49,8 +49,7 @@ void main() {
       expect(find.textContaining('Hello World'), findsOneWidget);
     });
 
-    testWidgets('does not render content when not completed',
-        (tester) async {
+    testWidgets('does not render content when not completed', (tester) async {
       await tester.pumpWidget(
         _wrap(
           ReadView(
@@ -85,8 +84,7 @@ void main() {
       // so we get a "Reading file..." text if totalLines is set
     });
 
-    testWidgets('renders extension badge for known file types',
-        (tester) async {
+    testWidgets('renders extension badge for known file types', (tester) async {
       await tester.pumpWidget(
         _wrap(
           ReadView(
@@ -103,8 +101,7 @@ void main() {
       expect(find.text('dart'), findsOneWidget);
     });
 
-    testWidgets('handles Gemini format with locations array',
-        (tester) async {
+    testWidgets('handles Gemini format with locations array', (tester) async {
       await tester.pumpWidget(
         _wrap(
           ReadView(
@@ -125,22 +122,14 @@ void main() {
       expect(find.text('/gemini/file.py'), findsOneWidget);
     });
 
-    testWidgets('shows metadata row with offset and limit',
-        (tester) async {
+    testWidgets('shows metadata row with offset and limit', (tester) async {
       await tester.pumpWidget(
         _wrap(
           ReadView(
             tool: {
-              'input': {
-                'file_path': '/big.txt',
-                'offset': 10,
-                'limit': 20,
-              },
+              'input': {'file_path': '/big.txt', 'offset': 10, 'limit': 20},
               'state': 'completed',
-              'result': {
-                'content': 'line 11\nline 12',
-                'totalLines': 100,
-              },
+              'result': {'content': 'line 11\nline 12', 'totalLines': 100},
             },
           ),
         ),
@@ -153,45 +142,37 @@ void main() {
       expect(find.text('Lines 11–12 of 100'), findsOneWidget);
     });
 
-    testWidgets(
-      'line-range chip uses rendered lines, not chunk length, '
-      'for offset/limit reads',
-      (tester) async {
-        // Regression: an offset+limit Read returned a 15-line chunk from
-        // a much larger file. The chip treated the chunk length as the
-        // file total and clamped the end line down to it, rendering the
-        // nonsense label "Lines 321–15 of 15" (from > to).
-        final catNContent = [
-          for (var i = 320; i <= 334; i++) '   $i\tline $i',
-        ].join('\n');
+    testWidgets('line-range chip uses rendered lines, not chunk length, '
+        'for offset/limit reads', (tester) async {
+      // Regression: an offset+limit Read returned a 15-line chunk from
+      // a much larger file. The chip treated the chunk length as the
+      // file total and clamped the end line down to it, rendering the
+      // nonsense label "Lines 321–15 of 15" (from > to).
+      final catNContent = [
+        for (var i = 320; i <= 334; i++) '   $i\tline $i',
+      ].join('\n');
 
-        await tester.pumpWidget(
-          _wrap(
-            ReadView(
-              tool: {
-                'input': {
-                  'file_path': '/big.dart',
-                  'offset': 320,
-                  'limit': 15,
-                },
-                'state': 'completed',
-                'result': catNContent,
-              },
-            ),
+      await tester.pumpWidget(
+        _wrap(
+          ReadView(
+            tool: {
+              'input': {'file_path': '/big.dart', 'offset': 320, 'limit': 15},
+              'state': 'completed',
+              'result': catNContent,
+            },
           ),
-        );
+        ),
+      );
 
-        await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-        // The cat -n start line is authoritative: 320–334. No "of Z"
-        // total — a plain string result carries no file-total info.
-        expect(find.text('Lines 320–334'), findsOneWidget);
-        expect(find.textContaining('of 15'), findsNothing);
-      },
-    );
+      // The cat -n start line is authoritative: 320–334. No "of Z"
+      // total — a plain string result carries no file-total info.
+      expect(find.text('Lines 320–334'), findsOneWidget);
+      expect(find.textContaining('of 15'), findsNothing);
+    });
 
-    testWidgets('full-file string read shows line-count chip',
-        (tester) async {
+    testWidgets('full-file string read shows line-count chip', (tester) async {
       await tester.pumpWidget(
         _wrap(
           ReadView(
@@ -225,8 +206,9 @@ void main() {
       expect(find.text('CONTENT'), findsOneWidget);
     });
 
-    testWidgets('renders copy button when content is available',
-        (tester) async {
+    testWidgets('renders copy button when content is available', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           ReadView(
@@ -243,15 +225,17 @@ void main() {
       expect(find.byIcon(Icons.copy), findsOneWidget);
     });
 
-    testWidgets('renders long content in a bounded, scrollable viewport',
-        (tester) async {
+    testWidgets('renders long content in a bounded, scrollable viewport', (
+      tester,
+    ) async {
       // 200 lines × ~20dp each = ~4000dp of content. The pane must clip
       // it into a fixed-height viewport and offer a draggable
       // SingleChildScrollView so the user can reach the rest, instead of
       // growing the chat row unbounded or hiding the tail behind a toggle.
-      final longContent =
-          List.generate(200, (i) => 'line ${i.toString().padLeft(3, '0')}')
-              .join('\n');
+      final longContent = List.generate(
+        200,
+        (i) => 'line ${i.toString().padLeft(3, '0')}',
+      ).join('\n');
       // Height covers header chrome (file pill + header + meta) plus the
       // 400dp content viewport with breathing room.
       const boundedHeight = 600.0;
@@ -306,8 +290,7 @@ void main() {
       expect(find.byType(Scrollbar), findsWidgets);
     });
 
-    testWidgets('defaults to "Unknown" when no file path',
-        (tester) async {
+    testWidgets('defaults to "Unknown" when no file path', (tester) async {
       await tester.pumpWidget(
         _wrap(
           ReadView(
@@ -324,59 +307,66 @@ void main() {
       expect(find.text('Unknown'), findsOneWidget);
     });
 
-    testWidgets(
-      'strips cat -n line-number prefix from content', (tester) async {
-        // Claude Code's Read tool returns content wrapped in `cat -n`
-        // output. Each line carries a right-aligned number + tab
-        // (`     1\tcode`). The view renders its own line-number column,
-        // so without prefix stripping the line numbers render twice.
-        // Exact production format: `cat -n` uses a 6-wide right-aligned
-        // field followed by a tab.
-        const catNContent =
-            '     1\tvoid main() {\n'
-            '     2\t  print("hi");\n'
-            '     3\t}\n';
+    testWidgets('strips cat -n line-number prefix from content', (
+      tester,
+    ) async {
+      // Claude Code's Read tool returns content wrapped in `cat -n`
+      // output. Each line carries a right-aligned number + tab
+      // (`     1\tcode`). The view renders its own line-number column,
+      // so without prefix stripping the line numbers render twice.
+      // Exact production format: `cat -n` uses a 6-wide right-aligned
+      // field followed by a tab.
+      const catNContent =
+          '     1\tvoid main() {\n'
+          '     2\t  print("hi");\n'
+          '     3\t}\n';
 
-        await tester.pumpWidget(
-          _wrap(
-            ReadView(
-              tool: {
-                'input': {'file_path': '/example.dart'},
-                'state': 'completed',
-                'result': catNContent,
-              },
-            ),
+      await tester.pumpWidget(
+        _wrap(
+          ReadView(
+            tool: {
+              'input': {'file_path': '/example.dart'},
+              'state': 'completed',
+              'result': catNContent,
+            },
           ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Line-number column shows the three numbers, once.
+      final lineNumberData = tester
+          .widgetList<SelectableText>(find.byType(SelectableText))
+          .map((w) => w.data ?? '')
+          .where((s) => RegExp(r'^\d+(\n\d+)*$').hasMatch(s))
+          .join('|');
+      expect(lineNumberData, '1\n2\n3');
+
+      // No tab characters anywhere in the rendered text — confirms
+      // the cat -n prefix was stripped before reaching the
+      // SyntaxHighlighter (otherwise `1\tvoid` would appear).
+      for (final sel in tester.widgetList<SelectableText>(
+        find.byType(SelectableText),
+      )) {
+        expect(
+          sel.data ?? '',
+          isNot(contains('\t')),
+          reason: 'SelectableText has tab (cat -n prefix leak)',
         );
+      }
+      for (final t in tester.widgetList<Text>(find.byType(Text))) {
+        expect(
+          t.data ?? '',
+          isNot(contains('\t')),
+          reason: 'Text still contains a tab (cat -n prefix leak)',
+        );
+      }
 
-        await tester.pumpAndSettle();
-
-        // Line-number column shows the three numbers, once.
-        final lineNumberData = tester
-            .widgetList<SelectableText>(find.byType(SelectableText))
-            .map((w) => w.data ?? '')
-            .where((s) => RegExp(r'^\d+(\n\d+)*$').hasMatch(s))
-            .join('|');
-        expect(lineNumberData, '1\n2\n3');
-
-        // No tab characters anywhere in the rendered text — confirms
-        // the cat -n prefix was stripped before reaching the
-        // SyntaxHighlighter (otherwise `1\tvoid` would appear).
-        for (final sel
-            in tester.widgetList<SelectableText>(find.byType(SelectableText))) {
-          expect(sel.data ?? '', isNot(contains('\t')),
-              reason: 'SelectableText has tab (cat -n prefix leak)');
-        }
-        for (final t in tester.widgetList<Text>(find.byType(Text))) {
-          expect(t.data ?? '', isNot(contains('\t')),
-              reason: 'Text still contains a tab (cat -n prefix leak)');
-        }
-
-        // The actual code text is rendered, sans prefix.
-        expect(find.textContaining('void main()'), findsOneWidget);
-        expect(find.textContaining('print("hi")'), findsOneWidget);
-      },
-    );
+      // The actual code text is rendered, sans prefix.
+      expect(find.textContaining('void main()'), findsOneWidget);
+      expect(find.textContaining('print("hi")'), findsOneWidget);
+    });
 
     testWidgets(
       'uses cat -n start line for offset/limit reads (e.g. line 100, not 1)',
@@ -395,11 +385,7 @@ void main() {
           _wrap(
             ReadView(
               tool: {
-                'input': {
-                  'file_path': '/big.txt',
-                  'offset': 99,
-                  'limit': 3,
-                },
+                'input': {'file_path': '/big.txt', 'offset': 99, 'limit': 3},
                 'state': 'completed',
                 'result': catNContent,
               },
@@ -418,75 +404,73 @@ void main() {
       },
     );
 
-    testWidgets(
-      'no phantom line at the end from cat -n trailing newline',
-      (tester) async {
-        // `cat -n` always emits one trailing newline. Without trimming
-        // it, `split('\n')` produces an empty phantom entry that would
-        // render as a line number past EOF (visible as a blank row at
-        // the bottom of the content pane).
-        const catNContent =
-            '     1\tfirst\n'
-            '     2\tsecond\n'
-            '     3\tthird\n';
+    testWidgets('no phantom line at the end from cat -n trailing newline', (
+      tester,
+    ) async {
+      // `cat -n` always emits one trailing newline. Without trimming
+      // it, `split('\n')` produces an empty phantom entry that would
+      // render as a line number past EOF (visible as a blank row at
+      // the bottom of the content pane).
+      const catNContent =
+          '     1\tfirst\n'
+          '     2\tsecond\n'
+          '     3\tthird\n';
 
-        await tester.pumpWidget(
-          _wrap(
-            ReadView(
-              tool: {
-                'input': {'file_path': '/three.txt'},
-                'state': 'completed',
-                'result': catNContent,
-              },
-            ),
+      await tester.pumpWidget(
+        _wrap(
+          ReadView(
+            tool: {
+              'input': {'file_path': '/three.txt'},
+              'state': 'completed',
+              'result': catNContent,
+            },
           ),
-        );
+        ),
+      );
 
-        await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-        final lineNumberData = tester
-            .widgetList<SelectableText>(find.byType(SelectableText))
-            .map((w) => w.data ?? '')
-            .where((s) => RegExp(r'^\d+(\n\d+)*$').hasMatch(s))
-            .join('|');
-        // Exactly three numbers — no phantom "4".
-        expect(lineNumberData, '1\n2\n3');
-        expect(lineNumberData, isNot(contains('\n4')));
-      },
-    );
+      final lineNumberData = tester
+          .widgetList<SelectableText>(find.byType(SelectableText))
+          .map((w) => w.data ?? '')
+          .where((s) => RegExp(r'^\d+(\n\d+)*$').hasMatch(s))
+          .join('|');
+      // Exactly three numbers — no phantom "4".
+      expect(lineNumberData, '1\n2\n3');
+      expect(lineNumberData, isNot(contains('\n4')));
+    });
 
-    testWidgets(
-      'plain (non cat-n) content is rendered unchanged',
-      (tester) async {
-        // Backward-compat: legacy daemons or other agents send raw file
-        // content without line-number prefixes. The view should fall
-        // back to (offset ?? 0) + 1 and render the content as-is.
-        const plainContent = 'apple\nbanana\ncherry';
+    testWidgets('plain (non cat-n) content is rendered unchanged', (
+      tester,
+    ) async {
+      // Backward-compat: legacy daemons or other agents send raw file
+      // content without line-number prefixes. The view should fall
+      // back to (offset ?? 0) + 1 and render the content as-is.
+      const plainContent = 'apple\nbanana\ncherry';
 
-        await tester.pumpWidget(
-          _wrap(
-            ReadView(
-              tool: {
-                'input': {'file_path': '/fruit.txt'},
-                'state': 'completed',
-                'result': plainContent,
-              },
-            ),
+      await tester.pumpWidget(
+        _wrap(
+          ReadView(
+            tool: {
+              'input': {'file_path': '/fruit.txt'},
+              'state': 'completed',
+              'result': plainContent,
+            },
           ),
-        );
+        ),
+      );
 
-        await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-        final lineNumberData = tester
-            .widgetList<SelectableText>(find.byType(SelectableText))
-            .map((w) => w.data ?? '')
-            .where((s) => RegExp(r'^\d+(\n\d+)*$').hasMatch(s))
-            .join('|');
-        expect(lineNumberData, '1\n2\n3');
-        expect(find.textContaining('apple'), findsOneWidget);
-        expect(find.textContaining('banana'), findsOneWidget);
-        expect(find.textContaining('cherry'), findsOneWidget);
-      },
-    );
+      final lineNumberData = tester
+          .widgetList<SelectableText>(find.byType(SelectableText))
+          .map((w) => w.data ?? '')
+          .where((s) => RegExp(r'^\d+(\n\d+)*$').hasMatch(s))
+          .join('|');
+      expect(lineNumberData, '1\n2\n3');
+      expect(find.textContaining('apple'), findsOneWidget);
+      expect(find.textContaining('banana'), findsOneWidget);
+      expect(find.textContaining('cherry'), findsOneWidget);
+    });
   });
 }

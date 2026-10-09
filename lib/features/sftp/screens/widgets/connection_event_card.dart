@@ -9,10 +9,7 @@ import '../../../../core/utils/utils.dart';
 
 /// Card displaying a single connection event
 class ConnectionEventCard extends StatelessWidget {
-  const ConnectionEventCard({
-    required this.event,
-    super.key,
-  });
+  const ConnectionEventCard({required this.event, super.key});
 
   final ConnectionEvent event;
 
@@ -29,10 +26,7 @@ class ConnectionEventCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          SettingsIconContainer(
-            icon: icon,
-            color: color,
-          ),
+          SettingsIconContainer(icon: icon, color: color),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -40,24 +34,18 @@ class ConnectionEventCard extends StatelessWidget {
               children: [
                 Text(
                   _getEventTitle(),
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   '${event.deviceName}  ·  '
                   '${event.username}'
                   '${event.ipAddress != null ? '  ·  ${event.ipAddress}' : ''}',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -67,10 +55,9 @@ class ConnectionEventCard extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(
             _formatTime(event.timestamp),
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: cs.onSurfaceVariant),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
         ],
       ),
@@ -155,21 +142,15 @@ class EventTypeChip extends StatelessWidget {
         label,
         style: TextStyle(
           fontSize: AppFontSize.sm,
-          color: isSelected
-              ? Theme.of(context).colorScheme.onPrimary
-              : null,
+          color: isSelected ? Theme.of(context).colorScheme.onPrimary : null,
         ),
       ),
       selected: isSelected,
       onSelected: (_) => onTap(),
-      selectedColor:
-          color ?? Theme.of(context).colorScheme.primary,
+      selectedColor: color ?? Theme.of(context).colorScheme.primary,
       showCheckmark: false,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-      ),
-      materialTapTargetSize:
-          MaterialTapTargetSize.shrinkWrap,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }

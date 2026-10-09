@@ -24,12 +24,13 @@ void main() {
           'url': 'https://github.com/login/oauth/authorize?client_id=123',
         };
 
-        when(mockClient.get('/v1/connect/github/params'))
-            .thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/connect/github/params')).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await githubApi.getOAuthParams();
 
@@ -38,52 +39,69 @@ void main() {
       });
 
       test('throws exception with GitHub not configured (400)', () async {
-        when(mockClient.get('/v1/connect/github/params'))
-            .thenAnswer((_) async => Response(
-          data: {'error': 'GitHub OAuth not configured on server'},
-          statusCode: 400,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/connect/github/params')).thenAnswer(
+          (_) async => Response(
+            data: {'error': 'GitHub OAuth not configured on server'},
+            statusCode: 400,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.getOAuthParams(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.statusCode, 'statusCode', 400)
-              .having((e) => e.message, 'message',
-                  contains('GitHub OAuth not configured'))),
+          throwsA(
+            isA<GitHubApiException>()
+                .having((e) => e.statusCode, 'statusCode', 400)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('GitHub OAuth not configured'),
+                ),
+          ),
         );
       });
 
       test('throws exception on non-200 response', () async {
-        when(mockClient.get('/v1/connect/github/params'))
-            .thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 500,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/connect/github/params')).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.getOAuthParams(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.message, 'message',
-                  contains('Failed to get GitHub OAuth params'))),
+          throwsA(
+            isA<GitHubApiException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to get GitHub OAuth params'),
+                ),
+          ),
         );
       });
 
       test('throws exception on invalid response data', () async {
-        when(mockClient.get('/v1/connect/github/params'))
-            .thenAnswer((_) async => Response(
-          data: {'invalid': 'data'},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/connect/github/params')).thenAnswer(
+          (_) async => Response(
+            data: {'invalid': 'data'},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.getOAuthParams(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to parse OAuth params'))),
+          throwsA(
+            isA<GitHubApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to parse OAuth params'),
+            ),
+          ),
         );
       });
     });
@@ -102,12 +120,13 @@ void main() {
           },
         };
 
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await githubApi.getAccountProfile();
 
@@ -128,12 +147,13 @@ void main() {
           'github': null,
         };
 
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await githubApi.getAccountProfile();
 
@@ -142,47 +162,59 @@ void main() {
       });
 
       test('throws exception on non-200 response', () async {
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 401,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 401,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.getAccountProfile(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.statusCode, 'statusCode', 401)
-              .having((e) => e.message, 'message',
-                  contains('Failed to get account profile'))),
+          throwsA(
+            isA<GitHubApiException>()
+                .having((e) => e.statusCode, 'statusCode', 401)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to get account profile'),
+                ),
+          ),
         );
       });
 
       test('throws exception on invalid response data', () async {
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {'invalid': 'data'},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {'invalid': 'data'},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.getAccountProfile(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to parse account profile'))),
+          throwsA(
+            isA<GitHubApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to parse account profile'),
+            ),
+          ),
         );
       });
     });
 
     group('disconnectGitHub', () {
       test('successfully disconnects GitHub', () async {
-        when(mockClient.delete('/v1/connect/github'))
-            .thenAnswer((_) async => Response(
-          data: {'success': true},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.delete('/v1/connect/github')).thenAnswer(
+          (_) async => Response(
+            data: {'success': true},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await githubApi.disconnectGitHub();
 
@@ -190,173 +222,231 @@ void main() {
       });
 
       test('throws exception when GitHub not connected (404)', () async {
-        when(mockClient.delete('/v1/connect/github'))
-            .thenAnswer((_) async => Response(
-          data: {'error': 'GitHub account not connected'},
-          statusCode: 404,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.delete('/v1/connect/github')).thenAnswer(
+          (_) async => Response(
+            data: {'error': 'GitHub account not connected'},
+            statusCode: 404,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.disconnectGitHub(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.statusCode, 'statusCode', 404)
-              .having((e) => e.message, 'message',
-                  contains('GitHub account not connected'))),
+          throwsA(
+            isA<GitHubApiException>()
+                .having((e) => e.statusCode, 'statusCode', 404)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('GitHub account not connected'),
+                ),
+          ),
         );
       });
 
       test('throws exception on non-200 response', () async {
-        when(mockClient.delete('/v1/connect/github'))
-            .thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 500,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.delete('/v1/connect/github')).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.disconnectGitHub(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.message, 'message',
-                  contains('Failed to disconnect GitHub'))),
+          throwsA(
+            isA<GitHubApiException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to disconnect GitHub'),
+                ),
+          ),
         );
       });
 
       test('throws exception when success is false', () async {
-        when(mockClient.delete('/v1/connect/github'))
-            .thenAnswer((_) async => Response(
-          data: {'success': false},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.delete('/v1/connect/github')).thenAnswer(
+          (_) async => Response(
+            data: {'success': false},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.disconnectGitHub(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to disconnect GitHub account'))),
+          throwsA(
+            isA<GitHubApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to disconnect GitHub account'),
+            ),
+          ),
         );
       });
 
       test('throws exception when response data is null', () async {
-        when(mockClient.delete('/v1/connect/github'))
-            .thenAnswer((_) async => Response(
-          data: null,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.delete('/v1/connect/github')).thenAnswer(
+          (_) async => Response(
+            data: null,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.disconnectGitHub(),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to disconnect GitHub account'))),
+          throwsA(
+            isA<GitHubApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to disconnect GitHub account'),
+            ),
+          ),
         );
       });
     });
 
     group('registerOAuthToken', () {
       test('successfully registers OAuth token', () async {
-        when(mockClient.post(
-          '/v1/connect/github/register',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'success': true},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/connect/github/register',
+            data: anyNamed('data'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'success': true},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await githubApi.registerOAuthToken('github-oauth-token');
 
-        verify(mockClient.post(
-          '/v1/connect/github/register',
-          data: {'token': 'github-oauth-token'},
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/connect/github/register',
+            data: {'token': 'github-oauth-token'},
+          ),
+        ).called(1);
       });
 
       test('throws exception when token is empty', () async {
         expect(
           () => githubApi.registerOAuthToken(''),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.message, 'message',
-                  contains('OAuth token cannot be empty'))),
+          throwsA(
+            isA<GitHubApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('OAuth token cannot be empty'),
+            ),
+          ),
         );
       });
 
       test('throws exception on non-200 response', () async {
-        when(mockClient.post(
-          '/v1/connect/github/register',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'error': 'Invalid OAuth token'},
-          statusCode: 401,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/connect/github/register',
+            data: anyNamed('data'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'error': 'Invalid OAuth token'},
+            statusCode: 401,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.registerOAuthToken('invalid-token'),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.statusCode, 'statusCode', 401)
-              .having((e) => e.message, 'message',
-                  contains('Failed to register GitHub token'))),
+          throwsA(
+            isA<GitHubApiException>()
+                .having((e) => e.statusCode, 'statusCode', 401)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to register GitHub token'),
+                ),
+          ),
         );
       });
 
       test('throws exception when success is false', () async {
-        when(mockClient.post(
-          '/v1/connect/github/register',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'success': false},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/connect/github/register',
+            data: anyNamed('data'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'success': false},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.registerOAuthToken('test-token'),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to register GitHub token'))),
+          throwsA(
+            isA<GitHubApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to register GitHub token'),
+            ),
+          ),
         );
       });
 
       test('throws exception when response data is null', () async {
-        when(mockClient.post(
-          '/v1/connect/github/register',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: null,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/connect/github/register',
+            data: anyNamed('data'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: null,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => githubApi.registerOAuthToken('test-token'),
-          throwsA(isA<GitHubApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to register GitHub token'))),
+          throwsA(
+            isA<GitHubApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to register GitHub token'),
+            ),
+          ),
         );
       });
     });
 
     group('isGitHubConnected', () {
       test('returns true when GitHub is connected', () async {
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {
-            'id': 'user-123',
-            'timestamp': 1640995200,
-            'github': {
-              'id': 456,
-              'login': 'testuser',
-              'name': 'Test User',
-              'avatar_url': 'https://github.com/testuser.png',
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {
+              'id': 'user-123',
+              'timestamp': 1640995200,
+              'github': {
+                'id': 456,
+                'login': 'testuser',
+                'name': 'Test User',
+                'avatar_url': 'https://github.com/testuser.png',
+              },
             },
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await githubApi.isGitHubConnected();
 
@@ -364,16 +454,13 @@ void main() {
       });
 
       test('returns false when GitHub is not connected', () async {
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {
-            'id': 'user-123',
-            'timestamp': 1640995200,
-            'github': null,
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {'id': 'user-123', 'timestamp': 1640995200, 'github': null},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await githubApi.isGitHubConnected();
 
@@ -381,8 +468,9 @@ void main() {
       });
 
       test('returns false on error', () async {
-        when(mockClient.get('/v1/account/profile'))
-            .thenThrow(Exception('Network error'));
+        when(
+          mockClient.get('/v1/account/profile'),
+        ).thenThrow(Exception('Network error'));
 
         final result = await githubApi.isGitHubConnected();
 
@@ -390,15 +478,13 @@ void main() {
       });
 
       test('returns false when profile is missing github field', () async {
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {
-            'id': 'user-123',
-            'timestamp': 1640995200,
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {'id': 'user-123', 'timestamp': 1640995200},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await githubApi.isGitHubConnected();
 
@@ -505,7 +591,7 @@ void main() {
         expect(
           profile.toString(),
           'AccountProfile(id: user-123, timestamp: 1640995200, '
-              'github: GitHubProfileInfo(id: 456, login: testuser, name: Test User))',
+          'github: GitHubProfileInfo(id: 456, login: testuser, name: Test User))',
         );
       });
     });
@@ -609,44 +695,50 @@ void main() {
     group('Integration scenarios', () {
       test('full GitHub connection flow', () async {
         // Get OAuth params
-        when(mockClient.get('/v1/connect/github/params'))
-            .thenAnswer((_) async => Response(
-          data: {'url': 'https://github.com/oauth/authorize'},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/connect/github/params')).thenAnswer(
+          (_) async => Response(
+            data: {'url': 'https://github.com/oauth/authorize'},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final oauthParams = await githubApi.getOAuthParams();
         expect(oauthParams.url, contains('github.com'));
 
         // Register OAuth token after user completes flow
-        when(mockClient.post(
-          '/v1/connect/github/register',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {'success': true},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/connect/github/register',
+            data: anyNamed('data'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'success': true},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await githubApi.registerOAuthToken('oauth-token-123');
 
         // Check profile
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {
-            'id': 'user-123',
-            'timestamp': 1640995200,
-            'github': {
-              'id': 456,
-              'login': 'testuser',
-              'name': 'Test User',
-              'avatar_url': 'https://github.com/testuser.png',
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {
+              'id': 'user-123',
+              'timestamp': 1640995200,
+              'github': {
+                'id': 456,
+                'login': 'testuser',
+                'name': 'Test User',
+                'avatar_url': 'https://github.com/testuser.png',
+              },
             },
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final isConnected = await githubApi.isGitHubConnected();
         expect(isConnected, isTrue);
@@ -654,45 +746,44 @@ void main() {
 
       test('GitHub disconnection flow', () async {
         // Check connected
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {
-            'id': 'user-123',
-            'timestamp': 1640995200,
-            'github': {
-              'id': 456,
-              'login': 'testuser',
-              'name': 'Test User',
-              'avatar_url': 'https://github.com/testuser.png',
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {
+              'id': 'user-123',
+              'timestamp': 1640995200,
+              'github': {
+                'id': 456,
+                'login': 'testuser',
+                'name': 'Test User',
+                'avatar_url': 'https://github.com/testuser.png',
+              },
             },
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(await githubApi.isGitHubConnected(), isTrue);
 
         // Disconnect
-        when(mockClient.delete('/v1/connect/github'))
-            .thenAnswer((_) async => Response(
-          data: {'success': true},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.delete('/v1/connect/github')).thenAnswer(
+          (_) async => Response(
+            data: {'success': true},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await githubApi.disconnectGitHub();
 
         // Verify disconnected
-        when(mockClient.get('/v1/account/profile'))
-            .thenAnswer((_) async => Response(
-          data: {
-            'id': 'user-123',
-            'timestamp': 1640995200,
-            'github': null,
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get('/v1/account/profile')).thenAnswer(
+          (_) async => Response(
+            data: {'id': 'user-123', 'timestamp': 1640995200, 'github': null},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(await githubApi.isGitHubConnected(), isFalse);
       });

@@ -39,8 +39,9 @@ Widget _buildApp(
 }) {
   return ProviderScope(
     overrides: [
-      authStateNotifierProvider.overrideWith(() =>
-          _StubAuthNotifier(authState)),
+      authStateNotifierProvider.overrideWith(
+        () => _StubAuthNotifier(authState),
+      ),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -54,74 +55,63 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AuthGate widget', () {
-    testWidgets(
-      'shows CircularProgressIndicator in authenticating state',
-      (tester) async {
-        await tester.pumpWidget(
-          _buildApp(
-            const AuthGate(child: _MockContent()),
-            authState: AuthState.authenticating,
-          ),
-        );
+    testWidgets('shows CircularProgressIndicator in authenticating state', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _buildApp(
+          const AuthGate(child: _MockContent()),
+          authState: AuthState.authenticating,
+        ),
+      );
 
-        await tester.pump();
+      await tester.pump();
 
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-        expect(find.text('Authenticated Content'), findsNothing);
-      },
-    );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Authenticated Content'), findsNothing);
+    });
 
-    testWidgets(
-      'shows child content in authenticated state',
-      (tester) async {
-        await tester.pumpWidget(
-          _buildApp(
-            const AuthGate(child: _MockContent()),
-            authState: AuthState.authenticated,
-          ),
-        );
+    testWidgets('shows child content in authenticated state', (tester) async {
+      await tester.pumpWidget(
+        _buildApp(
+          const AuthGate(child: _MockContent()),
+          authState: AuthState.authenticated,
+        ),
+      );
 
-        await tester.pump();
+      await tester.pump();
 
-        expect(find.text('Authenticated Content'), findsOneWidget);
-        expect(find.byType(CircularProgressIndicator), findsNothing);
-      },
-    );
-
+      expect(find.text('Authenticated Content'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
   });
 
   group('AuthGate state transitions', () {
-    testWidgets(
-      'authenticating state does not show child',
-      (tester) async {
-        await tester.pumpWidget(
-          _buildApp(
-            const AuthGate(child: _MockContent()),
-            authState: AuthState.authenticating,
-          ),
-        );
+    testWidgets('authenticating state does not show child', (tester) async {
+      await tester.pumpWidget(
+        _buildApp(
+          const AuthGate(child: _MockContent()),
+          authState: AuthState.authenticating,
+        ),
+      );
 
-        await tester.pump();
+      await tester.pump();
 
-        expect(find.text('Authenticated Content'), findsNothing);
-        expect(find.byType(Scaffold), findsWidgets);
-      },
-    );
+      expect(find.text('Authenticated Content'), findsNothing);
+      expect(find.byType(Scaffold), findsWidgets);
+    });
 
-    testWidgets(
-      'authenticated state shows child immediately',
-      (tester) async {
-        await tester.pumpWidget(
-          _buildApp(
-            const AuthGate(child: _MockContent()),
-            authState: AuthState.authenticated,
-          ),
-        );
+    testWidgets('authenticated state shows child immediately', (tester) async {
+      await tester.pumpWidget(
+        _buildApp(
+          const AuthGate(child: _MockContent()),
+          authState: AuthState.authenticated,
+        ),
+      );
 
-        await tester.pump();
+      await tester.pump();
 
-        expect(find.text('Authenticated Content'), findsOneWidget);
-      },
-    );
+      expect(find.text('Authenticated Content'), findsOneWidget);
+    });
   });
 }

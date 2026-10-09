@@ -28,8 +28,7 @@ void main() {
       });
     });
 
-    test('naclSecretboxOpen round-trips bytes through the worker',
-        () async {
+    test('naclSecretboxOpen round-trips bytes through the worker', () async {
       // Scaffold uses an echo-stub for the actual nacl call — see
       // doc comment in CryptoWorker._dispatch.  The point is that
       // the SendPort plumbing works end-to-end.
@@ -54,8 +53,11 @@ void main() {
       ];
       final results = await Future.wait(futures);
       for (var i = 0; i < 25; i++) {
-        expect(results[i], i,
-            reason: 'request $i should match the corresponding reply');
+        expect(
+          results[i],
+          i,
+          reason: 'request $i should match the corresponding reply',
+        );
       }
     });
   });

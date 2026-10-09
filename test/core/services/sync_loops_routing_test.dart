@@ -551,46 +551,48 @@ void main() {
         recurring: true,
       );
 
-      expect(
-        sync.loopsForSession('s1').map((l) => l.id).toList(),
-        ['aaaaaaaa', 'cccccccc'],
-      );
+      expect(sync.loopsForSession('s1').map((l) => l.id).toList(), [
+        'aaaaaaaa',
+        'cccccccc',
+      ]);
     });
 
-    test('does not duplicate when daemon loops-updated already landed',
-        () async {
-      // Simulate the race: a concurrent loops-updated event already
-      // pushed the new loop into the mirror before the create RPC ack
-      // arrived. createLoop must not append a second copy.
-      sync.testLoopsBySession['s1'] = [
-        _sample(id: 'aaaaaaaa'),
-        _sample(id: 'cccccccc'),
-      ];
-      final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
+    test(
+      'does not duplicate when daemon loops-updated already landed',
+      () async {
+        // Simulate the race: a concurrent loops-updated event already
+        // pushed the new loop into the mirror before the create RPC ack
+        // arrived. createLoop must not append a second copy.
+        sync.testLoopsBySession['s1'] = [
+          _sample(id: 'aaaaaaaa'),
+          _sample(id: 'cccccccc'),
+        ];
+        final counterBefore = sync.domainChangeCounter(SyncDomain.loops);
 
-      sync.testSessionRPCOverride = (sid, method, params) async => {
-        'ok': true,
-        'loop': _sample(id: 'cccccccc', sessionId: 's1').toJson(),
-      };
+        sync.testSessionRPCOverride = (sid, method, params) async => {
+          'ok': true,
+          'loop': _sample(id: 'cccccccc', sessionId: 's1').toJson(),
+        };
 
-      await sync.createLoop(
-        sessionId: 's1',
-        expression: '*/5 * * * *',
-        prompt: 'check',
-        recurring: true,
-      );
+        await sync.createLoop(
+          sessionId: 's1',
+          expression: '*/5 * * * *',
+          prompt: 'check',
+          recurring: true,
+        );
 
-      expect(
-        sync.loopsForSession('s1').map((l) => l.id).toList(),
-        ['aaaaaaaa', 'cccccccc'],
-        reason: 'duplicate id must not be appended',
-      );
-      expect(
-        sync.domainChangeCounter(SyncDomain.loops),
-        counterBefore,
-        reason: 'no-op publish must not bump the domain counter',
-      );
-    });
+        expect(
+          sync.loopsForSession('s1').map((l) => l.id).toList(),
+          ['aaaaaaaa', 'cccccccc'],
+          reason: 'duplicate id must not be appended',
+        );
+        expect(
+          sync.domainChangeCounter(SyncDomain.loops),
+          counterBefore,
+          reason: 'no-op publish must not bump the domain counter',
+        );
+      },
+    );
 
     test('does not publish when RPC throws', () async {
       final counterBefore = sync.domainChangeCounter(SyncDomain.loops);

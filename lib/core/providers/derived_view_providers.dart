@@ -23,9 +23,9 @@ class _RecentSessionsCache {
     final sessionList = sessions.values.toList(growable: false)
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-    _sessionIds = sessionList.map((session) => session.id).toList(
-      growable: false,
-    );
+    _sessionIds = sessionList
+        .map((session) => session.id)
+        .toList(growable: false);
 
     final seenMachines = <String>{};
     final machineIds = <String>[];
@@ -117,10 +117,10 @@ final recentMachineIdsProvider = Provider<List<String>>((ref) {
 
 final recentPathsForMachineProvider = Provider.autoDispose
     .family<List<String>, String>((ref, machineId) {
-  final sessions = ref.watch(sessionsNotifierProvider);
-  _recentSessionsCache.update(sessions);
-  return _recentSessionsCache.pathsForMachine(machineId);
-});
+      final sessions = ref.watch(sessionsNotifierProvider);
+      _recentSessionsCache.update(sessions);
+      return _recentSessionsCache.pathsForMachine(machineId);
+    });
 
 /// Identity-stable list of [Machine] values. Recomputes only when the
 /// upstream map identity changes (i.e. when a machine is added/removed or
@@ -152,11 +152,11 @@ final artifactsListProvider = Provider<List<DecryptedArtifact>>((ref) {
 /// unreadCount, hasOlderMessages, isLoadingOlderMessages,
 /// isSessionReadyForMessages, sessionUsage. Watch this from widget
 /// `build()` instead of calling `sync.getLastMessage*(id)` etc.
-final sessionUiEntryProvider =
-    Provider.autoDispose.family<SessionUiEntry, String>((ref, sessionId) {
-  final state = ref.watch(sessionUiStateNotifierProvider);
-  return state.bySessionId[sessionId] ?? SessionUiEntry.empty;
-});
+final sessionUiEntryProvider = Provider.autoDispose
+    .family<SessionUiEntry, String>((ref, sessionId) {
+      final state = ref.watch(sessionUiStateNotifierProvider);
+      return state.bySessionId[sessionId] ?? SessionUiEntry.empty;
+    });
 
 /// Set of session ids that have been optimistically archived
 /// (deletion in flight) but not yet confirmed by the server.

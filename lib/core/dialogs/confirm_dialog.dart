@@ -26,9 +26,7 @@ Future<bool> showConfirmDialog(
           child: Text(cancelLabel ?? l10n.commonCancel),
         ),
         TextButton(
-          style: isDestructive
-              ? AppButtonStyle.destructive(cs)
-              : null,
+          style: isDestructive ? AppButtonStyle.destructive(cs) : null,
           onPressed: () => Navigator.pop(dialogContext, true),
           child: Text(confirmLabel ?? l10n.commonConfirm),
         ),

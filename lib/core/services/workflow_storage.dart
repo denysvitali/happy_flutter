@@ -49,11 +49,7 @@ class WorkflowStorage {
       }
       return List<WorkflowRun>.unmodifiable(out);
     } catch (e, st) {
-      logger.warning(
-        'WorkflowStorage.load($sessionId) failed: $e',
-        e,
-        st,
-      );
+      logger.warning('WorkflowStorage.load($sessionId) failed: $e', e, st);
       return const <WorkflowRun>[];
     }
   }
@@ -69,11 +65,7 @@ class WorkflowStorage {
       );
       _storage.setString(_key(sessionId), encoded);
     } catch (e, st) {
-      logger.warning(
-        'WorkflowStorage.save($sessionId) failed: $e',
-        e,
-        st,
-      );
+      logger.warning('WorkflowStorage.save($sessionId) failed: $e', e, st);
     }
   }
 

@@ -1,12 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 /// Offline ASR model family (stub mirror of the native enum).
-enum OfflineSttFamily {
-  moonshine,
-  transducer,
-  whisper,
-  senseVoice,
-}
+enum OfflineSttFamily { moonshine, transducer, whisper, senseVoice }
 
 class OfflineSttModel {
   const OfflineSttModel({
@@ -85,12 +80,7 @@ class OfflineSttCatalog {
   }
 }
 
-enum OfflineSttStatus {
-  notDownloaded,
-  downloading,
-  ready,
-  failed,
-}
+enum OfflineSttStatus { notDownloaded, downloading, ready, failed }
 
 class OfflineSttDownloadProgress {
   const OfflineSttDownloadProgress({
@@ -148,17 +138,17 @@ class OfflineSttResolvedFiles {
   bool get allExist => false;
 
   Map<String, Object?> toConfigDescriptor() => <String, Object?>{
-        'family': family.name,
-        'modelType': modelType,
-        'tokens': tokens,
-        'encoder': encoder,
-        'decoder': decoder,
-        'joiner': joiner,
-        'model': model,
-        'preprocessor': preprocessor,
-        'uncachedDecoder': uncachedDecoder,
-        'cachedDecoder': cachedDecoder,
-      };
+    'family': family.name,
+    'modelType': modelType,
+    'tokens': tokens,
+    'encoder': encoder,
+    'decoder': decoder,
+    'joiner': joiner,
+    'model': model,
+    'preprocessor': preprocessor,
+    'uncachedDecoder': uncachedDecoder,
+    'cachedDecoder': cachedDecoder,
+  };
 }
 
 OfflineSttResolvedFiles resolveOfflineSttFiles(

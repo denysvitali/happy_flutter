@@ -26,11 +26,7 @@ class ArtifactsRepository {
       _manager.createArtifact(title, body);
 
   /// Update an existing artifact's title and/or body.
-  Future<void> updateArtifact(
-    String id, {
-    String? title,
-    String? body,
-  }) =>
+  Future<void> updateArtifact(String id, {String? title, String? body}) =>
       _manager.updateArtifact(id, title, body);
 
   /// Delete an artifact by ID.

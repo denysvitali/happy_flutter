@@ -38,10 +38,7 @@ const List<Map<String, dynamic>> _codexItems = [
 /// Storage-free settings so `expandTodos` / `toolCallDebugEnabled` can be
 /// varied without MMKV.
 class _StubSettingsNotifier extends SettingsNotifier {
-  _StubSettingsNotifier({
-    this.expandTodos = true,
-    this.toolCallDebug = false,
-  });
+  _StubSettingsNotifier({this.expandTodos = true, this.toolCallDebug = false});
 
   final bool expandTodos;
   final bool toolCallDebug;
@@ -199,8 +196,9 @@ void main() {
       return container;
     }
 
-    testWidgets('pushToolToGlobalState fills the session bucket',
-        (tester) async {
+    testWidgets('pushToolToGlobalState fills the session bucket', (
+      tester,
+    ) async {
       final container = await pumpHost(tester);
       TodoView.pushToolToGlobalState(
         ctx,
@@ -248,8 +246,9 @@ void main() {
       expect(items.last.status, TodoState.pending);
     });
 
-    testWidgets('an out-of-order replay cannot clobber a newer plan',
-        (tester) async {
+    testWidgets('an out-of-order replay cannot clobber a newer plan', (
+      tester,
+    ) async {
       // The chat ListView is reversed: a cold load mounts the newest tool
       // card first, then older ones. The older push must lose.
       final container = await pumpHost(tester);
@@ -356,8 +355,9 @@ void main() {
       return container;
     }
 
-    testWidgets('a collapsed card still fills the banner state',
-        (tester) async {
+    testWidgets('a collapsed card still fills the banner state', (
+      tester,
+    ) async {
       // Regression: the push used to live in TodoView.initState, and the
       // body only mounts while the card is expanded — so Codex sessions
       // (whose whole plan arrives as TodoWrite) never populated the
@@ -398,8 +398,9 @@ void main() {
       );
     });
 
-    testWidgets('tool-call debug adds the raw INPUT below the rendered list',
-        (tester) async {
+    testWidgets('tool-call debug adds the raw INPUT below the rendered list', (
+      tester,
+    ) async {
       // Regression: debug mode replaced the per-tool view, so a Codex plan
       // rendered as a raw JSON blob with no todo rows at all.
       await pumpCard(tester, toolCallDebug: true);

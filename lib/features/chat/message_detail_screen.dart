@@ -663,7 +663,10 @@ class _ImmediateToolResultSectionState
                 Expanded(
                   child: Text(
                     widget.title,
-                    style: AppText.title(theme, widget.isError ? cs.error : null),
+                    style: AppText.title(
+                      theme,
+                      widget.isError ? cs.error : null,
+                    ),
                   ),
                 ),
                 _CopyButton(json: widget.json, content: widget.text ?? ''),
@@ -710,10 +713,7 @@ class _RawPayloadDisclosure extends StatelessWidget {
       child: ExpansionTile(
         leading: Icon(Icons.data_object, size: 18, color: cs.primary),
         // TODO(i18n): raw-payload label not yet localized
-        title: Text(
-          'Raw JSON',
-          style: AppText.title(theme),
-        ),
+        title: Text('Raw JSON', style: AppText.title(theme)),
         childrenPadding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
           0,
@@ -794,7 +794,9 @@ class _ChildToolItem extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: AppText.secondary(theme).copyWith(fontFamily: 'monospace'),
+                  style: AppText.secondary(
+                    theme,
+                  ).copyWith(fontFamily: 'monospace'),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -948,12 +950,7 @@ class _DetailCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: cs.primary),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: AppText.title(theme),
-                  ),
-                ),
+                Expanded(child: Text(title, style: AppText.title(theme))),
                 ?trailing,
               ],
             ),
@@ -983,7 +980,10 @@ class _LabelValue extends StatelessWidget {
             width: 90,
             child: Text(
               label,
-              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+              style: AppText.secondary(
+                theme,
+                theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           Expanded(

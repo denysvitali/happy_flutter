@@ -32,9 +32,7 @@ class MasterDetailScaffold extends StatelessWidget {
     final isWide = width >= tabletBreakpoint;
 
     if (!isWide) {
-      return Builder(
-        builder: (context) => hasSelection ? detail : master,
-      );
+      return Builder(builder: (context) => hasSelection ? detail : master);
     }
 
     final theme = Theme.of(context);
@@ -66,9 +64,7 @@ class MasterDetailScaffold extends StatelessWidget {
             thickness: AppBorder.thin,
             color: theme.dividerColor,
           ),
-        Expanded(
-          child: Builder(builder: (context) => resolvedDetail),
-        ),
+        Expanded(child: Builder(builder: (context) => resolvedDetail)),
       ],
     );
   }
@@ -105,9 +101,7 @@ class TabletDetailEmpty extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
           ],
         ),

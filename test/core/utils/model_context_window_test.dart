@@ -174,10 +174,7 @@ void main() {
         ),
         200000,
       );
-      expect(
-        defaultContextWindowForModel('grok/grok-4.7'),
-        isNot(200000),
-      );
+      expect(defaultContextWindowForModel('grok/grok-4.7'), isNot(200000));
     });
 
     test('default still carries a profile-wide window', () {
@@ -198,10 +195,7 @@ void main() {
         models: const ['grok/grok-4.7'],
       );
       expect(
-        contextWindowOverrideForSpawn(
-          profile: profile,
-          model: 'grok/grok-4.7',
-        ),
+        contextWindowOverrideForSpawn(profile: profile, model: 'grok/grok-4.7'),
         isNull,
       );
     });
@@ -247,10 +241,7 @@ void main() {
     });
 
     test('an explicit choice replaces a stale env value', () {
-      final profile = _profile(
-        contextWindow: 200000,
-        models: const [],
-      );
+      final profile = _profile(contextWindow: 200000, models: const []);
       final bound = applyContextWindowToSpawnEnv(
         const {claudeCodeMaxContextTokensEnv: '1000000'},
         agent: null,
@@ -277,10 +268,7 @@ void main() {
         claudeCompatible: true,
         profileModels: stored,
       );
-      expect(
-        modes.map((mode) => mode.modelSlug),
-        contains('grok/grok-4.7'),
-      );
+      expect(modes.map((mode) => mode.modelSlug), contains('grok/grok-4.7'));
       expect(
         modes.map((mode) => mode.modeString),
         isNot(contains(stored.first)),

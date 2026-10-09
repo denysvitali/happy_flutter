@@ -476,8 +476,7 @@ extension SyncLoops on Sync {
   /// `loops-updated` event in response; callers that want fresh state
   /// should also subscribe to [onLoopsChanged].
   Future<List<Loop>> listLoops({required String sessionId}) async {
-    if (testSessionRPCOverride == null ||
-        testRpcCapabilitiesOverride != null) {
+    if (testSessionRPCOverride == null || testRpcCapabilitiesOverride != null) {
       await ensureSessionRPCSupported(sessionId, 'loop-list');
     }
     final raw = await sessionRPC(
@@ -663,9 +662,7 @@ extension SyncLoops on Sync {
           // A disconnected handler is temporary. Keep the cached loops and
           // wait for reconnect/loops-updated instead of reporting a warning
           // for every session in the refresh batch.
-          logger.debug(
-            '[loops] listLoops($sessionId) skipped — transient: $e',
-          );
+          logger.debug('[loops] listLoops($sessionId) skipped — transient: $e');
           break;
         }
         logger.warning('[loops] listLoops($sessionId) failed: $e', e, st);

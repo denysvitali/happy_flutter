@@ -30,9 +30,7 @@ InputDecoration artifactFieldDecoration(
   final cs = theme.colorScheme;
   final border = OutlineInputBorder(
     borderRadius: BorderRadius.circular(AppRadius.md),
-    borderSide: BorderSide(
-      color: cs.outlineVariant.withValues(alpha: 0.5),
-    ),
+    borderSide: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
   );
   return InputDecoration(
     hintText: hintText,
@@ -45,8 +43,6 @@ InputDecoration artifactFieldDecoration(
       vertical: AppSpacing.md,
     ),
     alignLabelWithHint: alignLabelWithHint,
-    hintStyle: theme.textTheme.bodyMedium?.copyWith(
-      color: cs.onSurfaceVariant,
-    ),
+    hintStyle: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
   );
 }

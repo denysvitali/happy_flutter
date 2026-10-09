@@ -28,9 +28,7 @@ class FileAutocomplete extends StatelessWidget {
         theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: Material(
         color: Colors.transparent,
         child: Container(
@@ -38,8 +36,7 @@ class FileAutocomplete extends StatelessWidget {
           // glass border and a floating shadow.
           decoration: BoxDecoration(
             color: cs.surfaceContainerHigh.withValues(alpha: 0.97),
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: appScheme.glassBorder,
               width: AppBorder.hairline,
@@ -48,8 +45,7 @@ class FileAutocomplete extends StatelessWidget {
           ),
           child: ClipRRect(
             clipBehavior: Clip.hardEdge,
-            borderRadius:
-                BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             child: AutocompleteOverlay(
               suggestions: suggestions,
               selectedIndex: selectedIndex,

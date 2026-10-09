@@ -10,9 +10,8 @@ import 'encryptor.dart';
 
 /// Artifact-specific encryption management
 class ArtifactEncryption {
-
   ArtifactEncryption(Uint8List dataEncryptionKey)
-      : _encryptor = AES256Encryption(dataEncryptionKey);
+    : _encryptor = AES256Encryption(dataEncryptionKey);
   final AES256Encryption _encryptor;
 
   /// Generate a new data encryption key for an artifact
@@ -90,9 +89,7 @@ class ArtifactEncryption {
         return null;
       }
 
-      return {
-        'body': body['body'] as String?,
-      };
+      return {'body': body['body'] as String?};
     } catch (e, stack) {
       // Recoverable: caller treats null as "decryption unavailable". See
       // decryptHeader for the rationale on warning vs error.

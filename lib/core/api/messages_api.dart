@@ -48,10 +48,7 @@ class MessagesApi {
         .toList();
     final hasMore = data['hasMore'] as bool? ?? false;
 
-    return MessagesResponse(
-      messages: messages,
-      hasMore: hasMore,
-    );
+    return MessagesResponse(messages: messages, hasMore: hasMore);
   }
 
   /// Send a message to a session
@@ -64,10 +61,7 @@ class MessagesApi {
       '/v3/sessions/$sessionId/messages',
       data: {
         'messages': [
-          {
-            'content': encryptedContent,
-            'localId': ?localId,
-          },
+          {'content': encryptedContent, 'localId': ?localId},
         ],
       },
     );
@@ -118,10 +112,12 @@ class MessagesApi {
       '/v3/sessions/$sessionId/messages',
       data: {
         'messages': messages
-            .map((m) => {
-                  'content': m.encryptedContent,
-                  if (m.localId != null) 'localId': m.localId,
-                })
+            .map(
+              (m) => {
+                'content': m.encryptedContent,
+                if (m.localId != null) 'localId': m.localId,
+              },
+            )
             .toList(),
       },
     );
@@ -167,10 +163,7 @@ class MessagesApiException extends BaseApiException {
 
 /// Response from fetching messages
 class MessagesResponse {
-  const MessagesResponse({
-    required this.messages,
-    required this.hasMore,
-  });
+  const MessagesResponse({required this.messages, required this.hasMore});
 
   final List<Map<String, dynamic>> messages;
   final bool hasMore;
@@ -178,10 +171,7 @@ class MessagesResponse {
 
 /// Request to send a message
 class SendMessageRequest {
-  const SendMessageRequest({
-    required this.encryptedContent,
-    this.localId,
-  });
+  const SendMessageRequest({required this.encryptedContent, this.localId});
 
   final String encryptedContent;
   final String? localId;

@@ -78,24 +78,18 @@ void main() {
       expect(result, isNull);
     });
 
-    test(
-      'decryptHeader with non-map decrypted data returns null',
-      () async {
-        // Encrypt a plain string (not a map) directly via AES256Encryption
-        // so the base64 payload decrypts to a non-map value.
-        final encryptor = AES256Encryption(key);
-        const nonMap = 'just a string, not a map';
-        final rawEncrypted = await encryptor.encrypt([nonMap]);
-        final encoded = Base64Utils.encode(
-          rawEncrypted[0],
-          Encoding.base64,
-        );
+    test('decryptHeader with non-map decrypted data returns null', () async {
+      // Encrypt a plain string (not a map) directly via AES256Encryption
+      // so the base64 payload decrypts to a non-map value.
+      final encryptor = AES256Encryption(key);
+      const nonMap = 'just a string, not a map';
+      final rawEncrypted = await encryptor.encrypt([nonMap]);
+      final encoded = Base64Utils.encode(rawEncrypted[0], Encoding.base64);
 
-        final result = await encryption.decryptHeader(encoded);
+      final result = await encryption.decryptHeader(encoded);
 
-        expect(result, isNull);
-      },
-    );
+      expect(result, isNull);
+    });
 
     test('decryptBody with missing body field', () async {
       // Encrypt a map without the 'body' key.

@@ -28,10 +28,7 @@ class _FreshnessBounds {
   final int freshMs;
 }
 
-const _freshnessBounds = _FreshnessBounds(
-  45 * 1000,
-  3 * 60 * 1000,
-);
+const _freshnessBounds = _FreshnessBounds(45 * 1000, 3 * 60 * 1000);
 
 /// Classifies the age of a stream's last update.
 ///
@@ -75,11 +72,7 @@ String formatSilenceShort(int millis) {
 /// runs while [active] — dependents rebuild through the inherited
 /// dependency and render identical output when nothing changed.
 class MissionClock extends StatefulWidget {
-  const MissionClock({
-    required this.child,
-    this.active = true,
-    super.key,
-  });
+  const MissionClock({required this.child, this.active = true, super.key});
 
   final Widget child;
 
@@ -148,8 +141,7 @@ class _ClockData extends InheritedWidget {
   final int nowMs;
 
   @override
-  bool updateShouldNotify(_ClockData oldWidget) =>
-      nowMs != oldWidget.nowMs;
+  bool updateShouldNotify(_ClockData oldWidget) => nowMs != oldWidget.nowMs;
 }
 
 /// Current shared time for [context], subscribing to future ticks.
@@ -158,7 +150,6 @@ class _ClockData extends InheritedWidget {
 /// so widgets stay correct (just not auto-refreshing) outside the
 /// Mission Control tree — e.g. in tests or the folder detail view.
 int missionNowOf(BuildContext context) {
-  final data = context
-      .dependOnInheritedWidgetOfExactType<_ClockData>();
+  final data = context.dependOnInheritedWidgetOfExactType<_ClockData>();
   return data?.nowMs ?? DateTime.now().millisecondsSinceEpoch;
 }

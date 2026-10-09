@@ -69,11 +69,7 @@ void main() {
 
     test('integer timestamp (milliseconds since epoch)', () async {
       const tsMs = 1700000000000;
-      final message = _plaintextMessage(
-        'ts-1',
-        1,
-        createdAt: tsMs,
-      );
+      final message = _plaintextMessage('ts-1', 1, createdAt: tsMs);
 
       final results = await se.decryptMessages([message]);
 
@@ -88,11 +84,7 @@ void main() {
 
     test('ISO 8601 string timestamp', () async {
       const isoZ = '2024-01-15T12:30:00.000Z';
-      final message = _plaintextMessage(
-        'ts-2',
-        2,
-        createdAt: isoZ,
-      );
+      final message = _plaintextMessage('ts-2', 2, createdAt: isoZ);
 
       final results = await se.decryptMessages([message]);
 
@@ -104,11 +96,7 @@ void main() {
 
     test('ISO 8601 string without Z suffix', () async {
       const isoNoZ = '2024-01-15T12:30:00.000';
-      final message = _plaintextMessage(
-        'ts-3',
-        3,
-        createdAt: isoNoZ,
-      );
+      final message = _plaintextMessage('ts-3', 3, createdAt: isoNoZ);
 
       final results = await se.decryptMessages([message]);
 
@@ -129,15 +117,11 @@ void main() {
       final result = results[0];
       expect(result, isNotNull);
       expect(
-        result!.createdAt.isAfter(
-          before.subtract(const Duration(seconds: 2)),
-        ),
+        result!.createdAt.isAfter(before.subtract(const Duration(seconds: 2))),
         isTrue,
       );
       expect(
-        result.createdAt.isBefore(
-          after.add(const Duration(seconds: 2)),
-        ),
+        result.createdAt.isBefore(after.add(const Duration(seconds: 2))),
         isTrue,
       );
     });
@@ -154,26 +138,18 @@ void main() {
       final result = results[0];
       expect(result, isNotNull);
       expect(
-        result!.createdAt.isAfter(
-          before.subtract(const Duration(seconds: 2)),
-        ),
+        result!.createdAt.isAfter(before.subtract(const Duration(seconds: 2))),
         isTrue,
       );
       expect(
-        result.createdAt.isBefore(
-          after.add(const Duration(seconds: 2)),
-        ),
+        result.createdAt.isBefore(after.add(const Duration(seconds: 2))),
         isTrue,
       );
     });
 
     test('invalid string createdAt falls back to approximately now', () async {
       final before = DateTime.now();
-      final message = _plaintextMessage(
-        'ts-6',
-        6,
-        createdAt: 'not-a-date',
-      );
+      final message = _plaintextMessage('ts-6', 6, createdAt: 'not-a-date');
 
       final results = await se.decryptMessages([message]);
 
@@ -182,15 +158,11 @@ void main() {
       final result = results[0];
       expect(result, isNotNull);
       expect(
-        result!.createdAt.isAfter(
-          before.subtract(const Duration(seconds: 2)),
-        ),
+        result!.createdAt.isAfter(before.subtract(const Duration(seconds: 2))),
         isTrue,
       );
       expect(
-        result.createdAt.isBefore(
-          after.add(const Duration(seconds: 2)),
-        ),
+        result.createdAt.isBefore(after.add(const Duration(seconds: 2))),
         isTrue,
       );
     });
@@ -203,10 +175,7 @@ void main() {
       expect(results, hasLength(1));
       final result = results[0];
       expect(result, isNotNull);
-      expect(
-        result!.createdAt,
-        equals(DateTime.fromMillisecondsSinceEpoch(0)),
-      );
+      expect(result!.createdAt, equals(DateTime.fromMillisecondsSinceEpoch(0)));
     });
   });
 }

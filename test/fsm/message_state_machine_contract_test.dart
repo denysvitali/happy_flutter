@@ -45,14 +45,13 @@ MessageEvent _ev(
   MessageEventKind kind,
   Map<String, Object?> payload, {
   int lamport = 1,
-}) =>
-    MessageEvent(
-      sessionId: 'S',
-      lamport: lamport,
-      kind: kind,
-      payload: payload,
-      recordedAt: 0,
-    );
+}) => MessageEvent(
+  sessionId: 'S',
+  lamport: lamport,
+  kind: kind,
+  payload: payload,
+  recordedAt: 0,
+);
 
 void main() {
   group('MessageStateTransitions — typed FSM spec', () {
@@ -70,10 +69,7 @@ void main() {
       });
 
       test('Sending -> Sent via ackFromSending', () {
-        const sending = MessageStateSending(
-          localId: _kLocalId,
-          text: 'hi',
-        );
+        const sending = MessageStateSending(localId: _kLocalId, text: 'hi');
         final sent = MessageStateTransitions.ackFromSending(
           sending,
           serverId: 'srv-1',
@@ -86,10 +82,7 @@ void main() {
       });
 
       test('Sending -> Pending via pendingFromSending', () {
-        const sending = MessageStateSending(
-          localId: _kLocalId,
-          text: 'hi',
-        );
+        const sending = MessageStateSending(localId: _kLocalId, text: 'hi');
         final pending = MessageStateTransitions.pendingFromSending(
           sending,
           reason: 'socket-disconnected',
@@ -100,10 +93,7 @@ void main() {
       });
 
       test('Sending -> Failed via failFromSending', () {
-        const sending = MessageStateSending(
-          localId: _kLocalId,
-          text: 'hi',
-        );
+        const sending = MessageStateSending(localId: _kLocalId, text: 'hi');
         final failed = MessageStateTransitions.failFromSending(
           sending,
           reason: 'http-500',
@@ -146,10 +136,7 @@ void main() {
 
       test('Failed -> Sending via retryFromFailed (preserves localId, '
           'increments attempt)', () {
-        const failed = MessageStateFailed(
-          localId: _kLocalId,
-          reason: 'net',
-        );
+        const failed = MessageStateFailed(localId: _kLocalId, reason: 'net');
         final retried = MessageStateTransitions.retryFromFailed(
           failed,
           text: 'hi',
@@ -183,10 +170,7 @@ void main() {
 
     group('ack/merge contract violations are rejected', () {
       test('ackFromSending without serverId throws ArgumentError', () {
-        const sending = MessageStateSending(
-          localId: _kLocalId,
-          text: 'hi',
-        );
+        const sending = MessageStateSending(localId: _kLocalId, text: 'hi');
         expect(
           () => MessageStateTransitions.ackFromSending(sending),
           throwsArgumentError,
@@ -239,8 +223,11 @@ void main() {
         attempt: failed.attempt + 1,
       )!;
       expect(retried.localId, _kLocalId);
-      expect(retried.attempt, 2,
-          reason: 'retry must bump attempt to expose retry telemetry');
+      expect(
+        retried.attempt,
+        2,
+        reason: 'retry must bump attempt to expose retry telemetry',
+      );
 
       final sent = MessageStateTransitions.ackFromSending(
         retried,
@@ -266,8 +253,12 @@ void main() {
     group('legal transitions', () {
       test('null -> Sending via optimisticAppended', () {
         final fsm = MessageStateMachine();
-        fsm.apply(_ev(MessageEventKind.optimisticAppended,
-            {'localId': _kLocalId, 'text': 'hi'}));
+        fsm.apply(
+          _ev(MessageEventKind.optimisticAppended, {
+            'localId': _kLocalId,
+            'text': 'hi',
+          }),
+        );
         final s = fsm.stateFor(_kLocalId);
         expect(s, isA<MessageStateSending>());
         expect(s!.localId, _kLocalId);
@@ -277,10 +268,18 @@ void main() {
       test('Sending -> Failed via sendFailed preserves localId', () {
         final fsm = MessageStateMachine();
         fsm
-          ..apply(_ev(MessageEventKind.optimisticAppended,
-              {'localId': _kLocalId, 'text': 'hi'}))
-          ..apply(_ev(MessageEventKind.sendFailed,
-              {'localId': _kLocalId, 'reason': 'net'}));
+          ..apply(
+            _ev(MessageEventKind.optimisticAppended, {
+              'localId': _kLocalId,
+              'text': 'hi',
+            }),
+          )
+          ..apply(
+            _ev(MessageEventKind.sendFailed, {
+              'localId': _kLocalId,
+              'reason': 'net',
+            }),
+          );
         final s = fsm.stateFor(_kLocalId);
         expect(s, isA<MessageStateFailed>());
         expect(s!.localId, _kLocalId);
@@ -290,12 +289,19 @@ void main() {
       test('Failed -> Sending via retryRequested preserves localId', () {
         final fsm = MessageStateMachine();
         fsm
-          ..apply(_ev(MessageEventKind.optimisticAppended,
-              {'localId': _kLocalId, 'text': 'hi'}))
-          ..apply(_ev(MessageEventKind.sendFailed,
-              {'localId': _kLocalId, 'reason': 'net'}))
-          ..apply(_ev(MessageEventKind.retryRequested,
-              {'localId': _kLocalId}));
+          ..apply(
+            _ev(MessageEventKind.optimisticAppended, {
+              'localId': _kLocalId,
+              'text': 'hi',
+            }),
+          )
+          ..apply(
+            _ev(MessageEventKind.sendFailed, {
+              'localId': _kLocalId,
+              'reason': 'net',
+            }),
+          )
+          ..apply(_ev(MessageEventKind.retryRequested, {'localId': _kLocalId}));
         final s = fsm.stateFor(_kLocalId);
         expect(s, isA<MessageStateSending>());
         expect(s!.localId, _kLocalId);
@@ -304,14 +310,20 @@ void main() {
       test('Sending -> Merged via serverAcked preserves localId', () {
         final fsm = MessageStateMachine();
         fsm
-          ..apply(_ev(MessageEventKind.optimisticAppended,
-              {'localId': _kLocalId, 'text': 'hi'}))
-          ..apply(_ev(MessageEventKind.serverAcked, {
-            'localId': _kLocalId,
-            'serverId': 'srv-1',
-            'seq': 7,
-            'content': 'hi',
-          }));
+          ..apply(
+            _ev(MessageEventKind.optimisticAppended, {
+              'localId': _kLocalId,
+              'text': 'hi',
+            }),
+          )
+          ..apply(
+            _ev(MessageEventKind.serverAcked, {
+              'localId': _kLocalId,
+              'serverId': 'srv-1',
+              'seq': 7,
+              'content': 'hi',
+            }),
+          );
         final s = fsm.stateFor(_kLocalId);
         expect(s, isA<MessageStateMerged>());
         expect(s!.localId, _kLocalId);
@@ -322,14 +334,20 @@ void main() {
       test('Sending -> Merged via socketObserved preserves localId', () {
         final fsm = MessageStateMachine();
         fsm
-          ..apply(_ev(MessageEventKind.optimisticAppended,
-              {'localId': _kLocalId, 'text': 'hi'}))
-          ..apply(_ev(MessageEventKind.socketObserved, {
-            'localId': _kLocalId,
-            'serverId': 'srv-2',
-            'seq': 8,
-            'content': 'hi',
-          }));
+          ..apply(
+            _ev(MessageEventKind.optimisticAppended, {
+              'localId': _kLocalId,
+              'text': 'hi',
+            }),
+          )
+          ..apply(
+            _ev(MessageEventKind.socketObserved, {
+              'localId': _kLocalId,
+              'serverId': 'srv-2',
+              'seq': 8,
+              'content': 'hi',
+            }),
+          );
         final s = fsm.stateFor(_kLocalId);
         expect(s, isA<MessageStateMerged>());
         expect(s!.localId, _kLocalId);
@@ -338,8 +356,12 @@ void main() {
       test('null -> Failed via sendFailed (outbox give-up before optimistic '
           'was even projected)', () {
         final fsm = MessageStateMachine();
-        fsm.apply(_ev(MessageEventKind.sendFailed,
-            {'localId': _kLocalId, 'reason': 'max-retries'}));
+        fsm.apply(
+          _ev(MessageEventKind.sendFailed, {
+            'localId': _kLocalId,
+            'reason': 'max-retries',
+          }),
+        );
         final s = fsm.stateFor(_kLocalId);
         expect(s, isA<MessageStateFailed>());
         expect(s!.localId, _kLocalId);
@@ -349,12 +371,14 @@ void main() {
       test('null -> Merged via fetchedFromServer (server message we never '
           'optimistically appended)', () {
         final fsm = MessageStateMachine();
-        fsm.apply(_ev(MessageEventKind.fetchedFromServer, {
-          'localId': _kLocalId,
-          'serverId': 'srv-3',
-          'seq': 9,
-          'content': 'inbound',
-        }));
+        fsm.apply(
+          _ev(MessageEventKind.fetchedFromServer, {
+            'localId': _kLocalId,
+            'serverId': 'srv-3',
+            'seq': 9,
+            'content': 'inbound',
+          }),
+        );
         final s = fsm.stateFor(_kLocalId);
         expect(s, isA<MessageStateMerged>());
         expect(s!.localId, _kLocalId);
@@ -378,8 +402,12 @@ void main() {
             expect(() => fsm.apply(_ev(kind, payload)), throwsArgumentError);
             expect(fsm.snapshot, isEmpty);
 
-            fsm.apply(_ev(MessageEventKind.optimisticAppended,
-                {'localId': _kLocalId, 'text': 'hi'}));
+            fsm.apply(
+              _ev(MessageEventKind.optimisticAppended, {
+                'localId': _kLocalId,
+                'text': 'hi',
+              }),
+            );
             final before = fsm.stateFor(_kLocalId);
             expect(() => fsm.apply(_ev(kind, payload)), throwsArgumentError);
             expect(identical(fsm.stateFor(_kLocalId), before), isTrue);
@@ -390,34 +418,57 @@ void main() {
       test('optimisticAppended on existing Sending is a no-op '
           '(prevents duplicate-row creation)', () {
         final fsm = MessageStateMachine();
-        fsm.apply(_ev(MessageEventKind.optimisticAppended,
-            {'localId': _kLocalId, 'text': 'hi'}));
+        fsm.apply(
+          _ev(MessageEventKind.optimisticAppended, {
+            'localId': _kLocalId,
+            'text': 'hi',
+          }),
+        );
         final before = fsm.stateFor(_kLocalId);
-        fsm.apply(_ev(MessageEventKind.optimisticAppended,
-            {'localId': _kLocalId, 'text': 'OVERWRITE'}));
+        fsm.apply(
+          _ev(MessageEventKind.optimisticAppended, {
+            'localId': _kLocalId,
+            'text': 'OVERWRITE',
+          }),
+        );
         final after = fsm.stateFor(_kLocalId);
         expect(after, isA<MessageStateSending>());
-        expect((after! as MessageStateSending).text, 'hi',
-            reason: 'second optimistic must not overwrite text');
-        expect(identical(before, after), isTrue,
-            reason: 'state object must be unchanged');
+        expect(
+          (after! as MessageStateSending).text,
+          'hi',
+          reason: 'second optimistic must not overwrite text',
+        );
+        expect(
+          identical(before, after),
+          isTrue,
+          reason: 'state object must be unchanged',
+        );
       });
 
       test('optimisticAppended after Merged does not regress state '
           '(socket-before-optimistic ordering)', () {
         final fsm = MessageStateMachine();
         fsm
-          ..apply(_ev(MessageEventKind.socketObserved, {
-            'localId': _kLocalId,
-            'serverId': 'srv-1',
-            'seq': 1,
-            'content': 'hi',
-          }))
-          ..apply(_ev(MessageEventKind.optimisticAppended,
-              {'localId': _kLocalId, 'text': 'hi'}));
+          ..apply(
+            _ev(MessageEventKind.socketObserved, {
+              'localId': _kLocalId,
+              'serverId': 'srv-1',
+              'seq': 1,
+              'content': 'hi',
+            }),
+          )
+          ..apply(
+            _ev(MessageEventKind.optimisticAppended, {
+              'localId': _kLocalId,
+              'text': 'hi',
+            }),
+          );
         final s = fsm.stateFor(_kLocalId);
-        expect(s, isA<MessageStateMerged>(),
-            reason: 'Merged must not regress to Sending');
+        expect(
+          s,
+          isA<MessageStateMerged>(),
+          reason: 'Merged must not regress to Sending',
+        );
         expect(s!.localId, _kLocalId);
       });
 
@@ -425,31 +476,42 @@ void main() {
           '(cannot retry an acked message)', () {
         final fsm = MessageStateMachine();
         fsm
-          ..apply(_ev(MessageEventKind.optimisticAppended,
-              {'localId': _kLocalId, 'text': 'hi'}))
-          ..apply(_ev(MessageEventKind.serverAcked, {
-            'localId': _kLocalId,
-            'serverId': 'srv-1',
-            'seq': 1,
-            'content': 'hi',
-          }));
+          ..apply(
+            _ev(MessageEventKind.optimisticAppended, {
+              'localId': _kLocalId,
+              'text': 'hi',
+            }),
+          )
+          ..apply(
+            _ev(MessageEventKind.serverAcked, {
+              'localId': _kLocalId,
+              'serverId': 'srv-1',
+              'seq': 1,
+              'content': 'hi',
+            }),
+          );
         final before = fsm.stateFor(_kLocalId);
-        fsm.apply(_ev(MessageEventKind.retryRequested,
-            {'localId': _kLocalId}));
+        fsm.apply(_ev(MessageEventKind.retryRequested, {'localId': _kLocalId}));
         final after = fsm.stateFor(_kLocalId);
         expect(after, isA<MessageStateMerged>());
-        expect(identical(before, after), isTrue,
-            reason: 'retry on Merged must be a strict no-op');
+        expect(
+          identical(before, after),
+          isTrue,
+          reason: 'retry on Merged must be a strict no-op',
+        );
       });
 
       test('retryRequested on Sending is a no-op '
           '(no double-fire while in flight)', () {
         final fsm = MessageStateMachine();
-        fsm.apply(_ev(MessageEventKind.optimisticAppended,
-            {'localId': _kLocalId, 'text': 'hi'}));
+        fsm.apply(
+          _ev(MessageEventKind.optimisticAppended, {
+            'localId': _kLocalId,
+            'text': 'hi',
+          }),
+        );
         final before = fsm.stateFor(_kLocalId);
-        fsm.apply(_ev(MessageEventKind.retryRequested,
-            {'localId': _kLocalId}));
+        fsm.apply(_ev(MessageEventKind.retryRequested, {'localId': _kLocalId}));
         final after = fsm.stateFor(_kLocalId);
         expect(after, isA<MessageStateSending>());
         expect(identical(before, after), isTrue);
@@ -458,8 +520,7 @@ void main() {
       test('retryRequested with no prior state is a no-op '
           '(cannot retry an unknown localId)', () {
         final fsm = MessageStateMachine();
-        fsm.apply(_ev(MessageEventKind.retryRequested,
-            {'localId': _kLocalId}));
+        fsm.apply(_ev(MessageEventKind.retryRequested, {'localId': _kLocalId}));
         expect(fsm.stateFor(_kLocalId), isNull);
       });
 
@@ -467,17 +528,27 @@ void main() {
           '(failure cannot un-merge an acked message)', () {
         final fsm = MessageStateMachine();
         fsm
-          ..apply(_ev(MessageEventKind.optimisticAppended,
-              {'localId': _kLocalId, 'text': 'hi'}))
-          ..apply(_ev(MessageEventKind.serverAcked, {
-            'localId': _kLocalId,
-            'serverId': 'srv-1',
-            'seq': 1,
-            'content': 'hi',
-          }));
+          ..apply(
+            _ev(MessageEventKind.optimisticAppended, {
+              'localId': _kLocalId,
+              'text': 'hi',
+            }),
+          )
+          ..apply(
+            _ev(MessageEventKind.serverAcked, {
+              'localId': _kLocalId,
+              'serverId': 'srv-1',
+              'seq': 1,
+              'content': 'hi',
+            }),
+          );
         final before = fsm.stateFor(_kLocalId);
-        fsm.apply(_ev(MessageEventKind.sendFailed,
-            {'localId': _kLocalId, 'reason': 'net'}));
+        fsm.apply(
+          _ev(MessageEventKind.sendFailed, {
+            'localId': _kLocalId,
+            'reason': 'net',
+          }),
+        );
         final after = fsm.stateFor(_kLocalId);
         expect(after, isA<MessageStateMerged>());
         expect(identical(before, after), isTrue);
@@ -486,8 +557,7 @@ void main() {
       test('event without localId is silently dropped '
           '(no anonymous state is created)', () {
         final fsm = MessageStateMachine();
-        fsm.apply(_ev(MessageEventKind.optimisticAppended,
-            {'text': 'orphan'}));
+        fsm.apply(_ev(MessageEventKind.optimisticAppended, {'text': 'orphan'}));
         expect(fsm.snapshot, isEmpty);
       });
     });
@@ -497,30 +567,39 @@ void main() {
         'localId is identical at every step', () {
       final fsm = MessageStateMachine();
 
-      fsm.apply(_ev(MessageEventKind.optimisticAppended,
-          {'localId': _kLocalId, 'text': 'continue'}));
+      fsm.apply(
+        _ev(MessageEventKind.optimisticAppended, {
+          'localId': _kLocalId,
+          'text': 'continue',
+        }),
+      );
       final s1 = fsm.stateFor(_kLocalId);
       expect(s1, isA<MessageStateSending>());
       expect(s1!.localId, _kLocalId);
 
-      fsm.apply(_ev(MessageEventKind.sendFailed,
-          {'localId': _kLocalId, 'reason': 'net'}));
+      fsm.apply(
+        _ev(MessageEventKind.sendFailed, {
+          'localId': _kLocalId,
+          'reason': 'net',
+        }),
+      );
       final s2 = fsm.stateFor(_kLocalId);
       expect(s2, isA<MessageStateFailed>());
       expect(s2!.localId, _kLocalId);
 
-      fsm.apply(_ev(MessageEventKind.retryRequested,
-          {'localId': _kLocalId}));
+      fsm.apply(_ev(MessageEventKind.retryRequested, {'localId': _kLocalId}));
       final s3 = fsm.stateFor(_kLocalId);
       expect(s3, isA<MessageStateSending>());
       expect(s3!.localId, _kLocalId);
 
-      fsm.apply(_ev(MessageEventKind.serverAcked, {
-        'localId': _kLocalId,
-        'serverId': 'srv-final',
-        'seq': 42,
-        'content': 'continue',
-      }));
+      fsm.apply(
+        _ev(MessageEventKind.serverAcked, {
+          'localId': _kLocalId,
+          'serverId': 'srv-final',
+          'seq': 42,
+          'content': 'continue',
+        }),
+      );
       final s4 = fsm.stateFor(_kLocalId);
       expect(s4, isA<MessageStateMerged>());
       expect(s4!.localId, _kLocalId);
@@ -539,42 +618,64 @@ void main() {
       // Both tap "continue" — UI is responsible for minting distinct
       // localIds. The FSM must keep them as separate aggregates.
       fsm
-        ..apply(_ev(MessageEventKind.optimisticAppended,
-            {'localId': l1, 'text': 'continue'}))
-        ..apply(_ev(MessageEventKind.optimisticAppended,
-            {'localId': l2, 'text': 'continue'}));
+        ..apply(
+          _ev(MessageEventKind.optimisticAppended, {
+            'localId': l1,
+            'text': 'continue',
+          }),
+        )
+        ..apply(
+          _ev(MessageEventKind.optimisticAppended, {
+            'localId': l2,
+            'text': 'continue',
+          }),
+        );
 
-      expect(fsm.snapshot.keys.toSet(), {l1, l2},
-          reason: 'identical text must not collapse aggregates');
+      expect(
+        fsm.snapshot.keys.toSet(),
+        {l1, l2},
+        reason: 'identical text must not collapse aggregates',
+      );
 
       // First send fails and is retried.
       fsm
-        ..apply(_ev(MessageEventKind.sendFailed,
-            {'localId': l1, 'reason': 'net'}))
+        ..apply(
+          _ev(MessageEventKind.sendFailed, {'localId': l1, 'reason': 'net'}),
+        )
         ..apply(_ev(MessageEventKind.retryRequested, {'localId': l1}));
       expect(fsm.stateFor(l1), isA<MessageStateSending>());
-      expect(fsm.stateFor(l2), isA<MessageStateSending>(),
-          reason: "second send must not be affected by first's failure");
+      expect(
+        fsm.stateFor(l2),
+        isA<MessageStateSending>(),
+        reason: "second send must not be affected by first's failure",
+      );
 
       // First send finally acks. Second is still in flight.
-      fsm.apply(_ev(MessageEventKind.serverAcked, {
-        'localId': l1,
-        'serverId': 'srv-a',
-        'seq': 1,
-        'content': 'continue',
-      }));
+      fsm.apply(
+        _ev(MessageEventKind.serverAcked, {
+          'localId': l1,
+          'serverId': 'srv-a',
+          'seq': 1,
+          'content': 'continue',
+        }),
+      );
       expect(fsm.stateFor(l1), isA<MessageStateMerged>());
       expect((fsm.stateFor(l1)! as MessageStateMerged).localId, l1);
-      expect(fsm.stateFor(l2), isA<MessageStateSending>(),
-          reason: "ack for L1 must not bleed into L2's identity");
+      expect(
+        fsm.stateFor(l2),
+        isA<MessageStateSending>(),
+        reason: "ack for L1 must not bleed into L2's identity",
+      );
 
       // Second send acks last.
-      fsm.apply(_ev(MessageEventKind.serverAcked, {
-        'localId': l2,
-        'serverId': 'srv-b',
-        'seq': 2,
-        'content': 'continue',
-      }));
+      fsm.apply(
+        _ev(MessageEventKind.serverAcked, {
+          'localId': l2,
+          'serverId': 'srv-b',
+          'seq': 2,
+          'content': 'continue',
+        }),
+      );
       final m2 = fsm.stateFor(l2)! as MessageStateMerged;
       expect(m2.localId, l2);
       expect(m2.serverId, 'srv-b');

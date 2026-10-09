@@ -53,8 +53,11 @@ void main() {
       warmup: 2,
       opsPerIteration: 500,
     );
-    expect(rows, greaterThan(0),
-        reason: 'processing must yield displayable rows');
+    expect(
+      rows,
+      greaterThan(0),
+      reason: 'processing must yield displayable rows',
+    );
   });
 
   test('full AES page: decrypt + process 500 encrypted rows', () async {
@@ -94,26 +97,18 @@ void main() {
   test('ANSI parse of a 20KB tool output', () {
     final output = ansiToolOutput(20000);
     var spans = 0;
-    reporter.measureSync(
-      'ansi_parse_20kb',
-      () {
-        spans = AnsiParser.parse(output).length;
-      },
-      iterations: 40,
-    );
+    reporter.measureSync('ansi_parse_20kb', () {
+      spans = AnsiParser.parse(output).length;
+    }, iterations: 40);
     expect(spans, greaterThan(0));
   });
 
   test('ANSI strip of a 20KB tool output', () {
     final output = ansiToolOutput(20000);
     var len = 0;
-    reporter.measureSync(
-      'ansi_strip_20kb',
-      () {
-        len = AnsiParser.strip(output).length;
-      },
-      iterations: 40,
-    );
+    reporter.measureSync('ansi_strip_20kb', () {
+      len = AnsiParser.strip(output).length;
+    }, iterations: 40);
     expect(len, greaterThan(0));
     expect(len, lessThan(output.length));
   });
@@ -124,29 +119,21 @@ void main() {
     // steady state of a rebuilt tool view whose output did not change.
     final warmed = AnsiSpanCache.instance.parse(output);
     var spans = 0;
-    reporter.measureSync(
-      'ansi_parse_20kb_cached_hit',
-      () {
-        spans = AnsiSpanCache.instance.parse(output).length;
-      },
-      iterations: 100,
-    );
+    reporter.measureSync('ansi_parse_20kb_cached_hit', () {
+      spans = AnsiSpanCache.instance.parse(output).length;
+    }, iterations: 100);
     expect(spans, warmed.length);
   });
 
   test('ANSI memoized parse under streaming growth (miss per tick)', () {
     var output = ansiToolOutput(20000);
     var spans = 0;
-    reporter.measureSync(
-      'ansi_parse_20kb_cached_miss_growing',
-      () {
-        // Output grows every iteration like a streaming tool result:
-        // length changes -> guaranteed miss -> reparse + store.
-        output += '\x1b[32mstreaming tick line\x1b[0m\n';
-        spans = AnsiSpanCache.instance.parse(output).length;
-      },
-      iterations: 40,
-    );
+    reporter.measureSync('ansi_parse_20kb_cached_miss_growing', () {
+      // Output grows every iteration like a streaming tool result:
+      // length changes -> guaranteed miss -> reparse + store.
+      output += '\x1b[32mstreaming tick line\x1b[0m\n';
+      spans = AnsiSpanCache.instance.parse(output).length;
+    }, iterations: 40);
     expect(spans, greaterThan(0));
   });
 
@@ -160,8 +147,7 @@ void main() {
     // the production wire rows (0x00 version byte + base64 envelope).
     final pairs = makeTranscriptPairs(500);
     final encryptor = AES256Encryption(key);
-    final ciphers =
-        await encryptor.encrypt(pairs.map((p) => p.plain).toList());
+    final ciphers = await encryptor.encrypt(pairs.map((p) => p.plain).toList());
     final rows = <Map<String, dynamic>>[];
     for (var i = 0; i < pairs.length; i++) {
       final w = Map<String, dynamic>.of(pairs[i].wire);
@@ -225,8 +211,8 @@ void main() {
       'aes_stage_utf8_json_decode_500',
       () {
         for (final bytes in plainBytes) {
-          sink += (jsonDecode(utf8.decode(bytes)) as Map<dynamic, dynamic>)
-              .length;
+          sink +=
+              (jsonDecode(utf8.decode(bytes)) as Map<dynamic, dynamic>).length;
         }
       },
       iterations: 10,
@@ -279,8 +265,9 @@ void main() {
     await reporter.measure(
       'aes_stage_decoded_copyout_500',
       () async {
-        final copy = await Isolate.run(() => pairs.map((p) => p.plain)
-            .toList());
+        final copy = await Isolate.run(
+          () => pairs.map((p) => p.plain).toList(),
+        );
         sink += copy.length;
       },
       iterations: 8,

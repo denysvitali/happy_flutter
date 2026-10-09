@@ -108,43 +108,40 @@ void main() {
       expect(session.thinking, true);
     });
 
-    test(
-      'known update-session with simple fields does not fetch sessions',
-      () {
-        fakeAsync((async) {
-          instance.testSessions['session_1'] = Session(
-            id: 'session_1',
-            seq: 1,
-            createdAt: 0,
-            updatedAt: 0,
-            active: true,
-            activeAt: 0,
-            metadataVersion: 0,
-            agentStateVersion: 0,
-            thinking: false,
-            presence: 'offline',
-          );
+    test('known update-session with simple fields does not fetch sessions', () {
+      fakeAsync((async) {
+        instance.testSessions['session_1'] = Session(
+          id: 'session_1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: 0,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'offline',
+        );
 
-          instance.handleUpdate({
-            't': 'update-session',
-            'id': 'session_1',
-            'presence': 'online',
-            'thinking': true,
-            'lastSeq': 7,
-          });
-
-          // Outlast the 2s sessions-refresh debounce (virtual clock).
-          async.elapse(const Duration(milliseconds: 2500));
-          async.flushMicrotasks();
-
-          final session = instance.testSessions['session_1']!;
-          expect(session.presence, 'online');
-          expect(session.thinking, true);
-          expect(session.lastSeq, 7);
-          expect(sessionsInvalidations, 0);
+        instance.handleUpdate({
+          't': 'update-session',
+          'id': 'session_1',
+          'presence': 'online',
+          'thinking': true,
+          'lastSeq': 7,
         });
-      },
-    );
+
+        // Outlast the 2s sessions-refresh debounce (virtual clock).
+        async.elapse(const Duration(milliseconds: 2500));
+        async.flushMicrotasks();
+
+        final session = instance.testSessions['session_1']!;
+        expect(session.presence, 'online');
+        expect(session.thinking, true);
+        expect(session.lastSeq, 7);
+        expect(sessionsInvalidations, 0);
+      });
+    });
 
     test(
       'new-message marks non-visible session dirty when only id is present',
@@ -207,44 +204,38 @@ void main() {
       },
     );
 
-    test(
-      'update-session bursts are debounced into one sessions refresh',
-      () {
-        fakeAsync((async) {
-          instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
-          instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
-          instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+    test('update-session bursts are debounced into one sessions refresh', () {
+      fakeAsync((async) {
+        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
+        instance.handleUpdate({'t': 'update-session', 'id': 'unknown_1'});
 
-          // _sessionsRefreshDebounce is 2s; elapse long enough for it to
-          // fire on the virtual clock.
-          async.elapse(const Duration(milliseconds: 2500));
-          async.flushMicrotasks();
+        // _sessionsRefreshDebounce is 2s; elapse long enough for it to
+        // fire on the virtual clock.
+        async.elapse(const Duration(milliseconds: 2500));
+        async.flushMicrotasks();
 
-          expect(sessionsInvalidations, 1);
-        });
-      },
-    );
+        expect(sessionsInvalidations, 1);
+      });
+    });
 
-    test(
-      'new-session bursts are debounced into one refresh when ready',
-      () {
-        fakeAsync((async) {
-          instance.encryption = _TestEncryption(
-            sessions: {'session_1': _NoopSessionEncryption()},
-          );
+    test('new-session bursts are debounced into one refresh when ready', () {
+      fakeAsync((async) {
+        instance.encryption = _TestEncryption(
+          sessions: {'session_1': _NoopSessionEncryption()},
+        );
 
-          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
-          instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
+        instance.handleUpdate({'t': 'new-session', 'id': 'session_1'});
 
-          async.elapse(const Duration(milliseconds: 2500));
-          async.flushMicrotasks();
+        async.elapse(const Duration(milliseconds: 2500));
+        async.flushMicrotasks();
 
-          expect(sessionsInvalidations, 1);
-          expect(instance.testForceFullFetchNext, false);
-        });
-      },
-    );
+        expect(sessionsInvalidations, 1);
+        expect(instance.testForceFullFetchNext, false);
+      });
+    });
 
     test(
       'new-session triggers one recovery full fetch when encryption missing',
@@ -469,47 +460,44 @@ void main() {
       expect(session.thinkingAt, 1234);
     });
 
-    test(
-      'unchanged ephemeral heartbeats do not notify session listeners',
-      () {
-        // Runs on a virtual clock so trailing debounced notifications
-        // leaked from earlier tests on the shared singleton (real timers)
-        // cannot fire into this subscription, and the 250ms notify window
-        // elapses without sleeping.
-        fakeAsync((async) {
-          final instance = Sync();
-          instance.testSessions['s1'] = Session(
-            id: 's1',
-            seq: 1,
-            createdAt: 0,
-            updatedAt: 0,
-            active: true,
-            activeAt: 0,
-            metadataVersion: 0,
-            agentStateVersion: 0,
-            thinking: false,
-            presence: 'online',
-          );
+    test('unchanged ephemeral heartbeats do not notify session listeners', () {
+      // Runs on a virtual clock so trailing debounced notifications
+      // leaked from earlier tests on the shared singleton (real timers)
+      // cannot fire into this subscription, and the 250ms notify window
+      // elapses without sleeping.
+      fakeAsync((async) {
+        final instance = Sync();
+        instance.testSessions['s1'] = Session(
+          id: 's1',
+          seq: 1,
+          createdAt: 0,
+          updatedAt: 0,
+          active: true,
+          activeAt: 0,
+          metadataVersion: 0,
+          agentStateVersion: 0,
+          thinking: false,
+          presence: 'online',
+        );
 
-          var notifications = 0;
-          final subscription = instance.onDomainChanged
-              .where((domain) => domain == SyncDomain.sessions)
-              .listen((_) => notifications++);
+        var notifications = 0;
+        final subscription = instance.onDomainChanged
+            .where((domain) => domain == SyncDomain.sessions)
+            .listen((_) => notifications++);
 
-          instance.handleEphemeralUpdate({
-            'type': 'activity',
-            'id': 's1',
-            'thinking': false,
-            'active': true,
-          });
-          async.elapse(const Duration(milliseconds: 300));
-
-          expect(notifications, 0);
-          expect(instance.testLastEphemeralAt['s1'], isNotNull);
-          subscription.cancel();
+        instance.handleEphemeralUpdate({
+          'type': 'activity',
+          'id': 's1',
+          'thinking': false,
+          'active': true,
         });
-      },
-    );
+        async.elapse(const Duration(milliseconds: 300));
+
+        expect(notifications, 0);
+        expect(instance.testLastEphemeralAt['s1'], isNotNull);
+        subscription.cancel();
+      });
+    });
 
     test('ignores ephemeral heartbeats while backgrounded', () {
       final instance = Sync();
@@ -1429,35 +1417,36 @@ void main() {
       expect(instance.getLastMessagePreview('s1'), 'actual response');
     });
 
-    test('timestamp follows the preview row, not a trailing thinking block',
-        () {
-      instance.testSetSessionMessages('s1', [
-        {
-          'role': 'agent',
-          'kind': 'text',
-          'content': 'actual response',
-          'createdAt': 1_700_000_000_000,
-        },
-        {
-          'role': 'agent',
-          'kind': 'text',
-          'content': '*Thinking...*',
-          'isThinking': true,
-          'createdAt': DateTime.now().millisecondsSinceEpoch,
-        },
-        {
-          'role': 'agent',
-          'kind': 'agent-event',
-          'content': '',
-          'createdAt': DateTime.now().millisecondsSinceEpoch,
-        },
-      ]);
-      expect(instance.getLastMessagePreview('s1'), 'actual response');
-      expect(instance.getLastMessageTimestamp('s1'), 1_700_000_000_000);
-    });
+    test(
+      'timestamp follows the preview row, not a trailing thinking block',
+      () {
+        instance.testSetSessionMessages('s1', [
+          {
+            'role': 'agent',
+            'kind': 'text',
+            'content': 'actual response',
+            'createdAt': 1_700_000_000_000,
+          },
+          {
+            'role': 'agent',
+            'kind': 'text',
+            'content': '*Thinking...*',
+            'isThinking': true,
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+          },
+          {
+            'role': 'agent',
+            'kind': 'agent-event',
+            'content': '',
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+          },
+        ]);
+        expect(instance.getLastMessagePreview('s1'), 'actual response');
+        expect(instance.getLastMessageTimestamp('s1'), 1_700_000_000_000);
+      },
+    );
 
-    test('timestamp uses the tool-call fallback when that is the preview',
-        () {
+    test('timestamp uses the tool-call fallback when that is the preview', () {
       instance.testSetSessionMessages('s1', [
         {
           'role': 'agent',

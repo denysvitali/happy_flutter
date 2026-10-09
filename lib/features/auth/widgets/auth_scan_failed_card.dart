@@ -5,16 +5,12 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_tokens.dart';
 import 'round_button.dart';
 
-
 /// Calm illustrated card shown when QR approval fails.
 ///
 /// Displays a tinted icon, a headline, reassuring body
 /// copy, and a filled primary retry button.
 class ScanFailedCard extends StatelessWidget {
-  const ScanFailedCard({
-    required this.theme,
-    required this.onTryAgain,
-  });
+  const ScanFailedCard({required this.theme, required this.onTryAgain});
 
   final ThemeData theme;
   final VoidCallback onTryAgain;
@@ -29,13 +25,9 @@ class ScanFailedCard extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(
-          AppRadius.lg,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: scheme.outlineVariant.withValues(
-            alpha: AppOpacity.subtle,
-          ),
+          color: scheme.outlineVariant.withValues(alpha: AppOpacity.subtle),
         ),
       ),
       child: Column(
@@ -51,36 +43,26 @@ class ScanFailedCard extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: [
                   scheme.errorContainer,
-                  scheme.errorContainer.withValues(
-                    alpha: AppOpacity.high,
-                  ),
+                  scheme.errorContainer.withValues(alpha: AppOpacity.high),
                 ],
               ),
-              borderRadius: BorderRadius.circular(
-                AppRadius.pill,
-              ),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
               border: Border.all(
-                color: scheme.error.withValues(
-                  alpha: AppOpacity.subtle,
-                ),
+                color: scheme.error.withValues(alpha: AppOpacity.subtle),
                 width: AppBorder.hairline,
               ),
             ),
             child: Icon(
               Icons.qr_code_scanner_rounded,
               size: iconSize,
-              color: scheme.onErrorContainer
-                  .withValues(
-                alpha: AppOpacity.high,
-              ),
+              color: scheme.onErrorContainer.withValues(alpha: AppOpacity.high),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
           // Headline.
           Text(
             context.l10n.authApprovalFailedTitle,
-            style: theme.textTheme.titleMedium
-                ?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
             textAlign: TextAlign.center,
@@ -89,8 +71,7 @@ class ScanFailedCard extends StatelessWidget {
           // Body copy.
           Text(
             context.l10n.authApprovalFailedBody,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(
+            style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
               height: 1.5,
             ),

@@ -126,11 +126,7 @@ class LoopCard extends StatelessWidget {
                   style: AppText.secondary(theme, cs.onSurfaceVariant),
                 ),
                 const SizedBox(width: AppSpacing.lg),
-                Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: cs.onSurfaceVariant,
-                ),
+                Icon(Icons.access_time, size: 16, color: cs.onSurfaceVariant),
                 const SizedBox(width: AppSpacing.xxs),
                 Expanded(
                   child: Text(
@@ -144,7 +140,10 @@ class LoopCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Text(
               _expiresLabel(l10n),
-              style: AppText.secondary(theme, _isExpired ? cs.error : cs.onSurfaceVariant),
+              style: AppText.secondary(
+                theme,
+                _isExpired ? cs.error : cs.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             Row(
@@ -249,10 +248,7 @@ class _StatusChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: fg),
           const SizedBox(width: AppSpacing.xxs),
-          Text(
-            label,
-            style: AppText.label(theme, fg),
-          ),
+          Text(label, style: AppText.label(theme, fg)),
         ],
       ),
     );

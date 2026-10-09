@@ -77,8 +77,9 @@ void main() {
     expect(find.text('8 agents · 178k tokens · 167 tools'), findsOneWidget);
   });
 
-  testWidgets('shows a live indicator for a running run without details',
-      (tester) async {
+  testWidgets('shows a live indicator for a running run without details', (
+    tester,
+  ) async {
     // Mirrors the reported empty card: a background run that has been
     // launched (async_launched) but whose snapshot is not rich yet must read
     // as live, not as the misleading "No progress details".
@@ -98,9 +99,7 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('queued run shows static wait copy, no spinner', (
-    tester,
-  ) async {
+  testWidgets('queued run shows static wait copy, no spinner', (tester) async {
     await tester.pumpWidget(
       _harness(_run(runId: 'wf_q', name: 'wf_q', status: 'queued')),
     );

@@ -34,15 +34,10 @@ void main() {
 
         for (var i = 0; i < count; i++) {
           wireMessages.add(
-            await _encryptedWireMessage(
-              encryptor,
-              'msg-$i',
-              i + 1,
-              {
-                'role': 'user',
-                'content': {'type': 'text', 'text': 'Hello $i'},
-              },
-            ),
+            await _encryptedWireMessage(encryptor, 'msg-$i', i + 1, {
+              'role': 'user',
+              'content': {'type': 'text', 'text': 'Hello $i'},
+            }),
           );
         }
 
@@ -66,15 +61,10 @@ void main() {
 
         for (var i = 0; i < ids.length; i++) {
           wireMessages.add(
-            await _encryptedWireMessage(
-              encryptor,
-              ids[i],
-              seqs[i],
-              {
-                'role': 'user',
-                'content': {'type': 'text', 'text': 'Message $i'},
-              },
-            ),
+            await _encryptedWireMessage(encryptor, ids[i], seqs[i], {
+              'role': 'user',
+              'content': {'type': 'text', 'text': 'Message $i'},
+            }),
           );
         }
 
@@ -116,15 +106,10 @@ void main() {
 
         for (var i = 0; i < count; i++) {
           wireMessages.add(
-            await _encryptedWireMessage(
-              encryptor,
-              'batch-msg-$i',
-              i + 1,
-              {
-                'role': 'user',
-                'content': {'type': 'text', 'text': 'Batch message $i'},
-              },
-            ),
+            await _encryptedWireMessage(encryptor, 'batch-msg-$i', i + 1, {
+              'role': 'user',
+              'content': {'type': 'text', 'text': 'Batch message $i'},
+            }),
           );
         }
 
@@ -174,9 +159,7 @@ void main() {
 
 Uint8List _generateKey() {
   final random = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(32, (_) => random.nextInt(256)),
-  );
+  return Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
 }
 
 /// Build a wire-format message map with AES-256-GCM-encrypted content.

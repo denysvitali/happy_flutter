@@ -497,7 +497,10 @@ class _SessionsListContentState extends ConsumerState<SessionsListContent>
           const SizedBox(height: AppSpacing.xl),
           Text(
             l10n.sessionsNoSearchResults,
-            style: AppText.title(Theme.of(context), cs.onSurfaceVariant.withValues(alpha: AppOpacity.half)),
+            style: AppText.title(
+              Theme.of(context),
+              cs.onSurfaceVariant.withValues(alpha: AppOpacity.half),
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           TextButton.icon(

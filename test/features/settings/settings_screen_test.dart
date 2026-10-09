@@ -95,10 +95,7 @@ Widget _buildRouterApp(Settings initialSettings) {
   final router = GoRouter(
     initialLocation: '/settings',
     routes: [
-      GoRoute(
-        path: '/settings',
-        builder: (_, _) => const SettingsScreen(),
-      ),
+      GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
       GoRoute(
         path: '/settings/server',
         // NavRouteRowSpec taps call context.pushNamed, so the harness

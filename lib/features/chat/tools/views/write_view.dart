@@ -87,7 +87,11 @@ class _WriteViewState extends State<WriteView> {
                   color: cs.surfaceContainerHighest,
                   child: Row(
                     children: [
-                      Icon(Icons.code, size: AppIconSize.sm, color: cs.onSurfaceVariant),
+                      Icon(
+                        Icons.code,
+                        size: AppIconSize.sm,
+                        color: cs.onSurfaceVariant,
+                      ),
                       const SizedBox(width: AppSpacing.xsm),
                       Text(
                         _languageHint(filePath),

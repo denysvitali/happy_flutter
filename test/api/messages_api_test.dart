@@ -44,10 +44,7 @@ void main() {
         verify(
           mockClient.get(
             '/v3/sessions/sess-123/messages',
-            queryParameters: {
-              'after_seq': 0,
-              'limit': 100,
-            },
+            queryParameters: {'after_seq': 0, 'limit': 100},
             options: anyNamed('options'),
           ),
         ).called(1);
@@ -70,13 +67,15 @@ void main() {
 
         await api.fetchMessages('sess-123', afterSeq: 0);
 
-        final captured = verify(
-          mockClient.get(
-            '/v3/sessions/sess-123/messages',
-            queryParameters: anyNamed('queryParameters'),
-            options: captureAnyNamed('options'),
-          ),
-        ).captured.single as Options;
+        final captured =
+            verify(
+                  mockClient.get(
+                    '/v3/sessions/sess-123/messages',
+                    queryParameters: anyNamed('queryParameters'),
+                    options: captureAnyNamed('options'),
+                  ),
+                ).captured.single
+                as Options;
 
         expect(captured.extra?['bypassCache'], isTrue);
       });
@@ -96,26 +95,18 @@ void main() {
           }, 200),
         );
 
-        await api.fetchMessages(
-          'sess-456',
-          afterSeq: 10,
-          limit: 50,
-        );
+        await api.fetchMessages('sess-456', afterSeq: 10, limit: 50);
 
         verify(
           mockClient.get(
             '/v3/sessions/sess-456/messages',
-            queryParameters: {
-              'after_seq': 10,
-              'limit': 50,
-            },
+            queryParameters: {'after_seq': 10, 'limit': 50},
             options: anyNamed('options'),
           ),
         ).called(1);
       });
 
-      test('returns messages and hasMore from response',
-          () async {
+      test('returns messages and hasMore from response', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
         when(
           mockClient.get(
@@ -126,25 +117,14 @@ void main() {
         ).thenAnswer(
           (_) async => _response({
             'messages': [
-              {
-                'id': 'msg-1',
-                'content': 'hello',
-                'seq': 1,
-              },
-              {
-                'id': 'msg-2',
-                'content': 'world',
-                'seq': 2,
-              },
+              {'id': 'msg-1', 'content': 'hello', 'seq': 1},
+              {'id': 'msg-2', 'content': 'world', 'seq': 2},
             ],
             'hasMore': true,
           }, 200),
         );
 
-        final result = await api.fetchMessages(
-          'sess-1',
-          afterSeq: 0,
-        );
+        final result = await api.fetchMessages('sess-1', afterSeq: 0);
 
         expect(result.messages, hasLength(2));
         expect(result.messages[0]['id'], 'msg-1');
@@ -152,8 +132,7 @@ void main() {
         expect(result.hasMore, isTrue);
       });
 
-      test('returns empty messages when none exist',
-          () async {
+      test('returns empty messages when none exist', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
         when(
           mockClient.get(
@@ -168,17 +147,13 @@ void main() {
           }, 200),
         );
 
-        final result = await api.fetchMessages(
-          'sess-empty',
-          afterSeq: 0,
-        );
+        final result = await api.fetchMessages('sess-empty', afterSeq: 0);
 
         expect(result.messages, isEmpty);
         expect(result.hasMore, isFalse);
       });
 
-      test('handles missing messages key gracefully',
-          () async {
+      test('handles missing messages key gracefully', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
         when(
           mockClient.get(
@@ -186,14 +161,9 @@ void main() {
             queryParameters: anyNamed('queryParameters'),
             options: anyNamed('options'),
           ),
-        ).thenAnswer(
-          (_) async => _response(<String, dynamic>{}, 200),
-        );
+        ).thenAnswer((_) async => _response(<String, dynamic>{}, 200));
 
-        final result = await api.fetchMessages(
-          'sess-1',
-          afterSeq: 0,
-        );
+        final result = await api.fetchMessages('sess-1', afterSeq: 0);
 
         expect(result.messages, isEmpty);
         expect(result.hasMore, isFalse);
@@ -207,19 +177,13 @@ void main() {
             queryParameters: anyNamed('queryParameters'),
             options: anyNamed('options'),
           ),
-        ).thenAnswer(
-          (_) async => _response({'error': 'bad request'}, 400),
-        );
+        ).thenAnswer((_) async => _response({'error': 'bad request'}, 400));
 
         expect(
           () => api.fetchMessages('sess-1', afterSeq: 0),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  400,
-                )
+                .having((e) => e.statusCode, 'statusCode', 400)
                 .having(
                   (e) => e.message,
                   'message',
@@ -237,19 +201,13 @@ void main() {
             queryParameters: anyNamed('queryParameters'),
             options: anyNamed('options'),
           ),
-        ).thenAnswer(
-          (_) async => _response({'error': 'not found'}, 404),
-        );
+        ).thenAnswer((_) async => _response({'error': 'not found'}, 404));
 
         expect(
           () => api.fetchMessages('sess-gone', afterSeq: 0),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  404,
-                )
+                .having((e) => e.statusCode, 'statusCode', 404)
                 .having(
                   (e) => e.message,
                   'message',
@@ -267,20 +225,13 @@ void main() {
             queryParameters: anyNamed('queryParameters'),
             options: anyNamed('options'),
           ),
-        ).thenAnswer(
-          (_) async =>
-              _response({'error': 'internal error'}, 500),
-        );
+        ).thenAnswer((_) async => _response({'error': 'internal error'}, 500));
 
         expect(
           () => api.fetchMessages('sess-1', afterSeq: 0),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  500,
-                )
+                .having((e) => e.statusCode, 'statusCode', 500)
                 .having(
                   (e) => e.message,
                   'message',
@@ -294,9 +245,7 @@ void main() {
     group('sendMessage', () {
       test('sends correct POST body structure', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
-        when(
-          mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
           (_) async => _response({
             'messages': [
               {
@@ -320,10 +269,7 @@ void main() {
             '/v3/sessions/sess-123/messages',
             data: {
               'messages': [
-                {
-                  'content': 'encrypted-data',
-                  'localId': 'local-1',
-                },
+                {'content': 'encrypted-data', 'localId': 'local-1'},
               ],
             },
           ),
@@ -332,24 +278,15 @@ void main() {
 
       test('omits localId from body when null', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
-        when(
-          mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
           (_) async => _response({
             'messages': [
-              {
-                'id': 'server-msg-2',
-                'seq': 1,
-                'createdAt': 1700000000000,
-              },
+              {'id': 'server-msg-2', 'seq': 1, 'createdAt': 1700000000000},
             ],
           }, 200),
         );
 
-        await api.sendMessage(
-          'sess-123',
-          encryptedContent: 'encrypted-data',
-        );
+        await api.sendMessage('sess-123', encryptedContent: 'encrypted-data');
 
         verify(
           mockClient.post(
@@ -363,12 +300,9 @@ void main() {
         ).called(1);
       });
 
-      test('returns parsed response with server data',
-          () async {
+      test('returns parsed response with server data', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
-        when(
-          mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
           (_) async => _response({
             'messages': [
               {
@@ -393,23 +327,15 @@ void main() {
         expect(result.localId, 'local-1');
       });
 
-      test(
-          'throws when server returns empty messages '
+      test('throws when server returns empty messages '
           'list', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
-        when(
-          mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
-          (_) async => _response({
-            'messages': <Map<String, dynamic>>[],
-          }, 200),
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
+          (_) async => _response({'messages': <Map<String, dynamic>>[]}, 200),
         );
 
         expect(
-          () => api.sendMessage(
-            'sess-123',
-            encryptedContent: 'encrypted-data',
-          ),
+          () => api.sendMessage('sess-123', encryptedContent: 'encrypted-data'),
           throwsA(
             isA<MessagesApiException>().having(
               (e) => e.message,
@@ -424,22 +350,13 @@ void main() {
         when(mockClient.isSuccess(any)).thenReturn(false);
         when(
           mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
-          (_) async => _response({'error': 'bad request'}, 400),
-        );
+        ).thenAnswer((_) async => _response({'error': 'bad request'}, 400));
 
         expect(
-          () => api.sendMessage(
-            'sess-123',
-            encryptedContent: 'encrypted-data',
-          ),
+          () => api.sendMessage('sess-123', encryptedContent: 'encrypted-data'),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  400,
-                )
+                .having((e) => e.statusCode, 'statusCode', 400)
                 .having(
                   (e) => e.message,
                   'message',
@@ -453,22 +370,14 @@ void main() {
         when(mockClient.isSuccess(any)).thenReturn(false);
         when(
           mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
-          (_) async => _response({'error': 'not found'}, 404),
-        );
+        ).thenAnswer((_) async => _response({'error': 'not found'}, 404));
 
         expect(
-          () => api.sendMessage(
-            'sess-gone',
-            encryptedContent: 'encrypted-data',
-          ),
+          () =>
+              api.sendMessage('sess-gone', encryptedContent: 'encrypted-data'),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  404,
-                )
+                .having((e) => e.statusCode, 'statusCode', 404)
                 .having(
                   (e) => e.message,
                   'message',
@@ -482,23 +391,13 @@ void main() {
         when(mockClient.isSuccess(any)).thenReturn(false);
         when(
           mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
-          (_) async =>
-              _response({'error': 'internal error'}, 500),
-        );
+        ).thenAnswer((_) async => _response({'error': 'internal error'}, 500));
 
         expect(
-          () => api.sendMessage(
-            'sess-123',
-            encryptedContent: 'encrypted-data',
-          ),
+          () => api.sendMessage('sess-123', encryptedContent: 'encrypted-data'),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  500,
-                )
+                .having((e) => e.statusCode, 'statusCode', 500)
                 .having(
                   (e) => e.message,
                   'message',
@@ -510,12 +409,9 @@ void main() {
     });
 
     group('sendMessagesBatch', () {
-      test('sends correct POST body for multiple messages',
-          () async {
+      test('sends correct POST body for multiple messages', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
-        when(
-          mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
           (_) async => _response({
             'messages': [
               {
@@ -524,11 +420,7 @@ void main() {
                 'createdAt': 1700000000000,
                 'localId': 'loc-1',
               },
-              {
-                'id': 'srv-2',
-                'seq': 2,
-                'createdAt': 1700000001000,
-              },
+              {'id': 'srv-2', 'seq': 2, 'createdAt': 1700000001000},
             ],
           }, 200),
         );
@@ -540,9 +432,7 @@ void main() {
               encryptedContent: 'enc-1',
               localId: 'loc-1',
             ),
-            const SendMessageRequest(
-              encryptedContent: 'enc-2',
-            ),
+            const SendMessageRequest(encryptedContent: 'enc-2'),
           ],
         );
 
@@ -551,10 +441,7 @@ void main() {
             '/v3/sessions/sess-123/messages',
             data: {
               'messages': [
-                {
-                  'content': 'enc-1',
-                  'localId': 'loc-1',
-                },
+                {'content': 'enc-1', 'localId': 'loc-1'},
                 {'content': 'enc-2'},
               ],
             },
@@ -562,12 +449,9 @@ void main() {
         ).called(1);
       });
 
-      test('returns parsed responses for each message',
-          () async {
+      test('returns parsed responses for each message', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
-        when(
-          mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
           (_) async => _response({
             'messages': [
               {
@@ -576,11 +460,7 @@ void main() {
                 'createdAt': 1700000000000,
                 'localId': 'loc-1',
               },
-              {
-                'id': 'srv-2',
-                'seq': 11,
-                'createdAt': 1700000001000,
-              },
+              {'id': 'srv-2', 'seq': 11, 'createdAt': 1700000001000},
             ],
           }, 200),
         );
@@ -592,9 +472,7 @@ void main() {
               encryptedContent: 'enc-1',
               localId: 'loc-1',
             ),
-            const SendMessageRequest(
-              encryptedContent: 'enc-2',
-            ),
+            const SendMessageRequest(encryptedContent: 'enc-2'),
           ],
         );
 
@@ -609,35 +487,22 @@ void main() {
       });
 
       test('returns empty list for empty input', () async {
-        final results = await api.sendMessagesBatch(
-          'sess-123',
-          messages: [],
-        );
+        final results = await api.sendMessagesBatch('sess-123', messages: []);
 
         expect(results, isEmpty);
-        verifyNever(
-          mockClient.post(any, data: anyNamed('data')),
-        );
+        verifyNever(mockClient.post(any, data: anyNamed('data')));
       });
 
       test('returns empty list when server returns no '
           'messages', () async {
         when(mockClient.isSuccess(any)).thenReturn(true);
-        when(
-          mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
-          (_) async => _response({
-            'messages': <Map<String, dynamic>>[],
-          }, 200),
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
+          (_) async => _response({'messages': <Map<String, dynamic>>[]}, 200),
         );
 
         final results = await api.sendMessagesBatch(
           'sess-123',
-          messages: [
-            const SendMessageRequest(
-              encryptedContent: 'enc-1',
-            ),
-          ],
+          messages: [const SendMessageRequest(encryptedContent: 'enc-1')],
         );
 
         expect(results, isEmpty);
@@ -647,26 +512,16 @@ void main() {
         when(mockClient.isSuccess(any)).thenReturn(false);
         when(
           mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
-          (_) async => _response({'error': 'bad request'}, 400),
-        );
+        ).thenAnswer((_) async => _response({'error': 'bad request'}, 400));
 
         expect(
           () => api.sendMessagesBatch(
             'sess-123',
-            messages: [
-              const SendMessageRequest(
-                encryptedContent: 'enc-1',
-              ),
-            ],
+            messages: [const SendMessageRequest(encryptedContent: 'enc-1')],
           ),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  400,
-                )
+                .having((e) => e.statusCode, 'statusCode', 400)
                 .having(
                   (e) => e.message,
                   'message',
@@ -680,27 +535,16 @@ void main() {
         when(mockClient.isSuccess(any)).thenReturn(false);
         when(
           mockClient.post(any, data: anyNamed('data')),
-        ).thenAnswer(
-          (_) async =>
-              _response({'error': 'internal error'}, 500),
-        );
+        ).thenAnswer((_) async => _response({'error': 'internal error'}, 500));
 
         expect(
           () => api.sendMessagesBatch(
             'sess-123',
-            messages: [
-              const SendMessageRequest(
-                encryptedContent: 'enc-1',
-              ),
-            ],
+            messages: [const SendMessageRequest(encryptedContent: 'enc-1')],
           ),
           throwsA(
             isA<MessagesApiException>()
-                .having(
-                  (e) => e.statusCode,
-                  'statusCode',
-                  500,
-                )
+                .having((e) => e.statusCode, 'statusCode', 500)
                 .having(
                   (e) => e.message,
                   'message',
@@ -713,32 +557,17 @@ void main() {
 
     group('MessagesApiException', () {
       test('has correct properties', () {
-        const exception = MessagesApiException(
-          'Test error',
-          statusCode: 500,
-        );
+        const exception = MessagesApiException('Test error', statusCode: 500);
 
         expect(exception.message, 'Test error');
         expect(exception.statusCode, 500);
-        expect(
-          exception.toString(),
-          'MessagesApiException: Test error',
-        );
+        expect(exception.toString(), 'MessagesApiException: Test error');
       });
 
       test('implements equality', () {
-        const e1 = MessagesApiException(
-          'Error',
-          statusCode: 500,
-        );
-        const e2 = MessagesApiException(
-          'Error',
-          statusCode: 500,
-        );
-        const e3 = MessagesApiException(
-          'Different',
-          statusCode: 500,
-        );
+        const e1 = MessagesApiException('Error', statusCode: 500);
+        const e2 = MessagesApiException('Error', statusCode: 500);
+        const e3 = MessagesApiException('Different', statusCode: 500);
 
         expect(e1, equals(e2));
         expect(e1, isNot(equals(e3)));

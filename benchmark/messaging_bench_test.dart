@@ -51,106 +51,116 @@ void main() {
 
   tearDownAll(() => reporter.finish());
 
-  test('socket inline ingest: batches of 100 encrypted new-message events',
-      () async {
-    const sessionId = 'bench-ingest';
-    const batch = 100;
-    // Keep any inline-path HTTP fallback from leaving the mock backend
-    // (mirrors the integration suite's guard).
-    sync.testFetchMessagesOverride =
-        (_, __, ___) async => <String, dynamic>{
-              'messages': <Map<String, dynamic>>[],
-              'hasMore': false,
-            };
+  test(
+    'socket inline ingest: batches of 100 encrypted new-message events',
+    () async {
+      const sessionId = 'bench-ingest';
+      const batch = 100;
+      // Keep any inline-path HTTP fallback from leaving the mock backend
+      // (mirrors the integration suite's guard).
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <Map<String, dynamic>>[],
+        'hasMore': false,
+      };
 
-    // Seed once; every round appends contiguously onto the growing
-    // transcript so the inline path sees a gap-free chain (a per-round
-    // reset would make the cursor logic schedule endless catch-up
-    // fetches against the always-empty override).
-    _seedSession(sync, sessionId, lastSeq: 0, visible: true);
-    var injected = 0;
+      // Seed once; every round appends contiguously onto the growing
+      // transcript so the inline path sees a gap-free chain (a per-round
+      // reset would make the cursor logic schedule endless catch-up
+      // fetches against the always-empty override).
+      _seedSession(sync, sessionId, lastSeq: 0, visible: true);
+      var injected = 0;
 
-    Future<double> injectRound() async {
-      final base = injected;
-      final messages = makeTranscript(batch);
+      Future<double> injectRound() async {
+        final base = injected;
+        final messages = makeTranscript(batch);
+        for (var i = 0; i < messages.length; i++) {
+          messages[i]['seq'] = base + i + 1;
+          messages[i]['id'] = 'bench-ingest-$base-$i';
+        }
+        final watch = Stopwatch()..start();
+        for (final m in messages) {
+          unawaited(
+            sync.handleUpdate(<String, dynamic>{
+              't': 'new-message',
+              'sid': sessionId,
+              'message': m,
+            }),
+          );
+        }
+        injected += batch;
+        await _waitForMessageCount(sync, sessionId, injected);
+        watch.stop();
+        return watch.elapsedMicroseconds / 1000.0;
+      }
+
+      await reporter.measureTimed(
+        'socket_inline_ingest_100',
+        injectRound,
+        iterations: 6,
+        warmup: 2,
+        opsPerIteration: batch,
+      );
+
+      final resident = sync.testSessionMessages(sessionId);
+      expect(resident, isNotNull, reason: 'ingest must leave rows resident');
+      expect(
+        resident!.length,
+        greaterThanOrEqualTo(batch),
+        reason: 'ingest bench must have merged its batch',
+      );
+    },
+  );
+
+  test(
+    'socket inline ingest: 500-message burst into a fresh visible session',
+    () async {
+      const sessionId = 'bench-ingest-500';
+      const burst = 500;
+      sync.testFetchMessagesOverride = (_, __, ___) async => <String, dynamic>{
+        'messages': <Map<String, dynamic>>[],
+        'hasMore': false,
+      };
+
+      _seedSession(sync, sessionId, lastSeq: 0, visible: true);
+
+      final messages = makeTranscript(burst);
       for (var i = 0; i < messages.length; i++) {
-        messages[i]['seq'] = base + i + 1;
-        messages[i]['id'] = 'bench-ingest-$base-$i';
+        messages[i]['seq'] = i + 1;
+        messages[i]['id'] = 'bench-ingest-500-$i';
       }
       final watch = Stopwatch()..start();
       for (final m in messages) {
-        unawaited(sync.handleUpdate(<String, dynamic>{
-          't': 'new-message',
-          'sid': sessionId,
-          'message': m,
-        }));
+        unawaited(
+          sync.handleUpdate(<String, dynamic>{
+            't': 'new-message',
+            'sid': sessionId,
+            'message': m,
+          }),
+        );
       }
-      injected += batch;
-      await _waitForMessageCount(sync, sessionId, injected);
+      await _waitForMessageCount(sync, sessionId, burst);
       watch.stop();
-      return watch.elapsedMicroseconds / 1000.0;
-    }
+      final elapsedMs = watch.elapsedMicroseconds / 1000.0;
 
-    await reporter.measureTimed(
-      'socket_inline_ingest_100',
-      injectRound,
-      iterations: 6,
-      warmup: 2,
-      opsPerIteration: batch,
-    );
+      final resident = sync.testSessionMessages(sessionId);
+      expect(
+        resident!.length,
+        greaterThanOrEqualTo(burst),
+        reason: 'burst bench must have merged its whole burst',
+      );
+      // Report through the same timed-scenario shape so the job summary
+      // pipeline picks the number up.
+      await reporter.measureTimed(
+        'socket_inline_ingest_500_burst',
+        () async => elapsedMs,
+        iterations: 1,
+        warmup: 0,
+        opsPerIteration: burst,
+      );
+    },
+  );
 
-    final resident = sync.testSessionMessages(sessionId);
-    expect(resident, isNotNull, reason: 'ingest must leave rows resident');
-    expect(resident!.length, greaterThanOrEqualTo(batch),
-        reason: 'ingest bench must have merged its batch');
-  });
-
-  test(
-      'socket inline ingest: 500-message burst into a fresh visible session',
-      () async {
-    const sessionId = 'bench-ingest-500';
-    const burst = 500;
-    sync.testFetchMessagesOverride =
-        (_, __, ___) async => <String, dynamic>{
-              'messages': <Map<String, dynamic>>[],
-              'hasMore': false,
-            };
-
-    _seedSession(sync, sessionId, lastSeq: 0, visible: true);
-
-    final messages = makeTranscript(burst);
-    for (var i = 0; i < messages.length; i++) {
-      messages[i]['seq'] = i + 1;
-      messages[i]['id'] = 'bench-ingest-500-$i';
-    }
-    final watch = Stopwatch()..start();
-    for (final m in messages) {
-      unawaited(sync.handleUpdate(<String, dynamic>{
-        't': 'new-message',
-        'sid': sessionId,
-        'message': m,
-      }));
-    }
-    await _waitForMessageCount(sync, sessionId, burst);
-    watch.stop();
-    final elapsedMs = watch.elapsedMicroseconds / 1000.0;
-
-    final resident = sync.testSessionMessages(sessionId);
-    expect(resident!.length, greaterThanOrEqualTo(burst),
-        reason: 'burst bench must have merged its whole burst');
-    // Report through the same timed-scenario shape so the job summary
-    // pipeline picks the number up.
-    await reporter.measureTimed(
-      'socket_inline_ingest_500_burst',
-      () async => elapsedMs,
-      iterations: 1,
-      warmup: 0,
-      opsPerIteration: burst,
-    );
-  });
-
-  test('REST fetch: first-load tail page of 200 encrypted messages',
-      () async {
+  test('REST fetch: first-load tail page of 200 encrypted messages', () async {
     const sessionId = 'bench-fetch';
     // Production chat-open shape: a session's first load tail-loads only
     // the newest Sync.initialLoad (200 on mobile) rows — window starts at
@@ -203,8 +213,11 @@ void main() {
     );
 
     expect(fetchedAtLeastOnce, isTrue);
-    expect(server.messageRequestLog, isNotEmpty,
-        reason: 'bench must have hit the mocked /v3 endpoint');
+    expect(
+      server.messageRequestLog,
+      isNotEmpty,
+      reason: 'bench must have hit the mocked /v3 endpoint',
+    );
   });
 }
 
@@ -231,7 +244,10 @@ void _seedSession(
   required bool visible,
   int sessionLastSeq = 10,
 }) {
-  sync.testSessions[sessionId] = _wireSession(sessionId, lastSeq: sessionLastSeq);
+  sync.testSessions[sessionId] = _wireSession(
+    sessionId,
+    lastSeq: sessionLastSeq,
+  );
   sync.testSetSessionMessages(sessionId, <Map<String, dynamic>>[]);
   sync.testSetSessionLastSeq(sessionId, lastSeq);
   if (visible) {
@@ -296,8 +312,7 @@ class _BenchEncryption implements Encryption {
   }
 
   @override
-  String generateId() =>
-      'bench-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'bench-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

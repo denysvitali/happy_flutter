@@ -26,7 +26,8 @@ Widget _wrap({
       body: ScrollEdgeFade(
         topExtent: topExtent,
         bottomExtent: bottomExtent,
-        child: child ??
+        child:
+            child ??
             const SizedBox(
               height: 200,
               width: 200,

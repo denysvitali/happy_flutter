@@ -37,9 +37,7 @@ class DeviceAnalyticsCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   deviceId,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall,
+                  style: Theme.of(context).textTheme.titleSmall,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -130,20 +128,14 @@ class AnalyticsItem extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Text(
                 value,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );

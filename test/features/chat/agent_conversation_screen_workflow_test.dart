@@ -98,24 +98,23 @@ void main() {
     await TtsService().dispose();
   });
 
-  testWidgets(
-    'embeds the workflow run (agents) instead of "No messages yet"',
-    (tester) async {
-      sync.testSetWorkflows(_sessionId, <WorkflowRun>[_runWithAgent()]);
-      final taskData = _workflowTaskData();
-      sync.testSetSessionMessages(_sessionId, <Map<String, dynamic>>[taskData]);
+  testWidgets('embeds the workflow run (agents) instead of "No messages yet"', (
+    tester,
+  ) async {
+    sync.testSetWorkflows(_sessionId, <WorkflowRun>[_runWithAgent()]);
+    final taskData = _workflowTaskData();
+    sync.testSetSessionMessages(_sessionId, <Map<String, dynamic>>[taskData]);
 
-      await tester.pumpWidget(_buildApp(taskData: taskData));
-      await tester.pump();
+    await tester.pumpWidget(_buildApp(taskData: taskData));
+    await tester.pump();
 
-      // The agent from the resolved run renders...
-      expect(find.text('recon:offsets'), findsOneWidget);
-      // ...and the dead-end empty state is gone.
-      expect(find.text('No messages yet'), findsNothing);
+    // The agent from the resolved run renders...
+    expect(find.text('recon:offsets'), findsOneWidget);
+    // ...and the dead-end empty state is gone.
+    expect(find.text('No messages yet'), findsNothing);
 
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets(
     'parses the run id from the launch receipt when no tag is present',
@@ -125,33 +124,31 @@ void main() {
       // sidechain events never grouped under it), but its tool result echoes
       // `Run ID: wf_…`. The screen must parse that id and embed the run.
       const liveRunId = 'wf_6551c046-249';
-      sync.testSetWorkflows(
-        _sessionId,
-        <WorkflowRun>[
-          WorkflowRun(
-            runId: liveRunId,
-            workflowName: 'finalize-mp-browser-rce',
-            status: 'completed',
-            workflowProgress: <WorkflowProgressEvent>[
-              WorkflowAgent(
-                agentId: 'a1',
-                label: 'recon:offsets',
-                phaseIndex: 0,
-                phaseTitle: '',
-                model: 'm',
-                state: 'done',
-              ),
-            ],
-          ),
-        ],
-      );
+      sync.testSetWorkflows(_sessionId, <WorkflowRun>[
+        WorkflowRun(
+          runId: liveRunId,
+          workflowName: 'finalize-mp-browser-rce',
+          status: 'completed',
+          workflowProgress: <WorkflowProgressEvent>[
+            WorkflowAgent(
+              agentId: 'a1',
+              label: 'recon:offsets',
+              phaseIndex: 0,
+              phaseTitle: '',
+              model: 'm',
+              state: 'done',
+            ),
+          ],
+        ),
+      ]);
       final taskData = <String, dynamic>{
         'id': _taskId,
         'kind': 'tool-call',
         'name': 'Workflow',
         'state': 'completed',
         'model': 'qwen3.8-max-preview',
-        'result': 'Workflow launched in background. Task ID: wzycqw34i '
+        'result':
+            'Workflow launched in background. Task ID: wzycqw34i '
             'Run ID: $liveRunId To resume after editing the script…',
       };
       sync.testSetSessionMessages(_sessionId, <Map<String, dynamic>>[taskData]);

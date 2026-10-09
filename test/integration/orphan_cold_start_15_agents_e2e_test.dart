@@ -35,8 +35,21 @@ void main() {
   group('orphan cold start: 15 agents @ session ~1500 msgs', () {
     // Agent seqs taken verbatim from the user's session.
     const agentSeqs = <int>[
-      5, 27, 57, 84, 118, 166, 222, 274, 313, 373,
-      417, 453, 494, 545, 612,
+      5,
+      27,
+      57,
+      84,
+      118,
+      166,
+      222,
+      274,
+      313,
+      373,
+      417,
+      453,
+      494,
+      545,
+      612,
     ];
     const sessionId = 'sess-15-agents-worst-case';
     // 1500 (not 1000): the cache window must sit far enough below the
@@ -161,8 +174,7 @@ void main() {
         // ------------------------------------------------------------
         final fetchInvocations = <_FetchInvocation>[];
         final clock = Stopwatch()..start();
-        sync.testFetchOlderMessagesOverride =
-            (sid, afterSeq, limit) async {
+        sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
           fetchInvocations.add(
             _FetchInvocation(
               afterSeq: afterSeq,
@@ -428,8 +440,7 @@ List<Map<String, dynamic>> _buildSyntheticSession({
           // Subsequent: chain through prior sidechain message.
           : 'sc-uuid-${seq - 1}',
       'agentId': currentAgentTaskId,
-      if (isTaskStarted)
-        'task_id': currentAgentTaskId,
+      if (isTaskStarted) 'task_id': currentAgentTaskId,
     });
   }
 
@@ -500,18 +511,17 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

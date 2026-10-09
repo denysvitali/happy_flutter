@@ -38,30 +38,28 @@ void main() {
 
   setUp(() async {
     calls = <MethodCall>[];
-    TestDefaultBinaryMessengerBinding
-        .instance
-        .defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(ttsChannel, (call) async {
-      calls.add(call);
-      // Return a sensible default for whichever method was called so
-      // init() / speak() don't crash on the host.
-      switch (call.method) {
-        case 'getEngines':
-        case 'getLanguages':
-          return <String>[];
-        case 'setIosAudioCategory':
-        case 'setSpeechRate':
-        case 'setVolume':
-        case 'setPitch':
-        case 'setEngine':
-        case 'setLanguage':
-        case 'speak':
-        case 'stop':
-          return 1;
-        default:
-          return 1;
-      }
-    });
+          calls.add(call);
+          // Return a sensible default for whichever method was called so
+          // init() / speak() don't crash on the host.
+          switch (call.method) {
+            case 'getEngines':
+            case 'getLanguages':
+              return <String>[];
+            case 'setIosAudioCategory':
+            case 'setSpeechRate':
+            case 'setVolume':
+            case 'setPitch':
+            case 'setEngine':
+            case 'setLanguage':
+            case 'speak':
+            case 'stop':
+              return 1;
+            default:
+              return 1;
+          }
+        });
     // Reset the singleton between tests so each one sees a fresh
     // init() path.
     await TtsService().dispose();
@@ -69,9 +67,7 @@ void main() {
 
   tearDown(() async {
     await TtsService().dispose();
-    TestDefaultBinaryMessengerBinding
-        .instance
-        .defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(ttsChannel, null);
   });
 
@@ -87,9 +83,8 @@ void main() {
 
         final setCategory = calls.firstWhere(
           (c) => c.method == 'setIosAudioCategory',
-          orElse: () => throw StateError(
-            'setIosAudioCategory was never invoked',
-          ),
+          orElse: () =>
+              throw StateError('setIosAudioCategory was never invoked'),
         );
         final args = (setCategory.arguments as Map).cast<String, dynamic>();
 
@@ -115,10 +110,7 @@ void main() {
 
       await TtsService().init();
 
-      expect(
-        calls.where((c) => c.method == 'setIosAudioCategory'),
-        isEmpty,
-      );
+      expect(calls.where((c) => c.method == 'setIosAudioCategory'), isEmpty);
     });
   });
 
@@ -142,55 +134,57 @@ void main() {
           orElse: () => throw StateError('speak() was never invoked'),
         );
         final args = (speakCall.arguments as Map).cast<String, dynamic>();
-        expect(args['focus'], isTrue,
-            reason: 'speak() must pass focus=true on Android so the '
-                'engine requests transient-may-duck audio focus');
+        expect(
+          args['focus'],
+          isTrue,
+          reason:
+              'speak() must pass focus=true on Android so the '
+              'engine requests transient-may-duck audio focus',
+        );
       },
     );
 
-    test('non-Android: speak() forwards focus=false to the platform channel',
-        () async {
-      // On iOS the focus parameter is ignored by the plugin (the iOS
-      // speak handler only reads `text`); we still want to pin the
-      // value we forward so a future refactor can't accidentally
-      // start requesting exclusive audio focus on iOS.
-      if (Platform.isAndroid) return;
+    test(
+      'non-Android: speak() forwards focus=false to the platform channel',
+      () async {
+        // On iOS the focus parameter is ignored by the plugin (the iOS
+        // speak handler only reads `text`); we still want to pin the
+        // value we forward so a future refactor can't accidentally
+        // start requesting exclusive audio focus on iOS.
+        if (Platform.isAndroid) return;
 
-      await TtsService().init();
-      calls.clear();
+        await TtsService().init();
+        calls.clear();
 
-      await TtsService().speak('Hello world', token: 'msg-1');
+        await TtsService().speak('Hello world', token: 'msg-1');
 
-      final speakCall = calls.firstWhere(
-        (c) => c.method == 'speak',
-        orElse: () => throw StateError('speak() was never invoked'),
-      );
-      final args = (speakCall.arguments is Map)
-          ? (speakCall.arguments as Map).cast<String, dynamic>()
-          : <String, dynamic>{};
-      // On non-Android, flutter_tts forwards `speak` with a bare
-      // String (not a Map), so `focus` is simply absent — that's the
-      // "no focus request" path we want to pin.
-      expect(args.containsKey('focus'), isFalse);
-    });
+        final speakCall = calls.firstWhere(
+          (c) => c.method == 'speak',
+          orElse: () => throw StateError('speak() was never invoked'),
+        );
+        final args = (speakCall.arguments is Map)
+            ? (speakCall.arguments as Map).cast<String, dynamic>()
+            : <String, dynamic>{};
+        // On non-Android, flutter_tts forwards `speak` with a bare
+        // String (not a Map), so `focus` is simply absent — that's the
+        // "no focus request" path we want to pin.
+        expect(args.containsKey('focus'), isFalse);
+      },
+    );
   });
 
   group('audio focus contract', () {
-    test(
-      'FlutterTts.speak declares a focus parameter',
-      () async {
-        // Sanity-check the upstream API we're relying on. If
-        // flutter_tts ever drops the `focus` named parameter, the
-        // Android ducking guarantee breaks silently — this test
-        // surfaces the breakage immediately.
-        final tts = FlutterTts();
-        // The compile-time signature is the contract: if `focus`
-        // stops being a named parameter, this assignment fails to
-        // compile.
-        final Future<dynamic> Function(String, {bool focus}) speakRef =
-            tts.speak;
-        expect(speakRef, isNotNull);
-      },
-    );
+    test('FlutterTts.speak declares a focus parameter', () async {
+      // Sanity-check the upstream API we're relying on. If
+      // flutter_tts ever drops the `focus` named parameter, the
+      // Android ducking guarantee breaks silently — this test
+      // surfaces the breakage immediately.
+      final tts = FlutterTts();
+      // The compile-time signature is the contract: if `focus`
+      // stops being a named parameter, this assignment fails to
+      // compile.
+      final Future<dynamic> Function(String, {bool focus}) speakRef = tts.speak;
+      expect(speakRef, isNotNull);
+    });
   });
 }

@@ -26,9 +26,7 @@ Future<T?> showAppDialog<T>(
   return showGeneralDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
-    barrierLabel: MaterialLocalizations.of(
-      context,
-    ).modalBarrierDismissLabel,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: Colors.transparent,
     transitionDuration: AppDuration.normal,
     pageBuilder: (ctx, animation, secondaryAnimation) =>

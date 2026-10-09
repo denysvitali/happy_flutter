@@ -4,10 +4,7 @@ import 'avatar_palette.dart';
 
 /// Gradient-style avatar with colorful background
 class AvatarGradient extends BaseAvatar {
-  const AvatarGradient({
-    required super.id, super.key,
-    super.size = 48,
-  });
+  const AvatarGradient({required super.id, super.key, super.size = 48});
 
   @override
   Widget build(BuildContext context) {

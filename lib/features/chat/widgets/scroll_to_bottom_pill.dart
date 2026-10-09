@@ -17,11 +17,7 @@ import 'package:happy_flutter/core/components/app_badge.dart';
 /// motion) and pops the badge when the unread count grows.
 class ScrollToBottomPill extends StatefulWidget {
   /// Creates a scroll-to-bottom pill.
-  const ScrollToBottomPill({
-    required this.onTap,
-    super.key,
-    this.unreadCount,
-  });
+  const ScrollToBottomPill({required this.onTap, super.key, this.unreadCount});
 
   /// Callback when the pill is tapped.
   final VoidCallback onTap;
@@ -54,16 +50,12 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
     super.initState();
     _prevUnreadCount = widget.unreadCount;
     _entryCtrl = AnimationController(vsync: this);
-    _entryCurve = CurvedAnimation(
-      parent: _entryCtrl,
-      curve: AppCurve.standard,
-    );
-    _entryRise = Tween<double>(begin: _entranceRisePx, end: 0)
-        .animate(_entryCurve);
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: AppDuration.fast,
-    );
+    _entryCurve = CurvedAnimation(parent: _entryCtrl, curve: AppCurve.standard);
+    _entryRise = Tween<double>(
+      begin: _entranceRisePx,
+      end: 0,
+    ).animate(_entryCurve);
+    _pulseCtrl = AnimationController(vsync: this, duration: AppDuration.fast);
     _pulseScale = TweenSequence<double>([
       TweenSequenceItem(
         tween: Tween(
@@ -120,8 +112,7 @@ class _ScrollToBottomPillState extends State<ScrollToBottomPill>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final glass =
-        theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
+    final glass = theme.extension<AppColorScheme>() ?? AppColorScheme.dark();
     final scrollLabel = context.l10n.chatScrollToLatest;
     final count = widget.unreadCount ?? 0;
     final showBadge = count > 0;

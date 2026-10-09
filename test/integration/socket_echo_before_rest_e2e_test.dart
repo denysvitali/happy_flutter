@@ -62,271 +62,253 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'socket echo replaces optimistic placeholder by localId — '
-      'subsequent REST ack must not duplicate',
-      () async {
-        const sessionId = 'echo-before-rest-1';
-        const canonicalLocalId = 'local-echo-1';
+    test('socket echo replaces optimistic placeholder by localId — '
+        'subsequent REST ack must not duplicate', () async {
+      const sessionId = 'echo-before-rest-1';
+      const canonicalLocalId = 'local-echo-1';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
-        // Optimistic placeholder — same `id` as `localId` (matches the
-        // shape produced by `_sync_messaging_send.dart`).
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': canonicalLocalId,
-            'localId': canonicalLocalId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000000000,
-            'content': 'continue',
-            'sendStatus': 'sending',
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 9);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      // Optimistic placeholder — same `id` as `localId` (matches the
+      // shape produced by `_sync_messaging_send.dart`).
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': canonicalLocalId,
+          'localId': canonicalLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'continue',
+          'sendStatus': 'sending',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 9);
 
-        sync.testVisibleSessionId = sessionId;
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
-        );
-        sync.testFetchMessagesOverride = (_, __, ___) async {
-          return _buildMessagesResponse(<Map<String, dynamic>>[]);
-        };
+      sync.testVisibleSessionId = sessionId;
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse(<Map<String, dynamic>>[]);
+      };
 
-        // 1. Socket echo lands FIRST — server pushed the authoritative
-        //    record before the REST POST round-trip completed.
-        sync.handleUpdate({
-          't': 'new-message',
-          'sid': sessionId,
-          'message': _makeEncryptedMessage(
-            'srv-msg-1',
-            seq: 10,
-            content: 'continue',
-            role: 'user',
-            localId: canonicalLocalId,
-          ),
-        });
+      // 1. Socket echo lands FIRST — server pushed the authoritative
+      //    record before the REST POST round-trip completed.
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': _makeEncryptedMessage(
+          'srv-msg-1',
+          seq: 10,
+          content: 'continue',
+          role: 'user',
+          localId: canonicalLocalId,
+        ),
+      });
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        // Verify the optimistic placeholder has been replaced.
-        var msgs = sync.testSessionMessages(sessionId);
-        expect(msgs, isNotNull);
-        final placeholders = msgs!
-            .where((m) => m['id'] == canonicalLocalId)
-            .toList();
-        expect(
-          placeholders,
-          isEmpty,
-          reason:
-              'Optimistic placeholder must be replaced by the server '
-              'record via localId match, even when the socket echo '
-              'arrives before any REST response',
-        );
-        var serverCopies = msgs
-            .where((m) => m['id'] == 'srv-msg-1')
-            .toList();
-        expect(serverCopies, hasLength(1));
-        expect(serverCopies.single['localId'], canonicalLocalId);
+      // Verify the optimistic placeholder has been replaced.
+      var msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
+      final placeholders = msgs!
+          .where((m) => m['id'] == canonicalLocalId)
+          .toList();
+      expect(
+        placeholders,
+        isEmpty,
+        reason:
+            'Optimistic placeholder must be replaced by the server '
+            'record via localId match, even when the socket echo '
+            'arrives before any REST response',
+      );
+      var serverCopies = msgs.where((m) => m['id'] == 'srv-msg-1').toList();
+      expect(serverCopies, hasLength(1));
+      expect(serverCopies.single['localId'], canonicalLocalId);
 
-        // 2. REST ack arrives LATE carrying the same `localId`. The
-        //    merge layer must not create a second logical row.
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': 'srv-msg-1',
-            'localId': canonicalLocalId,
-            'seq': 10,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000010000,
-            'content': 'continue',
-            'sendStatus': 'sent',
-          },
-        ]);
+      // 2. REST ack arrives LATE carrying the same `localId`. The
+      //    merge layer must not create a second logical row.
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': 'srv-msg-1',
+          'localId': canonicalLocalId,
+          'seq': 10,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000010000,
+          'content': 'continue',
+          'sendStatus': 'sent',
+        },
+      ]);
 
-        msgs = sync.testSessionMessages(sessionId);
-        expect(msgs, isNotNull);
-        final byLocalId = msgs!
-            .where((m) => m['localId'] == canonicalLocalId)
-            .toList();
-        expect(
-          byLocalId,
-          hasLength(1),
-          reason:
-              'A late REST ack carrying the same localId must merge '
-              'into the existing logical message — no duplicate row',
-        );
-        serverCopies = msgs
-            .where((m) => m['id'] == 'srv-msg-1')
-            .toList();
-        expect(
-          serverCopies,
-          hasLength(1),
-          reason: 'Final state has exactly one message with the '
-              'canonical localId',
-        );
-        expect(serverCopies.single['sendStatus'], 'sent');
-      },
-    );
+      msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
+      final byLocalId = msgs!
+          .where((m) => m['localId'] == canonicalLocalId)
+          .toList();
+      expect(
+        byLocalId,
+        hasLength(1),
+        reason:
+            'A late REST ack carrying the same localId must merge '
+            'into the existing logical message — no duplicate row',
+      );
+      serverCopies = msgs.where((m) => m['id'] == 'srv-msg-1').toList();
+      expect(
+        serverCopies,
+        hasLength(1),
+        reason:
+            'Final state has exactly one message with the '
+            'canonical localId',
+      );
+      expect(serverCopies.single['sendStatus'], 'sent');
+    });
 
-    test(
-      'socket echo before REST does not collapse a repeated-text '
-      'sibling placeholder',
-      () async {
-        // The user typed "continue" twice. Two optimistic placeholders
-        // share text but have distinct localIds. A socket echo for the
-        // SECOND must replace ONLY that placeholder, never the first
-        // (which would be a text/position-based merge bug).
-        const sessionId = 'echo-before-rest-2';
-        const firstLocalId = 'local-cont-1';
-        const secondLocalId = 'local-cont-2';
+    test('socket echo before REST does not collapse a repeated-text '
+        'sibling placeholder', () async {
+      // The user typed "continue" twice. Two optimistic placeholders
+      // share text but have distinct localIds. A socket echo for the
+      // SECOND must replace ONLY that placeholder, never the first
+      // (which would be a text/position-based merge bug).
+      const sessionId = 'echo-before-rest-2';
+      const firstLocalId = 'local-cont-1';
+      const secondLocalId = 'local-cont-2';
 
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': firstLocalId,
-            'localId': firstLocalId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000000000,
-            'content': 'continue',
-            'sendStatus': 'sending',
-          },
-          {
-            'id': secondLocalId,
-            'localId': secondLocalId,
-            'seq': 0,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000001000,
-            'content': 'continue',
-            'sendStatus': 'sending',
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 9);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 9);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': firstLocalId,
+          'localId': firstLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'continue',
+          'sendStatus': 'sending',
+        },
+        {
+          'id': secondLocalId,
+          'localId': secondLocalId,
+          'seq': 0,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000001000,
+          'content': 'continue',
+          'sendStatus': 'sending',
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 9);
 
-        sync.testVisibleSessionId = sessionId;
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
-        );
-        sync.testFetchMessagesOverride = (_, __, ___) async {
-          return _buildMessagesResponse(<Map<String, dynamic>>[]);
-        };
+      sync.testVisibleSessionId = sessionId;
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
+      sync.testFetchMessagesOverride = (_, __, ___) async {
+        return _buildMessagesResponse(<Map<String, dynamic>>[]);
+      };
 
-        // Socket echo for the SECOND localId lands first — before any
-        // REST POST has returned for either.
-        sync.handleUpdate({
-          't': 'new-message',
-          'sid': sessionId,
-          'message': _makeEncryptedMessage(
-            'srv-msg-2',
-            seq: 11,
-            content: 'continue',
-            role: 'user',
-            localId: secondLocalId,
-          ),
-        });
+      // Socket echo for the SECOND localId lands first — before any
+      // REST POST has returned for either.
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': _makeEncryptedMessage(
+          'srv-msg-2',
+          seq: 11,
+          content: 'continue',
+          role: 'user',
+          localId: secondLocalId,
+        ),
+      });
 
-        await Future<void>.delayed(const Duration(milliseconds: 200));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(msgs, isNotNull);
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull);
 
-        // First placeholder must remain — never replaced by text or
-        // position similarity.
-        expect(
-          msgs!.where((m) => m['id'] == firstLocalId),
-          hasLength(1),
-          reason:
-              'First placeholder (localId=$firstLocalId) must survive '
-              'the socket echo aimed at $secondLocalId',
-        );
-        // Second placeholder is gone, replaced by the server record.
-        expect(
-          msgs.where((m) => m['id'] == secondLocalId),
-          isEmpty,
-          reason:
-              'Second placeholder must be replaced by srv-msg-2 via '
-              'localId match',
-        );
-        expect(
-          msgs.where((m) => m['id'] == 'srv-msg-2'),
-          hasLength(1),
-        );
+      // First placeholder must remain — never replaced by text or
+      // position similarity.
+      expect(
+        msgs!.where((m) => m['id'] == firstLocalId),
+        hasLength(1),
+        reason:
+            'First placeholder (localId=$firstLocalId) must survive '
+            'the socket echo aimed at $secondLocalId',
+      );
+      // Second placeholder is gone, replaced by the server record.
+      expect(
+        msgs.where((m) => m['id'] == secondLocalId),
+        isEmpty,
+        reason:
+            'Second placeholder must be replaced by srv-msg-2 via '
+            'localId match',
+      );
+      expect(msgs.where((m) => m['id'] == 'srv-msg-2'), hasLength(1));
 
-        // Now the REST ack for the SECOND arrives — must not duplicate.
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': 'srv-msg-2',
-            'localId': secondLocalId,
-            'seq': 11,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000011000,
-            'content': 'continue',
-            'sendStatus': 'sent',
-          },
-        ]);
+      // Now the REST ack for the SECOND arrives — must not duplicate.
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': 'srv-msg-2',
+          'localId': secondLocalId,
+          'seq': 11,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000011000,
+          'content': 'continue',
+          'sendStatus': 'sent',
+        },
+      ]);
 
-        final after = sync.testSessionMessages(sessionId)!;
-        expect(
-          after.where((m) => m['id'] == 'srv-msg-2'),
-          hasLength(1),
-          reason: 'Late REST ack must not duplicate the socket-acked row',
-        );
-        // Both logical messages (first still sending, second sent) remain.
-        expect(after, hasLength(2));
-      },
-    );
+      final after = sync.testSessionMessages(sessionId)!;
+      expect(
+        after.where((m) => m['id'] == 'srv-msg-2'),
+        hasLength(1),
+        reason: 'Late REST ack must not duplicate the socket-acked row',
+      );
+      // Both logical messages (first still sending, second sent) remain.
+      expect(after, hasLength(2));
+    });
 
-    test(
-      'agent prompt echo is suppressed but the following reply remains',
-      () {
-        const sessionId = 'agent-prompt-echo-1';
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': 'user-1',
-            'localId': 'local-user-1',
-            'seq': 10,
-            'role': 'user',
-            'kind': 'text',
-            'createdAt': 1700000000000,
-            'content': 'Can you list the remote images?',
-            'sendStatus': 'sent',
-          },
-        ]);
+    test('agent prompt echo is suppressed but the following reply remains', () {
+      const sessionId = 'agent-prompt-echo-1';
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': 'user-1',
+          'localId': 'local-user-1',
+          'seq': 10,
+          'role': 'user',
+          'kind': 'text',
+          'createdAt': 1700000000000,
+          'content': 'Can you list the remote images?',
+          'sendStatus': 'sent',
+        },
+      ]);
 
-        sync.testUpsertSessionMessages(sessionId, [
-          {
-            'id': 'agent-echo-1',
-            'seq': 11,
-            'role': 'agent',
-            'kind': 'text',
-            'createdAt': 1700000000100,
-            'content': 'Can you list the remote images?',
-            'isPromptEchoCandidate': true,
-          },
-          {
-            'id': 'agent-reply-1',
-            'seq': 12,
-            'role': 'agent',
-            'kind': 'text',
-            'createdAt': 1700000000200,
-            'content': 'I\'ll check the configured remote images.',
-          },
-        ]);
+      sync.testUpsertSessionMessages(sessionId, [
+        {
+          'id': 'agent-echo-1',
+          'seq': 11,
+          'role': 'agent',
+          'kind': 'text',
+          'createdAt': 1700000000100,
+          'content': 'Can you list the remote images?',
+          'isPromptEchoCandidate': true,
+        },
+        {
+          'id': 'agent-reply-1',
+          'seq': 12,
+          'role': 'agent',
+          'kind': 'text',
+          'createdAt': 1700000000200,
+          'content': 'I\'ll check the configured remote images.',
+        },
+      ]);
 
-        final messages = sync.testSessionMessages(sessionId)!;
-        expect(messages, hasLength(2));
-        expect(messages.where((m) => m['id'] == 'agent-echo-1'), isEmpty);
-        expect(
-          messages.where((m) => m['id'] == 'agent-reply-1'),
-          hasLength(1),
-        );
-      },
-    );
+      final messages = sync.testSessionMessages(sessionId)!;
+      expect(messages, hasLength(2));
+      expect(messages.where((m) => m['id'] == 'agent-echo-1'), isEmpty);
+      expect(messages.where((m) => m['id'] == 'agent-reply-1'), hasLength(1));
+    });
   });
 }
 
@@ -388,10 +370,7 @@ Map<String, dynamic> _makeEncryptedMessage(
       'role': 'agent',
       'content': {
         'type': 'output',
-        'data': {
-          'type': 'assistant',
-          'message': content,
-        },
+        'data': {'type': 'assistant', 'message': content},
       },
     };
   }
@@ -405,10 +384,7 @@ Map<String, dynamic> _makeEncryptedMessage(
     'id': id,
     'seq': seq,
     'role': role,
-    'content': {
-      't': 'encrypted',
-      'c': base64Encode(output),
-    },
+    'content': {'t': 'encrypted', 'c': base64Encode(output)},
     'createdAt': 1700000000000 + seq * 1000,
     if (localId != null) 'localId': localId,
   };
@@ -436,22 +412,20 @@ class _FakeEncryption implements Encryption {
       );
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

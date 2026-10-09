@@ -146,116 +146,122 @@ class _SessionCardState extends State<SessionCard> {
         color: _cardColor ?? cs.surfaceContainerHighest,
         clipBehavior: Clip.hardEdge,
         child: Stack(
-              fit: StackFit.passthrough,
-              children: [
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    widget.selectionMode ? 36 + AppSpacing.md : AppSpacing.md,
-                    widget.compact ? AppSpacing.xsm : AppSpacing.sm,
-                    AppSpacing.md,
-                    widget.compact ? AppSpacing.xsm : AppSpacing.sm,
+          fit: StackFit.passthrough,
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                widget.selectionMode ? 36 + AppSpacing.md : AppSpacing.md,
+                widget.compact ? AppSpacing.xsm : AppSpacing.sm,
+                AppSpacing.md,
+                widget.compact ? AppSpacing.xsm : AppSpacing.sm,
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                    child: buildSessionAvatar(
+                      sessionId: session.id,
+                      avatarId: _d.avatarId,
+                      sessionFlavor: sessionFlavor,
+                      size: widget.compact
+                          ? AppAvatarSize.small
+                          : AppAvatarSize.large,
+                      showFlavorIcon: true,
+                      hasDraft: hasDraft,
+                      avatarStyle: widget.avatarStyle,
+                      monochrome: !_d.status.isConnected,
+                    ),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.xxs),
-                        child: buildSessionAvatar(
-                          sessionId: session.id,
-                          avatarId: _d.avatarId,
-                          sessionFlavor: sessionFlavor,
-                          size: widget.compact
-                              ? AppAvatarSize.small
-                              : AppAvatarSize.large,
-                          showFlavorIcon: true,
-                          hasDraft: hasDraft,
-                          avatarStyle: widget.avatarStyle,
-                          monochrome: !_d.status.isConnected,
-                        ),
-                      ),
-                      SizedBox(
-                        width: widget.compact ? AppSpacing.sm : AppSpacing.md,
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            buildNameRow(
-                              name: _d.name,
-                              sessionStatus: _d.status,
-                              style: AppText.title(theme, _titleColor ?? cs.onSurfaceVariant),
-                              dotColor: _d.status.isConnected
-                                  ? null
+                  SizedBox(
+                    width: widget.compact ? AppSpacing.sm : AppSpacing.md,
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        buildNameRow(
+                          name: _d.name,
+                          sessionStatus: _d.status,
+                          style: AppText.title(
+                            theme,
+                            _titleColor ?? cs.onSurfaceVariant,
+                          ),
+                          dotColor: _d.status.isConnected
+                              ? null
                               : cs.outlineVariant,
-                              badge: widget.archiveCountdownLabel == null
-                                  ? null
-                                  : ArchiveCountdownBadge(
-                                      label: widget.archiveCountdownLabel!,
-                                    ),
+                          badge: widget.archiveCountdownLabel == null
+                              ? null
+                              : ArchiveCountdownBadge(
+                                  label: widget.archiveCountdownLabel!,
+                                ),
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         if (activityLine == null)
                           Text(
                             _d.subtitle,
-                            style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                            if (statusWidget != null) ...[
-                              const SizedBox(height: AppSpacing.xxs),
-                              statusWidget,
-                            ],
-                            if (activityLine != null) ...[
-                              const SizedBox(height: AppSpacing.sm),
-                              activityLine,
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            formatTimestamp(
-                              widget.lastMessageTimestamp ??
-                                  session.lastMessageAt ??
-                                  session.updatedAt,
-                              relative: true,
-                            ),
-                            style: AppText.secondary(theme, cs.onSurfaceVariant),
+                            style: AppText.secondary(
+                              theme,
+                              cs.onSurfaceVariant,
+                            ).copyWith(fontFamily: 'monospace'),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
-                          if (todoProgress != null) ...[
-                            const SizedBox(height: AppSpacing.xsm),
-                            TodoProgressBadge(
-                              completed: todoProgress.completed,
-                              total: todoProgress.total,
-                            ),
-                          ],
+                        if (statusWidget != null) ...[
+                          const SizedBox(height: AppSpacing.xxs),
+                          statusWidget,
                         ],
+                        if (activityLine != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          activityLine,
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        formatTimestamp(
+                          widget.lastMessageTimestamp ??
+                              session.lastMessageAt ??
+                              session.updatedAt,
+                          relative: true,
+                        ),
+                        style: AppText.secondary(theme, cs.onSurfaceVariant),
                       ),
+                      if (todoProgress != null) ...[
+                        const SizedBox(height: AppSpacing.xsm),
+                        TodoProgressBadge(
+                          completed: todoProgress.completed,
+                          total: todoProgress.total,
+                        ),
+                      ],
                     ],
                   ),
-                ),
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: widget.selectionMode
-                      ? SelectionCheckbox(
-                          isSelected: widget.isSelected,
-                          borderRadius: _borderRadius,
-                        )
-                      : _OfflineAccentBar(
-                          isConnected: _d.status.isConnected,
-                          statusDotColor: _d.status.statusDotColor,
-                          outlineVariant: cs.outlineVariant,
-                        ),
-                ),
-              ],
+                ],
+              ),
             ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: widget.selectionMode
+                  ? SelectionCheckbox(
+                      isSelected: widget.isSelected,
+                      borderRadius: _borderRadius,
+                    )
+                  : _OfflineAccentBar(
+                      isConnected: _d.status.isConnected,
+                      statusDotColor: _d.status.statusDotColor,
+                      outlineVariant: cs.outlineVariant,
+                    ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }
 

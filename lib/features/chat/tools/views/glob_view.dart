@@ -63,8 +63,7 @@ class _GlobViewState extends State<GlobView> {
 
   @override
   Widget build(BuildContext context) {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
     final state = widget.tool['state'] as String? ?? '';
 
@@ -72,8 +71,7 @@ class _GlobViewState extends State<GlobView> {
     final path = input['path'] as String?;
 
     final files = _parseFiles(result);
-    final visibleFiles =
-        _showAll ? files : files.take(_initialLimit).toList();
+    final visibleFiles = _showAll ? files : files.take(_initialLimit).toList();
     final hiddenCount = files.length - _initialLimit;
 
     final cs = Theme.of(context).colorScheme;
@@ -104,9 +102,7 @@ class _GlobViewState extends State<GlobView> {
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.smd),
               child: Row(
-                children: [
-                  _ResultCountChip(count: files.length, cs: cs),
-                ],
+                children: [_ResultCountChip(count: files.length, cs: cs)],
               ),
             ),
 
@@ -130,7 +126,8 @@ class _GlobViewState extends State<GlobView> {
                       for (int i = 0; i < visibleFiles.length; i++)
                         _FileRow(
                           file: visibleFiles[i],
-                          isLast: i == visibleFiles.length - 1 &&
+                          isLast:
+                              i == visibleFiles.length - 1 &&
                               (hiddenCount <= 0 || _showAll),
                           colorScheme: cs,
                         ),
@@ -150,17 +147,13 @@ class _GlobViewState extends State<GlobView> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _showAll
-                          ? Icons.expand_less
-                          : Icons.expand_more,
+                      _showAll ? Icons.expand_less : Icons.expand_more,
                       size: AppIconSize.sm,
                       color: cs.primary,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
-                      _showAll
-                          ? 'Show less'
-                          : 'Show all ${files.length} files',
+                      _showAll ? 'Show less' : 'Show all ${files.length} files',
                       style: TextStyle(
                         fontSize: AppFontSize.sm,
                         color: cs.primary,
@@ -182,14 +175,12 @@ class _GlobViewState extends State<GlobView> {
       return result
           .map((item) {
             if (item is String) {
-              return GlobFile(
-                path: item,
-                basename: item.split('/').lastOrNull,
-              );
+              return GlobFile(path: item, basename: item.split('/').lastOrNull);
             }
             if (item is Map<String, dynamic>) {
               return GlobFile(
-                path: item['path'] as String? ??
+                path:
+                    item['path'] as String? ??
                     item['filePath'] as String? ??
                     '',
                 basename: item['basename'] as String?,
@@ -250,8 +241,6 @@ class _ResultCountChip extends StatelessWidget {
     );
   }
 }
-
-
 
 /// A single row in the file list.
 class _FileRow extends StatelessWidget {

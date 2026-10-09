@@ -63,9 +63,8 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           Builder(
-            builder: (context) => _openButton(
-              () => showRawMarkdownSheet(context, markdown),
-            ),
+            builder: (context) =>
+                _openButton(() => showRawMarkdownSheet(context, markdown)),
           ),
         ),
       );
@@ -75,60 +74,59 @@ void main() {
       expect(find.textContaining('hello world from raw sheet'), findsOneWidget);
     });
 
-    testWidgets(
-      'opens tall enough that a normal drag scrolls the content '
-      '(regression: sheet used to start at 0.55 and capture the '
-      'first drag to expand, so the content felt unscrollable)',
-      (tester) async {
-        final markdown = _longMarkdown(400);
+    testWidgets('opens tall enough that a normal drag scrolls the content '
+        '(regression: sheet used to start at 0.55 and capture the '
+        'first drag to expand, so the content felt unscrollable)', (
+      tester,
+    ) async {
+      final markdown = _longMarkdown(400);
 
-        await tester.pumpWidget(
-          _wrap(
-            Builder(
-              builder: (context) => _openButton(
-                () => showRawMarkdownSheet(context, markdown),
-              ),
-            ),
+      await tester.pumpWidget(
+        _wrap(
+          Builder(
+            builder: (context) =>
+                _openButton(() => showRawMarkdownSheet(context, markdown)),
           ),
-        );
-        await tester.tap(find.byKey(const Key('open-copy-sheet')));
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.tap(find.byKey(const Key('open-copy-sheet')));
+      await tester.pumpAndSettle();
 
-        final sheet = find.byType(DraggableScrollableSheet);
-        final sheetRect = tester.getRect(sheet);
+      final sheet = find.byType(DraggableScrollableSheet);
+      final sheetRect = tester.getRect(sheet);
 
-        // Sanity: the sheet must start at a height where the user has
-        // both a visible text body and room for it to be scrollable.
-        // 0.9 of a 600-tall test surface is 540px — a third taller than
-        // the old 0.55 (330px).
-        expect(sheetRect.height, greaterThan(400));
+      // Sanity: the sheet must start at a height where the user has
+      // both a visible text body and room for it to be scrollable.
+      // 0.9 of a 600-tall test surface is 540px — a third taller than
+      // the old 0.55 (330px).
+      expect(sheetRect.height, greaterThan(400));
 
-        final pane = _contentScrollable(tester);
-        final before = pane.position.pixels;
+      final pane = _contentScrollable(tester);
+      final before = pane.position.pixels;
 
-        // Drag inside the sheet's visible text area (not at the
-        // SelectableText's centre, which is way off-screen for a 16kpx
-        // tall widget).
-        final dragPoint = Offset(
-          sheetRect.center.dx,
-          sheetRect.top + sheetRect.height * 0.6,
-        );
-        final gesture = await tester.startGesture(dragPoint);
-        for (var i = 0; i < 6; i++) {
-          await gesture.moveBy(const Offset(0, -32));
-          await tester.pump(const Duration(milliseconds: 16));
-        }
-        await gesture.up();
-        await tester.pumpAndSettle();
+      // Drag inside the sheet's visible text area (not at the
+      // SelectableText's centre, which is way off-screen for a 16kpx
+      // tall widget).
+      final dragPoint = Offset(
+        sheetRect.center.dx,
+        sheetRect.top + sheetRect.height * 0.6,
+      );
+      final gesture = await tester.startGesture(dragPoint);
+      for (var i = 0; i < 6; i++) {
+        await gesture.moveBy(const Offset(0, -32));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
 
-        expect(
-          pane.position.pixels,
-          greaterThan(before),
-          reason: 'A moderate drag on the text should scroll the content, '
-              'not be captured by the sheet expand-on-overscroll.',
-        );
-      },
-    );
+      expect(
+        pane.position.pixels,
+        greaterThan(before),
+        reason:
+            'A moderate drag on the text should scroll the content, '
+            'not be captured by the sheet expand-on-overscroll.',
+      );
+    });
 
     testWidgets('Copy button copies and pops the sheet', (tester) async {
       const markdown = 'copy me please';
@@ -136,9 +134,8 @@ void main() {
       await tester.pumpWidget(
         _wrap(
           Builder(
-            builder: (context) => _openButton(
-              () => showRawMarkdownSheet(context, markdown),
-            ),
+            builder: (context) =>
+                _openButton(() => showRawMarkdownSheet(context, markdown)),
           ),
         ),
       );

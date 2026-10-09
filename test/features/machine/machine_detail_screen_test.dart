@@ -114,18 +114,14 @@ void main() {
   group('MachineDetailScreen', () {
     group('when machine is not found', () {
       testWidgets('shows not found message', (tester) async {
-        await tester.pumpWidget(
-          _buildApp(machineId: 'missing', machines: {}),
-        );
+        await tester.pumpWidget(_buildApp(machineId: 'missing', machines: {}));
         await tester.pump();
 
         expect(find.text('Not found'), findsOneWidget);
       });
 
       testWidgets('shows app bar with empty title', (tester) async {
-        await tester.pumpWidget(
-          _buildApp(machineId: 'missing', machines: {}),
-        );
+        await tester.pumpWidget(_buildApp(machineId: 'missing', machines: {}));
         await tester.pump();
 
         // AppBar exists with empty title
@@ -134,7 +130,9 @@ void main() {
     });
 
     group('when machine exists', () {
-      testWidgets('offers coding agent updates for the machine', (tester) async {
+      testWidgets('offers coding agent updates for the machine', (
+        tester,
+      ) async {
         final machine = _makeMachine(id: 'm1');
         await tester.pumpWidget(
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
@@ -148,31 +146,21 @@ void main() {
       });
 
       testWidgets('shows machine display name as title', (tester) async {
-        final machine = _makeMachine(
-          id: 'm1',
-          displayName: 'My Dev Machine',
-        );
+        final machine = _makeMachine(id: 'm1', displayName: 'My Dev Machine');
 
         await tester.pumpWidget(
-          _buildApp(
-            machineId: 'm1',
-            machines: {'m1': machine},
-          ),
+          _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
 
         expect(find.text('My Dev Machine'), findsOneWidget);
       });
 
-      testWidgets('shows host as title when no display name',
-          (tester) async {
+      testWidgets('shows host as title when no display name', (tester) async {
         final machine = _makeMachine(id: 'm1', host: 'server-01');
 
         await tester.pumpWidget(
-          _buildApp(
-            machineId: 'm1',
-            machines: {'m1': machine},
-          ),
+          _buildApp(machineId: 'm1', machines: {'m1': machine}),
         );
         await tester.pump();
 
@@ -180,8 +168,7 @@ void main() {
         expect(find.text('server-01'), findsWidgets);
       });
 
-      testWidgets('shows machine ID as title when no metadata',
-          (tester) async {
+      testWidgets('shows machine ID as title when no metadata', (tester) async {
         final now = DateTime.now().millisecondsSinceEpoch;
         final machine = Machine(
           id: 'bare-machine',
@@ -206,8 +193,7 @@ void main() {
         expect(find.text('bare-machine'), findsWidgets);
       });
 
-      testWidgets('shows online status when recently active',
-          (tester) async {
+      testWidgets('shows online status when recently active', (tester) async {
         final now = DateTime.now().millisecondsSinceEpoch;
         final machine = _makeMachine(
           id: 'm1',
@@ -223,8 +209,9 @@ void main() {
         expect(find.text('Connected now'), findsOneWidget);
       });
 
-      testWidgets('shows offline status when not recently active',
-          (tester) async {
+      testWidgets('shows offline status when not recently active', (
+        tester,
+      ) async {
         final now = DateTime.now().millisecondsSinceEpoch;
         final machine = _makeMachine(
           id: 'm1',
@@ -287,8 +274,9 @@ void main() {
         expect(find.text('id-test-machine'), findsWidgets);
       });
 
-      testWidgets('does not show optional metadata fields when null',
-          (tester) async {
+      testWidgets('does not show optional metadata fields when null', (
+        tester,
+      ) async {
         final now = DateTime.now().millisecondsSinceEpoch;
         final machine = Machine(
           id: 'minimal',
@@ -345,10 +333,7 @@ void main() {
 
       testWidgets('shows stopped status when offline', (tester) async {
         final now = DateTime.now().millisecondsSinceEpoch;
-        final machine = _makeMachine(
-          id: 'm1',
-          activeAt: now - 120000,
-        );
+        final machine = _makeMachine(id: 'm1', activeAt: now - 120000);
 
         await tester.pumpWidget(
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
@@ -358,8 +343,9 @@ void main() {
         expect(find.text('Stopped'), findsOneWidget);
       });
 
-      testWidgets('shows daemon last known status when available',
-          (tester) async {
+      testWidgets('shows daemon last known status when available', (
+        tester,
+      ) async {
         final machine = _makeMachine(
           id: 'm1',
           daemonLastKnownStatus: 'sleeping',
@@ -374,12 +360,8 @@ void main() {
         expect(find.text('sleeping'), findsOneWidget);
       });
 
-      testWidgets('shows daemon last known PID when available',
-          (tester) async {
-        final machine = _makeMachine(
-          id: 'm1',
-          daemonLastKnownPid: 4242,
-        );
+      testWidgets('shows daemon last known PID when available', (tester) async {
+        final machine = _makeMachine(id: 'm1', daemonLastKnownPid: 4242);
 
         await tester.pumpWidget(
           _buildApp(machineId: 'm1', machines: {'m1': machine}),
@@ -390,8 +372,9 @@ void main() {
         expect(find.text('4242'), findsOneWidget);
       });
 
-      testWidgets('shows resource stats when daemon reports them',
-          (tester) async {
+      testWidgets('shows resource stats when daemon reports them', (
+        tester,
+      ) async {
         final machine = _makeMachine(
           id: 'm1',
           daemonState: {
@@ -467,16 +450,11 @@ void main() {
     });
 
     group('sessions list', () {
-      testWidgets('does not show sessions section when empty',
-          (tester) async {
+      testWidgets('does not show sessions section when empty', (tester) async {
         final machine = _makeMachine(id: 'm1');
 
         await tester.pumpWidget(
-          _buildApp(
-            machineId: 'm1',
-            machines: {'m1': machine},
-            sessions: {},
-          ),
+          _buildApp(machineId: 'm1', machines: {'m1': machine}, sessions: {}),
         );
         await tester.pump();
 
@@ -486,8 +464,7 @@ void main() {
     });
 
     group('timestamp formatting', () {
-      testWidgets('shows "just now" for very recent activity',
-          (tester) async {
+      testWidgets('shows "just now" for very recent activity', (tester) async {
         final now = DateTime.now().millisecondsSinceEpoch;
         final machine = _makeMachine(
           id: 'm1',
@@ -564,8 +541,9 @@ void main() {
     });
 
     group('status banner', () {
-      testWidgets('shows correct status color for online machine',
-          (tester) async {
+      testWidgets('shows correct status color for online machine', (
+        tester,
+      ) async {
         final now = DateTime.now().millisecondsSinceEpoch;
         final machine = _makeMachine(id: 'm1', activeAt: now - 5000);
 
@@ -578,13 +556,11 @@ void main() {
         expect(find.byType(Container), findsWidgets);
       });
 
-      testWidgets('shows correct status color for offline machine',
-          (tester) async {
+      testWidgets('shows correct status color for offline machine', (
+        tester,
+      ) async {
         final now = DateTime.now().millisecondsSinceEpoch;
-        final machine = _makeMachine(
-          id: 'm1',
-          activeAt: now - 120000,
-        );
+        final machine = _makeMachine(id: 'm1', activeAt: now - 120000);
 
         await tester.pumpWidget(
           _buildApp(machineId: 'm1', machines: {'m1': machine}),

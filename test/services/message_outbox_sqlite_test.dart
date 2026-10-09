@@ -27,8 +27,7 @@ OutboxEntry _entry(
 
 void main() {
   group('InMemoryOutboxStore', () {
-    test('appends each event and returns them in insertion order',
-        () async {
+    test('appends each event and returns them in insertion order', () async {
       final store = InMemoryOutboxStore();
       await store.open();
       await store.appendAdd(_entry('a'));

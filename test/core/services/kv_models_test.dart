@@ -6,11 +6,7 @@ void main() {
 
   group('KvItem', () {
     test('fromJson creates correct instance', () {
-      final json = {
-        'key': 'my-key',
-        'value': 'my-value',
-        'version': 5,
-      };
+      final json = {'key': 'my-key', 'value': 'my-value', 'version': 5};
 
       final item = KvItem.fromJson(json);
 
@@ -20,11 +16,7 @@ void main() {
     });
 
     test('toJson produces correct map', () {
-      final item = KvItem(
-        key: 'test-key',
-        value: 'test-value',
-        version: 3,
-      );
+      final item = KvItem(key: 'test-key', value: 'test-value', version: 3);
 
       final json = item.toJson();
 
@@ -34,11 +26,7 @@ void main() {
     });
 
     test('fromJson and toJson are symmetric', () {
-      final original = {
-        'key': 'symmetric',
-        'value': 'data',
-        'version': 42,
-      };
+      final original = {'key': 'symmetric', 'value': 'data', 'version': 42};
 
       final item = KvItem.fromJson(original);
       final roundTrip = item.toJson();
@@ -72,9 +60,9 @@ void main() {
     });
 
     test('toJson produces correct structure', () {
-      final response = KvListResponse(items: [
-        KvItem(key: 'a', value: '1', version: 0),
-      ]);
+      final response = KvListResponse(
+        items: [KvItem(key: 'a', value: '1', version: 0)],
+      );
 
       final json = response.toJson();
 
@@ -106,9 +94,9 @@ void main() {
     });
 
     test('toJson produces correct structure', () {
-      final response = KvBulkGetResponse(values: [
-        KvItem(key: 'k', value: 'v', version: 1),
-      ]);
+      final response = KvBulkGetResponse(
+        values: [KvItem(key: 'k', value: 'v', version: 1)],
+      );
 
       final json = response.toJson();
 
@@ -118,11 +106,7 @@ void main() {
 
   group('KvMutation', () {
     test('toJson includes key, value, and version', () {
-      final mutation = KvMutation(
-        key: 'test',
-        value: 'data',
-        version: -1,
-      );
+      final mutation = KvMutation(key: 'test', value: 'data', version: -1);
 
       final json = mutation.toJson();
 
@@ -132,11 +116,7 @@ void main() {
     });
 
     test('toJson handles null value for delete', () {
-      final mutation = KvMutation(
-        key: 'to-delete',
-        value: null,
-        version: 5,
-      );
+      final mutation = KvMutation(key: 'to-delete', value: null, version: 5);
 
       final json = mutation.toJson();
 
@@ -184,11 +164,7 @@ void main() {
     });
 
     test('fromJson handles missing optional value', () {
-      final json = {
-        'key': 'k',
-        'error': 'conflict',
-        'version': 1,
-      };
+      final json = {'key': 'k', 'error': 'conflict', 'version': 1};
 
       final error = KvMutateError.fromJson(json);
 
@@ -233,11 +209,7 @@ void main() {
       final json = {
         'success': false,
         'errors': [
-          {
-            'key': 'k1',
-            'error': 'version-mismatch',
-            'version': 5,
-          },
+          {'key': 'k1', 'error': 'version-mismatch', 'version': 5},
         ],
       };
 
@@ -263,11 +235,7 @@ void main() {
 
     test('KvMutateErrorResponse toJson includes success false', () {
       final response = KvMutateErrorResponse([
-        KvMutateError(
-          key: 'k',
-          error: 'version-mismatch',
-          version: 1,
-        ),
+        KvMutateError(key: 'k', error: 'version-mismatch', version: 1),
       ]);
 
       final json = response.toJson();

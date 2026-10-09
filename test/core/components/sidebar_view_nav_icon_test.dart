@@ -55,10 +55,7 @@ Widget _wrap({VoidCallback? onNewSession}) {
 
 Tooltip _tooltipFor(WidgetTester tester, IconData icon) {
   return tester.widget<Tooltip>(
-    find.ancestor(
-      of: find.byIcon(icon),
-      matching: find.byType(Tooltip),
-    ),
+    find.ancestor(of: find.byIcon(icon), matching: find.byType(Tooltip)),
   );
 }
 
@@ -100,9 +97,7 @@ void main() {
       );
     });
 
-    testWidgets('the tooltip wrapper does not swallow the tap', (
-      tester,
-    ) async {
+    testWidgets('the tooltip wrapper does not swallow the tap', (tester) async {
       var tapped = 0;
       _useDesktopViewport(tester);
       await tester.pumpWidget(_wrap(onNewSession: () => tapped++));

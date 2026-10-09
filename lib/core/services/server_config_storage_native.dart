@@ -7,8 +7,7 @@ import 'logger_service.dart' show logger;
 class ServerConfigStorage {
   factory ServerConfigStorage() => _instance;
   ServerConfigStorage._();
-  static final ServerConfigStorage _instance =
-      ServerConfigStorage._();
+  static final ServerConfigStorage _instance = ServerConfigStorage._();
 
   MMKV? _mmkv;
   bool _initialized = false;
@@ -21,8 +20,7 @@ class ServerConfigStorage {
   bool _engineWarmupNoticeLogged = false;
 
   static const String _serverUrlKey = 'custom-server-url';
-  static const String _serverUrlErrorKey =
-      'last-server-url-error';
+  static const String _serverUrlErrorKey = 'last-server-url-error';
 
   Future<void> _ensureInitialized() async {
     if (!_initialized) await initialize();
@@ -59,9 +57,7 @@ class ServerConfigStorage {
       _instance._mmkv = MMKV('server-config');
       _instance._initialized = true;
     } catch (e) {
-      logger.warning(
-        'ServerConfigStorage: Initialization failed: $e',
-      );
+      logger.warning('ServerConfigStorage: Initialization failed: $e');
     }
   }
 
@@ -72,9 +68,7 @@ class ServerConfigStorage {
     try {
       return _mmkv?.decodeString(_serverUrlKey);
     } catch (e) {
-      logger.warning(
-        'ServerConfigStorage: Failed to get server URL: $e',
-      );
+      logger.warning('ServerConfigStorage: Failed to get server URL: $e');
       return null;
     }
   }
@@ -89,9 +83,7 @@ class ServerConfigStorage {
         _mmkv?.removeValue(_serverUrlKey);
       }
     } catch (e) {
-      logger.warning(
-        'ServerConfigStorage: Failed to set server URL: $e',
-      );
+      logger.warning('ServerConfigStorage: Failed to set server URL: $e');
       rethrow;
     }
   }
@@ -108,10 +100,7 @@ class ServerConfigStorage {
     try {
       _mmkv?.encodeString(_serverUrlErrorKey, error);
     } catch (e) {
-      logger.warning(
-        'ServerConfigStorage: Failed to save server URL error',
-        e,
-      );
+      logger.warning('ServerConfigStorage: Failed to save server URL error', e);
     }
   }
 
@@ -122,10 +111,7 @@ class ServerConfigStorage {
     try {
       return _mmkv?.decodeString(_serverUrlErrorKey);
     } catch (e) {
-      logger.warning(
-        'ServerConfigStorage: Failed to get server URL error',
-        e,
-      );
+      logger.warning('ServerConfigStorage: Failed to get server URL error', e);
       return null;
     }
   }
@@ -149,9 +135,7 @@ class ServerConfigStorage {
     try {
       _mmkv?.clearAll();
     } catch (e) {
-      logger.warning(
-        'ServerConfigStorage: Failed to clear all: $e',
-      );
+      logger.warning('ServerConfigStorage: Failed to clear all: $e');
     }
   }
 }

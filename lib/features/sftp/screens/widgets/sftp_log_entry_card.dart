@@ -10,11 +10,7 @@ import '../../../../core/utils/datetime_extensions.dart';
 
 /// A single log entry card with expandable details
 class SftpLogEntryCard extends StatelessWidget {
-  const SftpLogEntryCard({
-    required this.log,
-    super.key,
-    this.onDeviceTap,
-  });
+  const SftpLogEntryCard({required this.log, super.key, this.onDeviceTap});
 
   final SftpLogEntry log;
   final void Function(String deviceId)? onDeviceTap;
@@ -28,45 +24,32 @@ class SftpLogEntryCard extends StatelessWidget {
     return AppCard(
       padding: EdgeInsets.zero,
       child: Theme(
-        data: Theme.of(context).copyWith(
-          dividerColor: Colors.transparent,
-        ),
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-          ),
+          tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
           childrenPadding: const EdgeInsets.only(
             left: AppSpacing.lg,
             right: AppSpacing.lg,
             bottom: AppSpacing.md,
           ),
-          leading: SettingsIconContainer(
-            icon: levelIcon,
-            color: levelColor,
-          ),
+          leading: SettingsIconContainer(icon: levelIcon, color: levelColor),
           title: Text(
             log.message,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(fontWeight: FontWeight.w500),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Padding(
-            padding: const EdgeInsets.only(
-              top: AppSpacing.xxs,
-            ),
+            padding: const EdgeInsets.only(top: AppSpacing.xxs),
             child: Row(
               children: [
                 Text(
                   _formatTime(log.timestamp),
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                 ),
                 if (log.operation != null) ...[
                   const SizedBox(width: AppSpacing.sm),
@@ -77,15 +60,11 @@ class SftpLogEntryCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: cs.primaryContainer,
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.xs,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
                     ),
                     child: Text(
                       log.operation!,
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall,
+                      style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ),
                 ],
@@ -93,12 +72,9 @@ class SftpLogEntryCard extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     log.username!,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
                 ],
               ],
@@ -108,38 +84,22 @@ class SftpLogEntryCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                LogDetailRow(
-                  label: 'Device',
-                  value: log.deviceName,
-                ),
+                LogDetailRow(label: 'Device', value: log.deviceName),
                 GestureDetector(
-                  onTap: () =>
-                      onDeviceTap?.call(log.deviceId),
+                  onTap: () => onDeviceTap?.call(log.deviceId),
                   child: LogDetailRow(
                     label: 'Device ID',
                     value: log.deviceId,
                     valueColor: cs.primary,
                   ),
                 ),
-                LogDetailRow(
-                  label: 'Level',
-                  value: log.level,
-                ),
+                LogDetailRow(label: 'Level', value: log.level),
                 if (log.username != null)
-                  LogDetailRow(
-                    label: 'Username',
-                    value: log.username!,
-                  ),
+                  LogDetailRow(label: 'Username', value: log.username!),
                 if (log.ipAddress != null)
-                  LogDetailRow(
-                    label: 'IP Address',
-                    value: log.ipAddress!,
-                  ),
+                  LogDetailRow(label: 'IP Address', value: log.ipAddress!),
                 if (log.operation != null)
-                  LogDetailRow(
-                    label: 'Operation',
-                    value: log.operation!,
-                  ),
+                  LogDetailRow(label: 'Operation', value: log.operation!),
                 LogDetailRow(
                   label: 'Time',
                   value: log.timestamp.toIso8601String(),
@@ -148,21 +108,15 @@ class SftpLogEntryCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Details',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelMedium,
+                    style: Theme.of(context).textTheme.labelMedium,
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(
-                      AppSpacing.sm,
-                    ),
+                    padding: const EdgeInsets.all(AppSpacing.sm),
                     decoration: BoxDecoration(
                       color: cs.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.sm,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: SelectableText(
                       log.details!,
@@ -226,9 +180,7 @@ class LogDetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        vertical: AppSpacing.xxs,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -236,30 +188,22 @@ class LogDetailRow extends StatelessWidget {
             width: 80,
             child: Text(
               label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: (valueColor != null
-                      ? Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            color: valueColor,
-                            decoration:
-                                TextDecoration.underline,
-                          )
-                      : Theme.of(context)
-                          .textTheme
-                          .bodySmall)
-                  ?.copyWith(fontFamily: 'monospace'),
+              style:
+                  (valueColor != null
+                          ? Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: valueColor,
+                              decoration: TextDecoration.underline,
+                            )
+                          : Theme.of(context).textTheme.bodySmall)
+                      ?.copyWith(fontFamily: 'monospace'),
             ),
           ),
         ],

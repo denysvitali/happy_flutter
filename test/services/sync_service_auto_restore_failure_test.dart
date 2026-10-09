@@ -95,224 +95,205 @@ void main() {
       ApiClient().dispose();
     });
 
-    test(
-      'catch-all failure does NOT throw, emits AutoRestoreFailure, '
-      'bumps app.auto_restore.failed counter, and preserves '
-      'lifecycleState',
-      () async {
-        final sessionId = 'sess-catchall-fail';
-        final now = DateTime.now().millisecondsSinceEpoch;
+    test('catch-all failure does NOT throw, emits AutoRestoreFailure, '
+        'bumps app.auto_restore.failed counter, and preserves '
+        'lifecycleState', () async {
+      final sessionId = 'sess-catchall-fail';
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-        // Session is in the "exited" state so the code path falls
-        // through to auto-restore (looksReady == false).
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: false,
-          activeAt: now,
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/repo',
-            flavor: 'claude',
-            lifecycleState: 'exited',
-            lifecycleStateSince: now,
-          ),
-          metadataVersion: 1,
-          agentStateVersion: 1,
-          thinking: false,
-          presence: 'offline',
-        );
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          daemonStateVersion: 0,
-          metadata: const MachineMetadata(homeDir: '/home/user'),
-        );
+      // Session is in the "exited" state so the code path falls
+      // through to auto-restore (looksReady == false).
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: false,
+        activeAt: now,
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/repo',
+          flavor: 'claude',
+          lifecycleState: 'exited',
+          lifecycleStateSince: now,
+        ),
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: 'offline',
+      );
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        daemonStateVersion: 0,
+        metadata: const MachineMetadata(homeDir: '/home/user'),
+      );
 
-        // RPC returns a generic non-permanent, non-transient,
-        // non-terminal-state error so the catch-all branch fires.
-        // An unhandled StateError with an unrelated message puts us
-        // squarely in the "unknown" bucket.
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          if (method == 'spawn-happy-session') {
-            throw StateError(
-              'something unexpected happened on the daemon side',
-            );
-          }
-          return <String, dynamic>{'ok': true};
-        };
+      // RPC returns a generic non-permanent, non-transient,
+      // non-terminal-state error so the catch-all branch fires.
+      // An unhandled StateError with an unrelated message puts us
+      // squarely in the "unknown" bucket.
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          throw StateError('something unexpected happened on the daemon side');
+        }
+        return <String, dynamic>{'ok': true};
+      };
 
-        // MUST NOT throw — ROADMAP P0 invariant: the user must see
-        // the failure, not have the message vanish.
-        final result = await sync.sendMessage(sessionId, 'hello');
+      // MUST NOT throw — ROADMAP P0 invariant: the user must see
+      // the failure, not have the message vanish.
+      final result = await sync.sendMessage(sessionId, 'hello');
 
-        // Returns the fallback session so the chat UI stays
-        // consistent (same contract as the other catch branches).
-        expect(result, sessionId);
+      // Returns the fallback session so the chat UI stays
+      // consistent (same contract as the other catch branches).
+      expect(result, sessionId);
 
-        // The structured failure must reach subscribers.
-        expect(failures, hasLength(1));
-        final failure = failures.single;
-        expect(failure.sessionId, sessionId);
-        expect(failure.reason, 'unknown');
-        expect(failure.error, isA<StateError>());
+      // The structured failure must reach subscribers.
+      expect(failures, hasLength(1));
+      final failure = failures.single;
+      expect(failure.sessionId, sessionId);
+      expect(failure.reason, 'unknown');
+      expect(failure.error, isA<StateError>());
 
-        // The counter must have been bumped exactly once with the
-        // canonical app-level name.
-        expect(counterNames, contains('app.auto_restore.failed'));
+      // The counter must have been bumped exactly once with the
+      // canonical app-level name.
+      expect(counterNames, contains('app.auto_restore.failed'));
 
-        // The session metadata MUST be untouched — no silent
-        // re-spawn that would mask the real failure.
-        final updated = sync.testSessions[sessionId];
-        expect(updated?.metadata?.lifecycleState, 'exited');
-        expect(
-          updated?.metadata?.lifecycleStateError,
-          isNull,
-          reason:
-              'The catch-all branch must not silently mutate the '
-              'session metadata — only the terminal-state race '
-              'branch is allowed to strip the flag.',
-        );
-      },
-    );
+      // The session metadata MUST be untouched — no silent
+      // re-spawn that would mask the real failure.
+      final updated = sync.testSessions[sessionId];
+      expect(updated?.metadata?.lifecycleState, 'exited');
+      expect(
+        updated?.metadata?.lifecycleStateError,
+        isNull,
+        reason:
+            'The catch-all branch must not silently mutate the '
+            'session metadata — only the terminal-state race '
+            'branch is allowed to strip the flag.',
+      );
+    });
 
-    test(
-      'transient RPC errors do NOT emit AutoRestoreFailure '
-      'or bump the counter (regression: only catch-all emits)',
-      () async {
-        final sessionId = 'sess-transient-fail';
-        final now = DateTime.now().millisecondsSinceEpoch;
+    test('transient RPC errors do NOT emit AutoRestoreFailure '
+        'or bump the counter (regression: only catch-all emits)', () async {
+      final sessionId = 'sess-transient-fail';
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: false,
-          activeAt: now,
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/repo',
-            flavor: 'claude',
-            lifecycleState: 'exited',
-            lifecycleStateSince: now,
-          ),
-          metadataVersion: 1,
-          agentStateVersion: 1,
-          thinking: false,
-          presence: 'offline',
-        );
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          daemonStateVersion: 0,
-          metadata: const MachineMetadata(homeDir: '/home/user'),
-        );
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: false,
+        activeAt: now,
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/repo',
+          flavor: 'claude',
+          lifecycleState: 'exited',
+          lifecycleStateSince: now,
+        ),
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: 'offline',
+      );
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        daemonStateVersion: 0,
+        metadata: const MachineMetadata(homeDir: '/home/user'),
+      );
 
-        // A transient RPC error — must NOT trigger the user-visible
-        // failure stream; this is the whole reason we classify.
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          if (method == 'spawn-happy-session') {
-            // SocketAckTimeoutException is recognized by
-            // `_isTransientConnectionError`, so the catch-all
-            // branch must NOT fire — that's the whole point of
-            // the classification system.
-            throw const SocketAckTimeoutException('spawn-happy-session');
-          }
-          return <String, dynamic>{'ok': true};
-        };
+      // A transient RPC error — must NOT trigger the user-visible
+      // failure stream; this is the whole reason we classify.
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          // SocketAckTimeoutException is recognized by
+          // `_isTransientConnectionError`, so the catch-all
+          // branch must NOT fire — that's the whole point of
+          // the classification system.
+          throw const SocketAckTimeoutException('spawn-happy-session');
+        }
+        return <String, dynamic>{'ok': true};
+      };
 
-        await sync.sendMessage(sessionId, 'hello');
+      await sync.sendMessage(sessionId, 'hello');
 
-        expect(failures, isEmpty);
-        expect(counterNames, isEmpty);
-      },
-    );
+      expect(failures, isEmpty);
+      expect(counterNames, isEmpty);
+    });
 
     // GlitchTip 8910/8911: the daemon parked an idle session ("will
     // restart on next user message") and refused a model-change respawn as
     // a stale spawn. The message POST that follows restarts it, so this is
     // not a user-visible failure.
-    test(
-      'stale-spawn refusal does NOT emit AutoRestoreFailure or bump the '
-      'counter, and the message is still sent',
-      () async {
-        final sessionId = 'sess-stale-spawn';
-        final now = DateTime.now().millisecondsSinceEpoch;
+    test('stale-spawn refusal does NOT emit AutoRestoreFailure or bump the '
+        'counter, and the message is still sent', () async {
+      final sessionId = 'sess-stale-spawn';
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: false,
-          activeAt: now,
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/repo',
-            flavor: 'claude',
-            lifecycleState: 'exited',
-            lifecycleStateSince: now,
-          ),
-          metadataVersion: 1,
-          agentStateVersion: 1,
-          thinking: false,
-          presence: 'offline',
-        );
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          daemonStateVersion: 0,
-          metadata: const MachineMetadata(homeDir: '/home/user'),
-        );
-        sync.testMachineRPCOverride = (machineId, method, params) async {
-          if (method == 'spawn-happy-session') {
-            throw RpcException(
-              code: RpcErrorCode.unknown,
-              message:
-                  'session $sessionId is in terminal state; '
-                  'refusing stale spawn',
-              retryable: false,
-            );
-          }
-          return <String, dynamic>{'ok': true};
-        };
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: false,
+        activeAt: now,
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/repo',
+          flavor: 'claude',
+          lifecycleState: 'exited',
+          lifecycleStateSince: now,
+        ),
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: 'offline',
+      );
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        daemonStateVersion: 0,
+        metadata: const MachineMetadata(homeDir: '/home/user'),
+      );
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          throw RpcException(
+            code: RpcErrorCode.unknown,
+            message:
+                'session $sessionId is in terminal state; '
+                'refusing stale spawn',
+            retryable: false,
+          );
+        }
+        return <String, dynamic>{'ok': true};
+      };
 
-        final result = await sync.sendMessage(sessionId, 'hello');
+      final result = await sync.sendMessage(sessionId, 'hello');
 
-        expect(result, sessionId);
-        expect(failures, isEmpty);
-        expect(counterNames, isEmpty);
-      },
-    );
+      expect(result, sessionId);
+      expect(failures, isEmpty);
+      expect(counterNames, isEmpty);
+    });
 
     test(
       'testAutoRestoreFailureSink intercepts the event for unit tests',
@@ -366,11 +347,7 @@ void main() {
           daemonStateVersion: 0,
           metadata: const MachineMetadata(homeDir: '/home/user'),
         );
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
+        sync.testMachineRPCOverride = (machineId, method, params) async {
           if (method == 'spawn-happy-session') {
             throw StateError('unhandled');
           }

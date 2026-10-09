@@ -4,11 +4,7 @@ import 'avatar_palette.dart';
 
 /// Base avatar widget
 abstract class BaseAvatar extends StatelessWidget {
-
-  const BaseAvatar({
-    required this.id, super.key,
-    this.size = 48,
-  });
+  const BaseAvatar({required this.id, super.key, this.size = 48});
   final String id;
   final double size;
 

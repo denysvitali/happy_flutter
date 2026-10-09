@@ -78,56 +78,55 @@ void main() {
       instance.testClearSessionMessageState('sess-noop');
     });
 
-    test(
-      'socket event with no visible mutation advances cursor but does not '
-      'notify session/domain streams',
-      () {
-        fakeAsync((async) {
-          const sessionId = 'sess-noop';
-          final sessionEmits = <String>[];
-          final domainEmits = <void>[];
+    test('socket event with no visible mutation advances cursor but does not '
+        'notify session/domain streams', () {
+      fakeAsync((async) {
+        const sessionId = 'sess-noop';
+        final sessionEmits = <String>[];
+        final domainEmits = <void>[];
 
-          final sessionSub = instance.onSessionMessagesChanged
-              .listen((id) => sessionEmits.add(id));
-          final domainSub = instance.onDataChanged
-              .listen((_) => domainEmits.add(null));
+        final sessionSub = instance.onSessionMessagesChanged.listen(
+          (id) => sessionEmits.add(id),
+        );
+        final domainSub = instance.onDataChanged.listen(
+          (_) => domainEmits.add(null),
+        );
 
-          instance.ingestFromSocket(
-            MessageIngressEvent(
-              source: MessagePipelineSource.socket,
-              sessionId: sessionId,
-              rawPayload: <String, dynamic>{
-                'id': 'msg-noop',
-                'seq': 42,
-                'createdAt': 1700000000000,
-              },
-              isVisibleSession: true,
-              notifySessionsDomain: true,
-            ),
-          );
+        instance.ingestFromSocket(
+          MessageIngressEvent(
+            source: MessagePipelineSource.socket,
+            sessionId: sessionId,
+            rawPayload: <String, dynamic>{
+              'id': 'msg-noop',
+              'seq': 42,
+              'createdAt': 1700000000000,
+            },
+            isVisibleSession: true,
+            notifySessionsDomain: true,
+          ),
+        );
 
-          async.elapse(const Duration(seconds: 1));
+        async.elapse(const Duration(seconds: 1));
 
-          expect(
-            instance.testGetSessionLastSeq(sessionId),
-            42,
-            reason: 'cursor must advance even for no-op events',
-          );
-          expect(
-            sessionEmits,
-            isEmpty,
-            reason: 'no-op events must not wake onSessionMessagesChanged',
-          );
-          expect(
-            domainEmits,
-            isEmpty,
-            reason: 'no-op events must not wake onDataChanged',
-          );
+        expect(
+          instance.testGetSessionLastSeq(sessionId),
+          42,
+          reason: 'cursor must advance even for no-op events',
+        );
+        expect(
+          sessionEmits,
+          isEmpty,
+          reason: 'no-op events must not wake onSessionMessagesChanged',
+        );
+        expect(
+          domainEmits,
+          isEmpty,
+          reason: 'no-op events must not wake onDataChanged',
+        );
 
-          sessionSub.cancel();
-          domainSub.cancel();
-        });
-      },
-    );
+        sessionSub.cancel();
+        domainSub.cancel();
+      });
+    });
   });
 }

@@ -10,26 +10,21 @@ void main() {
     testWidgets('renders as a ListView', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SessionListShimmer(),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SessionListShimmer()),
         ),
       );
 
       expect(find.byType(ListView), findsOneWidget);
     });
 
-    testWidgets('contains shimmer placeholder rows',
-        (tester) async {
+    testWidgets('contains shimmer placeholder rows', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SessionListShimmer(),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SessionListShimmer()),
         ),
       );
 
@@ -45,20 +40,15 @@ void main() {
     testWidgets('contains Shimmer widget', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SessionListShimmer(),
-          ),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: SessionListShimmer()),
         ),
       );
 
       // At least one Shimmer widget should exist
       // (the shimmer package widget)
-      expect(
-        find.byType(SessionListShimmer),
-        findsOneWidget,
-      );
+      expect(find.byType(SessionListShimmer), findsOneWidget);
     });
   });
 }

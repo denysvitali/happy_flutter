@@ -217,7 +217,10 @@ class _AgentUpdateBannerState extends ConsumerState<AgentUpdateBanner> {
                     entry.value.version ?? l10n.machineAgentsUnknown,
                     entry.value.latestVersion ?? l10n.machineAgentsUnknown,
                   ),
-                  style: AppText.secondary(theme, theme.colorScheme.onSecondaryContainer),
+                  style: AppText.secondary(
+                    theme,
+                    theme.colorScheme.onSecondaryContainer,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Row(

@@ -19,10 +19,7 @@ import 'logger_service.dart';
 /// Build-time canary flag.  Defaults to `false` so production builds
 /// pay zero overhead.  Set via `--dart-define=kCanary=true` on the
 /// canary track.
-const bool kCanary = bool.fromEnvironment(
-  'kCanary',
-  defaultValue: false,
-);
+const bool kCanary = bool.fromEnvironment('kCanary', defaultValue: false);
 
 /// Runtime invariant violations get logged here.  In production
 /// (canary off) the entire class compiles to a constant-false branch
@@ -72,11 +69,7 @@ class CanaryAssert {
     _record(
       invariant: 'no_duplicate_localId',
       context: 'session=$sessionId',
-      state: {
-        'localId': localId,
-        'rowCount': rowCount,
-        'sessionId': sessionId,
-      },
+      state: {'localId': localId, 'rowCount': rowCount, 'sessionId': sessionId},
     );
   }
 
@@ -93,10 +86,7 @@ class CanaryAssert {
     _record(
       invariant: 'ack_without_optimistic',
       context: 'session=$sessionId',
-      state: {
-        'localId': localId,
-        'sessionId': sessionId,
-      },
+      state: {'localId': localId, 'sessionId': sessionId},
     );
   }
 

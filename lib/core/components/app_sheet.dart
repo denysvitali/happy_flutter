@@ -78,10 +78,7 @@ class _SheetDragHandle extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.sm,
-        bottom: AppSpacing.xs,
-      ),
+      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xs),
       child: Container(
         width: 36,
         height: 4,

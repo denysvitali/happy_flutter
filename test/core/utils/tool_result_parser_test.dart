@@ -79,11 +79,7 @@ void main() {
 
   group('parseErrorText', () {
     test('parses stderr first', () {
-      const result = {
-        'stderr': 'err',
-        'stdout': 'out',
-        'output': 'output',
-      };
+      const result = {'stderr': 'err', 'stdout': 'out', 'output': 'output'};
       expect(parseErrorText(result), 'err');
     });
 

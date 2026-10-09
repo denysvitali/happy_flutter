@@ -10,8 +10,8 @@ void main() {
     testWidgets('renders child widget', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: StaggeredSlideIn(
               index: 0,
@@ -25,12 +25,11 @@ void main() {
       expect(find.text('Hello'), findsOneWidget);
     });
 
-    testWidgets('wraps child in RepaintBoundary',
-        (tester) async {
+    testWidgets('wraps child in RepaintBoundary', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: StaggeredSlideIn(
               index: 0,
@@ -43,18 +42,14 @@ void main() {
 
       // RepaintBoundary exists (may be multiple due to
       // framework internals).
-      expect(
-        find.byType(RepaintBoundary),
-        findsWidgets,
-      );
+      expect(find.byType(RepaintBoundary), findsWidgets);
     });
 
-    testWidgets('renders immediately when animate is false',
-        (tester) async {
+    testWidgets('renders immediately when animate is false', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: StaggeredSlideIn(
               index: 0,
@@ -68,12 +63,11 @@ void main() {
       expect(find.text('No Animation'), findsOneWidget);
     });
 
-    testWidgets('renders multiple staggered items',
-        (tester) async {
+    testWidgets('renders multiple staggered items', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: Column(
               children: [

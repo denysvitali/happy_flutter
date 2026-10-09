@@ -51,7 +51,10 @@ void main() {
         isFalse,
       );
       expect(isConnectionLevelNetworkError('Bad state: HTTP 504'), isFalse);
-      expect(isConnectionLevelNetworkError(StateError('spawn failed')), isFalse);
+      expect(
+        isConnectionLevelNetworkError(StateError('spawn failed')),
+        isFalse,
+      );
     });
   });
 }

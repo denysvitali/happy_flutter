@@ -50,8 +50,7 @@ void main() {
       expect(order, [1, 2]);
     });
 
-    test('allows concurrent processing across sessions',
-        () async {
+    test('allows concurrent processing across sessions', () async {
       final order = <String>[];
       final c1 = Completer<void>();
       final c2 = Completer<void>();
@@ -117,10 +116,8 @@ void main() {
   });
 
   group('InlineMessageProcessor.enqueueBatch coalescing', () {
-    test(
-      'items enqueued in one synchronous burst drain as ONE list '
-      'in arrival order',
-      () async {
+    test('items enqueued in one synchronous burst drain as ONE list '
+        'in arrival order', () async {
       final calls = <List<String>>[];
       processor.enqueueBatch<String>(
         's1',
@@ -148,10 +145,8 @@ void main() {
       expect(processor.contains('s1'), isFalse);
     });
 
-    test(
-      'items arriving during a drain land in a follow-up drain, '
-      'still in arrival order',
-      () async {
+    test('items arriving during a drain land in a follow-up drain, '
+        'still in arrival order', () async {
       final calls = <List<String>>[];
       var firstDrainStarted = false;
       final gate = Completer<void>();
@@ -186,10 +181,8 @@ void main() {
       expect(processor.contains('s1'), isFalse);
     });
 
-    test(
-      'an item arriving just before the queue entry is removed is not '
-      'stranded',
-      () async {
+    test('an item arriving just before the queue entry is removed is not '
+        'stranded', () async {
       final calls = <List<String>>[];
       Future<void> process(List<String> items) async {
         calls.add(items);

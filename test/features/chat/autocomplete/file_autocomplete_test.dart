@@ -262,13 +262,9 @@ void main() {
       const content = 'hello @mai world';
       // cursor after '@mai' → offset 10
       const selection = TextSelection.collapsed(offset: 10);
-      final result = applySuggestion(
-        content,
-        selection,
-        '@main.dart',
-        const ['@'],
-        true,
-      );
+      final result = applySuggestion(content, selection, '@main.dart', const [
+        '@',
+      ], true);
       expect(result.text, 'hello @main.dart world');
       expect(result.cursorPosition, 16);
     });
@@ -277,13 +273,9 @@ void main() {
       const content = 'hello @mai';
       // cursor after '@mai' → offset 10
       const selection = TextSelection.collapsed(offset: 10);
-      final result = applySuggestion(
-        content,
-        selection,
-        '@main.dart',
-        const ['@'],
-        true,
-      );
+      final result = applySuggestion(content, selection, '@main.dart', const [
+        '@',
+      ], true);
       expect(result.text, 'hello @main.dart ');
       expect(result.cursorPosition, 17);
     });
@@ -292,13 +284,9 @@ void main() {
       const content = 'hello @mai world';
       // cursor after '@mai' → offset 10
       const selection = TextSelection.collapsed(offset: 10);
-      final result = applySuggestion(
-        content,
-        selection,
-        '@main.dart',
-        const ['@'],
-        true,
-      );
+      final result = applySuggestion(content, selection, '@main.dart', const [
+        '@',
+      ], true);
       expect(result.text, 'hello @main.dart world');
     });
 
@@ -306,13 +294,9 @@ void main() {
       const content = 'hello @mai';
       // cursor after '@mai' → offset 10
       const selection = TextSelection.collapsed(offset: 10);
-      final result = applySuggestion(
-        content,
-        selection,
-        '@main.dart',
-        const ['@'],
-        false,
-      );
+      final result = applySuggestion(content, selection, '@main.dart', const [
+        '@',
+      ], false);
       expect(result.text, 'hello @main.dart');
       expect(result.cursorPosition, 16);
     });
@@ -323,13 +307,9 @@ void main() {
       // No prefix in text, so findActiveWord returns null.
       // The null branch inserts suggestion + space at cursor.
       const selection = TextSelection.collapsed(offset: 5);
-      final result = applySuggestion(
-        content,
-        selection,
-        '@file',
-        const ['@'],
-        true,
-      );
+      final result = applySuggestion(content, selection, '@file', const [
+        '@',
+      ], true);
       // null branch: beforeCursor='hello', afterCursor=' world',
       // suggestion with space = '@file ', result = 'hello@file  world'
       expect(result.text, 'hello@file  world');
@@ -338,13 +318,9 @@ void main() {
     test('handles empty content', () {
       const content = '';
       const selection = TextSelection.collapsed(offset: 0);
-      final result = applySuggestion(
-        content,
-        selection,
-        '@file',
-        const ['@'],
-        true,
-      );
+      final result = applySuggestion(content, selection, '@file', const [
+        '@',
+      ], true);
       expect(result.text, '@file ');
     });
 
@@ -384,13 +360,9 @@ void main() {
       const content = 'prefix @file suffix';
       // cursor after '@file' → offset 11
       const selection = TextSelection.collapsed(offset: 11);
-      final result = applySuggestion(
-        content,
-        selection,
-        '@file.dart',
-        const ['@'],
-        true,
-      );
+      final result = applySuggestion(content, selection, '@file.dart', const [
+        '@',
+      ], true);
       expect(result.text, 'prefix @file.dart suffix');
     });
 
@@ -398,13 +370,9 @@ void main() {
       const content = 'hello :sm world';
       // cursor after ':sm' → offset 8
       const selection = TextSelection.collapsed(offset: 8);
-      final result = applySuggestion(
-        content,
-        selection,
-        ':smile',
-        const [':'],
-        true,
-      );
+      final result = applySuggestion(content, selection, ':smile', const [
+        ':',
+      ], true);
       expect(result.text, 'hello :smile world');
     });
 
@@ -413,13 +381,9 @@ void main() {
       // r(0) u(1) n(2) (3) /(4) h(5) e(6) (7) w(8) ...
       // cursor after '/he' (before space) → offset 7
       const selection = TextSelection.collapsed(offset: 7);
-      final result = applySuggestion(
-        content,
-        selection,
-        '/help',
-        const ['/'],
-        true,
-      );
+      final result = applySuggestion(content, selection, '/help', const [
+        '/',
+      ], true);
       expect(result.text, 'run /help world');
     });
   });
@@ -510,19 +474,14 @@ void main() {
           focusNode: focusNode,
           fetchSuggestions: fetchSuggestions,
           onSelect: onSelect ?? (_) {},
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-          ),
+          child: TextField(controller: controller, focusNode: focusNode),
         ),
       );
     }
 
     testWidgets('renders child widget', (tester) async {
       await tester.pumpWidget(
-        buildAutocomplete(
-          fetchSuggestions: (_) async => [],
-        ),
+        buildAutocomplete(fetchSuggestions: (_) async => []),
       );
 
       expect(find.byType(TextField), findsOneWidget);
@@ -530,9 +489,7 @@ void main() {
 
     testWidgets('does not show overlay initially', (tester) async {
       await tester.pumpWidget(
-        buildAutocomplete(
-          fetchSuggestions: (_) async => [],
-        ),
+        buildAutocomplete(fetchSuggestions: (_) async => []),
       );
 
       expect(find.byType(ListView), findsNothing);
@@ -544,10 +501,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );
@@ -569,10 +523,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );
@@ -592,10 +543,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );
@@ -619,10 +567,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
           onSelect: (s) => selected = s,
         ),
@@ -649,10 +594,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );
@@ -677,10 +619,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );
@@ -811,13 +750,11 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
             body: MediaQuery(
-              data: const MediaQueryData(
-                textScaler: TextScaler.linear(0.8),
-              ),
+              data: const MediaQueryData(textScaler: TextScaler.linear(0.8)),
               child: SizedBox.expand(
                 child: Column(
                   children: [
@@ -869,18 +806,9 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
-            const FileSuggestion(
-              label: 'app.dart',
-              path: 'lib/app.dart',
-            ),
-            const FileSuggestion(
-              label: 'utils.dart',
-              path: 'lib/utils.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
+            const FileSuggestion(label: 'app.dart', path: 'lib/app.dart'),
+            const FileSuggestion(label: 'utils.dart', path: 'lib/utils.dart'),
           ],
         ),
       );
@@ -903,14 +831,8 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
-            const FileSuggestion(
-              label: 'app.dart',
-              path: 'lib/app.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
+            const FileSuggestion(label: 'app.dart', path: 'lib/app.dart'),
           ],
         ),
       );
@@ -954,10 +876,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );
@@ -977,14 +896,8 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
-            const FileSuggestion(
-              label: 'app.dart',
-              path: 'lib/app.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
+            const FileSuggestion(label: 'app.dart', path: 'lib/app.dart'),
           ],
         ),
       );
@@ -1006,14 +919,8 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
-            const FileSuggestion(
-              label: 'app.dart',
-              path: 'lib/app.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
+            const FileSuggestion(label: 'app.dart', path: 'lib/app.dart'),
           ],
         ),
       );
@@ -1036,10 +943,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );
@@ -1056,14 +960,13 @@ void main() {
       expect(find.byType(Divider), findsNothing);
     });
 
-    testWidgets('shows suggestions after async fetch completes',
-        (tester) async {
+    testWidgets('shows suggestions after async fetch completes', (
+      tester,
+    ) async {
       final completer = Completer<List<FileSuggestion>>();
 
       await tester.pumpWidget(
-        buildAutocomplete(
-          fetchSuggestions: (_) => completer.future,
-        ),
+        buildAutocomplete(fetchSuggestions: (_) => completer.future),
       );
 
       focusNode.requestFocus();
@@ -1092,10 +995,7 @@ void main() {
       await tester.pumpWidget(
         buildAutocomplete(
           fetchSuggestions: (_) async => [
-            const FileSuggestion(
-              label: 'main.dart',
-              path: 'lib/main.dart',
-            ),
+            const FileSuggestion(label: 'main.dart', path: 'lib/main.dart'),
           ],
         ),
       );

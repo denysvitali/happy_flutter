@@ -25,7 +25,8 @@ extension AuroraCs on BuildContext {
   Color get textSubtle =>
       _aurora?.textSubtle ?? Theme.of(this).colorScheme.outlineVariant;
 
-  List<Color> get accentGradient => _aurora?.accentGradient ??
+  List<Color> get accentGradient =>
+      _aurora?.accentGradient ??
       [
         Theme.of(this).colorScheme.primary,
         Theme.of(this).colorScheme.secondary,
@@ -47,10 +48,9 @@ class AuroraPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerLow
-            .withValues(alpha: 0.9),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerLow.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
           color: context.glassBorder,
@@ -106,10 +106,9 @@ class AuroraSectionHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.xxs),
         Text(
           hint,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: context.textSubtle),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: context.textSubtle),
         ),
       ],
     );
@@ -126,10 +125,9 @@ InputDecoration auroraField({
 }) {
   return InputDecoration(
     filled: true,
-    fillColor: Theme.of(context)
-        .colorScheme
-        .surfaceContainerHigh
-        .withValues(alpha: 0.5),
+    fillColor: Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHigh.withValues(alpha: 0.5),
     labelText: labelText,
     labelStyle: TextStyle(color: context.textSubtle),
     hintText: hintText,
@@ -239,8 +237,7 @@ class TemplateChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color:
-          isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
+      color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
       shape: StadiumBorder(
         side: BorderSide(
           color: isSelected ? color : context.glassBorder,
@@ -270,8 +267,9 @@ class TemplateChip extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: AppFontSize.sm,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                     color: isSelected ? color : context.textPrimary,
                   ),
                 ),
@@ -373,10 +371,9 @@ class EnvVarsSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   l10n.profilesEnvVarsEmpty,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: context.textSubtle),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: context.textSubtle),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -423,10 +420,9 @@ class EnvVarRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .surfaceContainerHigh
-            .withValues(alpha: 0.35),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHigh.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
@@ -468,14 +464,12 @@ class EnvVarRow extends StatelessWidget {
                 size: AppIconSize.lg,
                 color: context.textSubtle,
               ),
-              hoverColor: Theme.of(context)
-                  .colorScheme
-                  .error
-                  .withValues(alpha: 0.12),
-              highlightColor: Theme.of(context)
-                  .colorScheme
-                  .error
-                  .withValues(alpha: 0.16),
+              hoverColor: Theme.of(
+                context,
+              ).colorScheme.error.withValues(alpha: 0.12),
+              highlightColor: Theme.of(
+                context,
+              ).colorScheme.error.withValues(alpha: 0.16),
               onPressed: onRemove,
             ),
           ),
@@ -516,9 +510,7 @@ class ScriptSection extends StatelessWidget {
             child: AuroraSectionHeader(
               icon: Icons.terminal_outlined,
               title: l10n.profilesScriptTitle,
-              hint: show
-                  ? l10n.profilesScriptDescription
-                  : l10n.commonOptional,
+              hint: show ? l10n.profilesScriptDescription : l10n.commonOptional,
               trailing: Padding(
                 padding: const EdgeInsets.only(left: AppSpacing.xs),
                 child: Icon(
@@ -644,8 +636,7 @@ class _ValueFieldState extends State<ValueField> {
                 tooltip: obscure
                     ? l10n.profilesEnvShowValue
                     : l10n.profilesEnvHideValue,
-                onPressed: () =>
-                    setState(() => _userRevealed = !_userRevealed),
+                onPressed: () => setState(() => _userRevealed = !_userRevealed),
               )
             : null,
       ),

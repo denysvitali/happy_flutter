@@ -307,9 +307,7 @@ void main() {
           clipboardMode: SftpClipboardMode.off,
         );
 
-        final updated = original.copyWith(
-          authMethod: SftpAuthMethod.publicKey,
-        );
+        final updated = original.copyWith(authMethod: SftpAuthMethod.publicKey);
 
         expect(updated.authMethod, SftpAuthMethod.publicKey);
       });

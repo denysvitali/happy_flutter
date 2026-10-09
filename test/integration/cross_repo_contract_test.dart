@@ -170,9 +170,7 @@ void main() {
         return;
       }
 
-      final fixturesDir = Directory(
-        '${cliRoot.path}/test/fixtures/messages',
-      );
+      final fixturesDir = Directory('${cliRoot.path}/test/fixtures/messages');
       if (!fixturesDir.existsSync()) {
         markTestSkipped(
           'Fixture directory not found: ${fixturesDir.path}. '
@@ -189,8 +187,8 @@ void main() {
       expect(fixtures, isNotEmpty, reason: 'expected at least one fixture');
 
       for (final fixture in fixtures) {
-        final raw = jsonDecode(fixture.readAsStringSync())
-            as Map<String, dynamic>;
+        final raw =
+            jsonDecode(fixture.readAsStringSync()) as Map<String, dynamic>;
         expect(
           raw['v'],
           1,
@@ -216,14 +214,14 @@ void main() {
         final allowedDrops = processed.droppedReasons
             .where(
               (r) =>
-                  !r.startsWith('event data type ') &&
-                  r != 'redacted thinking',
+                  !r.startsWith('event data type ') && r != 'redacted thinking',
             )
             .toList();
         expect(
           allowedDrops,
           isEmpty,
-          reason: '${fixture.path} should not be dropped '
+          reason:
+              '${fixture.path} should not be dropped '
               'for an unknown reason',
         );
 

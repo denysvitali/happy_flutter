@@ -12,8 +12,7 @@ import 'mmkv_storage.dart';
 /// [RecentCommandsStorage]. Subclasses provide the storage [key], a
 /// [decode]/[encode] pair, and an [empty] value.
 abstract class CachedStorage<T> {
-  CachedStorage({MMKVStorage? storage})
-      : _storage = storage ?? MMKVStorage();
+  CachedStorage({MMKVStorage? storage}) : _storage = storage ?? MMKVStorage();
 
   final MMKVStorage _storage;
 

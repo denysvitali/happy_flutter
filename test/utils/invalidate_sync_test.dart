@@ -102,41 +102,38 @@ void main() {
     );
 
     group('failure throttling', () {
-      test(
-        'exhausted retries stamp the run end so minInterval throttles the '
-        'next invalidation',
-        () async {
-          var callCount = 0;
-          final sync = InvalidateSync(
-            () async {
-              callCount++;
-              throw StateError('network timeout');
-            },
-            minInterval: const Duration(milliseconds: 200),
-            maxRetries: 0,
-          );
+      test('exhausted retries stamp the run end so minInterval throttles the '
+          'next invalidation', () async {
+        var callCount = 0;
+        final sync = InvalidateSync(
+          () async {
+            callCount++;
+            throw StateError('network timeout');
+          },
+          minInterval: const Duration(milliseconds: 200),
+          maxRetries: 0,
+        );
 
-          sync.invalidate();
-          await expectLater(sync.awaitQueue(), throwsStateError);
-          expect(callCount, 1);
+        sync.invalidate();
+        await expectLater(sync.awaitQueue(), throwsStateError);
+        expect(callCount, 1);
 
-          // Immediately re-invalidating must be deferred by the cooldown
-          // instead of hammering the failing endpoint. Previously
-          // _lastRunEnd was never stamped on the failure path, so this
-          // second call ran the action synchronously.
-          sync.invalidate();
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-          expect(
-            callCount,
-            1,
-            reason: 'failure path must honour minInterval before re-running',
-          );
+        // Immediately re-invalidating must be deferred by the cooldown
+        // instead of hammering the failing endpoint. Previously
+        // _lastRunEnd was never stamped on the failure path, so this
+        // second call ran the action synchronously.
+        sync.invalidate();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(
+          callCount,
+          1,
+          reason: 'failure path must honour minInterval before re-running',
+        );
 
-          await Future<void>.delayed(const Duration(milliseconds: 260));
-          expect(callCount, 2);
-          sync.dispose();
-        },
-      );
+        await Future<void>.delayed(const Duration(milliseconds: 260));
+        expect(callCount, 2);
+        sync.dispose();
+      });
     });
 
     group('backgrounded retries', () {
@@ -180,21 +177,24 @@ void main() {
         await sync.awaitQueue();
       });
 
-      test('dispose reports in-flight operation as no longer running', () async {
-        final blocker = Completer<void>();
-        final events = <bool>[];
-        final sync = InvalidateSync(
-          () => blocker.future,
-          onRunningChanged: (_, isRunning) => events.add(isRunning),
-        );
+      test(
+        'dispose reports in-flight operation as no longer running',
+        () async {
+          final blocker = Completer<void>();
+          final events = <bool>[];
+          final sync = InvalidateSync(
+            () => blocker.future,
+            onRunningChanged: (_, isRunning) => events.add(isRunning),
+          );
 
-        sync.invalidate();
-        await Future<void>.delayed(Duration.zero);
+          sync.invalidate();
+          await Future<void>.delayed(Duration.zero);
 
-        sync.dispose();
+          sync.dispose();
 
-        expect(events, [true, false]);
-      });
+          expect(events, [true, false]);
+        },
+      );
 
       test('dispose during in-flight op does not crash '
           'invalidateAndAwait callers', () async {
@@ -399,9 +399,7 @@ void main() {
       // Cronet error to Sentry as an issue even though recovery re-arms
       // on the next invalidation. Only non-network failures may log at
       // error level — those are the server-brownout signal.
-      Future<List<LogLevel>> exhaustAndCollectLevels(
-        Object failure,
-      ) async {
+      Future<List<LogLevel>> exhaustAndCollectLevels(Object failure) async {
         logger.clear();
         final sync = InvalidateSync(
           () async => throw failure,
@@ -409,10 +407,7 @@ void main() {
           maxRetries: 0,
         );
         sync.invalidate();
-        await expectLater(
-          sync.awaitQueue(),
-          throwsA(anything),
-        );
+        await expectLater(sync.awaitQueue(), throwsA(anything));
         // Let the catch path finish logging before reading the buffer.
         await Future<void>.delayed(Duration.zero);
         return logger

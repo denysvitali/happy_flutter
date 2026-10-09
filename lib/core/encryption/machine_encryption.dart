@@ -8,16 +8,15 @@ import 'encryptor.dart';
 
 /// Machine-specific encryption management
 class MachineEncryption {
-
   MachineEncryption({
     required String machineId,
     required Encryptor encryptor,
     required Decryptor decryptor,
     required EncryptionCache cache,
-  })  : _machineId = machineId,
-        _encryptor = encryptor,
-        _decryptor = decryptor,
-        _cache = cache;
+  }) : _machineId = machineId,
+       _encryptor = encryptor,
+       _decryptor = decryptor,
+       _cache = cache;
   final String _machineId;
   final Encryptor _encryptor;
   final Decryptor _decryptor;
@@ -95,10 +94,7 @@ class MachineEncryption {
   }
 
   /// Decrypt daemon state with caching
-  Future<dynamic> decryptDaemonState(
-    int version,
-    String? encrypted,
-  ) async {
+  Future<dynamic> decryptDaemonState(int version, String? encrypted) async {
     if (encrypted == null || encrypted.isEmpty) {
       return null;
     }

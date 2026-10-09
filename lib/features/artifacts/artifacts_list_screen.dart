@@ -159,8 +159,7 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
       if (_selectedArtifactId != null || _inlineMode != _InlineMode.none) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          if (_selectedArtifactId != null ||
-              _inlineMode != _InlineMode.none) {
+          if (_selectedArtifactId != null || _inlineMode != _InlineMode.none) {
             _clearInline();
           }
         });
@@ -181,8 +180,8 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
             selectedId: isWide ? _selectedArtifactId : null,
           );
 
-    final hasSelection = _selectedArtifactId != null ||
-        _inlineMode == _InlineMode.create;
+    final hasSelection =
+        _selectedArtifactId != null || _inlineMode == _InlineMode.create;
 
     final scaffoldBody = isWide
         ? MasterDetailScaffold(
@@ -214,9 +213,7 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
     );
   }
 
-  List<DecryptedArtifact> _filterAndSort(
-    List<DecryptedArtifact> artifacts,
-  ) {
+  List<DecryptedArtifact> _filterAndSort(List<DecryptedArtifact> artifacts) {
     var list = artifacts.toList();
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
@@ -351,9 +348,7 @@ class _ArtifactsListScreenState extends ConsumerState<ArtifactsListScreen>
                       return RepaintBoundary(
                         key: ValueKey(artifact.id),
                         child: Padding(
-                          padding: const EdgeInsets.only(
-                            bottom: AppSpacing.sm,
-                          ),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                           child: _ArtifactListCard(
                             artifact: artifact,
                             selected: isSelected,
@@ -478,8 +473,7 @@ class _ArtifactListCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                if (artifact.body != null &&
-                    artifact.body!.isNotEmpty) ...[
+                if (artifact.body != null && artifact.body!.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xsm),
                   // Content preview snippet.
                   Text(

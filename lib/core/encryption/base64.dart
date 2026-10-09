@@ -29,14 +29,14 @@ class Base64Utils {
     final base64 = base64Encode(buffer);
 
     if (encoding == Encoding.base64url) {
-      return base64.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+      return base64
+          .replaceAll('+', '-')
+          .replaceAll('/', '_')
+          .replaceAll('=', '');
     }
 
     return base64;
   }
 }
 
-enum Encoding {
-  base64,
-  base64url,
-}
+enum Encoding { base64, base64url }

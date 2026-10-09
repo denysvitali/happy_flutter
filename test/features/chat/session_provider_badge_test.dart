@@ -34,9 +34,7 @@ Session _session({required String flavor}) {
 
 Widget _wrap(Widget child) {
   return ProviderScope(
-    overrides: [
-      loopsNotifierProvider.overrideWith(StubLoopsNotifier.new),
-    ],
+    overrides: [loopsNotifierProvider.overrideWith(StubLoopsNotifier.new)],
     child: child,
   );
 }

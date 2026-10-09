@@ -27,15 +27,19 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     // ── Text hierarchy ────────────────────────────────────────────────────
     /// High-emphasis foreground — headings, titles, primary body copy.
     required this.textPrimary,
+
     /// Medium-emphasis foreground — list tile titles, body large/medium.
     required this.textSecondary,
+
     /// Low-emphasis foreground — subtitles, captions, secondary list text.
     required this.textMuted,
+
     /// Placeholder / hint foreground — input hints, icon tints, nav labels.
     required this.textSubtle,
     // ── Interactive ───────────────────────────────────────────────────────
     /// Border color used on error / danger input states.
     required this.errorBorder,
+
     /// Fill color for disabled filled-button states.
     required this.disabledFill,
     // ── Overlay ───────────────────────────────────────────────────────────
@@ -46,8 +50,10 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
     /// hero elements: send button, active progress fill, thinking dot,
     /// user-bubble glow.
     required this.accentGradient,
+
     /// Hairline border for glass panels/chips.
     required this.glassBorder,
+
     /// Top-edge highlight for glass panels/chips.
     required this.glassHighlight,
   });
@@ -157,8 +163,10 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
   // Aurora glass
   /// Signature accent gradient (primary → secondary). Hero elements only.
   final List<Color> accentGradient;
+
   /// Hairline border for glass panels/chips.
   final Color glassBorder;
+
   /// Top-edge highlight for glass panels/chips.
   final Color glassHighlight;
 
@@ -261,8 +269,7 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       dangerContainer:
           Color.lerp(dangerContainer, other.dangerContainer, t) ??
           dangerContainer,
-      shimmerBase:
-          Color.lerp(shimmerBase, other.shimmerBase, t) ?? shimmerBase,
+      shimmerBase: Color.lerp(shimmerBase, other.shimmerBase, t) ?? shimmerBase,
       shimmerHighlight:
           Color.lerp(shimmerHighlight, other.shimmerHighlight, t) ??
           shimmerHighlight,
@@ -275,28 +282,21 @@ class AppColorScheme extends ThemeExtension<AppColorScheme> {
       bubbleAssistantText:
           Color.lerp(bubbleAssistantText, other.bubbleAssistantText, t) ??
           bubbleAssistantText,
-      textPrimary:
-          Color.lerp(textPrimary, other.textPrimary, t) ?? textPrimary,
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t) ?? textPrimary,
       textSecondary:
           Color.lerp(textSecondary, other.textSecondary, t) ?? textSecondary,
       textMuted: Color.lerp(textMuted, other.textMuted, t) ?? textMuted,
       textSubtle: Color.lerp(textSubtle, other.textSubtle, t) ?? textSubtle,
-      errorBorder:
-          Color.lerp(errorBorder, other.errorBorder, t) ?? errorBorder,
+      errorBorder: Color.lerp(errorBorder, other.errorBorder, t) ?? errorBorder,
       disabledFill:
           Color.lerp(disabledFill, other.disabledFill, t) ?? disabledFill,
       snackBarBackground:
-          Color.lerp(
-            snackBarBackground,
-            other.snackBarBackground,
-            t,
-          ) ??
+          Color.lerp(snackBarBackground, other.snackBarBackground, t) ??
           snackBarBackground,
       accentGradient: _lerpGradient(accentGradient, other.accentGradient, t),
       glassBorder: Color.lerp(glassBorder, other.glassBorder, t) ?? glassBorder,
       glassHighlight:
-          Color.lerp(glassHighlight, other.glassHighlight, t) ??
-          glassHighlight,
+          Color.lerp(glassHighlight, other.glassHighlight, t) ?? glassHighlight,
     );
   }
 

@@ -8,11 +8,7 @@ import 'file_diff_view.dart';
 /// View for displaying Gemini edit tool (lowercase 'edit').
 class GeminiEditView extends StatelessWidget {
   /// Creates a [GeminiEditView].
-  const GeminiEditView({
-    required this.tool,
-    super.key,
-    this.metadata,
-  });
+  const GeminiEditView({required this.tool, super.key, this.metadata});
 
   /// The tool data map containing input and result.
   final Map<String, dynamic> tool;
@@ -43,10 +39,10 @@ class GeminiEditView extends StatelessWidget {
           filePath = title.replaceFirst('Writing to ', '');
         }
       }
-      oldText = toolCall['oldText'] as String? ??
-          toolCall['old_string'] as String?;
-      newText = toolCall['newText'] as String? ??
-          toolCall['new_string'] as String?;
+      oldText =
+          toolCall['oldText'] as String? ?? toolCall['old_string'] as String?;
+      newText =
+          toolCall['newText'] as String? ?? toolCall['new_string'] as String?;
     }
 
     // Check input[0].path (array format)
@@ -93,9 +89,11 @@ class GeminiEditView extends StatelessWidget {
         .where((l) => l.trim().isNotEmpty)
         .map((l) => l.length - l.trimLeft().length)
         .reduce((a, b) => a < b ? a : b);
-    return lines.map((l) {
-      if (l.trim().isEmpty) return l;
-      return l.length > minIndent ? l.substring(minIndent) : l;
-    }).join('\n');
+    return lines
+        .map((l) {
+          if (l.trim().isEmpty) return l;
+          return l.length > minIndent ? l.substring(minIndent) : l;
+        })
+        .join('\n');
   }
 }

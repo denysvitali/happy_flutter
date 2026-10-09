@@ -32,9 +32,7 @@ class InlineThemePicker extends StatelessWidget {
         final selected = m.$1 == currentMode;
         return Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
             child: _ThemePreviewCard(
               mode: m.$1,
               label: m.$2,
@@ -72,41 +70,35 @@ class _ThemePreviewCard extends StatelessWidget {
     return switch (mode) {
       'dark' => true,
       'light' => false,
-      _ =>
-        MediaQuery.platformBrightnessOf(context) == Brightness.dark,
+      _ => MediaQuery.platformBrightnessOf(context) == Brightness.dark,
     };
   }
 
   @override
   Widget build(BuildContext context) {
     final dark = _isDark(context);
-    final appCs = dark
-        ? AppColorScheme.dark()
-        : AppColorScheme.light();
+    final appCs = dark ? AppColorScheme.dark() : AppColorScheme.light();
 
     // Surface colours for the fake preview — these ARE the theme being
     // shown, so they must stay as raw hexes (replacing them with
     // Theme.of(context).colorScheme would render the picker's own
     // colours in every card).
-    final bgColor = dark
-        ? const Color(0xFF0F1117)
-        : const Color(0xFFF8FAFF);
+    final bgColor = dark ? const Color(0xFF0F1117) : const Color(0xFFF8FAFF);
     final surfaceColor = dark
         ? const Color(0xFF1A1D27)
         : const Color(0xFFFFFFFF);
     final appBarColor = dark
         ? const Color(0xFF1A1D27)
         : const Color(0xFFFFFFFF);
-    final onSurface = dark
-        ? const Color(0xFFE2E8F0)
-        : const Color(0xFF1E293B);
+    final onSurface = dark ? const Color(0xFFE2E8F0) : const Color(0xFF1E293B);
 
     // Chrome colours for the picker card itself (NOT the preview):
     // unselected border and unselected label follow the live M3 scheme
     // so the picker adapts to whichever app theme the user is in.
     final cs = Theme.of(context).colorScheme;
-    final unselectedBorder =
-        cs.outlineVariant.withValues(alpha: AppOpacity.subtle);
+    final unselectedBorder = cs.outlineVariant.withValues(
+      alpha: AppOpacity.subtle,
+    );
     final unselectedLabel = cs.onSurfaceVariant;
 
     return GestureDetector(
@@ -117,17 +109,13 @@ class _ThemePreviewCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-            color: isSelected
-                ? accentColor
-                : unselectedBorder,
+            color: isSelected ? accentColor : unselectedBorder,
             width: isSelected ? AppBorder.thick : AppBorder.thin,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: accentColor.withValues(
-                      alpha: AppOpacity.subtle,
-                    ),
+                    color: accentColor.withValues(alpha: AppOpacity.subtle),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -135,8 +123,7 @@ class _ThemePreviewCard extends StatelessWidget {
               : null,
         ),
         child: ClipRRect(
-          borderRadius:
-              BorderRadius.circular(AppRadius.md - 1),
+          borderRadius: BorderRadius.circular(AppRadius.md - 1),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -154,8 +141,7 @@ class _ThemePreviewCard extends StatelessWidget {
                   vertical: AppSpacing.sm,
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Assistant bubble (left-aligned)
                     _MiniMessageBubble(
@@ -181,8 +167,7 @@ class _ThemePreviewCard extends StatelessWidget {
                   horizontal: AppSpacing.sm,
                 ),
                 child: Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       label,
@@ -191,9 +176,7 @@ class _ThemePreviewCard extends StatelessWidget {
                         fontWeight: isSelected
                             ? FontWeight.w600
                             : FontWeight.w400,
-                        color: isSelected
-                            ? accentColor
-                            : unselectedLabel,
+                        color: isSelected ? accentColor : unselectedLabel,
                       ),
                     ),
                     if (isSelected)
@@ -231,9 +214,7 @@ class _MiniAppBar extends StatelessWidget {
     return Container(
       color: bgColor,
       height: 22,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       child: Row(
         children: [
           // Back-button stub
@@ -241,9 +222,7 @@ class _MiniAppBar extends StatelessWidget {
             width: 6,
             height: 6,
             decoration: BoxDecoration(
-              color: onSurface.withValues(
-                alpha: AppOpacity.medium,
-              ),
+              color: onSurface.withValues(alpha: AppOpacity.medium),
               shape: BoxShape.circle,
             ),
           ),
@@ -253,11 +232,8 @@ class _MiniAppBar extends StatelessWidget {
             child: Container(
               height: 5,
               decoration: BoxDecoration(
-                color: onSurface.withValues(
-                  alpha: AppOpacity.soft,
-                ),
-                borderRadius:
-                    BorderRadius.circular(AppRadius.pill),
+                color: onSurface.withValues(alpha: AppOpacity.soft),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
             ),
           ),
@@ -270,9 +246,7 @@ class _MiniAppBar extends StatelessWidget {
               _ => Icons.brightness_auto_outlined,
             },
             size: 10,
-            color: onSurface.withValues(
-              alpha: AppOpacity.medium,
-            ),
+            color: onSurface.withValues(alpha: AppOpacity.medium),
           ),
         ],
       ),
@@ -296,8 +270,7 @@ class _MiniMessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Align(
-      alignment:
-          isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: const BoxConstraints(maxWidth: 60),
         padding: const EdgeInsets.symmetric(
@@ -307,12 +280,8 @@ class _MiniMessageBubble extends StatelessWidget {
         decoration: BoxDecoration(
           color: bubbleColor,
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(
-              isUser ? AppRadius.md : AppRadius.xxs,
-            ),
-            topRight: Radius.circular(
-              isUser ? AppRadius.xxs : AppRadius.md,
-            ),
+            topLeft: Radius.circular(isUser ? AppRadius.md : AppRadius.xxs),
+            topRight: Radius.circular(isUser ? AppRadius.xxs : AppRadius.md),
             bottomLeft: const Radius.circular(AppRadius.md),
             bottomRight: const Radius.circular(AppRadius.md),
           ),
@@ -324,11 +293,8 @@ class _MiniMessageBubble extends StatelessWidget {
             Container(
               height: 3,
               decoration: BoxDecoration(
-                color: textColor.withValues(
-                  alpha: AppOpacity.high,
-                ),
-                borderRadius:
-                    BorderRadius.circular(AppRadius.pill),
+                color: textColor.withValues(alpha: AppOpacity.high),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
               ),
             ),
             const SizedBox(height: AppSpacing.xxs),
@@ -338,11 +304,8 @@ class _MiniMessageBubble extends StatelessWidget {
               child: Container(
                 height: 3,
                 decoration: BoxDecoration(
-                  color: textColor.withValues(
-                    alpha: AppOpacity.half,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.pill),
+                  color: textColor.withValues(alpha: AppOpacity.half),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
             ),

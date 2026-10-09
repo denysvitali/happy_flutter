@@ -44,9 +44,7 @@ void main() {
     );
   });
 
-  testWidgets('no badge is rendered without a countdown label', (
-    tester,
-  ) async {
+  testWidgets('no badge is rendered without a countdown label', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,

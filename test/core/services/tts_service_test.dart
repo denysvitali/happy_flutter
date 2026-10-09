@@ -39,9 +39,12 @@ void main() {
     expect(service.currentToken.value, isNull);
     expect(service.queuedCount, 0);
     expect(
-      logger.getLogsByLevel(LogLevel.info).where(
-        (entry) => entry.message == '[TTS] speech unavailable on this platform',
-      ),
+      logger
+          .getLogsByLevel(LogLevel.info)
+          .where(
+            (entry) =>
+                entry.message == '[TTS] speech unavailable on this platform',
+          ),
       hasLength(1),
     );
   });

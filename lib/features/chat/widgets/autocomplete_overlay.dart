@@ -71,9 +71,7 @@ class _AutocompleteOverlayState extends State<AutocompleteOverlay> {
     );
   }
 
-  static const Duration _highlightDuration = Duration(
-    milliseconds: 150,
-  );
+  static const Duration _highlightDuration = Duration(milliseconds: 150);
 
   @override
   void dispose() {
@@ -187,9 +185,7 @@ class _SuggestionItem extends StatelessWidget {
     final theme = Theme.of(context);
     // Highlight transitions stay within the ≤150ms budget and snap to the
     // end state immediately under reduced motion.
-    final highlightDuration = reduceMotion
-        ? Duration.zero
-        : _highlightDuration;
+    final highlightDuration = reduceMotion ? Duration.zero : _highlightDuration;
 
     return Material(
       type: MaterialType.transparency,
@@ -201,9 +197,7 @@ class _SuggestionItem extends StatelessWidget {
           height: 56,
           decoration: BoxDecoration(
             color: isSelected
-                ? theme.colorScheme.primary.withValues(
-                    alpha: AppOpacity.faint,
-                  )
+                ? theme.colorScheme.primary.withValues(alpha: AppOpacity.faint)
                 : null,
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
@@ -249,7 +243,10 @@ class _SuggestionItem extends StatelessWidget {
                     if (suggestion.description != null)
                       Text(
                         suggestion.description!,
-                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+                        style: AppText.secondary(
+                          theme,
+                          theme.colorScheme.onSurfaceVariant,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

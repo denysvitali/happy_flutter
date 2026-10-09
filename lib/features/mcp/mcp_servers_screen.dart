@@ -553,7 +553,10 @@ class _NoticeCard extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+              style: AppText.secondary(
+                theme,
+                theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -577,7 +580,10 @@ class _SourcePaths extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
       child: Text(
         '$label: $value',
-        style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
+        style: AppText.secondary(
+          theme,
+          cs.onSurfaceVariant,
+        ).copyWith(fontFamily: 'monospace'),
       ),
     );
 

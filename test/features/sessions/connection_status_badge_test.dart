@@ -8,10 +8,7 @@ import 'package:happy_flutter/features/sessions/widgets/connection_status_badge.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Future<void> pumpBadge(
-    WidgetTester tester,
-    ConnectionStatus status,
-  ) async {
+  Future<void> pumpBadge(WidgetTester tester, ConnectionStatus status) async {
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,

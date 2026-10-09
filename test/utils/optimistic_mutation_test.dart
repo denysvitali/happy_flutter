@@ -8,10 +8,7 @@ void main() {
       int Function() getter,
       void Function(int) setter,
     ) {
-      return OptimisticMutation<int>(
-        getState: getter,
-        setState: setter,
-      );
+      return OptimisticMutation<int>(getState: getter, setState: setter);
     }
 
     test('applies optimistic update immediately', () async {
@@ -135,10 +132,7 @@ void main() {
       final mutation = _intMutation(() => state, (s) => state = s);
 
       // First mutation succeeds.
-      await mutation.run(
-        optimisticUpdate: (c) => c + 5,
-        action: () async {},
-      );
+      await mutation.run(optimisticUpdate: (c) => c + 5, action: () async {});
       expect(state, 105);
 
       // Second mutation fails — rolls back to 105.
@@ -149,10 +143,7 @@ void main() {
       expect(state, 105);
 
       // Third mutation succeeds again.
-      await mutation.run(
-        optimisticUpdate: (c) => c - 5,
-        action: () async {},
-      );
+      await mutation.run(optimisticUpdate: (c) => c - 5, action: () async {});
       expect(state, 100);
     });
 

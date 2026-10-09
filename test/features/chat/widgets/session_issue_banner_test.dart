@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:happy_flutter/features/chat/widgets/chat_app_bar.dart' show SendIssue;
+import 'package:happy_flutter/features/chat/widgets/chat_app_bar.dart'
+    show SendIssue;
 import 'package:happy_flutter/features/chat/widgets/session_issue_banner.dart';
 
 Widget _wrap(Widget child) {
-  return MaterialApp(
-    home: Scaffold(body: child),
-  );
+  return MaterialApp(home: Scaffold(body: child));
 }
 
 void main() {
@@ -16,7 +15,8 @@ void main() {
         const SessionIssueBanner(
           issue: SendIssue(
             title: 'Session process stopped',
-            message: 'The local agent process is gone. Sending a '
+            message:
+                'The local agent process is gone. Sending a '
                 'message will try to restart it.',
             blocksSend: true,
           ),
@@ -25,8 +25,10 @@ void main() {
     );
     expect(find.text('Session process stopped'), findsOneWidget);
     expect(
-      find.text('The local agent process is gone. Sending a '
-          'message will try to restart it.'),
+      find.text(
+        'The local agent process is gone. Sending a '
+        'message will try to restart it.',
+      ),
       findsOneWidget,
     );
   });

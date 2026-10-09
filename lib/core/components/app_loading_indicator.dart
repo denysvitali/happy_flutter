@@ -40,8 +40,7 @@ class AppLoadingIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectiveColor =
-        color ?? theme.colorScheme.primary;
+    final effectiveColor = color ?? theme.colorScheme.primary;
 
     final spinner = SizedBox(
       width: size,
@@ -49,8 +48,7 @@ class AppLoadingIndicator extends StatelessWidget {
       child: AppCircularProgressIndicator(
         strokeWidth: strokeWidth,
         strokeCap: StrokeCap.round,
-        valueColor:
-            AlwaysStoppedAnimation<Color>(effectiveColor),
+        valueColor: AlwaysStoppedAnimation<Color>(effectiveColor),
       ),
     );
 
@@ -72,7 +70,10 @@ class AppLoadingIndicator extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               label!,
-              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant),
+              style: AppText.secondary(
+                theme,
+                theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),

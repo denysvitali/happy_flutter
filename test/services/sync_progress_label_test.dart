@@ -106,36 +106,39 @@ void main() {
       expect(instance.syncProgress, isNull);
     });
 
-    test('multiple instances with the same name are reference counted', () async {
-      final completerA = Completer<void>();
-      final completerB = Completer<void>();
-      final syncA = InvalidateSync(
-        () => completerA.future,
-        name: 'fetchMessages',
-        onRunningChanged: instance.testOnSyncRunningChanged,
-      );
-      final syncB = InvalidateSync(
-        () => completerB.future,
-        name: 'fetchMessages',
-        onRunningChanged: instance.testOnSyncRunningChanged,
-      );
+    test(
+      'multiple instances with the same name are reference counted',
+      () async {
+        final completerA = Completer<void>();
+        final completerB = Completer<void>();
+        final syncA = InvalidateSync(
+          () => completerA.future,
+          name: 'fetchMessages',
+          onRunningChanged: instance.testOnSyncRunningChanged,
+        );
+        final syncB = InvalidateSync(
+          () => completerB.future,
+          name: 'fetchMessages',
+          onRunningChanged: instance.testOnSyncRunningChanged,
+        );
 
-      syncA.invalidate();
-      syncB.invalidate();
-      await Future<void>.delayed(Duration.zero);
+        syncA.invalidate();
+        syncB.invalidate();
+        await Future<void>.delayed(Duration.zero);
 
-      expect(instance.syncProgress!.label, equals('Syncing Messages'));
+        expect(instance.syncProgress!.label, equals('Syncing Messages'));
 
-      completerA.complete();
-      await syncA.awaitQueue();
+        completerA.complete();
+        await syncA.awaitQueue();
 
-      expect(instance.syncProgress!.label, equals('Syncing Messages'));
+        expect(instance.syncProgress!.label, equals('Syncing Messages'));
 
-      completerB.complete();
-      await syncB.awaitQueue();
+        completerB.complete();
+        await syncB.awaitQueue();
 
-      expect(instance.syncProgress, isNull);
-    });
+        expect(instance.syncProgress, isNull);
+      },
+    );
 
     test('explicit progress takes precedence over fallback label', () async {
       final completer = Completer<void>();

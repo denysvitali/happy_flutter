@@ -33,31 +33,19 @@ void main() {
   group('DraftStateTransition', () {
     group('isStateTransition', () {
       test('returns true when going from empty to non-empty', () {
-        expect(
-          DraftStateTransition.isStateTransition('', 'hello'),
-          isTrue,
-        );
+        expect(DraftStateTransition.isStateTransition('', 'hello'), isTrue);
       });
 
       test('returns true when going from non-empty to empty', () {
-        expect(
-          DraftStateTransition.isStateTransition('hello', ''),
-          isTrue,
-        );
+        expect(DraftStateTransition.isStateTransition('hello', ''), isTrue);
       });
 
       test('returns true with whitespace-only to non-empty', () {
-        expect(
-          DraftStateTransition.isStateTransition('   ', 'hello'),
-          isTrue,
-        );
+        expect(DraftStateTransition.isStateTransition('   ', 'hello'), isTrue);
       });
 
       test('returns false when both empty', () {
-        expect(
-          DraftStateTransition.isStateTransition('', ''),
-          isFalse,
-        );
+        expect(DraftStateTransition.isStateTransition('', ''), isFalse);
       });
 
       test('returns false when both non-empty', () {
@@ -68,84 +56,51 @@ void main() {
       });
 
       test('returns false when both whitespace-only', () {
-        expect(
-          DraftStateTransition.isStateTransition('  ', '\t\n'),
-          isFalse,
-        );
+        expect(DraftStateTransition.isStateTransition('  ', '\t\n'), isFalse);
       });
     });
 
     group('becameEmpty', () {
       test('returns true when text cleared', () {
-        expect(
-          DraftStateTransition.becameEmpty('hello', ''),
-          isTrue,
-        );
+        expect(DraftStateTransition.becameEmpty('hello', ''), isTrue);
       });
 
       test('returns true when text cleared to whitespace', () {
-        expect(
-          DraftStateTransition.becameEmpty('hello', '   '),
-          isTrue,
-        );
+        expect(DraftStateTransition.becameEmpty('hello', '   '), isTrue);
       });
 
       test('returns false when already empty', () {
-        expect(
-          DraftStateTransition.becameEmpty('', ''),
-          isFalse,
-        );
+        expect(DraftStateTransition.becameEmpty('', ''), isFalse);
       });
 
       test('returns false when going from empty to non-empty', () {
-        expect(
-          DraftStateTransition.becameEmpty('', 'hello'),
-          isFalse,
-        );
+        expect(DraftStateTransition.becameEmpty('', 'hello'), isFalse);
       });
 
       test('returns false when both non-empty', () {
-        expect(
-          DraftStateTransition.becameEmpty('a', 'b'),
-          isFalse,
-        );
+        expect(DraftStateTransition.becameEmpty('a', 'b'), isFalse);
       });
     });
 
     group('becameNonEmpty', () {
       test('returns true when text added to empty', () {
-        expect(
-          DraftStateTransition.becameNonEmpty('', 'hello'),
-          isTrue,
-        );
+        expect(DraftStateTransition.becameNonEmpty('', 'hello'), isTrue);
       });
 
       test('returns true when text added to whitespace-only', () {
-        expect(
-          DraftStateTransition.becameNonEmpty('   ', 'hello'),
-          isTrue,
-        );
+        expect(DraftStateTransition.becameNonEmpty('   ', 'hello'), isTrue);
       });
 
       test('returns false when already non-empty', () {
-        expect(
-          DraftStateTransition.becameNonEmpty('hello', 'world'),
-          isFalse,
-        );
+        expect(DraftStateTransition.becameNonEmpty('hello', 'world'), isFalse);
       });
 
       test('returns false when going from non-empty to empty', () {
-        expect(
-          DraftStateTransition.becameNonEmpty('hello', ''),
-          isFalse,
-        );
+        expect(DraftStateTransition.becameNonEmpty('hello', ''), isFalse);
       });
 
       test('returns false when both empty', () {
-        expect(
-          DraftStateTransition.becameNonEmpty('', ''),
-          isFalse,
-        );
+        expect(DraftStateTransition.becameNonEmpty('', ''), isFalse);
       });
     });
   });

@@ -8,21 +8,18 @@ import 'package:happy_flutter/sentry_config.dart';
 
 void main() {
   group('Sentry configuration', () {
-    test(
-      'auto native breadcrumbs default to OFF',
-      () {
-        // Pinned off because Sentry's
-        // SystemEventsBreadcrumbsIntegration processes system
-        // broadcasts (BATTERY_CHANGED, NETWORK) synchronously on the
-        // main thread, which has been the source of recurring ANRs
-        // (HAPPY_FLUTTER-3D8 __memmove_aarch64_nt, 3DN __vfprintf,
-        // 3D7 nativePollOnce).  Tracking issue:
-        // getsentry/sentry-java#4907 (JAVA-241, still open in 9.20.0).
-        // If you intentionally want to flip this back on, also fix
-        // the underlying broadcast-receiver thread-safety first.
-        expect(sentryEnableAutoNativeBreadcrumbs, isFalse);
-      },
-    );
+    test('auto native breadcrumbs default to OFF', () {
+      // Pinned off because Sentry's
+      // SystemEventsBreadcrumbsIntegration processes system
+      // broadcasts (BATTERY_CHANGED, NETWORK) synchronously on the
+      // main thread, which has been the source of recurring ANRs
+      // (HAPPY_FLUTTER-3D8 __memmove_aarch64_nt, 3DN __vfprintf,
+      // 3D7 nativePollOnce).  Tracking issue:
+      // getsentry/sentry-java#4907 (JAVA-241, still open in 9.20.0).
+      // If you intentionally want to flip this back on, also fix
+      // the underlying broadcast-receiver thread-safety first.
+      expect(sentryEnableAutoNativeBreadcrumbs, isFalse);
+    });
 
     test('traces sample rate defaults are unchanged and in range', () {
       // 0.02 in release drops 98% of performance transactions. That is a

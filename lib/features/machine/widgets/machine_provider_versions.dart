@@ -279,10 +279,7 @@ class _MachineProviderVersionsState extends State<MachineProviderVersions> {
       key: ValueKey('provider-${agent.wireValue}'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          agent.displayName,
-          style: AppText.title(theme),
-        ),
+        Text(agent.displayName, style: AppText.title(theme)),
         if (provider != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(

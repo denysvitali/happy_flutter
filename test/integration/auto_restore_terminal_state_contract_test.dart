@@ -73,154 +73,140 @@ void main() {
       ApiClient().dispose();
     });
 
-    test(
-      'auto-restore hitting "is in terminal state" does NOT throw '
-      'and clears the local terminal flag',
-      () async {
-        final sessionId = 'sess-terminal-race';
-        final now = DateTime.now().millisecondsSinceEpoch;
+    test('auto-restore hitting "is in terminal state" does NOT throw '
+        'and clears the local terminal flag', () async {
+      final sessionId = 'sess-terminal-race';
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-        // Session is in the "exited" state — what the server sets after
-        // a successful killSession. looksReady is false (so the
-        // function falls through to auto-restore).
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: false,
-          activeAt: now,
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/repo',
-            flavor: 'claude',
-            lifecycleState: 'exited',
-            lifecycleStateSince: now,
-          ),
-          metadataVersion: 1,
-          agentStateVersion: 1,
-          thinking: false,
-          presence: 'offline',
-        );
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          daemonStateVersion: 0,
-          metadata: const MachineMetadata(homeDir: '/home/user'),
-        );
+      // Session is in the "exited" state — what the server sets after
+      // a successful killSession. looksReady is false (so the
+      // function falls through to auto-restore).
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: false,
+        activeAt: now,
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/repo',
+          flavor: 'claude',
+          lifecycleState: 'exited',
+          lifecycleStateSince: now,
+        ),
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: 'offline',
+      );
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        daemonStateVersion: 0,
+        metadata: const MachineMetadata(homeDir: '/home/user'),
+      );
 
-        // Daemon replies with the "terminal state" error the server
-        // returns when the killSession ACK races the lifecycleState
-        // write.
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          if (method == 'spawn-happy-session') {
-            return <String, dynamic>{
-              'type': 'error',
-              'errorMessage':
-                  'session $sessionId is in terminal state; refusing stale spawn',
-            };
-          }
-          return <String, dynamic>{'ok': true};
-        };
+      // Daemon replies with the "terminal state" error the server
+      // returns when the killSession ACK races the lifecycleState
+      // write.
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          return <String, dynamic>{
+            'type': 'error',
+            'errorMessage':
+                'session $sessionId is in terminal state; refusing stale spawn',
+          };
+        }
+        return <String, dynamic>{'ok': true};
+      };
 
-        // The user sends a message. With the fix this MUST NOT throw.
-        // Without the fix (HAPPY_FLUTTER-3EP/3EN) it throws
-        // StateError("Could not restore stopped session ...") and
-        // the message is lost.
-        final result = await sync.sendMessage(sessionId, 'hello');
+      // The user sends a message. With the fix this MUST NOT throw.
+      // Without the fix (HAPPY_FLUTTER-3EP/3EN) it throws
+      // StateError("Could not restore stopped session ...") and
+      // the message is lost.
+      final result = await sync.sendMessage(sessionId, 'hello');
 
-        // The send should succeed by returning the requested sessionId
-        // (the fallback path), so the chat screen can keep going.
-        expect(result, sessionId);
+      // The send should succeed by returning the requested sessionId
+      // (the fallback path), so the chat screen can keep going.
+      expect(result, sessionId);
 
-        // The local lifecycle flag should be reset to "starting" so
-        // the next send doesn't re-hit the same race.
-        final updated = sync.testSessions[sessionId];
-        expect(
-          updated?.metadata?.lifecycleState,
-          'starting',
-          reason:
-              'Local terminal flag must be stripped after the server '
-              'refuses a stale spawn so the next send can succeed.',
-        );
-        expect(
-          updated?.metadata?.lifecycleStateError,
-          isNull,
-          reason: 'Stale terminal error must be cleared locally.',
-        );
-      },
-    );
+      // The local lifecycle flag should be reset to "starting" so
+      // the next send doesn't re-hit the same race.
+      final updated = sync.testSessions[sessionId];
+      expect(
+        updated?.metadata?.lifecycleState,
+        'starting',
+        reason:
+            'Local terminal flag must be stripped after the server '
+            'refuses a stale spawn so the next send can succeed.',
+      );
+      expect(
+        updated?.metadata?.lifecycleStateError,
+        isNull,
+        reason: 'Stale terminal error must be cleared locally.',
+      );
+    });
 
-    test(
-      'auto-restore hitting "refusing stale spawn" (server variant wording) '
-      'also recovers',
-      () async {
-        final sessionId = 'sess-refusing-stale';
-        final now = DateTime.now().millisecondsSinceEpoch;
+    test('auto-restore hitting "refusing stale spawn" (server variant wording) '
+        'also recovers', () async {
+      final sessionId = 'sess-refusing-stale';
+      final now = DateTime.now().millisecondsSinceEpoch;
 
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: false,
-          activeAt: now,
-          metadata: Metadata(
-            host: '',
-            machineId: 'machine-1',
-            path: '/repo',
-            flavor: 'claude',
-            lifecycleState: 'exited',
-            lifecycleStateSince: now,
-          ),
-          metadataVersion: 1,
-          agentStateVersion: 1,
-          thinking: false,
-          presence: 'offline',
-        );
-        sync.testMachines['machine-1'] = Machine(
-          id: 'machine-1',
-          seq: 1,
-          createdAt: now,
-          updatedAt: now,
-          active: true,
-          activeAt: now,
-          metadataVersion: 1,
-          daemonStateVersion: 0,
-          metadata: const MachineMetadata(homeDir: '/home/user'),
-        );
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: false,
+        activeAt: now,
+        metadata: Metadata(
+          host: '',
+          machineId: 'machine-1',
+          path: '/repo',
+          flavor: 'claude',
+          lifecycleState: 'exited',
+          lifecycleStateSince: now,
+        ),
+        metadataVersion: 1,
+        agentStateVersion: 1,
+        thinking: false,
+        presence: 'offline',
+      );
+      sync.testMachines['machine-1'] = Machine(
+        id: 'machine-1',
+        seq: 1,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+        activeAt: now,
+        metadataVersion: 1,
+        daemonStateVersion: 0,
+        metadata: const MachineMetadata(homeDir: '/home/user'),
+      );
 
-        // Same race, different server-side error wording.
-        sync.testMachineRPCOverride = (
-          machineId,
-          method,
-          params,
-        ) async {
-          if (method == 'spawn-happy-session') {
-            return <String, dynamic>{
-              'type': 'error',
-              'errorMessage':
-                  'refusing stale spawn for terminal session $sessionId',
-            };
-          }
-          return <String, dynamic>{'ok': true};
-        };
+      // Same race, different server-side error wording.
+      sync.testMachineRPCOverride = (machineId, method, params) async {
+        if (method == 'spawn-happy-session') {
+          return <String, dynamic>{
+            'type': 'error',
+            'errorMessage':
+                'refusing stale spawn for terminal session $sessionId',
+          };
+        }
+        return <String, dynamic>{'ok': true};
+      };
 
-        // Must not throw.
-        final result = await sync.sendMessage(sessionId, 'hello');
-        expect(result, sessionId);
-      },
-    );
+      // Must not throw.
+      final result = await sync.sendMessage(sessionId, 'hello');
+      expect(result, sessionId);
+    });
   });
 }
 

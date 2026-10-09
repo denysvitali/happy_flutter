@@ -25,7 +25,6 @@ class NetworkNotifier extends Notifier<bool> {
   }
 }
 
-final networkNotifierProvider =
-    NotifierProvider<NetworkNotifier, bool>(
+final networkNotifierProvider = NotifierProvider<NetworkNotifier, bool>(
   NetworkNotifier.new,
 );

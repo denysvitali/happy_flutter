@@ -23,10 +23,8 @@ import 'logger_service.dart' show logger;
 
 // Web `compute` shares the browser event loop, so message-cache persistence
 // continues through IndexedDB instead of these native-worker entry points.
-String? readSessionMessagesEncodedInWorker(
-  String sessionId,
-  String rootDir,
-) => null;
+String? readSessionMessagesEncodedInWorker(String sessionId, String rootDir) =>
+    null;
 
 bool writeSessionMessagesEncodedInWorker(
   String sessionId,

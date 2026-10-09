@@ -23,8 +23,7 @@ void main() {
     return buf.toString();
   }
 
-  List<TextSpan> spansOf(String text) =>
-      AnsiSpanCache.instance.parse(text);
+  List<TextSpan> spansOf(String text) => AnsiSpanCache.instance.parse(text);
 
   test('hit returns the identical span list without reparsing', () {
     const text = '\x1b[31mred\x1b[0m plain \x1b[32mgreen\x1b[0m';
@@ -34,15 +33,16 @@ void main() {
     final second = spansOf(text);
     expect(AnsiSpanCache.instance.debugHits, 1);
     expect(AnsiSpanCache.instance.debugMisses, 1);
-    expect(identical(first, second), isTrue,
-        reason: 'a warm hit must reuse the exact cached list');
+    expect(
+      identical(first, second),
+      isTrue,
+      reason: 'a warm hit must reuse the exact cached list',
+    );
 
     // Cached content equals a fresh direct parse.
     expect(
       second.map((s) => (s.text, s.style)).toList(),
-      AnsiParser.parse(text)
-          .map((s) => (s.text, s.style))
-          .toList(),
+      AnsiParser.parse(text).map((s) => (s.text, s.style)).toList(),
     );
   });
 
@@ -82,14 +82,14 @@ void main() {
 
     final withRed = AnsiSpanCache.instance.parse(text, defaultStyle: red);
     final withBlue = AnsiSpanCache.instance.parse(text, defaultStyle: blue);
-    expect(AnsiSpanCache.instance.debugMisses, 2,
-        reason: 'different styles are distinct cache entries');
+    expect(
+      AnsiSpanCache.instance.debugMisses,
+      2,
+      reason: 'different styles are distinct cache entries',
+    );
 
     expect(
-      identical(
-        withRed,
-        AnsiSpanCache.instance.parse(text, defaultStyle: red),
-      ),
+      identical(withRed, AnsiSpanCache.instance.parse(text, defaultStyle: red)),
       isTrue,
     );
     expect(

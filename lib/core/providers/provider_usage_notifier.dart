@@ -313,11 +313,10 @@ class _UsageFetchFailure {
     final nextBackoff = consecutiveFailures == 0
         ? ProviderUsageNotifier._minBackoff
         : Duration(
-            microseconds:
-                (backoff.inMicroseconds * 2).clamp(
-                  ProviderUsageNotifier._minBackoff.inMicroseconds,
-                  ProviderUsageNotifier._maxBackoff.inMicroseconds,
-                ),
+            microseconds: (backoff.inMicroseconds * 2).clamp(
+              ProviderUsageNotifier._minBackoff.inMicroseconds,
+              ProviderUsageNotifier._maxBackoff.inMicroseconds,
+            ),
           );
     return _UsageFetchFailure(
       consecutiveFailures: consecutiveFailures + 1,
@@ -342,8 +341,7 @@ class _UsageFetchFailure {
     final nextRetryAtMs = json['nextRetryAtMs'];
     final backoffUs = json['backoffUs'];
     return _UsageFetchFailure(
-      consecutiveFailures:
-          failures is int && failures > 0 ? failures : 0,
+      consecutiveFailures: failures is int && failures > 0 ? failures : 0,
       lastError: json['error'] is String ? json['error'] as String : '',
       nextRetryAt: nextRetryAtMs is int
           ? DateTime.fromMillisecondsSinceEpoch(nextRetryAtMs)

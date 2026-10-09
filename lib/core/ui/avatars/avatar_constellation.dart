@@ -13,11 +13,7 @@ import 'avatar_palette.dart';
 /// connected by thin semi-transparent lines to their nearest
 /// 1–2 neighbours. Primary stars have a subtle glow.
 class AvatarConstellation extends BaseAvatar {
-  const AvatarConstellation({
-    required super.id,
-    super.key,
-    super.size = 48,
-  });
+  const AvatarConstellation({required super.id, super.key, super.size = 48});
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +25,7 @@ class AvatarConstellation extends BaseAvatar {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0D0D2B),
-            Color(0xFF0B1A38),
-          ],
+          colors: [Color(0xFF0D0D2B), Color(0xFF0B1A38)],
         ),
       ),
       child: ClipRRect(
@@ -49,10 +42,7 @@ class AvatarConstellation extends BaseAvatar {
 // ─── Painter ─────────────────────────────────────────────────────────────────
 
 class _ConstellationPainter extends CustomPainter {
-  const _ConstellationPainter({
-    required this.id,
-    required this.size,
-  });
+  const _ConstellationPainter({required this.id, required this.size});
 
   final String id;
   final double size;
@@ -167,10 +157,9 @@ class _ConstellationPainter extends CustomPainter {
     final colorRng = _pseudoRandom(seed ^ 0x1234ABCD, starCount);
 
     for (var i = 0; i < primaryCount; i++) {
-      final ci = (colorRng[i] * starPalette.length).floor() %
-          starPalette.length;
-      glowPaint.color =
-          starPalette[ci].withValues(alpha: 0.45);
+      final ci =
+          (colorRng[i] * starPalette.length).floor() % starPalette.length;
+      glowPaint.color = starPalette[ci].withValues(alpha: 0.45);
       canvas.drawCircle(positions[i], radii[i] * 2.2, glowPaint);
     }
 
@@ -178,8 +167,8 @@ class _ConstellationPainter extends CustomPainter {
     final starPaint = Paint()..style = PaintingStyle.fill;
 
     for (var i = 0; i < starCount; i++) {
-      final ci = (colorRng[i] * starPalette.length).floor() %
-          starPalette.length;
+      final ci =
+          (colorRng[i] * starPalette.length).floor() % starPalette.length;
       final alpha = i < primaryCount ? 1.0 : 0.80;
       starPaint.color = starPalette[ci].withValues(alpha: alpha);
       canvas.drawCircle(positions[i], radii[i], starPaint);

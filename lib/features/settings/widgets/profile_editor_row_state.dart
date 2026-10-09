@@ -337,10 +337,7 @@ class ModelsSection extends StatelessWidget {
     ];
     final saved = row.contextWindow;
     if (saved != null && !selectableContextWindows.contains(saved)) {
-      options.insert(1, (
-        value: saved,
-        label: contextWindowLabel(l10n, saved),
-      ));
+      options.insert(1, (value: saved, label: contextWindowLabel(l10n, saved)));
     }
     return options;
   }

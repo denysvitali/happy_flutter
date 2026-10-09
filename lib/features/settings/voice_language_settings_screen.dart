@@ -12,14 +12,12 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 /// the shared catalog in `core/utils/voice_languages.dart` (the same
 /// list used by chat/TTS) and persists the selection under the
 /// `voiceAssistantLanguage` settings key.
-class VoiceLanguageSettingsScreen
-    extends ConsumerStatefulWidget {
+class VoiceLanguageSettingsScreen extends ConsumerStatefulWidget {
   const VoiceLanguageSettingsScreen({super.key});
 
   @override
-  ConsumerState<VoiceLanguageSettingsScreen>
-      createState() =>
-          _VoiceLanguageSettingsScreenState();
+  ConsumerState<VoiceLanguageSettingsScreen> createState() =>
+      _VoiceLanguageSettingsScreenState();
 }
 
 class _VoiceLanguageSettingsScreenState
@@ -27,15 +25,13 @@ class _VoiceLanguageSettingsScreenState
   String _searchQuery = '';
   bool _isPopping = false;
 
-  List<VoiceLanguage> get _filtered =>
-      searchVoiceLanguages(_searchQuery);
+  List<VoiceLanguage> get _filtered => searchVoiceLanguages(_searchQuery);
 
   /// Secondary line for a row: the native script when it differs from
   /// the English name, otherwise the region (so the English/Spanish/
   /// … variants stay distinguishable). Empty for auto-detect.
   String _subtitleFor(VoiceLanguage lang) {
-    if (lang.nativeName.isNotEmpty &&
-        lang.nativeName != lang.name) {
+    if (lang.nativeName.isNotEmpty && lang.nativeName != lang.name) {
       return lang.nativeName;
     }
     return lang.region ?? '';
@@ -64,18 +60,16 @@ class _VoiceLanguageSettingsScreenState
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final selectedCode =
-        ref.watch(settingsNotifierProvider.select(
-              (s) => s.voiceAssistantLanguage,
-            )) ??
-            '';
+        ref.watch(
+          settingsNotifierProvider.select((s) => s.voiceAssistantLanguage),
+        ) ??
+        '';
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final filtered = _filtered;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.voiceLanguageTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.voiceLanguageTitle)),
       body: Column(
         children: [
           Padding(
@@ -90,18 +84,14 @@ class _VoiceLanguageSettingsScreenState
                 filled: true,
                 fillColor: cs.surfaceContainerHighest,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(
-                    AppRadius.smd,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.smd),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(
+                contentPadding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
                 ),
               ),
-              onChanged: (value) =>
-                  setState(() => _searchQuery = value),
+              onChanged: (value) => setState(() => _searchQuery = value),
             ),
           ),
           Padding(
@@ -113,23 +103,19 @@ class _VoiceLanguageSettingsScreenState
               alignment: Alignment.centerLeft,
               child: Text(
                 l10n.voiceLanguagesCount(filtered.length),
-                style:
-                    AppText.secondary(theme, cs.onSurfaceVariant),
+                style: AppText.secondary(theme, cs.onSurfaceVariant),
               ),
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               children: [
                 AppCard(
                   padding: EdgeInsets.zero,
                   child: Column(
-                    children:
-                        _buildLanguageList(filtered, selectedCode),
+                    children: _buildLanguageList(filtered, selectedCode),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.lg),
@@ -171,9 +157,7 @@ class _VoiceLanguageSettingsScreenState
           onTap: () => _selectLanguage(lang),
           child: Container(
             color: isSelected
-                ? cs.primary.withValues(
-                    alpha: AppOpacity.faint,
-                  )
+                ? cs.primary.withValues(alpha: AppOpacity.faint)
                 : null,
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,
@@ -181,33 +165,23 @@ class _VoiceLanguageSettingsScreenState
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.language,
-                  color: AppColors.iosBlue,
-                  size: 18,
-                ),
+                Icon(Icons.language, color: AppColors.iosBlue, size: 18),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         lang.name,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       if (subtitle.isNotEmpty) ...[
-                        const SizedBox(
-                          height: AppSpacing.xxs,
-                        ),
+                        const SizedBox(height: AppSpacing.xxs),
                         Text(
                           subtitle,
-                          style: theme
-                              .textTheme.bodySmall
-                              ?.copyWith(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             color: cs.onSurfaceVariant,
                           ),
                         ),
@@ -224,9 +198,7 @@ class _VoiceLanguageSettingsScreenState
                 else
                   Icon(
                     Icons.chevron_right,
-                    color: cs.onSurface.withValues(
-                      alpha: AppOpacity.medium,
-                    ),
+                    color: cs.onSurface.withValues(alpha: AppOpacity.medium),
                     size: AppSpacing.xl,
                   ),
               ],

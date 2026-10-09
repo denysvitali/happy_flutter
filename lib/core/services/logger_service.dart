@@ -391,9 +391,7 @@ class LoggerService {
     r'\b(?=[0-9A-Za-z_-]*\d)(?=[0-9A-Za-z_-]*[A-Za-z])[0-9A-Za-z][0-9A-Za-z_-]{6,}[0-9A-Za-z]\b',
   );
 
-  static final RegExp _hexIdPattern = RegExp(
-    r'\b[0-9a-fA-F-]{8,}\b',
-  );
+  static final RegExp _hexIdPattern = RegExp(r'\b[0-9a-fA-F-]{8,}\b');
   static final RegExp _digitsPattern = RegExp(r'\d+');
 
   static const Duration _sentryDedupWindow = Duration(minutes: 5);

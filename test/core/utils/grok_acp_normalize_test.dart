@@ -53,9 +53,7 @@ void main() {
     });
 
     test('leaves non-dispatcher tools alone', () {
-      final got = unwrapGrokMcpDispatch('read_file', {
-        'target_file': 'a.go',
-      });
+      final got = unwrapGrokMcpDispatch('read_file', {'target_file': 'a.go'});
       expect(got.name, 'read_file');
       expect(got.input['target_file'], 'a.go');
     });
@@ -128,10 +126,7 @@ void main() {
       // for null, not the value — so absent fields were emitted as explicit
       // nulls. happy-cli-go omits them, so the client must too.
       final result =
-          normalizeGrokToolResult({
-                'output': 'capture-ok\n',
-                'exit_code': 0,
-              })
+          normalizeGrokToolResult({'output': 'capture-ok\n', 'exit_code': 0})
               as Map;
       expect(result['stdout'], 'capture-ok\n');
       expect(result['exitCode'], 0);

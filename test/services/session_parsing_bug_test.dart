@@ -112,26 +112,29 @@ void main() {
       );
     });
 
-    test('documents: sync_service silently skips sessions with invalid data', () {
-      // The bug: In sync_service.dart lines 1018-1022, the code does:
-      //
-      //   seq: session['seq'] as int,
-      //   createdAt: session['createdAt'] as int,
-      //   ...
-      //
-      // If any of these casts fail (null, wrong type), the exception is caught
-      // at lines 1042-1048 and the session is SILENTLY SKIPPED!
-      //
-      // In DEBUG mode, it prints:
-      //   debugPrint('Failed to process session $sessionId: $error');
-      //
-      // In RELEASE mode, NOTHING is logged - the session just disappears.
-      //
-      // This causes "Session not loaded" errors because the session was never
-      // added to _sessions in the first place!
+    test(
+      'documents: sync_service silently skips sessions with invalid data',
+      () {
+        // The bug: In sync_service.dart lines 1018-1022, the code does:
+        //
+        //   seq: session['seq'] as int,
+        //   createdAt: session['createdAt'] as int,
+        //   ...
+        //
+        // If any of these casts fail (null, wrong type), the exception is caught
+        // at lines 1042-1048 and the session is SILENTLY SKIPPED!
+        //
+        // In DEBUG mode, it prints:
+        //   debugPrint('Failed to process session $sessionId: $error');
+        //
+        // In RELEASE mode, NOTHING is logged - the session just disappears.
+        //
+        // This causes "Session not loaded" errors because the session was never
+        // added to _sessions in the first place!
 
-      // The test passes - it documents the bug behavior
-      expect(true, true, reason: 'See comments above for bug explanation');
-    });
+        // The test passes - it documents the bug behavior
+        expect(true, true, reason: 'See comments above for bug explanation');
+      },
+    );
   });
 }

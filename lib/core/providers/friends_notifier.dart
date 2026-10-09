@@ -46,11 +46,11 @@ class FriendsState {
 
   @override
   int get hashCode => Object.hash(
-        isLoading,
-        error,
-        Object.hashAll(pendingRequests),
-        Object.hashAll(pendingActionIds),
-      );
+    isLoading,
+    error,
+    Object.hashAll(pendingRequests),
+    Object.hashAll(pendingActionIds),
+  );
 }
 
 bool _listEquals<T>(List<T> a, List<T> b) {
@@ -84,10 +84,7 @@ class FriendsNotifier extends Notifier<FriendsState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final requests = await _api.fetchPendingRequests();
-      state = state.copyWith(
-        pendingRequests: requests,
-        isLoading: false,
-      );
+      state = state.copyWith(pendingRequests: requests, isLoading: false);
     } catch (e, st) {
       logger.warning('FriendsNotifier.refreshFromSync failed', e, st);
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -152,5 +149,6 @@ class FriendsNotifier extends Notifier<FriendsState> {
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-final friendsNotifierProvider =
-    NotifierProvider<FriendsNotifier, FriendsState>(FriendsNotifier.new);
+final friendsNotifierProvider = NotifierProvider<FriendsNotifier, FriendsState>(
+  FriendsNotifier.new,
+);

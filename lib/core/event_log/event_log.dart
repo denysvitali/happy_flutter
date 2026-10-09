@@ -88,19 +88,21 @@ class MessageEvent {
   String? get serverId => payload['serverId'] as String?;
 
   Map<String, Object?> toJson() => {
-        'sessionId': sessionId,
-        'lamport': lamport,
-        'kind': kind.name,
-        'payload': payload,
-        'recordedAt': recordedAt,
-      };
+    'sessionId': sessionId,
+    'lamport': lamport,
+    'kind': kind.name,
+    'payload': payload,
+    'recordedAt': recordedAt,
+  };
 
   static MessageEvent fromJson(Map<String, Object?> json) {
     final kindName = json['kind'] as String;
-    final kind = MessageEventKind.values
-        .firstWhere((e) => e.name == kindName, orElse: () {
-      throw StateError('Unknown MessageEventKind: $kindName');
-    });
+    final kind = MessageEventKind.values.firstWhere(
+      (e) => e.name == kindName,
+      orElse: () {
+        throw StateError('Unknown MessageEventKind: $kindName');
+      },
+    );
     return MessageEvent(
       sessionId: json['sessionId'] as String,
       lamport: json['lamport'] as int,
@@ -205,8 +207,7 @@ class EventLog {
     return event;
   }
 
-  Future<List<MessageEvent>> events(String sessionId) =>
-      _store.read(sessionId);
+  Future<List<MessageEvent>> events(String sessionId) => _store.read(sessionId);
 
   Future<void> truncate(String sessionId) async {
     _lamports.remove(sessionId);

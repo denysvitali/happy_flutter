@@ -27,12 +27,10 @@ class RestoreKeyDialog extends StatefulWidget {
   final String Function(dynamic) formatError;
 
   @override
-  State<RestoreKeyDialog> createState() =>
-      _RestoreKeyDialogState();
+  State<RestoreKeyDialog> createState() => _RestoreKeyDialogState();
 }
 
-class _RestoreKeyDialogState
-    extends State<RestoreKeyDialog> {
+class _RestoreKeyDialogState extends State<RestoreKeyDialog> {
   final _controller = TextEditingController();
   String? _errorText;
   bool _isSubmitting = false;
@@ -53,42 +51,24 @@ class _RestoreKeyDialogState
       try {
         final bytes = <int>[];
         for (var i = 0; i < hex.length; i += 2) {
-          bytes.add(
-            int.parse(
-              hex.substring(i, i + 2),
-              radix: 16,
-            ),
-          );
+          bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
         }
-        return BackupKeyUtils.encodeKey(
-          Uint8List.fromList(bytes),
-        );
+        return BackupKeyUtils.encodeKey(Uint8List.fromList(bytes));
       } catch (e, stack) {
-        logger.error(
-          'Failed to encode hex key',
-          e,
-          stack,
-        );
+        logger.error('Failed to encode hex key', e, stack);
       }
     }
 
-    final b64 =
-        s.replaceAll('-', '+').replaceAll('_', '/');
+    final b64 = s.replaceAll('-', '+').replaceAll('_', '/');
     final rem = b64.length % 4;
-    final padded = rem == 0
-        ? b64
-        : b64.padRight(b64.length + (4 - rem), '=');
+    final padded = rem == 0 ? b64 : b64.padRight(b64.length + (4 - rem), '=');
     try {
       final bytes = base64Decode(padded);
       if (bytes.length == 32) {
         return BackupKeyUtils.encodeKey(bytes);
       }
     } catch (e, stack) {
-      logger.error(
-        'Failed to decode base64 key',
-        e,
-        stack,
-      );
+      logger.error('Failed to decode base64 key', e, stack);
     }
     return null;
   }
@@ -97,9 +77,7 @@ class _RestoreKeyDialogState
     final input = _controller.text.trim();
     final l10n = context.l10n;
     if (input.isEmpty) {
-      setState(
-        () => _errorText = l10n.authPleaseEnterSecretKey,
-      );
+      setState(() => _errorText = l10n.authPleaseEnterSecretKey);
       return;
     }
     final normalized = _normalize(input);
@@ -118,9 +96,7 @@ class _RestoreKeyDialogState
       await widget.onRestore(normalized);
     } catch (e) {
       if (mounted) {
-        setState(
-          () => _errorText = widget.formatError(e),
-        );
+        setState(() => _errorText = widget.formatError(e));
       }
     } finally {
       if (mounted) {
@@ -136,9 +112,7 @@ class _RestoreKeyDialogState
 
     return AlertDialog(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(
-          AppRadius.xl,
-        ),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
       ),
       titlePadding: const EdgeInsets.fromLTRB(
         AppSpacing.xxl,
@@ -152,41 +126,28 @@ class _RestoreKeyDialogState
         AppSpacing.xxl,
         0,
       ),
-      actionsPadding: const EdgeInsets.all(
-        AppSpacing.lg,
-      ),
+      actionsPadding: const EdgeInsets.all(AppSpacing.lg),
       title: Row(
         children: [
-          Icon(
-            Icons.key_outlined,
-            color: scheme.primary,
-            size: AppSpacing.xxl,
-          ),
+          Icon(Icons.key_outlined, color: scheme.primary, size: AppSpacing.xxl),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               l10n.authSignInWithSecretKey,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             l10n.authSecretKeyInstruction,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: scheme.onSurfaceVariant,
               height: AppLineHeight.normal,
             ),
@@ -205,47 +166,27 @@ class _RestoreKeyDialogState
                 color: scheme.onSurfaceVariant,
               ),
               border: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  AppRadius.smd,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.smd),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  AppRadius.smd,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.smd),
                 borderSide: BorderSide(
-                  color: scheme.outline.withValues(
-                    alpha: AppOpacity.half,
-                  ),
+                  color: scheme.outline.withValues(alpha: AppOpacity.half),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  AppRadius.smd,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.smd),
                 borderSide: BorderSide(
                   color: scheme.primary,
                   width: AppBorder.thick,
                 ),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  AppRadius.smd,
-                ),
-                borderSide: BorderSide(
-                  color: scheme.error,
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.smd),
+                borderSide: BorderSide(color: scheme.error),
               ),
-              focusedErrorBorder:
-                  OutlineInputBorder(
-                borderRadius:
-                    BorderRadius.circular(
-                  AppRadius.smd,
-                ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.smd),
                 borderSide: BorderSide(
                   color: scheme.error,
                   width: AppBorder.thick,
@@ -255,20 +196,15 @@ class _RestoreKeyDialogState
                 onPressed: _isSubmitting
                     ? null
                     : () async {
-                        final clip =
-                            await Clipboard.getData(
+                        final clip = await Clipboard.getData(
                           Clipboard.kTextPlain,
                         );
-                        final text =
-                            clip?.text?.trim();
-                        if (text == null ||
-                            text.isEmpty) {
+                        final text = clip?.text?.trim();
+                        if (text == null || text.isEmpty) {
                           return;
                         }
                         _controller.text = text;
-                        setState(
-                          () => _errorText = null,
-                        );
+                        setState(() => _errorText = null);
                       },
                 icon: Icon(
                   Icons.content_paste_rounded,
@@ -282,9 +218,7 @@ class _RestoreKeyDialogState
             minLines: 1,
             onChanged: (_) {
               if (_errorText != null) {
-                setState(
-                  () => _errorText = null,
-                );
+                setState(() => _errorText = null);
               }
             },
           ),
@@ -295,46 +229,27 @@ class _RestoreKeyDialogState
           onPressed: _isSubmitting
               ? null
               : () async {
-                  final clip =
-                      await Clipboard.getData(
-                    Clipboard.kTextPlain,
-                  );
-                  final text =
-                      clip?.text?.trim();
-                  if (text == null ||
-                      text.isEmpty) {
+                  final clip = await Clipboard.getData(Clipboard.kTextPlain);
+                  final text = clip?.text?.trim();
+                  if (text == null || text.isEmpty) {
                     return;
                   }
                   _controller.text = text;
-                  setState(
-                    () => _errorText = null,
-                  );
+                  setState(() => _errorText = null);
                 },
-          icon: const Icon(
-            Icons.content_paste_rounded,
-            size: 18,
-          ),
+          icon: const Icon(Icons.content_paste_rounded, size: 18),
           label: Text(l10n.authPaste),
         ),
         TextButton(
-          onPressed: _isSubmitting
-              ? null
-              : () => Navigator.pop(context),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
           child: Text(l10n.commonCancel),
         ),
         FilledButton(
-          onPressed:
-              _isSubmitting ? null : _submit,
+          onPressed: _isSubmitting ? null : _submit,
           style: FilledButton.styleFrom(
-            minimumSize: const Size(
-              0,
-              AppTouchTarget.comfortable,
-            ),
+            minimumSize: const Size(0, AppTouchTarget.comfortable),
             shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(
-                AppRadius.smd,
-              ),
+              borderRadius: BorderRadius.circular(AppRadius.smd),
             ),
           ),
           child: _isSubmitting

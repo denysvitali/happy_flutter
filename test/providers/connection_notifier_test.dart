@@ -51,7 +51,10 @@ void main() {
       expect(notifier, isA<ConnectionNotifier>());
 
       // Initial state should be disconnected
-      expect(container.read(connectionNotifierProvider), ConnectionStatus.disconnected);
+      expect(
+        container.read(connectionNotifierProvider),
+        ConnectionStatus.disconnected,
+      );
     });
 
     test('ConnectionStatus enum should have correct indices', () {
@@ -78,8 +81,7 @@ void main() {
       'should handle connect call with null socket',
       skip: 'Makes real WebSocket connection in test env',
       () {
-        final notifier =
-            container.read(connectionNotifierProvider.notifier);
+        final notifier = container.read(connectionNotifierProvider.notifier);
 
         notifier.connect('https://test.example.com', 'test-token');
 

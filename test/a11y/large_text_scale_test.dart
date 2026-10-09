@@ -47,9 +47,9 @@ Widget _app({required Widget child}) {
     supportedLocales: AppLocalizations.supportedLocales,
     theme: ThemeData(useMaterial3: true),
     builder: (context, widget) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        textScaler: const TextScaler.linear(_kLargeScale),
-      ),
+      data: MediaQuery.of(
+        context,
+      ).copyWith(textScaler: const TextScaler.linear(_kLargeScale)),
       child: widget ?? const SizedBox.shrink(),
     ),
     home: Scaffold(body: child),

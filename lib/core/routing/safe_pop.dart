@@ -38,17 +38,10 @@ bool safePop<T extends Object?>(
       context.pop(result);
       return true;
     }
-    context.goNamed(
-      fallbackRouteName,
-      pathParameters: fallbackPathParameters,
-    );
+    context.goNamed(fallbackRouteName, pathParameters: fallbackPathParameters);
     return false;
   } catch (e, st) {
-    logger.warning(
-      '[safePop] navigation failed; staying on screen: $e',
-      e,
-      st,
-    );
+    logger.warning('[safePop] navigation failed; staying on screen: $e', e, st);
     return false;
   }
 }

@@ -14,10 +14,7 @@ class SftpState {
   final List<SftpDirectory> directories;
   final bool isLoading;
 
-  SftpState copyWith({
-    List<SftpDirectory>? directories,
-    bool? isLoading,
-  }) {
+  SftpState copyWith({List<SftpDirectory>? directories, bool? isLoading}) {
     return SftpState(
       directories: directories ?? this.directories,
       isLoading: isLoading ?? this.isLoading,
@@ -45,10 +42,7 @@ class SftpNotifier extends Notifier<SftpState> {
         final content = await file.readAsString();
         final jsonList = jsonDecode(content) as List;
         final dirs = jsonList
-            .map(
-              (j) =>
-                  SftpDirectory.fromJson(j as Map<String, dynamic>),
-            )
+            .map((j) => SftpDirectory.fromJson(j as Map<String, dynamic>))
             .toList();
         state = SftpState(directories: dirs);
       } else {
@@ -60,9 +54,7 @@ class SftpNotifier extends Notifier<SftpState> {
   }
 
   Future<void> addDirectory(SftpDirectory directory) async {
-    state = state.copyWith(
-      directories: [...state.directories, directory],
-    );
+    state = state.copyWith(directories: [...state.directories, directory]);
     await _save();
   }
 
@@ -75,8 +67,7 @@ class SftpNotifier extends Notifier<SftpState> {
   }
 
   Future<void> removeDirectory(String id) async {
-    final dirs =
-        state.directories.where((d) => d.id != id).toList();
+    final dirs = state.directories.where((d) => d.id != id).toList();
     state = state.copyWith(directories: dirs);
     await _save();
   }
@@ -84,8 +75,7 @@ class SftpNotifier extends Notifier<SftpState> {
   Future<void> _save() async {
     try {
       final file = await _configFile;
-      final jsonList =
-          state.directories.map((d) => d.toJson()).toList();
+      final jsonList = state.directories.map((d) => d.toJson()).toList();
       await file.writeAsString(jsonEncode(jsonList));
     } catch (_) {
       // Silently fail on save
@@ -94,16 +84,16 @@ class SftpNotifier extends Notifier<SftpState> {
 }
 
 /// Provider for SFTP state
-final sftpNotifierProvider =
-    NotifierProvider<SftpNotifier, SftpState>(SftpNotifier.new);
+final sftpNotifierProvider = NotifierProvider<SftpNotifier, SftpState>(
+  SftpNotifier.new,
+);
 
 /// Add directory dialog
 class AddSftpDirectoryDialog extends StatefulWidget {
   const AddSftpDirectoryDialog({super.key});
 
   @override
-  State<AddSftpDirectoryDialog> createState() =>
-      _AddSftpDirectoryDialogState();
+  State<AddSftpDirectoryDialog> createState() => _AddSftpDirectoryDialogState();
 }
 
 class _AddSftpDirectoryDialogState extends State<AddSftpDirectoryDialog> {
@@ -147,24 +137,15 @@ class _AddSftpDirectoryDialogState extends State<AddSftpDirectoryDialog> {
             const SizedBox(height: 12),
             TextField(
               controller: _portController,
-              decoration: const InputDecoration(
-                labelText: 'Port',
-              ),
+              decoration: const InputDecoration(labelText: 'Port'),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<SftpAuthMethod>(
               initialValue: _authMethod,
-              decoration: const InputDecoration(
-                labelText: 'Authentication',
-              ),
+              decoration: const InputDecoration(labelText: 'Authentication'),
               items: SftpAuthMethod.values
-                  .map(
-                    (m) => DropdownMenuItem(
-                      value: m,
-                      child: Text(m.name),
-                    ),
-                  )
+                  .map((m) => DropdownMenuItem(value: m, child: Text(m.name)))
                   .toList(),
               onChanged: (v) {
                 if (v != null) setState(() => _authMethod = v);
@@ -173,16 +154,9 @@ class _AddSftpDirectoryDialogState extends State<AddSftpDirectoryDialog> {
             const SizedBox(height: 12),
             DropdownButtonFormField<SftpClipboardMode>(
               initialValue: _clipboardMode,
-              decoration: const InputDecoration(
-                labelText: 'Clipboard Sync',
-              ),
+              decoration: const InputDecoration(labelText: 'Clipboard Sync'),
               items: SftpClipboardMode.values
-                  .map(
-                    (m) => DropdownMenuItem(
-                      value: m,
-                      child: Text(m.name),
-                    ),
-                  )
+                  .map((m) => DropdownMenuItem(value: m, child: Text(m.name)))
                   .toList(),
               onChanged: (v) {
                 if (v != null) setState(() => _clipboardMode = v);

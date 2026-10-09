@@ -508,7 +508,10 @@ class _PathHeader extends StatelessWidget {
           Expanded(
             child: Text(
               path,
-              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
+              style: AppText.secondary(
+                theme,
+                theme.colorScheme.onSurfaceVariant,
+              ).copyWith(fontFamily: 'monospace'),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -516,7 +519,10 @@ class _PathHeader extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             Text(
               language!,
-              style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant.withValues( alpha: 0.7, )),
+              style: AppText.secondary(
+                theme,
+                theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ],

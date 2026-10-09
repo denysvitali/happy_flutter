@@ -6,10 +6,7 @@ import 'package:happy_flutter/core/utils/backoff.dart';
 void main() {
   group('ExponentialBackoff', () {
     test('should start with minimum delay', () {
-      final backoff = ExponentialBackoff(
-        minDelayMs: 100,
-        maxDelayMs: 1000,
-      );
+      final backoff = ExponentialBackoff(minDelayMs: 100, maxDelayMs: 1000);
 
       expect(backoff.attempts, 0);
       expect(backoff.currentDelayMs, 100);
@@ -61,11 +58,13 @@ void main() {
 
       expect(
         () => backoff.next(),
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('No more retry attempts'),
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('No more retry attempts'),
+          ),
+        ),
       );
     });
 
@@ -83,10 +82,7 @@ void main() {
     });
 
     test('should reset to initial state', () {
-      final backoff = ExponentialBackoff(
-        minDelayMs: 100,
-        maxDelayMs: 1000,
-      );
+      final backoff = ExponentialBackoff(minDelayMs: 100, maxDelayMs: 1000);
 
       backoff.next();
       backoff.next();
@@ -181,11 +177,7 @@ void main() {
   group('createBackoff', () {
     test('should succeed on first try', () async {
       final withBackoff = createBackoff<String>(
-        const BackoffOptions(
-          minDelay: 10,
-          maxDelay: 100,
-          maxFailureCount: 5,
-        ),
+        const BackoffOptions(minDelay: 10, maxDelay: 100, maxFailureCount: 5),
       );
 
       var callCount = 0;
@@ -200,11 +192,7 @@ void main() {
 
     test('should retry on failure', () async {
       final withBackoff = createBackoff<String>(
-        const BackoffOptions(
-          minDelay: 10,
-          maxDelay: 50,
-          maxFailureCount: 10,
-        ),
+        const BackoffOptions(minDelay: 10, maxDelay: 50, maxFailureCount: 10),
       );
 
       var attemptCount = 0;
@@ -252,10 +240,7 @@ void main() {
   group('createRetryingBackoff', () {
     test('should retry up to maxRetries times', () async {
       final withBackoff = createRetryingBackoff<String>(
-        const BackoffOptions(
-          minDelay: 10,
-          maxDelay: 50,
-        ),
+        const BackoffOptions(minDelay: 10, maxDelay: 50),
         3,
       );
 
@@ -273,10 +258,7 @@ void main() {
 
     test('should succeed before reaching maxRetries', () async {
       final withBackoff = createRetryingBackoff<String>(
-        const BackoffOptions(
-          minDelay: 10,
-          maxDelay: 50,
-        ),
+        const BackoffOptions(minDelay: 10, maxDelay: 50),
         10,
       );
 

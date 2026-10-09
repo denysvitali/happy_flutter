@@ -86,8 +86,8 @@ _Args _parseArgs(List<String> argv) {
       upstream = Uri.parse(arg.substring('--upstream='.length));
     } else if (arg.startsWith('--profile=')) {
       final name = arg.substring('--profile='.length);
-      profile = _profiles[name] ??
-          (throw ArgumentError('unknown profile: $name'));
+      profile =
+          _profiles[name] ?? (throw ArgumentError('unknown profile: $name'));
     } else if (arg.startsWith('--seed=')) {
       seed = int.parse(arg.substring('--seed='.length));
     }
@@ -151,9 +151,7 @@ Future<void> _handle(HttpRequest request, _Args args, Random rng) async {
       stdout.writeln('[chaos] PASS  $tag');
     case _Action.latency:
       final delay = Duration(milliseconds: 100 + rng.nextInt(1900));
-      stdout.writeln(
-        '[chaos] WAIT  $tag (sleeping ${delay.inMilliseconds}ms)',
-      );
+      stdout.writeln('[chaos] WAIT  $tag (sleeping ${delay.inMilliseconds}ms)');
       await Future<void>.delayed(delay);
       await _forward(request, args.upstream);
     case _Action.drop:
@@ -171,14 +169,16 @@ Future<void> _handle(HttpRequest request, _Args args, Random rng) async {
       // Send the duplicate first, fire-and-forget; then forward the
       // original.  This mirrors the failure mode where the network
       // re-sends after a timeout but the client still gets a 200.
-      unawaited(_forwardWithBody(
-        method: request.method,
-        uri: request.uri,
-        headers: request.headers,
-        body: body,
-        upstream: args.upstream,
-        responseSink: null,
-      ));
+      unawaited(
+        _forwardWithBody(
+          method: request.method,
+          uri: request.uri,
+          headers: request.headers,
+          body: body,
+          upstream: args.upstream,
+          responseSink: null,
+        ),
+      );
       await _forwardWithBody(
         method: request.method,
         uri: request.uri,

@@ -52,14 +52,16 @@ class MessageStateMachine {
           throw ArgumentError('serverId required for ack');
         }
         final seq = (event.payload['seq'] as int?) ?? 0;
-        final text = (event.payload['content'] as String?) ??
-            _textOfCurrent(current);
+        final text =
+            (event.payload['content'] as String?) ?? _textOfCurrent(current);
         if (current is MessageStateSending) {
-          final sent = MessageStateTransitions.ackFromSending(
-            current,
-            serverId: serverId,
-            seq: seq,
-          ) ?? (throw ArgumentError('Invalid ack transition'));
+          final sent =
+              MessageStateTransitions.ackFromSending(
+                current,
+                serverId: serverId,
+                seq: seq,
+              ) ??
+              (throw ArgumentError('Invalid ack transition'));
           _states[localId] = MessageStateMerged(
             localId: sent.localId,
             serverId: sent.serverId,
@@ -67,11 +69,13 @@ class MessageStateMachine {
             text: text,
           );
         } else if (current is MessageStatePending) {
-          final sent = MessageStateTransitions.ackFromPending(
-            current,
-            serverId: serverId,
-            seq: seq,
-          ) ?? (throw ArgumentError('Invalid ack transition'));
+          final sent =
+              MessageStateTransitions.ackFromPending(
+                current,
+                serverId: serverId,
+                seq: seq,
+              ) ??
+              (throw ArgumentError('Invalid ack transition'));
           _states[localId] = MessageStateMerged(
             localId: sent.localId,
             serverId: sent.serverId,

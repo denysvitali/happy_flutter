@@ -15,10 +15,7 @@ Widget _app(Widget child) {
 }
 
 /// Builds a [BotMessage] for the given [text] and streaming state.
-Widget _bot({
-  required bool isStreaming,
-  String text = 'Hello from the agent',
-}) {
+Widget _bot({required bool isStreaming, String text = 'Hello from the agent'}) {
   return _app(
     BotMessage(
       text: text,
@@ -60,24 +57,27 @@ void main() {
   // never settles, so pumpAndSettle will time out. Use pump() instead.
 
   group('BotMessage streaming integration', () {
-    testWidgets('shows StreamingCursor when isStreaming is true',
-        (tester) async {
+    testWidgets('shows StreamingCursor when isStreaming is true', (
+      tester,
+    ) async {
       await tester.pumpWidget(_bot(isStreaming: true));
       await tester.pump();
 
       expect(find.byType(StreamingCursor), findsOneWidget);
     });
 
-    testWidgets('hides StreamingCursor when isStreaming is false',
-        (tester) async {
+    testWidgets('hides StreamingCursor when isStreaming is false', (
+      tester,
+    ) async {
       await tester.pumpWidget(_bot(isStreaming: false));
       await tester.pump();
 
       expect(find.byType(StreamingCursor), findsNothing);
     });
 
-    testWidgets('hides StreamingCursor by default (isStreaming omitted)',
-        (tester) async {
+    testWidgets('hides StreamingCursor by default (isStreaming omitted)', (
+      tester,
+    ) async {
       await tester.pumpWidget(_bot(isStreaming: false));
       await tester.pump();
 
@@ -94,16 +94,14 @@ void main() {
       // when streaming — a screen reader user hears
       // "AI response streaming" instead of the truncated text.
       final semantics = tester.getSemantics(find.byType(BotMessage));
-      expect(
-        semantics.label,
-        contains('streaming'),
-      );
+      expect(semantics.label, contains('streaming'));
     });
   });
 
   group('MessageWidget streaming plumbing', () {
-    testWidgets('forwards isStreaming to BotMessage for agent text',
-        (tester) async {
+    testWidgets('forwards isStreaming to BotMessage for agent text', (
+      tester,
+    ) async {
       await tester.pumpWidget(_widget(isStreaming: true));
       await tester.pump();
 
@@ -112,8 +110,9 @@ void main() {
       expect(find.byType(StreamingCursor), findsOneWidget);
     });
 
-    testWidgets('omits StreamingCursor for completed agent messages',
-        (tester) async {
+    testWidgets('omits StreamingCursor for completed agent messages', (
+      tester,
+    ) async {
       await tester.pumpWidget(_widget(isStreaming: false));
       await tester.pump();
 

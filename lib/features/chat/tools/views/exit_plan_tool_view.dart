@@ -12,11 +12,7 @@ import '../tool_section_view.dart';
 /// copy-to-clipboard action. Permission actions (accept edits, yolo, deny)
 /// are handled by the [PermissionFooter] in the parent [ToolView].
 class ExitPlanToolView extends StatefulWidget {
-  const ExitPlanToolView({
-    required this.tool,
-    super.key,
-    this.metadata,
-  });
+  const ExitPlanToolView({required this.tool, super.key, this.metadata});
 
   /// The tool data.
   final Map<String, dynamic> tool;

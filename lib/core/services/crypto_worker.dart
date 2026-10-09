@@ -43,11 +43,7 @@ enum CryptoOp {
 
 /// Request envelope sent from the main isolate to the worker.
 class CryptoRequest {
-  CryptoRequest({
-    required this.id,
-    required this.op,
-    required this.payload,
-  });
+  CryptoRequest({required this.id, required this.op, required this.payload});
 
   final int id;
   final CryptoOp op;
@@ -78,9 +74,9 @@ class CryptoWorker {
     required SendPort outbound,
     required ReceivePort inbound,
     required Isolate isolate,
-  })  : _outbound = outbound,
-        _inbound = inbound,
-        _isolate = isolate {
+  }) : _outbound = outbound,
+       _inbound = inbound,
+       _isolate = isolate {
     _inbound.listen(_handleResponse);
   }
 

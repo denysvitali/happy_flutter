@@ -76,86 +76,80 @@ void main() {
       sync.testFetchMessagesOverride = null;
     });
 
-    test(
-      'fetchMessages on a fresh session with empty messages envelope '
-      'completes without throwing',
-      () async {
-        // Mimics the production scenario in HAPPY_FLUTTER-3EV/3EU:
-        // brand-new session, no in-memory messages, server returns
-        // { messages: [], hasMore: false }.
-        final sessionId = 'sess-fresh-empty';
+    test('fetchMessages on a fresh session with empty messages envelope '
+        'completes without throwing', () async {
+      // Mimics the production scenario in HAPPY_FLUTTER-3EV/3EU:
+      // brand-new session, no in-memory messages, server returns
+      // { messages: [], hasMore: false }.
+      final sessionId = 'sess-fresh-empty';
 
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 0,
-          createdAt: 1700000000000,
-          updatedAt: 1700000000000,
-          active: true,
-          activeAt: 1700000000000,
-          metadataVersion: 0,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'offline',
-          lastSeq: 0,
-        );
-        // No _sessionLastSeq set — simulates a first open.
-        // No _sessionMessages entry — isFirstLoad will be true.
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 0,
+        createdAt: 1700000000000,
+        updatedAt: 1700000000000,
+        active: true,
+        activeAt: 1700000000000,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+        lastSeq: 0,
+      );
+      // No _sessionLastSeq set — simulates a first open.
+      // No _sessionMessages entry — isFirstLoad will be true.
 
-        var httpCalled = 0;
-        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
-          httpCalled++;
-          // The exact production-shape envelope for an empty session.
-          return <String, dynamic>{
-            'messages': <Map<String, dynamic>>[],
-            'hasMore': false,
-          };
+      var httpCalled = 0;
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        httpCalled++;
+        // The exact production-shape envelope for an empty session.
+        return <String, dynamic>{
+          'messages': <Map<String, dynamic>>[],
+          'hasMore': false,
         };
+      };
 
-        // Act: must NOT throw.
-        await sync.fetchMessages(sessionId);
+      // Act: must NOT throw.
+      await sync.fetchMessages(sessionId);
 
-        // Assert: HTTP was called exactly once.
-        expect(httpCalled, 1, reason: 'Empty envelope should be fetched');
+      // Assert: HTTP was called exactly once.
+      expect(httpCalled, 1, reason: 'Empty envelope should be fetched');
 
-        // Assert: session messages remain empty (no rogue row inserted).
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(msgs ?? const [], isEmpty);
-      },
-    );
+      // Assert: session messages remain empty (no rogue row inserted).
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs ?? const [], isEmpty);
+    });
 
-    test(
-      'fetchMessages on a fresh session whose envelope has missing keys '
-      '(no messages, no hasMore) still completes without throwing',
-      () async {
-        // The 3EV/3EU class also tripped on sparse envelopes. Pin
-        // that the parser tolerates a totally empty response object.
-        final sessionId = 'sess-fresh-sparse';
+    test('fetchMessages on a fresh session whose envelope has missing keys '
+        '(no messages, no hasMore) still completes without throwing', () async {
+      // The 3EV/3EU class also tripped on sparse envelopes. Pin
+      // that the parser tolerates a totally empty response object.
+      final sessionId = 'sess-fresh-sparse';
 
-        sync.testSessions[sessionId] = Session(
-          id: sessionId,
-          seq: 0,
-          createdAt: 1700000000000,
-          updatedAt: 1700000000000,
-          active: true,
-          activeAt: 1700000000000,
-          metadataVersion: 0,
-          agentStateVersion: 0,
-          thinking: false,
-          presence: 'offline',
-          lastSeq: 0,
-        );
+      sync.testSessions[sessionId] = Session(
+        id: sessionId,
+        seq: 0,
+        createdAt: 1700000000000,
+        updatedAt: 1700000000000,
+        active: true,
+        activeAt: 1700000000000,
+        metadataVersion: 0,
+        agentStateVersion: 0,
+        thinking: false,
+        presence: 'offline',
+        lastSeq: 0,
+      );
 
-        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
-          return <String, dynamic>{}; // no messages, no hasMore
-        };
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        return <String, dynamic>{}; // no messages, no hasMore
+      };
 
-        // Must NOT throw.
-        await sync.fetchMessages(sessionId);
+      // Must NOT throw.
+      await sync.fetchMessages(sessionId);
 
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(msgs ?? const [], isEmpty);
-      },
-    );
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs ?? const [], isEmpty);
+    });
 
     test(
       'fetchMessages survives a TypeError in the parser (defensive net)',

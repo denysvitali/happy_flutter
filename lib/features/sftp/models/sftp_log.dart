@@ -81,9 +81,8 @@ class SftpLogStore {
 
   /// Add a log entry for a device
   Future<void> addLog(SftpLogEntry entry) async {
-    final deviceLogs =
-        _logs.putIfAbsent(entry.deviceId, () => [])
-          ..insert(0, entry);
+    final deviceLogs = _logs.putIfAbsent(entry.deviceId, () => [])
+      ..insert(0, entry);
 
     // Enforce max logs per device
     if (deviceLogs.length > _maxLogsPerDevice) {
@@ -180,10 +179,7 @@ class SftpLogStore {
           final content = await entity.readAsString();
           final jsonList = jsonDecode(content) as List;
           final logs = jsonList
-              .map(
-                (j) =>
-                    SftpLogEntry.fromJson(j as Map<String, dynamic>),
-              )
+              .map((j) => SftpLogEntry.fromJson(j as Map<String, dynamic>))
               .toList();
 
           if (logs.isNotEmpty) {

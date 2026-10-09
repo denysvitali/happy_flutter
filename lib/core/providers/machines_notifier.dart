@@ -31,16 +31,17 @@ class MachinesNotifier extends Notifier<Map<String, Machine>> {
     if (inFlight != null) {
       return inFlight;
     }
-    final future = () async {
-      try {
-        await sync.refreshMachines();
-      } catch (e, stack) {
-        logger.warning('Failed to refresh machines', e, stack);
-      }
-      loadFromSync();
-    }().whenComplete(() {
-      _refreshInFlight = null;
-    });
+    final future =
+        () async {
+          try {
+            await sync.refreshMachines();
+          } catch (e, stack) {
+            logger.warning('Failed to refresh machines', e, stack);
+          }
+          loadFromSync();
+        }().whenComplete(() {
+          _refreshInFlight = null;
+        });
     _refreshInFlight = future;
     return future;
   }

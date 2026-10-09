@@ -76,55 +76,49 @@ void main() {
         'kind': 'tool-call',
         'name': 'Task',
         'state': 'completed',
-        'input': <String, dynamic>{
-          'description': 'Investigate issue',
-        },
+        'input': <String, dynamic>{'description': 'Investigate issue'},
       };
 
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
       expect(find.text('No messages yet'), findsOneWidget);
     });
 
-    testWidgets('shows loading indicator when task is running with no children',
-        (tester) async {
-      const sessionId = 'sess_1';
-      const taskId = 'task_2';
+    testWidgets(
+      'shows loading indicator when task is running with no children',
+      (tester) async {
+        const sessionId = 'sess_1';
+        const taskId = 'task_2';
 
-      final taskData = <String, dynamic>{
-        'id': taskId,
-        'kind': 'tool-call',
-        'name': 'Task',
-        'state': 'running',
-        'input': <String, dynamic>{
-          'description': 'Running task',
-        },
-      };
+        final taskData = <String, dynamic>{
+          'id': taskId,
+          'kind': 'tool-call',
+          'name': 'Task',
+          'state': 'running',
+          'input': <String, dynamic>{'description': 'Running task'},
+        };
 
-      sync.testSetSessionMessages(sessionId, [taskData]);
+        sync.testSetSessionMessages(sessionId, [taskData]);
 
-      await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
-      );
-      await tester.pump();
+        await tester.pumpWidget(
+          _buildApp(
+            sessionId: sessionId,
+            messageId: taskId,
+            taskData: taskData,
+          ),
+        );
+        await tester.pump();
 
-      // Running task with no children shows progress indicators
-      // (one in body, potentially one in app bar)
-      expect(find.byType(CircularProgressIndicator), findsWidgets);
-    });
+        // Running task with no children shows progress indicators
+        // (one in body, potentially one in app bar)
+        expect(find.byType(CircularProgressIndicator), findsWidgets);
+      },
+    );
 
     testWidgets('shows task description in app bar', (tester) async {
       const sessionId = 'sess_1';
@@ -135,19 +129,13 @@ void main() {
         'kind': 'tool-call',
         'name': 'Task',
         'state': 'completed',
-        'input': <String, dynamic>{
-          'description': 'My task description',
-        },
+        'input': <String, dynamic>{'description': 'My task description'},
       };
 
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -172,11 +160,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -184,8 +168,9 @@ void main() {
       expect(find.text('explore'), findsOneWidget);
     });
 
-    testWidgets('falls back to prompt when description is missing',
-        (tester) async {
+    testWidgets('falls back to prompt when description is missing', (
+      tester,
+    ) async {
       const sessionId = 'sess_1';
       const taskId = 'task_5';
 
@@ -194,19 +179,13 @@ void main() {
         'kind': 'tool-call',
         'name': 'Task',
         'state': 'completed',
-        'input': <String, dynamic>{
-          'prompt': 'Fallback prompt text',
-        },
+        'input': <String, dynamic>{'prompt': 'Fallback prompt text'},
       };
 
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -226,27 +205,15 @@ void main() {
         'state': 'completed',
         'input': <String, dynamic>{'description': 'Task'},
         'children': [
-          {
-            'id': 'child_1',
-            'kind': 'text',
-            'content': 'First subagent reply',
-          },
-          {
-            'id': 'child_2',
-            'kind': 'text',
-            'content': 'Second subagent reply',
-          },
+          {'id': 'child_1', 'kind': 'text', 'content': 'First subagent reply'},
+          {'id': 'child_2', 'kind': 'text', 'content': 'Second subagent reply'},
         ],
       };
 
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -281,11 +248,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -316,11 +279,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -350,11 +309,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -372,27 +327,15 @@ void main() {
         'state': 'completed',
         'input': <String, dynamic>{'description': 'Task'},
         'children': [
-          {
-            'id': 'child_empty',
-            'kind': 'text',
-            'content': '',
-          },
-          {
-            'id': 'child_valid',
-            'kind': 'text',
-            'content': 'Valid message',
-          },
+          {'id': 'child_empty', 'kind': 'text', 'content': ''},
+          {'id': 'child_valid', 'kind': 'text', 'content': 'Valid message'},
         ],
       };
 
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -410,11 +353,7 @@ void main() {
         'state': 'completed',
         'input': <String, dynamic>{'description': 'Mixed task'},
         'children': [
-          {
-            'id': 'c1',
-            'kind': 'text',
-            'content': 'Starting work',
-          },
+          {'id': 'c1', 'kind': 'text', 'content': 'Starting work'},
           {
             'id': 'c2',
             'kind': 'tool-call',
@@ -423,22 +362,14 @@ void main() {
             'state': 'completed',
             'input': <String, dynamic>{'command': 'ls'},
           },
-          {
-            'id': 'c3',
-            'kind': 'text',
-            'content': 'Done!',
-          },
+          {'id': 'c3', 'kind': 'text', 'content': 'Done!'},
         ],
       };
 
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -513,11 +444,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -552,11 +479,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -589,11 +512,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -629,11 +548,7 @@ void main() {
       sync.testSetSessionMessages(sessionId, [taskData]);
 
       await tester.pumpWidget(
-        _buildApp(
-          sessionId: sessionId,
-          messageId: taskId,
-          taskData: taskData,
-        ),
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
       );
       await tester.pump();
 
@@ -689,61 +604,82 @@ void main() {
       },
     );
 
-    testWidgets(
-      'finds nested task inside parent children for live updates',
-      (tester) async {
-        const sessionId = 'sess_1';
-        const nestedTaskId = 'nested_task_1';
+    testWidgets('finds nested task inside parent children for live updates', (
+      tester,
+    ) async {
+      const sessionId = 'sess_1';
+      const nestedTaskId = 'nested_task_1';
 
-        // A nested Task lives inside a parent Task's children
-        final parentTask = <String, dynamic>{
-          'id': 'parent_task',
-          'kind': 'tool-call',
-          'name': 'Task',
-          'state': 'running',
-          'input': <String, dynamic>{'description': 'Parent'},
-          'children': [
-            <String, dynamic>{
-              'id': nestedTaskId,
-              'kind': 'tool-call',
-              'name': 'Task',
-              'state': 'completed',
-              'input': <String, dynamic>{'description': 'Nested'},
-              'children': [
-                {'id': 'nc1', 'kind': 'text', 'content': 'Nested reply'},
-              ],
-            },
-          ],
-        };
+      // A nested Task lives inside a parent Task's children
+      final parentTask = <String, dynamic>{
+        'id': 'parent_task',
+        'kind': 'tool-call',
+        'name': 'Task',
+        'state': 'running',
+        'input': <String, dynamic>{'description': 'Parent'},
+        'children': [
+          <String, dynamic>{
+            'id': nestedTaskId,
+            'kind': 'tool-call',
+            'name': 'Task',
+            'state': 'completed',
+            'input': <String, dynamic>{'description': 'Nested'},
+            'children': [
+              {'id': 'nc1', 'kind': 'text', 'content': 'Nested reply'},
+            ],
+          },
+        ],
+      };
 
-        // taskData is the nested task extracted from the parent's children
-        final nestedTaskData =
-            (parentTask['children'] as List).first as Map<String, dynamic>;
+      // taskData is the nested task extracted from the parent's children
+      final nestedTaskData =
+          (parentTask['children'] as List).first as Map<String, dynamic>;
 
-        sync.testSetSessionMessages(sessionId, [parentTask]);
+      sync.testSetSessionMessages(sessionId, [parentTask]);
 
-        await tester.pumpWidget(
-          _buildApp(
-            sessionId: sessionId,
-            messageId: nestedTaskId,
-            taskData: nestedTaskData,
-          ),
-        );
-        await tester.pump();
+      await tester.pumpWidget(
+        _buildApp(
+          sessionId: sessionId,
+          messageId: nestedTaskId,
+          taskData: nestedTaskData,
+        ),
+      );
+      await tester.pump();
 
-        expect(find.text('Nested reply'), findsOneWidget);
-        expect(find.text('No messages yet'), findsNothing);
-      },
-    );
+      expect(find.text('Nested reply'), findsOneWidget);
+      expect(find.text('No messages yet'), findsNothing);
+    });
 
-    testWidgets(
-      'updates children as more stream in via sync',
-      (tester) async {
-        const sessionId = 'sess_1';
-        const taskId = 'task_stream';
+    testWidgets('updates children as more stream in via sync', (tester) async {
+      const sessionId = 'sess_1';
+      const taskId = 'task_stream';
 
-        // Start with 1 child
-        final taskData = <String, dynamic>{
+      // Start with 1 child
+      final taskData = <String, dynamic>{
+        'id': taskId,
+        'kind': 'tool-call',
+        'name': 'Task',
+        'state': 'running',
+        'input': <String, dynamic>{'description': 'Streaming'},
+        'children': [
+          {'id': 'c1', 'kind': 'text', 'content': 'First'},
+        ],
+      };
+
+      sync.testSetSessionMessages(sessionId, [
+        <String, dynamic>{...taskData},
+      ]);
+
+      await tester.pumpWidget(
+        _buildApp(sessionId: sessionId, messageId: taskId, taskData: taskData),
+      );
+      await tester.pump();
+
+      expect(find.text('First'), findsOneWidget);
+
+      // Simulate more children arriving (grouper attached them)
+      sync.testSetSessionMessages(sessionId, [
+        <String, dynamic>{
           'id': taskId,
           'kind': 'tool-call',
           'name': 'Task',
@@ -751,58 +687,32 @@ void main() {
           'input': <String, dynamic>{'description': 'Streaming'},
           'children': [
             {'id': 'c1', 'kind': 'text', 'content': 'First'},
+            {
+              'id': 'c2',
+              'kind': 'tool-call',
+              'name': 'Read',
+              'state': 'completed',
+              'input': <String, dynamic>{'file_path': '/a.txt'},
+              'result': 'ok',
+            },
+            {'id': 'c3', 'kind': 'text', 'content': 'Done reading'},
           ],
-        };
+        },
+      ]);
+      sync.testNotifySessionMessagesChanged(sessionId);
 
-        sync.testSetSessionMessages(sessionId, [
-          <String, dynamic>{
-            ...taskData,
-          },
-        ]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
 
-        await tester.pumpWidget(
-          _buildApp(
-            sessionId: sessionId,
-            messageId: taskId,
-            taskData: taskData,
-          ),
-        );
-        await tester.pump();
-
-        expect(find.text('First'), findsOneWidget);
-
-        // Simulate more children arriving (grouper attached them)
-        sync.testSetSessionMessages(sessionId, [
-          <String, dynamic>{
-            'id': taskId,
-            'kind': 'tool-call',
-            'name': 'Task',
-            'state': 'running',
-            'input': <String, dynamic>{'description': 'Streaming'},
-            'children': [
-              {'id': 'c1', 'kind': 'text', 'content': 'First'},
-              {'id': 'c2', 'kind': 'tool-call', 'name': 'Read', 'state': 'completed', 'input': <String, dynamic>{'file_path': '/a.txt'}, 'result': 'ok'},
-              {'id': 'c3', 'kind': 'text', 'content': 'Done reading'},
-            ],
-          },
-        ]);
-        sync.testNotifySessionMessagesChanged(sessionId);
-
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 350));
-
-        expect(find.text('First'), findsOneWidget);
-        expect(find.text('Done reading'), findsOneWidget);
-        // ToolView should render for the Read tool call
-        expect(find.byType(ToolView), findsOneWidget);
-      },
-    );
+      expect(find.text('First'), findsOneWidget);
+      expect(find.text('Done reading'), findsOneWidget);
+      // ToolView should render for the Read tool call
+      expect(find.byType(ToolView), findsOneWidget);
+    });
   });
 
   group('TaskView - text message preview', () {
-    testWidgets('shows most recent text message from children', (
-      tester,
-    ) async {
+    testWidgets('shows most recent text message from children', (tester) async {
       final taskData = <String, dynamic>{
         'id': 'task_tv_1',
         'kind': 'tool-call',
@@ -813,11 +723,7 @@ void main() {
           'subagent_type': 'explore',
         },
         'children': [
-          {
-            'id': 'c1',
-            'kind': 'text',
-            'content': 'First message from agent',
-          },
+          {'id': 'c1', 'kind': 'text', 'content': 'First message from agent'},
           {
             'id': 'c2',
             'kind': 'tool-call',
@@ -826,11 +732,7 @@ void main() {
             'state': 'completed',
             'input': <String, dynamic>{'file_path': '/tmp/test.txt'},
           },
-          {
-            'id': 'c3',
-            'kind': 'text',
-            'content': 'Second message from agent',
-          },
+          {'id': 'c3', 'kind': 'text', 'content': 'Second message from agent'},
         ],
       };
 

@@ -23,10 +23,7 @@ void main() {
     });
 
     test('fromJson handles missing tokens and cost', () {
-      final json = {
-        'timestamp': 100,
-        'reportCount': 0,
-      };
+      final json = {'timestamp': 100, 'reportCount': 0};
 
       final point = UsageDataPoint.fromJson(json);
 
@@ -116,14 +113,16 @@ void main() {
     });
 
     test('toJson produces correct structure', () {
-      final response = UsageResponse(usage: [
-        UsageDataPoint(
-          timestamp: 100,
-          tokens: {'m': 10},
-          cost: {'m': 0.1},
-          reportCount: 1,
-        ),
-      ]);
+      final response = UsageResponse(
+        usage: [
+          UsageDataPoint(
+            timestamp: 100,
+            tokens: {'m': 10},
+            cost: {'m': 0.1},
+            reportCount: 1,
+          ),
+        ],
+      );
 
       final json = response.toJson();
 

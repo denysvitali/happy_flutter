@@ -200,14 +200,8 @@ void main() {
       expect(state.directories.first.name, 'Updated Name');
       expect(state.directories.first.path, '/new/path');
       expect(state.directories.first.port, 2022);
-      expect(
-        state.directories.first.authMethod,
-        SftpAuthMethod.publicKey,
-      );
-      expect(
-        state.directories.first.clipboardMode,
-        SftpClipboardMode.pushOnly,
-      );
+      expect(state.directories.first.authMethod, SftpAuthMethod.publicKey);
+      expect(state.directories.first.clipboardMode, SftpClipboardMode.pushOnly);
     });
 
     test('updateDirectory does not affect other directories', () async {
@@ -270,10 +264,7 @@ void main() {
       );
 
       await notifier.addDirectory(dir);
-      expect(
-        container.read(sftpNotifierProvider).directories,
-        hasLength(1),
-      );
+      expect(container.read(sftpNotifierProvider).directories, hasLength(1));
 
       await notifier.removeDirectory('dir-1');
 
@@ -355,10 +346,7 @@ void main() {
       // Add two directories
       await notifier.addDirectory(dir1);
       await notifier.addDirectory(dir2);
-      expect(
-        container.read(sftpNotifierProvider).directories,
-        hasLength(2),
-      );
+      expect(container.read(sftpNotifierProvider).directories, hasLength(2));
 
       // Update first directory
       const updated = SftpDirectory(

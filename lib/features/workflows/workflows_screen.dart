@@ -242,7 +242,10 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
                       padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                       child: Text(
                         context.l10n.workflowsCount(runs.length),
-                        style: AppText.secondary(Theme.of(context), Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: AppText.secondary(
+                          Theme.of(context),
+                          Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     );
                   }

@@ -29,10 +29,7 @@ void main() {
           isNotNull,
           reason: 'missing canonical language: $lang',
         );
-        expect(
-          kLanguageBrandColors[lang],
-          isA<Color>(),
-        );
+        expect(kLanguageBrandColors[lang], isA<Color>());
       }
     });
 
@@ -60,7 +57,8 @@ void main() {
         expect(
           kLanguageBrandColors[entry.key],
           equals(kLanguageBrandColors[entry.value]),
-          reason: 'alias ${entry.key} must share colour with '
+          reason:
+              'alias ${entry.key} must share colour with '
               '${entry.value}',
         );
       }
@@ -68,15 +66,17 @@ void main() {
 
     test('all entries are lowercased keys', () {
       for (final key in kLanguageBrandColors.keys) {
-        expect(key, equals(key.toLowerCase()),
-            reason: 'language key "$key" is not lowercased');
+        expect(
+          key,
+          equals(key.toLowerCase()),
+          reason: 'language key "$key" is not lowercased',
+        );
       }
     });
   });
 
   group('colorForLanguage', () {
-    test('returns the brand colour for known languages (case-insensitive)',
-        () {
+    test('returns the brand colour for known languages (case-insensitive)', () {
       expect(colorForLanguage('dart'), const Color(0xFF00B4AB));
       expect(colorForLanguage('DART'), const Color(0xFF00B4AB));
       expect(colorForLanguage('Py'), const Color(0xFF3572A5));

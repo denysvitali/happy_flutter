@@ -27,14 +27,15 @@ void main() {
           'version': 1,
         };
 
-        when(mockClient.get(
-          '/v1/kv/test-key',
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get('/v1/kv/test-key', options: anyNamed('options')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await kvApi.get('test-key');
 
@@ -45,14 +46,15 @@ void main() {
       });
 
       test('returns null when key not found (404)', () async {
-        when(mockClient.get(
-          '/v1/kv/non-existent',
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 404,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get('/v1/kv/non-existent', options: anyNamed('options')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 404,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await kvApi.get('non-existent');
 
@@ -60,57 +62,62 @@ void main() {
       });
 
       test('throws exception on non-200/404 response', () async {
-        when(mockClient.get(
-          any,
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 500,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get(any, options: anyNamed('options'))).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => kvApi.get('test-key'),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.message, 'message',
-                  contains('Failed to get KV value'))),
+          throwsA(
+            isA<KvApiException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to get KV value'),
+                ),
+          ),
         );
       });
 
       test('encodes key properly', () async {
-        when(mockClient.get(
-          any,
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {'key': 'test key', 'value': 'value', 'version': 1},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get(any, options: anyNamed('options'))).thenAnswer(
+          (_) async => Response(
+            data: {'key': 'test key', 'value': 'value', 'version': 1},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await kvApi.get('test key');
 
-        verify(mockClient.get(
-          '/v1/kv/test%20key',
-          options: anyNamed('options'),
-        )).called(1);
+        verify(
+          mockClient.get('/v1/kv/test%20key', options: anyNamed('options')),
+        ).called(1);
       });
 
       test('throws exception on invalid response data', () async {
-        when(mockClient.get(
-          any,
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {'invalid': 'data'},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.get(any, options: anyNamed('options'))).thenAnswer(
+          (_) async => Response(
+            data: {'invalid': 'data'},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => kvApi.get('test-key'),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Failed to parse KV item'))),
+          throwsA(
+            isA<KvApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to parse KV item'),
+            ),
+          ),
         );
       });
     });
@@ -124,14 +131,18 @@ void main() {
           ],
         };
 
-        when(mockClient.get(
-          '/v1/kv',
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await kvApi.list();
 
@@ -141,75 +152,93 @@ void main() {
       });
 
       test('filters by prefix', () async {
-        when(mockClient.get(
-          '/v1/kv',
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: {'items': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'items': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await kvApi.list(prefix: 'user:');
 
-        verify(mockClient.get(
-          '/v1/kv',
-          queryParameters: {'prefix': 'user:'},
-        )).called(1);
+        verify(
+          mockClient.get('/v1/kv', queryParameters: {'prefix': 'user:'}),
+        ).called(1);
       });
 
       test('applies limit', () async {
-        when(mockClient.get(
-          '/v1/kv',
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: {'items': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'items': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await kvApi.list(limit: 50);
 
-        verify(mockClient.get(
-          '/v1/kv',
-          queryParameters: {'limit': '50'},
-        )).called(1);
+        verify(
+          mockClient.get('/v1/kv', queryParameters: {'limit': '50'}),
+        ).called(1);
       });
 
       test('combines prefix and limit', () async {
-        when(mockClient.get(
-          '/v1/kv',
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: {'items': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'items': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await kvApi.list(prefix: 'session:', limit: 100);
 
-        verify(mockClient.get(
-          '/v1/kv',
-          queryParameters: {'prefix': 'session:', 'limit': '100'},
-        )).called(1);
+        verify(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: {'prefix': 'session:', 'limit': '100'},
+          ),
+        ).called(1);
       });
 
       test('throws exception on non-200 response', () async {
-        when(mockClient.get(
-          any,
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 500,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(any, queryParameters: anyNamed('queryParameters')),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => kvApi.list(),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.message, 'message',
-                  contains('Failed to list KV items'))),
+          throwsA(
+            isA<KvApiException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to list KV items'),
+                ),
+          ),
         );
       });
     });
@@ -223,14 +252,13 @@ void main() {
           ],
         };
 
-        when(mockClient.post(
-          '/v1/kv/bulk',
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.post('/v1/kv/bulk', data: anyNamed('data'))).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await kvApi.bulkGet(['key1', 'key2']);
 
@@ -238,10 +266,14 @@ void main() {
         expect(result.values[0].key, 'key1');
         expect(result.values[1].key, 'key2');
 
-        verify(mockClient.post(
-          '/v1/kv/bulk',
-          data: {'keys': ['key1', 'key2']},
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/kv/bulk',
+            data: {
+              'keys': ['key1', 'key2'],
+            },
+          ),
+        ).called(1);
       });
 
       test('returns empty list for empty keys', () async {
@@ -256,28 +288,36 @@ void main() {
 
         expect(
           () => kvApi.bulkGet(keys),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Cannot bulk get more than 100 keys'))),
+          throwsA(
+            isA<KvApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Cannot bulk get more than 100 keys'),
+            ),
+          ),
         );
       });
 
       test('throws exception on non-200 response', () async {
-        when(mockClient.post(
-          any,
-          data: anyNamed('data'),
-        )).thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 500,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(mockClient.post(any, data: anyNamed('data'))).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => kvApi.bulkGet(['key1']),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.message, 'message',
-                  contains('Failed to bulk get KV values'))),
+          throwsA(
+            isA<KvApiException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to bulk get KV values'),
+                ),
+          ),
         );
       });
     });
@@ -291,15 +331,19 @@ void main() {
           ],
         };
 
-        when(mockClient.post(
-          '/v1/kv',
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/kv',
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final mutations = [
           KvMutation(key: 'new-key', value: 'new-value', version: -1),
@@ -321,15 +365,19 @@ void main() {
           ],
         };
 
-        when(mockClient.post(
-          '/v1/kv',
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/kv',
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final mutations = [
           KvMutation(key: 'existing-key', value: 'updated-value', version: 1),
@@ -354,15 +402,19 @@ void main() {
           ],
         };
 
-        when(mockClient.post(
-          '/v1/kv',
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 409,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/kv',
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 409,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final mutations = [
           KvMutation(key: 'conflicted-key', value: 'client-value', version: 3),
@@ -394,182 +446,237 @@ void main() {
 
         expect(
           () => kvApi.mutate(mutations),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.message, 'message',
-                  contains('Cannot mutate more than 100 keys'))),
+          throwsA(
+            isA<KvApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('Cannot mutate more than 100 keys'),
+            ),
+          ),
         );
       });
 
       test('throws exception on non-200/409 response', () async {
-        when(mockClient.post(
-          any,
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {},
-          statusCode: 500,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            any,
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {},
+            statusCode: 500,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
-        final mutations = [
-          KvMutation(key: 'key', value: 'value', version: -1),
-        ];
+        final mutations = [KvMutation(key: 'key', value: 'value', version: -1)];
 
         expect(
           () => kvApi.mutate(mutations),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.message, 'message',
-                  contains('Failed to mutate KV values'))),
+          throwsA(
+            isA<KvApiException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to mutate KV values'),
+                ),
+          ),
         );
       });
     });
 
     group('set', () {
       test('sets a new key with default version', () async {
-        when(mockClient.post(
-          '/v1/kv',
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {
-            'success': true,
-            'results': [{'key': 'key', 'version': 1}],
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/kv',
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {
+              'success': true,
+              'results': [
+                {'key': 'key', 'version': 1},
+              ],
+            },
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final version = await kvApi.set('key', 'value');
 
         expect(version, 1);
 
-        verify(mockClient.post(
-          '/v1/kv',
-          data: argThat(
-            allOf([
-              containsPair('mutations', isList),
-            ]),
-            named: 'data'),
-          options: anyNamed('options'),
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/kv',
+            data: argThat(
+              allOf([containsPair('mutations', isList)]),
+              named: 'data',
+            ),
+            options: anyNamed('options'),
+          ),
+        ).called(1);
       });
 
       test('throws exception on version mismatch', () async {
-        when(mockClient.post(
-          '/v1/kv',
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {
-            'success': false,
-            'errors': [
-              {'key': 'key', 'error': 'version-mismatch', 'version': 5},
-            ],
-          },
-          statusCode: 409,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/kv',
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {
+              'success': false,
+              'errors': [
+                {'key': 'key', 'error': 'version-mismatch', 'version': 5},
+              ],
+            },
+            statusCode: 409,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => kvApi.set('key', 'value', version: 3),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.statusCode, 'statusCode', 409)
-              .having((e) => e.message, 'message',
-                  contains('version-mismatch'))),
+          throwsA(
+            isA<KvApiException>()
+                .having((e) => e.statusCode, 'statusCode', 409)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('version-mismatch'),
+                ),
+          ),
         );
       });
     });
 
     group('delete', () {
       test('deletes a key', () async {
-        when(mockClient.post(
-          '/v1/kv',
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {
-            'success': true,
-            'results': [{'key': 'key', 'version': 2}],
-          },
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/kv',
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {
+              'success': true,
+              'results': [
+                {'key': 'key', 'version': 2},
+              ],
+            },
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await kvApi.delete('key', 1);
 
-        verify(mockClient.post(
-          '/v1/kv',
-          data: argThat(
-            allOf([
-              containsPair('mutations', isList),
-            ]),
-            named: 'data'),
-          options: anyNamed('options'),
-        )).called(1);
+        verify(
+          mockClient.post(
+            '/v1/kv',
+            data: argThat(
+              allOf([containsPair('mutations', isList)]),
+              named: 'data',
+            ),
+            options: anyNamed('options'),
+          ),
+        ).called(1);
       });
 
       test('throws exception on version mismatch', () async {
-        when(mockClient.post(
-          '/v1/kv',
-          data: anyNamed('data'),
-          options: anyNamed('options'),
-        )).thenAnswer((_) async => Response(
-          data: {
-            'success': false,
-            'errors': [
-              {'key': 'key', 'error': 'version-mismatch', 'version': 5},
-            ],
-          },
-          statusCode: 409,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.post(
+            '/v1/kv',
+            data: anyNamed('data'),
+            options: anyNamed('options'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {
+              'success': false,
+              'errors': [
+                {'key': 'key', 'error': 'version-mismatch', 'version': 5},
+              ],
+            },
+            statusCode: 409,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         expect(
           () => kvApi.delete('key', 3),
-          throwsA(isA<KvApiException>()
-              .having((e) => e.statusCode, 'statusCode', 409)
-              .having((e) => e.message, 'message',
-                  contains('version-mismatch'))),
+          throwsA(
+            isA<KvApiException>()
+                .having((e) => e.statusCode, 'statusCode', 409)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('version-mismatch'),
+                ),
+          ),
         );
       });
     });
 
     group('getByPrefix', () {
       test('gets keys with prefix using default limit', () async {
-        when(mockClient.get(
-          '/v1/kv',
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: {'items': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'items': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await kvApi.getByPrefix('user:');
 
-        verify(mockClient.get(
-          '/v1/kv',
-          queryParameters: {'prefix': 'user:', 'limit': '100'},
-        )).called(1);
+        verify(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: {'prefix': 'user:', 'limit': '100'},
+          ),
+        ).called(1);
       });
 
       test('uses custom limit', () async {
-        when(mockClient.get(
-          '/v1/kv',
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: {'items': []},
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: {'items': []},
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         await kvApi.getByPrefix('user:', limit: 50);
 
-        verify(mockClient.get(
-          '/v1/kv',
-          queryParameters: {'prefix': 'user:', 'limit': '50'},
-        )).called(1);
+        verify(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: {'prefix': 'user:', 'limit': '50'},
+          ),
+        ).called(1);
       });
 
       test('returns items from list response', () async {
@@ -580,14 +687,18 @@ void main() {
           ],
         };
 
-        when(mockClient.get(
-          '/v1/kv',
-          queryParameters: anyNamed('queryParameters'),
-        )).thenAnswer((_) async => Response(
-          data: mockResponse,
-          statusCode: 200,
-          requestOptions: RequestOptions(path: ''),
-        ));
+        when(
+          mockClient.get(
+            '/v1/kv',
+            queryParameters: anyNamed('queryParameters'),
+          ),
+        ).thenAnswer(
+          (_) async => Response(
+            data: mockResponse,
+            statusCode: 200,
+            requestOptions: RequestOptions(path: ''),
+          ),
+        );
 
         final result = await kvApi.getByPrefix('user:');
 
@@ -599,10 +710,7 @@ void main() {
 
     group('KvApiException', () {
       test('has correct properties', () {
-        final exception = const KvApiException(
-          'Test error',
-          statusCode: 500,
-        );
+        final exception = const KvApiException('Test error', statusCode: 500);
 
         expect(exception.message, 'Test error');
         expect(exception.statusCode, 500);

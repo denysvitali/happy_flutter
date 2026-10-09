@@ -24,8 +24,7 @@ void main() {
   group('LwwMap', () {
     test('local set + get returns the value', () {
       var clock = 0;
-      final m = LwwMap<String>(
-          replicaId: 'A', clock: () => ++clock);
+      final m = LwwMap<String>(replicaId: 'A', clock: () => ++clock);
       m.set('theme', 'dark');
       expect(m.get('theme'), 'dark');
     });
@@ -92,7 +91,7 @@ void main() {
       var clockB = 100;
       final a = SettingsCrdt(replicaId: 'A', clock: () => ++clockA);
       final b = SettingsCrdt(replicaId: 'B', clock: () => ++clockB);
-      a.updateSetting('themeMode', 'dark');     // ts=1
+      a.updateSetting('themeMode', 'dark'); // ts=1
       final bPatch = b.updateSetting('themeMode', 'light'); // ts=101
       final aPatch = {
         'themeMode': {

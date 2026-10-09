@@ -23,10 +23,7 @@ class _FakeSessionsApi extends SessionsApi {
   }
 
   @override
-  Future<void> renameSession(
-    String sessionId,
-    String newName,
-  ) async {
+  Future<void> renameSession(String sessionId, String newName) async {
     if (shouldFail) throw Exception('server error');
     renames[sessionId] = newName;
   }
@@ -61,12 +58,8 @@ void main() {
     });
 
     test('removes session immediately from state', () async {
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
-      notifier.setSessions([
-        _makeSession('s1'),
-        _makeSession('s2'),
-      ]);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
+      notifier.setSessions([_makeSession('s1'), _makeSession('s2')]);
       notifier.api = _FakeSessionsApi();
 
       final result = await notifier.deleteSession('s1');
@@ -79,8 +72,7 @@ void main() {
 
     test('calls deleteSession on the API', () async {
       final fakeApi = _FakeSessionsApi();
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.setSessions([_makeSession('s1')]);
       notifier.api = fakeApi;
 
@@ -90,12 +82,8 @@ void main() {
     });
 
     test('rolls back deletion when API fails', () async {
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
-      notifier.setSessions([
-        _makeSession('s1'),
-        _makeSession('s2'),
-      ]);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
+      notifier.setSessions([_makeSession('s1'), _makeSession('s2')]);
       notifier.api = _FakeSessionsApi(shouldFail: true);
 
       final result = await notifier.deleteSession('s1');
@@ -108,8 +96,7 @@ void main() {
     });
 
     test('returns false when API fails', () async {
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.setSessions([_makeSession('s1')]);
       notifier.api = _FakeSessionsApi(shouldFail: true);
 
@@ -131,8 +118,7 @@ void main() {
     });
 
     test('updates session name immediately in state', () async {
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.setSessions([_makeSession('s1', name: 'Old Name')]);
       notifier.api = _FakeSessionsApi();
 
@@ -145,8 +131,7 @@ void main() {
 
     test('calls renameSession on the API', () async {
       final fakeApi = _FakeSessionsApi();
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.setSessions([_makeSession('s1', name: 'Original')]);
       notifier.api = fakeApi;
 
@@ -156,8 +141,7 @@ void main() {
     });
 
     test('rolls back name on API failure', () async {
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.setSessions([_makeSession('s1', name: 'Original')]);
       notifier.api = _FakeSessionsApi(shouldFail: true);
 
@@ -170,8 +154,7 @@ void main() {
     });
 
     test('returns false when session not found', () async {
-      final notifier =
-          container.read(sessionsNotifierProvider.notifier);
+      final notifier = container.read(sessionsNotifierProvider.notifier);
       notifier.api = _FakeSessionsApi();
 
       final result = await notifier.renameSession('missing', 'Name');

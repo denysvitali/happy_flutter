@@ -77,10 +77,7 @@ class _RenameProviderDialogState extends State<RenameProviderDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.commonCancel),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(l10n.commonSave),
-        ),
+        FilledButton(onPressed: _submit, child: Text(l10n.commonSave)),
       ],
     );
   }

@@ -28,20 +28,13 @@ void main() {
   test('AES-256-GCM encrypt+decrypt roundtrip, 1KB message', () async {
     final payload = <String, dynamic>{
       'role': 'assistant',
-      'content': <String, dynamic>{
-        'type': 'text',
-        'text': benchText(1000),
-      },
+      'content': <String, dynamic>{'type': 'text', 'text': benchText(1000)},
     };
-    await reporter.measure(
-      'aes_gcm_roundtrip_1kb',
-      () async {
-        final ct = await AesGcmEncryption.encrypt(payload, key);
-        final pt = await AesGcmEncryption.decrypt(ct, key);
-        expect(pt, isNotNull);
-      },
-      iterations: 200,
-    );
+    await reporter.measure('aes_gcm_roundtrip_1kb', () async {
+      final ct = await AesGcmEncryption.encrypt(payload, key);
+      final pt = await AesGcmEncryption.decrypt(ct, key);
+      expect(pt, isNotNull);
+    }, iterations: 200);
   });
 
   test('AES-256-GCM encrypt+decrypt roundtrip, 20KB tool result', () async {
@@ -54,30 +47,22 @@ void main() {
         'isError': false,
       },
     };
-    await reporter.measure(
-      'aes_gcm_roundtrip_20kb_tool_result',
-      () async {
-        final ct = await AesGcmEncryption.encrypt(payload, key);
-        final pt = await AesGcmEncryption.decrypt(ct, key);
-        expect(pt, isNotNull);
-      },
-      iterations: 80,
-    );
+    await reporter.measure('aes_gcm_roundtrip_20kb_tool_result', () async {
+      final ct = await AesGcmEncryption.encrypt(payload, key);
+      final pt = await AesGcmEncryption.decrypt(ct, key);
+      expect(pt, isNotNull);
+    }, iterations: 80);
   });
 
   test('AES-256-GCM decryptBatch of 100 x 2KB messages', () async {
     final batch = <Uint8List>[];
     for (var i = 0; i < 100; i++) {
-      batch.add(await AesGcmEncryption.encrypt(
-        <String, dynamic>{
+      batch.add(
+        await AesGcmEncryption.encrypt(<String, dynamic>{
           'role': 'assistant',
-          'content': <String, dynamic>{
-            'type': 'text',
-            'text': benchText(2000),
-          },
-        },
-        key,
-      ));
+          'content': <String, dynamic>{'type': 'text', 'text': benchText(2000)},
+        }, key),
+      );
     }
     var lastCount = 0;
     await reporter.measure(

@@ -10,7 +10,6 @@ import '../../theme/app_tokens.dart';
 /// Wrap a group of [Shimmer] widgets (e.g. a loading skeleton list)
 /// in a [ShimmerScope] to avoid N independent animation controllers.
 class ShimmerScope extends StatefulWidget {
-
   const ShimmerScope({
     required this.child,
     this.duration = const Duration(milliseconds: 1500),
@@ -33,13 +32,11 @@ class _ShimmerScopeState extends State<ShimmerScope>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.duration,
-      vsync: this,
-    );
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _controller = AnimationController(duration: widget.duration, vsync: this);
+    _animation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     if (widget.enabled) {
       _controller.repeat(reverse: true);
     }
@@ -63,18 +60,12 @@ class _ShimmerScopeState extends State<ShimmerScope>
 
   @override
   Widget build(BuildContext context) {
-    return _ShimmerScopeData(
-      animation: _animation,
-      child: widget.child,
-    );
+    return _ShimmerScopeData(animation: _animation, child: widget.child);
   }
 }
 
 class _ShimmerScopeData extends InheritedWidget {
-  const _ShimmerScopeData({
-    required this.animation,
-    required super.child,
-  });
+  const _ShimmerScopeData({required this.animation, required super.child});
 
   final Animation<double> animation;
 
@@ -96,7 +87,6 @@ class _ShimmerScopeData extends InheritedWidget {
 /// When placed inside a [ShimmerScope], reuses the scope's shared
 /// animation controller instead of creating its own.
 class Shimmer extends StatefulWidget {
-
   const Shimmer({
     required this.child,
     this.colors,
@@ -115,8 +105,7 @@ class Shimmer extends StatefulWidget {
   State<Shimmer> createState() => _ShimmerState();
 }
 
-class _ShimmerState extends State<Shimmer>
-    with SingleTickerProviderStateMixin {
+class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
   AnimationController? _ownController;
   Animation<double>? _ownAnimation;
 
@@ -173,7 +162,8 @@ class _ShimmerState extends State<Shimmer>
 
     final theme = Theme.of(context);
     final appColors = theme.extension<AppColorScheme>();
-    final effectiveColors = widget.colors ??
+    final effectiveColors =
+        widget.colors ??
         (appColors != null
             ? [
                 appColors.shimmerBase,
@@ -220,7 +210,6 @@ class _ShimmerState extends State<Shimmer>
 
 /// Custom gradient transform for shimmer effect
 class _ShimmerGradientTransform extends GradientTransform {
-
   const _ShimmerGradientTransform({
     required this.animation,
     required this.widthPercent,
@@ -266,18 +255,16 @@ class ShimmerStyles {
     required BuildContext context,
     required double height,
     double? width,
-    BorderRadiusGeometry borderRadius =
-        const BorderRadius.all(Radius.circular(AppRadius.md)),
+    BorderRadiusGeometry borderRadius = const BorderRadius.all(
+      Radius.circular(AppRadius.md),
+    ),
   }) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Container(
         height: height,
         width: width,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: borderRadius,
-        ),
+        decoration: BoxDecoration(color: color, borderRadius: borderRadius),
       ),
     );
   }
@@ -287,36 +274,28 @@ class ShimmerStyles {
     required BuildContext context,
     double height = 16,
     double width = double.infinity,
-    BorderRadiusGeometry borderRadius =
-        const BorderRadius.all(Radius.circular(AppRadius.xs)),
+    BorderRadiusGeometry borderRadius = const BorderRadius.all(
+      Radius.circular(AppRadius.xs),
+    ),
   }) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Container(
         height: height,
         width: width,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: borderRadius,
-        ),
+        decoration: BoxDecoration(color: color, borderRadius: borderRadius),
       ),
     );
   }
 
   /// Shimmer for avatar placeholder
-  static Widget avatar({
-    required BuildContext context,
-    double size = 48,
-  }) {
+  static Widget avatar({required BuildContext context, double size = 48}) {
     final color = Theme.of(context).colorScheme.surfaceContainerHighest;
     return Shimmer(
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       ),
     );
   }
@@ -344,8 +323,7 @@ class ShimmerStyles {
               width: index == lines - 1 ? width * 0.6 : width,
               decoration: BoxDecoration(
                 color: color,
-                borderRadius:
-                    BorderRadius.circular(AppRadius.xs),
+                borderRadius: BorderRadius.circular(AppRadius.xs),
               ),
             ),
           );
@@ -357,7 +335,6 @@ class ShimmerStyles {
 
 /// Loading shimmer placeholder for images
 class ShimmerImagePlaceholder extends StatelessWidget {
-
   const ShimmerImagePlaceholder({
     required this.width,
     required this.height,
@@ -375,10 +352,7 @@ class ShimmerImagePlaceholder extends StatelessWidget {
       child: Container(
         width: width,
         height: height,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: borderRadius,
-        ),
+        decoration: BoxDecoration(color: color, borderRadius: borderRadius),
       ),
     );
   }
@@ -386,12 +360,7 @@ class ShimmerImagePlaceholder extends StatelessWidget {
 
 /// Pulse loading indicator
 class ShimmerPulse extends StatefulWidget {
-
-  const ShimmerPulse({
-    this.size = 48,
-    this.color,
-    super.key,
-  });
+  const ShimmerPulse({this.size = 48, this.color, super.key});
   final double size;
 
   /// Dot color. Defaults to [ColorScheme.surfaceContainerHighest] when null.
@@ -413,8 +382,10 @@ class _ShimmerPulseState extends State<ShimmerPulse>
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     )..repeat(reverse: true);
-    _opacityAnimation =
-        Tween<double>(begin: 0.3, end: 1.0).animate(_controller);
+    _opacityAnimation = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
+    ).animate(_controller);
   }
 
   @override
@@ -425,8 +396,8 @@ class _ShimmerPulseState extends State<ShimmerPulse>
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColor = widget.color ??
-        Theme.of(context).colorScheme.surfaceContainerHighest;
+    final resolvedColor =
+        widget.color ?? Theme.of(context).colorScheme.surfaceContainerHighest;
     return FadeTransition(
       opacity: _opacityAnimation,
       child: AnimatedBuilder(

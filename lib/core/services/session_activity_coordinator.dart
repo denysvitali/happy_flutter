@@ -121,14 +121,11 @@ class SessionActivityCoordinator {
       _reconcileCatalog();
       return;
     }
-    _pendingEventReconcile ??= Timer(
-      _eventReconcileCooldown - elapsed,
-      () {
-        _pendingEventReconcile = null;
-        _lastEventReconcileAt = DateTime.now();
-        _reconcileCatalog();
-      },
-    );
+    _pendingEventReconcile ??= Timer(_eventReconcileCooldown - elapsed, () {
+      _pendingEventReconcile = null;
+      _lastEventReconcileAt = DateTime.now();
+      _reconcileCatalog();
+    });
   }
 
   void _reconcileCatalog() {

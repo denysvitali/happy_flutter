@@ -69,9 +69,7 @@ void main() {
     });
 
     test('caps at the newest eight bubbles', () {
-      final messages = [
-        for (var i = 0; i < 20; i++) msg('agent', 'row $i'),
-      ];
+      final messages = [for (var i = 0; i < 20; i++) msg('agent', 'row $i')];
       final items = extractPeekBubbles(messages);
       expect(items, hasLength(peekMaxBubbles));
       expect(items.first.text, 'row 12');

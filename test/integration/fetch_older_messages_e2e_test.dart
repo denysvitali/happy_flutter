@@ -81,44 +81,43 @@ void main() {
       sync.testFetchOlderMessagesOverride = null;
     });
 
-    test('isLoadingOlderMessages returns true while fetch is in progress',
-        () async {
-      const sessionId = 'sess-loading';
-
-      // Pre-populate so hasOlderMessages returns true
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
-      sync.testSetSessionFirstLoadedSeq(sessionId, 201);
-
-      // Block the fetch until we check
-      var fetchStarted = false;
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
-        fetchStarted = true;
-        // Simulate some async work
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        return _buildMessagesResponse([]);
-      };
-
-      expect(sync.isLoadingOlderMessages(sessionId), isFalse);
-
-      // Start fetch (won't await)
-      final fetchFuture = sync.fetchOlderMessages(sessionId);
-      expect(sync.isLoadingOlderMessages(sessionId), isTrue);
-
-      await fetchFuture;
-      expect(sync.isLoadingOlderMessages(sessionId), isFalse);
-    });
-
     test(
-        'returns early if isLoadingOlderMessages is already true', () async {
+      'isLoadingOlderMessages returns true while fetch is in progress',
+      () async {
+        const sessionId = 'sess-loading';
+
+        // Pre-populate so hasOlderMessages returns true
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
+        sync.testSetSessionFirstLoadedSeq(sessionId, 201);
+
+        // Block the fetch until we check
+        var fetchStarted = false;
+        sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
+          fetchStarted = true;
+          // Simulate some async work
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          return _buildMessagesResponse([]);
+        };
+
+        expect(sync.isLoadingOlderMessages(sessionId), isFalse);
+
+        // Start fetch (won't await)
+        final fetchFuture = sync.fetchOlderMessages(sessionId);
+        expect(sync.isLoadingOlderMessages(sessionId), isTrue);
+
+        await fetchFuture;
+        expect(sync.isLoadingOlderMessages(sessionId), isFalse);
+      },
+    );
+
+    test('returns early if isLoadingOlderMessages is already true', () async {
       const sessionId = 'sess-duplicate';
 
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
       sync.testSetSessionFirstLoadedSeq(sessionId, 201);
 
       var callCount = 0;
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
         callCount++;
         await Future<void>.delayed(const Duration(milliseconds: 50));
         return _buildMessagesResponse([]);
@@ -134,24 +133,25 @@ void main() {
       expect(callCount, 1);
     });
 
-    test('returns early if firstLoaded <= 1 (nothing older to fetch)', () async {
-      const sessionId = 'sess-exhausted';
+    test(
+      'returns early if firstLoaded <= 1 (nothing older to fetch)',
+      () async {
+        const sessionId = 'sess-exhausted';
 
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
-      sync.testSetSessionFirstLoadedSeq(sessionId, 1);
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
+        sync.testSetSessionFirstLoadedSeq(sessionId, 1);
 
-      var callCount = 0;
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
-        callCount++;
-        return _buildMessagesResponse([]);
-      };
+        var callCount = 0;
+        sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
+          callCount++;
+          return _buildMessagesResponse([]);
+        };
 
-      await sync.fetchOlderMessages(sessionId);
+        await sync.fetchOlderMessages(sessionId);
 
-      expect(callCount, 0,
-          reason: 'Should not fetch when firstLoaded <= 1');
-    });
+        expect(callCount, 0, reason: 'Should not fetch when firstLoaded <= 1');
+      },
+    );
 
     test('returns early if firstLoaded is null', () async {
       const sessionId = 'sess-null';
@@ -160,16 +160,14 @@ void main() {
       // Don't set firstLoadedSeq
 
       var callCount = 0;
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
         callCount++;
         return _buildMessagesResponse([]);
       };
 
       await sync.fetchOlderMessages(sessionId);
 
-      expect(callCount, 0,
-          reason: 'Should not fetch when firstLoaded is null');
+      expect(callCount, 0, reason: 'Should not fetch when firstLoaded is null');
     });
   });
 
@@ -193,8 +191,7 @@ void main() {
       sync.testFetchOlderMessagesOverride = null;
     });
 
-    test('fetches page of older messages and updates firstLoadedSeq',
-        () async {
+    test('fetches page of older messages and updates firstLoadedSeq', () async {
       const sessionId = 'sess-page-1';
 
       // Initial state: firstLoadedSeq=201 means we've loaded up to seq 200
@@ -203,8 +200,7 @@ void main() {
       sync.testSetSessionFirstLoadedSeq(sessionId, 201);
 
       final capturedParams = <List<dynamic>>[];
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
         capturedParams.add([sid, afterSeq, limit]);
         // Return messages 101-200
         return _buildMessagesResponse([
@@ -219,16 +215,18 @@ void main() {
       // startSeq = (201 - 1 - 100) = 100, so we fetch after_seq=100
       // which should return messages 101-200
       expect(capturedParams[0][0], sessionId);
-      expect(capturedParams[0][1], 100,
-          reason: 'Should fetch after_seq=100 (firstLoaded-1-pageSize)');
+      expect(
+        capturedParams[0][1],
+        100,
+        reason: 'Should fetch after_seq=100 (firstLoaded-1-pageSize)',
+      );
       expect(capturedParams[0][2], 100);
 
       // firstLoadedSeq should now be updated to 101 (the lowest seq loaded)
       expect(sync.testSessionFirstLoadedSeq(sessionId), 101);
     });
 
-    test(
-        'second fetchOlderMessages loads the next page '
+    test('second fetchOlderMessages loads the next page '
         '(101-200 was loaded, now loads 1-100)', () async {
       const sessionId = 'sess-page-2';
 
@@ -237,8 +235,7 @@ void main() {
       sync.testSetSessionFirstLoadedSeq(sessionId, 101);
 
       final capturedParams = <List<dynamic>>[];
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
         capturedParams.add([sid, afterSeq, limit]);
         // Return messages 1-100
         return _buildMessagesResponse([
@@ -252,12 +249,14 @@ void main() {
       expect(capturedParams.length, 1);
       // startSeq = (101 - 1 - 100) = 0, clamped to [0, 100] = 0
       // So we fetch after_seq=0 which returns messages 1+
-      expect(capturedParams[0][1], 0,
-          reason: 'Should fetch after_seq=0 to get the oldest messages');
+      expect(
+        capturedParams[0][1],
+        0,
+        reason: 'Should fetch after_seq=0 to get the oldest messages',
+      );
     });
 
-    test(
-        'when firstLoaded reaches 0, hasOlderMessages returns false '
+    test('when firstLoaded reaches 0, hasOlderMessages returns false '
         '(all messages loaded)', () async {
       const sessionId = 'sess-exhausted';
 
@@ -267,16 +266,14 @@ void main() {
 
       // Should not even attempt fetch
       var callCount = 0;
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
         callCount++;
         return _buildMessagesResponse([]);
       };
 
       await sync.fetchOlderMessages(sessionId);
 
-      expect(callCount, 0,
-          reason: 'Should not fetch when firstLoadedSeq=1');
+      expect(callCount, 0, reason: 'Should not fetch when firstLoadedSeq=1');
       expect(sync.hasOlderMessages(sessionId), isFalse);
     });
 
@@ -287,8 +284,7 @@ void main() {
       sync.testSetSessionFirstLoadedSeq(sessionId, 201);
 
       final capturedMessages = <Map<String, dynamic>>[];
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
         // Return messages in ascending seq order (as the server would)
         return _buildMessagesResponse([
           _makeEncryptedMessage('msg-150', seq: 150, content: 'First'),
@@ -304,8 +300,11 @@ void main() {
 
       // Messages should be stored in seq order
       final seqs = messages!.map((m) => m['seq'] as int).toList();
-      expect(seqs, [150, 175, 200],
-          reason: 'Messages should be stored in seq order');
+      expect(seqs, [
+        150,
+        175,
+        200,
+      ], reason: 'Messages should be stored in seq order');
     });
   });
 
@@ -335,8 +334,7 @@ void main() {
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
       sync.testSetSessionFirstLoadedSeq(sessionId, 201);
 
-      sync.testFetchOlderMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchOlderMessagesOverride = (sid, afterSeq, limit) async {
         // Return encrypted messages
         return _buildMessagesResponse([
           _makeEncryptedMessage('msg-150', seq: 150, content: 'Secret msg'),
@@ -374,37 +372,39 @@ void main() {
     });
 
     test(
-        'first load with lastSeq > initialLoad sets firstLoadedSeq correctly',
-        () async {
-      const sessionId = 'sess-tail';
+      'first load with lastSeq > initialLoad sets firstLoadedSeq correctly',
+      () async {
+        const sessionId = 'sess-tail';
 
-      // Session with 500 messages, first load
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
-      // No messages in memory (first load), no cursor set
+        // Session with 500 messages, first load
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
+        // No messages in memory (first load), no cursor set
 
-      sync.testFetchMessagesOverride =
-          (sid, afterSeq, limit) async {
-        // Server returns messages 301-500
-        return _buildMessagesResponse([
-          for (var i = 301; i <= 500; i++)
-            _makeEncryptedMessage('msg-$i', seq: i, content: 'Msg $i'),
-        ], hasMore: false);
-      };
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          // Server returns messages 301-500
+          return _buildMessagesResponse([
+            for (var i = 301; i <= 500; i++)
+              _makeEncryptedMessage('msg-$i', seq: i, content: 'Msg $i'),
+          ], hasMore: false);
+        };
 
-      await sync.fetchMessages(sessionId);
+        await sync.fetchMessages(sessionId);
 
-      // afterSeq = 500 - 200 = 300, so firstLoadedSeq should be 301
-      expect(
-        sync.testSessionFirstLoadedSeq(sessionId),
-        301,
-        reason: 'firstLoadedSeq should be afterSeq+1 (300+1=301)',
-      );
-      expect(sync.hasOlderMessages(sessionId), isTrue,
-          reason: 'firstLoadedSeq=301 > 1 means there are older messages');
-    });
+        // afterSeq = 500 - 200 = 300, so firstLoadedSeq should be 301
+        expect(
+          sync.testSessionFirstLoadedSeq(sessionId),
+          301,
+          reason: 'firstLoadedSeq should be afterSeq+1 (300+1=301)',
+        );
+        expect(
+          sync.hasOlderMessages(sessionId),
+          isTrue,
+          reason: 'firstLoadedSeq=301 > 1 means there are older messages',
+        );
+      },
+    );
 
-    test(
-        'first load with lastSeq <= initialLoad sets firstLoadedSeq to 0 '
+    test('first load with lastSeq <= initialLoad sets firstLoadedSeq to 0 '
         '(session fully loaded)', () async {
       const sessionId = 'sess-short';
 
@@ -412,8 +412,7 @@ void main() {
       sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 150);
       // No messages in memory
 
-      sync.testFetchMessagesOverride =
-          (sid, afterSeq, limit) async {
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
         // Server returns all messages 1-150
         return _buildMessagesResponse([
           for (var i = 1; i <= 150; i++)
@@ -430,44 +429,48 @@ void main() {
         0,
         reason: 'firstLoadedSeq=0 means all messages loaded (short session)',
       );
-      expect(sync.hasOlderMessages(sessionId), isFalse,
-          reason: 'firstLoadedSeq=0 means no older messages');
+      expect(
+        sync.hasOlderMessages(sessionId),
+        isFalse,
+        reason: 'firstLoadedSeq=0 means no older messages',
+      );
     });
 
     test(
-        'delta fetch (cursor already established) does NOT change firstLoadedSeq',
-        () async {
-      const sessionId = 'sess-delta';
+      'delta fetch (cursor already established) does NOT change firstLoadedSeq',
+      () async {
+        const sessionId = 'sess-delta';
 
-      // Session already has messages loaded, cursor at 300
-      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 400);
-      sync.testSetSessionLastSeq(sessionId, 300);
-      sync.testSetSessionFirstLoadedSeq(sessionId, 201);
-      // Pre-populate some messages
-      sync.testSetSessionMessages(sessionId, [
-        for (var i = 201; i <= 300; i++)
-          {'id': 'msg-$i', 'seq': i, 'role': 'agent'},
-      ]);
+        // Session already has messages loaded, cursor at 300
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 400);
+        sync.testSetSessionLastSeq(sessionId, 300);
+        sync.testSetSessionFirstLoadedSeq(sessionId, 201);
+        // Pre-populate some messages
+        sync.testSetSessionMessages(sessionId, [
+          for (var i = 201; i <= 300; i++)
+            {'id': 'msg-$i', 'seq': i, 'role': 'agent'},
+        ]);
 
-      sync.testFetchMessagesOverride =
-          (sid, afterSeq, limit) async {
-        // Server returns messages 301-400
-        return _buildMessagesResponse([
-          for (var i = 301; i <= 400; i++)
-            _makeEncryptedMessage('msg-$i', seq: i, content: 'Msg $i'),
-        ], hasMore: false);
-      };
+        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+          // Server returns messages 301-400
+          return _buildMessagesResponse([
+            for (var i = 301; i <= 400; i++)
+              _makeEncryptedMessage('msg-$i', seq: i, content: 'Msg $i'),
+          ], hasMore: false);
+        };
 
-      await sync.fetchMessages(sessionId);
+        await sync.fetchMessages(sessionId);
 
-      // firstLoadedSeq should NOT change (delta fetch adds newer messages,
-      // doesn't affect the oldest loaded seq)
-      expect(
-        sync.testSessionFirstLoadedSeq(sessionId),
-        201,
-        reason: 'firstLoadedSeq should remain 201 (delta fetch does not change it)',
-      );
-    });
+        // firstLoadedSeq should NOT change (delta fetch adds newer messages,
+        // doesn't affect the oldest loaded seq)
+        expect(
+          sync.testSessionFirstLoadedSeq(sessionId),
+          201,
+          reason:
+              'firstLoadedSeq should remain 201 (delta fetch does not change it)',
+        );
+      },
+    );
   });
 }
 
@@ -544,10 +547,7 @@ Map<String, dynamic> _buildMessagesResponse(
   List<Map<String, dynamic>> messages, {
   bool hasMore = false,
 }) {
-  return {
-    'messages': messages,
-    'hasMore': hasMore,
-  };
+  return {'messages': messages, 'hasMore': hasMore};
 }
 
 // ---------------------------------------------------------------------------
@@ -571,12 +571,12 @@ class _FakeEncryption implements Encryption {
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

@@ -13,11 +13,7 @@ import 'avatar_palette.dart';
 /// positions derived from the [id] hash. Uses HSL color space with
 /// golden-angle hue rotation for harmonious palettes.
 class AvatarGeometric extends BaseAvatar {
-  const AvatarGeometric({
-    required super.id,
-    super.key,
-    super.size = 48,
-  });
+  const AvatarGeometric({required super.id, super.key, super.size = 48});
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +21,7 @@ class AvatarGeometric extends BaseAvatar {
     // Base plate takes the session's palette hue so the shape art reads as
     // the same identity colour used by the solid avatar styles.
     final bgHue = avatarHue(id);
-    final bgColor = HSLColor.fromAHSL(
-      1.0,
-      bgHue,
-      0.45,
-      0.22,
-    ).toColor();
+    final bgColor = HSLColor.fromAHSL(1.0, bgHue, 0.45, 0.22).toColor();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -77,12 +68,10 @@ class _GeometricPainter extends CustomPainter {
   double _rngF(int seed) => _rng(seed, 10000) / 10000.0;
 
   Color _shapeColor(int shapeIndex, double baseHue) {
-    final hue =
-        (baseHue + _goldenAngle * (shapeIndex + 1)) % 360;
+    final hue = (baseHue + _goldenAngle * (shapeIndex + 1)) % 360;
     final sat = 0.55 + _rngF(hash ^ (shapeIndex * 4441)) * 0.30;
     final light = 0.50 + _rngF(hash ^ (shapeIndex * 7919)) * 0.25;
-    final opacity =
-        0.30 + _rngF(hash ^ (shapeIndex * 3307)) * 0.50;
+    final opacity = 0.30 + _rngF(hash ^ (shapeIndex * 3307)) * 0.50;
     return HSLColor.fromAHSL(
       opacity.clamp(0.30, 0.80),
       hue,
@@ -234,6 +223,5 @@ class _GeometricPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_GeometricPainter old) =>
-      old.id != id || old.hash != hash;
+  bool shouldRepaint(_GeometricPainter old) => old.id != id || old.hash != hash;
 }

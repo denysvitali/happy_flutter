@@ -35,11 +35,7 @@ Widget _modelLeading(
   Color? accent,
 }) {
   final color = accent ?? cs.primary;
-  return AppIconTile(
-    icon: icon,
-    color: color,
-    neutral: !highlighted,
-  );
+  return AppIconTile(icon: icon, color: color, neutral: !highlighted);
 }
 
 Widget _buildModelTile(
@@ -139,10 +135,7 @@ void showModelPickerSheet(
                           AppSpacing.lg,
                           AppSpacing.sm,
                         ),
-                        child: Text(
-                          'Model',
-                          style: AppText.title(theme),
-                        ),
+                        child: Text('Model', style: AppText.title(theme)),
                       ),
                       Flexible(
                         child: ListView(
@@ -280,10 +273,7 @@ class _GroupedModelPickerContentState
               AppSpacing.lg,
               AppSpacing.sm,
             ),
-            child: Text(
-              'Model',
-              style: AppText.title(theme),
-            ),
+            child: Text('Model', style: AppText.title(theme)),
           ),
           if (defaultModel.isNotEmpty)
             _buildModelTile(
@@ -311,10 +301,7 @@ class _GroupedModelPickerContentState
                 AppSpacing.lg,
                 AppSpacing.xs,
               ),
-              child: Text(
-                'Effort',
-                style: AppText.title(theme),
-              ),
+              child: Text('Effort', style: AppText.title(theme)),
             ),
             _buildEffortSlider(context, selectedModels),
           ] else if (selectedModels.isNotEmpty) ...[
@@ -340,10 +327,7 @@ class _GroupedModelPickerContentState
                 AppSpacing.lg,
                 AppSpacing.xs,
               ),
-              child: Text(
-                'Custom',
-                style: AppText.title(theme),
-              ),
+              child: Text('Custom', style: AppText.title(theme)),
             ),
             for (final model in _recentCustomModels)
               _buildCustomModelTile(context, model, theme),
@@ -462,7 +446,10 @@ class _GroupedModelPickerContentState
                         : i == labels.length - 1
                         ? TextAlign.end
                         : TextAlign.center,
-                    style: AppText.label(theme, i == currentIndex ? cs.primary : cs.onSurfaceVariant),
+                    style: AppText.label(
+                      theme,
+                      i == currentIndex ? cs.primary : cs.onSurfaceVariant,
+                    ),
                   ),
                 ),
             ],

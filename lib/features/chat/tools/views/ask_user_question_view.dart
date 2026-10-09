@@ -391,10 +391,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Input needed',
-                  style: AppText.title(theme, primary),
-                ),
+                Text('Input needed', style: AppText.title(theme, primary)),
                 Text(
                   'Please choose an option below',
                   style: AppText.secondary(
@@ -415,10 +412,7 @@ class _AskUserQuestionViewState extends ConsumerState<AskUserQuestionView>
                 width: 1,
               ),
             ),
-            child: Text(
-              'Action',
-              style: AppText.badge(theme, primary),
-            ),
+            child: Text('Action', style: AppText.badge(theme, primary)),
           ),
         ],
       ),

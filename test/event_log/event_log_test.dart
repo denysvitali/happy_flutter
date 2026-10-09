@@ -129,11 +129,21 @@ void main() {
         ),
         (
           MessageEventKind.serverAcked,
-          {'localId': 'L1', 'serverId': 'srv-1', 'seq': 1, 'content': 'continue'},
+          {
+            'localId': 'L1',
+            'serverId': 'srv-1',
+            'seq': 1,
+            'content': 'continue',
+          },
         ),
         (
           MessageEventKind.serverAcked,
-          {'localId': 'L2', 'serverId': 'srv-2', 'seq': 2, 'content': 'continue'},
+          {
+            'localId': 'L2',
+            'serverId': 'srv-2',
+            'seq': 2,
+            'content': 'continue',
+          },
         ),
       ]);
       final out = MessageProjection.project(events);
@@ -162,22 +172,24 @@ void main() {
       expect(out.single.serverId, 'srv-9');
     });
 
-    test('out-of-order: socket observed before optimistic still merges',
-        () async {
-      final log = newLog();
-      final events = await mk(log, 'S', [
-        (
-          MessageEventKind.socketObserved,
-          {'localId': 'L1', 'serverId': 'srv-1', 'seq': 1, 'content': 'hi'},
-        ),
-        (
-          MessageEventKind.optimisticAppended,
-          {'localId': 'L1', 'role': 'user', 'text': 'hi'},
-        ),
-      ]);
-      final out = MessageProjection.project(events);
-      expect(out.single.state, ProjectedState.merged);
-    });
+    test(
+      'out-of-order: socket observed before optimistic still merges',
+      () async {
+        final log = newLog();
+        final events = await mk(log, 'S', [
+          (
+            MessageEventKind.socketObserved,
+            {'localId': 'L1', 'serverId': 'srv-1', 'seq': 1, 'content': 'hi'},
+          ),
+          (
+            MessageEventKind.optimisticAppended,
+            {'localId': 'L1', 'role': 'user', 'text': 'hi'},
+          ),
+        ]);
+        final out = MessageProjection.project(events);
+        expect(out.single.state, ProjectedState.merged);
+      },
+    );
 
     test('events without a localId are ignored', () async {
       final log = newLog();

@@ -47,10 +47,7 @@ abstract final class JsonDecoders {
         logger.warning('${_prefix(context)}expected JSON array');
         return <T>[];
       }
-      return decoded
-          .whereType<Map<String, dynamic>>()
-          .map(fromJson)
-          .toList();
+      return decoded.whereType<Map<String, dynamic>>().map(fromJson).toList();
     } catch (e) {
       logger.warning('${_prefix(context)}failed to decode list: $e');
       return <T>[];

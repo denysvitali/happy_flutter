@@ -5,11 +5,7 @@ void main() {
   group('KvItem', () {
     group('fromJson', () {
       test('parses all fields', () {
-        final json = {
-          'key': 'pref.theme',
-          'value': 'dark',
-          'version': 5,
-        };
+        final json = {'key': 'pref.theme', 'value': 'dark', 'version': 5};
 
         final item = KvItem.fromJson(json);
 
@@ -21,11 +17,7 @@ void main() {
 
     group('toJson', () {
       test('serializes all fields', () {
-        final item = KvItem(
-          key: 'pref.lang',
-          value: 'en',
-          version: 3,
-        );
+        final item = KvItem(key: 'pref.lang', value: 'en', version: 3);
 
         final json = item.toJson();
 
@@ -77,9 +69,7 @@ void main() {
     group('toJson', () {
       test('serializes items list', () {
         final response = KvListResponse(
-          items: [
-            KvItem(key: 'x', value: 'y', version: 1),
-          ],
+          items: [KvItem(key: 'x', value: 'y', version: 1)],
         );
 
         final json = response.toJson();
@@ -127,9 +117,7 @@ void main() {
     group('toJson', () {
       test('serializes values', () {
         final response = KvBulkGetResponse(
-          values: [
-            KvItem(key: 'k', value: 'v', version: 1),
-          ],
+          values: [KvItem(key: 'k', value: 'v', version: 1)],
         );
 
         final json = response.toJson();
@@ -141,11 +129,7 @@ void main() {
   group('KvMutation', () {
     group('toJson', () {
       test('serializes with value', () {
-        final mutation = KvMutation(
-          key: 'key-1',
-          value: 'new-val',
-          version: 2,
-        );
+        final mutation = KvMutation(key: 'key-1', value: 'new-val', version: 2);
 
         final json = mutation.toJson();
 
@@ -155,11 +139,7 @@ void main() {
       });
 
       test('serializes with null value (delete)', () {
-        final mutation = KvMutation(
-          key: 'key-1',
-          value: null,
-          version: 3,
-        );
+        final mutation = KvMutation(key: 'key-1', value: null, version: 3);
 
         final json = mutation.toJson();
 
@@ -169,11 +149,7 @@ void main() {
       });
 
       test('serializes new key with version -1', () {
-        final mutation = KvMutation(
-          key: 'new-key',
-          value: 'val',
-          version: -1,
-        );
+        final mutation = KvMutation(key: 'new-key', value: 'val', version: -1);
 
         final json = mutation.toJson();
         expect(json['version'], -1);
@@ -293,11 +269,7 @@ void main() {
         final json = {
           'success': false,
           'errors': [
-            {
-              'key': 'a',
-              'error': 'version-mismatch',
-              'version': 1,
-            },
+            {'key': 'a', 'error': 'version-mismatch', 'version': 1},
           ],
         };
 
@@ -326,11 +298,7 @@ void main() {
     group('KvMutateErrorResponse', () {
       test('toJson serializes with success false', () {
         final response = KvMutateErrorResponse([
-          KvMutateError(
-            key: 'a',
-            error: 'version-mismatch',
-            version: 1,
-          ),
+          KvMutateError(key: 'a', error: 'version-mismatch', version: 1),
         ]);
 
         final json = response.toJson();

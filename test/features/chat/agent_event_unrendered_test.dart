@@ -11,25 +11,27 @@ void main() {
 
   group('AgentEventWidget — unrendered fallback', () {
     testWidgets(
-        'renders the message text and a warning icon for type=unrendered',
-        (tester) async {
-      await tester.pumpWidget(
-        _app(
-          const AgentEventWidget(
-            event: <String, dynamic>{
-              'type': 'unrendered',
-              'message': 'Unsupported message (foo)',
-            },
+      'renders the message text and a warning icon for type=unrendered',
+      (tester) async {
+        await tester.pumpWidget(
+          _app(
+            const AgentEventWidget(
+              event: <String, dynamic>{
+                'type': 'unrendered',
+                'message': 'Unsupported message (foo)',
+              },
+            ),
           ),
-        ),
-      );
+        );
 
-      expect(find.text('Unsupported message (foo)'), findsOneWidget);
-      expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
-    });
+        expect(find.text('Unsupported message (foo)'), findsOneWidget);
+        expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
+      },
+    );
 
-    testWidgets('falls back to a default label when message is missing',
-        (tester) async {
+    testWidgets('falls back to a default label when message is missing', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -41,8 +43,9 @@ void main() {
       expect(find.text('Unsupported agent message'), findsOneWidget);
     });
 
-    testWidgets(
-        'renders fallback text for unknown event types', (tester) async {
+    testWidgets('renders fallback text for unknown event types', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -59,8 +62,9 @@ void main() {
       expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
     });
 
-    testWidgets(
-        'uses explicit message over generated fallback', (tester) async {
+    testWidgets('uses explicit message over generated fallback', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -76,8 +80,9 @@ void main() {
       expect(find.byIcon(Icons.help_outline_rounded), findsNothing);
     });
 
-    testWidgets(
-        'renders sub-agent tool name and icon when provided', (tester) async {
+    testWidgets('renders sub-agent tool name and icon when provided', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -120,9 +125,7 @@ void main() {
       expect(find.text('Hello'), findsOneWidget);
     });
 
-    testWidgets('renders active-turn steering acknowledgement', (
-      tester,
-    ) async {
+    testWidgets('renders active-turn steering acknowledgement', (tester) async {
       await tester.pumpWidget(
         _app(
           const AgentEventWidget(
@@ -158,9 +161,9 @@ void main() {
   group('AgentEventWidget.shouldRenderInChat', () {
     test('hides telemetry-only event types from chat list', () {
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'usage_report'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'usage_report',
+        }),
         isFalse,
       );
       expect(
@@ -168,88 +171,83 @@ void main() {
         isFalse,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'tool-execution-update'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'tool-execution-update',
+        }),
         isFalse,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'tool-progress'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'tool-progress',
+        }),
         isFalse,
       );
       // Legacy shape: pre-'tool-progress' builds emitted the same polls
       // as type-'message' events; cached rows keep that shape until
       // evicted, so they are hidden by label content.
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{
-            'type': 'message',
-            'message': 'Bash running (30s)...',
-          },
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'message',
+          'message': 'Bash running (30s)...',
+        }),
         isFalse,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'message', 'message': 'Grep running...'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'message',
+          'message': 'Grep running...',
+        }),
         isFalse,
       );
       // Other type-'message' notices must still render.
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{
-            'type': 'message',
-            'message': 'Retrying API request (1/3)...',
-          },
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'message',
+          'message': 'Retrying API request (1/3)...',
+        }),
         isTrue,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'message', 'message': 'Context compacted'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'message',
+          'message': 'Context compacted',
+        }),
         isTrue,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'thinking'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'thinking',
+        }),
         isFalse,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'grok-event'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'grok-event',
+        }),
         isFalse,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'opencode-event'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'opencode-event',
+        }),
         isFalse,
       );
     });
 
     test('shows unknown and unsupported agent events in chat', () {
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'totally-unknown'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'totally-unknown',
+        }),
         isTrue,
       );
       expect(
-        AgentEventWidget.shouldRenderInChat(
-          <String, dynamic>{'type': 'unrendered'},
-        ),
+        AgentEventWidget.shouldRenderInChat(<String, dynamic>{
+          'type': 'unrendered',
+        }),
         isTrue,
       );
-      expect(
-        AgentEventWidget.shouldRenderInChat(<String, dynamic>{}),
-        isTrue,
-      );
+      expect(AgentEventWidget.shouldRenderInChat(<String, dynamic>{}), isTrue);
     });
 
     test('ignores malformed event payloads', () {
@@ -261,15 +259,17 @@ void main() {
   group('AgentEventWidget.labelFor', () {
     test('returns labels for renderable event types', () {
       expect(
-        AgentEventWidget.labelFor(
-          <String, dynamic>{'type': 'switch', 'mode': 'remote'},
-        ),
+        AgentEventWidget.labelFor(<String, dynamic>{
+          'type': 'switch',
+          'mode': 'remote',
+        }),
         'Switched to remote mode',
       );
       expect(
-        AgentEventWidget.labelFor(
-          <String, dynamic>{'type': 'message', 'message': 'hi'},
-        ),
+        AgentEventWidget.labelFor(<String, dynamic>{
+          'type': 'message',
+          'message': 'hi',
+        }),
         'hi',
       );
       expect(
@@ -281,15 +281,11 @@ void main() {
         'Unsupported agent message',
       );
       expect(
-        AgentEventWidget.labelFor(
-          <String, dynamic>{'type': 'message-steered'},
-        ),
+        AgentEventWidget.labelFor(<String, dynamic>{'type': 'message-steered'}),
         'Update sent to the active task',
       );
       expect(
-        AgentEventWidget.labelFor(
-          <String, dynamic>{'type': 'message-queued'},
-        ),
+        AgentEventWidget.labelFor(<String, dynamic>{'type': 'message-queued'}),
         'Message queued for the next turn',
       );
     });
@@ -298,9 +294,10 @@ void main() {
       // usage_report / ready rows still exist in older message caches;
       // the chat list must not give them a padded row.
       expect(
-        AgentEventWidget.labelFor(
-          <String, dynamic>{'type': 'usage_report', 'cost': 0.1},
-        ),
+        AgentEventWidget.labelFor(<String, dynamic>{
+          'type': 'usage_report',
+          'cost': 0.1,
+        }),
         isNull,
       );
       expect(

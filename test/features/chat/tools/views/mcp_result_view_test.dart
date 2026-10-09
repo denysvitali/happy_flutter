@@ -105,9 +105,7 @@ void main() {
     testWidgets('renders non-JSON output without span styling', (tester) async {
       await tester.pumpWidget(_wrap(const McpResultView(text: 'a: 1\nb: 2')));
 
-      final widget = tester.widget<SelectableText>(
-        find.byType(SelectableText),
-      );
+      final widget = tester.widget<SelectableText>(find.byType(SelectableText));
       expect(widget.data, 'a: 1\nb: 2');
       expect(widget.textSpan, isNull);
     });

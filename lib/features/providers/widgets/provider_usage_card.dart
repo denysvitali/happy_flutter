@@ -108,7 +108,10 @@ class ProviderUsageCard extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     l10n.providersNoUsageData,
-                    style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
+                    style: AppText.secondary(
+                      theme,
+                      colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ] else ...[
                   const SizedBox(height: AppSpacing.xs),
@@ -330,14 +333,20 @@ class _UsageWindowRow extends StatelessWidget {
                   if (hasUsedLimit)
                     Text(
                       '${_formatNumber(window.used!)} / ${_formatNumber(window.limit!)}',
-                      style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
+                      style: AppText.secondary(
+                        theme,
+                        colorScheme.onSurfaceVariant,
+                      ),
                     )
                   else
                     const SizedBox.shrink(),
                   if (reset != null)
                     Text(
                       reset,
-                      style: AppText.secondary(theme, colorScheme.onSurfaceVariant),
+                      style: AppText.secondary(
+                        theme,
+                        colorScheme.onSurfaceVariant,
+                      ),
                     )
                   else
                     const SizedBox.shrink(),
@@ -398,7 +407,10 @@ class _ErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               error,
-              style: AppText.secondary(Theme.of(context), colorScheme.onErrorContainer),
+              style: AppText.secondary(
+                Theme.of(context),
+                colorScheme.onErrorContainer,
+              ),
             ),
           ),
         ],

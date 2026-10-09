@@ -24,11 +24,7 @@ void main() {
   group('AnimatedGradientBackground', () {
     testWidgets('renders child widget', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          AnimatedGradientBackground(
-            child: Text('Child Content'),
-          ),
-        ),
+        _wrap(AnimatedGradientBackground(child: Text('Child Content'))),
       );
 
       await tester.pump();
@@ -38,11 +34,7 @@ void main() {
 
     testWidgets('disposes animation controller', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          AnimatedGradientBackground(
-            child: Text('Test'),
-          ),
-        ),
+        _wrap(AnimatedGradientBackground(child: Text('Test'))),
       );
 
       await tester.pump();
@@ -50,8 +42,7 @@ void main() {
       // Remove widget to trigger dispose
       await tester.pumpWidget(
         MaterialApp(
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(body: SizedBox()),
         ),
@@ -66,9 +57,7 @@ void main() {
 
   group('AuthHeader', () {
     testWidgets('renders logo icon', (tester) async {
-      await tester.pumpWidget(
-        _wrap(AuthHeader(theme: ThemeData())),
-      );
+      await tester.pumpWidget(_wrap(AuthHeader(theme: ThemeData())));
 
       await tester.pump();
 
@@ -76,9 +65,7 @@ void main() {
     });
 
     testWidgets('renders title text', (tester) async {
-      await tester.pumpWidget(
-        _wrap(AuthHeader(theme: ThemeData())),
-      );
+      await tester.pumpWidget(_wrap(AuthHeader(theme: ThemeData())));
 
       await tester.pump();
 
@@ -87,16 +74,12 @@ void main() {
     });
 
     testWidgets('renders subtitle text', (tester) async {
-      await tester.pumpWidget(
-        _wrap(AuthHeader(theme: ThemeData())),
-      );
+      await tester.pumpWidget(_wrap(AuthHeader(theme: ThemeData())));
 
       await tester.pump();
 
       expect(
-        find.text(
-          'Mobile client for Claude Code & Codex',
-        ),
+        find.text('Mobile client for Claude Code & Codex'),
         findsOneWidget,
       );
     });
@@ -106,16 +89,11 @@ void main() {
 
   group('LandingLogoMark', () {
     testWidgets('renders logo icon', (tester) async {
-      await tester.pumpWidget(
-        _wrap(const LandingLogoMark()),
-      );
+      await tester.pumpWidget(_wrap(const LandingLogoMark()));
 
       await tester.pump();
 
-      expect(
-        find.byIcon(Icons.chat_bubble_rounded),
-        findsOneWidget,
-      );
+      expect(find.byIcon(Icons.chat_bubble_rounded), findsOneWidget);
     });
   });
 
@@ -140,8 +118,7 @@ void main() {
       expect(find.text('Test message'), findsOneWidget);
     });
 
-    testWidgets('shows loading indicator when isLoading',
-        (tester) async {
+    testWidgets('shows loading indicator when isLoading', (tester) async {
       await tester.pumpWidget(
         _wrap(
           StatusBanner(
@@ -156,14 +133,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(
-        find.byType(CircularProgressIndicator),
-        findsOneWidget,
-      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('shows icon when not loading and icon provided',
-        (tester) async {
+    testWidgets('shows icon when not loading and icon provided', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           StatusBanner(
@@ -182,8 +157,7 @@ void main() {
       expect(find.byIcon(Icons.check), findsOneWidget);
     });
 
-    testWidgets('shows dismiss button when onDismiss provided',
-        (tester) async {
+    testWidgets('shows dismiss button when onDismiss provided', (tester) async {
       var dismissed = false;
       await tester.pumpWidget(
         _wrap(
@@ -205,8 +179,7 @@ void main() {
       expect(dismissed, isTrue);
     });
 
-    testWidgets('no dismiss button when onDismiss is null',
-        (tester) async {
+    testWidgets('no dismiss button when onDismiss is null', (tester) async {
       await tester.pumpWidget(
         _wrap(
           StatusBanner(
@@ -224,8 +197,7 @@ void main() {
       expect(find.byIcon(Icons.close_rounded), findsNothing);
     });
 
-    testWidgets('shows Error label for error-colored banners',
-        (tester) async {
+    testWidgets('shows Error label for error-colored banners', (tester) async {
       await tester.pumpWidget(
         _wrap(
           StatusBanner(
@@ -243,8 +215,9 @@ void main() {
       expect(find.text('Error'), findsOneWidget);
     });
 
-    testWidgets('does not show Error label for non-error banners',
-        (tester) async {
+    testWidgets('does not show Error label for non-error banners', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           StatusBanner(
@@ -267,25 +240,16 @@ void main() {
 
   group('QRInstructions', () {
     testWidgets('renders instruction title', (tester) async {
-      await tester.pumpWidget(
-        _wrap(QRInstructions(theme: ThemeData())),
-      );
+      await tester.pumpWidget(_wrap(QRInstructions(theme: ThemeData())));
 
       await tester.pump();
 
-      expect(
-        find.text('How to link your account'),
-        findsOneWidget,
-      );
+      expect(find.text('How to link your account'), findsOneWidget);
     });
 
     testWidgets('renders all 4 step numbers', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          SingleChildScrollView(
-            child: QRInstructions(theme: ThemeData()),
-          ),
-        ),
+        _wrap(SingleChildScrollView(child: QRInstructions(theme: ThemeData()))),
       );
 
       await tester.pump();
@@ -297,19 +261,12 @@ void main() {
 
     testWidgets('renders step text', (tester) async {
       await tester.pumpWidget(
-        _wrap(
-          SingleChildScrollView(
-            child: QRInstructions(theme: ThemeData()),
-          ),
-        ),
+        _wrap(SingleChildScrollView(child: QRInstructions(theme: ThemeData()))),
       );
 
       await tester.pump();
 
-      expect(
-        find.text('Open Happy on another device'),
-        findsOneWidget,
-      );
+      expect(find.text('Open Happy on another device'), findsOneWidget);
       expect(find.text('Scan this QR code'), findsOneWidget);
     });
   });
@@ -317,8 +274,7 @@ void main() {
   // ─── PollingView ──────────────────────────────────────────
 
   group('PollingView', () {
-    testWidgets('shows waiting indicator when polling',
-        (tester) async {
+    testWidgets('shows waiting indicator when polling', (tester) async {
       await tester.pumpWidget(
         _wrap(
           PollingView(
@@ -333,14 +289,10 @@ void main() {
 
       await tester.pump();
 
-      expect(
-        find.text('Waiting for approval...'),
-        findsOneWidget,
-      );
+      expect(find.text('Waiting for approval...'), findsOneWidget);
     });
 
-    testWidgets('hides waiting indicator when not polling',
-        (tester) async {
+    testWidgets('hides waiting indicator when not polling', (tester) async {
       await tester.pumpWidget(
         _wrap(
           PollingView(
@@ -355,10 +307,7 @@ void main() {
 
       await tester.pump();
 
-      expect(
-        find.text('Waiting for approval...'),
-        findsNothing,
-      );
+      expect(find.text('Waiting for approval...'), findsNothing);
     });
 
     testWidgets('renders Try Again button', (tester) async {
@@ -397,8 +346,7 @@ void main() {
       expect(find.text('Back'), findsOneWidget);
     });
 
-    testWidgets('calls onTryAgain when Try Again is tapped',
-        (tester) async {
+    testWidgets('calls onTryAgain when Try Again is tapped', (tester) async {
       var retried = false;
       await tester.pumpWidget(
         _wrap(
@@ -444,8 +392,9 @@ void main() {
   // ─── QRCodeSection ────────────────────────────────────────
 
   group('QRCodeSection', () {
-    testWidgets('shows loading placeholder when polling without key',
-        (tester) async {
+    testWidgets('shows loading placeholder when polling without key', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           QRCodeSection(
@@ -460,10 +409,7 @@ void main() {
 
       await tester.pump();
 
-      expect(
-        find.text('Generating secure QR code\u2026'),
-        findsOneWidget,
-      );
+      expect(find.text('Generating secure QR code\u2026'), findsOneWidget);
     });
 
     testWidgets('shows nothing when not polling', (tester) async {
@@ -481,14 +427,10 @@ void main() {
 
       await tester.pump();
 
-      expect(
-        find.text('Generating secure QR code\u2026'),
-        findsNothing,
-      );
+      expect(find.text('Generating secure QR code\u2026'), findsNothing);
     });
 
-    testWidgets('shows error banner when error is present',
-        (tester) async {
+    testWidgets('shows error banner when error is present', (tester) async {
       await tester.pumpWidget(
         _wrap(
           QRCodeSection(
@@ -507,8 +449,7 @@ void main() {
       expect(find.text('Connection failed'), findsOneWidget);
     });
 
-    testWidgets('shows QR code when polling with public key',
-        (tester) async {
+    testWidgets('shows QR code when polling with public key', (tester) async {
       // Suppress overflow errors from QRCodeDisplay's internal
       // fixed-size Container.
       final origOnError = FlutterError.onError;
@@ -518,9 +459,7 @@ void main() {
       };
       addTearDown(() => FlutterError.onError = origOnError);
 
-      final publicKey = Uint8List.fromList(
-        List.generate(32, (i) => i),
-      );
+      final publicKey = Uint8List.fromList(List.generate(32, (i) => i));
 
       await tester.pumpWidget(
         _wrap(
@@ -601,8 +540,9 @@ void main() {
       expect(find.text('Restore Key'), findsOneWidget);
     });
 
-    testWidgets('create account button shows loading when creating',
-        (tester) async {
+    testWidgets('create account button shows loading when creating', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           AuthButtonGroup(
@@ -617,14 +557,12 @@ void main() {
 
       await tester.pump();
 
-      expect(
-        find.byType(CircularProgressIndicator),
-        findsOneWidget,
-      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('key-hint dismiss icon exposes a named tooltip',
-        (tester) async {
+    testWidgets('key-hint dismiss icon exposes a named tooltip', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           AuthButtonGroup(

@@ -57,9 +57,10 @@ Widget _wrapWithProvider({
       }),
     ],
     child: MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-        home: child),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: child,
+    ),
   );
 }
 
@@ -213,10 +214,7 @@ void main() {
 
     test('removing artifact updates state for UI', () {
       final notifier = container.read(artifactsNotifierProvider.notifier);
-      notifier.setArtifacts([
-        _makeArtifact(id: 'a'),
-        _makeArtifact(id: 'b'),
-      ]);
+      notifier.setArtifacts([_makeArtifact(id: 'a'), _makeArtifact(id: 'b')]);
 
       notifier.removeArtifact('a');
 
@@ -275,17 +273,11 @@ void main() {
       final notifier = container.read(artifactsNotifierProvider.notifier);
       notifier.addArtifact(_makeArtifact(id: 'to-delete', title: 'Delete Me'));
 
-      expect(
-        container.read(artifactsNotifierProvider)['to-delete'],
-        isNotNull,
-      );
+      expect(container.read(artifactsNotifierProvider)['to-delete'], isNotNull);
 
       notifier.removeArtifact('to-delete');
 
-      expect(
-        container.read(artifactsNotifierProvider)['to-delete'],
-        isNull,
-      );
+      expect(container.read(artifactsNotifierProvider)['to-delete'], isNull);
     });
 
     test('artifact with title shows title; without shows id fallback', () {

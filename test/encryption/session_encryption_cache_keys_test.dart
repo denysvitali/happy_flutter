@@ -28,9 +28,7 @@ import 'package:happy_flutter/core/encryption/session_encryption.dart';
 
 Uint8List _generateKey() {
   final rng = Random.secure();
-  return Uint8List.fromList(
-    List<int>.generate(32, (_) => rng.nextInt(256)),
-  );
+  return Uint8List.fromList(List<int>.generate(32, (_) => rng.nextInt(256)));
 }
 
 /// Encrypts [plaintext] and returns a wire-format message map.
@@ -50,10 +48,7 @@ Future<Map<String, dynamic>> _encryptedMessage(
   };
 }
 
-SessionEncryption _makeSession(
-  AES256Encryption enc,
-  EncryptionCache cache,
-) {
+SessionEncryption _makeSession(AES256Encryption enc, EncryptionCache cache) {
   return SessionEncryption(
     sessionId: 'test-session',
     encryptor: enc,
@@ -77,12 +72,9 @@ void main() {
       final cache = EncryptionCache();
       final se = _makeSession(enc, cache);
 
-      final wireMsg = await _encryptedMessage(
-        enc,
-        '',
-        1,
-        {'value': 'bypass-test'},
-      );
+      final wireMsg = await _encryptedMessage(enc, '', 1, {
+        'value': 'bypass-test',
+      });
 
       // First call — live decryption.
       final first = await se.decryptMessages([wireMsg]);
@@ -128,107 +120,95 @@ void main() {
     // -----------------------------------------------------------------------
     // 2. Same id, different ciphertext → fresh result, no stale cache hit
     // -----------------------------------------------------------------------
-    test(
-      'messages with same id but different content get different '
-      'cache entries',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final cache = EncryptionCache();
-        final se = _makeSession(enc, cache);
+    test('messages with same id but different content get different '
+        'cache entries', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final cache = EncryptionCache();
+      final se = _makeSession(enc, cache);
 
-        // First ciphertext for id='x'.
-        final wireFirst = await _encryptedMessage(
-          enc,
-          'x',
-          1,
-          {'payload': 'first'},
-        );
-        final firstResults = await se.decryptMessages([wireFirst]);
+      // First ciphertext for id='x'.
+      final wireFirst = await _encryptedMessage(enc, 'x', 1, {
+        'payload': 'first',
+      });
+      final firstResults = await se.decryptMessages([wireFirst]);
 
-        expect(firstResults[0], isNotNull);
-        expect(
-          (firstResults[0]!.content as Map<String, dynamic>?)?['payload'],
-          equals('first'),
-        );
+      expect(firstResults[0], isNotNull);
+      expect(
+        (firstResults[0]!.content as Map<String, dynamic>?)?['payload'],
+        equals('first'),
+      );
 
-        // AES-GCM uses a random IV, so re-encrypting the same id produces
-        // a distinct ciphertext → distinct cache key → cache miss.
-        final wireSecond = await _encryptedMessage(
-          enc,
-          'x',
-          1,
-          {'payload': 'second'},
-        );
-        final secondResults = await se.decryptMessages([wireSecond]);
+      // AES-GCM uses a random IV, so re-encrypting the same id produces
+      // a distinct ciphertext → distinct cache key → cache miss.
+      final wireSecond = await _encryptedMessage(enc, 'x', 1, {
+        'payload': 'second',
+      });
+      final secondResults = await se.decryptMessages([wireSecond]);
 
-        expect(secondResults[0], isNotNull);
-        expect(
-          (secondResults[0]!.content as Map<String, dynamic>?)?['payload'],
-          equals('second'),
-          reason: 'must return fresh content, not the stale cached value',
-        );
-      },
-    );
+      expect(secondResults[0], isNotNull);
+      expect(
+        (secondResults[0]!.content as Map<String, dynamic>?)?['payload'],
+        equals('second'),
+        reason: 'must return fresh content, not the stale cached value',
+      );
+    });
 
     // -----------------------------------------------------------------------
     // 3. Different ids, same ciphertext bytes → independent cache slots
     // -----------------------------------------------------------------------
-    test(
-      'messages with different ids but same content are cached '
-      'independently',
-      () async {
-        final key = _generateKey();
-        final enc = AES256Encryption(key);
-        final cache = EncryptionCache();
-        final se = _makeSession(enc, cache);
+    test('messages with different ids but same content are cached '
+        'independently', () async {
+      final key = _generateKey();
+      final enc = AES256Encryption(key);
+      final cache = EncryptionCache();
+      final se = _makeSession(enc, cache);
 
-        // Encrypt once; reuse the same base64 payload for both messages.
-        final encrypted = await enc.encrypt([
-          {'shared': 'payload'},
-        ]);
-        final b64 = Base64Utils.encode(encrypted[0], Encoding.base64);
-        final sharedContent = {'t': 'encrypted', 'c': b64};
+      // Encrypt once; reuse the same base64 payload for both messages.
+      final encrypted = await enc.encrypt([
+        {'shared': 'payload'},
+      ]);
+      final b64 = Base64Utils.encode(encrypted[0], Encoding.base64);
+      final sharedContent = {'t': 'encrypted', 'c': b64};
 
-        final msgAlpha = {
-          'id': 'alpha',
-          'seq': 1,
-          'content': sharedContent,
-          'createdAt': 0,
-        };
-        final msgBeta = {
-          'id': 'beta',
-          'seq': 2,
-          'content': sharedContent,
-          'createdAt': 0,
-        };
+      final msgAlpha = {
+        'id': 'alpha',
+        'seq': 1,
+        'content': sharedContent,
+        'createdAt': 0,
+      };
+      final msgBeta = {
+        'id': 'beta',
+        'seq': 2,
+        'content': sharedContent,
+        'createdAt': 0,
+      };
 
-        final results = await se.decryptMessages([msgAlpha, msgBeta]);
+      final results = await se.decryptMessages([msgAlpha, msgBeta]);
 
-        expect(results.length, equals(2));
-        expect(results[0], isNotNull, reason: 'alpha must decrypt');
-        expect(results[1], isNotNull, reason: 'beta must decrypt');
+      expect(results.length, equals(2));
+      expect(results[0], isNotNull, reason: 'alpha must decrypt');
+      expect(results[1], isNotNull, reason: 'beta must decrypt');
 
-        // Both should share the same content but have distinct ids.
-        expect(results[0]!.id, equals('alpha'));
-        expect(results[1]!.id, equals('beta'));
-        expect(
-          (results[0]!.content as Map<String, dynamic>?)?['shared'],
-          equals('payload'),
-        );
-        expect(
-          (results[1]!.content as Map<String, dynamic>?)?['shared'],
-          equals('payload'),
-        );
+      // Both should share the same content but have distinct ids.
+      expect(results[0]!.id, equals('alpha'));
+      expect(results[1]!.id, equals('beta'));
+      expect(
+        (results[0]!.content as Map<String, dynamic>?)?['shared'],
+        equals('payload'),
+      );
+      expect(
+        (results[1]!.content as Map<String, dynamic>?)?['shared'],
+        equals('payload'),
+      );
 
-        // Two separate cache entries must have been created.
-        expect(
-          cache.getStats()['messages'],
-          equals(2),
-          reason: 'each id must occupy its own cache slot',
-        );
-      },
-    );
+      // Two separate cache entries must have been created.
+      expect(
+        cache.getStats()['messages'],
+        equals(2),
+        reason: 'each id must occupy its own cache slot',
+      );
+    });
 
     // -----------------------------------------------------------------------
     // 4. Unencrypted Map content uses 'json:...' path and is cached
@@ -251,7 +231,11 @@ void main() {
       final first = await se.decryptMessages([wireMsg]);
 
       expect(first.length, equals(1));
-      expect(first[0], isNotNull, reason: 'unencrypted map must produce a result');
+      expect(
+        first[0],
+        isNotNull,
+        reason: 'unencrypted map must produce a result',
+      );
       expect(first[0]!.id, equals('u1'));
       expect(
         cache.getStats()['messages'],
@@ -367,8 +351,7 @@ void main() {
             equals('msg-$expectedIndex'),
             reason: 'wrong id at slot $slot',
           );
-          final content =
-              results[slot]!.content as Map<String, dynamic>?;
+          final content = results[slot]!.content as Map<String, dynamic>?;
           expect(
             content,
             isNotNull,

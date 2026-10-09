@@ -214,9 +214,7 @@ class _AllLoopsScreenState extends ConsumerState<AllLoopsScreen>
                         ),
                       ),
                       if (allGroups.isEmpty)
-                        const SliverFillRemaining(
-                          child: _AllLoopsEmptyState(),
-                        )
+                        const SliverFillRemaining(child: _AllLoopsEmptyState())
                       else if (filteredGroups.isEmpty)
                         SliverFillRemaining(
                           child: _FilteredLoopsEmptyState(
@@ -358,15 +356,24 @@ class _LoopsOverview extends StatelessWidget {
                         children: [
                           Text(
                             l10n.allLoopsPausedCount(pausedCount),
-                            style: AppText.secondary(theme, cs.onSurfaceVariant),
+                            style: AppText.secondary(
+                              theme,
+                              cs.onSurfaceVariant,
+                            ),
                           ),
                           Text(
                             '•',
-                            style: AppText.secondary(theme, cs.onSurfaceVariant),
+                            style: AppText.secondary(
+                              theme,
+                              cs.onSurfaceVariant,
+                            ),
                           ),
                           Text(
                             l10n.allLoopsAcrossSessions(sessionCount),
-                            style: AppText.secondary(theme, cs.onSurfaceVariant),
+                            style: AppText.secondary(
+                              theme,
+                              cs.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
@@ -533,7 +540,10 @@ class _SessionGroupSection extends StatelessWidget {
                                   l10n.allLoopsGroupLoopCount(
                                     group.loops.length,
                                   ),
-                                  style: AppText.label(theme, cs.onSurfaceVariant),
+                                  style: AppText.label(
+                                    theme,
+                                    cs.onSurfaceVariant,
+                                  ),
                                 ),
                                 const SizedBox(width: AppSpacing.xs),
                                 AnimatedRotation(

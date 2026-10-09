@@ -332,9 +332,7 @@ class _BannerBody extends StatelessWidget {
             top: false,
             bottom: false,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minHeight: AppTouchTarget.min,
-              ),
+              constraints: const BoxConstraints(minHeight: AppTouchTarget.min),
               child: Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: AppSpacing.smd,
@@ -350,7 +348,9 @@ class _BannerBody extends StatelessWidget {
                     Expanded(
                       child: Text(
                         label,
-                        style: AppText.label(theme, foregroundColor).copyWith(fontFeatures: const [ FontFeature.tabularFigures(), ]),
+                        style: AppText.label(theme, foregroundColor).copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),

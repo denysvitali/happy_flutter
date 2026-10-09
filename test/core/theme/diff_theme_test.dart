@@ -26,7 +26,8 @@ void main() {
       expect(
         r,
         greaterThan(g),
-        reason: 'inlineRemovedBg in light mode should be red, not olive '
+        reason:
+            'inlineRemovedBg in light mode should be red, not olive '
             '(got R=$r G=$g B=$b)',
       );
     });
@@ -39,7 +40,8 @@ void main() {
       expect(
         r,
         greaterThan(g),
-        reason: 'inlineRemovedBg in dark mode should be red, not olive '
+        reason:
+            'inlineRemovedBg in dark mode should be red, not olive '
             '(got R=$r G=$g)',
       );
     });

@@ -101,22 +101,20 @@ class _UsageScreenState extends ConsumerState<UsageScreen> {
     final l10n = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.usageTitle),
-      ),
+      appBar: AppBar(title: Text(l10n.usageTitle)),
       body: _isLoading
           ? const AppLoadingIndicator()
           : _error != null
-              ? _UsageErrorState(
-                  error: _error ?? l10n.commonUnknown,
-                  onRetry: _loadUsage,
-                )
-              : _UsageContent(
-                  summary: _usageSummary,
-                  selectedPeriod: _selectedPeriod,
-                  onPeriodChanged: _onPeriodChanged,
-                  formatNumber: _formatNumber,
-                ),
+          ? _UsageErrorState(
+              error: _error ?? l10n.commonUnknown,
+              onRetry: _loadUsage,
+            )
+          : _UsageContent(
+              summary: _usageSummary,
+              selectedPeriod: _selectedPeriod,
+              onPeriodChanged: _onPeriodChanged,
+              formatNumber: _formatNumber,
+            ),
     );
   }
 
@@ -156,10 +154,7 @@ class _UsageContent extends StatelessWidget {
     return ListView(
       padding: AppScreenPadding.settings,
       children: [
-        _PeriodSelector(
-          selected: selectedPeriod,
-          onChanged: onPeriodChanged,
-        ),
+        _PeriodSelector(selected: selectedPeriod, onChanged: onPeriodChanged),
         const SizedBox(height: AppSpacing.lg),
         SettingsSection(
           title: l10n.totals,
@@ -227,10 +222,7 @@ class _UsageContent extends StatelessWidget {
 }
 
 class _UsageErrorState extends StatelessWidget {
-  const _UsageErrorState({
-    required this.error,
-    required this.onRetry,
-  });
+  const _UsageErrorState({required this.error, required this.onRetry});
 
   final String error;
   final VoidCallback onRetry;
@@ -266,10 +258,7 @@ class _UsageEmptyState extends StatelessWidget {
 }
 
 class _PeriodSelector extends StatelessWidget {
-  const _PeriodSelector({
-    required this.selected,
-    required this.onChanged,
-  });
+  const _PeriodSelector({required this.selected, required this.onChanged});
 
   final UsagePeriod selected;
   final ValueChanged<UsagePeriod> onChanged;

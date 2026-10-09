@@ -187,7 +187,10 @@ class FolderSessionRow extends StatelessWidget {
                           const SizedBox(height: AppSpacing.xxs),
                           Text(
                             derived.subtitle,
-                            style: AppText.secondary(theme, cs.onSurfaceVariant).copyWith(fontFamily: 'monospace'),
+                            style: AppText.secondary(
+                              theme,
+                              cs.onSurfaceVariant,
+                            ).copyWith(fontFamily: 'monospace'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -197,7 +200,8 @@ class FolderSessionRow extends StatelessWidget {
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   buildTimestampBadges(
-                    timestamp: lastMessageTimestamp ??
+                    timestamp:
+                        lastMessageTimestamp ??
                         session.lastMessageAt ??
                         session.updatedAt,
                     theme: theme,
@@ -292,7 +296,10 @@ class FolderOverviewCard extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xxs),
                       Text(
                         folderBreakdownLabel(context, header),
-                        style: AppText.secondary(theme, cs.onSurfaceVariant.withValues(alpha: 0.7)),
+                        style: AppText.secondary(
+                          theme,
+                          cs.onSurfaceVariant.withValues(alpha: 0.7),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

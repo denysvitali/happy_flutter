@@ -72,18 +72,17 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
   if (aesPayloads.isNotEmpty && !kIsWeb) {
     try {
       final aesResults = await Isolate.run(
-        () => AesGcmEncryption.decryptMultiKeyBatch(
-          aesPayloads,
-          aesKeys,
-        ),
+        () => AesGcmEncryption.decryptMultiKeyBatch(aesPayloads, aesKeys),
       );
       aesResultMap = {
         for (var i = 0; i < aesMapping.length; i++)
           aesMapping[i]: aesResults[i],
       };
     } catch (e) {
-      logger.warning('Machine AES isolate failed, '
-          'falling back to main thread: $e');
+      logger.warning(
+        'Machine AES isolate failed, '
+        'falling back to main thread: $e',
+      );
     }
   }
 
@@ -123,9 +122,7 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
             if (d is Map<String, dynamic>) metadata = d;
           }
         } catch (e) {
-          logger.warning(
-            'Failed to decrypt machine metadata: $e',
-          );
+          logger.warning('Failed to decrypt machine metadata: $e');
         }
       }
 
@@ -147,9 +144,7 @@ Future<List<_MachineIsolateResult>> _decryptMachinesInIsolate(
             );
           }
         } catch (e) {
-          logger.warning(
-            'Failed to decrypt machine daemon state: $e',
-          );
+          logger.warning('Failed to decrypt machine daemon state: $e');
         }
       }
     }

@@ -44,42 +44,38 @@ void main() {
     String? toolUseId,
     List<Map<String, dynamic>>? children,
     List<String>? sidechainRootUuids,
-  }) =>
-      <String, dynamic>{
-        'id': id,
-        'kind': 'tool-call',
-        'name': name,
-        ?uuid == null ? null : 'uuid': uuid,
-        ?toolUseId == null ? null : 'toolUseId': toolUseId,
-        ?children == null ? null : 'children': children,
-        ?sidechainRootUuids == null
-            ? null
-            : '_sidechainRootUuids': sidechainRootUuids,
-      };
+  }) => <String, dynamic>{
+    'id': id,
+    'kind': 'tool-call',
+    'name': name,
+    ?uuid == null ? null : 'uuid': uuid,
+    ?toolUseId == null ? null : 'toolUseId': toolUseId,
+    ?children == null ? null : 'children': children,
+    ?sidechainRootUuids == null ? null : '_sidechainRootUuids':
+        sidechainRootUuids,
+  };
 
   Map<String, dynamic> sidechainRoot({
     required String id,
     String? uuid,
     String? parentUuid,
-  }) =>
-      <String, dynamic>{
-        'id': id,
-        'kind': 'sidechain-root',
-        ?uuid == null ? null : 'uuid': uuid,
-        ?parentUuid == null ? null : 'parentUuid': parentUuid,
-      };
+  }) => <String, dynamic>{
+    'id': id,
+    'kind': 'sidechain-root',
+    ?uuid == null ? null : 'uuid': uuid,
+    ?parentUuid == null ? null : 'parentUuid': parentUuid,
+  };
 
   Map<String, dynamic> sidechainChild({
     required String id,
     String? uuid,
     String? parentUuid,
-  }) =>
-      <String, dynamic>{
-        'id': id,
-        'isSidechain': true,
-        ?uuid == null ? null : 'uuid': uuid,
-        ?parentUuid == null ? null : 'parentUuid': parentUuid,
-      };
+  }) => <String, dynamic>{
+    'id': id,
+    'isSidechain': true,
+    ?uuid == null ? null : 'uuid': uuid,
+    ?parentUuid == null ? null : 'parentUuid': parentUuid,
+  };
 
   Map<String, dynamic> textMsg({required String id, String content = 'hi'}) =>
       <String, dynamic>{
@@ -92,8 +88,7 @@ void main() {
   // ── Live-stream changedIds contract ──────────────────────────
 
   group('live-stream sidechain grouping — changedIds contract', () {
-    test(
-        'changedIds containing ONLY non-sidechain text returns null '
+    test('changedIds containing ONLY non-sidechain text returns null '
         '(fast-path skipped the full re-walk)', () {
       final messages = [
         taskMsg(id: 't1', uuid: 'task-uuid', toolUseId: 'toolu_1'),
@@ -112,12 +107,14 @@ void main() {
       // Per sidechain_grouper.dart fast-path: changedIds set with no
       // sidechain-relevant entries returns either null OR hasOrphans=true.
       // No orphans in this fixture, so null.
-      expect(result, isNull,
-          reason: 'no sidechain-relevant id in changedIds -> no rebuild');
+      expect(
+        result,
+        isNull,
+        reason: 'no sidechain-relevant id in changedIds -> no rebuild',
+      );
     });
 
-    test(
-        'navigation-away regression: changedIds={root-id, child-id} attaches '
+    test('navigation-away regression: changedIds={root-id, child-id} attaches '
         'the child to its parent Task even when the Task id is NOT in '
         'changedIds (matches the fix removing _visibleSessionId gate)', () {
       // Scenario: user navigated to session A while session B fired a
@@ -145,9 +142,13 @@ void main() {
         changedIds: {'r1', 'c1'},
       );
 
-      expect(result, isNotNull,
-          reason: 'sidechain-relevant ids in changedIds must force a '
-              'full pass even when the parent Task is not in changedIds');
+      expect(
+        result,
+        isNotNull,
+        reason:
+            'sidechain-relevant ids in changedIds must force a '
+            'full pass even when the parent Task is not in changedIds',
+      );
       // Top-level should now contain only the Task (the sidechain-root
       // and sidechain-child got removed from the flat list and the
       // child got attached under the Task).
@@ -156,19 +157,24 @@ void main() {
       expect(parent['id'], 't1');
       // sidechain-child is the only direct child of the Task.
       final children = parent['children'] as List<Map<String, dynamic>>;
-      expect(children, hasLength(1),
-          reason: 'sidechain-child must attach under the Task tool-call');
+      expect(
+        children,
+        hasLength(1),
+        reason: 'sidechain-child must attach under the Task tool-call',
+      );
       expect(children.first['id'], 'c1');
       // sidechain-root is recorded on the Task via _sidechainRootUuids
       // so the renderer can hydrate root content elsewhere.
       final roots = parent['_sidechainRootUuids'] as List<dynamic>?;
       expect(roots, isNotNull);
-      expect(roots, contains('root-uuid'),
-          reason: 'sidechain-root uuid must be persisted on the Task');
+      expect(
+        roots,
+        contains('root-uuid'),
+        reason: 'sidechain-root uuid must be persisted on the Task',
+      );
     });
 
-    test(
-        'multi-level chain: root + grandchild both collapse under the '
+    test('multi-level chain: root + grandchild both collapse under the '
         'Task tool-call when changedIds only contains the leaf id', () {
       // Validates the parentUuid chain walk: c1.parentUuid=r1.uuid,
       // r1.parentUuid=t1.uuid. Even if only c1 is "new", the grouper
@@ -191,16 +197,21 @@ void main() {
       expect(result!.messages, hasLength(2));
       final task = result.messages.firstWhere((m) => m['id'] == 't1');
       final children = task['children'] as List<Map<String, dynamic>>;
-      expect(children, hasLength(1),
-          reason: 'sidechain-child attaches under the Task');
+      expect(
+        children,
+        hasLength(1),
+        reason: 'sidechain-child attaches under the Task',
+      );
       expect(children.first['id'], 'c1');
       final roots = task['_sidechainRootUuids'] as List<dynamic>?;
-      expect(roots, contains('root-uuid'),
-          reason: 'sidechain-root uuid persists on the Task');
+      expect(
+        roots,
+        contains('root-uuid'),
+        reason: 'sidechain-root uuid persists on the Task',
+      );
     });
 
-    test(
-        'changedIds containing only a Task whose sidechain is fully '
+    test('changedIds containing only a Task whose sidechain is fully '
         'attached returns null OR hasOrphans:false (idempotent — no '
         'rebuild needed)', () {
       // Pre-existing, fully-grouped state (mimics a session loaded
@@ -211,10 +222,16 @@ void main() {
           'children': <Map<String, dynamic>>[
             {
               ...sidechainRoot(
-                  id: 'r1', uuid: 'root-uuid', parentUuid: 'task-uuid'),
+                id: 'r1',
+                uuid: 'root-uuid',
+                parentUuid: 'task-uuid',
+              ),
               'children': <Map<String, dynamic>>[
                 sidechainChild(
-                    id: 'c1', uuid: 'child-uuid', parentUuid: 'root-uuid'),
+                  id: 'c1',
+                  uuid: 'child-uuid',
+                  parentUuid: 'root-uuid',
+                ),
               ],
             },
           ],
@@ -246,16 +263,20 @@ void main() {
         }
 
         walk(result.messages.first);
-        foundCount = ['t1', 'r1', 'c1']
-            .where((id) => visited.contains(id))
-            .length;
-        expect(foundCount, 3,
-            reason: 'must not duplicate or drop existing children');
+        foundCount = [
+          't1',
+          'r1',
+          'c1',
+        ].where((id) => visited.contains(id)).length;
+        expect(
+          foundCount,
+          3,
+          reason: 'must not duplicate or drop existing children',
+        );
       }
     });
 
-    test(
-        'visibility-agnostic: same input list produces identical grouping '
+    test('visibility-agnostic: same input list produces identical grouping '
         'on repeated calls (no per-call visibility context)', () {
       // The grouper itself is a pure function over (messages, changedIds)
       // and has no notion of which session the user is viewing. The
@@ -286,9 +307,13 @@ void main() {
           firstCall.messages.first['_sidechainRootUuids'] as List? ?? [];
       final secondRoots =
           secondCall.messages.first['_sidechainRootUuids'] as List? ?? [];
-      expect(firstRoots, secondRoots,
-          reason: 'same input -> same _sidechainRootUuids, regardless of '
-              'any caller-side visibility');
+      expect(
+        firstRoots,
+        secondRoots,
+        reason:
+            'same input -> same _sidechainRootUuids, regardless of '
+            'any caller-side visibility',
+      );
       final firstChildren =
           firstCall.messages.first['children'] as List<Map<String, dynamic>>;
       final secondChildren =

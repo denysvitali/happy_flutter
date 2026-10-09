@@ -63,63 +63,57 @@ void main() {
     // `sessionsNotifierProvider.notifier` reference *before* the
     // confirmation-dialog await, so any later async completion
     // never reaches back through `ref`.
-    testWidgets(
-      'mount and immediate dispose does not throw StateError '
-      '(archive variant)',
-      (tester) async {
-        final session = _session();
+    testWidgets('mount and immediate dispose does not throw StateError '
+        '(archive variant)', (tester) async {
+      final session = _session();
 
-        await tester.pumpWidget(
-          _wrap(
-            DismissibleActiveSession(
-              session: session,
-              child: const SizedBox(
-                key: ValueKey('child'),
-                width: 100,
-                height: 60,
-              ),
+      await tester.pumpWidget(
+        _wrap(
+          DismissibleActiveSession(
+            session: session,
+            child: const SizedBox(
+              key: ValueKey('child'),
+              width: 100,
+              height: 60,
             ),
           ),
-        );
+        ),
+      );
 
-        expect(find.byKey(const ValueKey('child')), findsOneWidget);
+      expect(find.byKey(const ValueKey('child')), findsOneWidget);
 
-        // Immediately rebuild without the dismissible — simulates the
-        // parent rebuild that removes a session row from the tree
-        // mid-flight, which is what previously surfaced the
-        // StateError when an await completed afterwards.
-        await tester.pumpWidget(_wrap(const SizedBox.shrink()));
+      // Immediately rebuild without the dismissible — simulates the
+      // parent rebuild that removes a session row from the tree
+      // mid-flight, which is what previously surfaced the
+      // StateError when an await completed afterwards.
+      await tester.pumpWidget(_wrap(const SizedBox.shrink()));
 
-        expect(tester.takeException(), isNull);
-      },
-    );
+      expect(tester.takeException(), isNull);
+    });
 
-    testWidgets(
-      'mount and immediate dispose does not throw StateError '
-      '(delete variant)',
-      (tester) async {
-        final session = _session();
+    testWidgets('mount and immediate dispose does not throw StateError '
+        '(delete variant)', (tester) async {
+      final session = _session();
 
-        await tester.pumpWidget(
-          _wrap(
-            DismissibleInactiveSession(
-              session: session,
-              child: const SizedBox(
-                key: ValueKey('child'),
-                width: 100,
-                height: 60,
-              ),
+      await tester.pumpWidget(
+        _wrap(
+          DismissibleInactiveSession(
+            session: session,
+            child: const SizedBox(
+              key: ValueKey('child'),
+              width: 100,
+              height: 60,
             ),
           ),
-        );
+        ),
+      );
 
-        expect(find.byKey(const ValueKey('child')), findsOneWidget);
+      expect(find.byKey(const ValueKey('child')), findsOneWidget);
 
-        await tester.pumpWidget(_wrap(const SizedBox.shrink()));
+      await tester.pumpWidget(_wrap(const SizedBox.shrink()));
 
-        expect(tester.takeException(), isNull);
-      },
-    );
+      expect(tester.takeException(), isNull);
+    });
 
     // The fix is structural: `ref.read(...)` is captured at the top
     // of `_confirmArchive` / `_confirmDelete`, BEFORE the showDialog
@@ -128,32 +122,29 @@ void main() {
     // public widget and tapping the confirm button, then unmounting
     // the parent widget while the API future is pending. The capture
     // pattern guarantees no `ref` access after the await.
-    testWidgets(
-      'archive confirm dialog still works when parent unmounts '
-      'before completion',
-      (tester) async {
-        final session = _session();
-        bool unmounted = false;
+    testWidgets('archive confirm dialog still works when parent unmounts '
+        'before completion', (tester) async {
+      final session = _session();
+      bool unmounted = false;
 
-        await tester.pumpWidget(
-          _wrap(
-            StatefulBuilder(
-              builder: (context, setState) {
-                if (unmounted) return const SizedBox.shrink();
-                return DismissibleActiveSession(
-                  session: session,
-                  child: const SizedBox(width: 200, height: 100),
-                );
-              },
-            ),
+      await tester.pumpWidget(
+        _wrap(
+          StatefulBuilder(
+            builder: (context, setState) {
+              if (unmounted) return const SizedBox.shrink();
+              return DismissibleActiveSession(
+                session: session,
+                child: const SizedBox(width: 200, height: 100),
+              );
+            },
           ),
-        );
+        ),
+      );
 
-        // Unmount immediately — no exception should escape.
-        unmounted = true;
-        await tester.pumpWidget(_wrap(const SizedBox.shrink()));
-        expect(tester.takeException(), isNull);
-      },
-    );
+      // Unmount immediately — no exception should escape.
+      unmounted = true;
+      await tester.pumpWidget(_wrap(const SizedBox.shrink()));
+      expect(tester.takeException(), isNull);
+    });
   });
 }

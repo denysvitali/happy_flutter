@@ -170,10 +170,7 @@ class MessagingModel {
   }
 
   void apply(MessagingCommand cmd) {
-    if (suspended &&
-        cmd is! Resume &&
-        cmd is! Suspend &&
-        cmd is! Reconnect) {
+    if (suspended && cmd is! Resume && cmd is! Suspend && cmd is! Reconnect) {
       // While suspended, ignore everything — mirrors `Sync.suspend()`'s
       // cancellation of timers + InvalidateSync.isBackgrounded gating.
       return;

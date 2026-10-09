@@ -26,8 +26,7 @@ void main() {
       });
 
       test('encodes zero-prefixed bytes correctly', () {
-        final result =
-            HexUtils.encode(Uint8List.fromList([0x00, 0x01, 0x0A]));
+        final result = HexUtils.encode(Uint8List.fromList([0x00, 0x01, 0x0A]));
         expect(result, '00010a');
       });
 
@@ -43,15 +42,18 @@ void main() {
       });
 
       test('MAC format adds colons every two hex digits', () {
-        final result =
-            HexUtils.encode(Uint8List.fromList([0xAB, 0xCD, 0xEF]),
-                HexFormat.mac,);
+        final result = HexUtils.encode(
+          Uint8List.fromList([0xAB, 0xCD, 0xEF]),
+          HexFormat.mac,
+        );
         expect(result, 'ab:cd:ef');
       });
 
       test('MAC format with single byte', () {
-        final result =
-            HexUtils.encode(Uint8List.fromList([0x12]), HexFormat.mac);
+        final result = HexUtils.encode(
+          Uint8List.fromList([0x12]),
+          HexFormat.mac,
+        );
         expect(result, '12');
       });
 
@@ -89,8 +91,7 @@ void main() {
       });
 
       test('MAC format strips colons before decoding', () {
-        final result =
-            HexUtils.decode('ab:cd:ef', HexFormat.mac);
+        final result = HexUtils.decode('ab:cd:ef', HexFormat.mac);
         expect(result, Uint8List.fromList([0xAB, 0xCD, 0xEF]));
       });
 

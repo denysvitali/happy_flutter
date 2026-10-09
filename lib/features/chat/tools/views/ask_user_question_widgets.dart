@@ -6,7 +6,6 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 /// Section displaying a single question with selectable option
 /// chips.
 class QuestionSection extends StatelessWidget {
-
   const QuestionSection({
     required this.question,
     required this.questionIndex,
@@ -28,29 +27,20 @@ class QuestionSection extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      margin: EdgeInsets.only(
-        bottom: 10,
-        top: questionIndex > 0 ? 4 : 0,
-      ),
+      margin: EdgeInsets.only(bottom: 10, top: questionIndex > 0 ? 4 : 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           // Header + question text
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: theme
-                      .colorScheme.secondaryContainer,
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.xsm),
+                  color: theme.colorScheme.secondaryContainer,
+                  borderRadius: BorderRadius.circular(AppRadius.xsm),
                 ),
                 child: Text(
                   question.header,
@@ -64,11 +54,8 @@ class QuestionSection extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xsm),
                 Text(
                   'Select all that apply',
-                  style:
-                      theme.textTheme.labelSmall
-                          ?.copyWith(
-                    color: theme
-                        .colorScheme.onSurfaceVariant,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -78,14 +65,12 @@ class QuestionSection extends StatelessWidget {
           const SizedBox(height: 10),
           // Question text with question mark icon
           Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
                 Icons.help_outline_rounded,
                 size: 16,
-                color: theme
-                    .colorScheme.onSurfaceVariant,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: AppSpacing.xsm),
               Expanded(
@@ -104,14 +89,10 @@ class QuestionSection extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: question.options
-                .asMap()
-                .entries
-                .map((entry) {
+            children: question.options.asMap().entries.map((entry) {
               final index = entry.key;
               final option = entry.value;
-              final isSelected =
-                  selectedOptions.contains(index);
+              final isSelected = selectedOptions.contains(index);
 
               return OptionChip(
                 option: option,
@@ -138,32 +119,26 @@ class QuestionSection extends StatelessWidget {
                 hintText: 'Add notes (optional)',
                 isDense: true,
                 filled: true,
-                fillColor: theme
-                    .colorScheme.surfaceContainerHigh,
+                fillColor: theme.colorScheme.surfaceContainerHigh,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.sm),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   borderSide: BorderSide(
                     color: theme.colorScheme.outlineVariant,
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.sm),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                   borderSide: BorderSide(
                     color: theme.colorScheme.outlineVariant,
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppRadius.sm),
-                  borderSide: BorderSide(
-                    color: theme.colorScheme.primary,
-                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(color: theme.colorScheme.primary),
                 ),
               ),
             ),
@@ -177,7 +152,6 @@ class QuestionSection extends StatelessWidget {
 /// Interactive chip for a single question option with press
 /// animation.
 class OptionChip extends StatefulWidget {
-
   const OptionChip({
     required this.option,
     required this.isSelected,
@@ -207,13 +181,9 @@ class _OptionChipState extends State<OptionChip>
     _pressController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 100),
-      reverseDuration:
-          const Duration(milliseconds: 200),
+      reverseDuration: const Duration(milliseconds: 200),
     );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.94,
-    ).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
       CurvedAnimation(
         parent: _pressController,
         curve: Curves.easeOut,
@@ -250,8 +220,7 @@ class _OptionChipState extends State<OptionChip>
 
     // Determine if option has a description to show
     // as a full-width card vs compact chip.
-    final hasDesc =
-        widget.option.description.isNotEmpty;
+    final hasDesc = widget.option.description.isNotEmpty;
 
     return GestureDetector(
       onTapDown: _onTapDown,
@@ -267,13 +236,9 @@ class _OptionChipState extends State<OptionChip>
             color: isSelected
                 ? primary.withValues(alpha: 28 / 255.0)
                 : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(
-              hasDesc ? 12 : 20,
-            ),
+            borderRadius: BorderRadius.circular(hasDesc ? 12 : 20),
             border: Border.all(
-              color: isSelected
-                  ? primary
-                  : theme.colorScheme.outlineVariant,
+              color: isSelected ? primary : theme.colorScheme.outlineVariant,
               width: isSelected ? 2.0 : 1.0,
             ),
             boxShadow: isSelected
@@ -291,20 +256,14 @@ class _OptionChipState extends State<OptionChip>
             vertical: hasDesc ? 10 : 8,
           ),
           child: hasDesc
-              ? _buildWithDescription(
-                  context, theme, isSelected)
-              : _buildCompact(
-                  context, theme, isSelected),
+              ? _buildWithDescription(context, theme, isSelected)
+              : _buildCompact(context, theme, isSelected),
         ),
       ),
     );
   }
 
-  Widget _buildCompact(
-    BuildContext context,
-    ThemeData theme,
-    bool isSelected,
-  ) {
+  Widget _buildCompact(BuildContext context, ThemeData theme, bool isSelected) {
     final primary = theme.colorScheme.primary;
 
     return Row(
@@ -341,8 +300,7 @@ class _OptionChipState extends State<OptionChip>
         const SizedBox(width: 8),
         Flexible(
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
@@ -353,10 +311,7 @@ class _OptionChipState extends State<OptionChip>
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                widget.option.description,
-                style: AppText.secondary(theme),
-              ),
+              Text(widget.option.description, style: AppText.secondary(theme)),
             ],
           ),
         ),
@@ -364,16 +319,12 @@ class _OptionChipState extends State<OptionChip>
     );
   }
 
-  Widget _buildIndicator(
-    ThemeData theme, {
-    required double size,
-  }) {
+  Widget _buildIndicator(ThemeData theme, {required double size}) {
     final primary = theme.colorScheme.primary;
     final isSelected = widget.isSelected;
     final borderColor = isSelected
         ? primary
-        : theme.colorScheme.onSurfaceVariant
-            .withValues(alpha: 120 / 255.0);
+        : theme.colorScheme.onSurfaceVariant.withValues(alpha: 120 / 255.0);
 
     if (widget.isMultiSelect) {
       return AnimatedContainer(
@@ -381,13 +332,9 @@ class _OptionChipState extends State<OptionChip>
         width: size,
         height: size,
         decoration: BoxDecoration(
-          border:
-              Border.all(color: borderColor, width: 2),
-          borderRadius:
-              BorderRadius.circular(size * 0.25),
-          color: isSelected
-              ? primary
-              : Colors.transparent,
+          border: Border.all(color: borderColor, width: 2),
+          borderRadius: BorderRadius.circular(size * 0.25),
+          color: isSelected ? primary : Colors.transparent,
         ),
         child: isSelected
             ? Icon(
@@ -404,8 +351,7 @@ class _OptionChipState extends State<OptionChip>
       width: size,
       height: size,
       decoration: BoxDecoration(
-        border:
-            Border.all(color: borderColor, width: 2),
+        border: Border.all(color: borderColor, width: 2),
         borderRadius: BorderRadius.circular(size / 2),
       ),
       child: Center(
@@ -414,11 +360,8 @@ class _OptionChipState extends State<OptionChip>
           width: size * 0.5,
           height: size * 0.5,
           decoration: BoxDecoration(
-            borderRadius:
-                BorderRadius.circular(size * 0.25),
-            color: isSelected
-                ? primary
-                : Colors.transparent,
+            borderRadius: BorderRadius.circular(size * 0.25),
+            color: isSelected ? primary : Colors.transparent,
           ),
         ),
       ),

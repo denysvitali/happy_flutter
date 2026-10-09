@@ -45,10 +45,7 @@ void main() {
       });
 
       test('handles missing tokens and cost as empty', () {
-        final json = {
-          'timestamp': 0,
-          'reportCount': 0,
-        };
+        final json = {'timestamp': 0, 'reportCount': 0};
 
         final point = UsageDataPoint.fromJson(json);
         expect(point.tokens, isEmpty);

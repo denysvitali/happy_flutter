@@ -9,8 +9,7 @@ import 'logger_service.dart' show logger;
 class ServerConfigStorage {
   factory ServerConfigStorage() => _instance;
   ServerConfigStorage._();
-  static final ServerConfigStorage _instance =
-      ServerConfigStorage._();
+  static final ServerConfigStorage _instance = ServerConfigStorage._();
 
   SharedPreferences? _prefs;
   bool _initialized = false;
@@ -22,31 +21,25 @@ class ServerConfigStorage {
 
   static const String _prefix = 'server_config.';
   static const String _serverUrlKey = 'custom-server-url';
-  static const String _serverUrlErrorKey =
-      'last-server-url-error';
+  static const String _serverUrlErrorKey = 'last-server-url-error';
 
   static String _prefixedKey(String key) => '$_prefix$key';
 
   static Future<void> initialize() async {
     if (_instance._initialized) return;
     try {
-      _instance._prefs =
-          await SharedPreferences.getInstance();
+      _instance._prefs = await SharedPreferences.getInstance();
       _instance._initialized = true;
       _instance._loadCache();
     } catch (e) {
-      logger.warning(
-        'WebStorage(ServerConfigStorage): init failed: $e',
-      );
+      logger.warning('WebStorage(ServerConfigStorage): init failed: $e');
       rethrow;
     }
   }
 
   void _loadCache() {
-    _cachedServerUrl =
-        _prefs?.getString(_prefixedKey(_serverUrlKey));
-    _cachedServerUrlError =
-        _prefs?.getString(_prefixedKey(_serverUrlErrorKey));
+    _cachedServerUrl = _prefs?.getString(_prefixedKey(_serverUrlKey));
+    _cachedServerUrlError = _prefs?.getString(_prefixedKey(_serverUrlErrorKey));
     _cacheLoaded = true;
   }
 
@@ -62,8 +55,9 @@ class ServerConfigStorage {
   }
 
   Future<void> setServerUrl(String? url) async {
-    _cachedServerUrl =
-        (url != null && url.trim().isNotEmpty) ? url.trim() : null;
+    _cachedServerUrl = (url != null && url.trim().isNotEmpty)
+        ? url.trim()
+        : null;
     try {
       final prefs = await _getPrefs();
       final key = _prefixedKey(_serverUrlKey);
@@ -86,15 +80,10 @@ class ServerConfigStorage {
   Future<void> saveServerUrlError(String error) async {
     try {
       final prefs = await _getPrefs();
-      await prefs.setString(
-        _prefixedKey(_serverUrlErrorKey),
-        error,
-      );
+      await prefs.setString(_prefixedKey(_serverUrlErrorKey), error);
       _cachedServerUrlError = error;
     } catch (e) {
-      logger.warning(
-        'WebStorage: failed to save server URL error: $e',
-      );
+      logger.warning('WebStorage: failed to save server URL error: $e');
     }
   }
 
@@ -109,9 +98,7 @@ class ServerConfigStorage {
       await prefs.remove(_prefixedKey(_serverUrlErrorKey));
       _cachedServerUrlError = null;
     } catch (e) {
-      logger.warning(
-        'WebStorage: failed to clear server URL error: $e',
-      );
+      logger.warning('WebStorage: failed to clear server URL error: $e');
     }
   }
 
@@ -123,9 +110,7 @@ class ServerConfigStorage {
       _cachedServerUrl = null;
       _cachedServerUrlError = null;
     } catch (e) {
-      logger.warning(
-        'WebStorage: failed to clear server config: $e',
-      );
+      logger.warning('WebStorage: failed to clear server config: $e');
     }
   }
 }

@@ -398,39 +398,36 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'stale cache catches up contiguously from its cursor',
-      () async {
-        const sessionId = 'sess-stale-1';
-        // The gap exceeds initialLoad, but the cached prefix must remain
-        // contiguous with the fetched messages.
-        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
-        // Cache has old messages (seq 1-5), cursor at 5.
-        final staleCache = List.generate(
-          5,
-          (i) => _makePlainMessage('msg-${i + 1}', seq: i + 1),
-        );
-        sync.testSetSessionMessages(sessionId, staleCache);
-        sync.testSetSessionLastSeq(sessionId, 5);
+    test('stale cache catches up contiguously from its cursor', () async {
+      const sessionId = 'sess-stale-1';
+      // The gap exceeds initialLoad, but the cached prefix must remain
+      // contiguous with the fetched messages.
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 500);
+      // Cache has old messages (seq 1-5), cursor at 5.
+      final staleCache = List.generate(
+        5,
+        (i) => _makePlainMessage('msg-${i + 1}', seq: i + 1),
+      );
+      sync.testSetSessionMessages(sessionId, staleCache);
+      sync.testSetSessionLastSeq(sessionId, 5);
 
-        final capturedAfterSeqs = <int>[];
-        sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
-          capturedAfterSeqs.add(afterSeq);
-          return _buildResponse([
-            _makeEncryptedMessage('msg-6', seq: 6, content: 'New'),
-          ]);
-        };
+      final capturedAfterSeqs = <int>[];
+      sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
+        capturedAfterSeqs.add(afterSeq);
+        return _buildResponse([
+          _makeEncryptedMessage('msg-6', seq: 6, content: 'New'),
+        ]);
+      };
 
-        await sync.fetchMessages(sessionId);
+      await sync.fetchMessages(sessionId);
 
-        expect(capturedAfterSeqs, isNotEmpty);
-        expect(
-          capturedAfterSeqs.first,
-          5,
-          reason: 'Cached history must resume from its maximum sequence',
-        );
-      },
-    );
+      expect(capturedAfterSeqs, isNotEmpty);
+      expect(
+        capturedAfterSeqs.first,
+        5,
+        reason: 'Cached history must resume from its maximum sequence',
+      );
+    });
 
     test('stale cache catch-up leaves no missing middle', () async {
       const sessionId = 'sess-stale-2';

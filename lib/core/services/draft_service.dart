@@ -8,10 +8,10 @@ import 'mmkv_storage.dart';
 /// Provides draft persistence keyed by sessionId using MMKV storage with
 /// debounced auto-save to reduce storage operations.
 class DraftService {
-
   /// Get the singleton instance
   factory DraftService() => _instance;
   DraftService._();
+
   /// Singleton instance
   static final DraftService _instance = DraftService._();
 
@@ -78,7 +78,6 @@ class DraftService {
 /// autoSave.dispose();
 /// ```
 class DraftAutoSaveController {
-
   /// Create a new controller with the given sessionId and save callback.
   ///
   /// Debouncing is set to 500ms by default as specified in requirements.
@@ -91,6 +90,7 @@ class DraftAutoSaveController {
          onSave: onSave,
          debounceDuration: debounceDuration,
        );
+
   /// The sessionId this controller is associated with
   String sessionId;
 

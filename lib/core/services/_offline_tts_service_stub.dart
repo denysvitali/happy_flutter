@@ -61,8 +61,8 @@ class OfflineTtsService {
       ValueNotifier<OfflineTtsStatus>(OfflineTtsStatus.notDownloaded);
   final ValueNotifier<Map<String, OfflineTtsStatus>> _statuses =
       ValueNotifier<Map<String, OfflineTtsStatus>>(
-    const <String, OfflineTtsStatus>{},
-  );
+        const <String, OfflineTtsStatus>{},
+      );
 
   ValueListenable<String?> get currentToken => _currentToken;
   ValueListenable<OfflineTtsStatus> get status => _status;

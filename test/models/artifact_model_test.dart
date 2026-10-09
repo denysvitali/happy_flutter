@@ -179,14 +179,22 @@ void main() {
     group('equality', () {
       test('equal artifacts compare equal', () {
         final a = Artifact(
-          id: 'x', header: 'h', headerVersion: 1,
-          dataEncryptionKey: 'k', seq: 1,
-          createdAt: 100, updatedAt: 200,
+          id: 'x',
+          header: 'h',
+          headerVersion: 1,
+          dataEncryptionKey: 'k',
+          seq: 1,
+          createdAt: 100,
+          updatedAt: 200,
         );
         final b = Artifact(
-          id: 'x', header: 'h', headerVersion: 1,
-          dataEncryptionKey: 'k', seq: 1,
-          createdAt: 100, updatedAt: 200,
+          id: 'x',
+          header: 'h',
+          headerVersion: 1,
+          dataEncryptionKey: 'k',
+          seq: 1,
+          createdAt: 100,
+          updatedAt: 200,
         );
 
         expect(a, equals(b));
@@ -195,9 +203,13 @@ void main() {
 
       test('different artifacts are not equal', () {
         final a = Artifact(
-          id: 'x', header: 'h', headerVersion: 1,
-          dataEncryptionKey: 'k', seq: 1,
-          createdAt: 100, updatedAt: 200,
+          id: 'x',
+          header: 'h',
+          headerVersion: 1,
+          dataEncryptionKey: 'k',
+          seq: 1,
+          createdAt: 100,
+          updatedAt: 200,
         );
         final b = a.copyWith(id: 'y');
 
@@ -456,10 +468,7 @@ void main() {
           updatedAt: 2000,
         );
 
-        final updated = original.copyWith(
-          title: 'Updated',
-          headerVersion: 2,
-        );
+        final updated = original.copyWith(title: 'Updated', headerVersion: 2);
 
         expect(updated.id, 'cw-1');
         expect(updated.title, 'Updated');
@@ -502,12 +511,20 @@ void main() {
     group('equality', () {
       test('equal artifacts compare equal', () {
         final a = DecryptedArtifact(
-          id: 'eq', title: 'T', headerVersion: 1,
-          seq: 1, createdAt: 100, updatedAt: 200,
+          id: 'eq',
+          title: 'T',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 100,
+          updatedAt: 200,
         );
         final b = DecryptedArtifact(
-          id: 'eq', title: 'T', headerVersion: 1,
-          seq: 1, createdAt: 100, updatedAt: 200,
+          id: 'eq',
+          title: 'T',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 100,
+          updatedAt: 200,
         );
 
         expect(a, equals(b));
@@ -516,8 +533,12 @@ void main() {
 
       test('different artifacts are not equal', () {
         final a = DecryptedArtifact(
-          id: 'eq', title: 'T', headerVersion: 1,
-          seq: 1, createdAt: 100, updatedAt: 200,
+          id: 'eq',
+          title: 'T',
+          headerVersion: 1,
+          seq: 1,
+          createdAt: 100,
+          updatedAt: 200,
         );
         final b = a.copyWith(title: 'Different');
 

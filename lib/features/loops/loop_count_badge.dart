@@ -25,9 +25,7 @@ class LoopCountBadge extends ConsumerWidget {
     // Watch the notifier but only react to the count for this session —
     // other sessions' loops changing shouldn't rebuild the badge.
     final count = ref.watch(
-      loopsNotifierProvider.select(
-        (state) => state[sessionId]?.length ?? 0,
-      ),
+      loopsNotifierProvider.select((state) => state[sessionId]?.length ?? 0),
     );
     if (count == 0) return const SizedBox.shrink();
 

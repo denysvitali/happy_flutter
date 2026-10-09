@@ -29,14 +29,20 @@ void main() {
       final wasInitialized = sync.testIsInitialized;
       sync.testIsInitialized = false;
       apiClient.setSuspended(true);
-      apiClient.testDio!.interceptors.add(InterceptorsWrapper(
-        onRequest: (options, handler) => handler.resolve(
-          Response<dynamic>(requestOptions: options, statusCode: 200), true),
-      ));
+      apiClient.testDio!.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) => handler.resolve(
+            Response<dynamic>(requestOptions: options, statusCode: 200),
+            true,
+          ),
+        ),
+      );
       try {
         sync.resume();
-        expect((await apiClient.testDio!.get<dynamic>('/v1/sessions'))
-            .statusCode, 200);
+        expect(
+          (await apiClient.testDio!.get<dynamic>('/v1/sessions')).statusCode,
+          200,
+        );
       } finally {
         sync.testIsInitialized = wasInitialized;
         apiClient.setSuspended(false);

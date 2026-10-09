@@ -145,14 +145,14 @@ class DiffTheme extends ThemeExtension<DiffTheme> {
       lineNumberBg: Color.lerp(lineNumberBg, other.lineNumberBg, t)!,
       lineNumberText: Color.lerp(lineNumberText, other.lineNumberText, t)!,
       inlineAddedBg: Color.lerp(inlineAddedBg, other.inlineAddedBg, t)!,
-      inlineAddedText:
-          Color.lerp(inlineAddedText, other.inlineAddedText, t)!,
-      inlineRemovedBg:
-          Color.lerp(inlineRemovedBg, other.inlineRemovedBg, t)!,
-      inlineRemovedText:
-          Color.lerp(inlineRemovedText, other.inlineRemovedText, t)!,
-      leadingSpaceDot:
-          Color.lerp(leadingSpaceDot, other.leadingSpaceDot, t)!,
+      inlineAddedText: Color.lerp(inlineAddedText, other.inlineAddedText, t)!,
+      inlineRemovedBg: Color.lerp(inlineRemovedBg, other.inlineRemovedBg, t)!,
+      inlineRemovedText: Color.lerp(
+        inlineRemovedText,
+        other.inlineRemovedText,
+        t,
+      )!,
+      leadingSpaceDot: Color.lerp(leadingSpaceDot, other.leadingSpaceDot, t)!,
     );
   }
 }

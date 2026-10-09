@@ -67,8 +67,7 @@ void main() {
       expect(find.text('1 file found'), findsOneWidget);
     });
 
-    testWidgets('shows "No files found" for empty results',
-        (tester) async {
+    testWidgets('shows "No files found" for empty results', (tester) async {
       await tester.pumpWidget(
         _wrap(
           GlobView(
@@ -121,8 +120,7 @@ void main() {
       expect(find.text('json'), findsOneWidget);
     });
 
-    testWidgets('renders path chip when path is provided',
-        (tester) async {
+    testWidgets('renders path chip when path is provided', (tester) async {
       await tester.pumpWidget(
         _wrap(
           GlobView(
@@ -139,8 +137,7 @@ void main() {
       expect(find.text('/lib'), findsOneWidget);
     });
 
-    testWidgets('shows "Show all" button for many results',
-        (tester) async {
+    testWidgets('shows "Show all" button for many results', (tester) async {
       final files = List.generate(15, (i) => 'file$i.dart');
       await tester.pumpWidget(
         _wrap(
@@ -158,8 +155,7 @@ void main() {
       expect(find.text('Show all 15 files'), findsOneWidget);
     });
 
-    testWidgets('handles result as map with files key',
-        (tester) async {
+    testWidgets('handles result as map with files key', (tester) async {
       await tester.pumpWidget(
         _wrap(
           GlobView(
@@ -179,8 +175,7 @@ void main() {
       expect(find.text('b.ts'), findsOneWidget);
     });
 
-    testWidgets('renders travel_explore icon in pattern badge',
-        (tester) async {
+    testWidgets('renders travel_explore icon in pattern badge', (tester) async {
       await tester.pumpWidget(
         _wrap(
           GlobView(
@@ -200,10 +195,7 @@ void main() {
 
   group('GlobFile', () {
     test('displayName returns basename when set', () {
-      final file = GlobFile(
-        path: '/lib/main.dart',
-        basename: 'main.dart',
-      );
+      final file = GlobFile(path: '/lib/main.dart', basename: 'main.dart');
       expect(file.displayName, 'main.dart');
     });
 

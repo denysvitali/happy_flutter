@@ -80,10 +80,7 @@ class LoggerNotifier extends Notifier<LoggerState> {
       unsubscribe();
     });
 
-    return LoggerState(
-      service: _logger,
-      version: _logger.version,
-    );
+    return LoggerState(service: _logger, version: _logger.version);
   }
 
   void _onLogChanged() {
@@ -102,12 +99,7 @@ class LoggerNotifier extends Notifier<LoggerState> {
     StackTrace? stackTrace,
   }) {
     _logDebounceTimer?.cancel();
-    _logger.log(
-      message,
-      level: level,
-      error: error,
-      stackTrace: stackTrace,
-    );
+    _logger.log(message, level: level, error: error, stackTrace: stackTrace);
     // Trigger rebuild — bump version
     state = state.copyWith(version: state.version + 1);
   }
@@ -156,10 +148,11 @@ class LoggerNotifier extends Notifier<LoggerState> {
 }
 
 /// Riverpod provider for the logger
-final loggerNotifierProvider =
-    NotifierProvider<LoggerNotifier, LoggerState>(() {
-  return LoggerNotifier();
-});
+final loggerNotifierProvider = NotifierProvider<LoggerNotifier, LoggerState>(
+  () {
+    return LoggerNotifier();
+  },
+);
 
 /// Convenience accessor for the logger service
 final loggerServiceProvider = Provider<LoggerService>((ref) {

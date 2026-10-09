@@ -312,9 +312,7 @@ void main() {
 
       expect(
         tester.getSemantics(
-          find.bySemanticsLabel(
-            'Connection status. No internet connection',
-          ),
+          find.bySemanticsLabel('Connection status. No internet connection'),
         ),
         containsSemantics(isLiveRegion: true),
       );

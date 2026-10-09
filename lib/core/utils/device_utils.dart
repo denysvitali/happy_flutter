@@ -21,8 +21,9 @@ DeviceDimensions calculateDeviceDimensions({
 
   final widthInches = widthPoints / pointsPerInch;
   final heightInches = heightPoints / pointsPerInch;
-  final diagonalInches =
-      math.sqrt(widthInches * widthInches + heightInches * heightInches);
+  final diagonalInches = math.sqrt(
+    widthInches * widthInches + heightInches * heightInches,
+  );
 
   return DeviceDimensions(
     widthInches: widthInches,
@@ -72,10 +73,7 @@ DeviceType determineDeviceType({
 }
 
 /// Device type enum
-enum DeviceType {
-  phone,
-  tablet,
-}
+enum DeviceType { phone, tablet }
 
 /// Calculate header height based on platform, device info, and orientation
 ///

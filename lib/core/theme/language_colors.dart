@@ -55,6 +55,5 @@ const Color kUnknownLanguageColor = Color(0xFF8B949E);
 /// or not in [kLanguageBrandColors].
 Color colorForLanguage(String? language) {
   if (language == null) return kUnknownLanguageColor;
-  return kLanguageBrandColors[language.toLowerCase()] ??
-      kUnknownLanguageColor;
+  return kLanguageBrandColors[language.toLowerCase()] ?? kUnknownLanguageColor;
 }

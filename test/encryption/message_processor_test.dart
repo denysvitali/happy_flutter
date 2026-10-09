@@ -82,10 +82,7 @@ void main() {
       test('handles user message without nested text type', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
-            {
-              'role': 'user',
-              'content': 'Raw user content',
-            },
+            {'role': 'user', 'content': 'Raw user content'},
           ],
           wireMessages: [
             {'id': 'm1', 'seq': 1, 'createdAt': 1000},
@@ -126,7 +123,10 @@ void main() {
             {
               'role': 'user',
               'content': [
-                {'type': 'image', 'source': {'type': 'url', 'url': 'x'}},
+                {
+                  'type': 'image',
+                  'source': {'type': 'url', 'url': 'x'},
+                },
               ],
             },
           ],
@@ -180,10 +180,7 @@ void main() {
               'role': 'agent',
               'content': {
                 'type': 'output',
-                'data': {
-                  'type': 'message',
-                  'message': 'Hello from the agent',
-                },
+                'data': {'type': 'message', 'message': 'Hello from the agent'},
               },
             },
           ],
@@ -291,9 +288,13 @@ void main() {
         // can resolve through this message.  Storing the toolu_*
         // there fragmented long subagent runs into many "Subagent
         // output (recovered)" placeholders.
-        expect(result.messages.first['uuid'], 'u1',
-            reason: 'tool-call uuid must be the JSONL message uuid '
-                "to preserve sidechain chain resolution");
+        expect(
+          result.messages.first['uuid'],
+          'u1',
+          reason:
+              'tool-call uuid must be the JSONL message uuid '
+              "to preserve sidechain chain resolution",
+        );
       });
 
       test('processes agent output with toolCall blocks', () {
@@ -667,16 +668,16 @@ void main() {
 
         expect(result.messages, hasLength(1));
         expect(result.messages.first['kind'], 'error');
-        expect(result.messages.first['errorType'], 'unknown_agent_content_type');
+        expect(
+          result.messages.first['errorType'],
+          'unknown_agent_content_type',
+        );
       });
 
       test('emits error for unknown role', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
-            {
-              'role': 'stranger',
-              'content': 'test',
-            },
+            {'role': 'stranger', 'content': 'test'},
           ],
           wireMessages: [
             {'id': 'm1', 'seq': 1, 'createdAt': 1000},
@@ -774,8 +775,7 @@ void main() {
                     'content': [
                       {
                         'type': 'thinking',
-                        'thinking':
-                            'The user wants me to check something',
+                        'thinking': 'The user wants me to check something',
                       },
                     ],
                   },
@@ -1101,10 +1101,7 @@ void main() {
               'role': 'agent',
               'content': {
                 'type': 'codex',
-                'data': {
-                  'type': 'message',
-                  'message': 'Codex output',
-                },
+                'data': {'type': 'message', 'message': 'Codex output'},
               },
             },
           ],
@@ -1238,9 +1235,7 @@ void main() {
                     'content': [
                       {'type': 'text', 'text': '{"resources":[]}'},
                     ],
-                    'structuredContent': {
-                      'resources': <dynamic>[],
-                    },
+                    'structuredContent': {'resources': <dynamic>[]},
                   },
                   'isError': false,
                 },
@@ -1261,17 +1256,12 @@ void main() {
 
         expect(result.toolResults, hasLength(1));
         expect(result.toolResults.first['toolUseId'], 'mcp1');
-        expect(
-          result.toolResults.first['result'],
-          {
-            'content': [
-              {'type': 'text', 'text': '{"resources":[]}'},
-            ],
-            'structuredContent': {
-              'resources': <dynamic>[],
-            },
-          },
-        );
+        expect(result.toolResults.first['result'], {
+          'content': [
+            {'type': 'text', 'text': '{"resources":[]}'},
+          ],
+          'structuredContent': {'resources': <dynamic>[]},
+        });
       });
 
       test('processes codex thinking as isThinking text', () {
@@ -1300,10 +1290,7 @@ void main() {
         expect(result.messages, hasLength(1));
         expect(result.messages.first['kind'], 'text');
         expect(result.messages.first['isThinking'], true);
-        expect(
-          result.messages.first['content'],
-          'Let me analyze this code...',
-        );
+        expect(result.messages.first['content'], 'Let me analyze this code...');
       });
 
       test('codex thinking falls back to thinking field', () {
@@ -1313,10 +1300,7 @@ void main() {
               'role': 'agent',
               'content': {
                 'type': 'codex',
-                'data': {
-                  'type': 'thinking',
-                  'thinking': 'Fallback thought',
-                },
+                'data': {'type': 'thinking', 'thinking': 'Fallback thought'},
               },
             },
           ],
@@ -1376,10 +1360,7 @@ void main() {
               'role': 'agent',
               'content': {
                 'type': 'acp',
-                'data': {
-                  'type': 'message',
-                  'message': 'ACP output',
-                },
+                'data': {'type': 'message', 'message': 'ACP output'},
               },
             },
           ],
@@ -1401,10 +1382,7 @@ void main() {
               'role': 'agent',
               'content': {
                 'type': 'acp',
-                'data': {
-                  'type': 'thinking',
-                  'text': 'ACP thinking',
-                },
+                'data': {'type': 'thinking', 'text': 'ACP thinking'},
               },
             },
           ],
@@ -1463,11 +1441,7 @@ void main() {
                   'task_type': 'local_workflow',
                   'workflow_name': 'inspect-go-mod',
                   'workflow_progress': [
-                    {
-                      'type': 'workflow_phase',
-                      'index': 1,
-                      'title': 'Read',
-                    },
+                    {'type': 'workflow_phase', 'index': 1, 'title': 'Read'},
                     {
                       'type': 'workflow_agent',
                       'agentId': 'a66369641305e6fab',
@@ -1507,10 +1481,7 @@ void main() {
               'role': 'agent',
               'content': {
                 'type': 'grok',
-                'data': {
-                  'type': 'message',
-                  'message': 'Hello from Grok Build',
-                },
+                'data': {'type': 'message', 'message': 'Hello from Grok Build'},
               },
             },
           ],
@@ -1532,10 +1503,7 @@ void main() {
               'role': 'agent',
               'content': {
                 'type': 'grok',
-                'data': {
-                  'type': 'thinking',
-                  'text': 'planning',
-                },
+                'data': {'type': 'thinking', 'text': 'planning'},
               },
             },
             {
@@ -1713,27 +1681,31 @@ void main() {
         expect(toolCalls[2]['name'], 'Bash');
 
         expect(result.toolResults, hasLength(3));
-        final listResult = result.toolResults
-            .firstWhere((r) => r['toolUseId'] == 'call-list');
+        final listResult = result.toolResults.firstWhere(
+          (r) => r['toolUseId'] == 'call-list',
+        );
         expect(listResult['result'], isA<Map>());
         expect(
           (listResult['result'] as Map)['entries'],
           isA<List>().having((l) => l.length, 'len', greaterThanOrEqualTo(2)),
         );
 
-        final readResult = result.toolResults
-            .firstWhere((r) => r['toolUseId'] == 'call-read');
+        final readResult = result.toolResults.firstWhere(
+          (r) => r['toolUseId'] == 'call-read',
+        );
         expect(readResult['result'], contains('Grok ACP capture fixture'));
 
-        final shResult = result.toolResults
-            .firstWhere((r) => r['toolUseId'] == 'call-sh');
+        final shResult = result.toolResults.firstWhere(
+          (r) => r['toolUseId'] == 'call-sh',
+        );
         expect(shResult['result'], isA<Map>());
         expect((shResult['result'] as Map)['stdout'], 'capture-ok\n');
         expect((shResult['result'] as Map)['exitCode'], 0);
 
         // task_progress → agent-event; task_notification completed → text
-        final taskEvents =
-            result.messages.where((m) => m['taskEvent'] == true).toList();
+        final taskEvents = result.messages
+            .where((m) => m['taskEvent'] == true)
+            .toList();
         expect(taskEvents, hasLength(2));
         expect(taskEvents[0]['kind'], 'agent-event');
         expect(taskEvents[1]['kind'], 'text');
@@ -1970,7 +1942,10 @@ void main() {
       test('preserves id, seq, localId, createdAt', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
-            {'role': 'user', 'content': {'type': 'text', 'text': 'Hi'}},
+            {
+              'role': 'user',
+              'content': {'type': 'text', 'text': 'Hi'},
+            },
           ],
           wireMessages: [
             {
@@ -1993,14 +1968,13 @@ void main() {
       test('parses createdAt from ISO string', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
-            {'role': 'user', 'content': {'type': 'text', 'text': 'Hi'}},
+            {
+              'role': 'user',
+              'content': {'type': 'text', 'text': 'Hi'},
+            },
           ],
           wireMessages: [
-            {
-              'id': 'msg1',
-              'seq': 1,
-              'createdAt': '2024-01-15T10:30:00.000Z',
-            },
+            {'id': 'msg1', 'seq': 1, 'createdAt': '2024-01-15T10:30:00.000Z'},
           ],
           sessionId: 's1',
         );
@@ -2011,7 +1985,10 @@ void main() {
       test('uses current time for invalid createdAt', () {
         final result = processDecryptedMessages(
           decryptedJsonList: [
-            {'role': 'user', 'content': {'type': 'text', 'text': 'Hi'}},
+            {
+              'role': 'user',
+              'content': {'type': 'text', 'text': 'Hi'},
+            },
           ],
           wireMessages: [
             {'id': 'msg1', 'seq': 1, 'createdAt': 'invalid'},
@@ -2034,199 +2011,187 @@ void main() {
       // fall back to fragile parentUuid chain walking — producing
       // "Subagent output (recovered)" tiles on cold start.
 
-      test(
-        'task_started system event stamps parentToolUseId from tool_use_id '
-        'and agentId from task_id',
-        () {
-          final result = processDecryptedMessages(
-            decryptedJsonList: [
-              {
-                'role': 'agent',
-                'content': {
-                  'type': 'output',
-                  'data': {
-                    'type': 'system',
-                    'subtype': 'task_started',
-                    'isMeta': true,
-                    'description': 'Spawning subagent',
-                    'tool_use_id': 'toolu_parent_123',
-                    'task_id': 'agent_async_xyz',
-                    'isSidechain': true,
-                    'uuid': 'u-ts',
+      test('task_started system event stamps parentToolUseId from tool_use_id '
+          'and agentId from task_id', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'system',
+                  'subtype': 'task_started',
+                  'isMeta': true,
+                  'description': 'Spawning subagent',
+                  'tool_use_id': 'toolu_parent_123',
+                  'task_id': 'agent_async_xyz',
+                  'isSidechain': true,
+                  'uuid': 'u-ts',
+                },
+              },
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
+
+        expect(result.messages, hasLength(1));
+        final msg = result.messages.first;
+        expect(msg['kind'], 'agent-event');
+        expect(
+          msg['parentToolUseId'],
+          'toolu_parent_123',
+          reason:
+              'task_started must carry tool_use_id as '
+              'parentToolUseId — matches live-ingest behavior in '
+              '_sync_messaging_parse_output.dart:72,93',
+        );
+        expect(msg['agentId'], 'agent_async_xyz');
+      });
+
+      test('output/assistant with parent_tool_use_id stamps parentToolUseId on '
+          'every emitted sidechain block (text, thinking, tool_use)', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u-asst',
+                  'isSidechain': true,
+                  'parent_tool_use_id': 'toolu_parent_abc',
+                  'agentId': 'agent_xyz',
+                  'message': {
+                    'content': [
+                      {'type': 'text', 'text': 'hello'},
+                      {'type': 'thinking', 'thinking': 'reasoning...'},
+                      {
+                        'type': 'tool_use',
+                        'id': 'toolu_child_1',
+                        'name': 'Read',
+                        'input': {'path': '/x'},
+                      },
+                      {
+                        'type': 'tool_result',
+                        'tool_use_id': 'toolu_child_1',
+                        'content': 'ok',
+                      },
+                    ],
                   },
                 },
               },
-            ],
-            wireMessages: [
-              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
-            ],
-            sessionId: 's1',
-          );
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
 
-          expect(result.messages, hasLength(1));
-          final msg = result.messages.first;
-          expect(msg['kind'], 'agent-event');
+        expect(result.messages, hasLength(3));
+        for (final m in result.messages) {
           expect(
-            msg['parentToolUseId'],
-            'toolu_parent_123',
-            reason: 'task_started must carry tool_use_id as '
-                'parentToolUseId — matches live-ingest behavior in '
-                '_sync_messaging_parse_output.dart:72,93',
+            m['parentToolUseId'],
+            'toolu_parent_abc',
+            reason:
+                'every sidechain emission must carry '
+                'parentToolUseId so SidechainGrouper can attach by '
+                'parent tool_use without walking parentUuid',
           );
-          expect(msg['agentId'], 'agent_async_xyz');
-        },
-      );
+          expect(m['agentId'], 'agent_xyz');
+          expect(m['isSidechain'], true);
+        }
 
-      test(
-        'output/assistant with parent_tool_use_id stamps parentToolUseId on '
-        'every emitted sidechain block (text, thinking, tool_use)',
-        () {
-          final result = processDecryptedMessages(
-            decryptedJsonList: [
-              {
-                'role': 'agent',
-                'content': {
-                  'type': 'output',
-                  'data': {
-                    'type': 'assistant',
-                    'uuid': 'u-asst',
-                    'isSidechain': true,
-                    'parent_tool_use_id': 'toolu_parent_abc',
-                    'agentId': 'agent_xyz',
-                    'message': {
-                      'content': [
-                        {'type': 'text', 'text': 'hello'},
-                        {'type': 'thinking', 'thinking': 'reasoning...'},
-                        {
-                          'type': 'tool_use',
-                          'id': 'toolu_child_1',
-                          'name': 'Read',
-                          'input': {'path': '/x'},
-                        },
-                        {
-                          'type': 'tool_result',
-                          'tool_use_id': 'toolu_child_1',
-                          'content': 'ok',
-                        },
-                      ],
-                    },
+        expect(result.toolResults, hasLength(1));
+        expect(result.toolResults.first['parentToolUseId'], 'toolu_parent_abc');
+        expect(result.toolResults.first['agentId'], 'agent_xyz');
+      });
+
+      test('output/assistant WITHOUT parent_tool_use_id does NOT fabricate '
+          'parentToolUseId (regression guard)', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u-asst-noparent',
+                  'message': {
+                    'content': [
+                      {'type': 'text', 'text': 'top-level response'},
+                    ],
                   },
                 },
               },
-            ],
-            wireMessages: [
-              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
-            ],
-            sessionId: 's1',
-          );
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
 
-          expect(result.messages, hasLength(3));
-          for (final m in result.messages) {
-            expect(
-              m['parentToolUseId'],
-              'toolu_parent_abc',
-              reason: 'every sidechain emission must carry '
-                  'parentToolUseId so SidechainGrouper can attach by '
-                  'parent tool_use without walking parentUuid',
-            );
-            expect(m['agentId'], 'agent_xyz');
-            expect(m['isSidechain'], true);
-          }
+        expect(result.messages, hasLength(1));
+        expect(
+          result.messages.first.containsKey('parentToolUseId'),
+          false,
+          reason:
+              'top-level assistant messages must NOT carry a '
+              'fabricated parentToolUseId — only stamp what the '
+              'wire payload provided',
+        );
+        expect(result.messages.first.containsKey('agentId'), false);
+      });
 
-          expect(result.toolResults, hasLength(1));
-          expect(result.toolResults.first['parentToolUseId'],
-              'toolu_parent_abc');
-          expect(result.toolResults.first['agentId'], 'agent_xyz');
-        },
-      );
-
-      test(
-        'output/assistant WITHOUT parent_tool_use_id does NOT fabricate '
-        'parentToolUseId (regression guard)',
-        () {
-          final result = processDecryptedMessages(
-            decryptedJsonList: [
-              {
-                'role': 'agent',
-                'content': {
-                  'type': 'output',
-                  'data': {
-                    'type': 'assistant',
-                    'uuid': 'u-asst-noparent',
-                    'message': {
-                      'content': [
-                        {'type': 'text', 'text': 'top-level response'},
-                      ],
-                    },
+      test('unrendered placeholder (unrecognized content block) inside a '
+          'sidechain still carries parentToolUseId', () {
+        final result = processDecryptedMessages(
+          decryptedJsonList: [
+            {
+              'role': 'agent',
+              'content': {
+                'type': 'output',
+                'data': {
+                  'type': 'assistant',
+                  'uuid': 'u-asst',
+                  'isSidechain': true,
+                  'parent_tool_use_id': 'toolu_parent_unr',
+                  'message': {
+                    'content': [
+                      // Unknown block type — drops into the
+                      // `_emitUnrenderedAgentEvent` branch which used
+                      // to lose parentToolUseId.
+                      {'type': 'mystery_block'},
+                    ],
                   },
                 },
               },
-            ],
-            wireMessages: [
-              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
-            ],
-            sessionId: 's1',
-          );
+            },
+          ],
+          wireMessages: [
+            {'id': 'm1', 'seq': 1, 'createdAt': 1000},
+          ],
+          sessionId: 's1',
+        );
 
-          expect(result.messages, hasLength(1));
-          expect(
-            result.messages.first.containsKey('parentToolUseId'),
-            false,
-            reason: 'top-level assistant messages must NOT carry a '
-                'fabricated parentToolUseId — only stamp what the '
-                'wire payload provided',
-          );
-          expect(
-            result.messages.first.containsKey('agentId'),
-            false,
-          );
-        },
-      );
-
-      test(
-        'unrendered placeholder (unrecognized content block) inside a '
-        'sidechain still carries parentToolUseId',
-        () {
-          final result = processDecryptedMessages(
-            decryptedJsonList: [
-              {
-                'role': 'agent',
-                'content': {
-                  'type': 'output',
-                  'data': {
-                    'type': 'assistant',
-                    'uuid': 'u-asst',
-                    'isSidechain': true,
-                    'parent_tool_use_id': 'toolu_parent_unr',
-                    'message': {
-                      'content': [
-                        // Unknown block type — drops into the
-                        // `_emitUnrenderedAgentEvent` branch which used
-                        // to lose parentToolUseId.
-                        {'type': 'mystery_block'},
-                      ],
-                    },
-                  },
-                },
-              },
-            ],
-            wireMessages: [
-              {'id': 'm1', 'seq': 1, 'createdAt': 1000},
-            ],
-            sessionId: 's1',
-          );
-
-          expect(result.messages, hasLength(1));
-          expect(result.messages.first['kind'], 'agent-event');
-          expect(
-            result.messages.first['parentToolUseId'],
-            'toolu_parent_unr',
-            reason: 'unrendered placeholders inside a sidechain must '
-                'still anchor to the parent tool_use so the grouper '
-                'attaches them under the spawning Agent tile',
-          );
-        },
-      );
+        expect(result.messages, hasLength(1));
+        expect(result.messages.first['kind'], 'agent-event');
+        expect(
+          result.messages.first['parentToolUseId'],
+          'toolu_parent_unr',
+          reason:
+              'unrendered placeholders inside a sidechain must '
+              'still anchor to the parent tool_use so the grouper '
+              'attaches them under the spawning Agent tile',
+        );
+      });
     });
 
     group('ProcessedMessages', () {

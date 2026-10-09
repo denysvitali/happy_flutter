@@ -205,7 +205,10 @@ class _TerminalConnectScreenState extends ConsumerState<TerminalConnectScreen> {
                                 ),
                                 child: Text(
                                   context.l10n.machineOffline,
-                                  style: AppText.secondary(theme, cs.onSurfaceVariant),
+                                  style: AppText.secondary(
+                                    theme,
+                                    cs.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
                             ],

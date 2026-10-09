@@ -49,9 +49,7 @@ class ZenTodoItem extends StatelessWidget {
         isCompleted: isCompleted,
         theme: theme,
         onTap: () {
-          unawaited(
-            showTaskDetailDialog(context: context, item: item),
-          );
+          unawaited(showTaskDetailDialog(context: context, item: item));
         },
       ),
     );
@@ -67,8 +65,9 @@ class _SwipeBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // When already completed, swiping cycles back to pending — show undo icon.
-    final icon =
-        isCompleted ? Icons.refresh_rounded : Icons.check_circle_rounded;
+    final icon = isCompleted
+        ? Icons.refresh_rounded
+        : Icons.check_circle_rounded;
     final label = isCompleted ? 'Undo' : 'Done';
 
     return Container(
@@ -93,7 +92,12 @@ class _SwipeBackground extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: AppText.label(Theme.of(context), isCompleted ? Theme.of(context).colorScheme.onSurfaceVariant : AppColors.success),
+            style: AppText.label(
+              Theme.of(context),
+              isCompleted
+                  ? Theme.of(context).colorScheme.onSurfaceVariant
+                  : AppColors.success,
+            ),
           ),
         ],
       ),
@@ -133,10 +137,7 @@ class _TodoRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: statusIcon,
-            ),
+            Padding(padding: const EdgeInsets.only(top: 1), child: statusIcon),
             const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
@@ -162,7 +163,12 @@ class _TodoRow extends StatelessWidget {
                         _abbreviated(description),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.secondary(theme, theme.colorScheme.onSurfaceVariant .withValues(alpha: 0.8)),
+                        style: AppText.secondary(
+                          theme,
+                          theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.8,
+                          ),
+                        ),
                       ),
                     ),
                   if (item.priority.isNotEmpty && item.priority != 'low')
@@ -232,10 +238,7 @@ class _PriorityChip extends StatelessWidget {
         color: color.withValues(alpha: AppMotion.hoverOpacity),
         borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
-      child: Text(
-        label,
-        style: AppText.label(theme, color),
-      ),
+      child: Text(label, style: AppText.label(theme, color)),
     );
   }
 }

@@ -86,8 +86,7 @@ class _LSViewState extends State<LSView> {
 
   @override
   Widget build(BuildContext context) {
-    final input =
-        WireParsers.asMap(widget.tool['input']) ?? {};
+    final input = WireParsers.asMap(widget.tool['input']) ?? {};
     final result = widget.tool['result'];
     final state = widget.tool['state'] as String? ?? '';
 
@@ -96,7 +95,8 @@ class _LSViewState extends State<LSView> {
     final entries = _parseEntries(result);
 
     // Sort: directories first, then files, both alphabetically
-    final sorted = [...entries]..sort((a, b) {
+    final sorted = [...entries]
+      ..sort((a, b) {
         if (a.isDirectory && !b.isDirectory) return -1;
         if (!a.isDirectory && b.isDirectory) return 1;
         return a.name.toLowerCase().compareTo(b.name.toLowerCase());
@@ -105,8 +105,9 @@ class _LSViewState extends State<LSView> {
     final dirs = sorted.where((e) => e.isDirectory).toList();
     final files = sorted.where((e) => !e.isDirectory).toList();
 
-    final visibleEntries =
-        _showAll ? sorted : sorted.take(_initialLimit).toList();
+    final visibleEntries = _showAll
+        ? sorted
+        : sorted.take(_initialLimit).toList();
     final hiddenCount = sorted.length - _initialLimit;
 
     final cs = Theme.of(context).colorScheme;
@@ -164,7 +165,8 @@ class _LSViewState extends State<LSView> {
                       for (int i = 0; i < visibleEntries.length; i++)
                         _EntryRow(
                           entry: visibleEntries[i],
-                          isLast: i == visibleEntries.length - 1 &&
+                          isLast:
+                              i == visibleEntries.length - 1 &&
                               (hiddenCount <= 0 || _showAll),
                           colorScheme: cs,
                         ),
@@ -184,9 +186,7 @@ class _LSViewState extends State<LSView> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _showAll
-                          ? Icons.expand_less
-                          : Icons.expand_more,
+                      _showAll ? Icons.expand_less : Icons.expand_more,
                       size: AppIconSize.sm,
                       color: cs.primary,
                     ),
@@ -220,13 +220,10 @@ class _LSViewState extends State<LSView> {
           .map((item) {
             if (item is Map<String, dynamic>) {
               return LSEntry(
-                name: item['name'] as String? ??
-                    item['file'] as String? ??
-                    '',
-                isDirectory: item['isDirectory'] as bool? ??
-                    item['type'] == 'directory',
-                isFile: item['isFile'] as bool? ??
-                    item['type'] == 'file',
+                name: item['name'] as String? ?? item['file'] as String? ?? '',
+                isDirectory:
+                    item['isDirectory'] as bool? ?? item['type'] == 'directory',
+                isFile: item['isFile'] as bool? ?? item['type'] == 'file',
                 permissions: item['permissions'] as String?,
                 size: item['size'] as int?,
               );
@@ -253,13 +250,10 @@ class _LSViewState extends State<LSView> {
           .map((item) {
             if (item is Map<String, dynamic>) {
               return LSEntry(
-                name: item['name'] as String? ??
-                    item['file'] as String? ??
-                    '',
-                isDirectory: item['isDirectory'] as bool? ??
-                    item['type'] == 'directory',
-                isFile: item['isFile'] as bool? ??
-                    item['type'] == 'file',
+                name: item['name'] as String? ?? item['file'] as String? ?? '',
+                isDirectory:
+                    item['isDirectory'] as bool? ?? item['type'] == 'directory',
+                isFile: item['isFile'] as bool? ?? item['type'] == 'file',
                 permissions: item['permissions'] as String?,
                 size: item['size'] as int?,
               );
@@ -282,10 +276,7 @@ class _LSViewState extends State<LSView> {
 
 /// The path header showing the current directory.
 class _PathHeader extends StatelessWidget {
-  const _PathHeader({
-    required this.resolvedPath,
-    required this.colorScheme,
-  });
+  const _PathHeader({required this.resolvedPath, required this.colorScheme});
 
   final String resolvedPath;
   final ColorScheme colorScheme;
@@ -301,9 +292,7 @@ class _PathHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(AppRadius.xsm),
-        border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.6),
-        ),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.6)),
       ),
       child: Row(
         children: [
@@ -430,8 +419,7 @@ class _EntryRow extends StatelessWidget {
                       style: TextStyle(
                         fontSize: AppFontSize.sm,
                         fontFamily: 'monospace',
-                        color: cs.onSurfaceVariant
-                            .withValues(alpha: 0.7),
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                     ),
                 ],
@@ -469,5 +457,4 @@ class _EntryRow extends StatelessWidget {
       ),
     );
   }
-
 }

@@ -6,10 +6,7 @@ import 'avatar_palette.dart';
 
 /// Pixelated-style avatar with blocky appearance
 class AvatarPixelated extends BaseAvatar {
-  const AvatarPixelated({
-    required super.id, super.key,
-    super.size = 48,
-  });
+  const AvatarPixelated({required super.id, super.key, super.size = 48});
 
   @override
   Widget build(BuildContext context) {

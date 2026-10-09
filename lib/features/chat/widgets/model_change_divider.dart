@@ -75,11 +75,7 @@ class ModelChangeDivider extends StatelessWidget {
       height: AppBorder.hairline,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Colors.transparent,
-            glass.glassBorder,
-            Colors.transparent,
-          ],
+          colors: [Colors.transparent, glass.glassBorder, Colors.transparent],
         ),
       ),
     );

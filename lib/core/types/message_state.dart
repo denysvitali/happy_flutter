@@ -75,10 +75,7 @@ final class MessageSent extends MessageSendState {
 /// always look at the typed [LocalId] / [ServerMessageId] pair rather
 /// than reaching into the underlying loose map.
 class MessageIdentity {
-  const MessageIdentity({
-    required this.serverId,
-    this.localId,
-  });
+  const MessageIdentity({required this.serverId, this.localId});
 
   factory MessageIdentity.fromMap(Map<String, dynamic> message) {
     return MessageIdentity(

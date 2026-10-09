@@ -16,16 +16,13 @@ abstract class KvItem with _$KvItem {
     required int version,
   }) = _KvItem;
 
-  factory KvItem.fromJson(Map<String, dynamic> json) =>
-      _$KvItemFromJson(json);
+  factory KvItem.fromJson(Map<String, dynamic> json) => _$KvItemFromJson(json);
 }
 
 /// Response for listing KV items
 @freezed
 abstract class KvListResponse with _$KvListResponse {
-  const factory KvListResponse({
-    required List<KvItem> items,
-  }) = _KvListResponse;
+  const factory KvListResponse({required List<KvItem> items}) = _KvListResponse;
 
   factory KvListResponse.fromJson(Map<String, dynamic> json) =>
       _$KvListResponseFromJson(json);
@@ -34,9 +31,8 @@ abstract class KvListResponse with _$KvListResponse {
 /// Request for bulk getting KV items
 @freezed
 abstract class KvBulkGetRequest with _$KvBulkGetRequest {
-  const factory KvBulkGetRequest({
-    required List<String> keys,
-  }) = _KvBulkGetRequest;
+  const factory KvBulkGetRequest({required List<String> keys}) =
+      _KvBulkGetRequest;
 
   factory KvBulkGetRequest.fromJson(Map<String, dynamic> json) =>
       _$KvBulkGetRequestFromJson(json);
@@ -45,9 +41,8 @@ abstract class KvBulkGetRequest with _$KvBulkGetRequest {
 /// Response for bulk getting KV items
 @freezed
 abstract class KvBulkGetResponse with _$KvBulkGetResponse {
-  const factory KvBulkGetResponse({
-    required List<KvItem> values,
-  }) = _KvBulkGetResponse;
+  const factory KvBulkGetResponse({required List<KvItem> values}) =
+      _KvBulkGetResponse;
 
   factory KvBulkGetResponse.fromJson(Map<String, dynamic> json) =>
       _$KvBulkGetResponseFromJson(json);
@@ -69,9 +64,8 @@ abstract class KvMutation with _$KvMutation {
 /// Request for mutating KV items
 @freezed
 abstract class KvMutateRequest with _$KvMutateRequest {
-  const factory KvMutateRequest({
-    required List<KvMutation> mutations,
-  }) = _KvMutateRequest;
+  const factory KvMutateRequest({required List<KvMutation> mutations}) =
+      _KvMutateRequest;
 
   factory KvMutateRequest.fromJson(Map<String, dynamic> json) =>
       _$KvMutateRequestFromJson(json);
@@ -80,10 +74,8 @@ abstract class KvMutateRequest with _$KvMutateRequest {
 /// Result of a single mutation
 @freezed
 abstract class KvMutateResult with _$KvMutateResult {
-  const factory KvMutateResult({
-    required String key,
-    required int version,
-  }) = _KvMutateResult;
+  const factory KvMutateResult({required String key, required int version}) =
+      _KvMutateResult;
 
   factory KvMutateResult.fromJson(Map<String, dynamic> json) =>
       _$KvMutateResultFromJson(json);
@@ -138,10 +130,7 @@ class KvMutateErrorResponse extends KvMutateResponse {
   final List<KvMutateError> errors;
 
   Map<String, dynamic> toJson() {
-    return {
-      'success': false,
-      'errors': errors.map((e) => e.toJson()).toList(),
-    };
+    return {'success': false, 'errors': errors.map((e) => e.toJson()).toList()};
   }
 }
 
@@ -166,9 +155,7 @@ sealed class KvMutateResponse {
   bool get isSuccess => this is KvMutateSuccessResponse;
   bool get isError => this is KvMutateErrorResponse;
 
-  List<KvMutateResult> get results =>
-      (this as KvMutateSuccessResponse).results;
+  List<KvMutateResult> get results => (this as KvMutateSuccessResponse).results;
 
-  List<KvMutateError> get errors =>
-      (this as KvMutateErrorResponse).errors;
+  List<KvMutateError> get errors => (this as KvMutateErrorResponse).errors;
 }

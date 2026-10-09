@@ -28,8 +28,9 @@ void main() {
 
       test('standard base64 contains + and / chars', () {
         // Create data that will produce + and / in base64
-        final result =
-            Base64Utils.encode(Uint8List.fromList([251, 239, 190, 222]));
+        final result = Base64Utils.encode(
+          Uint8List.fromList([251, 239, 190, 222]),
+        );
         // Standard encoding may contain +/=
         expect(result, isA<String>());
       });
@@ -121,8 +122,20 @@ void main() {
       });
 
       test('roundtrip preserves data', () {
-        final original =
-            Uint8List.fromList([0, 1, 2, 3, 4, 5, 250, 251, 252, 253, 254, 255]);
+        final original = Uint8List.fromList([
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          250,
+          251,
+          252,
+          253,
+          254,
+          255,
+        ]);
         final encoded = Base64Utils.encode(original);
         final decoded = Base64Utils.decode(encoded);
         expect(decoded, original);

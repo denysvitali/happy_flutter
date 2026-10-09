@@ -282,5 +282,4 @@ void main() {
       expect(update.id, 'art-1');
     });
   });
-
 }

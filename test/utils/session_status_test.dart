@@ -78,18 +78,13 @@ void main() {
       expect(status.isConnected, isFalse);
       expect(status.shouldShowStatus, isTrue);
       expect(status.statusText.startsWith('Last seen'), isTrue);
-      expect(
-        status.statusColor,
-        const Color(0xFF999999).toARGB32(),
-      );
+      expect(status.statusColor, const Color(0xFF999999).toARGB32());
     });
 
     test('online session with permissions requires permission', () {
       final session = _makeSession(
         agentState: AgentState(
-          requests: {
-            'req1': RequestInfo(tool: 'Bash', arguments: {}),
-          },
+          requests: {'req1': RequestInfo(tool: 'Bash', arguments: {})},
         ),
       );
       final status = getSessionStatus(session);
@@ -99,10 +94,7 @@ void main() {
       expect(status.shouldShowStatus, isTrue);
       // Steady state — pulse is reserved for transitional states (thinking).
       expect(status.isPulsing, isFalse);
-      expect(
-        status.statusColor,
-        AppColors.warning.toARGB32(),
-      );
+      expect(status.statusColor, AppColors.warning.toARGB32());
     });
 
     test('thinking session shows thinking state', () {
@@ -113,10 +105,7 @@ void main() {
       expect(status.statusText, '');
       expect(status.shouldShowStatus, isFalse);
       expect(status.isPulsing, isTrue);
-      expect(
-        status.statusColor,
-        AppColors.iosBlue.toARGB32(),
-      );
+      expect(status.statusColor, AppColors.iosBlue.toARGB32());
     });
 
     test('online non-thinking session is waiting', () {
@@ -127,19 +116,14 @@ void main() {
       expect(status.statusText, 'Online');
       expect(status.shouldShowStatus, isFalse);
       expect(status.isPulsing, isFalse);
-      expect(
-        status.statusColor,
-        AppColors.success.toARGB32(),
-      );
+      expect(status.statusColor, AppColors.success.toARGB32());
     });
 
     test('permission check takes priority over thinking', () {
       final session = _makeSession(
         thinking: true,
         agentState: AgentState(
-          requests: {
-            'req1': RequestInfo(tool: 'Read', arguments: {}),
-          },
+          requests: {'req1': RequestInfo(tool: 'Read', arguments: {})},
         ),
       );
       final status = getSessionStatus(session);
@@ -147,9 +131,7 @@ void main() {
     });
 
     test('empty requests map does not trigger permission', () {
-      final session = _makeSession(
-        agentState: AgentState(requests: {}),
-      );
+      final session = _makeSession(agentState: AgentState(requests: {}));
       final status = getSessionStatus(session);
       expect(status.state, SessionState.waiting);
     });

@@ -35,11 +35,7 @@ void main() {
         agentStateVersion: 1,
         thinking: false,
         presence: 'online',
-        metadata: Metadata(
-          host: 'test-host',
-          path: '/test/path',
-          name: name,
-        ),
+        metadata: Metadata(host: 'test-host', path: '/test/path', name: name),
       );
     }
 
@@ -69,7 +65,10 @@ void main() {
     test('should get session by id', () {
       final notifier = container.read(sessionsNotifierProvider.notifier);
 
-      final session = createTestSession(id: 'test-session', name: 'Test Session');
+      final session = createTestSession(
+        id: 'test-session',
+        name: 'Test Session',
+      );
       notifier.setSessions([session]);
 
       final retrieved = notifier.getSession('test-session');
@@ -135,7 +134,11 @@ void main() {
 
       final sessions = [
         createTestSession(id: 'active-session', name: 'Active', active: true),
-        createTestSession(id: 'inactive-session', name: 'Inactive', active: false),
+        createTestSession(
+          id: 'inactive-session',
+          name: 'Inactive',
+          active: false,
+        ),
       ];
 
       notifier.setSessions(sessions);

@@ -21,10 +21,10 @@ class SessionGitStatusNotifier extends Notifier<Map<String, GitStatus>> {
   }
 
   Future<void> refreshFromSync() => refreshSyncDomain(
-        invalidate: () => sync.sessionGitStatusSync,
-        name: 'git status',
-        reload: loadFromSync,
-      );
+    invalidate: () => sync.sessionGitStatusSync,
+    name: 'git status',
+    reload: loadFromSync,
+  );
 
   void setGitStatus(String sessionId, GitStatus status) {
     if (identical(state[sessionId], status)) return;

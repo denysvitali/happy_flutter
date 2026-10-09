@@ -10,22 +10,38 @@ void main() {
   group('streamFreshness', () {
     test('burst within the first 45 seconds', () {
       expect(
-        streamFreshness(nowMs: now, lastActivityAt: now - 44 * 1000, live: true),
+        streamFreshness(
+          nowMs: now,
+          lastActivityAt: now - 44 * 1000,
+          live: true,
+        ),
         StreamFreshness.burst,
       );
       expect(
-        streamFreshness(nowMs: now, lastActivityAt: now - 45 * 1000, live: true),
+        streamFreshness(
+          nowMs: now,
+          lastActivityAt: now - 45 * 1000,
+          live: true,
+        ),
         StreamFreshness.burst,
       );
     });
 
     test('fresh until three minutes', () {
       expect(
-        streamFreshness(nowMs: now, lastActivityAt: now - 46 * 1000, live: true),
+        streamFreshness(
+          nowMs: now,
+          lastActivityAt: now - 46 * 1000,
+          live: true,
+        ),
         StreamFreshness.fresh,
       );
       expect(
-        streamFreshness(nowMs: now, lastActivityAt: now - 3 * minute, live: true),
+        streamFreshness(
+          nowMs: now,
+          lastActivityAt: now - 3 * minute,
+          live: true,
+        ),
         StreamFreshness.fresh,
       );
     });
@@ -55,8 +71,7 @@ void main() {
       expect(
         streamFreshness(
           nowMs: now,
-          lastActivityAt:
-              now - missionSilentThreshold.inMilliseconds + 1,
+          lastActivityAt: now - missionSilentThreshold.inMilliseconds + 1,
           live: true,
         ),
         StreamFreshness.aging,

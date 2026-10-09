@@ -47,7 +47,8 @@ const String kReasonTimeout = 'timeout';
 
 /// Metric names, so call sites and tests cannot drift apart.
 const String kDecryptFailuresMetric = 'app.crypto.decrypt_failures';
-const String kUndecryptableRenderedMetric = 'app.messages.undecryptable_rendered';
+const String kUndecryptableRenderedMetric =
+    'app.messages.undecryptable_rendered';
 const String kSyncFailuresMetric = 'app.sync.failures';
 
 // ---------------------------------------------------------------------------
@@ -77,7 +78,8 @@ void recordDecryptFailure({
       'stage': stage,
       'from_cache': fromCache,
     },
-    description: 'Payloads the client failed to decrypt, by envelope and '
+    description:
+        'Payloads the client failed to decrypt, by envelope and '
         'the logical payload that failed',
   );
 }
@@ -85,16 +87,14 @@ void recordDecryptFailure({
 /// Count undecryptable messages that were turned into a user-visible
 /// error bubble.  [count] is the per-batch total for the same
 /// [errorType].
-void recordUndecryptableRendered({
-  required String errorType,
-  int count = 1,
-}) {
+void recordUndecryptableRendered({required String errorType, int count = 1}) {
   if (count <= 0) return;
   OpenTelemetryService().recordCount(
     kUndecryptableRenderedMetric,
     value: count,
     attributes: <String, Object?>{'error_type': errorType},
-    description: 'Messages rendered to the user as an error bubble because '
+    description:
+        'Messages rendered to the user as an error bubble because '
         'they could not be decrypted or decoded',
   );
 }

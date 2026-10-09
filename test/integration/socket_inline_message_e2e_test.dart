@@ -58,64 +58,53 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-    test(
-      'socket message for visible session is decrypted inline '
-      'and added to messages',
-      () async {
-        const sessionId = 'visible-sess-1';
+    test('socket message for visible session is decrypted inline '
+        'and added to messages', () async {
+      const sessionId = 'visible-sess-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 1,
-        );
-        sync.testSetSessionMessages(sessionId, []);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 1);
+      sync.testSetSessionMessages(sessionId, []);
 
-        // Mark the session as visible
-        sync.testVisibleSessionId = sessionId;
+      // Mark the session as visible
+      sync.testVisibleSessionId = sessionId;
 
-        // Pre-populate messagesSync so the inline path works
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
-        );
+      // Pre-populate messagesSync so the inline path works
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
 
-        // Inject a socket new-message event with an embedded message
-        final encMsg = _makeEncryptedMessage(
-          'msg-1',
-          seq: 2,
-          content: 'Hello from socket',
-        );
-        sync.handleUpdate({
-          't': 'new-message',
-          'sid': sessionId,
-          'message': encMsg,
-        });
+      // Inject a socket new-message event with an embedded message
+      final encMsg = _makeEncryptedMessage(
+        'msg-1',
+        seq: 2,
+        content: 'Hello from socket',
+      );
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': encMsg,
+      });
 
-        // Allow inline decryption to complete
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
-        );
+      // Allow inline decryption to complete
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(
-          msgs,
-          isNotNull,
-          reason: 'Messages list should exist after inline processing',
-        );
-        expect(
-          msgs!.isNotEmpty,
-          isTrue,
-          reason: 'Inline message should appear in session messages',
-        );
-      },
-    );
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(
+        msgs,
+        isNotNull,
+        reason: 'Messages list should exist after inline processing',
+      );
+      expect(
+        msgs!.isNotEmpty,
+        isTrue,
+        reason: 'Inline message should appear in session messages',
+      );
+    });
 
     test('inline message advances seq cursor', () async {
       const sessionId = 'visible-seq-1';
 
-      sync.testSessions[sessionId] = _makeSession(
-        sessionId,
-        lastSeq: 5,
-      );
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 5);
       sync.testSetSessionMessages(sessionId, []);
       sync.testSetSessionLastSeq(sessionId, 5);
       sync.testVisibleSessionId = sessionId;
@@ -134,9 +123,7 @@ void main() {
         'message': encMsg,
       });
 
-      await Future<void>.delayed(
-        const Duration(milliseconds: 200),
-      );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
       // Cursor should have advanced to at least seq 6
       final cursors = sync.sessionMessageCursors;
@@ -148,73 +135,58 @@ void main() {
       );
     });
 
-    test(
-      'multiple inline messages are processed in order',
-      () async {
-        const sessionId = 'visible-order-1';
+    test('multiple inline messages are processed in order', () async {
+      const sessionId = 'visible-order-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 10,
-        );
-        sync.testSetSessionMessages(sessionId, []);
-        sync.testSetSessionLastSeq(sessionId, 10);
-        sync.testVisibleSessionId = sessionId;
-        sync.messagesSync[sessionId] = InvalidateSync(
-          () => sync.fetchMessages(sessionId),
-        );
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+      sync.testSetSessionMessages(sessionId, []);
+      sync.testSetSessionLastSeq(sessionId, 10);
+      sync.testVisibleSessionId = sessionId;
+      sync.messagesSync[sessionId] = InvalidateSync(
+        () => sync.fetchMessages(sessionId),
+      );
 
-        // Send 3 messages with different seqs
-        for (var i = 11; i <= 13; i++) {
-          sync.handleUpdate({
-            't': 'new-message',
-            'sid': sessionId,
-            'message': _makeEncryptedMessage(
-              'msg-$i',
-              seq: i,
-              content: 'Message $i',
-            ),
-          });
-        }
+      // Send 3 messages with different seqs
+      for (var i = 11; i <= 13; i++) {
+        sync.handleUpdate({
+          't': 'new-message',
+          'sid': sessionId,
+          'message': _makeEncryptedMessage(
+            'msg-$i',
+            seq: i,
+            content: 'Message $i',
+          ),
+        });
+      }
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 200),
-        );
+      await Future<void>.delayed(const Duration(milliseconds: 200));
 
-        final msgs = sync.testSessionMessages(sessionId);
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull, reason: 'Messages should be present');
+      // All 3 messages should be in the list
+      expect(
+        msgs!.length,
+        greaterThanOrEqualTo(3),
+        reason: 'All 3 inline messages should be stored',
+      );
+
+      // Verify messages are in ascending seq order
+      final seqs = msgs.map((m) => m['seq'] as int? ?? 0).toList();
+      for (var i = 1; i < seqs.length; i++) {
         expect(
-          msgs,
-          isNotNull,
-          reason: 'Messages should be present',
+          seqs[i],
+          greaterThanOrEqualTo(seqs[i - 1]),
+          reason: 'Messages should be in ascending seq order',
         );
-        // All 3 messages should be in the list
-        expect(
-          msgs!.length,
-          greaterThanOrEqualTo(3),
-          reason: 'All 3 inline messages should be stored',
-        );
-
-        // Verify messages are in ascending seq order
-        final seqs = msgs.map((m) => m['seq'] as int? ?? 0).toList();
-        for (var i = 1; i < seqs.length; i++) {
-          expect(
-            seqs[i],
-            greaterThanOrEqualTo(seqs[i - 1]),
-            reason: 'Messages should be in ascending seq order',
-          );
-        }
-      },
-    );
+      }
+    });
 
     test(
       'inline codex tool-call and result are merged into a rendered tool',
       () async {
         const sessionId = 'visible-codex-tool-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 20,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 20);
         sync.testSetSessionMessages(sessionId, []);
         sync.testSetSessionLastSeq(sessionId, 20);
         sync.testVisibleSessionId = sessionId;
@@ -260,9 +232,7 @@ void main() {
           ),
         });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 300),
-        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
         final msgs = sync.testSessionMessages(sessionId);
         expect(msgs, isNotNull);
@@ -282,10 +252,7 @@ void main() {
       () async {
         const sessionId = 'visible-notify-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 1,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 1);
         sync.testSetSessionMessages(sessionId, []);
         sync.testVisibleSessionId = sessionId;
         sync.messagesSync[sessionId] = InvalidateSync(
@@ -293,9 +260,7 @@ void main() {
         );
 
         final notifiedIds = <String>[];
-        final sub = sync.onSessionMessagesChanged.listen(
-          notifiedIds.add,
-        );
+        final sub = sync.onSessionMessagesChanged.listen(notifiedIds.add);
 
         final encMsg = _makeEncryptedMessage(
           'msg-notify-1',
@@ -309,9 +274,7 @@ void main() {
         });
 
         // Wait for: async inline decryption + 200ms debounce timer
-        await Future<void>.delayed(
-          const Duration(milliseconds: 500),
-        );
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
         await sub.cancel();
 
@@ -328,10 +291,7 @@ void main() {
       () async {
         const sessionId = 'visible-domain-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 1,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 1);
         sync.testSetSessionMessages(sessionId, []);
         sync.testVisibleSessionId = sessionId;
         sync.messagesSync[sessionId] = InvalidateSync(
@@ -433,10 +393,7 @@ void main() {
       () async {
         const sessionId = 'non-visible-pending-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 5,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 5);
         sync.testSetSessionMessages(sessionId, []);
 
         // Ensure no session is visible
@@ -454,9 +411,7 @@ void main() {
         });
 
         // Allow inline processing
-        await Future<void>.delayed(
-          const Duration(milliseconds: 500),
-        );
+        await Future<void>.delayed(const Duration(milliseconds: 500));
 
         // Embedded messages are now processed inline for
         // non-visible sessions.  The pending socket flag is only
@@ -484,10 +439,7 @@ void main() {
       () async {
         const sessionId = 'non-visible-domain-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 5,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 5);
         sync.testSetSessionMessages(sessionId, []);
         sync.testVisibleSessionId = 'some-other-session';
 
@@ -537,76 +489,64 @@ void main() {
       },
     );
 
-    test(
-      'non-visible session decrypts and merges messages inline',
-      () async {
-        const sessionId = 'non-visible-no-decrypt-1';
+    test('non-visible session decrypts and merges messages inline', () async {
+      const sessionId = 'non-visible-no-decrypt-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 5,
-        );
-        // Pre-populate with an existing message
-        final existingMessages = [
-          {
-            'id': 'old-msg',
-            'seq': 5,
-            'role': 'user',
-            'text': 'existing',
-            'createdAt': 1700000005000,
-          },
-        ];
-        sync.testSetSessionMessages(sessionId, existingMessages);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 5);
+      // Pre-populate with an existing message
+      final existingMessages = [
+        {
+          'id': 'old-msg',
+          'seq': 5,
+          'role': 'user',
+          'text': 'existing',
+          'createdAt': 1700000005000,
+        },
+      ];
+      sync.testSetSessionMessages(sessionId, existingMessages);
 
-        // Different session is visible
-        sync.testVisibleSessionId = 'some-other-session';
+      // Different session is visible
+      sync.testVisibleSessionId = 'some-other-session';
 
-        final encMsg = _makeEncryptedMessage(
-          'msg-bg-2',
-          seq: 6,
-          content: 'Should be decrypted inline',
-        );
-        sync.handleUpdate({
-          't': 'new-message',
-          'sid': sessionId,
-          'message': encMsg,
-        });
+      final encMsg = _makeEncryptedMessage(
+        'msg-bg-2',
+        seq: 6,
+        content: 'Should be decrypted inline',
+      );
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': encMsg,
+      });
 
-        await Future<void>.delayed(
-          const Duration(milliseconds: 500),
-        );
+      await Future<void>.delayed(const Duration(milliseconds: 500));
 
-        // Non-visible sessions now process embedded messages
-        // inline so they are available immediately on navigation.
-        final msgs = sync.testSessionMessages(sessionId);
-        expect(
-          msgs,
-          isNotNull,
-          reason: 'Messages should be present',
-        );
-        // Existing message should be preserved; new one merged.
-        expect(
-          msgs!.length,
-          greaterThanOrEqualTo(1),
-          reason:
-              'Non-visible session should have at least the '
-              'existing message after inline processing',
-        );
-        expect(
-          msgs.any((m) => m['id'] == 'old-msg'),
-          isTrue,
-          reason: 'Original message should be preserved',
-        );
+      // Non-visible sessions now process embedded messages
+      // inline so they are available immediately on navigation.
+      final msgs = sync.testSessionMessages(sessionId);
+      expect(msgs, isNotNull, reason: 'Messages should be present');
+      // Existing message should be preserved; new one merged.
+      expect(
+        msgs!.length,
+        greaterThanOrEqualTo(1),
+        reason:
+            'Non-visible session should have at least the '
+            'existing message after inline processing',
+      );
+      expect(
+        msgs.any((m) => m['id'] == 'old-msg'),
+        isTrue,
+        reason: 'Original message should be preserved',
+      );
 
-        // lastSeq should track the server seq.
-        final session = sync.testSessions[sessionId];
-        expect(
-          session!.lastSeq,
-          equals(6),
-          reason: 'lastSeq should track server seq',
-        );
-      },
-    );
+      // lastSeq should track the server seq.
+      final session = sync.testSessions[sessionId];
+      expect(
+        session!.lastSeq,
+        equals(6),
+        reason: 'lastSeq should track server seq',
+      );
+    });
   });
 
   group('session visibility transitions', () {
@@ -641,16 +581,12 @@ void main() {
       sync.testVisibleSessionId = null;
     });
 
-
     test(
       'switching visible session triggers fetch for pending messages',
       () async {
         const sessionId = 'pending-fetch-sess-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 10,
-        );
+        sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
         sync.testSetSessionMessages(sessionId, []);
         sync.testSetSessionLastSeq(sessionId, 5);
 
@@ -667,19 +603,14 @@ void main() {
         final fetchedSessions = <String>[];
         sync.testFetchMessagesOverride = (sid, afterSeq, limit) async {
           fetchedSessions.add(sid);
-          return {
-            'messages': <Map<String, dynamic>>[],
-            'hasMore': false,
-          };
+          return {'messages': <Map<String, dynamic>>[], 'hasMore': false};
         };
 
         // Simulate user navigating to the session with pending messages
         await sync.onSessionVisible(sessionId);
 
         // Allow fetch to complete
-        await Future<void>.delayed(
-          const Duration(milliseconds: 300),
-        );
+        await Future<void>.delayed(const Duration(milliseconds: 300));
 
         expect(
           fetchedSessions.contains(sessionId),
@@ -691,159 +622,147 @@ void main() {
       },
     );
 
-    test(
-      'background seq jump reopens from the pre-burst cursor',
-      () async {
-        const sessionId = 'background-gap-sess-1';
+    test('background seq jump reopens from the pre-burst cursor', () async {
+      const sessionId = 'background-gap-sess-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 10,
-        );
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': 'msg-10',
-            'seq': 10,
-            'role': 'agent',
-            'kind': 'text',
-            'content': 'Before leaving chat',
-            'createdAt': 1700000010000,
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 10);
-        sync.testVisibleSessionId = 'some-other-session';
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 10);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': 'msg-10',
+          'seq': 10,
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'Before leaving chat',
+          'createdAt': 1700000010000,
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 10);
+      sync.testVisibleSessionId = 'some-other-session';
 
-        // Seq 11 is lost by the socket while the chat is hidden. Seq 12
-        // arrives inline and advances the high-water cursor past the gap.
-        sync.handleUpdate({
-          't': 'new-message',
-          'sid': sessionId,
-          'message': _makeEncryptedMessage(
-            'msg-12',
-            seq: 12,
-            content: 'Arrived after the gap',
-          ),
-        });
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        expect(sync.testGetSessionLastSeq(sessionId), 12);
+      // Seq 11 is lost by the socket while the chat is hidden. Seq 12
+      // arrives inline and advances the high-water cursor past the gap.
+      sync.handleUpdate({
+        't': 'new-message',
+        'sid': sessionId,
+        'message': _makeEncryptedMessage(
+          'msg-12',
+          seq: 12,
+          content: 'Arrived after the gap',
+        ),
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(sync.testGetSessionLastSeq(sessionId), 12);
 
-        final requestedAfterSeqs = <int>[];
-        sync.testFetchMessagesOverride = (_, afterSeq, __) async {
-          requestedAfterSeqs.add(afterSeq);
-          return {
-            'messages': <Map<String, dynamic>>[
-              _makeEncryptedMessage(
-                'msg-11',
-                seq: 11,
-                content: 'Recovered missing progress',
-              ),
-              _makeEncryptedMessage(
-                'msg-12',
-                seq: 12,
-                content: 'Arrived after the gap',
-              ),
-            ],
-            'hasMore': false,
-          };
+      final requestedAfterSeqs = <int>[];
+      sync.testFetchMessagesOverride = (_, afterSeq, __) async {
+        requestedAfterSeqs.add(afterSeq);
+        return {
+          'messages': <Map<String, dynamic>>[
+            _makeEncryptedMessage(
+              'msg-11',
+              seq: 11,
+              content: 'Recovered missing progress',
+            ),
+            _makeEncryptedMessage(
+              'msg-12',
+              seq: 12,
+              content: 'Arrived after the gap',
+            ),
+          ],
+          'hasMore': false,
         };
+      };
 
-        await sync.onSessionVisible(sessionId);
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+      await sync.onSessionVisible(sessionId);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
 
-        expect(
-          requestedAfterSeqs,
-          [10],
-          reason:
-              'Reopening must verify from the cursor before the hidden '
-              'burst, not skip from the newer high-water seq.',
-        );
-        final messages = sync.testSessionMessages(sessionId)!;
-        expect(
-          messages.where((message) => message['id'] == 'msg-11'),
-          hasLength(1),
-          reason: 'The socket gap must be recovered from HTTP exactly once.',
-        );
-        expect(
-          messages.where((message) => message['id'] == 'msg-12'),
-          hasLength(1),
-          reason: 'The overlapping socket row must not be duplicated.',
-        );
-      },
-    );
+      expect(
+        requestedAfterSeqs,
+        [10],
+        reason:
+            'Reopening must verify from the cursor before the hidden '
+            'burst, not skip from the newer high-water seq.',
+      );
+      final messages = sync.testSessionMessages(sessionId)!;
+      expect(
+        messages.where((message) => message['id'] == 'msg-11'),
+        hasLength(1),
+        reason: 'The socket gap must be recovered from HTTP exactly once.',
+      );
+      expect(
+        messages.where((message) => message['id'] == 'msg-12'),
+        hasLength(1),
+        reason: 'The overlapping socket row must not be duplicated.',
+      );
+    });
 
-    test(
-      'cached cursor from an older build gets one repair overlap',
-      () async {
-        const sessionId = 'legacy-background-gap-sess-1';
+    test('cached cursor from an older build gets one repair overlap', () async {
+      const sessionId = 'legacy-background-gap-sess-1';
 
-        sync.testSessions[sessionId] = _makeSession(
-          sessionId,
-          lastSeq: 65,
-        );
-        sync.testSetSessionMessages(sessionId, [
-          {
-            'id': 'msg-1',
-            'seq': 1,
-            'role': 'user',
-            'kind': 'text',
-            'content': 'Start',
-            'createdAt': 1700000001000,
-          },
-          {
-            'id': 'msg-65',
-            'seq': 65,
-            'role': 'agent',
-            'kind': 'text',
-            'content': 'Visible later progress',
-            'createdAt': 1700000065000,
-          },
-        ]);
-        sync.testSetSessionLastSeq(sessionId, 65);
-        sync.testMarkSessionRestoredFromMessageCache(sessionId);
+      sync.testSessions[sessionId] = _makeSession(sessionId, lastSeq: 65);
+      sync.testSetSessionMessages(sessionId, [
+        {
+          'id': 'msg-1',
+          'seq': 1,
+          'role': 'user',
+          'kind': 'text',
+          'content': 'Start',
+          'createdAt': 1700000001000,
+        },
+        {
+          'id': 'msg-65',
+          'seq': 65,
+          'role': 'agent',
+          'kind': 'text',
+          'content': 'Visible later progress',
+          'createdAt': 1700000065000,
+        },
+      ]);
+      sync.testSetSessionLastSeq(sessionId, 65);
+      sync.testMarkSessionRestoredFromMessageCache(sessionId);
 
-        final requestedAfterSeqs = <int>[];
-        sync.testFetchMessagesOverride = (_, afterSeq, __) async {
-          requestedAfterSeqs.add(afterSeq);
-          return {
-            'messages': <Map<String, dynamic>>[
-              _makeEncryptedMessage(
-                'msg-4',
-                seq: 4,
-                content: 'Recovered progress from the old cache gap',
-              ),
-              _makeEncryptedMessage(
-                'msg-65',
-                seq: 65,
-                content: 'Visible later progress',
-              ),
-            ],
-            'hasMore': false,
-          };
+      final requestedAfterSeqs = <int>[];
+      sync.testFetchMessagesOverride = (_, afterSeq, __) async {
+        requestedAfterSeqs.add(afterSeq);
+        return {
+          'messages': <Map<String, dynamic>>[
+            _makeEncryptedMessage(
+              'msg-4',
+              seq: 4,
+              content: 'Recovered progress from the old cache gap',
+            ),
+            _makeEncryptedMessage(
+              'msg-65',
+              seq: 65,
+              content: 'Visible later progress',
+            ),
+          ],
+          'hasMore': false,
         };
+      };
 
-        await sync.onSessionVisible(sessionId);
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+      await sync.onSessionVisible(sessionId);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
 
-        expect(
-          requestedAfterSeqs,
-          [0],
-          reason:
-              'The first open after upgrading must overlap the bounded '
-              'cached window instead of trusting the old high-water cursor.',
-        );
-        final messages = sync.testSessionMessages(sessionId)!;
-        expect(
-          messages.where((message) => message['id'] == 'msg-4'),
-          hasLength(1),
-          reason: 'The already-persisted socket gap must be repaired.',
-        );
-        expect(
-          messages.where((message) => message['id'] == 'msg-65'),
-          hasLength(1),
-          reason: 'The repair overlap must deduplicate cached rows.',
-        );
-      },
-    );
+      expect(
+        requestedAfterSeqs,
+        [0],
+        reason:
+            'The first open after upgrading must overlap the bounded '
+            'cached window instead of trusting the old high-water cursor.',
+      );
+      final messages = sync.testSessionMessages(sessionId)!;
+      expect(
+        messages.where((message) => message['id'] == 'msg-4'),
+        hasLength(1),
+        reason: 'The already-persisted socket gap must be repaired.',
+      );
+      expect(
+        messages.where((message) => message['id'] == 'msg-65'),
+        hasLength(1),
+        reason: 'The repair overlap must deduplicate cached rows.',
+      );
+    });
   });
 }
 
@@ -887,10 +806,7 @@ Map<String, dynamic> _makeEncryptedMessage(
   return _makeEncryptedStructuredMessage(
     id,
     seq: seq,
-    data: {
-      'type': 'message',
-      'message': content,
-    },
+    data: {'type': 'message', 'message': content},
   );
 }
 
@@ -901,10 +817,7 @@ Map<String, dynamic> _makeEncryptedStructuredMessage(
 }) {
   final innerContent = {
     'role': 'agent',
-    'content': {
-      'type': 'codex',
-      'data': data,
-    },
+    'content': {'type': 'codex', 'data': data},
   };
   final jsonStr = jsonEncode(innerContent);
   final bytes = utf8.encode(jsonStr);
@@ -956,22 +869,20 @@ class _FakeEncryption implements Encryption {
   }
 
   @override
-  String generateId() =>
-      'test-local-${DateTime.now().microsecondsSinceEpoch}';
+  String generateId() => 'test-local-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSessionEncryption extends SessionEncryption {
   _FakeSessionEncryption({required String sessionId})
-      : super(
-          sessionId: sessionId,
-          encryptor: _FakeEncryptor(),
-          decryptor: _FakeEncryptor(),
-          cache: EncryptionCache(),
-        );
+    : super(
+        sessionId: sessionId,
+        encryptor: _FakeEncryptor(),
+        decryptor: _FakeEncryptor(),
+        cache: EncryptionCache(),
+      );
 }
 
 class _FakeEncryptor implements Encryptor {

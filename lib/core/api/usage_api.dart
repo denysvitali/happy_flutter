@@ -9,9 +9,7 @@ import 'base_api_exception.dart';
 /// Handles API usage tracking, token usage, and cost statistics
 /// Based on React Native's apiUsage.ts
 class UsageApi {
-
-  UsageApi({ApiClient? client})
-      : _client = client ?? ApiClient();
+  UsageApi({ApiClient? client}) : _client = client ?? ApiClient();
   final ApiClient _client;
 
   /// Query usage data from the server
@@ -86,26 +84,17 @@ class UsageApi {
 
   /// Get usage for today (hourly grouped)
   Future<UsageResponse> getTodayUsage({String? sessionId}) {
-    return getUsageForPeriod(
-      UsagePeriod.today,
-      sessionId: sessionId,
-    );
+    return getUsageForPeriod(UsagePeriod.today, sessionId: sessionId);
   }
 
   /// Get usage for the last 7 days (daily grouped)
   Future<UsageResponse> getSevenDayUsage({String? sessionId}) {
-    return getUsageForPeriod(
-      UsagePeriod.sevenDays,
-      sessionId: sessionId,
-    );
+    return getUsageForPeriod(UsagePeriod.sevenDays, sessionId: sessionId);
   }
 
   /// Get usage for the last 30 days (daily grouped)
   Future<UsageResponse> getThirtyDayUsage({String? sessionId}) {
-    return getUsageForPeriod(
-      UsagePeriod.thirtyDays,
-      sessionId: sessionId,
-    );
+    return getUsageForPeriod(UsagePeriod.thirtyDays, sessionId: sessionId);
   }
 
   /// Get usage for a specific session
@@ -131,11 +120,7 @@ class UsageApi {
     final response = await getUsageForPeriod(period, sessionId: sessionId);
     final totals = UsageApi.calculateTotals(response.usage);
 
-    return UsageSummary(
-      usage: response.usage,
-      totals: totals,
-      period: period,
-    );
+    return UsageSummary(usage: response.usage, totals: totals, period: period);
   }
 }
 
@@ -149,7 +134,6 @@ class UsageApiException extends BaseApiException {
 
 /// Usage summary with raw data and calculated totals
 class UsageSummary {
-
   const UsageSummary({
     required this.usage,
     required this.totals,

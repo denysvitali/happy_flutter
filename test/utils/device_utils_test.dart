@@ -175,10 +175,7 @@ void main() {
     });
 
     test('web returns 56', () {
-      final result = calculateHeaderHeight(
-        platform: 'web',
-        isLandscape: false,
-      );
+      final result = calculateHeaderHeight(platform: 'web', isLandscape: false);
       expect(result, 56);
     });
 
