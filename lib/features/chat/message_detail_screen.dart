@@ -19,9 +19,11 @@ import 'tools/known_tools.dart';
 import 'tools/tool_status_indicator.dart';
 import 'tools/tool_view.dart' show parseToolState;
 import 'tools/views/codex_mcp_view.dart';
+import 'tools/views/edit_view.dart';
 import 'tools/views/mcp_exec_view.dart';
 import 'tools/views/send_message_view.dart';
 import 'tools/views/web_search_view.dart';
+import 'tools/views/write_view.dart';
 import 'package:happy_flutter/core/components/app_card.dart';
 import 'package:happy_flutter/core/theme/app_text.dart';
 
@@ -185,6 +187,8 @@ class _ToolDetailView extends StatelessWidget {
         ? McpExecResult.tryParse(result)
         : null;
 
+    final fileEditBody = hasLargePayload ? null : _fileEditBody(toolName, data);
+
     return ListView(
       padding: AppScreenPadding.standard,
       children: [
@@ -244,6 +248,24 @@ class _ToolDetailView extends StatelessWidget {
           // stay one disclosure away.
           McpExecView(tool: data, exec: execResult, boxed: false),
           const SizedBox(height: AppSpacing.md),
+          _RawPayloadDisclosure(input: input, result: result, state: state),
+          const SizedBox(height: AppSpacing.md),
+        ] else if (fileEditBody != null) ...[
+          // File edits read as a diff or file preview, not as old/new text
+          // escaped inside a JSON tree. The arguments stay one tap away.
+          fileEditBody,
+          if (hasResult && state == ToolState.error) ...[
+            _ToolResultSection(
+              title: context.l10n.commonError,
+              icon: Icons.error_outline,
+              json: result is Map || result is List ? result : null,
+              text: result is! Map && result is! List
+                  ? result.toString()
+                  : null,
+              isError: true,
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
           _RawPayloadDisclosure(input: input, result: result, state: state),
           const SizedBox(height: AppSpacing.md),
         ] else if (KnownTools.codexMcpToolNames.contains(toolName) &&
@@ -376,6 +398,23 @@ String? _commandResultText(String toolName, dynamic result) {
   if (stderr is String && stderr.isNotEmpty) return stderr;
 
   return null;
+}
+
+/// The diff or file preview for an Edit/Write call, or null when the call is
+/// another tool or carries no text to show.
+Widget? _fileEditBody(String toolName, Map<String, dynamic> data) {
+  final input = WireParsers.asMap(data['input']);
+  if (input == null) return null;
+  bool has(String key) => input[key] is String && input[key] != '';
+  switch (toolName) {
+    case 'Edit':
+      if (!has('old_string') && !has('new_string') && !has('diff')) return null;
+      return EditView(tool: data);
+    case 'Write':
+      return has('content') ? WriteView(tool: data) : null;
+    default:
+      return null;
+  }
 }
 
 String? _commandInputText(String toolName, Map<String, dynamic>? input) {

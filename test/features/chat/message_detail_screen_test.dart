@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/features/chat/message_detail_screen.dart';
 import 'package:happy_flutter/features/chat/tools/json_viewer.dart';
+import 'package:happy_flutter/features/chat/tools/views/edit_view.dart';
 
 Widget _wrap(Widget child) {
   return ProviderScope(
@@ -450,6 +451,81 @@ void main() {
       expect(rendered, isNot(contains('max_bytes')));
       expect(rendered, isNot(contains('binary_output')));
       expect(find.text('Raw JSON'), findsOneWidget);
+    });
+  });
+
+  group('MessageDetailScreen — file edits', () {
+    testWidgets('shows a file edit as a diff with the arguments one tap away', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm-edit',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'Edit',
+              'state': 'completed',
+              'input': <String, dynamic>{
+                'path': 'internal/config/backend.go',
+                'file_path': 'internal/config/backend.go',
+                'expected_version': '9afe82cbe228',
+                'old_text': 'return failure',
+                'new_text': 'return saveSetting(value)',
+                'old_string': 'return failure',
+                'new_string': 'return saveSetting(value)',
+              },
+              'wireInput': <String, dynamic>{
+                'path': 'internal/config/backend.go',
+                'expected_version': '9afe82cbe228',
+                'old_text': 'return failure',
+                'new_text': 'return saveSetting(value)',
+              },
+              'result': '- return failure\n+ return saveSetting(value)',
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EditView), findsOneWidget);
+      expect(find.text('Raw JSON'), findsOneWidget);
+      // The JSON tree of the arguments is not the first thing on screen.
+      expect(_renderedText(tester), isNot(contains('expected_version')));
+      expect(_renderedText(tester), contains('saveSetting'));
+
+      await tester.tap(find.text('Raw JSON'));
+      await tester.pumpAndSettle();
+      expect(_renderedText(tester), contains('expected_version'));
+      // View-only aliases are not presented as arguments.
+      expect(_renderedText(tester), isNot(contains('old_string')));
+    });
+
+    testWidgets('a failed edit still shows its error', (tester) async {
+      await tester.pumpWidget(
+        _wrap(
+          const MessageDetailScreen(
+            sessionId: 's1',
+            messageId: 'm-edit-failed',
+            messageData: <String, dynamic>{
+              'kind': 'tool-call',
+              'name': 'Edit',
+              'state': 'error',
+              'input': <String, dynamic>{
+                'file_path': 'a.go',
+                'old_string': 'x',
+                'new_string': 'y',
+              },
+              'result': 'error: stale_version',
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EditView), findsOneWidget);
+      expect(_renderedText(tester), contains('error: stale_version'));
     });
   });
 }
