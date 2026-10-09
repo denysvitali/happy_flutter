@@ -106,6 +106,9 @@ extension SyncLifecycle on Sync {
     // backgrounded.  Checked in InvalidateSync._run() before the
     // await _action() call.
     InvalidateSync.isBackgrounded = true;
+    // Nothing is delivered from here until the socket is back, so every
+    // session's "caught up" state is unverified again.
+    _liveFeedEpoch++;
     settingsManager?.suspendPendingSync();
     _lastSuspendedAtMs = DateTime.now().millisecondsSinceEpoch;
     // Quiesce all InvalidateSync retry/cooldown timers without disposing the
@@ -1146,6 +1149,7 @@ extension SyncLifecycle on Sync {
     _sessionsNeedingFetchProbe.clear();
     _messageFetchProbeIntents.clear();
     _messageFetchCoverage.clear();
+    _sessionTailVerifiedEpoch.clear();
     _messageFetchWorkOrder = 0;
     // _sessionsNeedingVisibleRegroup cleared in shutdown (orphans from
     // the previous user would be re-grouped on next login, causing

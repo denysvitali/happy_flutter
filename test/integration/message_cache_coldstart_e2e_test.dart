@@ -348,10 +348,11 @@ void main() {
 
         expect(
           capturedAfterSeqs,
-          isEmpty,
+          [5],
           reason:
-              'The first fetch sees stale cursor==lastSeq and skips HTTP, '
-              'matching the cold-start race.',
+              'Nothing has confirmed this tail in this process, so the '
+              'first open asks the message API instead of trusting the '
+              'stale cursor==lastSeq.',
         );
 
         sessionsCompleter.complete();
@@ -362,8 +363,8 @@ void main() {
           capturedAfterSeqs,
           [5],
           reason:
-              'After sessions refresh, the visible chat should force one '
-              'delta probe from the cached cursor.',
+              'The probe queued behind the sessions refresh is already '
+              'covered by that fetch and must not repeat it.',
         );
 
         final seqs = sync

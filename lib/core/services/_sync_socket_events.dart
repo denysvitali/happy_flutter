@@ -61,6 +61,10 @@ extension SyncSocketEvents on Sync {
       _reconnectWatchdogTimer?.cancel();
       _reconnectWatchdogTimer = null;
       _reconnectWatchdogAttempt = 0;
+      // Whatever was written while the socket was down was never pushed.
+      // The visible chat is probed below; every other session is probed
+      // when it is next opened.
+      _liveFeedEpoch++;
       // A reconnect may be due to a daemon upgrade that now supports
       // workflow-list. Clear the capability block so the next refresh
       // re-probes instead of silently skipping.

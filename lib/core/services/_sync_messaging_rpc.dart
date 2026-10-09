@@ -1211,6 +1211,13 @@ extension SyncMessagingRpc on Sync {
       // arrived without an embedded message. Bypass fetchMessages()'s
       // cursor==server skip once so the message API is authoritative.
       _requestMessageFetchProbe(sessionId);
+    } else if (_sessionTailVerifiedEpoch[sessionId] != _liveFeedEpoch) {
+      // Live delivery was interrupted since the message API last confirmed
+      // this session's tail (or it never has). A session that kept running
+      // meanwhile still shows cursor == Session.lastSeq here, so the fetch
+      // below would skip its HTTP request and the chat would sit on its old
+      // tail until the user sent something. Ask the message API once.
+      _requestMessageFetchProbe(sessionId);
     }
     if (!isInitialized) return;
     if (!messagesSync.containsKey(sessionId)) {

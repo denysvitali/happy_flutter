@@ -707,6 +707,19 @@ what you have, you must use the options mode.
       <String, ({int requestOrder, int verifiedAfterSeq})>{};
   int _messageFetchWorkOrder = 0;
 
+  /// Bumped each time live delivery was interrupted: the app was suspended
+  /// or the socket had to reconnect. Rows written during the interruption
+  /// were never pushed, and the sessions catalog does not reliably report
+  /// them either — the delta fetch is keyed on the session row's
+  /// `updated_at`, which message ingestion does not move.
+  int _liveFeedEpoch = 0;
+
+  /// The [_liveFeedEpoch] in which the message API last confirmed the end
+  /// of each session's history. A session whose entry is behind the current
+  /// epoch cannot trust `cursor == Session.lastSeq` as "caught up": both
+  /// sides of that comparison predate the interruption.
+  final Map<String, int> _sessionTailVerifiedEpoch = <String, int>{};
+
   /// Per-session serial queue for inline message processing.
   final InlineMessageProcessor _inlineProcessor = InlineMessageProcessor();
 

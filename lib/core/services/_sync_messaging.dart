@@ -713,6 +713,22 @@ extension SyncMessaging on Sync {
         var hitBudget = false;
         int? cycleRequestOrder;
         int? cycleVerifiedAfterSeq;
+        final cycleLiveFeedEpoch = _liveFeedEpoch;
+        final cycleStartAfterSeq = afterSeq;
+        // A cycle that stops short of the end must not be mistaken for
+        // "caught up" by its own continuation. Advancing the cursor also
+        // lifts a stale Session.lastSeq up to it, so the follow-up cycle
+        // saw cursor == lastSeq and skipped, stranding the rest of the
+        // history until something else forced a probe (in practice: the
+        // user sending a message). Progress is required so a server that
+        // keeps answering hasMore without rows cannot spin this forever.
+        void continueCrawl() {
+          if (afterSeq > cycleStartAfterSeq) {
+            _requestMessageFetchProbe(sessionId);
+          }
+          messagesSync[sessionId]?.invalidate();
+        }
+
         final droppedReasonCounts = <String, int>{};
         // Track every message id we upserted across pages so the final
         // sidechain pass can use the changedIds fast path instead of
@@ -739,7 +755,7 @@ extension SyncMessaging on Sync {
             );
             // Re-trigger so the next cycle continues from the advanced
             // cursor; the user keeps the messages already merged.
-            messagesSync[sessionId]?.invalidate();
+            continueCrawl();
             break;
           }
           // ── Check visibility ──
@@ -1192,6 +1208,7 @@ extension SyncMessaging on Sync {
           }
 
           if (!hasMore) {
+            _sessionTailVerifiedEpoch[sessionId] = cycleLiveFeedEpoch;
             final catchUpTarget = max(
               max(rawCursorSeq, _sessionLastSeq[sessionId] ?? 0),
               max(serverLastSeq, _sessions[sessionId]?.lastSeq ?? 0),
@@ -1224,7 +1241,7 @@ extension SyncMessaging on Sync {
               '— stopping forward crawl at afterSeq=$afterSeq',
             );
             // Re-trigger so the next cycle continues from the new cursor.
-            messagesSync[sessionId]?.invalidate();
+            continueCrawl();
             pageSpan.setData('hitMaxPages', true);
             await pageSpan.finish();
             break;
@@ -1246,7 +1263,7 @@ extension SyncMessaging on Sync {
               'decryptMs=$totalDecryptMs) '
               '— deferring remaining pages to next cycle',
             );
-            messagesSync[sessionId]?.invalidate();
+            continueCrawl();
             pageSpan.setData('hitBudget', true);
             await pageSpan.finish();
             break;
@@ -2017,6 +2034,7 @@ extension SyncMessaging on Sync {
     _sessionsNeedingLegacySocketGapRepair.remove(sessionId);
     _cancelMessageFetchProbe(sessionId);
     _messageFetchCoverage.remove(sessionId);
+    _sessionTailVerifiedEpoch.remove(sessionId);
     _orphanFetchOlderAttemptedMs.remove(sessionId);
     _orphanFetchOlderNoProgressCount.remove(sessionId);
     _orphanWalkbackOrphanIds.remove(sessionId);
