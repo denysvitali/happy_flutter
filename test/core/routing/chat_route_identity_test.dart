@@ -110,6 +110,12 @@ void main() {
     sync.isInitialized = true;
     _seedSession('session_a', 'Hello from A');
     _seedSession('session_b', 'Hello from B');
+    // Popping back to a covered chat rebuilds its message queue and probes
+    // the server; keep that fetch off the network.
+    sync.testFetchMessagesOverride = (_, _, _) async => {
+      'messages': <Map<String, dynamic>>[],
+      'hasMore': false,
+    };
   });
 
   tearDown(() async {
@@ -118,6 +124,7 @@ void main() {
       sync.testSessions.remove(id);
       sync.messagesSync.remove(id);
     }
+    sync.testFetchMessagesOverride = null;
     sync.isInitialized = false;
     await TtsService().dispose();
   });
@@ -165,7 +172,11 @@ void main() {
 
       router.pop();
       await _settle(tester);
+      // B is disposed when the pop transition ends, which is when A reclaims
+      // visibility; let that hand-off run.
+      await _settle(tester);
 
+      expect(sync.testGetVisibleSessionId(), 'session_a');
       expect(_visibleChatSessionId(tester), 'session_a');
       expect(find.text('Hello from A'), findsOneWidget);
       expect(find.text('Hello from B'), findsNothing);
