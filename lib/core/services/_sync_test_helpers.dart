@@ -153,6 +153,16 @@ extension SyncTestHelpers on Sync {
       _criticalSyncManagersInitialized = value;
 
   @visibleForTesting
+  void testResetNonCriticalPhaseClock() {
+    _lastDeferredPhaseAtMs = null;
+    _lastBackgroundPhaseAtMs = null;
+  }
+
+  @visibleForTesting
+  void testSchedulePostResumeNonCriticalSyncs() =>
+      _schedulePostResumeNonCriticalSyncs();
+
+  @visibleForTesting
   void testInvalidateAllSyncs({
     bool force = false,
     bool resetSessionDeltaCursor = false,
@@ -183,6 +193,7 @@ extension SyncTestHelpers on Sync {
     _sessionLastSeq.remove(sessionId);
     _sessionFirstLoadedSeq.remove(sessionId);
     _olderHistoryPageSizeLimits.remove(sessionId);
+    _olderFetchNoProgress.remove(sessionId);
     _sessionContentSignatures.remove(sessionId);
     _cancelMessageFetchProbe(sessionId);
     _messageFetchCoverage.remove(sessionId);

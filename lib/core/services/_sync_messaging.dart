@@ -1653,6 +1653,22 @@ extension SyncMessaging on Sync {
     final firstLoaded = _sessionFirstLoadedSeq[sessionId] ?? 0;
     if (firstLoaded <= 1) return; // nothing older to fetch
 
+    // A page that left the boundary where it was (trimmed away on arrival, or
+    // empty) would come back identical. The orphan walk-back and the chat
+    // top-scroll trigger can both ask within the same second; production
+    // showed one 500-row `after_seq=0` page downloaded twice 670ms apart.
+    final noProgress = _olderFetchNoProgress[sessionId];
+    if (noProgress != null &&
+        noProgress.boundary == firstLoaded &&
+        DateTime.now().millisecondsSinceEpoch - noProgress.atMs <
+            Sync._olderFetchNoProgressCooldownMs) {
+      logger.debug(
+        '[fetchOlderMessages] $sessionId: skipping repeat of a page that '
+        'did not move the boundary (firstLoaded=$firstLoaded)',
+      );
+      return;
+    }
+
     final sessionEncryption = encryption.getSessionEncryption(sessionId);
     if (sessionEncryption == null) return;
 
@@ -1846,6 +1862,14 @@ extension SyncMessaging on Sync {
       } else {
         _sessionFirstLoadedSeq[sessionId] = startSeq + 1;
       }
+      if (_sessionFirstLoadedSeq[sessionId] == firstLoaded) {
+        _olderFetchNoProgress[sessionId] = (
+          boundary: firstLoaded,
+          atMs: DateTime.now().millisecondsSinceEpoch,
+        );
+      } else {
+        _olderFetchNoProgress.remove(sessionId);
+      }
       _scheduleSaveFirstLoadedSeq();
 
       _notifySessionMessagesChanged(sessionId);
@@ -1965,6 +1989,7 @@ extension SyncMessaging on Sync {
   /// Clean up all local state for a session that was deleted on the server.
   void _cleanupDeletedSession(String sessionId) {
     _olderHistoryPageSizeLimits.remove(sessionId);
+    _olderFetchNoProgress.remove(sessionId);
     messagesSync.remove(sessionId)?.dispose();
     _postSendCatchUpTimers.remove(sessionId)?.cancel();
     _loadingOlderMessages.remove(sessionId);

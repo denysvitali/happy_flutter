@@ -788,6 +788,66 @@ void main() {
       });
     });
 
+    test('post-resume phases skip work the reconnect cascade scheduled', () {
+      fakeAsync((async) {
+        final instance = Sync();
+        instance.testIsInitialized = true;
+        var deferredInvalidations = 0;
+        instance.sessionsSync = InvalidateSync(() async {});
+        instance.machinesSync = InvalidateSync(() async {
+          deferredInvalidations++;
+        });
+        instance.settingsSync = InvalidateSync(() async {});
+        instance.profileSync = InvalidateSync(() async {});
+        instance.purchasesSync = InvalidateSync(() async {});
+        instance.pushTokenSync = InvalidateSync(() async {});
+        instance.nativeUpdateSync = InvalidateSync(() async {});
+        instance.artifactsSync = InvalidateSync(() async {});
+        instance.sessionGitStatusSync = InvalidateSync(() async {});
+
+        instance.testResetNonCriticalPhaseClock();
+        // Socket reconnect after a long background stay: all three phases.
+        instance.testInvalidateAllSyncs(force: true);
+        async.elapse(const Duration(milliseconds: 400));
+        // Resume's sessions fetch settles and asks for the same phases.
+        instance.testSchedulePostResumeNonCriticalSyncs();
+        async.elapse(const Duration(seconds: 4));
+        async.flushMicrotasks();
+
+        expect(
+          deferredInvalidations,
+          1,
+          reason: 'machines/settings/profile must refetch once per resume',
+        );
+      });
+    });
+
+    test('post-resume phases still run when nothing scheduled them', () {
+      fakeAsync((async) {
+        final instance = Sync();
+        instance.testIsInitialized = true;
+        var deferredInvalidations = 0;
+        instance.sessionsSync = InvalidateSync(() async {});
+        instance.machinesSync = InvalidateSync(() async {
+          deferredInvalidations++;
+        });
+        instance.settingsSync = InvalidateSync(() async {});
+        instance.profileSync = InvalidateSync(() async {});
+        instance.purchasesSync = InvalidateSync(() async {});
+        instance.pushTokenSync = InvalidateSync(() async {});
+        instance.nativeUpdateSync = InvalidateSync(() async {});
+        instance.artifactsSync = InvalidateSync(() async {});
+        instance.sessionGitStatusSync = InvalidateSync(() async {});
+
+        instance.testResetNonCriticalPhaseClock();
+        instance.testSchedulePostResumeNonCriticalSyncs();
+        async.elapse(const Duration(seconds: 4));
+        async.flushMicrotasks();
+
+        expect(deferredInvalidations, 1);
+      });
+    });
+
     test('refreshSessionsListData dedupes concurrent callers', () async {
       final instance = Sync();
       instance.testIsInitialized = true;

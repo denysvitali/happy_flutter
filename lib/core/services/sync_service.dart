@@ -395,6 +395,13 @@ class Sync {
 
   final Map<String, int> _olderHistoryPageSizeLimits = {};
 
+  /// Boundary and completion time of the last older-history page that did not
+  /// move the boundary (the page was trimmed away or held nothing new). The
+  /// same request would return the same rows, so repeats inside
+  /// [_olderFetchNoProgressCooldownMs] are skipped.
+  final Map<String, ({int boundary, int atMs})> _olderFetchNoProgress = {};
+  static const int _olderFetchNoProgressCooldownMs = 10000;
+
   /// Per-page fetch size for the automatic orphan-recovery walk-back.
   ///
   /// Kept at 500 deliberately. Production traces showed this request
@@ -786,6 +793,8 @@ what you have, you must use the options mode.
   int? _lastSessionsFetchedAt;
   bool _forceFullFetchNext = false;
   int? _lastInvalidateAllSyncsAtMs;
+  int? _lastDeferredPhaseAtMs;
+  int? _lastBackgroundPhaseAtMs;
 
   static const _nativeUpdateFreshnessMs = 6 * 60 * 60 * 1000;
 

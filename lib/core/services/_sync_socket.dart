@@ -299,6 +299,7 @@ extension SyncSocket on Sync {
     // offline indicator. Cancel-on-suspend still guards the
     // background race.
     if (phase == null || phase == Sync._deferredSyncPhase) {
+      _lastDeferredPhaseAtMs = nowMs;
       _deferredSyncsTimer?.cancel();
       final staggerMs =
           Sync._deferredSyncPhaseBaseDelayMs +
@@ -323,6 +324,7 @@ extension SyncSocket on Sync {
     // them ~3s in so they don't compete for the connection pool /
     // event loop with phases 0+1.
     if (phase == null || phase == Sync._backgroundSyncPhase) {
+      _lastBackgroundPhaseAtMs = nowMs;
       _backgroundSyncsTimer?.cancel();
       _backgroundSyncsTimer = Timer(const Duration(seconds: 3), () {
         if (!isInitialized) return;

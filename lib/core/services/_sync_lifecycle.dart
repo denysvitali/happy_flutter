@@ -669,9 +669,25 @@ extension SyncLifecycle on Sync {
     );
   }
 
+  /// Runs the deferred/background phases after the resume sessions fetch,
+  /// unless the socket-reconnect cascade already scheduled them. On a long
+  /// background stay the reconnect handler fires a full `_invalidateAllSyncs`
+  /// (all three phases) about 0.4s before this runs, so forcing the phases
+  /// again refetched profile, settings and machines twice per resume.
   void _schedulePostResumeNonCriticalSyncs() {
-    _invalidateAllSyncs(force: true, phase: Sync._deferredSyncPhase);
-    _invalidateAllSyncs(force: true, phase: Sync._backgroundSyncPhase);
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    bool ranRecently(int? lastMs) =>
+        lastMs != null && nowMs - lastMs < Sync._invalidateAllSyncsCooldownMs;
+    if (ranRecently(_lastDeferredPhaseAtMs)) {
+      logger.debug('[Sync] resume: deferred syncs already scheduled');
+    } else {
+      _invalidateAllSyncs(force: true, phase: Sync._deferredSyncPhase);
+    }
+    if (ranRecently(_lastBackgroundPhaseAtMs)) {
+      logger.debug('[Sync] resume: background syncs already scheduled');
+    } else {
+      _invalidateAllSyncs(force: true, phase: Sync._backgroundSyncPhase);
+    }
   }
 
   void _startResumeConversationProgress(int total) {
@@ -1102,6 +1118,7 @@ extension SyncLifecycle on Sync {
     MMKVStorage().clearSessionLastSeq();
     _sessionFirstLoadedSeq.clear();
     _olderHistoryPageSizeLimits.clear();
+    _olderFetchNoProgress.clear();
     MMKVStorage().clearSessionFirstLoadedSeq();
     _loadingOlderMessages.clear();
     _recentInlineMessageKeys.clear();
