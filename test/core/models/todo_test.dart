@@ -221,5 +221,54 @@ void main() {
       expect(visible.map((i) => i.id), ['parent', 'child', 'next']);
       expect(TodoItem.expireCompletedOnAdd([done], [done]), hasLength(1));
     });
+
+    test(
+      'active projection filters hydrated terminal rows without removal',
+      () {
+        final canonical = TodoItem.listFromJson([
+          {'id': 'done', 'content': 'Done', 'status': 'completed'},
+          {'id': 'canceled', 'content': 'Canceled', 'status': 'cancelled'},
+          {'id': 'pending', 'content': 'Pending', 'status': 'pending'},
+          {'id': 'running', 'content': 'Running', 'status': 'in_progress'},
+        ])!;
+
+        expect(TodoItem.activeItems(canonical).map((item) => item.id), [
+          'pending',
+          'running',
+        ]);
+        expect(canonical.map((item) => item.id), [
+          'done',
+          'canceled',
+          'pending',
+          'running',
+        ]);
+        final reopened = canonical.first.copyWith(status: TodoState.pending);
+        expect(TodoItem.activeItems([reopened]).single, same(reopened));
+        expect(TodoItem.activeItems(canonical.take(2).toList()), isEmpty);
+      },
+    );
+
+    test('active child keeps canonical assignment with visible hierarchy', () {
+      final canonical = TodoItem.listFromJson([
+        {
+          'id': 'parent',
+          'content': 'Done parent',
+          'status': 'completed',
+          'agentId': 'agent-a',
+        },
+        {
+          'id': 'child',
+          'content': 'Active child',
+          'status': 'pending',
+          'parentId': 'parent',
+        },
+      ])!;
+      final active = TodoItem.activeItems(canonical);
+      final child = active.single;
+
+      expect(TodoItem.hierarchyOrder(active), [child]);
+      expect(TodoItem.depthIn(child, active), 0);
+      expect(TodoItem.effectiveAgentId(child, canonical), 'agent-a');
+    });
   });
 }

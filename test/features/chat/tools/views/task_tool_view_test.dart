@@ -2,10 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/tools/known_tools.dart';
 import 'package:happy_flutter/features/chat/tools/views/task_tool_view.dart';
+import 'package:happy_flutter/features/chat/widgets/session_tasks_banner.dart';
+
+class _StubSessionsNotifier extends SessionsNotifier {
+  _StubSessionsNotifier(this.session);
+
+  final Session session;
+
+  @override
+  Map<String, Session> build() => {session.id: session};
+
+  @override
+  void loadFromSync() {}
+
+  @override
+  Future<void> refreshFromSync({bool includeMachines = false}) async {}
+}
 
 Widget _wrap(ProviderContainer container, Widget child) {
   return UncontrolledProviderScope(
@@ -20,6 +37,231 @@ Widget _wrap(ProviderContainer container, Widget child) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('TaskToolView — Happy read projections preserve canonical state', () {
+    late BuildContext ctx;
+
+    List<TodoItem> canonicalItems() => TodoItem.listFromJson([
+      {
+        'id': 'parent',
+        'content': 'Finished parent',
+        'status': 'completed',
+        'agentId': 'agent-a',
+        'priority': 'high',
+        'description': 'Keep full canonical properties',
+        'dependencies': ['dependency'],
+        'dueAt': 9000,
+        'createdAt': 1000,
+        'updatedAt': 2000,
+        'completedAt': 2000,
+        'sessionId': 's1',
+      },
+      {
+        'id': 'child',
+        'content': 'Active child',
+        'status': 'pending',
+        'parentId': 'parent',
+        'createdAt': 1000,
+        'updatedAt': 2000,
+        'sessionId': 's1',
+      },
+      {
+        'id': 'canceled',
+        'content': 'Canceled row',
+        'status': 'canceled',
+        'updatedAt': 2000,
+        'sessionId': 's1',
+      },
+    ])!;
+
+    Future<ProviderContainer> pumpHost(
+      WidgetTester tester, {
+      List<TodoItem>? persisted,
+      bool banner = false,
+    }) async {
+      final container = ProviderContainer(
+        overrides: [
+          sessionsNotifierProvider.overrideWith(
+            () => _StubSessionsNotifier(
+              Session(
+                id: 's1',
+                seq: 1,
+                createdAt: 1,
+                updatedAt: 2000,
+                active: true,
+                activeAt: 1,
+                metadataVersion: 1,
+                agentStateVersion: 1,
+                thinking: true,
+                todos: persisted,
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          Builder(
+            builder: (context) {
+              ctx = context;
+              return banner
+                  ? const SessionTasksBanner(sessionId: 's1')
+                  : const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return container;
+    }
+
+    Map<String, dynamic> readTool(String result, {String? agent}) => {
+      'name': 'mcp__happy__todo_list',
+      'state': 'completed',
+      'createdAt': 2900,
+      'completedAt': 3000,
+      'input': {
+        'arguments': {if (agent != null) 'agentId': agent},
+      },
+      'result': {
+        'content': [
+          {'type': 'text', 'text': result},
+        ],
+      },
+    };
+
+    testWidgets(
+      'read preserves persisted ancestry without minting live state',
+      (tester) async {
+        final canonical = canonicalItems();
+        final container = await pumpHost(
+          tester,
+          persisted: canonical,
+          banner: true,
+        );
+        final tool = readTool(
+          '1 items, 1 open\n'
+          '#child [pending] [parent:#parent] Active child',
+        );
+
+        TaskToolView.pushToolToGlobalState(ctx, tool, 's1');
+        await tester.pumpAndSettle();
+        expect(container.read(todoStateNotifierProvider).bySession, isEmpty);
+        expect(container.read(sessionByIdProvider('s1'))!.todos, canonical);
+        expect(find.text('1 of 3 complete'), findsOneWidget);
+        await tester.tap(find.textContaining('complete'));
+        await tester.pumpAndSettle();
+        expect(find.text('Active child'), findsOneWidget);
+        expect(find.text('Assigned to agent-a'), findsOneWidget);
+        expect(find.text('Finished parent'), findsNothing);
+        expect(find.text('Canceled row'), findsNothing);
+      },
+    );
+
+    testWidgets('scoped and empty reads retain all canonical properties', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      final canonical = [
+        ...canonicalItems(),
+        TodoItem.fromJson({
+          'id': 'other',
+          'content': 'Other agent work',
+          'status': 'in_progress',
+          'agentId': 'agent-b',
+          'sessionId': 's1',
+          'updatedAt': 2000,
+        }),
+      ];
+      container
+          .read(todoStateNotifierProvider.notifier)
+          .setItemsForSession('s1', canonical);
+      final before = canonical.map((item) => item.toJson()).toList();
+      for (final result in [
+        '1 items, 1 open\n#child [pending] [parent:#parent] Active child',
+        '0 items, 0 open',
+      ]) {
+        TaskToolView.pushToolToGlobalState(
+          ctx,
+          readTool(result, agent: 'agent-a'),
+          's1',
+        );
+        expect(
+          container
+              .read(todoStateNotifierProvider)
+              .bySession['s1']!
+              .map((item) => item.toJson())
+              .toList(),
+          before,
+        );
+      }
+    });
+
+    testWidgets('reopened live row survives older and timestamp-less reads', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      container
+          .read(todoStateNotifierProvider.notifier)
+          .setItemsForSession('s1', canonicalItems());
+      TaskToolView.pushToolToGlobalState(ctx, {
+        'name': 'mcp__happy__todo_update',
+        'state': 'completed',
+        'completedAt': 4000,
+        'input': {'id': 'parent', 'status': 'pending'},
+        'result': 'Updated #parent [pending] Finished parent',
+      }, 's1');
+      final before = container.read(todoStateNotifierProvider).bySession['s1']!;
+      expect(before.first.status, TodoState.pending);
+      expect(before.first.agentId, 'agent-a');
+      for (final tool in [
+        readTool('0 items, 0 open'),
+        {...readTool('0 items, 0 open')}
+          ..remove('createdAt')
+          ..remove('completedAt'),
+      ]) {
+        TaskToolView.pushToolToGlobalState(ctx, tool, 's1');
+        expect(
+          container.read(todoStateNotifierProvider).bySession['s1'],
+          before,
+        );
+      }
+    });
+
+    testWidgets('read without canonical data leaves fallback unshadowed', (
+      tester,
+    ) async {
+      final container = await pumpHost(tester);
+      for (final result in [
+        '0 items, 0 open',
+        '1 items, 1 open\n#new [pending] New row',
+      ]) {
+        TaskToolView.pushToolToGlobalState(ctx, readTool(result), 's1');
+        expect(container.read(todoStateNotifierProvider).bySession, isEmpty);
+      }
+      await tester.pumpWidget(
+        _wrap(
+          container,
+          TaskToolView(
+            tool: {
+              ...readTool('1 items, 1 open\n#new [pending] New row'),
+              'result': {
+                'tasks': [
+                  {'id': 'new', 'subject': 'New row', 'status': 'pending'},
+                ],
+              },
+            },
+            sessionId: 's1',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('New row'), findsOneWidget);
+      expect(container.read(todoStateNotifierProvider).bySession, isEmpty);
+    });
+  });
 
   group('TaskToolView — rendering', () {
     test('Create Task collapsed header reads the Happy MCP content field', () {

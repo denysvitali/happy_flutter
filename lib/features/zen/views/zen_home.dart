@@ -157,7 +157,7 @@ class _ZenHomeScreenState extends ConsumerState<ZenHomeScreen>
       if (todos == null || todos.isEmpty) continue;
       final directoryKey = sessionFolderKey(session);
       final directoryLabel = getSessionSubtitle(session);
-      for (final item in todos) {
+      for (final item in TodoItem.activeItems(todos)) {
         result.add(
           _SessionTodo(
             item: item,

@@ -37,6 +37,12 @@ class TaskToolView extends ConsumerStatefulWidget {
     Map<String, dynamic> tool,
     String? sessionId,
   ) {
+    // Happy's read tool returns active rows, optionally scoped to one agent.
+    // It cannot replace canonical state or infer terminal statuses from
+    // omitted rows. Leave live mutations and persisted session metadata as
+    // the source, including when no live bucket exists yet. Native TaskList
+    // snapshots still use the full-list ingestion path below.
+    if (tool['name'] == 'mcp__happy__todo_list') return;
     final items = _resolveItemsFromTool(tool, sessionId, context);
     ProviderScope.containerOf(context, listen: false)
         .read(todoStateNotifierProvider.notifier)
@@ -74,7 +80,7 @@ class TaskToolView extends ConsumerStatefulWidget {
     final name = KnownTools.canonicalName((tool['name'] as String?) ?? '');
     final toolId = _toolIdFor(tool);
 
-    // Every Happy MCP task tool echoes the full list back in its result
+    // Legacy Happy MCP mutation results may include a full list snapshot
     // ("N items, M open" followed by one `#<id> [<status>] <subject>` per
     // row). That snapshot is authoritative for every id, status and
     // subject, so it heals rows whose create call was never mounted.

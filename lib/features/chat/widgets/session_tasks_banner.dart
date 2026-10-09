@@ -20,7 +20,7 @@ import 'package:happy_flutter/core/theme/app_text.dart';
 /// A sticky banner at the bottom of the chat session that shows the
 /// current agent task list for the active session.
 ///
-/// Hidden when there are no tasks; tap to expand / collapse. Tapping
+/// Hidden when there are no active tasks; tap to expand / collapse. Tapping
 /// "View all" jumps to the global Tasks home (Zen).
 class SessionTasksBanner extends ConsumerStatefulWidget {
   const SessionTasksBanner({required this.sessionId, super.key});
@@ -48,8 +48,9 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
       sessionByIdProvider(widget.sessionId).select((s) => s?.todos),
     );
     final items = live ?? persisted ?? const <TodoItem>[];
+    final activeItems = TodoItem.activeItems(items);
 
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (activeItems.isEmpty) return const SizedBox.shrink();
 
     final completed = items
         .where((i) => i.status == TodoState.completed)
@@ -96,7 +97,11 @@ class _SessionTasksBannerState extends ConsumerState<SessionTasksBanner> {
               duration: AppDuration.normal,
               curve: AppCurve.standard,
               child: _expanded
-                  ? _TaskList(items: items, onToggle: _toggleComplete)
+                  ? _TaskList(
+                      items: activeItems,
+                      canonicalItems: items,
+                      onToggle: _toggleComplete,
+                    )
                   : const SizedBox.shrink(),
             ),
           ],
@@ -316,9 +321,14 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _TaskList extends StatelessWidget {
-  const _TaskList({required this.items, required this.onToggle});
+  const _TaskList({
+    required this.items,
+    required this.canonicalItems,
+    required this.onToggle,
+  });
 
   final List<TodoItem> items;
+  final List<TodoItem> canonicalItems;
   final void Function(String id) onToggle;
 
   @override
@@ -345,7 +355,10 @@ class _TaskList extends StatelessWidget {
                 ),
                 child: _Row(
                   item: item,
-                  assignedAgent: TodoItem.effectiveAgentId(item, items),
+                  assignedAgent: TodoItem.effectiveAgentId(
+                    item,
+                    canonicalItems,
+                  ),
                   onToggle: () => onToggle(item.id),
                 ),
               ),

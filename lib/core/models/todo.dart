@@ -162,6 +162,10 @@ class TodoItem {
   final String? path;
   final int? completedAt;
 
+  /// Active rows for task-list views; the canonical list remains unchanged.
+  static List<TodoItem> activeItems(List<TodoItem> items) =>
+      items.where((item) => !item.status.isTerminal).toList();
+
   /// Parents precede their children; missing parents are treated as roots.
   static List<TodoItem> hierarchyOrder(List<TodoItem> items) {
     final byId = {for (final item in items) item.id: item};
@@ -216,8 +220,8 @@ class TodoItem {
     return null;
   }
 
-  /// Keep completed rows visible until a later snapshot adds a new row.
-  /// A completed ancestor remains while any child is still visible.
+  /// Retain completed rows until a later canonical snapshot adds a new row.
+  /// A completed ancestor remains while any child is still retained.
   static List<TodoItem> expireCompletedOnAdd(
     List<TodoItem> previous,
     List<TodoItem> next,

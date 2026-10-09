@@ -14,9 +14,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/theme/app_tokens.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/todo.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
 import 'package:happy_flutter/features/chat/widgets/session_tasks_banner.dart';
+
+class _StubSessionsNotifier extends SessionsNotifier {
+  @override
+  Map<String, Session> build() => {};
+
+  void replace(Session session) {
+    state = {session.id: session};
+  }
+
+  @override
+  void loadFromSync() {}
+
+  @override
+  Future<void> refreshFromSync({bool includeMachines = false}) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +41,11 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer();
+      container = ProviderContainer(
+        overrides: [
+          sessionsNotifierProvider.overrideWith(_StubSessionsNotifier.new),
+        ],
+      );
     });
 
     tearDown(() {
@@ -128,7 +148,7 @@ void main() {
       expect(viewAllSize.height, greaterThanOrEqualTo(AppControlSize.sm));
     });
 
-    testWidgets('expands on header tap and reveals the full list', (
+    testWidgets('expands on header tap and reveals only active rows', (
       tester,
     ) async {
       container
@@ -136,6 +156,7 @@ void main() {
           .setItemsForSession('s1', [
             item('a', TodoState.completed, content: 'First task'),
             item('b', TodoState.inProgress, content: 'Second task'),
+            item('c', TodoState.canceled, content: 'Canceled task'),
           ]);
 
       await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
@@ -149,8 +170,10 @@ void main() {
       await tester.tap(find.textContaining('complete'));
       await tester.pumpAndSettle();
 
-      expect(find.text('First task'), findsOneWidget);
+      expect(find.text('First task'), findsNothing);
       expect(find.text('Second task'), findsOneWidget);
+      expect(find.text('Canceled task'), findsNothing);
+      expect(find.text('1 of 3 complete · 1 running'), findsOneWidget);
       expect(find.text('Running'), findsOneWidget);
     });
 
@@ -181,6 +204,104 @@ void main() {
         lessThan(tester.getTopLeft(find.text('Child task')).dy),
       );
     });
+
+    testWidgets('completion removes a row while canonical progress remains', (
+      tester,
+    ) async {
+      final notifier = container.read(todoStateNotifierProvider.notifier);
+      notifier.setItemsForSession('s1', [
+        item('a', TodoState.pending, content: 'Finish now'),
+        item('b', TodoState.pending, content: 'Still active'),
+      ]);
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('complete'));
+      await tester.pumpAndSettle();
+
+      notifier.markComplete('a');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Finish now'), findsNothing);
+      expect(find.text('Still active'), findsOneWidget);
+      expect(find.text('1 of 2 complete'), findsOneWidget);
+      expect(
+        container.read(todoStateNotifierProvider).bySession['s1'],
+        hasLength(2),
+      );
+    });
+
+    testWidgets('hides a live snapshot containing only terminal rows', (
+      tester,
+    ) async {
+      container.read(todoStateNotifierProvider.notifier).setItemsForSession(
+        's1',
+        [
+          item('done', TodoState.completed),
+          item('canceled', TodoState.canceled),
+        ],
+      );
+      await tester.pumpWidget(wrap(const SessionTasksBanner(sessionId: 's1')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tasks'), findsNothing);
+      expect(find.text('View all'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('session-tasks-progress')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'persisted active child inherits its hidden parent assignment',
+      (tester) async {
+        final todos = TodoItem.listFromJson([
+          {
+            'id': 'parent',
+            'content': 'Completed parent',
+            'status': 'completed',
+            'agentId': 'agent-a',
+          },
+          {
+            'id': 'child',
+            'content': 'Active child',
+            'status': 'pending',
+            'parentId': 'parent',
+          },
+          {'id': 'peer', 'content': 'Active peer', 'status': 'pending'},
+          {'id': 'canceled', 'content': 'Canceled row', 'status': 'canceled'},
+        ])!;
+        final sessions =
+            container.read(sessionsNotifierProvider.notifier)
+                as _StubSessionsNotifier;
+        sessions.replace(_session(todos));
+        await tester.pumpWidget(
+          wrap(const SessionTasksBanner(sessionId: 's1')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.textContaining('complete'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Completed parent'), findsNothing);
+        expect(find.text('Canceled row'), findsNothing);
+        expect(find.text('Active child'), findsOneWidget);
+        expect(find.text('Assigned to agent-a'), findsOneWidget);
+        expect(find.text('1 of 4 complete'), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text('Active child')).dx,
+          tester.getTopLeft(find.text('Active peer')).dx,
+        );
+
+        sessions.replace(
+          _session([
+            for (final todo in todos)
+              todo.copyWith(status: TodoState.completed),
+          ]),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Tasks'), findsNothing);
+        expect(find.text('Active child'), findsNothing);
+      },
+    );
 
     testWidgets('does not leak tasks from other sessions', (tester) async {
       container.read(todoStateNotifierProvider.notifier).setItemsForSession(
@@ -229,7 +350,9 @@ void main() {
       expect(find.textContaining('1 of 2 complete'), findsOneWidget);
     });
 
-    testWidgets('toggling a task flips its count', (tester) async {
+    testWidgets('last completed task hides immediately and can reopen', (
+      tester,
+    ) async {
       final notifier = container.read(todoStateNotifierProvider.notifier);
       notifier.setItemsForSession('s1', [
         item('a', TodoState.pending, content: 'Toggle me'),
@@ -245,7 +368,21 @@ void main() {
       await tester.tap(find.byIcon(Icons.check_box_outline_blank_rounded));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('1 of 1 complete'), findsOneWidget);
+      expect(find.textContaining('complete'), findsNothing);
+      expect(find.text('Toggle me'), findsNothing);
+      expect(
+        container
+            .read(todoStateNotifierProvider)
+            .bySession['s1']!
+            .single
+            .status,
+        TodoState.completed,
+      );
+
+      notifier.toggleComplete('a');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('0 of 1 complete'), findsOneWidget);
+      expect(find.text('Toggle me'), findsOneWidget);
     });
 
     testWidgets('tapping a row opens the detail dialog', (tester) async {
@@ -322,9 +459,25 @@ void main() {
       await tester.tap(find.byIcon(Icons.check_box_outline_blank_rounded));
       await tester.pumpAndSettle();
 
-      // Completion count updated; dialog did not open.
-      expect(find.textContaining('1 of 1 complete'), findsOneWidget);
+      // The completed row and banner hide; the dialog did not open.
+      expect(find.textContaining('complete'), findsNothing);
+      expect(find.text('Toggle me'), findsNothing);
       expect(find.text('Close'), findsNothing);
     });
   });
 }
+
+Session _session(List<TodoItem> todos) => Session(
+  id: 's1',
+  seq: 1,
+  createdAt: 1,
+  updatedAt: 1,
+  active: true,
+  activeAt: 1,
+  metadataVersion: 1,
+  agentStateVersion: 1,
+  thinking: true,
+  presence: 'online',
+  todos: todos,
+  metadata: const Metadata(host: 'localhost', path: '/workspace/project'),
+);

@@ -84,23 +84,59 @@ void main() {
       expect(find.text('No active tasks'), findsOneWidget);
     });
 
-    testWidgets('shows completed items until a new item expires them', (
+    testWidgets('completed rows hide immediately and retained rows reopen', (
       tester,
     ) async {
       final notifier = container.read(todoStateNotifierProvider.notifier);
-      final done = _todo('done', 'Finished task', status: TodoState.completed);
-      notifier.setItemsForSession('session-1', [done]);
+      notifier.setItemsForSession('session-1', [
+        _todo('task', 'Finish this task'),
+        _todo('canceled', 'Canceled task', status: TodoState.canceled),
+      ]);
       await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
-      expect(find.text('Finished task'), findsOneWidget);
+      expect(find.text('Finish this task'), findsOneWidget);
+      expect(find.text('Canceled task'), findsNothing);
 
-      notifier.setItemsForSession('session-1', [
-        done,
-        _todo('next', 'Next task'),
-      ]);
+      notifier.markComplete('task');
+      await tester.pumpAndSettle();
+      expect(find.text('Finish this task'), findsNothing);
+      expect(find.text('No active tasks'), findsOneWidget);
+      expect(
+        container.read(todoStateNotifierProvider).bySession['session-1'],
+        hasLength(2),
+      );
+
+      notifier.toggleComplete('task');
+      await tester.pumpAndSettle();
+      expect(find.text('Finish this task'), findsOneWidget);
+      expect(find.text('No active tasks'), findsNothing);
+    });
+
+    testWidgets('persisted terminal rows hydrate into an empty task view', (
+      tester,
+    ) async {
+      final notifier =
+          container.read(sessionsNotifierProvider.notifier)
+              as _StubSessionsNotifier;
+      notifier.replace(
+        _session(
+          todos: TodoItem.listFromJson([
+            {'id': 'done', 'content': 'Finished task', 'status': 'completed'},
+            {
+              'id': 'canceled',
+              'content': 'Canceled task',
+              'status': 'cancelled',
+            },
+          ]),
+        ),
+      );
+
+      await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
       expect(find.text('Finished task'), findsNothing);
-      expect(find.text('Next task'), findsOneWidget);
+      expect(find.text('Canceled task'), findsNothing);
+      expect(find.text('No active tasks'), findsOneWidget);
+      expect(find.byTooltip('Filter tasks by agent'), findsNothing);
     });
 
     testWidgets('filters sub-items by inherited assigned agent', (
@@ -124,6 +160,51 @@ void main() {
       expect(find.text('Agent B task'), findsNothing);
       expect(find.text('Sub-item of #parent'), findsOneWidget);
     });
+
+    testWidgets(
+      'persisted child inherits agent from a hidden completed parent',
+      (tester) async {
+        final notifier =
+            container.read(sessionsNotifierProvider.notifier)
+                as _StubSessionsNotifier;
+        notifier.replace(
+          _session(
+            todos: TodoItem.listFromJson([
+              {
+                'id': 'parent',
+                'content': 'Completed parent',
+                'status': 'completed',
+                'agentId': 'agent-a',
+              },
+              {
+                'id': 'child',
+                'content': 'Agent A child',
+                'status': 'pending',
+                'parentId': 'parent',
+              },
+              {
+                'id': 'other',
+                'content': 'Agent B task',
+                'status': 'pending',
+                'agentId': 'agent-b',
+              },
+            ]),
+          ),
+        );
+        await tester.pumpWidget(buildApp());
+        await tester.pumpAndSettle();
+        expect(find.text('Completed parent'), findsNothing);
+        await tester.tap(find.byTooltip('Filter tasks by agent'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('agent-a').last);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Agent A child'), findsOneWidget);
+        expect(find.text('Agent B task'), findsNothing);
+        expect(find.text('Completed parent'), findsNothing);
+        expect(find.text('Sub-item of #parent'), findsOneWidget);
+      },
+    );
   });
 }
 
