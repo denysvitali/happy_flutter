@@ -221,7 +221,9 @@ void main() {
       // Tap-to-expand still works on the dense row.
       await tester.tap(find.text('Tasks'));
       await tester.pumpAndSettle();
-      expect(find.text('item-a'), findsOneWidget);
+      expect(find.text('item-a'), findsNothing);
+      expect(find.text('item-b'), findsOneWidget);
+      expect(find.text('item-c'), findsOneWidget);
     });
 
     testWidgets('a tight pane never renders taller than a compact one', (
