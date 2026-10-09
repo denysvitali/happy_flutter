@@ -78,6 +78,11 @@ jobs:
       - name: Analyze code
         run: mise exec -- flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
+      # Hand-written Dart only; generated files are excluded because the
+      # codegen job diffs them. Fix locally with scripts/format.sh.
+      - name: Check Dart formatting
+        run: scripts/format.sh --check
+
       # Cheap guard for the test matrix: every test file must land
       # in exactly one shard for both shard counts used below.
       - name: Check test shard assignment

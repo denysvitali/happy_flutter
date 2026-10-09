@@ -17,3 +17,11 @@ make    = "4.4.1"
 [env]
 # Cap the Dart VM heap to match CI and avoid OOMs on heavy local runs.
 DART_VM_OPTIONS = "--max-gen-heap-size=4096"
+
+[tasks.format]
+description = "Format every tracked, non-generated Dart file"
+run = "scripts/format.sh"
+
+[tasks.setup-hooks]
+description = "Enable the repo's git hooks (.githooks/pre-commit checks Dart formatting)"
+run = "git config core.hooksPath .githooks"

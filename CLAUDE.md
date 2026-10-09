@@ -142,6 +142,7 @@ Happy Flutter is **happy's mobile app**, built with Flutter.
 - **Strict typing:** `implicit-casts: false`, `implicit-dynamic: false`
 - **Line length:** 80 chars max; file size: 800 lines max (exclude `*.g.dart`)
 - **CI-blocking errors:** `missing_required_param`, `missing_return`, `must_be_immutable`
+- **Formatting:** run `scripts/format.sh` before committing; CI's `analyze` job fails on unformatted Dart. Generated files are excluded (codegen diffs them) — never `dart format` them by hand
 - **Prefer:** const constructors, final fields, single quotes, spread collections
 - **Avoid:** `print` — use `logger.info/warning/error()`; use `unawaited()` for fire-and-forget
 - **Platform code:** Conditional exports: `platform_io.dart`/`platform_stub.dart`, `mmkv_storage_native.dart`/`mmkv_storage_web.dart`, `sodium_loader_native.dart`/`sodium_loader_web.dart`, `sentry_*.dart`

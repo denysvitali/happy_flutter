@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Reject commits that stage unformatted Dart. Fix with: scripts/format.sh
+# Enable with: mise run setup-hooks
+exec "$(git rev-parse --show-toplevel)/scripts/format.sh" --check --staged

@@ -7,6 +7,11 @@ mise exec -- flutter pub get
 # Analysis (errors block CI; warnings/infos do not)
 mise exec -- flutter analyze
 
+# Formatting (CI rejects unformatted Dart; generated files are excluded)
+scripts/format.sh            # rewrite; same as `mise run format`
+scripts/format.sh --check    # verify only, as CI does
+mise run setup-hooks         # optional: pre-commit runs the check on staged files
+
 # Testing (run in CI only — never locally)
 mise exec -- flutter test
 mise exec -- flutter test test/services/sync_service_test.dart
