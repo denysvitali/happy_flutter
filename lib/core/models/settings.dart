@@ -454,6 +454,7 @@ String normalizeAgentKey(String? agent) {
   return switch (agent) {
     'codex' => 'codex',
     'har' => 'har',
+    'prime-agent' => 'prime-agent',
     'agy' || 'gemini' => 'agy',
     'pi' => 'pi',
     'opencode' => 'opencode',

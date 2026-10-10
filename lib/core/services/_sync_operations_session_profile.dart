@@ -253,21 +253,30 @@ extension SyncSpawnProfileResolution on Sync {
     String? agent, {
     AIBackendProfile? profile,
   }) {
+    if (agent == 'prime-agent' &&
+        (modelMode == null || modelMode.isEmpty || modelMode == 'default')) {
+      return modelMode;
+    }
     if (agent == 'har') {
       if (modelMode == null || modelMode == 'default' || modelMode.isEmpty) {
         return 'codex/gpt-6-luna';
       }
-      if (modelMode == 'codex/gpt-6-luna' || modelMode == 'codex/gpt-6.1-sol')
+      if (modelMode == 'codex/gpt-6-luna' ||
+          modelMode == 'codex/gpt-6.1-sol' ||
+          modelMode == 'grok/grok-4.7') {
         return modelMode;
+      }
       throw StateError(
-        'Har supports codex/gpt-6-luna or codex/gpt-6.1-sol. '
-        'Choose a model when starting a new conversation.',
+        'Har supports codex/gpt-6-luna, codex/gpt-6.1-sol, '
+        'or grok/grok-4.7. Choose a supported model.',
       );
     }
     if (modelMode == null || modelMode == 'default') {
       return modelMode;
     }
-    if (agent != 'claude' && _isClaudeModelAlias(modelMode)) {
+    if (agent != 'claude' &&
+        agent != 'prime-agent' &&
+        _isClaudeModelAlias(modelMode)) {
       _logDroppedModelMode(
         modelMode,
         agent,

@@ -251,6 +251,10 @@ void main() {
   });
 
   group('Pi agent profile bucketing', () {
+    test('normalizeAgentKey keeps Prime Agent in its own bucket', () {
+      expect(normalizeAgentKey('prime-agent'), 'prime-agent');
+    });
+
     test('normalizeAgentKey routes pi to its own bucket', () {
       expect(normalizeAgentKey('pi'), 'pi');
       expect(normalizeAgentKey('claude'), 'claude');

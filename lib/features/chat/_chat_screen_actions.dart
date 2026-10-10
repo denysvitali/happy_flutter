@@ -812,21 +812,25 @@ extension _ChatScreenActions on _ChatScreenState {
       'file). STOP what you are doing and wait for the '
       'user to tell you how to proceed.';
 
-  /// Applies a har model change optimistically and reverts it if the driver or
-  /// har refuses, for example while a turn is still running.
+  /// Publish a Har selection only after the running process confirms it.
+  /// Failed/busy switches never change the composer or its send model.
   Future<void> _switchHarModel(ChatModelMode model) async {
-    final previous = _modelMode;
-    setState(() {
-      _userOverrodeModelOrProfile = true;
-      _modelMode = model;
-    });
+    if (_isSwitchingHarModel || model == _modelMode) return;
+    setState(() => _isSwitchingHarModel = true);
     try {
       await ref
           .read(chatActionNotifierProvider.notifier)
           .setSessionModel(widget.sessionId, model.modeString);
+      if (!mounted) return;
+      setState(() {
+        _userOverrodeModelOrProfile = true;
+        _modelMode = model;
+        // Initial settings retain Har's qualified model as a raw override.
+        // Keep the composer send value aligned with the confirmed picker.
+        _profileModelOverride = model.modeString;
+      });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _modelMode = previous);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -834,6 +838,8 @@ extension _ChatScreenActions on _ChatScreenState {
           ),
         ),
       );
+    } finally {
+      if (mounted) setState(() => _isSwitchingHarModel = false);
     }
   }
 
@@ -887,7 +893,7 @@ extension _ChatScreenActions on _ChatScreenState {
   }
 
   Future<void> _onOptionPress(String option) async {
-    if (_isSending) return;
+    if (_isSending || _isSwitchingHarModel) return;
     final sendIssue = _sessionSendIssue;
     if (sendIssue != null && sendIssue.blocksSend) {
       _showSendBlockedSnackBar(sendIssue);
@@ -968,7 +974,11 @@ extension _ChatScreenActions on _ChatScreenState {
   Future<void> _sendMessage({String? codexDeliveryMode}) async {
     final text = _controller.text.trim();
     final attachments = _attachmentController.images;
-    if ((text.isEmpty && attachments.isEmpty) || _isSending) return;
+    if ((text.isEmpty && attachments.isEmpty) ||
+        _isSending ||
+        _isSwitchingHarModel) {
+      return;
+    }
     if (!ImageAttachmentService.fitsMessagePayload(attachments)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.l10n.chatImagePayloadTooLarge)),

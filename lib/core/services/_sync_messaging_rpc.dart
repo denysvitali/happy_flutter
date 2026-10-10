@@ -1023,9 +1023,29 @@ extension SyncMessagingRpc on Sync {
     String sessionId,
     String model,
   ) async {
-    return _typedSessionRPC(sessionId, 'set_model', {
+    final generation = _runtimeGeneration;
+    final response = await _typedSessionRPC(sessionId, 'set_model', {
       'model': model,
     }, SetModelResponse.fromJson);
+    if (generation != _runtimeGeneration) {
+      throw StateError('Model switch cancelled by runtime reset');
+    }
+    if (response.model != model) {
+      throw StateError('Har did not confirm the requested model');
+    }
+    // The RPC confirms the running model before its metadata socket update
+    // necessarily arrives. Refresh the send baseline now, not the launch-time
+    // model: otherwise the next message is rejected as a reconfiguration.
+    final session = _sessions[sessionId];
+    if (session != null) {
+      _sessions[sessionId] = session.copyWith(
+        modelMode: response.model,
+        metadata: session.metadata?.copyWith(model: response.model),
+      );
+    }
+    _sessionSpawnedModel[sessionId] = response.model;
+    _notifyDataChanged({SyncDomain.sessions});
+    return response;
   }
 
   /// Refresh purchases data

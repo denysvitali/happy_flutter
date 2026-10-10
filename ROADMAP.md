@@ -1,11 +1,45 @@
 <!-- Har integration acceptance -->
-Har client slice: `har` picker, Luna/Sol launch choices, fixed host/disabled
+Grok 4.7: launch validation, both pickers and stored model normalization now
+accept exactly `grok/grok-4.7`, retaining Luna as the default. Added picker,
+launch, confirmed RPC, repeated-send and retry-identity regressions. Har's live
+proxy adapter verified a benign native tool call and continuation; the proxy
+returns `grok-4.7-build`, now accepted only for this exact route. Its catalog
+currently omits the route, so catalog-only discovery would still hide it.
+Updated Happy launch validation is also required. Full Flutter analyze exited
+0 (338 lint issues, including 28 warnings; no errors), and
+`scripts/format.sh --check` passed.
+Flutter tests were not run locally under the CI-only rule. CI and installed
+Har/Happy/device end-to-end acceptance remain outstanding; no commit/push was
+authorized by the user.
+
+Har client slice: `har` picker, Luna/Sol/Grok launch choices, fixed host/disabled
 approvals display, no model/provider restart or stopped-session restore, and
 ACP text/delegation contracts are implemented in source. Local placement only;
 the daemon needs an installed Har binary and Boxy explicitly disabled. Profiles
 forward URL/binary configuration only; secure API-key provisioning remains an
 external acceptance gate. Flutter tests remain CI-only; device/inference and
 host-policy acceptance have not been verified.
+
+Idle model switching: the composer waits for `set_model` confirmation, then
+refreshes both the running session and send baseline without respawning. Har
+send routing trusts running metadata rather than stale launch tracking.
+Regressions cover confirmation/rejection/runtime reset, repeated sends and
+retry identity after a switch. Targeted `flutter analyze --no-fatal-infos
+--no-fatal-warnings` passed (no errors/warnings; informational lints only).
+Tests were added but not run locally under the CI-only test rule. CI and live
+installed-binary/device acceptance remain outstanding; no commit/push was
+authorized by the user for this scoped implementation.
+
+Stopped Har investigation (2026-10-09): the inspected session lost its local
+Har process when the daemon received `/stop`; the replacement daemon archived
+it as errored. The banner now explains process-scoped loss and safely labels
+that daemon-reconciliation reason without displaying raw diagnostics. A widget
+regression was added. Targeted Dart analysis exited 0 (21 informational lints;
+no errors/warnings), and formatting/diff checks passed. Flutter tests remain
+CI-only and have not run. Sibling Happy daemon protection defers managed stops
+and updates with live Har sessions, but direct signals/crashes and durable
+recovery remain open; this does not restore the already-terminated session.
+No commit/push or device deployment was authorized or performed.
 
 # Roadmap
 

@@ -127,6 +127,20 @@ saved when leaving chat; pending settings changes are flushed on suspension.
 - **Navigation**: GoRouter
 - **UI**: Material Design 3 with custom design tokens
 
+## Har model switching
+
+Har conversations can select `codex/gpt-6-luna` (default),
+`codex/gpt-6.1-sol`, or `grok/grok-4.7` at launch and switch between them using
+the composer model picker while idle. The running
+process must confirm the change before the composer and send baseline update;
+messages wait while that request is pending. Busy or older Har builds can
+reject the change without restarting the conversation or changing its model.
+Provider and approval policy remain fixed, and stopped conversations cannot
+resume automatically. The stopped-session banner explains that Har's
+conversation state depends on its running process, and identifies a daemon
+restart when the machine reports that specific failure. It does not display
+raw machine diagnostics or silently replay history into a new process.
+
 ## Codex provider profiles
 
 Codex profiles can define one or more OpenAI-compatible providers from the

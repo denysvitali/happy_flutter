@@ -282,6 +282,12 @@ class ChatModelMode {
       modelSlug: 'codex/gpt-6.1-sol',
       flavor: 'har',
     ),
+    ChatModelMode._(
+      label: 'Grok 4.7',
+      modeString: 'grok/grok-4.7',
+      modelSlug: 'grok/grok-4.7',
+      flavor: 'har',
+    ),
   ];
 
   /// Returns the model options available for a session flavor.
@@ -324,6 +330,18 @@ class ChatModelMode {
     // configured by the user.
     if (profileModels != null && profileModels.isNotEmpty) {
       final ids = _profileModelIds(profileModels);
+      if (flavor == 'prime-agent') {
+        return [
+          defaultModel,
+          for (final id in ids)
+            ChatModelMode._(
+              label: id,
+              modeString: id,
+              modelSlug: id,
+              flavor: 'prime-agent',
+            ),
+        ];
+      }
       return [
         defaultModel,
         ...(flavor == 'codex'
@@ -564,6 +582,16 @@ class ChatModelMode {
               .firstOrNull ??
           harModels.first;
     }
+    if (flavor == 'prime-agent') {
+      if (model.isDefault) return defaultModel;
+      return ChatModelMode._(
+        label: model.modelSlug ?? model.modeString,
+        modeString: model.modeString,
+        modelSlug: model.modelSlug ?? model.modeString,
+        reasoningEffort: model.reasoningEffort,
+        flavor: 'prime-agent',
+      );
+    }
     final available = availableForFlavor(flavor);
     if (available.contains(model) || (flavor == 'codex' && model.isCodex)) {
       return model;
@@ -608,6 +636,16 @@ class ChatModelMode {
     List<String>? allowedRawModels,
   }) {
     final trimmed = value.trim();
+    if (flavor == 'prime-agent') {
+      if (trimmed.isEmpty || trimmed == 'default') {
+        return defaultModel.modeString;
+      }
+      if (const {'fable', 'sonnet', 'opus', 'haiku'}.contains(trimmed) &&
+          !isAllowedRawSelection(trimmed, allowedRawModels, flavor: flavor)) {
+        return defaultModel.modeString;
+      }
+      return trimmed;
+    }
     if (flavor == 'har') {
       return harModels
               .where((m) => m.modeString == trimmed)

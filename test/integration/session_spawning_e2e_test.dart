@@ -128,6 +128,23 @@ void main() {
       },
     );
 
+    test('Har launch forwards the explicit Grok 4.7 model', () async {
+      Map<String, dynamic>? captured;
+      sync.testMachineRPCOverride = (_, method, params) async {
+        expect(method, 'spawn-happy-session');
+        captured = params;
+        return {'type': 'success', 'sessionId': params['sessionId']};
+      };
+      await sync.createSession(
+        agent: 'har',
+        machineId: 'machine-1',
+        path: '/repo',
+        modelMode: 'grok/grok-4.7',
+      );
+      expect(captured!['model'], 'grok/grok-4.7');
+      expect(captured!['permissionMode'], 'bypassPermissions');
+    });
+
     for (final model in ['opus:max', 'gpt-6-luna', 'codex/unadvertised']) {
       test(
         'Har rejects explicit unsupported model $model before spawn',
@@ -1110,6 +1127,87 @@ void main() {
           isEmpty,
         );
       });
+    }
+
+    for (final sol in ['codex/gpt-6.1-sol', 'grok/grok-4.7']) {
+      test(
+        'Har confirmed $sol switch sends and retries without replacing session',
+        () async {
+          final id = 'har-confirmed-$sol';
+          const luna = 'codex/gpt-6-luna';
+          sync.testSessions[id] = _makeSession(id, presence: 'online').copyWith(
+            metadata: const Metadata(
+              host: '',
+              machineId: 'machine-1',
+              path: '/repo',
+              flavor: 'har',
+              model: luna,
+              lifecycleState: 'running',
+            ),
+          );
+          sync.testSetSessionSpawnedModel(id, luna);
+          final capture = _CapturingApiInterceptor()..respondWith(id);
+          ApiClient().testDio!.interceptors.insert(0, capture);
+          var spawnCalls = 0;
+          sync.testMachineRPCOverride = (_, method, __) async {
+            if (method == 'spawn-happy-session') spawnCalls++;
+            return <String, dynamic>{'ok': true};
+          };
+          sync.testSessionRPCOverride = (_, method, params) async {
+            expect(method, 'set_model');
+            expect(params, {'model': sol});
+            return {'model': sol};
+          };
+          try {
+            // Unconfirmed intent must fail before delivery, keeping retry identity.
+            await expectLater(
+              sync.sendMessage(
+                id,
+                'continue',
+                clientLocalId: 'har-retry',
+                modelMode: sol,
+                profileId: 'default',
+              ),
+              throwsStateError,
+            );
+            expect(capture.requests, isEmpty);
+            await sync.setSessionModel(id, sol);
+            // A socket update from another client may arrive with old launch
+            // tracking. The running metadata still wins on the next send.
+            sync.testSetSessionSpawnedModel(id, luna);
+            await sync.retryFailedMessage(id, 'har-retry');
+            await sync.lastCompleteSendFuture;
+            await sync.sendMessage(
+              id,
+              'continue',
+              clientLocalId: 'har-next',
+              modelMode: sol,
+              profileId: 'default',
+            );
+            await sync.sendMessage(
+              id,
+              'continue',
+              clientLocalId: 'har-next',
+              modelMode: sol,
+              profileId: 'default',
+            );
+            await sync.lastCompleteSendFuture;
+            final rows = sync.testSessionMessages(id)!;
+            expect(rows.map((r) => r['localId']).toSet(), {
+              'har-retry',
+              'har-next',
+            });
+            expect(rows, hasLength(2));
+            expect(rows.every((r) => r['sendStatus'] == 'sent'), isTrue);
+            expect(capture.requests, isNotEmpty);
+            expect(spawnCalls, 0);
+            expect(sync.testSessions[id]!.metadata!.model, sol);
+          } finally {
+            sync.testSessionRPCOverride = null;
+            sync.testSessionSpawnedModel.remove(id);
+          }
+        },
+      );
     }
 
     for (final scenario in ['model', 'profile', 'offline']) {

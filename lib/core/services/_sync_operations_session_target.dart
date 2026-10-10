@@ -132,14 +132,18 @@ extension SyncSendTargetResolution on Sync {
       final harProfileChanged = spawnedProfileKnown
           ? profileChanged
           : hasExplicitProfileSelection && explicitProfileId != mmkvProfileId;
+      // Har can switch in place. Launch tracking and saved composer intent
+      // can lag behind a switch made by another client; metadata is the
+      // running process's authoritative baseline.
+      final harRunningModel = session.metadata?.model ?? previousModel;
       final harModelChanged =
           modelMode != null &&
           modelMode != 'default' &&
-          previousModel != modelMode;
+          harRunningModel != modelMode;
       if (harProfileChanged || harModelChanged || pendingSelection != null) {
         throw StateError(
-          'Har model and provider are fixed for this '
-          'conversation. Start a new Har session to change them; '
+          'Har provider is fixed for this conversation and model changes '
+          'must be confirmed by the running Har session before sending; '
           'your message has not been sent.',
         );
       }

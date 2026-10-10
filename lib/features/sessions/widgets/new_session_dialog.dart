@@ -35,7 +35,16 @@ enum NewSessionCreateBlocker {
   syncNotReady,
 }
 
-const _agentIds = ['claude', 'codex', 'agy', 'pi', 'opencode', 'grok', 'har'];
+const _agentIds = [
+  'claude',
+  'codex',
+  'agy',
+  'pi',
+  'opencode',
+  'grok',
+  'har',
+  'prime-agent',
+];
 
 NewSessionCreateBlocker? newSessionCreateBlocker({
   required Machine? machine,
@@ -1298,6 +1307,7 @@ String _agentLabel(AppLocalizations l10n, String agent) {
     'opencode' => l10n.sessionsOpencode,
     'grok' => l10n.sessionsGrok,
     'har' => 'Har',
+    'prime-agent' => 'Prime Agent',
     _ => l10n.sessionsClaude,
   };
 }
@@ -1310,6 +1320,7 @@ IconData _agentIcon(String agent) {
     'opencode' => Icons.code_rounded,
     'grok' => Icons.rocket_launch_rounded,
     'har' => Icons.hub_outlined,
+    'prime-agent' => Icons.auto_awesome_rounded,
     _ => Icons.psychology_alt_rounded,
   };
 }

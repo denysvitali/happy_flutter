@@ -11,6 +11,7 @@ import 'package:happy_flutter/core/encryption/encryption_manager.dart';
 import 'package:happy_flutter/core/encryption/encryptor.dart';
 import 'package:happy_flutter/core/encryption/session_encryption.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/core/models/outgoing_image.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/models/settings.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -72,12 +73,46 @@ Session _makeSession({
   );
 }
 
-Widget _buildApp({required Widget child, Settings? settings}) {
+class _HarPickerActions extends ChatActionNotifier {
+  final confirmation = Completer<void>();
+  String? requestedModel;
+  String? sentModel;
+
+  @override
+  Future<void> setSessionModel(String sessionId, String model) {
+    requestedModel = model;
+    return confirmation.future;
+  }
+
+  @override
+  Future<String> sendMessage(
+    String sessionId,
+    String text, {
+    String? clientLocalId,
+    String? displayText,
+    String? permissionMode,
+    String? modelMode,
+    String? profileId,
+    List<OutgoingImage>? images,
+    String? codexDeliveryMode,
+  }) async {
+    sentModel = modelMode;
+    return sessionId;
+  }
+}
+
+Widget _buildApp({
+  required Widget child,
+  Settings? settings,
+  ChatActionNotifier? actions,
+}) {
   return ProviderScope(
     overrides: [
       settingsNotifierProvider.overrideWith(
         () => _StorageFreeSettingsNotifier(settings),
       ),
+      if (actions != null)
+        chatActionNotifierProvider.overrideWith(() => actions),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -128,6 +163,108 @@ void main() {
     PerformanceContextService().resetForTesting();
     await TtsService().dispose();
   });
+
+  testWidgets('stopped Har explains daemon loss without exposing diagnostics', (
+    tester,
+  ) async {
+    sync.isInitialized = true;
+    sync.messagesSync['session_1'] = InvalidateSync(() async {});
+    sync.testSetSessionMessages('session_1', const []);
+    sync.testSessions['session_1'] = _makeSession(flavor: 'har').copyWith(
+      metadata: const Metadata(
+        host: '',
+        flavor: 'har',
+        lifecycleState: 'errored',
+        lifecycleStateError:
+            'daemon started without a live local process for this running session',
+      ),
+    );
+    await tester.pumpWidget(
+      _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Har conversation stopped'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'The machine daemon restarted without this Har process',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('daemon started without a live local process'),
+      findsNothing,
+    );
+  });
+
+  for (final rejects in [false, true]) {
+    testWidgets(
+      'initialized Har picker ${rejects ? 'rejects' : 'confirms'} switch '
+      'before composer delivery',
+      (tester) async {
+        const luna = 'codex/gpt-6-luna';
+        const sol = 'codex/gpt-6.1-sol';
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSetSessionMessages('session_1', const []);
+        sync.testSessions['session_1'] =
+            _makeSession(flavor: 'har', presence: 'online').copyWith(
+              modelMode: luna,
+              metadata: const Metadata(host: '', flavor: 'har', model: luna),
+            );
+        var restored = false;
+        ChatScreen.testInitialSettingsApplyBarrier = () async {
+          restored = true;
+        };
+        final actions = _HarPickerActions();
+        await tester.pumpWidget(
+          _buildApp(
+            child: const ChatScreen(sessionId: 'session_1'),
+            actions: actions,
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(restored, isTrue);
+        expect(
+          tester.widget<ModelChip>(find.byType(ModelChip)).model.modeString,
+          luna,
+        );
+
+        await tester.tap(find.byType(ModelChip));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('GPT-6.1 Sol'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(actions.requestedModel, sol);
+        // Neither picker nor composer may publish an unconfirmed switch.
+        expect(
+          tester.widget<ModelChip>(find.byType(ModelChip)).model.modeString,
+          luna,
+        );
+        if (rejects) {
+          actions.confirmation.completeError(StateError('busy'));
+        } else {
+          actions.confirmation.complete();
+        }
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        final expected = rejects ? luna : sol;
+        expect(
+          tester.widget<ModelChip>(find.byType(ModelChip)).model.modeString,
+          expected,
+        );
+        await tester.enterText(find.byType(TextField), 'hello Har');
+        await tester.pump();
+        await tester.tap(find.byType(SendButton));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        expect(actions.sentModel, expected);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 600));
+      },
+    );
+  }
 
   testWidgets('result review waits for the turn to become idle', (
     tester,

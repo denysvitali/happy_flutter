@@ -176,6 +176,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   StreamSubscription<String>? _paginationErrorSubscription;
   StreamSubscription<AutoRestoreFailure>? _autoRestoreFailureSubscription;
   bool _isSending = false;
+  bool _isSwitchingHarModel = false;
   bool _isAborting = false;
 
   /// When the current stop request was issued (ms since epoch), or 0 when
@@ -1561,11 +1562,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               'failed',
               'error',
             }.contains(session.effectiveLifecycleState))) {
-      return const _SessionSendIssue(
+      final daemonLostProcess =
+          session.metadata?.lifecycleStateError ==
+          'daemon started without a live local process for this running session';
+      return _SessionSendIssue(
         title: 'Har conversation stopped',
         message:
-            'Har cannot resume a stopped conversation. '
-            'Start a new Har session.',
+            '${daemonLostProcess ? 'The machine daemon restarted without this Har process. ' : 'The Har process for this conversation ended. '}'
+            'This session keeps its conversation only while that process runs; '
+            'it cannot be resumed after the process stops. Start a new Har session.',
         snackBarText: 'Start a new Har session to continue.',
         blocksSend: true,
       );
@@ -2024,7 +2029,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ? () => _sendMessage(codexDeliveryMode: 'next-turn')
                 : null,
             isSending: _isSending,
-            isSendDisabled: _sessionSendIssue?.blocksSend ?? false,
+            isSendDisabled:
+                _isSwitchingHarModel ||
+                (_sessionSendIssue?.blocksSend ?? false),
             permissionMode: _permissionMode,
             onPermissionModeChanged: _onPermissionModeChanged,
             modelMode: _modelMode,

@@ -244,6 +244,7 @@ class SessionAvatar extends StatelessWidget {
       'claude' => Icons.auto_awesome,
       'codex' => Icons.code,
       'har' => Icons.hub_outlined,
+      'prime-agent' => Icons.auto_awesome_rounded,
       'agy' || 'gemini' => Icons.auto_awesome,
       'pi' => Icons.psychology_alt_outlined,
       'opencode' => Icons.smart_toy_outlined,
