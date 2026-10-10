@@ -47,6 +47,12 @@ Keep messaging reliability and canonical `localId` contracts as P0.
   fields, so `HAR_API_KEY` is not forwarded. Images, provider switching,
   reasoning/speed/context controls and startup resume are unavailable.
 
+- **Prime Agent switches model in place** — flavor `prime-agent` lists the
+  models the running agent publishes in `metadata.primeagentModels`. A pick
+  travels in the next message's `meta.model`; a running session is never
+  respawned for a model or profile change, because its conversation cannot be
+  resumed. New sessions do not inherit the global last-used model.
+
 - **ACP tool details show the real call** — ACP tool inputs gain
   Claude-compatible path aliases (`file_path`, `target_directory`) for the tool
   views. The arguments as sent stay in `wireInput`; Tool Details renders that,

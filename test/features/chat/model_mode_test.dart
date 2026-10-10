@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 
 void main() {
@@ -39,6 +40,59 @@ void main() {
       );
     },
   );
+
+  test('Prime Agent picker lists the models the running agent advertises', () {
+    final metadata = Metadata.fromJson(const {
+      'flavor': 'prime-agent',
+      'primeagentModels': [
+        {'id': 'openai-codex/gpt-6-luna', 'name': 'GPT-6 Luna (openai-codex)'},
+        {'id': 'openai-codex/gpt-6-sol'},
+        {'id': '  ', 'name': 'blank id'},
+        'not-a-model',
+        {'id': 'openai-codex/gpt-6-luna', 'name': 'duplicate'},
+      ],
+    });
+    final modes = ChatModelMode.availableForProfile(
+      flavor: 'prime-agent',
+      claudeCompatible: false,
+      // The agent's own catalog wins: a profile entry it does not advertise
+      // could never be selected.
+      profileModels: const ['codex/gpt-6.1-sol'],
+      primeAgentModels: metadata.primeAgentModels,
+    );
+    expect(modes.map((mode) => mode.modeString), [
+      'default',
+      'openai-codex/gpt-6-luna',
+      'openai-codex/gpt-6-sol',
+    ]);
+    expect(modes.map((mode) => mode.label), [
+      'Default',
+      'GPT-6 Luna (openai-codex)',
+      'openai-codex/gpt-6-sol',
+    ]);
+    // A picked entry survives the composer's flavor normalization unchanged.
+    expect(
+      ChatModelMode.normalizeForFlavor(modes[2], 'prime-agent').modeString,
+      'openai-codex/gpt-6-sol',
+    );
+    expect(
+      Metadata.fromJson(metadata.toJson()).primeAgentModels,
+      metadata.primeAgentModels,
+    );
+  });
+
+  test('Prime Agent without an advertised catalog keeps profile models', () {
+    final modes = ChatModelMode.availableForProfile(
+      flavor: 'prime-agent',
+      claudeCompatible: false,
+      profileModels: const ['openai-codex/gpt-6-luna'],
+      primeAgentModels: const [],
+    );
+    expect(modes.map((mode) => mode.modeString), [
+      'default',
+      'openai-codex/gpt-6-luna',
+    ]);
+  });
 
   test('Har pickers and stored selections preserve Grok 4.7', () {
     const raw = 'grok/grok-4.7';

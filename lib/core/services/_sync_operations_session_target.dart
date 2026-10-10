@@ -128,6 +128,22 @@ extension SyncSendTargetResolution on Sync {
         pendingSelection != null;
     final isHarSession =
         (session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId]) == 'har';
+    final isPrimeAgentSession =
+        (session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId]) ==
+        'prime-agent';
+    // Prime Agent applies a model change in place from the message's
+    // `meta.model`, and its process-local conversation cannot be resumed.
+    // A replacement would end the conversation instead of switching model,
+    // so a running session always keeps its process.
+    if (isPrimeAgentSession &&
+        !session.hasLifecycleError &&
+        (health.looksReady || recentlySpawned)) {
+      return (
+        sessionId: sessionId,
+        session: session,
+        sessionEncryption: sessionEncryption,
+      );
+    }
     if (isHarSession) {
       final harProfileChanged = spawnedProfileKnown
           ? profileChanged

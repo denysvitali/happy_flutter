@@ -1,4 +1,5 @@
 import '../../../core/models/built_in_profiles.dart';
+import '../../../core/models/session.dart' show PrimeAgentModelInfo;
 import '../../../core/models/settings.dart'
     show AIBackendProfile, extendedContextWindowTokens;
 import '../../../core/rpc/rpc_types.dart';
@@ -322,8 +323,16 @@ class ChatModelMode {
     List<ChatModelMode>? codexModels,
     String? providerOwnedCodexModel,
     List<String>? profileModels,
+    List<PrimeAgentModelInfo>? primeAgentModels,
   }) {
     if (flavor == 'har') return harModels;
+    // The running Prime Agent owns its catalog: only models it advertises can
+    // be selected, so its list wins over profile entries and static tiers.
+    if (flavor == 'prime-agent' &&
+        primeAgentModels != null &&
+        primeAgentModels.isNotEmpty) {
+      return fromPrimeAgentCatalog(primeAgentModels);
+    }
     // An explicit profile model list is authoritative for every flavor.
     // Codex's live catalog only contains models known to the local Codex
     // installation, so consulting it first hides provider-specific entries
@@ -523,6 +532,25 @@ class ChatModelMode {
   /// contain a colon are left intact.
   static String _stripEffortSuffix(String raw) =>
       stripModelEffortSuffix(raw, codexEfforts.followedBy(claudeEfforts));
+
+  /// Builds picker options from the models a Prime Agent session advertises.
+  static List<ChatModelMode> fromPrimeAgentCatalog(
+    List<PrimeAgentModelInfo> catalog,
+  ) {
+    final models = <ChatModelMode>[defaultModel];
+    for (final item in catalog) {
+      final id = item.id.trim();
+      if (id.isEmpty || id == defaultModel.modeString) continue;
+      final model = ChatModelMode._(
+        label: item.name.trim().isEmpty ? id : item.name.trim(),
+        modeString: id,
+        modelSlug: id,
+        flavor: 'prime-agent',
+      );
+      if (!models.contains(model)) models.add(model);
+    }
+    return models;
+  }
 
   static List<ChatModelMode> fromCodexCatalog(List<CodexModelInfo> catalog) {
     final models = <ChatModelMode>[defaultModel];

@@ -109,6 +109,54 @@ dynamic _sandboxEnabledToJson(bool? sandboxEnabled) {
   return {'enabled': sandboxEnabled};
 }
 
+/// A model the running Prime Agent advertises over ACP.
+///
+/// happy-cli-go publishes these as `primeagentModels` in session metadata;
+/// [id] is the `provider/model` name the session accepts as a model selection.
+@immutable
+class PrimeAgentModelInfo {
+  const PrimeAgentModelInfo({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PrimeAgentModelInfo && other.id == id && other.name == name;
+
+  @override
+  int get hashCode => Object.hash(id, name);
+
+  @override
+  String toString() => 'PrimeAgentModelInfo(id: $id, name: $name)';
+}
+
+List<PrimeAgentModelInfo>? _primeAgentModelsFromJson(dynamic value) {
+  if (value is! List) return null;
+  final models = <PrimeAgentModelInfo>[];
+  for (final item in value) {
+    if (item is! Map) continue;
+    final id = item['id'];
+    if (id is! String || id.trim().isEmpty) continue;
+    final name = item['name'];
+    models.add(
+      PrimeAgentModelInfo(
+        id: id.trim(),
+        name: name is String && name.trim().isNotEmpty
+            ? name.trim()
+            : id.trim(),
+      ),
+    );
+  }
+  return models;
+}
+
+dynamic _primeAgentModelsToJson(List<PrimeAgentModelInfo>? models) =>
+    models?.map((model) => model.toJson()).toList();
+
 Metadata? _metadataFromJson(dynamic value) {
   if (value is Map<String, dynamic>) return Metadata.fromJson(value);
   return null;
@@ -173,6 +221,12 @@ abstract class Metadata with _$Metadata {
     @JsonKey(fromJson: _asApiIntNullable) int? hostPid,
     @JsonKey(fromJson: _asApiStringNullable) String? flavor,
     @JsonKey(fromJson: _asApiStringNullable) String? model,
+    @JsonKey(
+      name: 'primeagentModels',
+      fromJson: _primeAgentModelsFromJson,
+      toJson: _primeAgentModelsToJson,
+    )
+    List<PrimeAgentModelInfo>? primeAgentModels,
     @JsonKey(fromJson: _asApiBoolNullable) bool? codexFastMode,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleStateError,

@@ -705,10 +705,14 @@ class _NewSessionDialogState extends ConsumerState<NewSessionDialog> {
         modelMode ??= selectedProfile?.defaultModelMode;
       }
       // Fall back to the user's last explicit model selection so profile
-      // switches don't regress the model choice.
-      modelMode ??= normalizeProfileCandidate(
-        updatedSettings.lastUsedModelMode,
-      );
+      // switches don't regress the model choice. The last-used model is
+      // global across agents, and Prime Agent only accepts models its own
+      // installation advertises, so another agent's pick must not reach it.
+      if (_selectedAgent != 'prime-agent') {
+        modelMode ??= normalizeProfileCandidate(
+          updatedSettings.lastUsedModelMode,
+        );
+      }
       if (_selectedAgent == 'har') modelMode = _harModel;
       if (!_canUseRef) return;
       if (modelMode != null) {

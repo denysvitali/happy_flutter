@@ -592,12 +592,16 @@ extension _ChatScreenActions on _ChatScreenState {
     final isRunning = _session?.isPresenceOnline ?? false;
     if (isRunning && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Model changed. The session will restart '
-            'automatically on the next message.',
+            // Prime Agent switches in place; its conversation cannot be
+            // resumed, so it is never restarted for a model change.
+            flavor == 'prime-agent'
+                ? 'Model changed. It applies from your next message.'
+                : 'Model changed. The session will restart '
+                      'automatically on the next message.',
           ),
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -629,6 +633,7 @@ extension _ChatScreenActions on _ChatScreenState {
           : const [ChatModelMode.defaultModel],
       providerOwnedCodexModel: providerOwnedCodexModel,
       profileModels: _selectedProfile?.models,
+      primeAgentModels: _session?.metadata?.primeAgentModels,
     );
   }
 

@@ -143,6 +143,39 @@ void main() {
   );
 
   test(
+    'Prime Agent model pick is delivered without replacing the process',
+    () async {
+      // Prime Agent switches model in place from the message itself, and its
+      // conversation cannot be resumed: a respawn would end the chat.
+      sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
+        metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
+          flavor: 'prime-agent',
+          model: 'openai-codex/gpt-6-luna',
+        ),
+      );
+      await sync.sendMessage(
+        sessionId,
+        'continue',
+        clientLocalId: 'prime-switch',
+        profileId: 'default',
+        modelMode: 'openai-codex/gpt-6-sol',
+      );
+      await sync.lastCompleteSendFuture;
+      await sync.sendMessage(
+        sessionId,
+        'continue',
+        clientLocalId: 'prime-default',
+        profileId: 'default',
+        modelMode: 'default',
+      );
+      await sync.lastCompleteSendFuture;
+      expect(spawns, isEmpty);
+      expect(selections.read(sessionId), isNull);
+      expect(http.capturedLocalIds, ['prime-switch', 'prime-default']);
+    },
+  );
+
+  test(
     'Codex speed applies on retry and accepted choices do not respawn',
     () async {
       sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
