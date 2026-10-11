@@ -87,6 +87,8 @@ class KnownTools {
   /// Canonical display-definition names for aliases emitted by different
   /// agents or provider adapters.
   static const Map<String, String> aliases = {
+    'Python Cell': 'ipython',
+    'functions.ipython': 'ipython',
     'file-edit': 'Edit',
     'read': 'Read',
     'write': 'Write',
@@ -278,6 +280,11 @@ class KnownTools {
         final count = agentStepCount(tool);
         return count > 0 ? '$count steps' : null;
       },
+    ),
+    'ipython': ToolDefinition(
+      icon: notebookIcon,
+      title: 'Python Cell',
+      hideDefaultError: true,
     ),
     'Bash': ToolDefinition(
       icon: bashIcon,

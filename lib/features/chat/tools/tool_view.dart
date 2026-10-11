@@ -121,10 +121,8 @@ const Set<String> _monoSubtitleToolNames = {
 
 class _ToolViewState extends ConsumerState<ToolView>
     with TickerProviderStateMixin {
-  // Collapsed by default — the header summary is the one-tap preview, and the
-  // full body is reached via a tap on the header. The only auto-expand case
-  // is a pending permission request: the Allow/Deny footer must stay visible
-  // so the user can respond, and the user dismisses it themselves afterward.
+  // Most tools start collapsed. Python source stays readable inline;
+  // permissions and the expand-todos preference also open their bodies.
   // Full input/JSON is always reachable via long-press → [MessageDetailScreen].
   bool _expanded = false;
   bool _showCheckFlash = false;
@@ -175,19 +173,23 @@ class _ToolViewState extends ConsumerState<ToolView>
     final initPermission = WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(initPermission);
 
-    // Two cases auto-expand:
+    // Three cases auto-expand:
     //   1. A pending permission request — the user needs the Allow/Deny
     //      footer in view.
     //   2. A plan/todo tool while the "Expand todos" setting is on. The
     //      agent's plan is the one tool call users read rather than skim,
     //      and this is what that setting has always promised.
+    //   3. Python cells — show the source and bounded output without a tap.
     // Anything else (running, completed, error, pending) starts collapsed
     // and waits for an explicit tap. A running tool still shows its
     // spinner + tinted row while collapsed so the user sees it's in flight.
     final expandTodos = ref.read(
       settingsNotifierProvider.select((s) => s.expandTodos),
     );
-    if (hasPermissionRequest || (expandTodos && _isTodoTool)) {
+    final isPythonCell =
+        KnownTools.canonicalName(widget.tool['name'] as String? ?? '') ==
+        'ipython';
+    if (hasPermissionRequest || (expandTodos && _isTodoTool) || isPythonCell) {
       _expanded = true;
       _chevronController.forward();
     }

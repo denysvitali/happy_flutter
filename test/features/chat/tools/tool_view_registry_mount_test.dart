@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
+import 'package:happy_flutter/features/chat/code_block_widget.dart';
 import 'package:happy_flutter/features/chat/tools/tool_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/bash_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/glob_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/grep_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/ls_view.dart';
+import 'package:happy_flutter/features/chat/tools/views/python_cell_view.dart';
+import 'package:happy_flutter/features/chat/tools/views/terminal_output_section.dart';
 
 Widget _wrap(Map<String, dynamic> tool) {
   return ProviderScope(
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: ToolView(tool: tool)),
+      home: Scaffold(
+        body: SingleChildScrollView(child: ToolView(tool: tool)),
+      ),
     ),
   );
 }
@@ -65,6 +70,111 @@ void main() {
       },
     ),
   ];
+
+  for (final name in ['Python Cell', 'ipython', 'functions.ipython']) {
+    testWidgets('$name shows Python source and output without a tap', (
+      tester,
+    ) async {
+      const code =
+          'for p in ["config.rs", "config_command.rs"]:\n'
+          ' print(p)\n';
+      await tester.pumpWidget(
+        _wrap({
+          'name': name,
+          'input': {'code': code},
+          'state': 'completed',
+          'result': [
+            {
+              'type': 'content',
+              'content': {'type': 'text', 'text': 'config.rs\n'},
+            },
+            {
+              'type': 'content',
+              'content': {'type': 'text', 'text': 'config_command.rs'},
+            },
+          ],
+        }),
+      );
+      expect(find.byType(PythonCellView), findsOneWidget);
+      final block = tester.widget<CodeBlockWidget>(
+        find.byType(CodeBlockWidget),
+      );
+      expect(block.code, code);
+      expect(block.language, 'python');
+      final output = tester.widget<TerminalOutputSection>(
+        find.byType(TerminalOutputSection),
+      );
+      expect(output.output, 'config.rs\nconfig_command.rs');
+      expect(output.isError, isFalse);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Python cells decode serialized input and bound long previews', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap({
+        'name': 'Python Cell',
+        'input': r'{"code":"print(1)\nprint(2)"}',
+        'state': 'completed',
+        'result': List.generate(100, (i) => '$i').join('\n'),
+      }),
+    );
+    final block = tester.widget<CodeBlockWidget>(find.byType(CodeBlockWidget));
+    expect(block.code, 'print(1)\nprint(2)');
+    expect(block.maxVisibleLines, 12);
+    final output = tester.widget<TerminalOutputSection>(
+      find.byType(TerminalOutputSection),
+    );
+    expect(output.maxLines, 20);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Python errors render readable tracebacks inline', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap({
+        'name': 'Python Cell',
+        'input': {'code': '1 / 0'},
+        'state': 'error',
+        'result': 'Traceback\nZeroDivisionError: division by zero',
+      }),
+    );
+    final output = tester.widget<TerminalOutputSection>(
+      find.byType(TerminalOutputSection),
+    );
+    expect(output.output, contains('ZeroDivisionError'));
+    expect(output.isError, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Python completion preserves a manual collapse', (tester) async {
+    final tool = <String, dynamic>{
+      'name': 'Python Cell',
+      'input': {'code': 'print("ok")'},
+      'state': 'running',
+    };
+    await tester.pumpWidget(_wrap(tool));
+    expect(find.byType(CodeBlockWidget), findsOneWidget);
+    await tester.tap(find.textContaining('Python Cell', findRichText: true));
+    await tester.pumpAndSettle();
+    expect(find.byType(CodeBlockWidget), findsNothing);
+    await tester.pumpWidget(
+      _wrap({
+        ...tool,
+        'state': 'completed',
+        'result': {'stdout': 'ok', 'stderr': ''},
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(CodeBlockWidget), findsNothing);
+    await tester.tap(find.textContaining('Python Cell', findRichText: true));
+    await tester.pumpAndSettle();
+    expect(find.byType(CodeBlockWidget), findsOneWidget);
+    expect(find.byType(TerminalOutputSection), findsOneWidget);
+  });
 
   for (final testCase in cases) {
     testWidgets('${testCase.name} mounts its registered rich body', (

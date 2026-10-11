@@ -415,6 +415,8 @@ extension _ChatScreenBuilders on _ChatScreenState {
     // with their inline children, never be collapsed into
     // the hidden-tool-summary.
     final toolName = message['name'] as String?;
+    // Python cells have a bounded source/output preview, even in grouped mode.
+    if (KnownTools.canonicalName(toolName ?? '') == 'ipython') return false;
     if (toolName == 'Task' || toolName == 'Agent' || toolName == 'Workflow') {
       return false;
     }

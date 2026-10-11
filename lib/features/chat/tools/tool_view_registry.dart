@@ -16,6 +16,7 @@ import 'views/glob_view.dart';
 import 'views/grep_view.dart';
 import 'views/ls_view.dart';
 import 'views/multi_edit_view.dart';
+import 'views/python_cell_view.dart';
 import 'views/read_view.dart';
 import 'views/send_message_view.dart';
 import 'views/task_tool_view.dart';
@@ -46,6 +47,7 @@ class ToolViewRegistry {
     'Write': (t, m, s) => WriteView(tool: t, metadata: m),
     // Gemini uses lowercase "edit" as a distinct body.
     'edit': (t, m, s) => GeminiEditView(tool: t, metadata: m),
+    'ipython': (t, m, s) => PythonCellView(tool: t),
     'Bash': (t, m, s) => BashView(tool: t, metadata: m),
     'exec_command': (t, m, s) => ExecCommandView(tool: t),
     'CodexBash': (t, m, s) => CodexBashView(tool: t, metadata: m),

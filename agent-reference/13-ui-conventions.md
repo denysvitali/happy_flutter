@@ -21,6 +21,12 @@ running tool family and elapsed request time; its clock pauses with TickerMode.
 An idle turn offers a result review sheet with the latest answer, recorded
 changed files/diffs, and command output. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
+Python Cell calls show syntax-highlighted Python source and readable output
+inline without opening tool details, including when completed tools are grouped.
+The preview uses the shared 12-line code and 20-line output limits; full source,
+Copy, output expansion, and raw wire details remain available. A manual cell
+collapse is preserved when its result arrives.
+
 Active Codex turns have separate, visible Update current turn and Queue for
 next turn actions. Mobile keeps model/permission controls in the composer and
 moves profile/context settings into Composer options. Session triage labels
