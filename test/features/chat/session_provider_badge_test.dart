@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:happy_flutter/core/components/prime_agent_logo.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/session.dart';
 import 'package:happy_flutter/core/providers/app_providers.dart';
@@ -61,10 +62,17 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+      final logo = find.byType(PrimeAgentLogo);
+      expect(logo, findsOneWidget);
+      final image = tester.widget<Image>(
+        find.descendant(of: logo, matching: find.byType(Image)),
+      );
+      final asset = (image.image as ResizeImage).imageProvider as AssetImage;
+      expect(asset.assetName, PrimeAgentLogo.assetPath);
+      expect(find.byIcon(Icons.auto_awesome_rounded), findsNothing);
       expect(
         find.byType(Image),
-        imageUrl == null ? findsNothing : findsOneWidget,
+        imageUrl == null ? findsOneWidget : findsNWidgets(2),
       );
     });
   }

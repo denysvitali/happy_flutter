@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/socket_io_client.dart' show ConnectionStatus;
 import '../../../core/components/app_status_dot.dart';
+import '../../../core/components/prime_agent_logo.dart';
 import '../../../core/i18n/app_localizations.dart';
 import '../../../core/models/built_in_profiles.dart';
 import '../../../core/models/favorite_model.dart';
@@ -1172,7 +1173,7 @@ class _AgentPicker extends StatelessWidget {
                       Expanded(
                         child: _AgentOption(
                           label: _agentLabel(l10n, _agentIds[i]),
-                          icon: _agentIcon(_agentIds[i]),
+                          agent: _agentIds[i],
                           selected: _agentIds[i] == selectedAgent,
                           onTap: () => onSelected(_agentIds[i]),
                         ),
@@ -1192,13 +1193,13 @@ class _AgentPicker extends StatelessWidget {
 class _AgentOption extends StatelessWidget {
   const _AgentOption({
     required this.label,
-    required this.icon,
+    required this.agent,
     required this.selected,
     required this.onTap,
   });
 
   final String label;
-  final IconData icon;
+  final String agent;
   final bool selected;
   final VoidCallback onTap;
 
@@ -1235,7 +1236,14 @@ class _AgentOption extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, size: AppIconSize.lg, color: foreground),
+                  if (agent == 'prime-agent')
+                    const PrimeAgentLogo(size: AppIconSize.lg)
+                  else
+                    Icon(
+                      _agentIcon(agent),
+                      size: AppIconSize.lg,
+                      color: foreground,
+                    ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     label,
@@ -1324,7 +1332,6 @@ IconData _agentIcon(String agent) {
     'opencode' => Icons.code_rounded,
     'grok' => Icons.rocket_launch_rounded,
     'har' => Icons.hub_outlined,
-    'prime-agent' => Icons.auto_awesome_rounded,
     _ => Icons.psychology_alt_rounded,
   };
 }

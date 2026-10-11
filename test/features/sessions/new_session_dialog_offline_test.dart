@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:happy_flutter/core/api/socket_io_client.dart'
     show ConnectionStatus;
+import 'package:happy_flutter/core/components/prime_agent_logo.dart';
 import 'package:happy_flutter/core/i18n/app_localizations.dart';
 import 'package:happy_flutter/core/models/machine.dart';
 import 'package:happy_flutter/core/models/session.dart';
@@ -514,6 +515,28 @@ void main() {
         ),
       );
     }
+
+    testWidgets('Prime Agent picker uses the official logo', (tester) async {
+      await pumpDialog(tester, buildHarness(machines: {}));
+      await tester.pumpAndSettle();
+
+      final option = find.ancestor(
+        of: find.text('Prime Agent'),
+        matching: find.byType(InkWell),
+      );
+      expect(option, findsOneWidget);
+      expect(
+        find.descendant(of: option, matching: find.byType(PrimeAgentLogo)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: option,
+          matching: find.byIcon(Icons.auto_awesome_rounded),
+        ),
+        findsNothing,
+      );
+    });
 
     testWidgets('creation returns through the dialog owning navigator', (
       tester,

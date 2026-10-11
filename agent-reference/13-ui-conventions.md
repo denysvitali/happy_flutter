@@ -21,8 +21,10 @@ running tool family and elapsed request time; its clock pauses with TickerMode.
 An idle turn offers a result review sheet with the latest answer, recorded
 changed files/diffs, and command output. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
-Prime Agent session badges use the same rounded sparkle icon as the
-new-session picker, never the Claude logo, for generated and custom avatars.
+Prime Agent session badges and the new-session picker share `PrimeAgentLogo`:
+the official Prime Intellect bird mark, bundled from
+`https://www.primeintellect.ai/icons/logo-icon.png`. Generated and custom
+avatars use this logo, never the Claude logo or a generic sparkle icon.
 Prime Agent’s `Python cell` calls show syntax-highlighted Python source and
 readable output inline without opening tool details, including when completed
 tools are grouped.

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/components/prime_agent_logo.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/avatars/avatar_bloom.dart';
 import '../../core/ui/avatars/avatar_brutalist.dart';
@@ -194,7 +195,9 @@ class SessionAvatar extends StatelessWidget {
             ],
           ),
           child: Center(
-            child: flavorName == 'har' || flavorName == 'prime-agent'
+            child: flavorName == 'prime-agent'
+                ? PrimeAgentLogo(size: iconSize.toDouble())
+                : flavorName == 'har'
                 ? Icon(
                     _getFlavorIcon(flavorName),
                     size: iconSize.toDouble(),
@@ -244,7 +247,6 @@ class SessionAvatar extends StatelessWidget {
       'claude' => Icons.auto_awesome,
       'codex' => Icons.code,
       'har' => Icons.hub_outlined,
-      'prime-agent' => Icons.auto_awesome_rounded,
       'agy' || 'gemini' => Icons.auto_awesome,
       'pi' => Icons.psychology_alt_outlined,
       'opencode' => Icons.smart_toy_outlined,
