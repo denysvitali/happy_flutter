@@ -194,9 +194,9 @@ class SessionAvatar extends StatelessWidget {
             ],
           ),
           child: Center(
-            child: flavorName == 'har'
+            child: flavorName == 'har' || flavorName == 'prime-agent'
                 ? Icon(
-                    Icons.hub_outlined,
+                    _getFlavorIcon(flavorName),
                     size: iconSize.toDouble(),
                     color: theme.colorScheme.onSurface,
                   )

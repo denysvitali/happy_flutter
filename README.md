@@ -81,6 +81,7 @@ running tool family and elapsed request time; its clock pauses with TickerMode.
 An idle turn offers a result review sheet with the latest answer, recorded
 changed files/diffs, and command output. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
+Prime Agent session badges use its rounded sparkle icon, not the Claude logo.
 Prime Agent’s `Python cell` calls show syntax-highlighted Python source and
 readable output inline without opening tool details, including when completed
 tools are grouped.

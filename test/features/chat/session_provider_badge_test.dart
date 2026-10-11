@@ -42,6 +42,33 @@ Widget _wrap(Widget child) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  for (final imageUrl in [null, 'https://example.com/avatar.png']) {
+    testWidgets('Prime Agent badge uses its own icon with '
+        '${imageUrl == null ? 'a generated' : 'a custom'} avatar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SessionAvatar(
+              id: 'prime-agent-session',
+              flavor: 'prime-agent',
+              style: AvatarStyle.pixelated,
+              imageUrl: imageUrl,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+      expect(
+        find.byType(Image),
+        imageUrl == null ? findsNothing : findsOneWidget,
+      );
+    });
+  }
+
   testWidgets('chat app bar uses the same pixelated session avatar', (
     tester,
   ) async {
