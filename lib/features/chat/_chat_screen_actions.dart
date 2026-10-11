@@ -594,8 +594,7 @@ extension _ChatScreenActions on _ChatScreenState {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            // Prime Agent switches in place; its conversation cannot be
-            // resumed, so it is never restarted for a model change.
+            // Running Prime Agent switches model in place on the next send.
             flavor == 'prime-agent'
                 ? 'Model changed. It applies from your next message.'
                 : 'Model changed. The session will restart '

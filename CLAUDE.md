@@ -50,10 +50,13 @@ Keep messaging reliability and canonical `localId` contracts as P0.
 - **Prime Agent switches model in place** — flavor `prime-agent` lists the
   models the running agent publishes in `metadata.primeagentModels`. A pick
   travels in the next message's `meta.model`; a running session is never
-  respawned for a model or profile change, because its conversation cannot be
-  resumed. Stopped, archived, or errored sessions require a new conversation;
-  sends and retries must never restore them. New sessions do not inherit the
-  global last-used model.
+  respawned for a model or profile change. Stopped sessions may restore only
+  with a valid `metadata.primeAgentSessionFile` transcript basename and a
+  machine/project target. Send and Retry require confirmed same-session
+  restore before delivery and preserve `localId`; failed restore never falls
+  back to the dead process. Legacy sessions without a saved transcript need
+  a new conversation. Stale permissions remain expired. New sessions do not
+  inherit the global last-used model.
 
 - **ACP tool details show the real call** — ACP tool inputs gain
   Claude-compatible path aliases (`file_path`, `target_directory`) for the tool

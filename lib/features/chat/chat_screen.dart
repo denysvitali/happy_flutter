@@ -124,12 +124,14 @@ class _SessionSendIssue {
     required this.message,
     required this.snackBarText,
     required this.blocksSend,
+    this.startNewSession = false,
   });
 
   final String title;
   final String message;
   final String snackBarText;
   final bool blocksSend;
+  final bool startNewSession;
 }
 
 /// Chat screen for a session
@@ -1703,10 +1705,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             'it cannot be resumed after the process stops. Start a new Har session.',
         snackBarText: 'Start a new Har session to continue.',
         blocksSend: true,
+        startNewSession: true,
       );
     }
     if (session?.metadata?.flavor == 'prime-agent' &&
-        (session!.archived ||
+        !session!.canRestorePrimeAgent &&
+        (session.archived ||
             session.hasLifecycleError ||
             const {
               'exited',
@@ -1715,14 +1719,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               'error',
               'archived',
             }.contains(session.effectiveLifecycleState))) {
+      if (session.metadata?.hasPrimeAgentSessionFile ?? false) {
+        return const _SessionSendIssue(
+          title: 'Prime Agent conversation stopped',
+          message:
+              'This conversation has a saved transcript reference, but the '
+              'machine or project details needed to resume it are missing. '
+              'View computers to check the machine.',
+          snackBarText: 'Check the machine details before resuming.',
+          blocksSend: true,
+        );
+      }
       return const _SessionSendIssue(
         title: 'Prime Agent conversation stopped',
         message:
             'The Prime Agent process for this conversation ended. '
-            'This conversation cannot be resumed after the process stops. '
+            'No saved transcript is available to resume this conversation. '
             'Start a new Prime Agent session.',
         snackBarText: 'Start a new Prime Agent session to continue.',
         blocksSend: true,
+        startNewSession: true,
       );
     }
     if (session == null || !session.hasLifecycleError) return null;
@@ -2313,21 +2329,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               blocksSend: issue.blocksSend,
             ),
             onCopy: () => _copySessionIssue(issue),
-            actionLabel:
-                issue.blocksSend &&
-                    const {
-                      'har',
-                      'prime-agent',
-                    }.contains(_session?.metadata?.flavor)
+            actionLabel: issue.startNewSession
                 ? context.l10n.sessionsStartSession
                 : context.l10n.sessionsViewComputers,
             onAction: () async {
               final session = _session;
-              if (issue.blocksSend &&
-                  const {
-                    'har',
-                    'prime-agent',
-                  }.contains(session?.metadata?.flavor)) {
+              if (issue.startNewSession) {
                 final id = await showNewSessionDialog(
                   context,
                   initialMachineId: session?.metadata?.machineId,

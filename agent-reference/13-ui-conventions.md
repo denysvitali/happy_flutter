@@ -41,8 +41,11 @@ separate unread assistant results from unread activity while still working.
 Unread Focus orders approvals, errors, unread answers, then unread activity;
 routine thinking without unread work remains in All Sessions.
 Cached chats stay mounted during refresh; a failed refresh offers Retry above
-the retained history. Failed sends have a 44px retry target. Stopped Har and
-Prime Agent chats offer an explicit new-session action, never automatic resume.
+the retained history. Failed sends have a 44px retry target. Stopped Har chats
+and Prime Agent chats without a saved transcript offer
+an explicit new-session action. Transcript-backed Prime chats resume on Send
+or Retry only after the daemon confirms restore; failed sends retain their
+original identity.
 New-session worktree/backend controls live under Advanced options. Recent
 workspaces select only a path on the chosen machine, not an agent or model.
 Mobile approvals and Composer options stay outside the scrolling model lane.

@@ -30,6 +30,7 @@ import 'package:happy_flutter/features/chat/widgets/input_toolbar.dart'
 import 'package:happy_flutter/features/chat/widgets/model_mode.dart';
 import 'package:happy_flutter/features/chat/widgets/pagination_failure_retry.dart';
 import 'package:happy_flutter/features/chat/widgets/permission_mode_selector.dart';
+import 'package:happy_flutter/features/chat/widgets/session_issue_banner.dart';
 import 'package:mmkv_platform_interface/mmkv_platform_interface.dart';
 
 import '../../helpers/fake_mmkv_platform.dart';
@@ -218,6 +219,105 @@ void main() {
         await tester.pump(const Duration(milliseconds: 600));
       },
     );
+  }
+
+  for (final metadata in [
+    const Metadata(
+      host: '',
+      flavor: 'prime-agent',
+      machineId: 'machine-1',
+      path: '/work/repo',
+      primeAgentSessionFile: '../conversation.jsonl',
+    ),
+    const Metadata(
+      host: '',
+      flavor: 'prime-agent',
+      path: '/work/repo',
+      primeAgentSessionFile: 'conversation.jsonl',
+    ),
+    const Metadata(
+      host: '',
+      flavor: 'prime-agent',
+      machineId: 'machine-1',
+      primeAgentSessionFile: 'conversation.jsonl',
+    ),
+  ]) {
+    testWidgets('incomplete Prime restore target disables sending: $metadata', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession(
+        flavor: 'prime-agent',
+      ).copyWith(lifecycleStateCleartext: 'stopped', metadata: metadata);
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('Prime Agent conversation stopped'), findsOneWidget);
+      final bannerFinder = find.byType(SessionIssueBanner);
+      final banner = tester.widget<SessionIssueBanner>(bannerFinder);
+      final l10n = AppLocalizations.of(tester.element(bannerFinder));
+      expect(
+        banner.actionLabel,
+        metadata.hasPrimeAgentSessionFile
+            ? l10n.sessionsViewComputers
+            : l10n.sessionsStartSession,
+      );
+      if (metadata.hasPrimeAgentSessionFile) {
+        expect(
+          find.textContaining('saved transcript is available'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Start a new Prime Agent session'),
+          findsNothing,
+        );
+      }
+      expect(
+        tester.widget<ChatInput>(find.byType(ChatInput)).isSendDisabled,
+        isTrue,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    });
+  }
+
+  for (final state in ['errored', 'stopped', 'exited', 'archived']) {
+    testWidgets('saved Prime transcript allows sending after $state', (
+      tester,
+    ) async {
+      sync.isInitialized = true;
+      sync.messagesSync['session_1'] = InvalidateSync(() async {});
+      sync.testSetSessionMessages('session_1', const []);
+      sync.testSessions['session_1'] = _makeSession(flavor: 'prime-agent')
+          .copyWith(
+            lifecycleStateCleartext: state,
+            archived: state == 'archived',
+            metadata: const Metadata(
+              host: '',
+              flavor: 'prime-agent',
+              machineId: 'machine-1',
+              path: '/work/repo',
+              primeAgentSessionFile: 'conversation.jsonl',
+            ),
+          );
+      await tester.pumpWidget(
+        _buildApp(child: const ChatScreen(sessionId: 'session_1')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(find.text('Prime Agent conversation stopped'), findsNothing);
+      expect(find.text('New session'), findsNothing);
+      expect(
+        tester.widget<ChatInput>(find.byType(ChatInput)).isSendDisabled,
+        isFalse,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 600));
+    });
   }
 
   testWidgets('stopped Har explains daemon loss without exposing diagnostics', (

@@ -1983,7 +1983,27 @@ extension SyncMessagingSend on Sync {
     int runtimeGeneration,
   ) async {
     if (!isInitialized || runtimeGeneration != _runtimeGeneration) return false;
-    if (messageOutbox.deadEntry(localId) == null) return false;
+    final entry = messageOutbox.deadEntry(localId);
+    if (entry == null || entry.sessionId != sessionId) return false;
+    final session = _sessions[sessionId];
+    if (session?.canRestorePrimeAgent == true) {
+      final sessionEncryption = encryption.getSessionEncryption(sessionId);
+      if (sessionEncryption == null) return false;
+      final meta = entry.rawRecord['meta'] is Map<String, dynamic>
+          ? entry.rawRecord['meta'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      await _resolveSendTargetSession(
+        sessionId: sessionId,
+        session: session!,
+        sessionEncryption: sessionEncryption,
+        effectivePermissionMode: meta['permissionMode'] as String? ?? 'default',
+        modelMode: meta['model'] as String?,
+        localId: localId,
+      );
+      if (!isInitialized || runtimeGeneration != _runtimeGeneration) {
+        return false;
+      }
+    }
     final revived = await messageOutbox.reviveDead(localId);
     if (!isInitialized || runtimeGeneration != _runtimeGeneration) return false;
     if (!revived) return false;
@@ -2026,7 +2046,13 @@ extension SyncMessagingSend on Sync {
 
     checkRuntime();
     final session = _sessions[sessionId];
-    if (session != null) _checkProcessScopedSendTarget(sessionId, session);
+    if (session != null) {
+      _checkProcessScopedSendTarget(
+        sessionId,
+        session,
+        allowPrimeRestore: true,
+      );
+    }
     final msgs = _sessionMessages[sessionId];
     if (msgs == null) {
       if (await _retryFromDeadLetter(sessionId, localId, runtimeGeneration)) {
@@ -2158,7 +2184,7 @@ extension SyncMessagingSend on Sync {
     // encrypted payload enters the outbox. Otherwise Retry bypasses target
     // resolution and silently delivers to the old provider.
     final pendingSelection = PendingSessionConfiguration().read(sessionId);
-    if (pendingSelection != null) {
+    if (pendingSelection != null || session?.canRestorePrimeAgent == true) {
       final session = _sessions[sessionId];
       if (session == null) {
         return const MessageRetryResult(MessageRetryOutcome.sessionUnavailable);
@@ -2171,19 +2197,21 @@ extension SyncMessagingSend on Sync {
         session: session,
         sessionEncryption: sessionEncryption,
         effectivePermissionMode: meta['permissionMode'] as String? ?? 'default',
-        profileId: pendingSelection.profileId,
-        modelMode: pendingSelection.modelMode,
+        profileId: pendingSelection?.profileId,
+        modelMode: pendingSelection?.modelMode ?? meta['model'] as String?,
         localId: localId,
       );
       checkRuntime();
       sessionId = target.sessionId;
       sessionEncryption = target.sessionEncryption;
-      raw['meta'] = {
-        ...meta,
-        'model': pendingSelection.modelMode == 'default'
-            ? null
-            : pendingSelection.modelMode,
-      };
+      if (pendingSelection != null) {
+        raw['meta'] = {
+          ...meta,
+          'model': pendingSelection.modelMode == 'default'
+              ? null
+              : pendingSelection.modelMode,
+        };
+      }
     }
 
     late final String encryptedRawRecord;

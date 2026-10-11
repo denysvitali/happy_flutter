@@ -2,16 +2,13 @@ part of 'sync_service.dart';
 
 /// Apply pending provider/model intent before choosing a delivery target.
 extension SyncSendTargetResolution on Sync {
-  /// Reject attempts to resume conversations owned by a single process.
-  void _checkProcessScopedSendTarget(String sessionId, Session session) {
-    final flavor = session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId];
-    if (flavor != 'prime-agent' && flavor != 'har') return;
+  bool _processScopedSessionStopped(String sessionId, Session session) {
     final health = SyncHealth(
       session: session,
       sessionSpawnedAt: _sessionSpawnedAt,
       lastEphemeralAt: _lastEphemeralAt,
     );
-    if (session.archived ||
+    return session.archived ||
         session.hasLifecycleError ||
         const {
           'exited',
@@ -20,13 +17,37 @@ extension SyncSendTargetResolution on Sync {
           'error',
           'archived',
         }.contains(session.effectiveLifecycleState) ||
-        !(health.looksReady || health.wasRecentlySpawned)) {
-      final agent = flavor == 'prime-agent' ? 'Prime Agent' : 'Har';
+        !(health.looksReady || health.wasRecentlySpawned);
+  }
+
+  /// Permission and background delivery must never revive an old process.
+  /// Only explicit sends/retries may restore a saved Prime conversation.
+  void _checkProcessScopedSendTarget(
+    String sessionId,
+    Session session, {
+    bool allowPrimeRestore = false,
+  }) {
+    final flavor = session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId];
+    if (flavor != 'prime-agent' && flavor != 'har') return;
+    if (!_processScopedSessionStopped(sessionId, session)) return;
+    if (allowPrimeRestore &&
+        flavor == 'prime-agent' &&
+        session.canRestorePrimeAgent) {
+      return;
+    }
+    if (allowPrimeRestore &&
+        flavor == 'prime-agent' &&
+        (session.metadata?.hasPrimeAgentSessionFile ?? false)) {
       throw StateError(
-        '$agent cannot resume a stopped conversation. '
-        'Start a new $agent session; your message has not been sent.',
+        'Could not resume Prime Agent: missing machineId/path. '
+        'Check the machine details; your message has not been sent.',
       );
     }
+    final agent = flavor == 'prime-agent' ? 'Prime Agent' : 'Har';
+    throw StateError(
+      '$agent cannot resume a stopped conversation. '
+      'Start a new $agent session; your message has not been sent.',
+    );
   }
 
   Future<
@@ -50,21 +71,19 @@ extension SyncSendTargetResolution on Sync {
 
     final configurations = PendingSessionConfiguration();
     final pendingSelection = configurations.read(sessionId);
+    // Omitted profiles use storage; explicit Default never inherits it.
+    final storedProfileId = profileId == null
+        ? await MMKVStorage().getSessionProfile(sessionId)
+        : null;
+    checkRuntime();
+    // A concurrent restore may have completed during send preparation.
+    session = _sessions[sessionId] ?? session;
     final health = SyncHealth(
       session: session,
       sessionSpawnedAt: _sessionSpawnedAt,
       lastEphemeralAt: _lastEphemeralAt,
     );
-
     final recentlySpawned = health.wasRecentlySpawned;
-
-    // When the caller didn't pass a profileId (e.g. ask_user_question
-    // fallback), fall back to MMKV. Composer sends use the explicit `default`
-    // marker for no profile, so they never depend on an asynchronous MMKV
-    // removal completing before target resolution.
-    final storedProfileId = profileId == null
-        ? await MMKVStorage().getSessionProfile(sessionId)
-        : null;
     final mmkvProfileId = storedProfileId == 'default' ? null : storedProfileId;
     // `default` is the wire-level marker for an explicit no-profile choice.
     // Keep it distinct from an omitted profile while resolving intent, then
@@ -100,28 +119,14 @@ extension SyncSendTargetResolution on Sync {
         : explicitProfileChange;
 
     final trackedSpawnedModel = _sessionSpawnedModel[sessionId];
-    // Spawn tracking is intentionally volatile across app restarts. A
-    // resumed/externally launched process has no client-run baseline, so use
-    // the process's durable session metadata instead. Without this fallback,
-    // changing the picker updates only persisted intent and never reaches the
-    // already-running Claude/Codex process.
+    // Use durable metadata when client-run spawn tracking was lost.
     final spawnedModel =
         trackedSpawnedModel ??
         _nonDefaultModelMode(session.modelMode ?? session.metadata?.model);
-    // Any model change must respawn — including switch TO `default`.
-    // Old guard only fired for non-default → non-default, so Qwen →
-    // Default (OpenAI) kept the old process (and its sticky model /
-    // codexThreadId) alive and remote compact still used qwen.
+    // Legacy providers restart even when switching back to Default.
     final previousModel = spawnedModel ?? 'default';
     final requestedModel = modelMode ?? 'default';
-    // Tracked sessions carry a trustworthy client-run baseline: any
-    // difference respawns, including switches to/from `default`. For
-    // untracked (resumed) sessions the durable metadata cannot tell
-    // "process runs this model" apart from "user once picked it", and a
-    // plain follow-up send must not kill a healthy process just because
-    // the app restarted — so only an explicit non-default selection that
-    // differs from the durable baseline counts (mirrors
-    // [explicitProfileChange] above).
+    // Untracked sessions need an explicit pick that differs from metadata.
     final modelChanged = trackedSpawnedModel != null
         ? previousModel != requestedModel
         : (modelMode != null &&
@@ -148,27 +153,34 @@ extension SyncSendTargetResolution on Sync {
         isCodexSession && requestedCodexFastMode != runningCodexFastMode;
 
     checkRuntime();
-    final configurationChanged =
-        profileChanged ||
-        modelChanged ||
-        codexSpeedChanged ||
-        pendingSelection != null;
     final isHarSession =
         (session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId]) == 'har';
     final isPrimeAgentSession =
         (session.metadata?.flavor ?? _sessionSpawnedAgent[sessionId]) ==
         'prime-agent';
-    // Prime Agent applies a model change in place from the message's
-    // `meta.model`, and its process-local conversation cannot be resumed.
-    // A replacement would end the conversation instead of switching model,
-    // so a running session always keeps its process.
+    final restorePrime =
+        isPrimeAgentSession && _processScopedSessionStopped(sessionId, session);
+    final configurationChanged =
+        !isPrimeAgentSession &&
+        (profileChanged ||
+            modelChanged ||
+            codexSpeedChanged ||
+            pendingSelection != null);
+    // Running Prime applies model changes through meta.model, never respawn.
+    // A stopped process must confirm transcript restore before any delivery.
     if (isPrimeAgentSession) {
-      _checkProcessScopedSendTarget(sessionId, session);
-      return (
-        sessionId: sessionId,
-        session: session,
-        sessionEncryption: sessionEncryption,
+      _checkProcessScopedSendTarget(
+        sessionId,
+        session,
+        allowPrimeRestore: true,
       );
+      if (!restorePrime) {
+        return (
+          sessionId: sessionId,
+          session: session,
+          sessionEncryption: sessionEncryption,
+        );
+      }
     }
     if (isHarSession) {
       final harProfileChanged = spawnedProfileKnown
@@ -196,8 +208,7 @@ extension SyncSendTargetResolution on Sync {
         sessionEncryption: sessionEncryption,
       );
     }
-    // Persist detected changes too, so a failed switch remains retryable
-    // after navigation or app restart without trusting volatile spawn maps.
+    // Persist failed configuration changes for later retry.
     SessionConfigurationSelection? requestedSelection = pendingSelection;
 
     // Serialize replacement preparation, including different model picks.
@@ -227,16 +238,13 @@ extension SyncSendTargetResolution on Sync {
       );
     }
 
-    final looksReady = health.looksReady;
+    final looksReady = !restorePrime && health.looksReady;
     final onlineTrusted = health.isOnlineTrusted;
 
     final lifecycleState = session.effectiveLifecycleState;
     final lifecycleErrored = session.hasLifecycleError;
 
-    // Snapshot of the spawn tracking cleared for a profile/model respawn.
-    // If the respawn fails, this is put back so the next send re-detects
-    // the change and retries — otherwise the change is forgotten and every
-    // later send silently keeps the old process (and its old model) alive.
+    // Retain prior tracking if a legacy configuration replacement fails.
     ({
       int? at,
       bool hadProfile,
@@ -306,7 +314,8 @@ extension SyncSendTargetResolution on Sync {
           );
         }
       }
-    } else if (!configurationChanged &&
+    } else if (!restorePrime &&
+        !configurationChanged &&
         (looksReady || (recentlySpawned && !lifecycleErrored))) {
       return (
         sessionId: sessionId,
@@ -323,7 +332,7 @@ extension SyncSendTargetResolution on Sync {
         path.isEmpty) {
       restoreClearedSpawnTracking();
       _profileModelKillInFlight.remove(sessionId);
-      if (lifecycleErrored || configurationChanged) {
+      if (restorePrime || lifecycleErrored || configurationChanged) {
         throw StateError(
           'Could not restore stopped session $sessionId: '
           'missing machineId/path',
@@ -345,7 +354,7 @@ extension SyncSendTargetResolution on Sync {
         'skipping auto-restore',
       );
       _profileModelKillInFlight.remove(sessionId);
-      if (lifecycleErrored || configurationChanged) {
+      if (restorePrime || lifecycleErrored || configurationChanged) {
         throw StateError(
           'Could not apply session configuration $sessionId: '
           'machine $machineId is offline',
@@ -458,30 +467,22 @@ extension SyncSendTargetResolution on Sync {
       if (result.type != 'success') {
         restoreClearedSpawnTracking();
         final errorMsg = result.errorMessage ?? '';
+        if (restorePrime) {
+          throw StateError('Could not resume Prime Agent: $errorMsg');
+        }
         if (configurationChanged) {
           throw StateError(
             'Could not apply selected session settings: $errorMsg. '
             'Your message has not been sent. Retry to apply the change.',
           );
         }
-        // If the error indicates the session/machine doesn't exist, treat it
-        // as permanent — don't return fallback which would cause _completeSend
-        // to POST to a non-existent session and lose the message.
+        // Do not post to a deleted legacy session.
         final isPermanent =
             errorMsg.contains('not found') ||
             errorMsg.contains('does not exist') ||
             errorMsg.contains('not exist');
-        // HAPPY_FLUTTER-3EP/3EN: the killSession ACK can legitimately
-        // lag the in-flight `lifecycleState=exited` write (server
-        // forwards through Redis).  When auto-restore arrives before
-        // the server has cleared the terminal flag, the daemon
-        // responds "is in terminal state; refusing stale spawn".
-        // This is NOT permanent — the next send (after the server
-        // eventually reconciles) will succeed. Throw here and we
-        // lose the message AND strand the user. Treat as
-        // recoverable: return the fallback, drop the lifecycleState
-        // so the next _resolveSendTargetSession sees the local
-        // session as restartable, and let the user retry.
+        // Legacy agents may restart when a message reaches their parked
+        // session. Prime must never take this unconfirmed fallback.
         final isTerminalStateRace =
             errorMsg.contains('terminal state') ||
             errorMsg.contains('refusing stale spawn');
@@ -492,11 +493,7 @@ extension SyncSendTargetResolution on Sync {
           'isPermanent=$isPermanent isTerminalStateRace=$isTerminalStateRace',
         );
         if (isTerminalStateRace) {
-          // Strip the terminal flag locally so the very next send
-          // doesn't re-hit the same race.  We don't change the
-          // server's view — that's controlled by the kill
-          // reconciliation — but we stop pretending the session is
-          // un-restartable from the client.
+          // Let a later legacy send retry the terminal-state race.
           if (session.metadata != null) {
             _sessions[sessionId] = session.copyWith(
               metadata: session.metadata!.copyWith(
@@ -516,11 +513,7 @@ extension SyncSendTargetResolution on Sync {
           throw StateError('Session not found: $sessionId — $reason');
         }
         if (lifecycleErrored) {
-          // The session is in an errored state but the failure is not
-          // permanent (e.g. missing repo.url for kubernetes sessions).
-          // Return fallback so _completeSend can create a failed/pending
-          // optimistic message that the user can retry, instead of throwing
-          // before any message is persisted.
+          // Legacy delivery keeps its existing fallback for retry recovery.
           logger.info(
             '[sendMessage] auto-restore failed for errored '
             'session=$sessionId error=$errorMsg; '
@@ -542,6 +535,10 @@ extension SyncSendTargetResolution on Sync {
         throw StateError('Session not found: $sessionId — empty session id');
       }
 
+      if (restorePrime && restoredSessionId != sessionId) {
+        throw StateError('Prime Agent resume returned a different session');
+      }
+
       await _primeSessionFromSpawnResult(
         requestedSessionId: sessionId,
         restoredSessionId: restoredSessionId,
@@ -549,12 +546,17 @@ extension SyncSendTargetResolution on Sync {
         result: result,
       );
       checkRuntime();
-      if (lifecycleErrored && restoredSessionId == sessionId) {
+      if ((restorePrime || lifecycleErrored) &&
+          restoredSessionId == sessionId) {
         final now = DateTime.now().millisecondsSinceEpoch;
         final restoredInPlace = _sessions[restoredSessionId];
         if (restoredInPlace != null) {
           final metadata = restoredInPlace.metadata;
           _sessions[restoredSessionId] = restoredInPlace.copyWith(
+            archived: restorePrime ? false : restoredInPlace.archived,
+            lifecycleStateCleartext: restorePrime
+                ? 'starting'
+                : restoredInPlace.lifecycleStateCleartext,
             metadata: (metadata ?? const Metadata(host: '')).copyWith(
               lifecycleState: 'starting',
               lifecycleStateError: null,
@@ -563,14 +565,8 @@ extension SyncSendTargetResolution on Sync {
           );
         }
       }
-      // Fall back to the requested profileId when the profile object couldn't
-      // be resolved locally (e.g. profile sync hasn't completed yet). Storing
-      // null here causes a null != profileId mismatch on the very next send,
-      // which triggers an infinite kill-restore loop.
-      // Register the spawn timestamp + metadata via the funnel helper so
-      // wasRecentlySpawned returns true for the restored session. Without
-      // this, the restored session has no grace period and is immediately
-      // eligible for another profile/model kill.
+      // Track the confirmed selection and grant the restored process its
+      // startup grace period before the next send.
       _registerSpawn(
         restoredSessionId,
         profileId:
@@ -649,9 +645,7 @@ extension SyncSendTargetResolution on Sync {
         );
       }
       if (restoredSessionEncryption == null) {
-        // Encryption is permanently unavailable for this session — throw so
-        // the message goes to outbox for retry, rather than sending to a
-        // session we can't encrypt messages for.
+        // Never deliver without encryption for the confirmed target.
         throw StateError('Session encryption not found: $restoredSessionId');
       }
 
@@ -686,6 +680,14 @@ extension SyncSendTargetResolution on Sync {
         rethrow;
       }
       restoreClearedSpawnTracking();
+      if (restorePrime) {
+        final failure = StateError(
+          'Could not resume Prime Agent. Your message has not been sent. '
+          'Retry to resume the saved conversation. $error',
+        );
+        if (!completer.isCompleted) completer.completeError(failure, stack);
+        Error.throwWithStackTrace(failure, stack);
+      }
       if (configurationChanged) {
         final failure = StateError(
           'Could not apply selected session settings. '
@@ -715,11 +717,7 @@ extension SyncSendTargetResolution on Sync {
         );
       } else if (error is RpcException &&
           error.message.contains('refusing stale spawn')) {
-        // The daemon parked an idle session ("will restart on next user
-        // message") and rejects an explicit respawn of it. The message POST
-        // that follows restarts it with the message's model, so the send is
-        // not failed (GlitchTip 8910/8911 flashed "Failed" on a delivered
-        // message).
+        // Legacy parked sessions restart on their next message.
         logger.info(
           '[sendMessage] daemon refused stale respawn; delivering to the '
           'parked session so it restarts session=$sessionId',
@@ -735,9 +733,7 @@ extension SyncSendTargetResolution on Sync {
           (error.message.contains('Session not found:') ||
               error.message.contains('Session encryption not found:') ||
               error.message.contains('empty session id'))) {
-        // Session was permanently deleted on the server — an expected
-        // user-facing condition, not a code defect.  Log at warning so
-        // it doesn't mint a Sentry error event.
+        // A deleted session is an expected user-facing failure.
         logger.warning(
           '[sendMessage] auto-restore permanent session gone '
           'session=$sessionId',
@@ -749,20 +745,7 @@ extension SyncSendTargetResolution on Sync {
           '[sendMessage] auto-restore failed for '
           'session=$sessionId: $error',
         );
-        // ROADMAP P0: this catch-all branch used to be invisible to
-        // both Sentry and the user — the message was POSTed to a
-        // broken session and the optimistic row vanished.  Capture
-        // to Sentry, bump the app-level counter, and emit a
-        // structured event so ChatScreen can show a snackbar and
-        // flip the optimistic message's `sendStatus` to `'failed'`
-        // (preserving `localId` for retry, per the core messaging
-        // invariant).
-        // `.catchError` swallows any async rejection from the Sentry SDK
-        // (uninitialized SDK, dropped event, transport error) so the
-        // catch-all branch can never leak an uncaught async error into
-        // the host caller. Without this, tests that throw a StateError
-        // from `testMachineRPCOverride` see the StateError re-emerge
-        // from `unawaited(...)` even after the catch block completes.
+        // Preserve observability for unexpected legacy restore failures.
         unawaited(
           Sentry.captureException(
             error,
@@ -776,8 +759,6 @@ extension SyncSendTargetResolution on Sync {
             return SentryId.empty();
           }),
         );
-        // `_safeRecordAppError` returns void (counter bump is sync); do
-        // not wrap in `unawaited(...)` — that requires a `Future`.
         _safeRecordAppError('app.auto_restore.failed');
         _safeEmitAutoRestoreFailure(
           AutoRestoreFailure(

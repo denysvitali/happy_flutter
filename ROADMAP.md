@@ -1,3 +1,12 @@
+<!-- Prime Agent durable resume -->
+Prime Agent sessions with a valid saved transcript basename now resume on Send
+or Retry after confirmed same-session daemon restore. Running model changes
+stay in place; legacy/missing-transcript sessions, Har, and stale permission
+RPCs remain blocked. Failed resume never falls back to sending to the dead
+process. Added contract coverage for repeated sends, identity-preserving retry,
+out-of-order echoes, restore failures, lifecycle/model and stopped-chat UI.
+Flutter tests remain CI-only; runtime/device acceptance is still required.
+
 <!-- Har integration acceptance -->
 Grok 4.7: launch validation, both pickers and stored model normalization now
 accept exactly `grok/grok-4.7`, retaining Luna as the default. Added picker,

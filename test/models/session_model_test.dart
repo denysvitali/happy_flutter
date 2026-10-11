@@ -3,6 +3,44 @@ import 'package:test/test.dart';
 
 void main() {
   group('Session metadata', () {
+    test('roundtrips the Prime Agent saved transcript field', () {
+      final metadata = Metadata.fromJson({
+        'host': 'workspace',
+        'primeAgentSessionFile': 'conversation.jsonl',
+      });
+
+      expect(metadata.primeAgentSessionFile, 'conversation.jsonl');
+      expect(metadata.hasPrimeAgentSessionFile, isTrue);
+      expect(metadata.toJson()['primeAgentSessionFile'], 'conversation.jsonl');
+      expect(
+        metadata.copyWith(model: 'new-model').primeAgentSessionFile,
+        'conversation.jsonl',
+      );
+    });
+
+    test('only accepts a saved transcript basename with a nonempty stem', () {
+      for (final file in <String?>[
+        null,
+        '',
+        '.jsonl',
+        'conversation',
+        'conversation.JSONL',
+        '/tmp/conversation.jsonl',
+        '../conversation.jsonl',
+        r'folder\conversation.jsonl',
+        'conversation\u0000.jsonl',
+      ]) {
+        expect(
+          Metadata(
+            host: '',
+            primeAgentSessionFile: file,
+          ).hasPrimeAgentSessionFile,
+          isFalse,
+          reason: 'Invalid saved transcript: $file',
+        );
+      }
+    });
+
     test('preserves lifecycle error details from json', () {
       final session = Session.fromJson({
         'id': 'session-1',
@@ -108,6 +146,36 @@ void main() {
         expect(session.canAttemptLifecycleRestore, isFalse);
       });
     }
+
+    test('Prime restore requires a saved transcript plus machine and path', () {
+      final session = sessionWith(
+        cleartext: 'errored',
+        extraMetadata: {
+          'flavor': 'prime-agent',
+          'machineId': 'm-1',
+          'path': '/work/repo',
+          'primeAgentSessionFile': 'conversation.jsonl',
+        },
+      );
+
+      expect(session.canRestorePrimeAgent, isTrue);
+      expect(session.canAttemptLifecycleRestore, isTrue);
+      for (final state in ['running', 'stopped', 'exited', 'archived']) {
+        final changed = session.copyWith(lifecycleStateCleartext: state);
+        expect(changed.canRestorePrimeAgent, isTrue);
+        expect(changed.canAttemptLifecycleRestore, isFalse);
+      }
+      for (final metadata in [
+        session.metadata!.copyWith(machineId: null),
+        session.metadata!.copyWith(path: ''),
+        session.metadata!.copyWith(primeAgentSessionFile: '../bad.jsonl'),
+        session.metadata!.copyWith(flavor: 'har'),
+      ]) {
+        final changed = session.copyWith(metadata: metadata);
+        expect(changed.canRestorePrimeAgent, isFalse);
+        expect(changed.canAttemptLifecycleRestore, isFalse);
+      }
+    });
 
     test('restore requires error plus machineId and path', () {
       final session = sessionWith(

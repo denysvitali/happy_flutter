@@ -7,7 +7,9 @@
 
 - Cached chat history stays mounted during refresh and refresh failure.
 - Failed sends have a 44px retry target and stronger status contrast.
-- Stopped Har and Prime Agent chats can explicitly start a fresh session.
+- Stopped Har and legacy Prime Agent chats can explicitly start a fresh
+  session. Saved Prime transcripts resume on Send or Retry after daemon
+  confirmation; failed restore keeps the original message for retry.
 - Mobile tool grouping is adjustable; search restores the previous choice.
 - Turn review supports previous/next changed-file details without closing.
 - Mobile approval and options controls stay visible beside long model names.

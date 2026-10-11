@@ -227,6 +227,7 @@ abstract class Metadata with _$Metadata {
       toJson: _primeAgentModelsToJson,
     )
     List<PrimeAgentModelInfo>? primeAgentModels,
+    @JsonKey(fromJson: _asApiStringNullable) String? primeAgentSessionFile,
     @JsonKey(fromJson: _asApiBoolNullable) bool? codexFastMode,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleState,
     @JsonKey(fromJson: _asApiStringNullable) String? lifecycleStateError,
@@ -260,6 +261,17 @@ abstract class Metadata with _$Metadata {
 
   factory Metadata.fromJson(Map<String, dynamic> json) =>
       _$MetadataFromJson(json);
+}
+
+extension PrimeAgentTranscriptMetadata on Metadata {
+  /// A transcript basename that the daemon can resolve in its private store.
+  bool get hasPrimeAgentSessionFile {
+    final file = primeAgentSessionFile;
+    return file != null &&
+        file.endsWith('.jsonl') &&
+        file.length > '.jsonl'.length &&
+        !RegExp(r'[/\\\x00]').hasMatch(file);
+  }
 }
 
 enum SessionPodDisplayState { scheduling, ready, paused, archived, failed }
@@ -594,12 +606,22 @@ abstract class Session with _$Session {
     return metadata?.lifecycleState == 'errored';
   }
 
+  /// Whether the daemon can resume Prime Agent from its saved transcript.
+  bool get canRestorePrimeAgent {
+    final meta = metadata;
+    return meta?.flavor == 'prime-agent' &&
+        (meta?.hasPrimeAgentSessionFile ?? false) &&
+        (meta?.machineId?.isNotEmpty ?? false) &&
+        (meta?.path?.isNotEmpty ?? false);
+  }
+
   /// Returns `true` when a failed local agent process has enough metadata for
   /// the daemon to restart it in the same project path.
   bool get canAttemptLifecycleRestore {
     if (!hasLifecycleError) return false;
     final meta = metadata;
-    if (meta?.flavor == 'har' || meta?.flavor == 'prime-agent') return false;
+    if (meta?.flavor == 'har') return false;
+    if (meta?.flavor == 'prime-agent') return canRestorePrimeAgent;
     return (meta?.machineId?.isNotEmpty ?? false) &&
         (meta?.path?.isNotEmpty ?? false);
   }

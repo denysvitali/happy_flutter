@@ -145,8 +145,7 @@ void main() {
   test(
     'Prime Agent model pick is delivered without replacing the process',
     () async {
-      // Prime Agent switches model in place from the message itself, and its
-      // conversation cannot be resumed: a respawn would end the chat.
+      // Model selection must not restart a running Prime conversation.
       sync.testSessions[sessionId] = sync.testSessions[sessionId]!.copyWith(
         metadata: sync.testSessions[sessionId]!.metadata!.copyWith(
           flavor: 'prime-agent',
@@ -308,6 +307,354 @@ void main() {
       },
     );
   }
+
+  for (final (flavor, file, machineId, path) in [
+    ('har', 'root.jsonl', 'machine-1', '/repo'),
+    ('prime-agent', '../root.jsonl', 'machine-1', '/repo'),
+    ('prime-agent', 'root.jsonl', '', '/repo'),
+    ('prime-agent', 'root.jsonl', 'machine-1', ''),
+  ]) {
+    test(
+      'invalid restore target $flavor/$file/$machineId/$path fails closed',
+      () async {
+        final seed = sync.testSessions[sessionId]!;
+        sync.testSessions[sessionId] = seed.copyWith(
+          metadata: seed.metadata!.copyWith(
+            flavor: flavor,
+            primeAgentSessionFile: file,
+            machineId: machineId,
+            path: path,
+            lifecycleState: 'exited',
+          ),
+        );
+        await expectLater(
+          sync.sendMessage(
+            sessionId,
+            'continue',
+            clientLocalId: 'invalid-target',
+          ),
+          throwsStateError,
+        );
+        await expectLater(
+          sync.retryFailedMessage(sessionId, 'invalid-target'),
+          throwsStateError,
+        );
+        expect(spawns, isEmpty);
+        expect(http.capturedLocalIds, isEmpty);
+        expect(
+          sync.testSessionMessages(sessionId)!.single['localId'],
+          'invalid-target',
+        );
+        expect(
+          sync.testSessionMessages(sessionId)!.single['sendStatus'],
+          'failed',
+        );
+      },
+    );
+  }
+
+  for (final succeeds in [true, false]) {
+    test(
+      'concurrent saved Prime restore succeeds=$succeeds shares result',
+      () async {
+        final seed = sync.testSessions[sessionId]!;
+        sync.testSessions[sessionId] = seed.copyWith(
+          metadata: seed.metadata!.copyWith(
+            flavor: 'prime-agent',
+            primeAgentSessionFile: 'root.jsonl',
+            lifecycleState: 'exited',
+          ),
+        );
+        final started = Completer<void>();
+        final response = Completer<Map<String, dynamic>>();
+        sync.testMachineRPCOverride = (_, method, params) {
+          spawns.add(params);
+          if (!started.isCompleted) started.complete();
+          return response.future;
+        };
+        final first = sync.sendMessage(
+          sessionId,
+          'continue',
+          clientLocalId: 'concurrent-first',
+        );
+        final firstResult = succeeds
+            ? first.then<void>((_) {})
+            : expectLater(first, throwsStateError);
+        await started.future;
+        final second = sync.sendMessage(
+          sessionId,
+          'continue',
+          clientLocalId: 'concurrent-second',
+        );
+        final secondResult = succeeds
+            ? second.then<void>((_) {})
+            : expectLater(second, throwsStateError);
+        await Future<void>.delayed(Duration.zero);
+        response.complete(
+          succeeds
+              ? {'type': 'success', 'sessionId': sessionId}
+              : {'type': 'error', 'errorMessage': 'resume failed'},
+        );
+        await Future.wait([firstResult, secondResult]);
+        await sync.lastCompleteSendFuture;
+        expect(spawns, hasLength(1));
+        final rows = sync.testSessionMessages(sessionId)!;
+        expect(rows.map((row) => row['localId']).toSet(), {
+          'concurrent-first',
+          'concurrent-second',
+        });
+        expect(rows, hasLength(2));
+        if (!succeeds) {
+          expect(rows.every((row) => row['sendStatus'] == 'failed'), isTrue);
+          expect(http.capturedLocalIds, isEmpty);
+          expect(messageOutbox.entries, isEmpty);
+        }
+      },
+    );
+  }
+
+  test('background outbox cannot post to stopped saved Prime', () async {
+    final seed = sync.testSessions[sessionId]!;
+    sync.testSessions[sessionId] = seed.copyWith(
+      metadata: seed.metadata!.copyWith(
+        flavor: 'prime-agent',
+        primeAgentSessionFile: 'root.jsonl',
+        lifecycleState: 'exited',
+      ),
+    );
+    final failure = await sync.testDeliverOutboxEntryClassified(
+      const OutboxEntry(
+        localId: 'stopped-outbox',
+        sessionId: sessionId,
+        text: 'continue',
+        encryptedContent: 'ciphertext',
+        rawRecord: {},
+        queuedAt: 1,
+      ),
+    );
+    expect(failure, isNotNull);
+    expect(spawns, isEmpty);
+    expect(http.capturedLocalIds, isEmpty);
+  });
+
+  for (final state in ['exited', 'stopped', 'archived', 'errored', null]) {
+    test('saved Prime ($state) resumes once before repeated sends', () async {
+      final seed = sync.testSessions[sessionId]!;
+      sync.testSessions[sessionId] = seed.copyWith(
+        presence: state == null ? 'offline' : 'online',
+        archived: state == 'archived',
+        lifecycleStateCleartext: state ?? '',
+        metadata: seed.metadata!.copyWith(
+          flavor: 'prime-agent',
+          primeAgentSessionFile: 'root.jsonl',
+          lifecycleState: state,
+          lifecycleStateSince: 0,
+        ),
+      );
+      if (state == null) sync.testLastEphemeralAt.remove(sessionId);
+      for (final localId in ['saved-first', 'saved-second']) {
+        await sync.sendMessage(
+          sessionId,
+          'continue',
+          clientLocalId: localId,
+          modelMode: 'openai-codex/gpt-6-sol',
+        );
+        await sync.lastCompleteSendFuture;
+      }
+      expect(spawns, hasLength(1));
+      expect(spawns.single['agent'], 'prime-agent');
+      expect(spawns.single['isRestore'], isTrue);
+      expect(spawns.single['sessionId'], sessionId);
+      expect(spawns.single['model'], 'openai-codex/gpt-6-sol');
+      final delivered = {
+        ...http.capturedLocalIds,
+        ...messageOutbox.entries.map((entry) => entry.localId),
+      };
+      expect(delivered, {'saved-first', 'saved-second'});
+      final echoes = [
+        for (final (id, seq) in [('saved-second', 2), ('saved-first', 1)])
+          <String, dynamic>{
+            'id': 'saved-server-$seq',
+            'localId': id,
+            'seq': seq,
+            'createdAt': DateTime.now().millisecondsSinceEpoch,
+            'role': 'user',
+            'kind': 'text',
+            'content': 'continue',
+          },
+      ];
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      sync.testUpsertSessionMessages(sessionId, echoes);
+      final rows = sync.testSessionMessages(sessionId)!;
+      expect(rows, hasLength(2));
+      expect(rows.every((row) => row['id'] != row['localId']), isTrue);
+      expect(rows.map((row) => row['localId']).toSet(), delivered);
+    });
+  }
+
+  for (final failure in [
+    'response',
+    'exception',
+    'ack',
+    'terminal',
+    'offline',
+    'redirect',
+  ]) {
+    test(
+      'failed Prime $failure resume never delivers to dead process',
+      () async {
+        final seed = sync.testSessions[sessionId]!;
+        sync.testSessions[sessionId] = seed.copyWith(
+          metadata: seed.metadata!.copyWith(
+            flavor: 'prime-agent',
+            primeAgentSessionFile: 'root.jsonl',
+            lifecycleState: 'exited',
+          ),
+        );
+        if (failure == 'offline') {
+          sync.testMachines['machine-1'] = sync.testMachines['machine-1']!
+              .copyWith(active: false, activeAt: 0);
+        }
+        sync.testMachineRPCOverride = (_, method, params) async {
+          spawns.add(params);
+          if (failure == 'ack') {
+            throw const SocketAckTimeoutException('rpc-call');
+          }
+          if (failure == 'exception') {
+            throw const RpcException(
+              code: RpcErrorCode.handlerOffline,
+              message: 'Timed out',
+              retryable: true,
+            );
+          }
+          if (failure == 'redirect') {
+            return {'type': 'success', 'sessionId': 'different-session'};
+          }
+          return {
+            'type': 'error',
+            'errorMessage': failure == 'terminal'
+                ? 'is in terminal state; refusing stale spawn'
+                : 'saved transcript unavailable',
+          };
+        };
+        for (final id in ['saved-first', 'saved-second']) {
+          await expectLater(
+            sync.sendMessage(sessionId, 'continue', clientLocalId: id),
+            throwsStateError,
+          );
+        }
+        await sync.lastCompleteSendFuture;
+        await expectLater(
+          sync.retryFailedMessage(sessionId, 'saved-first'),
+          throwsStateError,
+        );
+        expect(http.capturedLocalIds, isEmpty);
+        expect(messageOutbox.entries, isEmpty);
+        final rows = sync.testSessionMessages(sessionId)!;
+        expect(rows.map((row) => row['localId']), [
+          'saved-first',
+          'saved-second',
+        ]);
+        expect(rows.every((row) => row['sendStatus'] == 'failed'), isTrue);
+        expect(sync.testSessions[sessionId]!.effectiveLifecycleState, 'exited');
+        expect(spawns, hasLength(failure == 'offline' ? 0 : 3));
+
+        sync.testMachines['machine-1'] = sync.testMachines['machine-1']!
+            .copyWith(
+              active: true,
+              activeAt: DateTime.now().millisecondsSinceEpoch,
+            );
+        sync.testMachineRPCOverride = (_, method, params) async {
+          spawns.add(params);
+          return {'type': 'success', 'sessionId': sessionId};
+        };
+        messageOutbox.testStorage = MMKVStorage();
+        final retry = await sync.retryFailedMessage(sessionId, 'saved-first');
+        expect(retry.isQueued, isTrue);
+        expect(messageOutbox.entries.single.localId, 'saved-first');
+        expect(sync.testSessionMessages(sessionId), hasLength(2));
+        expect(http.capturedLocalIds, isEmpty);
+      },
+    );
+  }
+
+  test('Prime restore never downgrades to a legacy spawn request', () async {
+    final seed = sync.testSessions[sessionId]!;
+    sync.testSessions[sessionId] = seed.copyWith(
+      metadata: seed.metadata!.copyWith(
+        flavor: 'prime-agent',
+        primeAgentSessionFile: 'root.jsonl',
+        lifecycleState: 'exited',
+      ),
+    );
+    sync.testMachineRPCOverride = (_, method, params) async {
+      spawns.add(params);
+      throw const RpcException(
+        code: RpcErrorCode.invalidRequest,
+        message: 'unknown field isRestore',
+        retryable: false,
+      );
+    };
+    await expectLater(
+      sync.sendMessage(sessionId, 'continue', clientLocalId: 'no-downgrade'),
+      throwsStateError,
+    );
+    expect(spawns, hasLength(1));
+    expect(spawns.single['isRestore'], isTrue);
+    expect(http.capturedLocalIds, isEmpty);
+    expect(messageOutbox.entries, isEmpty);
+  });
+
+  test(
+    'saved Prime dead-letter retry restores before reviving payload',
+    () async {
+      final seed = sync.testSessions[sessionId]!;
+      sync.testSessions[sessionId] = seed.copyWith(
+        metadata: seed.metadata!.copyWith(
+          flavor: 'prime-agent',
+          primeAgentSessionFile: 'root.jsonl',
+          lifecycleState: 'exited',
+        ),
+      );
+      const localId = 'prime-dead-letter';
+      const entry = OutboxEntry(
+        localId: localId,
+        sessionId: sessionId,
+        text: 'continue',
+        encryptedContent: 'preserved-ciphertext',
+        rawRecord: {
+          'meta': {'model': 'openai-codex/gpt-6-sol'},
+        },
+        queuedAt: 1,
+      );
+      messageOutbox.testStorage = MMKVStorage();
+      messageOutbox.testInsertDead(entry);
+      sync.testMachineRPCOverride = (_, method, params) async {
+        spawns.add(params);
+        return {'type': 'error', 'errorMessage': 'transcript unavailable'};
+      };
+      await expectLater(
+        sync.retryFailedMessage(sessionId, localId),
+        throwsStateError,
+      );
+      expect(messageOutbox.deadEntry(localId), isNotNull);
+      expect(messageOutbox.entries, isEmpty);
+      expect(http.capturedLocalIds, isEmpty);
+      sync.testMachineRPCOverride = (_, method, params) async {
+        spawns.add(params);
+        return {'type': 'success', 'sessionId': sessionId};
+      };
+      final retry = await sync.retryFailedMessage(sessionId, localId);
+      expect(retry.isQueued, isTrue);
+      expect(spawns, hasLength(2));
+      expect(spawns.last['model'], 'openai-codex/gpt-6-sol');
+      expect(messageOutbox.entries.single.localId, localId);
+      expect(
+        messageOutbox.entries.single.encryptedContent,
+        entry.encryptedContent,
+      );
+    },
+  );
 
   test(
     'Codex speed applies on retry and accepted choices do not respawn',

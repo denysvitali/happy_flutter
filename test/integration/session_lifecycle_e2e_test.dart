@@ -784,6 +784,46 @@ void main() {
       );
     });
 
+    for (final flavor in ['prime-agent', 'har']) {
+      for (final savedFile in [null, 'root.jsonl']) {
+        test('$flavor saved=$savedFile blocks stale permission RPC', () async {
+          const sessionId = 'stale-process-permission';
+          final seed = _makeSession(
+            sessionId,
+            presence: 'online',
+            machineId: 'machine-1',
+            path: '/project',
+            flavor: flavor,
+            lifecycleState: 'running',
+          );
+          sync.testSessions[sessionId] = seed.copyWith(
+            lifecycleStateCleartext: 'stopped',
+            metadata: seed.metadata!.copyWith(primeAgentSessionFile: savedFile),
+          );
+          sync.testRegisterSpawn(sessionId, agent: flavor);
+          sync.testSetLastEphemeralAt(
+            sessionId,
+            DateTime.now().millisecondsSinceEpoch,
+          );
+          var rpcCalled = false;
+          sync.testMachineRPCOverride = (_, __, ___) async {
+            rpcCalled = true;
+            return <String, dynamic>{'type': 'success'};
+          };
+          await expectLater(
+            sync.sessionAllow(sessionId, 'old'),
+            throwsStateError,
+          );
+          await expectLater(
+            sync.sessionDeny(sessionId, 'old'),
+            throwsStateError,
+          );
+          expect(rpcCalled, isFalse);
+          expect(sync.testAutoRestoreInFlight, isEmpty);
+        });
+      }
+    }
+
     test('errored session without restore target fails before send', () async {
       const sessionId = 'errored-no-restore-target';
       sync.testSessions[sessionId] = _makeSession(

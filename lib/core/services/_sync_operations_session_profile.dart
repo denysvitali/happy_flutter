@@ -695,7 +695,8 @@ extension SyncSpawnProfileResolution on Sync {
   /// Send `spawn-happy-session`, tolerating daemons that predate the
   /// `isRestore` request field: their strict protobuf JSON unmarshal
   /// rejects the whole request with an "unknown field" error. Retry once
-  /// without the field instead of failing the restore.
+  /// without the field instead of failing the restore. Prime requires the
+  /// explicit restore contract, so it never uses this legacy fallback.
   Future<SpawnSessionResponse> _spawnHappySessionRPC(
     String machineId,
     SpawnSessionRequest req, {
@@ -713,7 +714,9 @@ extension SyncSpawnProfileResolution on Sync {
       final rejectedIsRestore =
           error.message.contains('unknown field') &&
           error.message.contains('isRestore');
-      if (!req.isRestore || !rejectedIsRestore) rethrow;
+      if (!req.isRestore || req.agent == 'prime-agent' || !rejectedIsRestore) {
+        rethrow;
+      }
       logger.info(
         '[spawn] daemon on machine=$machineId rejected the isRestore '
         'field (pre-field daemon); retrying spawn without it',
