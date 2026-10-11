@@ -11,13 +11,15 @@ import 'package:happy_flutter/features/chat/tools/views/ls_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/python_cell_view.dart';
 import 'package:happy_flutter/features/chat/tools/views/terminal_output_section.dart';
 
-Widget _wrap(Map<String, dynamic> tool) {
+Widget _wrap(Map<String, dynamic> tool, {VoidCallback? onPress}) {
   return ProviderScope(
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
-        body: SingleChildScrollView(child: ToolView(tool: tool)),
+        body: SingleChildScrollView(
+          child: ToolView(tool: tool, onPress: onPress),
+        ),
       ),
     ),
   );
@@ -78,7 +80,7 @@ void main() {
     'ipython',
     'functions.ipython',
   ]) {
-    testWidgets('$name shows Python source and output without a tap', (
+    testWidgets('$name starts compact and opens source and output on tap', (
       tester,
     ) async {
       const code =
@@ -101,6 +103,10 @@ void main() {
           ],
         }),
       );
+      expect(find.byType(PythonCellView), findsNothing);
+      expect(find.text('config.rs'), findsOneWidget);
+      await tester.tap(find.byType(ToolView));
+      await tester.pumpAndSettle();
       expect(find.byType(PythonCellView), findsOneWidget);
       final block = tester.widget<CodeBlockWidget>(
         find.byType(CodeBlockWidget),
@@ -127,13 +133,15 @@ void main() {
         'result': List.generate(100, (i) => '$i').join('\n'),
       }),
     );
+    await tester.tap(find.byType(ToolView));
+    await tester.pumpAndSettle();
     final block = tester.widget<CodeBlockWidget>(find.byType(CodeBlockWidget));
     expect(block.code, 'print(1)\nprint(2)');
-    expect(block.maxVisibleLines, 12);
+    expect(block.maxVisibleLines, 4);
     final output = tester.widget<TerminalOutputSection>(
       find.byType(TerminalOutputSection),
     );
-    expect(output.maxLines, 20);
+    expect(output.maxLines, 4);
     expect(tester.takeException(), isNull);
   });
 
@@ -148,6 +156,9 @@ void main() {
         'result': 'Traceback\nZeroDivisionError: division by zero',
       }),
     );
+    expect(find.text('ZeroDivisionError: division by zero'), findsOneWidget);
+    await tester.tap(find.byType(ToolView));
+    await tester.pumpAndSettle();
     final output = tester.widget<TerminalOutputSection>(
       find.byType(TerminalOutputSection),
     );
@@ -163,6 +174,9 @@ void main() {
       'state': 'running',
     };
     await tester.pumpWidget(_wrap(tool));
+    expect(find.byType(CodeBlockWidget), findsNothing);
+    await tester.tap(find.byType(ToolView));
+    await tester.pumpAndSettle();
     expect(find.byType(CodeBlockWidget), findsOneWidget);
     await tester.tap(find.textContaining('Python Cell', findRichText: true));
     await tester.pumpAndSettle();
@@ -180,6 +194,93 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CodeBlockWidget), findsOneWidget);
     expect(find.byType(TerminalOutputSection), findsOneWidget);
+  });
+
+  testWidgets('Python cells expand independently in a narrow transcript', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: SizedBox(
+                width: 320,
+                child: Column(
+                  children: [
+                    for (var i = 0; i < 3; i++)
+                      ToolView(
+                        key: ValueKey('cell-$i'),
+                        tool: {
+                          'name': 'Python cell',
+                          'input': {
+                            'description': 'Inspect file $i',
+                            'code': 'print($i)',
+                          },
+                          'state': 'completed',
+                          'result': 'Result $i\nHidden output',
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(CodeBlockWidget), findsNothing);
+    expect(find.text('Hidden output'), findsNothing);
+    expect(find.text('Result 1'), findsOneWidget);
+    await tester.tap(find.textContaining('Inspect file 1', findRichText: true));
+    await tester.pumpAndSettle();
+    expect(find.byType(CodeBlockWidget), findsOneWidget);
+    expect(
+      tester.widget<CodeBlockWidget>(find.byType(CodeBlockWidget)).code,
+      'print(1)',
+    );
+    expect(find.text('Result 0'), findsOneWidget);
+    expect(find.text('Result 2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Python completion keeps an explicitly opened cell open', (
+    tester,
+  ) async {
+    final tool = <String, dynamic>{
+      'name': 'Python cell',
+      'input': {'code': 'print("ok")'},
+      'state': 'running',
+    };
+    await tester.pumpWidget(_wrap(tool));
+    await tester.tap(find.byType(ToolView));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      _wrap({...tool, 'state': 'completed', 'result': 'ok'}),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(CodeBlockWidget), findsOneWidget);
+    expect(find.byType(TerminalOutputSection), findsOneWidget);
+  });
+
+  testWidgets('Python details opens without expanding the cell', (
+    tester,
+  ) async {
+    var opened = false;
+    await tester.pumpWidget(
+      _wrap({
+        'name': 'Python cell',
+        'input': {'code': 'print(1)'},
+        'state': 'completed',
+        'result': '1',
+      }, onPress: () => opened = true),
+    );
+    await tester.tap(find.byKey(const ValueKey('tool-header-details-action')));
+    await tester.pumpAndSettle();
+    expect(opened, isTrue);
+    expect(find.byType(CodeBlockWidget), findsNothing);
   });
 
   for (final testCase in cases) {

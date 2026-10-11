@@ -18,6 +18,7 @@ import '../message_render_signature.dart';
 import 'json_viewer.dart';
 import 'known_tools.dart';
 import 'permission_footer.dart';
+import 'python_cell_summary.dart';
 import 'tool_error.dart';
 import 'tool_section_view.dart';
 import 'tool_status_indicator.dart' show ToolState;
@@ -121,8 +122,7 @@ const Set<String> _monoSubtitleToolNames = {
 
 class _ToolViewState extends ConsumerState<ToolView>
     with TickerProviderStateMixin {
-  // Most tools start collapsed. Python source stays readable inline;
-  // permissions and the expand-todos preference also open their bodies.
+  // Tools start collapsed, except permissions and the expand-todos preference.
   // Full input/JSON is always reachable via long-press → [MessageDetailScreen].
   bool _expanded = false;
   bool _showCheckFlash = false;
@@ -139,6 +139,8 @@ class _ToolViewState extends ConsumerState<ToolView>
   String? _mcpText;
   McpExecResult? _mcpExec;
   String? _mcpSummary;
+  int? _pythonPreviewSignature;
+  String? _pythonPreview;
 
   late final AnimationController _chevronController;
   late final Animation<double> _chevronAnim;
@@ -173,23 +175,19 @@ class _ToolViewState extends ConsumerState<ToolView>
     final initPermission = WireParsers.asMap(widget.tool['permission']);
     final hasPermissionRequest = isPermissionPending(initPermission);
 
-    // Three cases auto-expand:
+    // Two cases auto-expand:
     //   1. A pending permission request — the user needs the Allow/Deny
     //      footer in view.
     //   2. A plan/todo tool while the "Expand todos" setting is on. The
     //      agent's plan is the one tool call users read rather than skim,
     //      and this is what that setting has always promised.
-    //   3. Python cells — show the source and bounded output without a tap.
     // Anything else (running, completed, error, pending) starts collapsed
     // and waits for an explicit tap. A running tool still shows its
     // spinner + tinted row while collapsed so the user sees it's in flight.
     final expandTodos = ref.read(
       settingsNotifierProvider.select((s) => s.expandTodos),
     );
-    final isPythonCell =
-        KnownTools.canonicalName(widget.tool['name'] as String? ?? '') ==
-        'ipython';
-    if (hasPermissionRequest || (expandTodos && _isTodoTool) || isPythonCell) {
+    if (hasPermissionRequest || (expandTodos && _isTodoTool)) {
       _expanded = true;
       _chevronController.forward();
     }
@@ -592,6 +590,12 @@ class _ToolViewState extends ConsumerState<ToolView>
       }
     }
 
+    final isPythonCell = KnownTools.canonicalName(toolName) == 'ipython';
+    if (isPythonCell && _pythonPreviewSignature != _toolSignature) {
+      _pythonPreview = pythonCellOutputPreview(widget.tool);
+      _pythonPreviewSignature = _toolSignature;
+    }
+
     // Determine minimal mode
     final bool minimal;
     if (knownTool != null) {
@@ -702,6 +706,7 @@ class _ToolViewState extends ConsumerState<ToolView>
             toolTitle: toolTitle,
             status: status,
             subtitle: subtitle,
+            preview: isPythonCell && !_expanded ? _pythonPreview : null,
             subtitleMonospace: _monoSubtitleToolNames.contains(
               KnownTools.canonicalName(toolName).toLowerCase(),
             ),

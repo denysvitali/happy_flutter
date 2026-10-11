@@ -36,6 +36,7 @@ class PythonCellView extends StatelessWidget {
           CodeBlockWidget(
             code: code,
             language: 'python',
+            maxVisibleLines: 4,
             fontSize: AppFontSize.md,
           ),
         if (stdout != null && stdout.isNotEmpty)
@@ -43,11 +44,22 @@ class PythonCellView extends StatelessWidget {
             label: isError ? 'error' : 'stdout',
             output: stdout,
             isError: isError,
+            maxLines: 4,
           ),
         if (stderr != null && stderr.isNotEmpty)
-          TerminalOutputSection(label: 'stderr', output: stderr, isError: true),
+          TerminalOutputSection(
+            label: 'stderr',
+            output: stderr,
+            isError: true,
+            maxLines: 4,
+          ),
         if (error != null && error.isNotEmpty)
-          TerminalOutputSection(label: 'error', output: error, isError: true),
+          TerminalOutputSection(
+            label: 'error',
+            output: error,
+            isError: true,
+            maxLines: 4,
+          ),
       ],
     );
   }

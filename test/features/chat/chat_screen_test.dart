@@ -1403,48 +1403,51 @@ void main() {
       expect(find.text('Read File'), findsNothing);
     });
 
-    testWidgets('Python cells stay inline when completed tools are grouped', (
-      tester,
-    ) async {
-      sync.isInitialized = true;
-      sync.messagesSync['session_1'] = InvalidateSync(() async {});
-      sync.testSetSessionMessages('session_1', [
-        {
-          'id': 'msg_1',
-          'role': 'assistant',
-          'kind': 'tool-call',
-          'name': 'Read',
-          'toolUseId': 'read_1',
-          'state': 'completed',
-          'input': {'file_path': '/test.dart'},
-        },
-        {
-          'id': 'msg_2',
-          'role': 'assistant',
-          'kind': 'tool-call',
-          'name': 'Python cell',
-          'toolUseId': 'python_1',
-          'state': 'completed',
-          'input': {'code': 'print("ok")'},
-          'result': 'ok',
-        },
-      ]);
-      sync.testSessions['session_1'] = _makeSession();
-      await tester.pumpWidget(
-        _buildApp(
-          settings: Settings()..hideToolCalls = true,
-          child: const ChatScreen(sessionId: 'session_1'),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(
-        find.textContaining('Python Cell', findRichText: true),
-        findsOneWidget,
-      );
-      expect(find.text('Read File'), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'Python summaries stay inline when completed tools are grouped',
+      (tester) async {
+        sync.isInitialized = true;
+        sync.messagesSync['session_1'] = InvalidateSync(() async {});
+        sync.testSetSessionMessages('session_1', [
+          {
+            'id': 'msg_1',
+            'role': 'assistant',
+            'kind': 'tool-call',
+            'name': 'Read',
+            'toolUseId': 'read_1',
+            'state': 'completed',
+            'input': {'file_path': '/test.dart'},
+          },
+          {
+            'id': 'msg_2',
+            'role': 'assistant',
+            'kind': 'tool-call',
+            'name': 'Python cell',
+            'toolUseId': 'python_1',
+            'state': 'completed',
+            'input': {'code': 'print("ok")'},
+            'result': 'ok',
+          },
+        ]);
+        sync.testSessions['session_1'] = _makeSession();
+        await tester.pumpWidget(
+          _buildApp(
+            settings: Settings()..hideToolCalls = true,
+            child: const ChatScreen(sessionId: 'session_1'),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(
+          find.textContaining('Python Cell', findRichText: true),
+          findsOneWidget,
+        );
+        expect(find.text('Read File'), findsNothing);
+        expect(find.text('ok'), findsOneWidget);
+        expect(find.text('stdout'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets('invisible rows reserve no space between terminal rows', (
       tester,

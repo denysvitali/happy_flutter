@@ -54,6 +54,7 @@ class ToolHeader extends StatelessWidget {
     super.key,
     this.status,
     this.subtitle,
+    this.preview,
     this.subtitleMonospace = false,
     this.createdAt,
     this.statusIcon,
@@ -76,6 +77,9 @@ class ToolHeader extends StatelessWidget {
 
   /// Optional subtitle shown after the title on the same line.
   final String? subtitle;
+
+  /// One short result line under the title, without output-panel chrome.
+  final String? preview;
 
   /// Whether the subtitle is a command or path rendered in monospace.
   final bool subtitleMonospace;
@@ -142,24 +146,37 @@ class ToolHeader extends StatelessWidget {
       toolTitle,
       ?status,
       ?subtitle,
+      ?preview,
       cueLabel,
     ].join(', ');
 
     List<Widget> titleChildren() => [
       Expanded(
-        // One line, one RichText: title, status and subtitle share a baseline.
-        child: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(text: toolTitle, style: titleStyle),
-              if (status != null)
-                TextSpan(text: ' $status', style: statusStyle),
-              if (subtitle != null)
-                TextSpan(text: '  $subtitle', style: subtitleStyle),
-            ],
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: toolTitle, style: titleStyle),
+                  if (status != null)
+                    TextSpan(text: ' $status', style: statusStyle),
+                  if (subtitle != null)
+                    TextSpan(text: '  $subtitle', style: subtitleStyle),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (preview != null)
+              Text(
+                preview!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: statusStyle,
+              ),
+          ],
         ),
       ),
     ];

@@ -7,6 +7,8 @@ import 'package:happy_flutter/core/wire/wire_parsers.dart';
 import 'package:happy_flutter/features/chat/agent_presentation.dart';
 import 'package:happy_flutter/features/chat/agent_steps.dart';
 
+import 'python_cell_summary.dart';
+
 /// Tool definitions with icons, subtitles, descriptions, and metadata.
 ///
 /// Each tool definition contains:
@@ -286,6 +288,7 @@ class KnownTools {
       icon: notebookIcon,
       title: 'Python Cell',
       hideDefaultError: true,
+      extractSubtitle: (tool, _) => pythonCellDescription(tool),
     ),
     'Bash': ToolDefinition(
       icon: bashIcon,

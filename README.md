@@ -85,12 +85,12 @@ navigation and a return to the review list. These are bounded, cached display
 projections of resident messages; command completion never implies tests passed.
 Prime Agent session badges and the new-session picker use the official
 Prime Intellect bird logo bundled with the app.
-Prime Agent’s `Python cell` calls show syntax-highlighted Python source and
-readable output inline without opening tool details, including when completed
-tools are grouped.
-The preview uses the shared 12-line code and 20-line output limits; full source,
-Copy, output expansion, and raw wire details remain available. A manual cell
-collapse is preserved when its result arrives.
+Prime Agent’s `Python cell` calls start collapsed with a description or first
+source line and a one-line output preview, including when completed tools are
+grouped. Each cell expands independently to syntax-highlighted source and
+readable output with four-line previews. Full source, Copy, output expansion,
+and raw wire details remain available. A cell’s manual expansion or collapse
+is preserved when its result arrives.
 
 Active Codex turns have separate, visible Update current turn and Queue for
 next turn actions. Mobile keeps model/permission controls in the composer and
