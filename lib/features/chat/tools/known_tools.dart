@@ -87,6 +87,7 @@ class KnownTools {
   /// Canonical display-definition names for aliases emitted by different
   /// agents or provider adapters.
   static const Map<String, String> aliases = {
+    'Python cell': 'ipython',
     'Python Cell': 'ipython',
     'functions.ipython': 'ipython',
     'file-edit': 'Edit',

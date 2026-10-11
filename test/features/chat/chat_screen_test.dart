@@ -1366,7 +1366,7 @@ void main() {
           'id': 'msg_2',
           'role': 'assistant',
           'kind': 'tool-call',
-          'name': 'Python Cell',
+          'name': 'Python cell',
           'toolUseId': 'python_1',
           'state': 'completed',
           'input': {'code': 'print("ok")'},

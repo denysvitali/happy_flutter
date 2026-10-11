@@ -71,7 +71,13 @@ void main() {
     ),
   ];
 
-  for (final name in ['Python Cell', 'ipython', 'functions.ipython']) {
+  // ACP forwards the title verbatim: Prime Agent emits `Python cell`.
+  for (final name in [
+    'Python cell',
+    'Python Cell',
+    'ipython',
+    'functions.ipython',
+  ]) {
     testWidgets('$name shows Python source and output without a tap', (
       tester,
     ) async {
